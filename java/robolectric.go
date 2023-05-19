@@ -144,29 +144,37 @@ func (r *robolectricTest) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	roboTestConfig := android.PathForModuleGen(ctx, "robolectric").
 		Join(ctx, "com/android/tools/test_config.properties")
 
+	var ok bool
+	var instrumentedApp *AndroidApp
+
 	// TODO: this inserts paths to built files into the test, it should really be inserting the contents.
 	instrumented := ctx.GetDirectDepsWithTag(instrumentationForTag)
 
-	if len(instrumented) != 1 {
+	if len(instrumented) == 1 {
+		instrumentedApp, ok = instrumented[0].(*AndroidApp)
+		if !ok {
+			ctx.PropertyErrorf("instrumentation_for", "dependency must be an android_app")
+		}
+	} else if !ctx.Config().AllowMissingDependencies() {
 		panic(fmt.Errorf("expected exactly 1 instrumented dependency, got %d", len(instrumented)))
 	}
 
-	instrumentedApp, ok := instrumented[0].(*AndroidApp)
-	if !ok {
-		ctx.PropertyErrorf("instrumentation_for", "dependency must be an android_app")
+	if instrumentedApp != nil {
+		r.manifest = instrumentedApp.mergedManifestFile
+		r.resourceApk = instrumentedApp.outputFile
+
+		generateRoboTestConfig(ctx, roboTestConfig, instrumentedApp)
+		r.extraResources = android.Paths{roboTestConfig}
 	}
-
-	r.manifest = instrumentedApp.mergedManifestFile
-	r.resourceApk = instrumentedApp.outputFile
-
-	generateRoboTestConfig(ctx, roboTestConfig, instrumentedApp)
-	r.extraResources = android.Paths{roboTestConfig}
 
 	r.Library.GenerateAndroidBuildActions(ctx)
 
 	roboSrcJar := android.PathForModuleGen(ctx, "robolectric", ctx.ModuleName()+".srcjar")
-	r.generateRoboSrcJar(ctx, roboSrcJar, instrumentedApp)
-	r.roboSrcJar = roboSrcJar
+
+	if instrumentedApp != nil {
+		r.generateRoboSrcJar(ctx, roboSrcJar, instrumentedApp)
+		r.roboSrcJar = roboSrcJar
+	}
 
 	roboTestConfigJar := android.PathForModuleOut(ctx, "robolectric_samedir", "samedir_config.jar")
 	generateSameDirRoboTestConfigJar(ctx, roboTestConfigJar)
@@ -177,7 +185,10 @@ func (r *robolectricTest) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		// once the Make test runner is removed.
 		roboTestConfigJar,
 		r.outputFile,
-		instrumentedApp.implementationAndResourcesJar,
+	}
+
+	if instrumentedApp != nil {
+		combinedJarJars = append(combinedJarJars, instrumentedApp.implementationAndResourcesJar)
 	}
 
 	handleLibDeps := func(dep android.Module) {
@@ -213,21 +224,28 @@ func (r *robolectricTest) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		r.tests = append(r.tests, s)
 	}
 
-	r.data = append(r.data, r.manifest, r.resourceApk)
+	installPath := android.PathForModuleInstall(ctx, r.BaseModuleName())
+	var installDeps android.Paths
+
+	if r.manifest != nil {
+		r.data = append(r.data, r.manifest)
+		installedManifest := ctx.InstallFile(installPath, ctx.ModuleName()+"-AndroidManifest.xml", r.manifest)
+		installDeps = append(installDeps, installedManifest)
+	}
+
+	if r.resourceApk != nil {
+		r.data = append(r.data, r.resourceApk)
+		installedResourceApk := ctx.InstallFile(installPath, ctx.ModuleName()+".apk", r.resourceApk)
+		installDeps = append(installDeps, installedResourceApk)
+	}
 
 	runtimes := ctx.GetDirectDepWithTag("robolectric-android-all-prebuilts", roboRuntimesTag)
-
-	installPath := android.PathForModuleInstall(ctx, r.BaseModuleName())
-
-	installedResourceApk := ctx.InstallFile(installPath, ctx.ModuleName()+".apk", r.resourceApk)
-	installedManifest := ctx.InstallFile(installPath, ctx.ModuleName()+"-AndroidManifest.xml", r.manifest)
-	installedConfig := ctx.InstallFile(installPath, ctx.ModuleName()+".config", r.testConfig)
-
-	var installDeps android.Paths
 	for _, runtime := range runtimes.(*robolectricRuntimes).runtimes {
 		installDeps = append(installDeps, runtime)
 	}
-	installDeps = append(installDeps, installedResourceApk, installedManifest, installedConfig)
+
+	installedConfig := ctx.InstallFile(installPath, ctx.ModuleName()+".config", r.testConfig)
+	installDeps = append(installDeps, installedConfig)
 
 	for _, data := range android.PathsForModuleSrc(ctx, r.testProperties.Data) {
 		installedData := ctx.InstallFile(installPath, data.Rel(), data)
@@ -340,7 +358,9 @@ func (r *robolectricTest) writeTestRunner(w io.Writer, module, name string, test
 	fmt.Fprintln(w, "LOCAL_MODULE :=", name)
 	android.AndroidMkEmitAssignList(w, "LOCAL_JAVA_LIBRARIES", []string{module}, r.libs)
 	fmt.Fprintln(w, "LOCAL_TEST_PACKAGE :=", String(r.robolectricProperties.Instrumentation_for))
-	fmt.Fprintln(w, "LOCAL_INSTRUMENT_SRCJARS :=", r.roboSrcJar.String())
+	if r.roboSrcJar != nil {
+		fmt.Fprintln(w, "LOCAL_INSTRUMENT_SRCJARS :=", r.roboSrcJar.String())
+	}
 	android.AndroidMkEmitAssignList(w, "LOCAL_ROBOTEST_FILES", tests)
 	if t := r.robolectricProperties.Test_options.Timeout; t != nil {
 		fmt.Fprintln(w, "LOCAL_ROBOTEST_TIMEOUT :=", *t)
