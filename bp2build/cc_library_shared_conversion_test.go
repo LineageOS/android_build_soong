@@ -362,6 +362,7 @@ cc_library_shared {
         "-Wl,--version-script,$(location version_script)",
         "-Wl,--dynamic-list,$(location dynamic.list)",
     ]`,
+				"features": `["android_cfi_exports_map"]`,
 			}),
 		},
 	})
@@ -398,6 +399,7 @@ cc_library_shared {
         "-Wl,--version-script,$(location version_script)",
         "-Wl,--dynamic-list,$(location dynamic.list)",
     ]`,
+				"features": `["android_cfi_exports_map"]`,
 			}),
 		},
 	})
@@ -913,6 +915,7 @@ func TestCCLibraryFlagSpaceSplitting(t *testing.T) {
         "header.h",
     ]`,
 				"linkopts": `["-Wl,--version-script,$(location version_script)"]`,
+				"features": `["android_cfi_exports_map"]`,
 			}),
 		},
 	})

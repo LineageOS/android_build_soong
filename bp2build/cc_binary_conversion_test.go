@@ -222,6 +222,7 @@ func TestCcBinaryVersionScriptAndDynamicList(t *testing.T) {
         "-Wl,--version-script,$(location vs)",
         "-Wl,--dynamic-list,$(location dynamic.list)",
     ]`,
+				"features": `["android_cfi_exports_map"]`,
 			},
 			},
 		},
@@ -249,6 +250,7 @@ func TestCcBinaryLdflagsSplitBySpaceExceptSoongAdded(t *testing.T) {
         "version_script",
         "dynamic.list",
     ]`,
+				"features": `["android_cfi_exports_map"]`,
 				"linkopts": `[
         "--nospace_flag",
         "-z",
