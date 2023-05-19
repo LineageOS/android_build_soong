@@ -15,6 +15,8 @@
 package android
 
 import (
+	"path/filepath"
+
 	"android/soong/bazel"
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -39,8 +41,8 @@ type packageProperties struct {
 }
 
 type bazelPackageAttributes struct {
-	Default_visibility          []string
-	Default_applicable_licenses bazel.LabelListAttribute
+	Default_visibility       []string
+	Default_package_metadata bazel.LabelListAttribute
 }
 
 type packageModule struct {
@@ -53,13 +55,32 @@ type packageModule struct {
 var _ Bazelable = &packageModule{}
 
 func (p *packageModule) ConvertWithBp2build(ctx TopDownMutatorContext) {
+	defaultPackageMetadata := bazel.MakeLabelListAttribute(BazelLabelForModuleDeps(ctx, p.properties.Default_applicable_licenses))
+	// If METADATA file exists in the package, add it to package(default_package_metadata=) using a
+	// filegroup(name="default_metadata_file") which can be accessed later on each module in Bazel
+	// using attribute "applicable_licenses".
+	// Attribute applicable_licenses of filegroup "default_metadata_file" has to be set to [],
+	// otherwise Bazel reports cyclic reference error.
+	if existed, _, _ := ctx.Config().fs.Exists(filepath.Join(ctx.ModuleDir(), "METADATA")); existed {
+		ctx.CreateBazelTargetModule(
+			bazel.BazelTargetModuleProperties{
+				Rule_class: "filegroup",
+			},
+			CommonAttributes{Name: "default_metadata_file"},
+			&bazelFilegroupAttributes{
+				Srcs:                bazel.MakeLabelListAttribute(BazelLabelForModuleSrc(ctx, []string{"METADATA"})),
+				Applicable_licenses: bazel.LabelListAttribute{Value: bazel.LabelList{Includes: []bazel.Label{}}, EmitEmptyList: true},
+			})
+		defaultPackageMetadata.Value.Add(&bazel.Label{Label: ":default_metadata_file"})
+	}
+
 	ctx.CreateBazelTargetModule(
 		bazel.BazelTargetModuleProperties{
 			Rule_class: "package",
 		},
 		CommonAttributes{},
 		&bazelPackageAttributes{
-			Default_applicable_licenses: bazel.MakeLabelListAttribute(BazelLabelForModuleDeps(ctx, p.properties.Default_applicable_licenses)),
+			Default_package_metadata: defaultPackageMetadata,
 			// FIXME(asmundak): once b/221436821 is resolved
 			Default_visibility: []string{"//visibility:public"},
 		})
