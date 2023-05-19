@@ -900,7 +900,8 @@ cc_library {
         "-Wl,--version-script,$(location v.map)",
         "-Wl,--dynamic-list,$(location dynamic.list)",
     ]`,
-			"srcs": `["a.cpp"]`,
+			"srcs":     `["a.cpp"]`,
+			"features": `["android_cfi_exports_map"]`,
 		}),
 	},
 	)
@@ -958,6 +959,11 @@ cc_library {
         "//conditions:default": [],
     })`,
 			"srcs": `["a.cpp"]`,
+			"features": `select({
+        "//build/bazel/platforms/arch:arm": ["android_cfi_exports_map"],
+        "//build/bazel/platforms/arch:arm64": ["android_cfi_exports_map"],
+        "//conditions:default": [],
+    })`,
 		}),
 	},
 	)
@@ -985,12 +991,15 @@ cc_library {
 }
 `,
 		ExpectedBazelTargets: []string{
-			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{}),
+			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+				"features": `["android_cfi_exports_map"]`,
+			}),
 			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"additional_linker_inputs": `[
         "version_script",
         "dynamic.list",
     ]`,
+				"features": `["android_cfi_exports_map"]`,
 				"linkopts": `[
         "--nospace_flag",
         "-z",
