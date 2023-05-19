@@ -398,7 +398,9 @@ func (s *ccRustFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) 
 		}
 
 		hostOrTargetString := "target"
-		if ccModule.Host() {
+		if ccModule.Target().HostCross {
+			hostOrTargetString = "host_cross"
+		} else if ccModule.Host() {
 			hostOrTargetString = "host"
 		}
 

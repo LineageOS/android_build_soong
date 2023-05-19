@@ -150,7 +150,9 @@ func (s *javaFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 		}
 
 		hostOrTargetString := "target"
-		if javaFuzzModule.Host() {
+		if javaFuzzModule.Target().HostCross {
+			hostOrTargetString = "host_cross"
+		} else if javaFuzzModule.Host() {
 			hostOrTargetString = "host"
 		}
 
