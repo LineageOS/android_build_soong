@@ -20,6 +20,12 @@ import (
 	"android/soong/android"
 )
 
+func init() {
+	exportedVars.ExportStringListStaticVariable("DarwinAvailableLibraries", darwinAvailableLibraries)
+	exportedVars.ExportStringListStaticVariable("LinuxAvailableLibraries", linuxAvailableLibraries)
+	exportedVars.ExportStringListStaticVariable("WindowsAvailableLibraries", windowsAvailableLibraries)
+}
+
 type toolchainFactory func(arch android.Arch) Toolchain
 
 var toolchainFactories = make(map[android.OsType]map[android.ArchType]toolchainFactory)
