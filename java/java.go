@@ -1650,7 +1650,7 @@ type JavaApiLibraryProperties struct {
 	// list of api.txt files relative to this directory that contribute to the
 	// API surface.
 	// This is a list of relative paths
-	Api_files []string
+	Api_files []string `android:"path"`
 
 	// List of flags to be passed to the javac compiler to generate jar file
 	Javacflags []string
@@ -1832,9 +1832,7 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Add the api_files inputs
 	for _, api := range al.properties.Api_files {
-		// Use MaybeExistentPathForSource since the api file might not exist during analysis.
-		// This will be provided by the orchestrator in the combined execution.
-		srcFiles = append(srcFiles, android.MaybeExistentPathForSource(ctx, ctx.ModuleDir(), api))
+		srcFiles = append(srcFiles, android.PathForModuleSrc(ctx, api))
 	}
 
 	if srcFiles == nil {

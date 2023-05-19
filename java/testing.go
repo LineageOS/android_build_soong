@@ -71,7 +71,12 @@ var prepareForTestWithFrameworkDeps = android.GroupFixturePreparers(
 		// Needed for framework
 		defaultJavaDir + "/framework/aidl": nil,
 		// Needed for various deps defined in GatherRequiredDepsForTest()
-		defaultJavaDir + "/a.java": nil,
+		defaultJavaDir + "/a.java":                        nil,
+		defaultJavaDir + "/api/current.txt":               nil,
+		defaultJavaDir + "/api/system-current.txt":        nil,
+		defaultJavaDir + "/api/test-current.txt":          nil,
+		defaultJavaDir + "/api/module-lib-current.txt":    nil,
+		defaultJavaDir + "/api/system-server-current.txt": nil,
 
 		// Needed for R8 rules on apps
 		"build/make/core/proguard.flags":             nil,
