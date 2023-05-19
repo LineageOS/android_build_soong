@@ -75,7 +75,8 @@ func isFilegroupWithPattern(pattern *regexp.Regexp) bazel.LabelMapper {
 
 // https://docs.bazel.build/versions/master/be/general.html#filegroup
 type bazelFilegroupAttributes struct {
-	Srcs bazel.LabelListAttribute
+	Srcs                bazel.LabelListAttribute
+	Applicable_licenses bazel.LabelListAttribute
 }
 
 type bazelAidlLibraryAttributes struct {
