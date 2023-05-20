@@ -35,6 +35,9 @@ func TestJavaSdkLibrary(t *testing.T) {
 			"29": {"foo"},
 			"30": {"bar", "barney", "baz", "betty", "foo", "fred", "quuz", "wilma"},
 		}),
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.SetApiLibraries([]string{"foo"})
+		}),
 	).RunTestWithBp(t, `
 		droiddoc_exported_dir {
 			name: "droiddoc-templates-sdk",
@@ -121,6 +124,7 @@ func TestJavaSdkLibrary(t *testing.T) {
 	result.ModuleForTests(apiScopeSystem.stubsSourceModuleName("foo"), "android_common")
 	result.ModuleForTests(apiScopeTest.stubsSourceModuleName("foo"), "android_common")
 	result.ModuleForTests(apiScopePublic.stubsSourceModuleName("foo")+".api.contribution", "")
+	result.ModuleForTests(apiScopePublic.apiLibraryModuleName("foo"), "android_common")
 	result.ModuleForTests("foo"+sdkXmlFileSuffix, "android_common")
 	result.ModuleForTests("foo.api.public.28", "")
 	result.ModuleForTests("foo.api.system.28", "")
@@ -1411,4 +1415,63 @@ func TestJavaSdkLibrary_StubOnlyLibs_PassedToDroidstubs(t *testing.T) {
 	// The foo.stubs.source should depend on bar-lib
 	fooStubsSources := result.ModuleForTests("foo.stubs.source", "android_common").Module().(*Droidstubs)
 	android.AssertStringListContains(t, "foo stubs should depend on bar-lib", fooStubsSources.Javadoc.properties.Libs, "bar-lib")
+}
+
+func TestJavaSdkLibrary_ApiLibrary(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("foo"),
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.SetApiLibraries([]string{"foo"})
+		}),
+	).RunTestWithBp(t, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java", "b.java"],
+			api_packages: ["foo"],
+			system: {
+				enabled: true,
+			},
+			module_lib: {
+				enabled: true,
+			},
+			test: {
+				enabled: true,
+			},
+		}
+	`)
+
+	testCases := []struct {
+		scope            *apiScope
+		apiContributions []string
+		depApiSrcs       string
+	}{
+		{
+			scope:            apiScopePublic,
+			apiContributions: []string{"foo.stubs.source.api.contribution"},
+			depApiSrcs:       "android_stubs_current.from-text",
+		},
+		{
+			scope:            apiScopeSystem,
+			apiContributions: []string{"foo.stubs.source.system.api.contribution", "foo.stubs.source.api.contribution"},
+			depApiSrcs:       "android_system_stubs_current.from-text",
+		},
+		{
+			scope:            apiScopeTest,
+			apiContributions: []string{"foo.stubs.source.test.api.contribution", "foo.stubs.source.system.api.contribution", "foo.stubs.source.api.contribution"},
+			depApiSrcs:       "android_test_stubs_current.from-text",
+		},
+		{
+			scope:            apiScopeModuleLib,
+			apiContributions: []string{"foo.stubs.source.module_lib.api.contribution", "foo.stubs.source.system.api.contribution", "foo.stubs.source.api.contribution"},
+			depApiSrcs:       "android_module_lib_stubs_current_full.from-text",
+		},
+	}
+
+	for _, c := range testCases {
+		m := result.ModuleForTests(c.scope.apiLibraryModuleName("foo"), "android_common").Module().(*ApiLibrary)
+		android.AssertArrayString(t, "Module expected to contain api contributions", c.apiContributions, m.properties.Api_contributions)
+		android.AssertStringEquals(t, "Module expected to contain full api surface api library", c.depApiSrcs, *m.properties.Dep_api_srcs)
+	}
 }
