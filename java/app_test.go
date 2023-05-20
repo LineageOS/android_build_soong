@@ -3382,6 +3382,14 @@ func TestAppMissingCertificateAllowMissingDependencies(t *testing.T) {
 			srcs: ["a.java"],
 			certificate: ":missing_certificate",
 			sdk_version: "current",
+		}
+
+		android_app {
+			name: "bar",
+			srcs: ["a.java"],
+			certificate: ":missing_certificate",
+			product_specific: true,
+			sdk_version: "current",
 		}`)
 
 	foo := result.ModuleForTests("foo", "android_common")
