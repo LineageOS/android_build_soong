@@ -28,7 +28,7 @@ func init() {
 
 // Register the gen_notice module type.
 func RegisterGenNoticeBuildComponents(ctx RegistrationContext) {
-	ctx.RegisterSingletonType("gen_notice_build_rules", GenNoticeBuildRulesFactory)
+	ctx.RegisterParallelSingletonType("gen_notice_build_rules", GenNoticeBuildRulesFactory)
 	ctx.RegisterModuleType("gen_notice", GenNoticeFactory)
 }
 

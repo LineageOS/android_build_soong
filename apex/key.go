@@ -33,7 +33,7 @@ func init() {
 
 func registerApexKeyBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("apex_key", ApexKeyFactory)
-	ctx.RegisterSingletonType("apex_keys_text", apexKeysTextFactory)
+	ctx.RegisterParallelSingletonType("apex_keys_text", apexKeysTextFactory)
 }
 
 type apexKey struct {

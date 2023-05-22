@@ -28,7 +28,7 @@ import (
 
 func init() {
 	android.RegisterModuleType("cc_fuzz", LibFuzzFactory)
-	android.RegisterSingletonType("cc_fuzz_packaging", fuzzPackagingFactory)
+	android.RegisterParallelSingletonType("cc_fuzz_packaging", fuzzPackagingFactory)
 }
 
 type FuzzProperties struct {
