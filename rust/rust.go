@@ -45,7 +45,7 @@ func init() {
 	})
 	pctx.Import("android/soong/rust/config")
 	pctx.ImportAs("cc_config", "android/soong/cc/config")
-	android.InitRegistrationContext.RegisterSingletonType("kythe_rust_extract", kytheExtractRustFactory)
+	android.InitRegistrationContext.RegisterParallelSingletonType("kythe_rust_extract", kytheExtractRustFactory)
 }
 
 type Flags struct {

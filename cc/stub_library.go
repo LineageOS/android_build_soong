@@ -23,7 +23,7 @@ import (
 
 func init() {
 	// Use singleton type to gather all generated soong modules.
-	android.RegisterSingletonType("stublibraries", stubLibrariesSingleton)
+	android.RegisterParallelSingletonType("stublibraries", stubLibrariesSingleton)
 }
 
 type stubLibraries struct {

@@ -201,7 +201,7 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 }
 
 func init() {
-	android.RegisterSingletonType("tidy_phony_targets", TidyPhonySingleton)
+	android.RegisterParallelSingletonType("tidy_phony_targets", TidyPhonySingleton)
 }
 
 // This TidyPhonySingleton generates both tidy-* and obj-* phony targets for C/C++ files.

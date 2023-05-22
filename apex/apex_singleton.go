@@ -27,7 +27,7 @@ func init() {
 }
 
 func registerApexDepsInfoComponents(ctx android.RegistrationContext) {
-	ctx.RegisterSingletonType("apex_depsinfo_singleton", apexDepsInfoSingletonFactory)
+	ctx.RegisterParallelSingletonType("apex_depsinfo_singleton", apexDepsInfoSingletonFactory)
 }
 
 type apexDepsInfoSingleton struct {

@@ -29,7 +29,7 @@ import (
 // structure (see variable CLionOutputProjectsDirectory for root).
 
 func init() {
-	android.RegisterSingletonType("cmakelists_generator", cMakeListsGeneratorSingleton)
+	android.RegisterParallelSingletonType("cmakelists_generator", cMakeListsGeneratorSingleton)
 }
 
 func cMakeListsGeneratorSingleton() android.Singleton {
