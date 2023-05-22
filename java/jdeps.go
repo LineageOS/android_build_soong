@@ -26,7 +26,7 @@ import (
 // called. Dependency info file is generated in $OUT/module_bp_java_depend.json.
 
 func init() {
-	android.RegisterSingletonType("jdeps_generator", jDepsGeneratorSingleton)
+	android.RegisterParallelSingletonType("jdeps_generator", jDepsGeneratorSingleton)
 }
 
 func jDepsGeneratorSingleton() android.Singleton {
