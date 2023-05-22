@@ -68,7 +68,7 @@ var RecoverySnapshotImageName = "recovery"
 type RecoverySnapshotImage struct{}
 
 func (RecoverySnapshotImage) Init(ctx android.RegistrationContext) {
-	ctx.RegisterSingletonType("recovery-snapshot", RecoverySnapshotSingleton)
+	ctx.RegisterParallelSingletonType("recovery-snapshot", RecoverySnapshotSingleton)
 }
 
 func (RecoverySnapshotImage) RegisterAdditionalModule(ctx android.RegistrationContext, name string, factory android.ModuleFactory) {

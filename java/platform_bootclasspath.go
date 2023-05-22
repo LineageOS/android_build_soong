@@ -26,7 +26,7 @@ func init() {
 }
 
 func registerPlatformBootclasspathBuildComponents(ctx android.RegistrationContext) {
-	ctx.RegisterSingletonModuleType("platform_bootclasspath", platformBootclasspathFactory)
+	ctx.RegisterParallelSingletonModuleType("platform_bootclasspath", platformBootclasspathFactory)
 }
 
 // The tags used for the dependencies between the platform bootclasspath and any configured boot

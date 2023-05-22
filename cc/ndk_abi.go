@@ -19,8 +19,8 @@ import (
 )
 
 func init() {
-	android.RegisterSingletonType("ndk_abi_dump", NdkAbiDumpSingleton)
-	android.RegisterSingletonType("ndk_abi_diff", NdkAbiDiffSingleton)
+	android.RegisterParallelSingletonType("ndk_abi_dump", NdkAbiDumpSingleton)
+	android.RegisterParallelSingletonType("ndk_abi_diff", NdkAbiDiffSingleton)
 }
 
 func getNdkAbiDumpInstallBase(ctx android.PathContext) android.OutputPath {
