@@ -83,7 +83,7 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 		ctx.TopDown("sabi_deps", sabiDepsMutator)
 	})
 
-	ctx.RegisterSingletonType("kythe_extract_all", kytheExtractAllFactory)
+	ctx.RegisterParallelSingletonType("kythe_extract_all", kytheExtractAllFactory)
 }
 
 // Deps is a struct containing module names of dependencies, separated by the kind of dependency.
