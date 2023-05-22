@@ -42,7 +42,7 @@ func init() {
 }
 
 func RegisterAndroidMkBuildComponents(ctx RegistrationContext) {
-	ctx.RegisterSingletonType("androidmk", AndroidMkSingleton)
+	ctx.RegisterParallelSingletonType("androidmk", AndroidMkSingleton)
 }
 
 // Enable androidmk support.

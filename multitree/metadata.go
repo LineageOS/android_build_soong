@@ -20,7 +20,7 @@ import (
 )
 
 func init() {
-	android.RegisterSingletonType("update-meta", UpdateMetaSingleton)
+	android.RegisterParallelSingletonType("update-meta", UpdateMetaSingleton)
 }
 
 func UpdateMetaSingleton() android.Singleton {
