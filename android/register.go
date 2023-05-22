@@ -231,7 +231,7 @@ func (ctx *Context) registerSingletonMakeVarsProvider(makevars SingletonMakeVars
 func collateGloballyRegisteredSingletons() sortableComponents {
 	allSingletons := append(sortableComponents(nil), singletons...)
 	allSingletons = append(allSingletons,
-		singleton{pre: false, parallel: false, name: "bazeldeps", factory: BazelSingleton},
+		singleton{pre: false, parallel: true, name: "bazeldeps", factory: BazelSingleton},
 
 		// Register phony just before makevars so it can write out its phony rules as Make rules
 		singleton{pre: false, parallel: false, name: "phony", factory: phonySingletonFactory},

@@ -36,7 +36,7 @@ var CompatConfigSdkMemberType = &compatConfigMemberType{
 }
 
 func registerPlatformCompatConfigBuildComponents(ctx android.RegistrationContext) {
-	ctx.RegisterSingletonType("platform_compat_config_singleton", platformCompatConfigSingletonFactory)
+	ctx.RegisterParallelSingletonType("platform_compat_config_singleton", platformCompatConfigSingletonFactory)
 	ctx.RegisterModuleType("platform_compat_config", PlatformCompatConfigFactory)
 	ctx.RegisterModuleType("prebuilt_platform_compat_config", prebuiltCompatConfigFactory)
 	ctx.RegisterModuleType("global_compat_config", globalCompatConfigFactory)

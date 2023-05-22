@@ -25,7 +25,7 @@ func init() {
 }
 
 func RegisterHiddenApiSingletonComponents(ctx android.RegistrationContext) {
-	ctx.RegisterSingletonType("hiddenapi", hiddenAPISingletonFactory)
+	ctx.RegisterParallelSingletonType("hiddenapi", hiddenAPISingletonFactory)
 }
 
 var PrepareForTestWithHiddenApiBuildComponents = android.FixtureRegisterWithContext(RegisterHiddenApiSingletonComponents)

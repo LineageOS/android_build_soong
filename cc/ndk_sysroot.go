@@ -66,7 +66,7 @@ func RegisterNdkModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("ndk_library", NdkLibraryFactory)
 	ctx.RegisterModuleType("versioned_ndk_headers", versionedNdkHeadersFactory)
 	ctx.RegisterModuleType("preprocessed_ndk_headers", preprocessedNdkHeadersFactory)
-	ctx.RegisterSingletonType("ndk", NdkSingleton)
+	ctx.RegisterParallelSingletonType("ndk", NdkSingleton)
 }
 
 func getNdkInstallBase(ctx android.PathContext) android.InstallPath {
