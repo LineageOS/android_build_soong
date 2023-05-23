@@ -354,6 +354,10 @@ type BaseModuleContext interface {
 
 	AddMissingDependencies(missingDeps []string)
 
+	// getMissingDependencies returns the list of missing dependencies.
+	// Calling this function prevents adding new dependencies.
+	getMissingDependencies() []string
+
 	// AddUnconvertedBp2buildDep stores module name of a direct dependency that was not converted via bp2build
 	AddUnconvertedBp2buildDep(dep string)
 
@@ -939,7 +943,8 @@ type commonProperties struct {
 
 	NamespaceExportedToMake bool `blueprint:"mutated"`
 
-	MissingDeps []string `blueprint:"mutated"`
+	MissingDeps        []string `blueprint:"mutated"`
+	CheckedMissingDeps bool     `blueprint:"mutated"`
 
 	// Name and variant strings stored by mutators to enable Module.String()
 	DebugName       string   `blueprint:"mutated"`
@@ -2860,6 +2865,20 @@ func (b *baseModuleContext) AddMissingDependencies(deps []string) {
 		*missingDeps = append(*missingDeps, deps...)
 		*missingDeps = FirstUniqueStrings(*missingDeps)
 	}
+}
+
+func (b *baseModuleContext) checkedMissingDeps() bool {
+	return b.Module().base().commonProperties.CheckedMissingDeps
+}
+
+func (b *baseModuleContext) getMissingDependencies() []string {
+	checked := &b.Module().base().commonProperties.CheckedMissingDeps
+	*checked = true
+	var missingDeps []string
+	missingDeps = append(missingDeps, b.Module().base().commonProperties.MissingDeps...)
+	missingDeps = append(missingDeps, b.bp.EarlyGetMissingDependencies()...)
+	missingDeps = FirstUniqueStrings(missingDeps)
+	return missingDeps
 }
 
 type AllowDisabledModuleDependency interface {
