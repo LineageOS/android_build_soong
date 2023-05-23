@@ -1416,6 +1416,8 @@ func TestHostFactory() android.Module {
 		nil,
 		nil)
 
+	android.InitBazelModule(module)
+
 	InitJavaModuleMultiTargets(module, android.HostSupported)
 
 	return module
@@ -3114,23 +3116,89 @@ func javaBinaryHostBp2Build(ctx android.TopDownMutatorContext, m *Binary) {
 		return
 	}
 
-	libName := m.Name() + "_lib"
+	libInfo := libraryCreationInfo{
+		deps: deps,
+		attrs: commonAttrs,
+		baseName: m.Name(),
+		hasKotlin: bp2BuildInfo.hasKotlin,
+	}
+	libName := createLibraryTarget(ctx, libInfo)
+	binAttrs.Runtime_deps.Add(&bazel.LabelAttribute{Value: &bazel.Label{Label: ":" + libName}})
+
+	// Create the BazelTargetModule.
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, binAttrs)
+}
+
+type javaTestHostAttributes struct {
+	*javaCommonAttributes
+	Deps         bazel.LabelListAttribute
+	Runtime_deps bazel.LabelListAttribute
+}
+
+// javaTestHostBp2Build is for java_test_host bp2build.
+func javaTestHostBp2Build(ctx android.TopDownMutatorContext, m *TestHost) {
+	commonAttrs, bp2BuildInfo := m.convertLibraryAttrsBp2Build(ctx)
+	depLabels := bp2BuildInfo.DepLabels
+
+	deps := depLabels.Deps
+	deps.Append(depLabels.StaticDeps)
+
+	var runtimeDeps bazel.LabelListAttribute
+	attrs := &javaTestHostAttributes{
+		Runtime_deps: runtimeDeps,
+	}
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "java_test",
+		Bzl_load_location: "//build/bazel/rules/java:test.bzl",
+	}
+
+	if commonAttrs.Srcs.IsEmpty() {
+		// if there are no sources, then the dependencies can only be used at runtime
+		attrs.Runtime_deps = deps
+		attrs.javaCommonAttributes = commonAttrs
+		ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
+		return
+	}
+
+	libInfo := libraryCreationInfo{
+		deps: deps,
+		attrs: commonAttrs,
+		baseName: m.Name(),
+		hasKotlin: bp2BuildInfo.hasKotlin,
+	}
+	libName := createLibraryTarget(ctx, libInfo)
+	attrs.Runtime_deps.Add(&bazel.LabelAttribute{Value: &bazel.Label{Label: ":" + libName}})
+
+	// Create the BazelTargetModule.
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
+}
+
+// libraryCreationInfo encapsulates the info needed to create java_library target from
+// java_binary_host or java_test_host.
+type libraryCreationInfo struct {
+	deps bazel.LabelListAttribute
+	attrs *javaCommonAttributes
+	baseName string
+	hasKotlin bool
+}
+
+// helper function that creates java_library target from java_binary_host or java_test_host,
+// and returns the library target name,
+func createLibraryTarget(ctx android.TopDownMutatorContext, libInfo libraryCreationInfo) string {
+	libName := libInfo.baseName + "_lib"
 	var libProps bazel.BazelTargetModuleProperties
-	if bp2BuildInfo.hasKotlin {
+	if libInfo.hasKotlin {
 		libProps = ktJvmLibraryBazelTargetModuleProperties()
 	} else {
 		libProps = javaLibraryBazelTargetModuleProperties()
 	}
 	libAttrs := &javaLibraryAttributes{
-		Deps:                 deps,
-		javaCommonAttributes: commonAttrs,
+		Deps:                 libInfo.deps,
+		javaCommonAttributes: libInfo.attrs,
 	}
 
 	ctx.CreateBazelTargetModule(libProps, android.CommonAttributes{Name: libName}, libAttrs)
-	binAttrs.Runtime_deps.Add(&bazel.LabelAttribute{Value: &bazel.Label{Label: ":" + libName}})
-
-	// Create the BazelTargetModule.
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, binAttrs)
+	return libName
 }
 
 type bazelJavaImportAttributes struct {
