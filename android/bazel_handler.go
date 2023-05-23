@@ -74,14 +74,12 @@ var (
 	}
 )
 
-func init() {
-	RegisterMixedBuildsMutator(InitRegistrationContext)
+func registerMixedBuildsMutator(ctx RegisterMutatorsContext) {
+	ctx.BottomUp("mixed_builds_prep", mixedBuildsPrepareMutator).Parallel()
 }
 
 func RegisterMixedBuildsMutator(ctx RegistrationContext) {
-	ctx.FinalDepsMutators(func(ctx RegisterMutatorsContext) {
-		ctx.BottomUp("mixed_builds_prep", mixedBuildsPrepareMutator).Parallel()
-	})
+	ctx.FinalDepsMutators(registerMixedBuildsMutator)
 }
 
 func mixedBuildsPrepareMutator(ctx BottomUpMutatorContext) {
