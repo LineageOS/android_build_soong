@@ -22,6 +22,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"android/soong/ui/metrics"
 	"android/soong/ui/status"
@@ -63,6 +64,21 @@ func genKatiSuffix(ctx Context, config Config) {
 		}
 	} else {
 		config.SetKatiSuffix(katiSuffix)
+	}
+}
+
+func writeValueIfChanged(ctx Context, config Config, dir string, filename string, value string) {
+	filePath := filepath.Join(dir, filename)
+	previousValue := ""
+	rawPreviousValue, err := ioutil.ReadFile(filePath)
+	if err == nil {
+		previousValue = string(rawPreviousValue)
+	}
+
+	if previousValue != value {
+		if err = ioutil.WriteFile(filePath, []byte(value), 0666); err != nil {
+			ctx.Fatalf("Failed to write: %v", err)
+		}
 	}
 }
 
@@ -157,28 +173,57 @@ func runKati(ctx Context, config Config, extraSuffix string, args []string, envF
 	}
 	cmd.Stderr = cmd.Stdout
 
-	// Apply the caller's function closure to mutate the environment variables.
-	envFunc(cmd.Environment)
-
+	var username string
 	// Pass on various build environment metadata to Kati.
-	if _, ok := cmd.Environment.Get("BUILD_USERNAME"); !ok {
-		username := "unknown"
+	if usernameFromEnv, ok := cmd.Environment.Get("BUILD_USERNAME"); !ok {
+		username = "unknown"
 		if u, err := user.Current(); err == nil {
 			username = u.Username
 		} else {
 			ctx.Println("Failed to get current user:", err)
 		}
 		cmd.Environment.Set("BUILD_USERNAME", username)
+	} else {
+		username = usernameFromEnv
 	}
 
-	if _, ok := cmd.Environment.Get("BUILD_HOSTNAME"); !ok {
-		hostname, err := os.Hostname()
+	hostname, ok := cmd.Environment.Get("BUILD_HOSTNAME")
+	if !ok {
+		hostname, err = os.Hostname()
 		if err != nil {
 			ctx.Println("Failed to read hostname:", err)
 			hostname = "unknown"
 		}
 		cmd.Environment.Set("BUILD_HOSTNAME", hostname)
 	}
+	writeValueIfChanged(ctx, config, config.SoongOutDir(), "build_hostname.txt", hostname)
+
+	// BUILD_NUMBER should be set to the source control value that
+	// represents the current state of the source code.  E.g., a
+	// perforce changelist number or a git hash.  Can be an arbitrary string
+	// (to allow for source control that uses something other than numbers),
+	// but must be a single word and a valid file name.
+	//
+	// If no BUILD_NUMBER is set, create a useful "I am an engineering build
+	// from this date/time" value.  Make it start with a non-digit so that
+	// anyone trying to parse it as an integer will probably get "0".
+	cmd.Environment.Unset("HAS_BUILD_NUMBER")
+	buildNumber, ok := cmd.Environment.Get("BUILD_NUMBER")
+	if ok {
+		cmd.Environment.Set("HAS_BUILD_NUMBER", "true")
+		writeValueIfChanged(ctx, config, config.OutDir(), "file_name_tag.txt", buildNumber)
+	} else {
+		buildNumber = fmt.Sprintf("eng.%.6s.%s", username, time.Now().Format("20060102.150405" /* YYYYMMDD.HHMMSS */))
+		cmd.Environment.Set("HAS_BUILD_NUMBER", "false")
+		writeValueIfChanged(ctx, config, config.OutDir(), "file_name_tag.txt", username)
+	}
+	// Write the build number to a file so it can be read back in
+	// without changing the command line every time.  Avoids rebuilds
+	// when using ninja.
+	writeValueIfChanged(ctx, config, config.SoongOutDir(), "build_number.txt", buildNumber)
+
+	// Apply the caller's function closure to mutate the environment variables.
+	envFunc(cmd.Environment)
 
 	cmd.StartOrFatal()
 	// Set up the ToolStatus command line reader for Kati for a consistent UI
@@ -336,6 +381,7 @@ func runKatiPackage(ctx Context, config Config) {
 			"ANDROID_BUILD_SHELL",
 			"DIST_DIR",
 			"OUT_DIR",
+			"FILE_NAME_TAG",
 		}...)
 
 		if config.Dist() {
