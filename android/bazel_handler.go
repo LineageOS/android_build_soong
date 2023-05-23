@@ -181,10 +181,6 @@ type BazelContext interface {
 	// Returns the results of GetOutputFiles and GetCcObjectFiles in a single query (in that order).
 	GetCcInfo(label string, cfgKey configKey) (cquery.CcInfo, error)
 
-	// Returns the executable binary resultant from building together the python sources
-	// TODO(b/232976601): Remove.
-	GetPythonBinary(label string, cfgKey configKey) (string, error)
-
 	// Returns the results of the GetApexInfo query (including output files)
 	GetApexInfo(label string, cfgkey configKey) (cquery.ApexInfo, error)
 
@@ -313,14 +309,6 @@ func (m MockBazelContext) GetCcInfo(label string, cfgKey configKey) (cquery.CcIn
 	return result, nil
 }
 
-func (m MockBazelContext) GetPythonBinary(label string, _ configKey) (string, error) {
-	result, ok := m.LabelToPythonBinary[label]
-	if !ok {
-		return "", fmt.Errorf("no target with label %q in LabelToPythonBinary", label)
-	}
-	return result, nil
-}
-
 func (m MockBazelContext) GetApexInfo(label string, _ configKey) (cquery.ApexInfo, error) {
 	result, ok := m.LabelToApexInfo[label]
 	if !ok {
@@ -429,15 +417,6 @@ func (bazelCtx *mixedBuildBazelContext) GetCcInfo(label string, cfgKey configKey
 	return cquery.CcInfo{}, fmt.Errorf("no bazel response found for %v", key)
 }
 
-func (bazelCtx *mixedBuildBazelContext) GetPythonBinary(label string, cfgKey configKey) (string, error) {
-	key := makeCqueryKey(label, cquery.GetPythonBinary, cfgKey)
-	if rawString, ok := bazelCtx.results[key]; ok {
-		bazelOutput := strings.TrimSpace(rawString)
-		return cquery.GetPythonBinary.ParseResult(bazelOutput), nil
-	}
-	return "", fmt.Errorf("no bazel response found for %v", key)
-}
-
 func (bazelCtx *mixedBuildBazelContext) GetApexInfo(label string, cfgKey configKey) (cquery.ApexInfo, error) {
 	key := makeCqueryKey(label, cquery.GetApexInfo, cfgKey)
 	if rawString, ok := bazelCtx.results[key]; ok {
@@ -463,10 +442,6 @@ func (n noopBazelContext) GetOutputFiles(_ string, _ configKey) ([]string, error
 }
 
 func (n noopBazelContext) GetCcInfo(_ string, _ configKey) (cquery.CcInfo, error) {
-	panic("unimplemented")
-}
-
-func (n noopBazelContext) GetPythonBinary(_ string, _ configKey) (string, error) {
 	panic("unimplemented")
 }
 
