@@ -444,7 +444,7 @@ type productVariables struct {
 	BuildBrokenClangAsFlags            bool     `json:",omitempty"`
 	BuildBrokenClangCFlags             bool     `json:",omitempty"`
 	BuildBrokenClangProperty           bool     `json:",omitempty"`
-	BuildBrokenDepfile                 *bool    `json:",omitempty"`
+	GenruleSandboxing                  *bool    `json:",omitempty"`
 	BuildBrokenEnforceSyspropOwner     bool     `json:",omitempty"`
 	BuildBrokenTrebleSyspropNeverallow bool     `json:",omitempty"`
 	BuildBrokenUsesSoongPython2Modules bool     `json:",omitempty"`
