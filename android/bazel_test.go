@@ -436,3 +436,150 @@ func TestShouldKeepExistingBuildFileForDir(t *testing.T) {
 		}
 	}
 }
+
+type mixedBuildModule struct {
+	ModuleBase
+	BazelModuleBase
+	props struct {
+		Deps                     []string
+		Mixed_build_incompatible *bool
+		QueuedBazelCall          bool `blueprint:"mutated"`
+	}
+}
+
+type mixedBuildModuleInfo struct {
+	QueuedBazelCall bool
+}
+
+var mixedBuildModuleProvider = blueprint.NewProvider(mixedBuildModuleInfo{})
+
+func mixedBuildModuleFactory() Module {
+	m := &mixedBuildModule{}
+	m.AddProperties(&m.props)
+	InitAndroidArchModule(m, HostAndDeviceDefault, MultilibBoth)
+	InitBazelModule(m)
+
+	return m
+}
+
+func (m *mixedBuildModule) ConvertWithBp2build(ctx TopDownMutatorContext) {
+}
+
+func (m *mixedBuildModule) DepsMutator(ctx BottomUpMutatorContext) {
+	ctx.AddDependency(ctx.Module(), installDepTag{}, m.props.Deps...)
+}
+
+func (m *mixedBuildModule) GenerateAndroidBuildActions(ctx ModuleContext) {
+}
+
+func (m *mixedBuildModule) IsMixedBuildSupported(ctx BaseModuleContext) bool {
+	return !proptools.Bool(m.props.Mixed_build_incompatible)
+}
+
+func (m *mixedBuildModule) QueueBazelCall(ctx BaseModuleContext) {
+	m.props.QueuedBazelCall = true
+}
+
+func (m *mixedBuildModule) ProcessBazelQueryResponse(ctx ModuleContext) {
+	ctx.SetProvider(mixedBuildModuleProvider, mixedBuildModuleInfo{
+		QueuedBazelCall: m.props.QueuedBazelCall,
+	})
+}
+
+var prepareForMixedBuildTests = FixtureRegisterWithContext(func(ctx RegistrationContext) {
+	ctx.RegisterModuleType("deps", mixedBuildModuleFactory)
+	RegisterMixedBuildsMutator(ctx)
+})
+
+func TestMixedBuildsEnabledForType(t *testing.T) {
+	baseBp := `
+	deps {
+		name: "foo",
+		deps: ["bar"],
+		target: { windows: { enabled: true } },
+		%s
+	}
+`
+	depBp := `
+	deps {
+		name: "bar",
+		target: {
+			windows: {
+				enabled: true,
+			},
+		},
+	}
+`
+	testCases := []struct {
+		desc               string
+		variant            *string
+		missingDeps        bool
+		extraBpInfo        string
+		mixedBuildsEnabled bool
+	}{
+		{
+			desc:               "mixed builds works",
+			mixedBuildsEnabled: true,
+			extraBpInfo:        `bazel_module: { bp2build_available: true },`,
+		},
+		{
+			desc:               "missing deps",
+			missingDeps:        true,
+			mixedBuildsEnabled: false,
+			extraBpInfo:        `bazel_module: { bp2build_available: true },`,
+		},
+		{
+			desc:               "windows no mixed builds",
+			mixedBuildsEnabled: false,
+			variant:            proptools.StringPtr("windows_x86"),
+			extraBpInfo:        `bazel_module: { bp2build_available: true },`,
+		},
+		{
+			desc:               "mixed builds disabled by type",
+			mixedBuildsEnabled: false,
+			extraBpInfo: `mixed_build_incompatible: true,
+		bazel_module: { bp2build_available: true },`,
+		},
+		{
+			desc:               "mixed builds not bp2build available",
+			mixedBuildsEnabled: false,
+			extraBpInfo:        `bazel_module: { bp2build_available: false },`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			handlers := GroupFixturePreparers(
+				prepareForMixedBuildTests,
+				PrepareForTestWithArchMutator,
+				FixtureModifyConfig(func(config Config) {
+					config.BazelContext = MockBazelContext{
+						OutputBaseDir: "base",
+					}
+					config.Targets[Windows] = []Target{
+						{Windows, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", "", true},
+						{Windows, Arch{ArchType: X86}, NativeBridgeDisabled, "", "", true},
+					}
+				}),
+			)
+			bp := fmt.Sprintf(baseBp, tc.extraBpInfo)
+			if tc.missingDeps {
+				handlers = GroupFixturePreparers(
+					handlers,
+					PrepareForTestWithAllowMissingDependencies,
+				)
+			} else {
+				bp += depBp
+			}
+			result := handlers.RunTestWithBp(t, bp)
+
+			variant := proptools.StringDefault(tc.variant, "android_arm64_armv8-a")
+
+			m := result.ModuleForTests("foo", variant)
+			mixedBuildModuleInfo := result.TestContext.ModuleProvider(m.Module(), mixedBuildModuleProvider).(mixedBuildModuleInfo)
+			if w, g := tc.mixedBuildsEnabled, mixedBuildModuleInfo.QueuedBazelCall; w != g {
+				t.Errorf("Expected mixed builds enabled %t, got mixed builds enabled %t", w, g)
+			}
+		})
+	}
+}

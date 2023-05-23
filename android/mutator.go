@@ -67,6 +67,8 @@ func registerMutatorsForBazelConversion(ctx *Context, bp2buildMutators []Registe
 // collateGloballyRegisteredMutators constructs the list of mutators that have been registered
 // with the InitRegistrationContext and will be used at runtime.
 func collateGloballyRegisteredMutators() sortableComponents {
+	// ensure mixed builds mutator is the last mutator
+	finalDeps = append(finalDeps, registerMixedBuildsMutator)
 	return collateRegisteredMutators(preArch, preDeps, postDeps, finalDeps)
 }
 
@@ -885,10 +887,16 @@ func (b *bottomUpMutatorContext) Rename(name string) {
 }
 
 func (b *bottomUpMutatorContext) AddDependency(module blueprint.Module, tag blueprint.DependencyTag, name ...string) []blueprint.Module {
+	if b.baseModuleContext.checkedMissingDeps() {
+		panic("Adding deps not allowed after checking for missing deps")
+	}
 	return b.bp.AddDependency(module, tag, name...)
 }
 
 func (b *bottomUpMutatorContext) AddReverseDependency(module blueprint.Module, tag blueprint.DependencyTag, name string) {
+	if b.baseModuleContext.checkedMissingDeps() {
+		panic("Adding deps not allowed after checking for missing deps")
+	}
 	b.bp.AddReverseDependency(module, tag, name)
 }
 
@@ -938,11 +946,17 @@ func (b *bottomUpMutatorContext) SetDefaultDependencyVariation(variation *string
 
 func (b *bottomUpMutatorContext) AddVariationDependencies(variations []blueprint.Variation, tag blueprint.DependencyTag,
 	names ...string) []blueprint.Module {
+	if b.baseModuleContext.checkedMissingDeps() {
+		panic("Adding deps not allowed after checking for missing deps")
+	}
 	return b.bp.AddVariationDependencies(variations, tag, names...)
 }
 
 func (b *bottomUpMutatorContext) AddFarVariationDependencies(variations []blueprint.Variation,
 	tag blueprint.DependencyTag, names ...string) []blueprint.Module {
+	if b.baseModuleContext.checkedMissingDeps() {
+		panic("Adding deps not allowed after checking for missing deps")
+	}
 
 	return b.bp.AddFarVariationDependencies(variations, tag, names...)
 }
@@ -952,10 +966,16 @@ func (b *bottomUpMutatorContext) AddInterVariantDependency(tag blueprint.Depende
 }
 
 func (b *bottomUpMutatorContext) ReplaceDependencies(name string) {
+	if b.baseModuleContext.checkedMissingDeps() {
+		panic("Adding deps not allowed after checking for missing deps")
+	}
 	b.bp.ReplaceDependencies(name)
 }
 
 func (b *bottomUpMutatorContext) ReplaceDependenciesIf(name string, predicate blueprint.ReplaceDependencyPredicate) {
+	if b.baseModuleContext.checkedMissingDeps() {
+		panic("Adding deps not allowed after checking for missing deps")
+	}
 	b.bp.ReplaceDependenciesIf(name, predicate)
 }
 
