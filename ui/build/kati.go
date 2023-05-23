@@ -188,13 +188,14 @@ func runKati(ctx Context, config Config, extraSuffix string, args []string, envF
 	}
 
 	hostname, ok := cmd.Environment.Get("BUILD_HOSTNAME")
+	// Unset BUILD_HOSTNAME during kati run to avoid kati rerun, kati will use BUILD_HOSTNAME from a file.
+	cmd.Environment.Unset("BUILD_HOSTNAME")
 	if !ok {
 		hostname, err = os.Hostname()
 		if err != nil {
 			ctx.Println("Failed to read hostname:", err)
 			hostname = "unknown"
 		}
-		cmd.Environment.Set("BUILD_HOSTNAME", hostname)
 	}
 	writeValueIfChanged(ctx, config, config.SoongOutDir(), "build_hostname.txt", hostname)
 
@@ -209,6 +210,8 @@ func runKati(ctx Context, config Config, extraSuffix string, args []string, envF
 	// anyone trying to parse it as an integer will probably get "0".
 	cmd.Environment.Unset("HAS_BUILD_NUMBER")
 	buildNumber, ok := cmd.Environment.Get("BUILD_NUMBER")
+	// Unset BUILD_NUMBER during kati run to avoid kati rerun, kati will use BUILD_NUMBER from a file.
+	cmd.Environment.Unset("BUILD_NUMBER")
 	if ok {
 		cmd.Environment.Set("HAS_BUILD_NUMBER", "true")
 		writeValueIfChanged(ctx, config, config.OutDir(), "file_name_tag.txt", buildNumber)
