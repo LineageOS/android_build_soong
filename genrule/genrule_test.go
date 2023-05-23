@@ -97,8 +97,9 @@ func testGenruleBp() string {
 
 func TestGenruleCmd(t *testing.T) {
 	testcases := []struct {
-		name string
-		prop string
+		name       string
+		moduleName string
+		prop       string
 
 		allowMissingDependencies bool
 
@@ -285,7 +286,8 @@ func TestGenruleCmd(t *testing.T) {
 			expect: "echo foo > __SBOX_SANDBOX_DIR__/out/out2",
 		},
 		{
-			name: "depfile",
+			name:       "depfile",
+			moduleName: "depfile_allowed_for_test",
 			prop: `
 				out: ["out"],
 				depfile: true,
@@ -397,7 +399,8 @@ func TestGenruleCmd(t *testing.T) {
 			err: "$(depfile) used without depfile property",
 		},
 		{
-			name: "error no depfile",
+			name:       "error no depfile",
+			moduleName: "depfile_allowed_for_test",
 			prop: `
 				out: ["out"],
 				depfile: true,
@@ -440,11 +443,15 @@ func TestGenruleCmd(t *testing.T) {
 
 	for _, test := range testcases {
 		t.Run(test.name, func(t *testing.T) {
-			bp := "genrule {\n"
-			bp += "name: \"gen\",\n"
-			bp += test.prop
-			bp += "}\n"
-
+			moduleName := "gen"
+			if test.moduleName != "" {
+				moduleName = test.moduleName
+			}
+			bp := fmt.Sprintf(`
+			genrule {
+			   name: "%s",
+			   %s
+			}`, moduleName, test.prop)
 			var expectedErrors []string
 			if test.err != "" {
 				expectedErrors = append(expectedErrors, regexp.QuoteMeta(test.err))
@@ -454,6 +461,9 @@ func TestGenruleCmd(t *testing.T) {
 				prepareForGenRuleTest,
 				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 					variables.Allow_missing_dependencies = proptools.BoolPtr(test.allowMissingDependencies)
+				}),
+				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+					variables.GenruleSandboxing = proptools.BoolPtr(true)
 				}),
 				android.FixtureModifyContext(func(ctx *android.TestContext) {
 					ctx.SetAllowMissingDependencies(test.allowMissingDependencies)
@@ -466,7 +476,7 @@ func TestGenruleCmd(t *testing.T) {
 				return
 			}
 
-			gen := result.Module("gen", "").(*Module)
+			gen := result.Module(moduleName, "").(*Module)
 			android.AssertStringEquals(t, "raw commands", test.expect, gen.rawCommands[0])
 		})
 	}
@@ -627,53 +637,42 @@ func TestGenSrcs(t *testing.T) {
 	}
 }
 
-func TestGensrcsBuildBrokenDepfile(t *testing.T) {
+func TestGenruleAllowlistingDepfile(t *testing.T) {
 	tests := []struct {
-		name               string
-		prop               string
-		BuildBrokenDepfile *bool
-		err                string
+		name       string
+		prop       string
+		err        string
+		moduleName string
 	}{
 		{
-			name: `error when BuildBrokenDepfile is set to false`,
+			name: `error when module is not allowlisted`,
 			prop: `
 				depfile: true,
 				cmd: "cat $(in) > $(out) && cat $(depfile)",
 			`,
-			BuildBrokenDepfile: proptools.BoolPtr(false),
-			err:                "depfile: Deprecated to ensure the module type is convertible to Bazel",
+			err: "depfile: Deprecated to ensure the module type is convertible to Bazel",
 		},
 		{
-			name: `error when BuildBrokenDepfile is not set`,
+			name: `no error when module is allowlisted`,
 			prop: `
 				depfile: true,
 				cmd: "cat $(in) > $(out) && cat $(depfile)",
 			`,
-			err: "depfile: Deprecated to ensure the module type is convertible to Bazel.",
-		},
-		{
-			name: `no error when BuildBrokenDepfile is explicitly set to true`,
-			prop: `
-				depfile: true,
-				cmd: "cat $(in) > $(out) && cat $(depfile)",
-			`,
-			BuildBrokenDepfile: proptools.BoolPtr(true),
-		},
-		{
-			name: `no error if depfile is not set`,
-			prop: `
-				cmd: "cat $(in) > $(out)",
-			`,
+			moduleName: `depfile_allowed_for_test`,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			moduleName := "foo"
+			if test.moduleName != "" {
+				moduleName = test.moduleName
+			}
 			bp := fmt.Sprintf(`
 			gensrcs {
-			   name: "foo",
+			   name: "%s",
 			   srcs: ["data.txt"],
 			   %s
-			}`, test.prop)
+			}`, moduleName, test.prop)
 
 			var expectedErrors []string
 			if test.err != "" {
@@ -682,9 +681,7 @@ func TestGensrcsBuildBrokenDepfile(t *testing.T) {
 			android.GroupFixturePreparers(
 				prepareForGenRuleTest,
 				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
-					if test.BuildBrokenDepfile != nil {
-						variables.BuildBrokenDepfile = test.BuildBrokenDepfile
-					}
+					variables.GenruleSandboxing = proptools.BoolPtr(true)
 				}),
 			).
 				ExtendWithErrorHandler(android.FixtureExpectsAllErrorsToMatchAPattern(expectedErrors)).
