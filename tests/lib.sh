@@ -99,6 +99,7 @@ function create_mock_soong {
   symlink_directory external/python
   symlink_directory external/sqlite
   symlink_directory external/spdx-tools
+  symlink_directory libcore
 
   touch "$MOCK_TOP/Android.bp"
 }

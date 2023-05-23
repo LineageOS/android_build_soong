@@ -22,8 +22,6 @@ java_system_modules {
     libs: [
         "core-current-stubs-for-system-modules-no-annotations.from-text",
     ],
-    // TODO: Enable after stub generation from .txt file is available
-    enabled: false,
 }
 
 java_library {
@@ -36,8 +34,6 @@ java_library {
         "core.current.stubs.from-text",
         "core-lambda-stubs.from-text",
     ],
-    // TODO: Enable after stub generation from .txt file is available
-    enabled: false,
 }
 
 // Same as core-module-lib-stubs-system-modules, but the stubs are generated from .txt files
@@ -47,8 +43,6 @@ java_system_modules {
     libs: [
         "core-module-lib-stubs-for-system-modules-no-annotations.from-text",
     ],
-    // TODO: Enable after stub generation from .txt file is available
-    enabled: false,
 }
 
 java_library {
@@ -61,8 +55,6 @@ java_library {
         "core.module_lib.stubs.from-text",
         "core-lambda-stubs.from-text",
     ],
-    // TODO: Enable after stub generation from .txt file is available
-    enabled: false,
 }
 
 java_library {
@@ -79,8 +71,6 @@ java_library {
     sdk_version: "none",
     system_modules: "none",
     visibility: ["//visibility:private"],
-    // TODO: Enable after stub generation from .txt file is available
-    enabled: false,
 }
 
 // Same as legacy-core-platform-api-stubs-system-modules, but the stubs are generated from .txt files
@@ -91,8 +81,6 @@ java_system_modules {
         "legacy.core.platform.api.no.annotations.stubs.from-text",
         "core-lambda-stubs.from-text",
     ],
-    // TODO: Enable after stub generation from .txt file is available
-    enabled: false,
 }
 
 java_library {
@@ -108,8 +96,6 @@ java_library {
         "legacy.core.platform.api.stubs.from-text",
     ],
     patch_module: "java.base",
-    // TODO: Enable after stub generation from .txt file is available
-    enabled: false,
 }
 
 // Same as stable-core-platform-api-stubs-system-modules, but the stubs are generated from .txt files
@@ -120,8 +106,6 @@ java_system_modules {
         "stable.core.platform.api.no.annotations.stubs.from-text",
         "core-lambda-stubs.from-text",
     ],
-    // TODO: Enable after stub generation from .txt file is available
-    enabled: false,
 }
 
 java_library {
@@ -137,8 +121,6 @@ java_library {
         "stable.core.platform.api.stubs.from-text",
     ],
     patch_module: "java.base",
-    // TODO: Enable after stub generation from .txt file is available
-    enabled: false,
 }
 
 java_api_library {
@@ -151,6 +133,4 @@ java_api_library {
         // LambdaMetaFactory depends on CallSite etc. which is part of the Core API surface
         "core.current.stubs.from-text",
     ],
-    // TODO: Enable after stub generation from .txt file is available
-    enabled: false,
 }
