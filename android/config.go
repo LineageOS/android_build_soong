@@ -1920,8 +1920,8 @@ func (c *deviceConfig) BuildBrokenInputDir(name string) bool {
 	return InList(name, c.config.productVariables.BuildBrokenInputDirModules)
 }
 
-func (c *deviceConfig) BuildBrokenDepfile() bool {
-	return Bool(c.config.productVariables.BuildBrokenDepfile)
+func (c *deviceConfig) GenruleSandboxing() bool {
+	return Bool(c.config.productVariables.GenruleSandboxing)
 }
 
 func (c *deviceConfig) RequiresInsecureExecmemForSwiftshader() bool {
