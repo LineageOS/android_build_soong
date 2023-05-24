@@ -652,9 +652,7 @@ func generatePrebuiltSnapshot(s snapshot.SnapshotSingleton, ctx android.Singleto
 		prop := snapshot.SnapshotJsonFlags{}
 		propOut := snapshotLibOut + ".json"
 		prop.InitBaseSnapshotProps(m)
-		if m.subdirProperties.Relative_install_path != nil {
-			prop.RelativeInstallPath = *m.subdirProperties.Relative_install_path
-		}
+		prop.RelativeInstallPath = m.SubDir()
 
 		if m.properties.Filename != nil {
 			prop.Filename = *m.properties.Filename
