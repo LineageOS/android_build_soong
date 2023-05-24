@@ -37,7 +37,7 @@ func TestAidlLibrary(t *testing.T) {
 			aidl_library {
 					name: "foo",
 					srcs: ["a/b/Foo.aidl"],
-					hdrs: ["Header.aidl"],
+					hdrs: ["a/Header.aidl"],
 					strip_import_prefix: "a",
 					deps: ["bar"],
 				}
@@ -61,6 +61,13 @@ func TestAidlLibrary(t *testing.T) {
 		[]string{"package_foo/a/b/Foo.aidl"},
 		actualInfo.Srcs,
 	)
+
+	android.AssertPathsRelativeToTopEquals(
+		t,
+		"aidl hdrs paths",
+		[]string{"package_foo/a/Header.aidl"},
+		actualInfo.Hdrs.ToList(),
+	)
 }
 
 func TestAidlLibraryWithoutStripImportPrefix(t *testing.T) {
@@ -72,6 +79,7 @@ func TestAidlLibraryWithoutStripImportPrefix(t *testing.T) {
 			aidl_library {
 					name: "bar",
 					srcs: ["x/y/Bar.aidl"],
+					hdrs: ["BarHeader.aidl"],
 				}
 			`),
 		}.AddToFixture(),
@@ -80,7 +88,6 @@ func TestAidlLibraryWithoutStripImportPrefix(t *testing.T) {
 			aidl_library {
 					name: "foo",
 					srcs: ["a/b/Foo.aidl"],
-					hdrs: ["Header.aidl"],
 					deps: ["bar"],
 				}
 			`),
@@ -102,6 +109,13 @@ func TestAidlLibraryWithoutStripImportPrefix(t *testing.T) {
 		"aidl srcs paths",
 		[]string{"package_foo/a/b/Foo.aidl"},
 		actualInfo.Srcs,
+	)
+
+	android.AssertPathsRelativeToTopEquals(
+		t,
+		"aidl hdrs paths",
+		[]string{"package_bar/BarHeader.aidl"},
+		actualInfo.Hdrs.ToList(),
 	)
 }
 
