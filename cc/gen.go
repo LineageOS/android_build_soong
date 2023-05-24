@@ -107,7 +107,14 @@ func genYacc(ctx android.ModuleContext, rule *android.RuleBuilder, yaccFile andr
 	return ret
 }
 
-func genAidl(ctx android.ModuleContext, rule *android.RuleBuilder, aidlFile android.Path, aidlFlags string) (cppFile android.OutputPath, headerFiles android.Paths) {
+func genAidl(
+	ctx android.ModuleContext,
+	rule *android.RuleBuilder,
+	outDirBase string,
+	aidlFile android.Path,
+	aidlHdrs android.Paths,
+	aidlFlags string,
+) (cppFile android.OutputPath, headerFiles android.Paths) {
 	aidlPackage := strings.TrimSuffix(aidlFile.Rel(), aidlFile.Base())
 	baseName := strings.TrimSuffix(aidlFile.Base(), aidlFile.Ext())
 	shortName := baseName
@@ -119,7 +126,7 @@ func genAidl(ctx android.ModuleContext, rule *android.RuleBuilder, aidlFile andr
 		shortName = strings.TrimPrefix(baseName, "I")
 	}
 
-	outDir := android.PathForModuleGen(ctx, "aidl")
+	outDir := android.PathForModuleGen(ctx, outDirBase)
 	cppFile = outDir.Join(ctx, aidlPackage, baseName+".cpp")
 	depFile := outDir.Join(ctx, aidlPackage, baseName+".cpp.d")
 	headerI := outDir.Join(ctx, aidlPackage, baseName+".h")
@@ -128,6 +135,8 @@ func genAidl(ctx android.ModuleContext, rule *android.RuleBuilder, aidlFile andr
 
 	cmd := rule.Command()
 	cmd.BuiltTool("aidl-cpp").
+		// libc++ is default stl for aidl-cpp (a cc_binary_host module)
+		ImplicitTool(ctx.Config().HostCcSharedLibPath(ctx, "libc++")).
 		FlagWithDepFile("-d", depFile).
 		Flag("--ninja").
 		Flag(aidlFlags).
@@ -139,6 +148,10 @@ func genAidl(ctx android.ModuleContext, rule *android.RuleBuilder, aidlFile andr
 			headerBn,
 			headerBp,
 		})
+
+	if aidlHdrs != nil {
+		cmd.Implicits(aidlHdrs)
+	}
 
 	return cppFile, android.Paths{
 		headerI,
@@ -283,14 +296,19 @@ func genSources(
 	ctx android.ModuleContext,
 	aidlLibraryInfos []aidl_library.AidlLibraryInfo,
 	srcFiles android.Paths,
-	buildFlags builderFlags) (android.Paths, android.Paths, generatedSourceInfo) {
+	buildFlags builderFlags,
+) (android.Paths, android.Paths, generatedSourceInfo) {
 
 	var info generatedSourceInfo
 
 	var deps android.Paths
 	var rsFiles android.Paths
 
+	// aidlRule supports compiling aidl files from srcs prop while aidlLibraryRule supports
+	// compiling aidl files from aidl_library modules specified in aidl.libs prop.
+	// The rules are separated so that they don't wipe out the other's outputDir
 	var aidlRule *android.RuleBuilder
+	var aidlLibraryRule *android.RuleBuilder
 
 	var yaccRule_ *android.RuleBuilder
 	yaccRule := func() *android.RuleBuilder {
@@ -331,7 +349,14 @@ func genSources(
 					android.PathForModuleGen(ctx, "aidl.sbox.textproto"))
 			}
 			baseDir := strings.TrimSuffix(srcFile.String(), srcFile.Rel())
-			cppFile, aidlHeaders := genAidl(ctx, aidlRule, srcFile, buildFlags.aidlFlags+" -I"+baseDir)
+			cppFile, aidlHeaders := genAidl(
+				ctx,
+				aidlRule,
+				"aidl",
+				srcFile,
+				nil,
+				buildFlags.aidlFlags+" -I"+baseDir,
+			)
 			srcFiles[i] = cppFile
 
 			info.aidlHeaders = append(info.aidlHeaders, aidlHeaders...)
@@ -354,13 +379,21 @@ func genSources(
 	}
 
 	for _, aidlLibraryInfo := range aidlLibraryInfos {
+		if aidlLibraryRule == nil {
+			aidlLibraryRule = android.NewRuleBuilder(pctx, ctx).Sbox(
+				android.PathForModuleGen(ctx, "aidl_library"),
+				android.PathForModuleGen(ctx, "aidl_library.sbox.textproto"),
+			).SandboxInputs()
+		}
 		for _, aidlSrc := range aidlLibraryInfo.Srcs {
-			if aidlRule == nil {
-				// TODO(b/279960133): Sandbox inputs to ensure aidl headers are explicitly specified
-				aidlRule = android.NewRuleBuilder(pctx, ctx).Sbox(android.PathForModuleGen(ctx, "aidl"),
-					android.PathForModuleGen(ctx, "aidl.sbox.textproto"))
-			}
-			cppFile, aidlHeaders := genAidl(ctx, aidlRule, aidlSrc, buildFlags.aidlFlags)
+			cppFile, aidlHeaders := genAidl(
+				ctx,
+				aidlLibraryRule,
+				"aidl_library",
+				aidlSrc,
+				aidlLibraryInfo.Hdrs.ToList(),
+				buildFlags.aidlFlags,
+			)
 
 			srcFiles = append(srcFiles, cppFile)
 			info.aidlHeaders = append(info.aidlHeaders, aidlHeaders...)
@@ -373,6 +406,10 @@ func genSources(
 
 	if aidlRule != nil {
 		aidlRule.Build("aidl", "gen aidl")
+	}
+
+	if aidlLibraryRule != nil {
+		aidlLibraryRule.Build("aidl_library", "gen aidl_library")
 	}
 
 	if yaccRule_ != nil {
