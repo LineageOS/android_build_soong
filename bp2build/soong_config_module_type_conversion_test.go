@@ -200,6 +200,53 @@ custom_cc_library_static {
 )`}})
 }
 
+func TestSoongConfigModuleType_MultipleBoolVar_PartialUseNotPanic(t *testing.T) {
+	bp := `
+soong_config_bool_variable {
+	name: "feature1",
+}
+
+soong_config_bool_variable {
+	name: "feature2",
+}
+
+soong_config_module_type {
+	name: "custom_cc_library_static",
+	module_type: "cc_library_static",
+	config_namespace: "acme",
+	variables: ["feature1", "feature2",],
+	properties: ["cflags"],
+}
+
+custom_cc_library_static {
+	name: "foo",
+	bazel_module: { bp2build_available: true },
+	host_supported: true,
+	soong_config_variables: {
+		feature1: {
+			conditions_default: {
+				cflags: ["-DDEFAULT1"],
+			},
+			cflags: ["-DFEATURE1"],
+		},
+	},
+}`
+
+	runSoongConfigModuleTypeTest(t, Bp2buildTestCase{
+		Description:                "soong config variables - used part of multiple bool variable do not panic",
+		ModuleTypeUnderTest:        "cc_library_static",
+		ModuleTypeUnderTestFactory: cc.LibraryStaticFactory,
+		Blueprint:                  bp,
+		ExpectedBazelTargets: []string{`cc_library_static(
+    name = "foo",
+    copts = select({
+        "//build/bazel/product_variables:acme__feature1": ["-DFEATURE1"],
+        "//conditions:default": ["-DDEFAULT1"],
+    }),
+    local_includes = ["."],
+)`}})
+}
+
 func TestSoongConfigModuleType_StringAndBoolVar(t *testing.T) {
 	bp := `
 soong_config_bool_variable {
