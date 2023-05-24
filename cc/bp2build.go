@@ -517,7 +517,7 @@ func (ca *compilerAttributes) convertProductVariables(ctx android.BazelConversio
 	productVarPropNameToAttribute := map[string]*bazel.StringListAttribute{
 		"Cflags":   &ca.copts,
 		"Asflags":  &ca.asFlags,
-		"CppFlags": &ca.cppFlags,
+		"Cppflags": &ca.cppFlags,
 	}
 	for propName, attr := range productVarPropNameToAttribute {
 		if productConfigProps, exists := productVariableProps[propName]; exists {
@@ -762,8 +762,13 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 
 			if libraryProps, ok := archVariantLibraryProperties[axis][cfg].(*LibraryProperties); ok {
 				if axis == bazel.NoConfigAxis {
-					compilerAttrs.stubsSymbolFile = libraryProps.Stubs.Symbol_file
-					compilerAttrs.stubsVersions.SetSelectValue(axis, cfg, libraryProps.Stubs.Versions)
+					if libraryProps.Stubs.Symbol_file != nil {
+						compilerAttrs.stubsSymbolFile = libraryProps.Stubs.Symbol_file
+						versions := android.CopyOf(libraryProps.Stubs.Versions)
+						normalizeVersions(ctx, versions)
+						versions = addCurrentVersionIfNotPresent(versions)
+						compilerAttrs.stubsVersions.SetSelectValue(axis, cfg, versions)
+					}
 				}
 				if suffix := libraryProps.Suffix; suffix != nil {
 					compilerAttrs.suffix.SetSelectValue(axis, cfg, suffix)

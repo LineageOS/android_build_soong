@@ -26,7 +26,11 @@ import (
 
 // CopyOf returns a new slice that has the same contents as s.
 func CopyOf(s []string) []string {
-	return append([]string(nil), s...)
+	// If the input is nil, return nil and not an empty list
+	if s == nil {
+		return s
+	}
+	return append([]string{}, s...)
 }
 
 // Concat returns a new slice concatenated from the two input slices. It does not change the input
@@ -276,6 +280,8 @@ func RemoveFromList(s string, list []string) (bool, []string) {
 // FirstUniqueStrings returns all unique elements of a slice of strings, keeping the first copy of
 // each.  It modifies the slice contents in place, and returns a subslice of the original slice.
 func FirstUniqueStrings(list []string) []string {
+	// Do not moodify the input in-place, operate on a copy instead.
+	list = CopyOf(list)
 	// 128 was chosen based on BenchmarkFirstUniqueStrings results.
 	if len(list) > 128 {
 		return firstUniqueStringsMap(list)
@@ -332,6 +338,7 @@ func LastUniqueStrings(list []string) []string {
 
 // SortedUniqueStrings returns what the name says
 func SortedUniqueStrings(list []string) []string {
+	// FirstUniqueStrings creates a copy of `list`, so the input remains untouched.
 	unique := FirstUniqueStrings(list)
 	sort.Strings(unique)
 	return unique
