@@ -6260,8 +6260,7 @@ func TestApexWithApps(t *testing.T) {
 			sdk_version: "current",
 			system_modules: "none",
 			privileged: true,
-			privapp_allowlist: "perms.xml",
-			package_name: "com.android.AppFooPriv",
+			privapp_allowlist: "privapp_allowlist_com.android.AppFooPriv.xml",
 			stl: "none",
 			apex_available: [ "myapex" ],
 		}
