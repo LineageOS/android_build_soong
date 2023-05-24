@@ -29,7 +29,7 @@ func init() {
 }
 
 func RegisterPluginSingletonBuildComponents(ctx RegistrationContext) {
-	ctx.RegisterSingletonType("plugins", pluginSingletonFactory)
+	ctx.RegisterParallelSingletonType("plugins", pluginSingletonFactory)
 }
 
 // pluginSingleton is a singleton to handle allowlisting of the final Android-<product_name>.mk file
