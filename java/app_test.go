@@ -3563,9 +3563,8 @@ func TestPrivappAllowlist(t *testing.T) {
 		android_app {
 			name: "foo",
 			srcs: ["a.java"],
-			privapp_allowlist: "perms.xml",
+			privapp_allowlist: "privapp_allowlist_com.android.foo.xml",
 			privileged: true,
-			package_name: "com.android.foo",
 			sdk_version: "current",
 		}
 		override_android_app {
@@ -3578,17 +3577,12 @@ func TestPrivappAllowlist(t *testing.T) {
 	app := result.ModuleForTests("foo", "android_common")
 	overrideApp := result.ModuleForTests("foo", "android_common_bar")
 
-	// verify that privapp allowlist is created
-	app.Output("out/soong/.intermediates/foo/android_common/privapp_allowlist_com.android.foo.xml")
+	// verify that privapp allowlist is created for override apps
 	overrideApp.Output("out/soong/.intermediates/foo/android_common_bar/privapp_allowlist_com.google.android.foo.xml")
-	expectedAllowlist := "perms.xml"
-	actualAllowlist := app.Rule("modifyAllowlist").Input.String()
-	if expectedAllowlist != actualAllowlist {
-		t.Errorf("expected allowlist to be %q; got %q", expectedAllowlist, actualAllowlist)
-	}
-	overrideActualAllowlist := overrideApp.Rule("modifyAllowlist").Input.String()
-	if expectedAllowlist != overrideActualAllowlist {
-		t.Errorf("expected override allowlist to be %q; got %q", expectedAllowlist, overrideActualAllowlist)
+	expectedAllowlistInput := "privapp_allowlist_com.android.foo.xml"
+	overrideActualAllowlistInput := overrideApp.Rule("modifyAllowlist").Input.String()
+	if expectedAllowlistInput != overrideActualAllowlistInput {
+		t.Errorf("expected override allowlist to be %q; got %q", expectedAllowlistInput, overrideActualAllowlistInput)
 	}
 
 	// verify that permissions are copied to device
