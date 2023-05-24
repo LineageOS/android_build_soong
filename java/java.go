@@ -2606,6 +2606,7 @@ func DefaultsFactory() android.Module {
 		&appProperties{},
 		&appTestProperties{},
 		&overridableAppProperties{},
+		&hostTestProperties{},
 		&testProperties{},
 		&ImportProperties{},
 		&AARImportProperties{},
