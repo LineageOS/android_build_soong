@@ -977,6 +977,10 @@ func (a *AndroidApp) DepIsInSameApex(ctx android.BaseModuleContext, dep android.
 // For OutputFileProducer interface
 func (a *AndroidApp) OutputFiles(tag string) (android.Paths, error) {
 	switch tag {
+	// In some instances, it can be useful to reference the aapt-generated flags from another
+	// target, e.g., system server implements services declared in the framework-res manifest.
+	case ".aapt.proguardOptionsFile":
+		return []android.Path{a.proguardOptionsFile}, nil
 	case ".aapt.srcjar":
 		return []android.Path{a.aaptSrcJar}, nil
 	case ".export-package.apk":
