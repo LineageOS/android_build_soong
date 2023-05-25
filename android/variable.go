@@ -848,6 +848,9 @@ func (productConfigProperties *ProductConfigProperties) AddSoongConfigProperties
 		// indirections to extract the struct from the reflect.Value.
 		if v, ok := maybeExtractConfigVarProp(variableStruct); ok {
 			variableStruct = v
+		} else if !v.IsValid() {
+			// Skip invalid variables which may not used, else leads to panic
+			continue
 		}
 
 		for j := 0; j < variableStruct.NumField(); j++ {
