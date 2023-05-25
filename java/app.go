@@ -613,7 +613,6 @@ func processMainCert(m android.ModuleBase, certPropValue string, certificates []
 		}
 	}
 
-
 	return mainCertificate, certificates
 }
 
@@ -795,17 +794,17 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	// Install the app package.
 	shouldInstallAppPackage := (Bool(a.Module.properties.Installable) || ctx.Host()) && apexInfo.IsForPlatform() && !a.appProperties.PreventInstall
 	if shouldInstallAppPackage {
+		if a.privAppAllowlist.Valid() {
+			installPath := android.PathForModuleInstall(ctx, "etc", "permissions")
+			ctx.InstallFile(installPath, a.privAppAllowlist.Path().Base(), a.privAppAllowlist.Path())
+		}
+
 		var extraInstalledPaths android.Paths
 		for _, extra := range a.extraOutputFiles {
 			installed := ctx.InstallFile(a.installDir, extra.Base(), extra)
 			extraInstalledPaths = append(extraInstalledPaths, installed)
 		}
 		ctx.InstallFile(a.installDir, a.outputFile.Base(), a.outputFile, extraInstalledPaths...)
-
-		if a.privAppAllowlist.Valid() {
-			installPath := android.PathForModuleInstall(ctx, "etc", "permissions")
-			ctx.InstallFile(installPath, a.privAppAllowlist.Path().Base(), a.privAppAllowlist.Path())
-		}
 	}
 
 	a.buildAppDependencyInfo(ctx)
