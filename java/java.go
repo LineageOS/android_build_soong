@@ -1813,7 +1813,7 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		case javaApiContributionTag:
 			provider := ctx.OtherModuleProvider(dep, JavaApiImportProvider).(JavaApiImportInfo)
 			providerApiFile := provider.ApiFile
-			if providerApiFile == nil {
+			if providerApiFile == nil && !ctx.Config().AllowMissingDependencies() {
 				ctx.ModuleErrorf("Error: %s has an empty api file.", dep.Name())
 			}
 			srcFiles = append(srcFiles, android.PathForSource(ctx, providerApiFile.String()))
@@ -1835,7 +1835,7 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		srcFiles = append(srcFiles, android.PathForModuleSrc(ctx, api))
 	}
 
-	if srcFiles == nil {
+	if srcFiles == nil && !ctx.Config().AllowMissingDependencies() {
 		ctx.ModuleErrorf("Error: %s has an empty api file.", ctx.ModuleName())
 	}
 
