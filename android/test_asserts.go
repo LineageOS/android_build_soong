@@ -17,6 +17,7 @@ package android
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -134,6 +135,20 @@ func AssertStringContainsEquals(t *testing.T, message string, s string, substrin
 		AssertStringDoesContain(t, message, s, substring)
 	} else {
 		AssertStringDoesNotContain(t, message, s, substring)
+	}
+}
+
+// AssertStringMatches checks if the string matches the given regular expression. If it does not match,
+// then an error is reported with the supplied message including a reason for why it failed.
+func AssertStringMatches(t *testing.T, message, s, expectedRex string) {
+	t.Helper()
+	ok, err := regexp.MatchString(expectedRex, s)
+	if err != nil {
+		t.Fatalf("regexp failure trying to match %s against `%s` expression: %s", s, expectedRex, err)
+		return
+	}
+	if !ok {
+		t.Errorf("%s does not match regular expression %s", s, expectedRex)
 	}
 }
 
