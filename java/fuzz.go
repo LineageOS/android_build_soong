@@ -177,7 +177,11 @@ func (s *javaFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 		files = s.PackageArtifacts(ctx, module, javaFuzzModule.fuzzPackagedModule, archDir, builder)
 
 		// Add .jar
-		files = append(files, fuzz.FileToZip{SourceFilePath: javaFuzzModule.implementationJarFile})
+		if !javaFuzzModule.Host() {
+			files = append(files, fuzz.FileToZip{SourceFilePath: javaFuzzModule.implementationJarFile, DestinationPathPrefix: "classes"})
+		}
+
+		files = append(files, fuzz.FileToZip{SourceFilePath: javaFuzzModule.outputFile})
 
 		// Add jni .so files
 		for _, fPath := range javaFuzzModule.jniFilePaths {
