@@ -15,6 +15,9 @@
 package android
 
 import (
+	"crypto/md5"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -714,6 +717,31 @@ func SortedUniqueNamedPaths(l NamedPaths) NamedPaths {
 	return l[:k+1]
 }
 
+// soongConfigTrace holds all references to VendorVars. Uses []string for blueprint:"mutated"
+type soongConfigTrace struct {
+	Bools   []string `json:",omitempty"`
+	Strings []string `json:",omitempty"`
+	IsSets  []string `json:",omitempty"`
+}
+
+func (c *soongConfigTrace) isEmpty() bool {
+	return len(c.Bools) == 0 && len(c.Strings) == 0 && len(c.IsSets) == 0
+}
+
+// Returns hash of serialized trace records (empty string if there's no trace recorded)
+func (c *soongConfigTrace) hash() string {
+	// Use MD5 for speed. We don't care collision or preimage attack
+	if c.isEmpty() {
+		return ""
+	}
+	j, err := json.Marshal(c)
+	if err != nil {
+		panic(fmt.Errorf("json marshal of %#v failed: %#v", *c, err))
+	}
+	hash := md5.Sum(j)
+	return hex.EncodeToString(hash[:])
+}
+
 type nameProperties struct {
 	// The name of the module.  Must be unique across all modules.
 	Name *string
@@ -958,6 +986,10 @@ type commonProperties struct {
 
 	// Bazel conversion status
 	BazelConversionStatus BazelConversionStatus `blueprint:"mutated"`
+
+	// SoongConfigTrace records accesses to VendorVars (soong_config)
+	SoongConfigTrace     soongConfigTrace `blueprint:"mutated"`
+	SoongConfigTraceHash string           `blueprint:"mutated"`
 }
 
 // CommonAttributes represents the common Bazel attributes from which properties
@@ -3160,6 +3192,10 @@ func (m *moduleContext) ModuleSubDir() string {
 	return m.bp.ModuleSubDir()
 }
 
+func (m *moduleContext) ModuleSoongConfigHash() string {
+	return m.module.base().commonProperties.SoongConfigTraceHash
+}
+
 func (b *baseModuleContext) Target() Target {
 	return b.target
 }
@@ -3744,6 +3780,8 @@ func (m *moduleContext) TargetRequiredModuleNames() []string {
 
 func init() {
 	RegisterParallelSingletonType("buildtarget", BuildTargetSingleton)
+	RegisterParallelSingletonType("soongconfigtrace", soongConfigTraceSingletonFunc)
+	FinalDepsMutators(registerSoongConfigTraceMutator)
 }
 
 func BuildTargetSingleton() Singleton {
@@ -3924,4 +3962,55 @@ func (d *installPathsDepSet) ToList() InstallPaths {
 		return nil
 	}
 	return d.depSet.ToList().(InstallPaths)
+}
+
+func registerSoongConfigTraceMutator(ctx RegisterMutatorsContext) {
+	ctx.BottomUp("soongconfigtrace", soongConfigTraceMutator).Parallel()
+}
+
+// soongConfigTraceMutator accumulates recorded soong_config trace from children. Also it normalizes
+// SoongConfigTrace to make it consistent.
+func soongConfigTraceMutator(ctx BottomUpMutatorContext) {
+	trace := &ctx.Module().base().commonProperties.SoongConfigTrace
+	ctx.VisitDirectDeps(func(m Module) {
+		childTrace := &m.base().commonProperties.SoongConfigTrace
+		trace.Bools = append(trace.Bools, childTrace.Bools...)
+		trace.Strings = append(trace.Strings, childTrace.Strings...)
+		trace.IsSets = append(trace.IsSets, childTrace.IsSets...)
+	})
+	trace.Bools = SortedUniqueStrings(trace.Bools)
+	trace.Strings = SortedUniqueStrings(trace.Strings)
+	trace.IsSets = SortedUniqueStrings(trace.IsSets)
+
+	ctx.Module().base().commonProperties.SoongConfigTraceHash = trace.hash()
+}
+
+// soongConfigTraceSingleton writes a map from each module's config hash value to trace data.
+func soongConfigTraceSingletonFunc() Singleton {
+	return &soongConfigTraceSingleton{}
+}
+
+type soongConfigTraceSingleton struct {
+}
+
+func (s *soongConfigTraceSingleton) GenerateBuildActions(ctx SingletonContext) {
+	outFile := PathForOutput(ctx, "soong_config_trace.json")
+
+	traces := make(map[string]*soongConfigTrace)
+	ctx.VisitAllModules(func(module Module) {
+		trace := &module.base().commonProperties.SoongConfigTrace
+		if !trace.isEmpty() {
+			hash := module.base().commonProperties.SoongConfigTraceHash
+			traces[hash] = trace
+		}
+	})
+
+	j, err := json.Marshal(traces)
+	if err != nil {
+		ctx.Errorf("json marshal to %q failed: %#v", outFile, err)
+		return
+	}
+
+	WriteFileRule(ctx, outFile, string(j))
+	ctx.Phony("soong_config_trace", outFile)
 }
