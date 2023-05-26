@@ -2704,6 +2704,15 @@ type javaResourcesAttributes struct {
 	Resource_strip_prefix *string
 }
 
+func (m *Library) javaResourcesGetSingleFilegroupStripPrefix(ctx android.TopDownMutatorContext) (string, bool) {
+	if otherM, ok := ctx.ModuleFromName(m.properties.Java_resources[0]); ok && len(m.properties.Java_resources) == 1 {
+		if fg, isFilegroup := otherM.(android.FileGroupPath); isFilegroup {
+			return filepath.Join(ctx.OtherModuleDir(otherM), fg.GetPath(ctx)), true
+		}
+	}
+	return "", false
+}
+
 func (m *Library) convertJavaResourcesAttributes(ctx android.TopDownMutatorContext) *javaResourcesAttributes {
 	var resources bazel.LabelList
 	var resourceStripPrefix *string
@@ -2713,8 +2722,12 @@ func (m *Library) convertJavaResourcesAttributes(ctx android.TopDownMutatorConte
 	}
 
 	if m.properties.Java_resources != nil {
+		if prefix, ok := m.javaResourcesGetSingleFilegroupStripPrefix(ctx); ok {
+			resourceStripPrefix = proptools.StringPtr(prefix)
+		} else {
+			resourceStripPrefix = proptools.StringPtr(ctx.ModuleDir())
+		}
 		resources.Append(android.BazelLabelForModuleSrc(ctx, m.properties.Java_resources))
-		resourceStripPrefix = proptools.StringPtr(ctx.ModuleDir())
 	}
 
 	//TODO(b/179889880) handle case where glob includes files outside package
