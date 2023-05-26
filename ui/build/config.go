@@ -1486,7 +1486,7 @@ func (c *configImpl) GoogleProdCredsExist() bool {
 	if googleProdCredsExistCache {
 		return googleProdCredsExistCache
 	}
-	if _, err := exec.Command("/usr/bin/prodcertstatus", "--simple_output", "--nocheck_loas").Output(); err != nil {
+	if _, err := exec.Command("/usr/bin/gcertstatus").Output(); err != nil {
 		return false
 	}
 	googleProdCredsExistCache = true
