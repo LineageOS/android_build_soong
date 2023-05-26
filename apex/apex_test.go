@@ -6305,6 +6305,18 @@ func TestApexWithApps(t *testing.T) {
 		// ... and not directly inside the APEX
 		ensureNotContains(t, copyCmds, "image.apex/lib64/"+jni+".so")
 	}
+
+	apexBundle := module.Module().(*apexBundle)
+	data := android.AndroidMkDataForTest(t, ctx, apexBundle)
+	var builder strings.Builder
+	data.Custom(&builder, apexBundle.Name(), "TARGET_", "", data)
+	androidMk := builder.String()
+	ensureContains(t, androidMk, "LOCAL_MODULE := AppFooPriv.myapex")
+	ensureContains(t, androidMk, "LOCAL_MODULE := AppFoo.myapex")
+	ensureMatches(t, androidMk, "LOCAL_SOONG_INSTALLED_MODULE := \\S+AppFooPriv.apk")
+	ensureMatches(t, androidMk, "LOCAL_SOONG_INSTALLED_MODULE := \\S+AppFoo.apk")
+	ensureMatches(t, androidMk, "LOCAL_SOONG_INSTALL_PAIRS := \\S+AppFooPriv.apk")
+	ensureContains(t, androidMk, "LOCAL_SOONG_INSTALL_PAIRS := privapp_allowlist_com.android.AppFooPriv.xml:$(PRODUCT_OUT)/apex/myapex/etc/permissions/privapp_allowlist_com.android.AppFooPriv.xml")
 }
 
 func TestApexWithAppImportBuildId(t *testing.T) {
