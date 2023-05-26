@@ -826,3 +826,43 @@ func TestJavaLibraryArchVariantSrcsWithExcludes(t *testing.T) {
 		},
 	})
 }
+
+func TestJavaLibraryJavaResourcesSingleFilegroup(t *testing.T) {
+	runJavaLibraryTestCaseWithRegistrationCtxFunc(t, Bp2buildTestCase{
+		Filesystem: map[string]string{
+			"res/a.res":      "",
+			"res/b.res":      "",
+			"res/dir1/b.res": "",
+		},
+		Description: "java_library",
+		Blueprint: `java_library {
+    name: "java-lib-1",
+    srcs: ["a.java"],
+    java_resources: [":filegroup1"],
+    bazel_module: { bp2build_available: true },
+}
+
+filegroup {
+    name: "filegroup1",
+    path: "foo",
+    srcs: ["foo/a", "foo/b"],
+}
+
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+				"srcs":                  `["a.java"]`,
+				"resources":             `[":filegroup1"]`,
+				"resource_strip_prefix": `"foo"`,
+			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
+			MakeBazelTargetNoRestrictions("filegroup", "filegroup1", AttrNameToString{
+				"srcs": `[
+        "foo/a",
+        "foo/b",
+    ]`}),
+		},
+	}, func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
+	})
+}
