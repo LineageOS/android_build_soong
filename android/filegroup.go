@@ -177,6 +177,17 @@ func (fg *fileGroup) ConvertWithBp2build(ctx TopDownMutatorContext) {
 	}
 }
 
+type FileGroupPath interface {
+	GetPath(ctx TopDownMutatorContext) string
+}
+
+func (fg *fileGroup) GetPath(ctx TopDownMutatorContext) string {
+	if fg.properties.Path != nil {
+		return *fg.properties.Path
+	}
+	return ""
+}
+
 type fileGroupProperties struct {
 	// srcs lists files that will be included in this filegroup
 	Srcs []string `android:"path"`
@@ -207,6 +218,7 @@ type fileGroup struct {
 	BazelModuleBase
 	DefaultableModuleBase
 	FileGroupAsLibrary
+	FileGroupPath
 	properties fileGroupProperties
 	srcs       Paths
 }
@@ -214,6 +226,7 @@ type fileGroup struct {
 var _ MixedBuildBuildable = (*fileGroup)(nil)
 var _ SourceFileProducer = (*fileGroup)(nil)
 var _ FileGroupAsLibrary = (*fileGroup)(nil)
+var _ FileGroupPath = (*fileGroup)(nil)
 
 // filegroup contains a list of files that are referenced by other modules
 // properties (such as "srcs") using the syntax ":<name>". filegroup are
