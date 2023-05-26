@@ -761,6 +761,11 @@ var (
 		// aidl
 		"aidl",
 		"libaidl-common",
+
+		// java_resources containing only a single filegroup
+		"libauto_value_plugin",
+		"auto_value_plugin_resources",
+		"auto_value_extension",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
@@ -835,7 +840,6 @@ var (
 		"libprotobuf-internal-python-srcs", // TODO(b/210751803), we don't handle path property for filegroups
 		"libprotobuf-java-full",            // TODO(b/210751803), we don't handle path property for filegroups
 		"libprotobuf-java-util-full",       // TODO(b/210751803), we don't handle path property for filegroups
-		"auto_value_plugin_resources",      // TODO(b/210751803), we don't handle path property for filegroups
 
 		// go deps:
 		"analyze_bcpf",              // depends on bpmodify a blueprint_go_binary.
