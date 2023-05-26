@@ -421,6 +421,57 @@ func loadSoongConfigModuleTypeDefinition(ctx LoadHookContext, from string) map[s
 	}).(map[string]blueprint.ModuleFactory)
 }
 
+// tracingConfig is a wrapper to soongconfig.SoongConfig which records all accesses to SoongConfig.
+type tracingConfig struct {
+	config    soongconfig.SoongConfig
+	boolSet   map[string]bool
+	stringSet map[string]string
+	isSetSet  map[string]bool
+}
+
+func (c *tracingConfig) Bool(name string) bool {
+	c.boolSet[name] = c.config.Bool(name)
+	return c.boolSet[name]
+}
+
+func (c *tracingConfig) String(name string) string {
+	c.stringSet[name] = c.config.String(name)
+	return c.stringSet[name]
+}
+
+func (c *tracingConfig) IsSet(name string) bool {
+	c.isSetSet[name] = c.config.IsSet(name)
+	return c.isSetSet[name]
+}
+
+func (c *tracingConfig) getTrace() soongConfigTrace {
+	ret := soongConfigTrace{}
+
+	for k, v := range c.boolSet {
+		ret.Bools = append(ret.Bools, fmt.Sprintf("%q:%t", k, v))
+	}
+	for k, v := range c.stringSet {
+		ret.Strings = append(ret.Strings, fmt.Sprintf("%q:%q", k, v))
+	}
+	for k, v := range c.isSetSet {
+		ret.IsSets = append(ret.IsSets, fmt.Sprintf("%q:%t", k, v))
+	}
+
+	return ret
+}
+
+func newTracingConfig(config soongconfig.SoongConfig) *tracingConfig {
+	c := tracingConfig{
+		config:    config,
+		boolSet:   make(map[string]bool),
+		stringSet: make(map[string]string),
+		isSetSet:  make(map[string]bool),
+	}
+	return &c
+}
+
+var _ soongconfig.SoongConfig = (*tracingConfig)(nil)
+
 // configModuleFactory takes an existing soongConfigModuleFactory and a
 // ModuleType to create a new ModuleFactory that uses a custom loadhook.
 func configModuleFactory(factory blueprint.ModuleFactory, moduleType *soongconfig.ModuleType, bp2build bool) blueprint.ModuleFactory {
@@ -485,8 +536,8 @@ func configModuleFactory(factory blueprint.ModuleFactory, moduleType *soongconfi
 			// conditional on Soong config variables by reading the product
 			// config variables from Make.
 			AddLoadHook(module, func(ctx LoadHookContext) {
-				config := ctx.Config().VendorConfig(moduleType.ConfigNamespace)
-				newProps, err := soongconfig.PropertiesToApply(moduleType, conditionalProps, config)
+				tracingConfig := newTracingConfig(ctx.Config().VendorConfig(moduleType.ConfigNamespace))
+				newProps, err := soongconfig.PropertiesToApply(moduleType, conditionalProps, tracingConfig)
 				if err != nil {
 					ctx.ModuleErrorf("%s", err)
 					return
@@ -494,6 +545,8 @@ func configModuleFactory(factory blueprint.ModuleFactory, moduleType *soongconfi
 				for _, ps := range newProps {
 					ctx.AppendProperties(ps)
 				}
+
+				module.(Module).base().commonProperties.SoongConfigTrace = tracingConfig.getTrace()
 			})
 		}
 		return module, props
