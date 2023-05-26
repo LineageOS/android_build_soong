@@ -1871,13 +1871,16 @@ func apexFilesForAndroidApp(ctx android.BaseModuleContext, aapp androidApp) []ap
 	}); ok {
 		af.overriddenPackageName = app.OverriddenManifestPackageName()
 	}
-	apexFiles := []apexFile{af}
+
+	apexFiles := []apexFile{}
 
 	if allowlist := aapp.PrivAppAllowlist(); allowlist.Valid() {
 		dirInApex := filepath.Join("etc", "permissions")
-		privAppAllowlist := newApexFile(ctx, allowlist.Path(), aapp.BaseModuleName()+"privapp", dirInApex, etc, aapp)
+		privAppAllowlist := newApexFile(ctx, allowlist.Path(), aapp.BaseModuleName()+"_privapp", dirInApex, etc, aapp)
 		apexFiles = append(apexFiles, privAppAllowlist)
 	}
+
+	apexFiles = append(apexFiles, af)
 
 	return apexFiles
 }
