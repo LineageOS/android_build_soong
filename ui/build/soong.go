@@ -235,7 +235,7 @@ func bootstrapEpochCleanup(ctx Context, config Config) {
 	} else if !exists {
 		// The tree is out of date for the current epoch, delete files used by bootstrap
 		// and force the primary builder to rerun.
-		os.Remove(filepath.Join(config.SoongOutDir(), "build.ninja"))
+		os.Remove(config.SoongNinjaFile())
 		for _, globFile := range bootstrapGlobFileList(config) {
 			os.Remove(globFile)
 		}
@@ -263,7 +263,9 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	// Clean up some files for incremental builds across incompatible changes.
 	bootstrapEpochCleanup(ctx, config)
 
-	mainSoongBuildExtraArgs := []string{"-o", config.SoongNinjaFile()}
+	baseArgs := []string{"--soong_variables", config.SoongVarsFile()}
+
+	mainSoongBuildExtraArgs := append(baseArgs, "-o", config.SoongNinjaFile())
 	if config.EmptyNinjaFile() {
 		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--empty-ninja-file")
 	}
@@ -306,49 +308,59 @@ func bootstrapBlueprint(ctx Context, config Config) {
 			specificArgs: mainSoongBuildExtraArgs,
 		},
 		{
-			name:         bp2buildFilesTag,
-			description:  fmt.Sprintf("converting Android.bp files to BUILD files at %s/bp2build", config.SoongOutDir()),
-			config:       config,
-			output:       config.Bp2BuildFilesMarkerFile(),
-			specificArgs: []string{"--bp2build_marker", config.Bp2BuildFilesMarkerFile()},
+			name:        bp2buildFilesTag,
+			description: fmt.Sprintf("converting Android.bp files to BUILD files at %s/bp2build", config.SoongOutDir()),
+			config:      config,
+			output:      config.Bp2BuildFilesMarkerFile(),
+			specificArgs: append(baseArgs,
+				"--bp2build_marker", config.Bp2BuildFilesMarkerFile(),
+			),
 		},
 		{
-			name:         bp2buildWorkspaceTag,
-			description:  "Creating Bazel symlink forest",
-			config:       config,
-			output:       config.Bp2BuildWorkspaceMarkerFile(),
-			specificArgs: []string{"--symlink_forest_marker", config.Bp2BuildWorkspaceMarkerFile()},
+			name:        bp2buildWorkspaceTag,
+			description: "Creating Bazel symlink forest",
+			config:      config,
+			output:      config.Bp2BuildWorkspaceMarkerFile(),
+			specificArgs: append(baseArgs,
+				"--symlink_forest_marker", config.Bp2BuildWorkspaceMarkerFile(),
+			),
 		},
 		{
 			name:        jsonModuleGraphTag,
 			description: fmt.Sprintf("generating the Soong module graph at %s", config.ModuleGraphFile()),
 			config:      config,
 			output:      config.ModuleGraphFile(),
-			specificArgs: []string{
+			specificArgs: append(baseArgs,
 				"--module_graph_file", config.ModuleGraphFile(),
 				"--module_actions_file", config.ModuleActionsFile(),
-			},
+			),
 		},
 		{
-			name:         queryviewTag,
-			description:  fmt.Sprintf("generating the Soong module graph as a Bazel workspace at %s", queryviewDir),
-			config:       config,
-			output:       config.QueryviewMarkerFile(),
-			specificArgs: []string{"--bazel_queryview_dir", queryviewDir},
+			name:        queryviewTag,
+			description: fmt.Sprintf("generating the Soong module graph as a Bazel workspace at %s", queryviewDir),
+			config:      config,
+			output:      config.QueryviewMarkerFile(),
+			specificArgs: append(baseArgs,
+				"--bazel_queryview_dir", queryviewDir,
+			),
 		},
 		{
-			name:         apiBp2buildTag,
-			description:  fmt.Sprintf("generating BUILD files for API contributions at %s", apiBp2buildDir),
-			config:       config,
-			output:       config.ApiBp2buildMarkerFile(),
-			specificArgs: []string{"--bazel_api_bp2build_dir", apiBp2buildDir},
+			name:        apiBp2buildTag,
+			description: fmt.Sprintf("generating BUILD files for API contributions at %s", apiBp2buildDir),
+			config:      config,
+			output:      config.ApiBp2buildMarkerFile(),
+			specificArgs: append(baseArgs,
+				"--bazel_api_bp2build_dir", apiBp2buildDir,
+			),
 		},
 		{
-			name:         soongDocsTag,
-			description:  fmt.Sprintf("generating Soong docs at %s", config.SoongDocsHtml()),
-			config:       config,
-			output:       config.SoongDocsHtml(),
-			specificArgs: []string{"--soong_docs", config.SoongDocsHtml()},
+			name:        soongDocsTag,
+			description: fmt.Sprintf("generating Soong docs at %s", config.SoongDocsHtml()),
+			config:      config,
+			output:      config.SoongDocsHtml(),
+			specificArgs: append(baseArgs,
+				"--soong_docs", config.SoongDocsHtml(),
+			),
 		},
 	}
 
