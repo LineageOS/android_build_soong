@@ -766,6 +766,9 @@ var (
 		"libauto_value_plugin",
 		"auto_value_plugin_resources",
 		"auto_value_extension",
+
+		// Used by xsd_config
+		"xsdc",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
