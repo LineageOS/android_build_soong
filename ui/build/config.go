@@ -1229,6 +1229,13 @@ func (c *configImpl) TargetProduct() string {
 	panic("TARGET_PRODUCT is not defined")
 }
 
+func (c *configImpl) TargetProductOrErr() (string, error) {
+	if v, ok := c.environ.Get("TARGET_PRODUCT"); ok {
+		return v, nil
+	}
+	return "", fmt.Errorf("TARGET_PRODUCT is not defined")
+}
+
 func (c *configImpl) TargetDevice() string {
 	return c.targetDevice
 }
@@ -1554,11 +1561,21 @@ func (c *configImpl) KatiPackageNinjaFile() string {
 }
 
 func (c *configImpl) SoongVarsFile() string {
-	return filepath.Join(c.SoongOutDir(), "soong.variables")
+	targetProduct, err := c.TargetProductOrErr()
+	if err != nil {
+		return filepath.Join(c.SoongOutDir(), "soong.variables")
+	} else {
+		return filepath.Join(c.SoongOutDir(), "soong."+targetProduct+".variables")
+	}
 }
 
 func (c *configImpl) SoongNinjaFile() string {
-	return filepath.Join(c.SoongOutDir(), "build.ninja")
+	targetProduct, err := c.TargetProductOrErr()
+	if err != nil {
+		return filepath.Join(c.SoongOutDir(), "build.ninja")
+	} else {
+		return filepath.Join(c.SoongOutDir(), "build."+targetProduct+".ninja")
+	}
 }
 
 func (c *configImpl) CombinedNinjaFile() string {
