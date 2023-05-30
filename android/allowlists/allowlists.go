@@ -816,7 +816,6 @@ var (
 
 		"linker",    // TODO(b/228316882): cc_binary uses link_crt
 		"versioner", // TODO(b/228313961):  depends on prebuilt shared library libclang-cpp_host as a shared library, which does not supply expected providers for a shared library
-		"tjbench",   // TODO(b/240563612): Stem property
 
 		// requires host tools for apexer
 		"apexer_test", "apexer_test_host_tools", "host_apex_verifier",
@@ -1495,9 +1494,6 @@ var (
 		"libadb_pairing_connection",
 		"libadb_pairing_connection_static",
 		"libadb_pairing_server", "libadb_pairing_server_static",
-
-		// TODO(b/240563612) Needing `stem` selection support for cc_binary
-		"crasher",
 
 		// java_import[_host] issues
 		// tradefed prebuilts depend on libprotobuf
