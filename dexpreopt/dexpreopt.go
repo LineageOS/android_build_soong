@@ -52,7 +52,8 @@ var DexpreoptRunningInSoong = false
 // GenerateDexpreoptRule generates a set of commands that will preopt a module based on a GlobalConfig and a
 // ModuleConfig.  The produced files and their install locations will be available through rule.Installs().
 func GenerateDexpreoptRule(ctx android.BuilderContext, globalSoong *GlobalSoongConfig,
-	global *GlobalConfig, module *ModuleConfig) (rule *android.RuleBuilder, err error) {
+	global *GlobalConfig, module *ModuleConfig, productPackages android.Path) (
+	rule *android.RuleBuilder, err error) {
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -92,7 +93,8 @@ func GenerateDexpreoptRule(ctx android.BuilderContext, globalSoong *GlobalSoongC
 			generateDM := shouldGenerateDM(module, global)
 
 			for archIdx, _ := range module.Archs {
-				dexpreoptCommand(ctx, globalSoong, global, module, rule, archIdx, profile, appImage, generateDM)
+				dexpreoptCommand(ctx, globalSoong, global, module, rule, archIdx, profile, appImage,
+					generateDM, productPackages)
 			}
 		}
 	}
@@ -232,9 +234,9 @@ func ToOdexPath(path string, arch android.ArchType) string {
 		pathtools.ReplaceExtension(filepath.Base(path), "odex"))
 }
 
-func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, global *GlobalConfig,
-	module *ModuleConfig, rule *android.RuleBuilder, archIdx int, profile android.WritablePath,
-	appImage bool, generateDM bool) {
+func dexpreoptCommand(ctx android.BuilderContext, globalSoong *GlobalSoongConfig,
+	global *GlobalConfig, module *ModuleConfig, rule *android.RuleBuilder, archIdx int,
+	profile android.WritablePath, appImage bool, generateDM bool, productPackages android.Path) {
 
 	arch := module.Archs[archIdx]
 
@@ -351,11 +353,13 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 		}
 
 		// Generate command that saves host and target class loader context in shell variables.
-		clc, paths := ComputeClassLoaderContext(module.ClassLoaderContexts)
+		paths := ComputeClassLoaderContextDependencies(module.ClassLoaderContexts)
 		rule.Command().
 			Text(`eval "$(`).Tool(globalSoong.ConstructContext).
 			Text(` --target-sdk-version ${target_sdk_version}`).
-			Text(clc).Implicits(paths).
+			FlagWithArg("--context-json=", module.ClassLoaderContexts.DumpForFlag()).
+			FlagWithInput("--product-packages=", productPackages).
+			Implicits(paths).
 			Text(`)"`)
 	}
 
