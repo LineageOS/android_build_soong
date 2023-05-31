@@ -261,7 +261,7 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	// Disallow experimental features
 	modulePath := android.PathForModuleSrc(ctx).String()
 	if !(android.IsThirdPartyPath(modulePath) || strings.HasPrefix(modulePath, "prebuilts")) {
-		rustcFlags = append(rustcFlags, "-Zallow-features=\"custom_inner_attributes,mixed_integer_ops\"")
+		rustcFlags = append(rustcFlags, "-Zallow-features=\"\"")
 	}
 
 	// Collect linker flags
