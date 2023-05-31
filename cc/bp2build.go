@@ -591,7 +591,8 @@ func parseSrcs(ctx android.BazelConversionPathContext, props *BaseCompilerProper
 	anySrcs := false
 	// Add srcs-like dependencies such as generated files.
 	// First create a LabelList containing these dependencies, then merge the values with srcs.
-	generatedSrcsLabelList := android.BazelLabelForModuleDepsExcludes(ctx, props.Generated_sources, props.Exclude_generated_sources)
+	genSrcs, _ := android.PartitionXsdSrcs(ctx, props.Generated_sources)
+	generatedSrcsLabelList := android.BazelLabelForModuleDepsExcludes(ctx, genSrcs, props.Exclude_generated_sources)
 	if len(props.Generated_sources) > 0 || len(props.Exclude_generated_sources) > 0 {
 		anySrcs = true
 	}
@@ -716,6 +717,14 @@ func bp2BuildYasm(ctx android.Bp2buildMutatorContext, m *Module, ca compilerAttr
 	return ret
 }
 
+// Replaces //a/b/my_xsd_config with //a/b/my_xsd_config-cpp
+func xsdConfigCppTarget(ctx android.BazelConversionPathContext, mod blueprint.Module) string {
+	callback := func(xsd android.XsdConfigBp2buildTargets) string {
+		return xsd.CppBp2buildTargetName()
+	}
+	return android.XsdConfigBp2buildTarget(ctx, mod, callback)
+}
+
 // bp2BuildParseBaseProps returns all compiler, linker, library attributes of a cc module..
 func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) baseAttributes {
 	archVariantCompilerProps := module.GetArchVariantProperties(ctx, &BaseCompilerProperties{})
@@ -754,7 +763,14 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 		for cfg := range configs {
 			var allHdrs []string
 			if baseCompilerProps, ok := archVariantCompilerProps[axis][cfg].(*BaseCompilerProperties); ok {
-				allHdrs = baseCompilerProps.Generated_headers
+				ah, allHdrsXsd := android.PartitionXsdSrcs(ctx, baseCompilerProps.Generated_headers)
+				allHdrs = ah
+				// in the synthetic bp2build workspace, xsd sources are compiled to a static library
+				xsdCppConfigLibraryLabels := android.BazelLabelForModuleDepsWithFn(ctx, allHdrsXsd, xsdConfigCppTarget)
+				iwad := linkerAttrs.implementationWholeArchiveDeps.SelectValue(axis, cfg)
+				(&iwad).Append(xsdCppConfigLibraryLabels)
+				linkerAttrs.implementationWholeArchiveDeps.SetSelectValue(axis, cfg, bazel.FirstUniqueBazelLabelList(iwad))
+
 				if baseCompilerProps.Lex != nil {
 					compilerAttrs.lexopts.SetSelectValue(axis, cfg, baseCompilerProps.Lex.Flags)
 				}
