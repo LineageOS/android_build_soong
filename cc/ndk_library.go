@@ -599,24 +599,3 @@ func apiHeaderLabels(ctx android.TopDownMutatorContext, hdrLibs []string) bazel.
 	}
 	return android.BazelLabelForModuleDepsWithFn(ctx, hdrLibs, addSuffix)
 }
-
-func ndkLibraryBp2build(ctx android.TopDownMutatorContext, m *Module) {
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "cc_api_contribution",
-		Bzl_load_location: "//build/bazel/rules/apis:cc_api_contribution.bzl",
-	}
-	stubLibrary := m.compiler.(*stubDecorator)
-	attrs := &bazelCcApiContributionAttributes{
-		Library_name: stubLibrary.implementationModuleName(m.Name()),
-		Api_surfaces: bazel.MakeStringListAttribute(
-			[]string{android.PublicApi.String()}),
-	}
-	if symbolFile := stubLibrary.properties.Symbol_file; symbolFile != nil {
-		apiLabel := android.BazelLabelForModuleSrcSingle(ctx, proptools.String(symbolFile)).Label
-		attrs.Api = *bazel.MakeLabelAttribute(apiLabel)
-	}
-	apiHeaders := apiHeaderLabels(ctx, stubLibrary.properties.Export_header_libs)
-	attrs.Hdrs = bazel.MakeLabelListAttribute(apiHeaders)
-	apiContributionTargetName := android.ApiContributionTargetName(ctx.ModuleName())
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: apiContributionTargetName}, attrs)
-}
