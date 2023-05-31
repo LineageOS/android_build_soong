@@ -56,9 +56,6 @@ type LTOProperties struct {
 	ThinDep      bool `blueprint:"mutated"`
 	NoLtoDep     bool `blueprint:"mutated"`
 
-	// Use clang lld instead of gnu ld.
-	Use_clang_lld *bool
-
 	// Use -fwhole-program-vtables cflag.
 	Whole_program_vtables *bool
 }
@@ -75,13 +72,6 @@ func (lto *lto) begin(ctx BaseModuleContext) {
 	if ctx.Config().IsEnvTrue("DISABLE_LTO") {
 		lto.Properties.NoLtoEnabled = true
 	}
-}
-
-func (lto *lto) useClangLld(ctx BaseModuleContext) bool {
-	if lto.Properties.Use_clang_lld != nil {
-		return Bool(lto.Properties.Use_clang_lld)
-	}
-	return true
 }
 
 func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
@@ -112,7 +102,7 @@ func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
 			flags.Local.CFlags = append(flags.Local.CFlags, "-fwhole-program-vtables")
 		}
 
-		if (lto.DefaultThinLTO(ctx) || lto.ThinLTO()) && ctx.Config().IsEnvTrue("USE_THINLTO_CACHE") && lto.useClangLld(ctx) {
+		if (lto.DefaultThinLTO(ctx) || lto.ThinLTO()) && ctx.Config().IsEnvTrue("USE_THINLTO_CACHE") {
 			// Set appropriate ThinLTO cache policy
 			cacheDirFormat := "-Wl,--thinlto-cache-dir="
 			cacheDir := android.PathForOutput(ctx, "thinlto-cache").String()
