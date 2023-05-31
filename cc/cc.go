@@ -4100,8 +4100,6 @@ func (c *Module) ConvertWithApiBp2build(ctx android.TopDownMutatorContext) {
 		// Aggressively generate api targets for all header modules
 		// This is necessary since the header module does not know if it is a dep of API surface stub library
 		apiLibraryHeadersBp2Build(ctx, c)
-	case ndkLibrary:
-		ndkLibraryBp2build(ctx, c)
 	}
 }
 
