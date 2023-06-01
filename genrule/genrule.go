@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"android/soong/bazel/cquery"
 
@@ -59,6 +60,12 @@ var PrepareForTestWithGenRuleBuildComponents = android.GroupFixturePreparers(
 var PrepareForIntegrationTestWithGenrule = android.GroupFixturePreparers(
 	PrepareForTestWithGenRuleBuildComponents,
 )
+
+var DepfileAllowSet map[string]bool
+var SandboxingDenyModuleSet map[string]bool
+var SandboxingDenyPathSet map[string]bool
+var SandboxingDenyModuleSetLock sync.Mutex
+var DepfileAllowSetLock sync.Mutex
 
 func RegisterGenruleBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("genrule_defaults", defaultsFactory)
@@ -595,6 +602,12 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Allowlist genrule to use depfile until we have a solution to remove it.
 	// TODO(b/235582219): Remove allowlist for genrule
 	if Bool(g.properties.Depfile) {
+		if DepfileAllowSet == nil {
+			DepfileAllowSetLock.Lock()
+			defer DepfileAllowSetLock.Unlock()
+			DepfileAllowSet = map[string]bool{}
+			android.AddToStringSet(DepfileAllowSet, DepfileAllowList)
+		}
 		// TODO(b/283852474): Checking the GenruleSandboxing flag is temporary in
 		// order to pass the presubmit before internal master is updated.
 		if ctx.DeviceConfig().GenruleSandboxing() && !DepfileAllowSet[g.Name()] {
@@ -1024,8 +1037,19 @@ func DefaultsFactory(props ...interface{}) android.Module {
 }
 
 func getSandboxedRuleBuilder(ctx android.ModuleContext, r *android.RuleBuilder) *android.RuleBuilder {
-	if !ctx.DeviceConfig().GenruleSandboxing() || SandboxingDenyPathSet[ctx.ModuleDir()] ||
-		SandboxingDenyModuleSet[ctx.ModuleName()] {
+	if !ctx.DeviceConfig().GenruleSandboxing() {
+		return r.SandboxTools()
+	}
+	if SandboxingDenyModuleSet == nil {
+		SandboxingDenyModuleSetLock.Lock()
+		defer SandboxingDenyModuleSetLock.Unlock()
+		SandboxingDenyModuleSet = map[string]bool{}
+		SandboxingDenyPathSet = map[string]bool{}
+		android.AddToStringSet(SandboxingDenyModuleSet, append(DepfileAllowList, SandboxingDenyModuleList...))
+		android.AddToStringSet(SandboxingDenyPathSet, SandboxingDenyPathList)
+	}
+
+	if SandboxingDenyPathSet[ctx.ModuleDir()] || SandboxingDenyModuleSet[ctx.ModuleName()] {
 		return r.SandboxTools()
 	}
 	return r.SandboxInputs()
