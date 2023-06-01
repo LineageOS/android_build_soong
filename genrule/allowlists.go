@@ -14,10 +14,6 @@
 
 package genrule
 
-import (
-	"android/soong/android"
-)
-
 var (
 	DepfileAllowList = []string{
 		"depfile_allowed_for_test",
@@ -136,12 +132,3 @@ var (
 		"external/perfetto",
 	}
 )
-var DepfileAllowSet = map[string]bool{}
-var SandboxingDenyModuleSet = map[string]bool{}
-var SandboxingDenyPathSet = map[string]bool{}
-
-func init() {
-	android.AddToStringSet(DepfileAllowSet, DepfileAllowList)
-	android.AddToStringSet(SandboxingDenyModuleSet, append(DepfileAllowList, SandboxingDenyModuleList...))
-	android.AddToStringSet(SandboxingDenyPathSet, SandboxingDenyPathList)
-}
