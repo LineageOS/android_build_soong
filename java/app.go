@@ -795,8 +795,9 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	shouldInstallAppPackage := (Bool(a.Module.properties.Installable) || ctx.Host()) && apexInfo.IsForPlatform() && !a.appProperties.PreventInstall
 	if shouldInstallAppPackage {
 		if a.privAppAllowlist.Valid() {
-			installPath := android.PathForModuleInstall(ctx, "etc", "permissions")
-			ctx.InstallFile(installPath, a.privAppAllowlist.Path().Base(), a.privAppAllowlist.Path())
+			allowlistInstallPath := android.PathForModuleInstall(ctx, "etc", "permissions")
+			allowlistInstallFilename := a.installApkName + ".xml"
+			ctx.InstallFile(allowlistInstallPath, allowlistInstallFilename, a.privAppAllowlist.Path())
 		}
 
 		var extraInstalledPaths android.Paths
