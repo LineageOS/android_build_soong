@@ -79,6 +79,9 @@ message Status {
     optional uint64 voluntary_context_switches = 12;
     // Involuntary context switches
     optional uint64 involuntary_context_switches = 13;
+    // Arbitrary tags for build system profiling (module names and types, rule
+    // names, etc). Format of the string is implementation defined.
+    optional string tags = 14;
   }
 
   message Message {
