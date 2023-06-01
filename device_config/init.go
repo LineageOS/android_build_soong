@@ -23,7 +23,6 @@ var (
 	pctx = android.NewPackageContext("android/soong/device_config")
 
 	// For device_config_definitions: Generate cache file
-	// TODO: Restat
 	aconfigRule = pctx.AndroidStaticRule("aconfig",
 		blueprint.RuleParams{
 			Command: `${aconfig} create-cache` +
@@ -39,7 +38,7 @@ var (
 			Restat: true,
 		}, "release_version", "namespace", "values")
 
-	// For device_config_definitions: Generate java file
+	// For java_device_config_definitions_library: Generate java file
 	srcJarRule = pctx.AndroidStaticRule("aconfig_srcjar",
 		blueprint.RuleParams{
 			Command: `rm -rf ${out}.tmp` +
@@ -59,12 +58,13 @@ var (
 
 func init() {
 	registerBuildComponents(android.InitRegistrationContext)
+	pctx.HostBinToolVariable("aconfig", "aconfig")
+	pctx.HostBinToolVariable("soong_zip", "soong_zip")
 }
 
 func registerBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("device_config_definitions", DefinitionsFactory)
 	ctx.RegisterModuleType("device_config_values", ValuesFactory)
 	ctx.RegisterModuleType("device_config_value_set", ValueSetFactory)
-	pctx.HostBinToolVariable("aconfig", "aconfig")
-	pctx.HostBinToolVariable("soong_zip", "soong_zip")
+	ctx.RegisterModuleType("java_device_config_definitions_library", JavaDefinitionsLibraryFactory)
 }

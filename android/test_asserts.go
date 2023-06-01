@@ -200,6 +200,22 @@ func AssertArrayString(t *testing.T, message string, expected, actual []string) 
 	}
 }
 
+// Asserts that each of the Paths in actual end with the corresponding string
+// from expected. Useful to test that output paths contain expected items without
+// hard-coding where intermediate files might be located.
+func AssertPathsEndWith(t *testing.T, message string, expected []string, actual []Path) {
+	t.Helper()
+	if len(expected) != len(actual) {
+		t.Errorf("%s (length): expected %d, actual %d", message, len(expected), len(actual))
+		return
+	}
+	for i := range expected {
+		if !strings.HasSuffix(actual[i].String(), expected[i]) {
+			t.Errorf("%s (item %d): expected '%s', actual '%s'", message, i, expected[i], actual[i].String())
+		}
+	}
+}
+
 // AssertDeepEquals checks if the expected and actual values are equal using reflect.DeepEqual and
 // if they are not then it reports an error prefixed with the supplied message and including a
 // reason for why it failed.
