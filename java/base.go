@@ -79,6 +79,9 @@ type CommonProperties struct {
 	// list of java libraries that will be compiled into the resulting jar
 	Static_libs []string `android:"arch_variant"`
 
+	// list of java libraries that should not be used to build this module
+	Exclude_static_libs []string `android:"arch_variant"`
+
 	// manifest file to be included in resulting jar
 	Manifest *string `android:"path"`
 
@@ -724,6 +727,8 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	}
 
 	libDeps := ctx.AddVariationDependencies(nil, libTag, j.properties.Libs...)
+
+	j.properties.Static_libs = android.RemoveListFromList(j.properties.Static_libs, j.properties.Exclude_static_libs)
 	ctx.AddVariationDependencies(nil, staticLibTag, j.properties.Static_libs...)
 
 	// Add dependency on libraries that provide additional hidden api annotations.
