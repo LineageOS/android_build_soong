@@ -533,7 +533,7 @@ func runSoong(ctx Context, config Config) {
 		defer ctx.EndTrace()
 
 		if config.IsPersistentBazelEnabled() {
-			bazelProxy := bazel.NewProxyServer(ctx.Logger, config.OutDir(), filepath.Join(config.SoongOutDir(), "workspace"))
+			bazelProxy := bazel.NewProxyServer(ctx.Logger, config.OutDir(), filepath.Join(config.SoongOutDir(), "workspace"), config.GetBazeliskBazelVersion())
 			bazelProxy.Start()
 			defer bazelProxy.Close()
 		}
