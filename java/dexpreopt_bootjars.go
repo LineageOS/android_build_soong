@@ -816,7 +816,7 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 		cmd.FlagWithArg("--instruction-set-features=", global.InstructionSetFeatures[arch])
 	}
 
-	if global.EnableUffdGc {
+	if global.EnableUffdGc && image.target.Os == android.Android {
 		cmd.Flag("--runtime-arg").Flag("-Xgc:CMC")
 	}
 
