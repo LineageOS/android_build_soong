@@ -535,6 +535,10 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 		// b/223382732
 		FlagWithArg("--hide ", "ChangedDefault")
 
+	// Force metalava to ignore classes on the classpath when an API file contains missing classes.
+	// See b/285140653 for more information.
+	cmd.FlagWithArg("--api-class-resolution ", "api")
+
 	return cmd
 }
 
