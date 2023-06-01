@@ -18,6 +18,7 @@ package java
 // related module types, including their override variants.
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -1390,10 +1391,15 @@ func (u *usesLibrary) deps(ctx android.BottomUpMutatorContext, addCompatDeps boo
 	}
 }
 
-// presentOptionalUsesLibs returns optional_uses_libs after filtering out MissingUsesLibraries, which don't exist in the
-// build.
+// presentOptionalUsesLibs returns optional_uses_libs after filtering out libraries that don't exist in the source tree.
 func (u *usesLibrary) presentOptionalUsesLibs(ctx android.BaseModuleContext) []string {
-	optionalUsesLibs, _ := android.FilterList(u.usesLibraryProperties.Optional_uses_libs, ctx.Config().MissingUsesLibraries())
+	optionalUsesLibs := android.FilterListPred(u.usesLibraryProperties.Optional_uses_libs, func(s string) bool {
+		exists := ctx.OtherModuleExists(s)
+		if !exists {
+			fmt.Printf("Warning: Module '%s' depends on non-existing optional_uses_libs '%s'\n", ctx.ModuleName(), s)
+		}
+		return exists
+	})
 	return optionalUsesLibs
 }
 
