@@ -1642,6 +1642,16 @@ func (c *configImpl) IsPersistentBazelEnabled() bool {
 	return c.Environment().IsEnvTrue("USE_PERSISTENT_BAZEL")
 }
 
+// GetBazeliskBazelVersion returns the Bazel version to use for this build,
+// or the empty string if the current canonical prod Bazel should be used.
+// This environment variable should only be set to debug the build system.
+// The Bazel version, if set, will be passed to Bazelisk, and Bazelisk will
+// handle downloading and invoking the correct Bazel binary.
+func (c *configImpl) GetBazeliskBazelVersion() string {
+	value, _ := c.Environment().Get("USE_BAZEL_VERSION")
+	return value
+}
+
 func (c *configImpl) BazelModulesForceEnabledByFlag() string {
 	return c.bazelForceEnabledModules
 }
