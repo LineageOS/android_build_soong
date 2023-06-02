@@ -2188,5 +2188,9 @@ func (j *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		if binary, ok := ctx.Module().(*Binary); ok {
 			javaBinaryHostBp2Build(ctx, binary)
 		}
+	case "java_test_host":
+		if testHost, ok := ctx.Module().(*TestHost); ok {
+			javaTestHostBp2Build(ctx, testHost)
+		}
 	}
 }
