@@ -26,10 +26,11 @@ import (
 	"time"
 )
 
-// Logs fatal events of ProxyServer.
+// Logs events of ProxyServer.
 type ServerLogger interface {
 	Fatal(v ...interface{})
 	Fatalf(format string, v ...interface{})
+	Println(v ...interface{})
 }
 
 // CmdRequest is a request to the Bazel Proxy server.
@@ -71,9 +72,10 @@ type ProxyClient struct {
 // The ProxyServer will only live as long as soong_ui does; the
 // underlying Bazel server will live past the duration of the build.
 type ProxyServer struct {
-	logger       ServerLogger
-	outDir       string
-	workspaceDir string
+	logger          ServerLogger
+	outDir          string
+	workspaceDir    string
+	bazeliskVersion string
 	// The server goroutine will listen on this channel and stop handling requests
 	// once it is written to.
 	done chan struct{}
@@ -119,12 +121,17 @@ func (b *ProxyClient) IssueCommand(req CmdRequest) (CmdResponse, error) {
 }
 
 // NewProxyServer is a constructor for a ProxyServer.
-func NewProxyServer(logger ServerLogger, outDir string, workspaceDir string) *ProxyServer {
+func NewProxyServer(logger ServerLogger, outDir string, workspaceDir string, bazeliskVersion string) *ProxyServer {
+	if len(bazeliskVersion) > 0 {
+		logger.Println("** Using Bazelisk for this build, due to env var USE_BAZEL_VERSION=" + bazeliskVersion + " **")
+	}
+
 	return &ProxyServer{
-		logger:       logger,
-		outDir:       outDir,
-		workspaceDir: workspaceDir,
-		done:         make(chan struct{}),
+		logger:          logger,
+		outDir:          outDir,
+		workspaceDir:    workspaceDir,
+		done:            make(chan struct{}),
+		bazeliskVersion: bazeliskVersion,
 	}
 }
 
@@ -155,6 +162,9 @@ func (b *ProxyServer) handleRequest(conn net.Conn) error {
 		return fmt.Errorf("Error decoding request: %s", err)
 	}
 
+	if len(b.bazeliskVersion) > 0 {
+		req.Env = append(req.Env, "USE_BAZEL_VERSION="+b.bazeliskVersion)
+	}
 	stdout, stderr, cmdErr := ExecBazel("./build/bazel/bin/bazel", b.workspaceDir, req)
 	errorString := ""
 	if cmdErr != nil {
