@@ -1713,10 +1713,6 @@ func (c *config) ProductPrivateSepolicyDirs() []string {
 	return c.productVariables.ProductPrivateSepolicyDirs
 }
 
-func (c *config) MissingUsesLibraries() []string {
-	return c.productVariables.MissingUsesLibraries
-}
-
 func (c *config) TargetMultitreeUpdateMeta() bool {
 	return c.productVariables.MultitreeUpdateMeta
 }
