@@ -1925,6 +1925,10 @@ func (c *deviceConfig) BuildBrokenInputDir(name string) bool {
 	return InList(name, c.config.productVariables.BuildBrokenInputDirModules)
 }
 
+func (c *config) BuildWarningBadOptionalUsesLibsAllowlist() []string {
+	return c.productVariables.BuildWarningBadOptionalUsesLibsAllowlist
+}
+
 func (c *deviceConfig) GenruleSandboxing() bool {
 	return Bool(c.config.productVariables.GenruleSandboxing)
 }
