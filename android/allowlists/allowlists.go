@@ -477,6 +477,7 @@ var (
 		"code_coverage.policy",
 		"code_coverage.policy.other",
 		"codec2_soft_exports",
+		"compatibility_matrix_schema",
 		"flatbuffer_headers",
 		"framework-connectivity-protos",
 		"gemmlowp_headers",
@@ -781,6 +782,7 @@ var (
 		"java_import_host",
 		"java_sdk_library",
 		"sysprop_library",
+		"xsd_config",
 	}
 
 	// Add the names of modules that bp2build should never convert, if it is
