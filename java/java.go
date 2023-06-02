@@ -1732,6 +1732,10 @@ func metalavaStubCmd(ctx android.ModuleContext, rule *android.RuleBuilder,
 	// See b/285140653 for more information.
 	cmd.FlagWithArg("--api-class-resolution ", "api")
 
+	// Force metalava to sort overloaded methods by their order in the source code.
+	// See b/285312164 for more information.
+	cmd.FlagWithArg("--api-overloaded-method-order ", "source")
+
 	return cmd
 }
 
