@@ -220,6 +220,10 @@ type apexBundleProperties struct {
 	// imageApex or flattenedApex depending on Config.FlattenApex(). When payload_type is zip,
 	// this becomes zipApex.
 	ApexType apexPackaging `blueprint:"mutated"`
+
+	// Name that dependencies can specify in their apex_available properties to refer to this module.
+	// If not specified, this defaults to Soong module name.
+	Apex_available_name *string
 }
 
 type ApexNativeDependencies struct {
@@ -3134,6 +3138,13 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 		}
 
 		apexName := ctx.ModuleName()
+		for _, props := range ctx.Module().GetProperties() {
+			if apexProps, ok := props.(*apexBundleProperties); ok {
+				if apexProps.Apex_available_name != nil {
+					apexName = *apexProps.Apex_available_name
+				}
+			}
+		}
 		fromName := ctx.OtherModuleName(from)
 		toName := ctx.OtherModuleName(to)
 
