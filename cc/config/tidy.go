@@ -58,6 +58,14 @@ var (
 		"-bugprone-signed-char-misuse",
 		// http://b/241819232
 		"-misc-const-correctness",
+		// http://b/285356805
+		"-bugprone-unsafe-functions",
+		"-cert-msc24-c",
+		"-cert-msc33-c",
+		// http://b/285356799
+		"-modernize-type-traits",
+		// http://b/285361108
+		"-readability-avoid-unconditional-preprocessor-if",
 	}
 
 	extraArgFlags = []string{
