@@ -42,6 +42,8 @@ var (
 		"-bugprone-unchecked-optional-access",
 		// http://b/265438407
 		"-misc-use-anonymous-namespace",
+		// http://b/285005947
+		"-performance-avoid-endl",
 	}
 
 	// Some clang-tidy checks are included in some tidy_checks_as_errors lists,
