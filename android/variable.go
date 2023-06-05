@@ -449,6 +449,8 @@ type productVariables struct {
 	BuildBrokenVendorPropertyNamespace bool     `json:",omitempty"`
 	BuildBrokenInputDirModules         []string `json:",omitempty"`
 
+	BuildWarningBadOptionalUsesLibsAllowlist []string `json:",omitempty"`
+
 	BuildDebugfsRestrictionsEnabled bool `json:",omitempty"`
 
 	RequiresInsecureExecmemForSwiftshader bool `json:",omitempty"`
