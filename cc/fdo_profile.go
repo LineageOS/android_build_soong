@@ -16,8 +16,10 @@ package cc
 
 import (
 	"android/soong/android"
+	"android/soong/bazel"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -25,17 +27,61 @@ func init() {
 }
 
 func RegisterFdoProfileBuildComponents(ctx android.RegistrationContext) {
-	ctx.RegisterModuleType("fdo_profile", fdoProfileFactory)
+	ctx.RegisterModuleType("fdo_profile", FdoProfileFactory)
 }
 
 type fdoProfile struct {
 	android.ModuleBase
+	android.BazelModuleBase
 
 	properties fdoProfileProperties
 }
 
 type fdoProfileProperties struct {
 	Profile *string `android:"arch_variant"`
+}
+
+type bazelFdoProfileAttributes struct {
+	Profile bazel.StringAttribute
+}
+
+func (fp *fdoProfile) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	var profileAttr bazel.StringAttribute
+
+	archVariantProps := fp.GetArchVariantProperties(ctx, &fdoProfileProperties{})
+	for axis, configToProps := range archVariantProps {
+		for config, _props := range configToProps {
+			if archProps, ok := _props.(*fdoProfileProperties); ok {
+				if axis.String() == "arch" || axis.String() == "no_config" {
+					if archProps.Profile != nil {
+						profileAttr.SetSelectValue(axis, config, archProps.Profile)
+					}
+				}
+			}
+		}
+	}
+
+	// Ideally, cc_library_shared's fdo_profile attr can be a select statement so that we
+	// don't lift the restriction here. However, in cc_library_shared macro, fdo_profile
+	// is used as a string, we need to temporarily lift the host restriction until we can
+	// pass use fdo_profile attr with select statement
+	// https://cs.android.com/android/platform/superproject/+/master:build/bazel/rules/cc/cc_library_shared.bzl;l=127;drc=cc01bdfd39857eddbab04ef69ab6db22dcb1858a
+	// TODO(b/276287371): Drop the restriction override after fdo_profile path is handled properly
+	var noRestriction bazel.BoolAttribute
+	noRestriction.SetSelectValue(bazel.NoConfigAxis, "", proptools.BoolPtr(true))
+
+	ctx.CreateBazelTargetModuleWithRestrictions(
+		bazel.BazelTargetModuleProperties{
+			Rule_class: "fdo_profile",
+		},
+		android.CommonAttributes{
+			Name: fp.Name(),
+		},
+		&bazelFdoProfileAttributes{
+			Profile: profileAttr,
+		},
+		noRestriction,
+	)
 }
 
 // FdoProfileInfo is provided by FdoProfileProvider
@@ -77,9 +123,10 @@ func fdoProfileMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
-func fdoProfileFactory() android.Module {
+func FdoProfileFactory() android.Module {
 	m := &fdoProfile{}
 	m.AddProperties(&m.properties)
 	android.InitAndroidMultiTargetsArchModule(m, android.DeviceSupported, android.MultilibBoth)
+	android.InitBazelModule(m)
 	return m
 }
