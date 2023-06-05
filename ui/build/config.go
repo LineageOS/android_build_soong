@@ -472,11 +472,6 @@ func NewConfig(ctx Context, args ...string) Config {
 		}
 	}
 
-	if ret.BuildFromTextStub() {
-		// TODO(b/271443071): support hidden api check for from-text stub build
-		ret.environ.Set("UNSAFE_DISABLE_HIDDENAPI_FLAGS", "true")
-	}
-
 	bpd := ret.BazelMetricsDir()
 	if err := os.RemoveAll(bpd); err != nil {
 		ctx.Fatalf("Unable to remove bazel profile directory %q: %v", bpd, err)
