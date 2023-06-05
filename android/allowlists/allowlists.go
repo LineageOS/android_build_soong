@@ -902,8 +902,6 @@ var (
 		"static_crasher",                // depends on unconverted modules: libdebuggerd_handler
 		"test_fips",                     // depends on unconverted modules: adb
 		"timezone-host",                 // depends on unconverted modules: art.module.api.annotations
-		"truth-host-prebuilt",           // depends on unconverted modules: truth-prebuilt
-		"truth-prebuilt",                // depends on unconverted modules: asm-7.0, guava
 
 		// '//bionic/libc:libc_bp2build_cc_library_static' is duplicated in the 'deps' attribute of rule
 		"toybox-static",
@@ -1478,7 +1476,7 @@ var (
 		"permissive_mte_test",
 		"ICU4CTestRunner",
 
-		"HelloWorldHostTest",  // TODO(b/280452825): Convert HelloWorldHostTest to b test
+		"HelloWorldHostTest", // TODO(b/280452825): Convert HelloWorldHostTest to b test
 	}
 
 	MixedBuildsDisabledList = []string{
