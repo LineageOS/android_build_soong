@@ -1402,7 +1402,7 @@ func (u *usesLibrary) deps(ctx android.BottomUpMutatorContext, addCompatDeps boo
 func (u *usesLibrary) presentOptionalUsesLibs(ctx android.BaseModuleContext) []string {
 	optionalUsesLibs := android.FilterListPred(u.usesLibraryProperties.Optional_uses_libs, func(s string) bool {
 		exists := ctx.OtherModuleExists(s)
-		if !exists {
+		if !exists && !android.InList(ctx.ModuleName(), ctx.Config().BuildWarningBadOptionalUsesLibsAllowlist()) {
 			fmt.Printf("Warning: Module '%s' depends on non-existing optional_uses_libs '%s'\n", ctx.ModuleName(), s)
 		}
 		return exists

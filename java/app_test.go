@@ -2644,6 +2644,9 @@ func TestUsesLibraries(t *testing.T) {
 		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("runtime-library", "foo", "quuz", "qux", "bar", "fred"),
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.BuildWarningBadOptionalUsesLibsAllowlist = []string{"app", "prebuilt"}
+		}),
 	).RunTestWithBp(t, bp)
 
 	app := result.ModuleForTests("app", "android_common")
