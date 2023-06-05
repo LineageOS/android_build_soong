@@ -170,6 +170,27 @@ func (service_privilege ServicePrivilege) isValidServicePrivilege() bool {
 	return false
 }
 
+type UsePlatformLibs string
+
+const (
+	unknown_use_platform_libs UsePlatformLibs = "unknown_use_platform_libs"
+	// Use the native libraries on the device, typically in /system directory
+	use_platform_libs = "use_platform_libs"
+	// Do not use any native libraries (ART will not be initialized)
+	use_none = "use_none"
+)
+
+func (use_platform_libs UsePlatformLibs) isValidUsePlatformLibs() bool {
+	switch use_platform_libs {
+	case "",
+		unknown_use_platform_libs,
+		use_platform_libs,
+		use_none:
+		return true
+	}
+	return false
+}
+
 type UserData string
 
 const (
@@ -284,6 +305,10 @@ func IsValidConfig(fuzzModule FuzzPackagedModule, moduleName string) bool {
 		if !config.Automatically_route_to.isValidAutomaticallyRouteTo() {
 			panic(fmt.Errorf("Invalid automatically_route_to in fuzz config in %s", moduleName))
 		}
+
+		if !config.Use_platform_libs.isValidUsePlatformLibs() {
+			panic(fmt.Errorf("Invalid use_platform_libs in fuzz config in %s", moduleName))
+		}
 	}
 	return true
 }
@@ -341,6 +366,8 @@ type FuzzConfig struct {
 	Target_modules []string `json:"target_modules,omitempty"`
 	// Specifies a bug assignee to replace default ISE assignment
 	Triage_assignee string `json:"triage_assignee,omitempty"`
+	// Specifies libs used to initialize ART (java only, 'use_none' for no initialization)
+	Use_platform_libs UsePlatformLibs `json:"use_platform_libs,omitempty"`
 }
 
 type FuzzFrameworks struct {
