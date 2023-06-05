@@ -224,6 +224,9 @@ type apexBundleProperties struct {
 	// Name that dependencies can specify in their apex_available properties to refer to this module.
 	// If not specified, this defaults to Soong module name.
 	Apex_available_name *string
+
+	// Variant version of the mainline module. Must be an integer between 0-9
+	Variant_version *string
 }
 
 type ApexNativeDependencies struct {
