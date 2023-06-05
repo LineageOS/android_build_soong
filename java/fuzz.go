@@ -30,7 +30,11 @@ import (
 const (
 	hostString   = "host"
 	targetString = "target"
+	deviceString = "device"
 )
+
+// Any shared libs for these deps will also be packaged
+var artDeps = []string{"libdl_android"}
 
 func init() {
 	RegisterJavaFuzzBuildComponents(android.InitRegistrationContext)
@@ -78,7 +82,18 @@ func JavaFuzzFactory() android.Module {
 }
 
 func (j *JavaFuzzTest) DepsMutator(ctx android.BottomUpMutatorContext) {
+	if j.Os().Class.String() == deviceString {
+		j.testProperties.Jni_libs = append(j.testProperties.Jni_libs, artDeps...)
+	}
+
 	if len(j.testProperties.Jni_libs) > 0 {
+		if j.fuzzPackagedModule.FuzzProperties.Fuzz_config == nil {
+			config := &fuzz.FuzzConfig{}
+			j.fuzzPackagedModule.FuzzProperties.Fuzz_config = config
+		}
+		// this will be used by the ingestion pipeline to determine the version
+		// of jazzer to add to the fuzzer package
+		j.fuzzPackagedModule.FuzzProperties.Fuzz_config.IsJni = proptools.BoolPtr(true)
 		for _, target := range ctx.MultiTargets() {
 			sharedLibVariations := append(target.Variations(), blueprint.Variation{Mutator: "link", Variation: "shared"})
 			ctx.AddFarVariationDependencies(sharedLibVariations, jniLibTag, j.testProperties.Jni_libs...)
