@@ -29,7 +29,7 @@ fi
 # Test Setup
 ############
 
-OUTPUT_DIR="$(mktemp -d tmp.XXXXXX)"
+OUTPUT_DIR="$(mktemp -d $(pwd)/tmp.XXXXXX)"
 SOONG_OUTPUT_DIR="$OUTPUT_DIR/soong"
 BAZEL_OUTPUT_DIR="$OUTPUT_DIR/bazel"
 
@@ -45,6 +45,12 @@ function cleanup {
   call_bazel clean
   rm -rf "${OUTPUT_DIR}"
 }
+
+function deapexer() {
+  DEBUGFS_PATH="$(realpath $(call_bazel cquery --config=bp2build --config=linux_x86_64 --config=ci --output=files //external/e2fsprogs/debugfs))"
+  call_bazel run --config=bp2build //system/apex/tools:deapexer -- --debugfs_path=$DEBUGFS_PATH $@
+}
+
 trap cleanup EXIT
 
 ###########
@@ -72,10 +78,7 @@ BAZEL_TZDATA="$(realpath $(call_bazel cquery --config=bp2build --config=android 
 BAZEL_MINIMAL="$(realpath $(call_bazel cquery --config=bp2build --config=android --config=ci --output=files //build/bazel/examples/apex/minimal:build.bazel.examples.apex.minimal))"
 
 # # Build debugfs separately, as it's not a dep of apexer, but needs to be an explicit arg.
-call_bazel build --config=bp2build --config=linux_x86_64 //external/e2fsprogs/debugfs //system/apex/tools:deapexer
-DEBUGFS_PATH="$(realpath $(call_bazel cquery --config=bp2build --config=linux_x86_64 --config=ci --output=files //external/e2fsprogs/debugfs))"
-DEAPEXER="bazel-bin/system/apex/tools/deapexer"
-DEAPEXER="$DEAPEXER --debugfs_path=$DEBUGFS_PATH"
+call_bazel build --config=bp2build --config=linux_x86_64 //external/e2fsprogs/debugfs
 
 #######
 # Tests
@@ -91,8 +94,8 @@ function compare_deapexer_list() {
   local SOONG_LIST="$OUTPUT_DIR/soong.list"
   local BAZEL_LIST="$OUTPUT_DIR/bazel.list"
 
-  $DEAPEXER list "$SOONG_APEX" > "$SOONG_LIST"
-  $DEAPEXER list "$BAZEL_APEX" > "$BAZEL_LIST"
+  deapexer list "$SOONG_APEX" > "$SOONG_LIST"
+  deapexer list "$BAZEL_APEX" > "$BAZEL_LIST"
 
   if cmp -s "$SOONG_LIST" "$BAZEL_LIST"
   then
