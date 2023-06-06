@@ -770,6 +770,24 @@ var (
 
 		// Used by xsd_config
 		"xsdc",
+
+		// cc_test that can be run by b test
+		"binderRpcWireProtocolTest",
+		"binderUnitTest",
+		"cpu_features-bit_utils_test",
+		"liblp_test",
+		"android.hardware.audio.common.test.utility_tests",
+		"HalAudioStreamWorkerTest",
+		"libjavacore-unit-tests",
+		"NeuralNetworksTest_utils",
+		"NeuralNetworksTest_logtag",
+		"NeuralNetworksTest_operations",
+		"nanoapp_chqts_shared_tests",
+		"fakeservicemanager_test",
+		"tristate_test",
+		"binderUtilsHostTest",
+		"run_dex2oat_test",
+		"bluetooth-address-unit-tests",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
@@ -945,12 +963,10 @@ var (
 		"svcenc", "svcdec",
 
 		// Failing host cc_tests
-		"memunreachable_unit_test",
 		"libprocinfo_test",
 		"ziparchive-tests",
 		"gtest_isolated_tests",
 		"libunwindstack_unit_test",
-		"task_profiles_test",
 		"power_tests", // failing test on server, but not on host
 
 		// reflect: call of reflect.Value.NumField on interface Value
@@ -1030,7 +1046,6 @@ var (
 		"libBionicLoaderTests",  // depends on unconverted modules: libmeminfo
 		"libapexutil_tests",     // depends on unconverted modules: apex-info-list-tinyxml, libapexutil
 		"libcutils_sockets_test",
-		"libexpectedutils_test",
 		"libhwbinder_latency",
 		"liblog-host-test", // failing tests
 		"libminijail_test",
@@ -1067,7 +1082,6 @@ var (
 		"scudo_unit_tests",
 		"stats-log-api-gen-test", // depends on unconverted modules: libstats_proto_host
 		"syscall_filter_unittest_gtest",
-		"sysprop_test", // depends on unconverted modules: libcom.android.sysprop.tests
 		"thread_exit_cb_helper",
 		"tls_properties_helper",
 		"ulp",
