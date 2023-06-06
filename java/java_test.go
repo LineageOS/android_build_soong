@@ -2322,3 +2322,34 @@ java_test_host {
 		t.Errorf("Expected args[\"extraTestRunnerConfigs\"] to equal %q, was %q", expected, args["extraTestRunnerConfigs"])
 	}
 }
+
+func TestJavaExcludeStaticLib(t *testing.T) {
+	ctx, _ := testJava(t, `
+	java_library {
+		name: "bar",
+	}
+	java_library {
+		name: "foo",
+	}
+	java_library {
+		name: "baz",
+		static_libs: [
+			"foo",
+			"bar",
+		],
+		exclude_static_libs: [
+			"bar",
+		],
+	}
+	`)
+
+	// "bar" not included as dependency of "baz"
+	CheckModuleDependencies(t, ctx, "baz", "android_common", []string{
+		`core-lambda-stubs`,
+		`ext`,
+		`foo`,
+		`framework`,
+		`stable-core-platform-api-stubs-system-modules`,
+		`stable.core.platform.api.stubs`,
+	})
+}
