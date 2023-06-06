@@ -49,6 +49,7 @@ func otherGenruleBp(genruleTarget string) map[string]string {
     srcs: ["other_tool.in"],
     cmd: "cp $(in) $(out)",
 }`, genruleTarget, genruleTarget),
+		"other/file.txt": "",
 	}
 }
 
@@ -293,17 +294,20 @@ func TestGenruleSrcsLocationsAbsoluteLabel(t *testing.T) {
 	bp := `%s {
     name: "foo",
     out: ["foo.out"],
-    srcs: [":other.tool"],
+    srcs: [":other.tool", "other/file.txt",],
     tool_files: [":foo.tool"],
-    cmd: "$(locations :foo.tool) -s $(out) $(location :other.tool)",
+    cmd: "$(locations :foo.tool) $(location other/file.txt) -s $(out) $(location :other.tool)",
     bazel_module: { bp2build_available: true },
 }`
 
 	for _, tc := range testCases {
 		moduleAttrs := AttrNameToString{
-			"cmd":   `"$(locations //other:foo.tool) -s $(OUTS) $(location //other:other.tool)"`,
-			"outs":  `["foo.out"]`,
-			"srcs":  `["//other:other.tool"]`,
+			"cmd":  `"$(locations //other:foo.tool) $(location //other:file.txt) -s $(OUTS) $(location //other:other.tool)"`,
+			"outs": `["foo.out"]`,
+			"srcs": `[
+        "//other:other.tool",
+        "//other:file.txt",
+    ]`,
 			"tools": `["//other:foo.tool"]`,
 		}
 
