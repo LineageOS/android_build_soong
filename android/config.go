@@ -1944,10 +1944,6 @@ func (c *config) SelinuxIgnoreNeverallows() bool {
 	return c.productVariables.SelinuxIgnoreNeverallows
 }
 
-func (c *deviceConfig) SepolicySplit() bool {
-	return c.config.productVariables.SepolicySplit
-}
-
 func (c *deviceConfig) SepolicyFreezeTestExtraDirs() []string {
 	return c.config.productVariables.SepolicyFreezeTestExtraDirs
 }
