@@ -289,7 +289,13 @@ func (a *AndroidApp) OverridablePropertiesDepsMutator(ctx android.BottomUpMutato
 	}
 
 	if a.appProperties.Privapp_allowlist != nil && !Bool(a.appProperties.Privileged) {
-		ctx.PropertyErrorf("privapp_allowlist", "privileged must be set in order to use privapp_allowlist")
+		// There are a few uids that are explicitly considered privileged regardless of their
+		// app's location. Bluetooth is one such app. It should arguably be moved to priv-app,
+		// but for now, allow it not to be in priv-app.
+		privilegedBecauseOfUid := ctx.ModuleName() == "Bluetooth"
+		if !privilegedBecauseOfUid {
+			ctx.PropertyErrorf("privapp_allowlist", "privileged must be set in order to use privapp_allowlist (with a few exceptions)")
+		}
 	}
 
 	for _, cert := range a.appProperties.Additional_certificates {
