@@ -382,4 +382,39 @@ EOF
   run_bazel build --config=android --config=api_bp2build //foo:libfoo.contribution
 }
 
+function test_bazel_standalone_output_paths_contain_product_name {
+  setup
+  mkdir -p a
+  cat > a/Android.bp <<EOF
+cc_object {
+  name: "qq",
+  srcs: ["qq.cc"],
+  bazel_module: {
+    bp2build_available: true,
+  },
+  stl: "none",
+  system_shared_libs: [],
+}
+EOF
+
+  cat > a/qq.cc <<EOF
+#include "qq.h"
+int qq() {
+  return QQ;
+}
+EOF
+
+  cat > a/qq.h <<EOF
+#define QQ 1
+EOF
+
+  export TARGET_PRODUCT=aosp_arm; run_soong bp2build
+  local -r output=$(run_bazel cquery //a:qq --output=files --config=android --config=bp2build --config=ci)
+  if [[ ! $(echo ${output} | grep "bazel-out/aosp_arm") ]]; then
+    fail "Did not find the product name '${TARGET_PRODUCT}' in the output path. This can cause " \
+      "unnecessary rebuilds when toggling between products as bazel outputs for different products will " \
+      "clobber each other. Output paths are: \n${output}"
+  fi
+}
+
 scan_and_run_tests
