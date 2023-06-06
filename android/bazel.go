@@ -537,6 +537,12 @@ func registerBp2buildConversionMutator(ctx RegisterMutatorsContext) {
 }
 
 func convertWithBp2build(ctx TopDownMutatorContext) {
+	if ctx.Config().HasBazelBuildTargetInSource(ctx) {
+		// Defer to the BUILD target. Generating an additional target would
+		// cause a BUILD file conflict.
+		return
+	}
+
 	bModule, ok := ctx.Module().(Bazelable)
 	if !ok || !bModule.shouldConvertWithBp2build(ctx, ctx.Module()) {
 		return
