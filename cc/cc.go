@@ -1928,7 +1928,6 @@ func allEnabledSanitizersSupportedByBazel(c *Module) bool {
 
 	unsupportedSanitizers := []*bool{
 		sanitizeProps.Safestack,
-		sanitizeProps.Cfi,
 		sanitizeProps.Scudo,
 		BoolPtr(len(c.sanitize.Properties.Sanitize.Recover) > 0),
 		BoolPtr(c.sanitize.Properties.Sanitize.Blocklist != nil),
@@ -1947,6 +1946,8 @@ func allEnabledSanitizersSupportedByBazel(c *Module) bool {
 			if ubsanEnabled && !c.MinimalRuntimeNeeded() {
 				return false
 			}
+		} else if san == cfi {
+			continue
 		} else if c.sanitize.isSanitizerEnabled(san) {
 			return false
 		}
