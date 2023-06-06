@@ -16,6 +16,7 @@ package build
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -136,6 +137,9 @@ const (
 	EXTERNAL_FILE
 	// ninja uses a prioritized module list from Soong
 	HINT_FROM_SOONG
+	// If ninja log exists, use NINJA_LOG, if not, use HINT_FROM_SOONG instead.
+	// We can assume it is an incremental build if ninja log exists.
+	DEFAULT
 )
 const srcDirFileCheck = "build/soong/root.bp"
 
@@ -233,7 +237,7 @@ func NewConfig(ctx Context, args ...string) Config {
 	ret := &configImpl{
 		environ:               OsEnvironment(),
 		sandboxConfig:         &SandboxConfig{},
-		ninjaWeightListSource: NINJA_LOG,
+		ninjaWeightListSource: DEFAULT,
 	}
 
 	// Default matching ninja
@@ -244,8 +248,21 @@ func NewConfig(ctx Context, args ...string) Config {
 	ret.parseArgs(ctx, args)
 
 	if ret.ninjaWeightListSource == HINT_FROM_SOONG {
-		ret.environ.Set("SOONG_GENERATES_NINJA_HINT", "true")
+		ret.environ.Set("SOONG_GENERATES_NINJA_HINT", "always")
+	} else if ret.ninjaWeightListSource == DEFAULT {
+		defaultNinjaWeightListSource := NINJA_LOG
+		if _, err := os.Stat(filepath.Join(ret.OutDir(), ninjaLogFileName)); errors.Is(err, os.ErrNotExist) {
+			ctx.Verboseln("$OUT/.ninja_log doesn't exist, use HINT_FROM_SOONG instead")
+			defaultNinjaWeightListSource = HINT_FROM_SOONG
+		} else {
+			ctx.Verboseln("$OUT/.ninja_log exist, use NINJA_LOG")
+		}
+		ret.ninjaWeightListSource = defaultNinjaWeightListSource
+		// soong_build generates ninja hint depending on ninja log existence.
+		// Set it "depend" to avoid soong re-run due to env variable change.
+		ret.environ.Set("SOONG_GENERATES_NINJA_HINT", "depend")
 	}
+
 	// Make sure OUT_DIR is set appropriately
 	if outDir, ok := ret.environ.Get("OUT_DIR"); ok {
 		ret.environ.Set("OUT_DIR", filepath.Clean(outDir))
