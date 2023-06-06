@@ -517,6 +517,8 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 		config: config,
 	}
 
+	config.productVariables.Build_from_text_stub = boolPtr(config.buildFromTextStub)
+
 	// Soundness check of the build and source directories. This won't catch strange
 	// configurations with symlinks, but at least checks the obvious case.
 	absBuildDir, err := filepath.Abs(cmdArgs.SoongOutDir)
@@ -2017,6 +2019,7 @@ func (c *config) BuildFromTextStub() bool {
 
 func (c *config) SetBuildFromTextStub(b bool) {
 	c.buildFromTextStub = b
+	c.productVariables.Build_from_text_stub = boolPtr(b)
 }
 
 func (c *config) AddForceEnabledModules(forceEnabled []string) {
