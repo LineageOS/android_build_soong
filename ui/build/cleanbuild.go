@@ -135,6 +135,7 @@ func installClean(ctx Context, config Config) {
 		productOut("obj/NOTICE_FILES"),
 		productOut("obj/PACKAGING"),
 		productOut("ramdisk"),
+		productOut("ramdisk_16k"),
 		productOut("debug_ramdisk"),
 		productOut("vendor_ramdisk"),
 		productOut("vendor_debug_ramdisk"),
