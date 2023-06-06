@@ -1592,12 +1592,13 @@ var (
 	}
 
 	// These should be the libs that are included by the apexes in the StagingMixedBuildsEnabledList
-	StagingDclaMixedBuildsEnabledList = []string{}
+	StagingDclaMixedBuildsEnabledList = []string{
+		"libstagefright_flacdec",
+		"libutils",
+	}
 
 	// TODO(b/269342245): Enable the rest of the DCLA libs
 	// "libssl",
-	// "libstagefright_flacdec",
-	// "libutils",
 
 	// The list of module types which are expected to spend lots of build time.
 	// With `--ninja_weight_source=soong`, ninja builds these module types and deps first.
