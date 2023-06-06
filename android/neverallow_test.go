@@ -344,6 +344,23 @@ var neverallowTests = []struct {
 			`module "outside_allowed_list": violates neverallow`,
 		},
 	},
+	// Test for the rule restricting use of exclude_static_libs
+	{
+		name: `"exclude_static_libs" outside allowed directory`,
+		fs: map[string][]byte{
+			"a/b/Android.bp": []byte(`
+				java_library {
+					name: "baz",
+					exclude_static_libs: [
+						"bar",
+					],
+				}
+			`),
+		},
+		expectedErrors: []string{
+			`exclude_static_libs property is only allowed for java modules defined in build/soong`,
+		},
+	},
 }
 
 var prepareForNeverAllowTest = GroupFixturePreparers(
@@ -430,9 +447,10 @@ func (p *mockCcLibraryModule) GenerateAndroidBuildActions(ModuleContext) {
 }
 
 type mockJavaLibraryProperties struct {
-	Libs           []string
-	Sdk_version    *string
-	Uncompress_dex *bool
+	Libs                []string
+	Sdk_version         *string
+	Uncompress_dex      *bool
+	Exclude_static_libs []string
 }
 
 type mockJavaLibraryModule struct {
