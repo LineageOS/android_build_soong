@@ -242,9 +242,10 @@ func logAndSymlinkSetup(buildCtx build.Context, config build.Config) {
 	soongMetricsFile := filepath.Join(logsDir, logsPrefix+"soong_metrics")
 	bp2buildMetricsFile := filepath.Join(logsDir, logsPrefix+"bp2build_metrics.pb")
 	soongBuildMetricsFile := filepath.Join(logsDir, logsPrefix+"soong_build_metrics.pb")
+	bazelMetricsFile := filepath.Join(logsDir, logsPrefix+"bazel_metrics.pb")
 
 	//Delete the stale metrics files
-	staleFileSlice := []string{buildErrorFile, rbeMetricsFile, soongMetricsFile, bp2buildMetricsFile, soongBuildMetricsFile}
+	staleFileSlice := []string{buildErrorFile, rbeMetricsFile, soongMetricsFile, bp2buildMetricsFile, soongBuildMetricsFile, bazelMetricsFile}
 	if err := deleteStaleMetrics(staleFileSlice); err != nil {
 		log.Fatalln(err)
 	}
