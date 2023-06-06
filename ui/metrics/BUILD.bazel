@@ -23,6 +23,7 @@ py_proto_library(
 proto_library(
     name = "metrics-proto",
     srcs = [
+        "bazel_metrics_proto/bazel_metrics.proto",
         "bp2build_metrics_proto/bp2build_metrics.proto",
         "metrics_proto/metrics.proto",
     ],
