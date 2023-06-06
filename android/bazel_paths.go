@@ -242,6 +242,11 @@ func transformSubpackagePath(ctx BazelConversionPathContext, path bazel.Label) b
 
 	// Don't transform OriginalModuleName
 	newPath.OriginalModuleName = path.OriginalModuleName
+	// if it wasn't a module, store the original path. We may need the original path to replace
+	// references if it is actually in another package
+	if path.OriginalModuleName == "" {
+		newPath.OriginalModuleName = path.Label
+	}
 
 	if strings.HasPrefix(path.Label, "//") {
 		// Assume absolute labels are already correct (e.g. //path/to/some/package:foo.h)
