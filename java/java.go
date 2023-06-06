@@ -2813,6 +2813,14 @@ type bp2BuildJavaInfo struct {
 	hasKotlin bool
 }
 
+// Replaces //a/b/my_xsd_config with //a/b/my_xsd_config-java
+func xsdConfigJavaTarget(ctx android.BazelConversionPathContext, mod blueprint.Module) string {
+	callback := func(xsd android.XsdConfigBp2buildTargets) string {
+		return xsd.JavaBp2buildTargetName()
+	}
+	return android.XsdConfigBp2buildTarget(ctx, mod, callback)
+}
+
 // convertLibraryAttrsBp2Build returns a javaCommonAttributes struct with
 // converted attributes shared across java_* modules and a bp2BuildJavaInfo struct
 // which has other non-attribute information needed for bp2build conversion
@@ -2827,8 +2835,15 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 	for axis, configToProps := range archVariantProps {
 		for config, _props := range configToProps {
 			if archProps, ok := _props.(*CommonProperties); ok {
-				archSrcs := android.BazelLabelForModuleSrcExcludes(ctx, archProps.Srcs, archProps.Exclude_srcs)
+				srcsNonXsd, srcsXsd := android.PartitionXsdSrcs(ctx, archProps.Srcs)
+				excludeSrcsNonXsd, _ := android.PartitionXsdSrcs(ctx, archProps.Exclude_srcs)
+				archSrcs := android.BazelLabelForModuleSrcExcludes(ctx, srcsNonXsd, excludeSrcsNonXsd)
 				srcs.SetSelectValue(axis, config, archSrcs)
+
+				// Add to static deps
+				xsdJavaConfigLibraryLabels := android.BazelLabelForModuleDepsWithFn(ctx, srcsXsd, xsdConfigJavaTarget)
+				staticDeps.Append(xsdJavaConfigLibraryLabels)
+
 			}
 		}
 	}
