@@ -84,12 +84,6 @@ func (k SdkKind) String() string {
 	}
 }
 
-// JavaLibraryName returns the soong module containing the Java APIs of that API surface.
-func (k SdkKind) JavaLibraryName(c Config) string {
-	name := k.DefaultJavaLibraryName()
-	return JavaApiLibraryName(c, name)
-}
-
 // JavaApiLibraryName returns the name of .txt equivalent of a java_library, but does
 // not check if either module exists.
 // TODO: Return .txt (single-tree or multi-tree equivalents) based on config
@@ -335,11 +329,10 @@ func init() {
 
 // Export the name of the soong modules representing the various Java API surfaces.
 func javaSdkMakeVars(ctx MakeVarsContext) {
-	ctx.Strict("ANDROID_PUBLIC_STUBS", SdkPublic.JavaLibraryName(ctx.Config()))
-	ctx.Strict("ANDROID_SYSTEM_STUBS", SdkSystem.JavaLibraryName(ctx.Config()))
-	ctx.Strict("ANDROID_TEST_STUBS", SdkTest.JavaLibraryName(ctx.Config()))
-	ctx.Strict("ANDROID_MODULE_LIB_STUBS", SdkModule.JavaLibraryName(ctx.Config()))
-	ctx.Strict("ANDROID_SYSTEM_SERVER_STUBS", SdkSystemServer.JavaLibraryName(ctx.Config()))
-	// TODO (jihoonkang): Create a .txt equivalent for core.current.stubs
-	ctx.Strict("ANDROID_CORE_STUBS", SdkCore.JavaLibraryName(ctx.Config()))
+	ctx.Strict("ANDROID_PUBLIC_STUBS", SdkPublic.DefaultJavaLibraryName())
+	ctx.Strict("ANDROID_SYSTEM_STUBS", SdkSystem.DefaultJavaLibraryName())
+	ctx.Strict("ANDROID_TEST_STUBS", SdkTest.DefaultJavaLibraryName())
+	ctx.Strict("ANDROID_MODULE_LIB_STUBS", SdkModule.DefaultJavaLibraryName())
+	ctx.Strict("ANDROID_SYSTEM_SERVER_STUBS", SdkSystemServer.DefaultJavaLibraryName())
+	ctx.Strict("ANDROID_CORE_STUBS", SdkCore.DefaultJavaLibraryName())
 }

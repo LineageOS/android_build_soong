@@ -79,6 +79,9 @@ type CommonProperties struct {
 	// list of java libraries that will be compiled into the resulting jar
 	Static_libs []string `android:"arch_variant"`
 
+	// list of java libraries that should not be used to build this module
+	Exclude_static_libs []string `android:"arch_variant"`
+
 	// manifest file to be included in resulting jar
 	Manifest *string `android:"path"`
 
@@ -724,6 +727,8 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	}
 
 	libDeps := ctx.AddVariationDependencies(nil, libTag, j.properties.Libs...)
+
+	j.properties.Static_libs = android.RemoveListFromList(j.properties.Static_libs, j.properties.Exclude_static_libs)
 	ctx.AddVariationDependencies(nil, staticLibTag, j.properties.Static_libs...)
 
 	// Add dependency on libraries that provide additional hidden api annotations.
@@ -1923,22 +1928,22 @@ type moduleWithSdkDep interface {
 
 func (m *Module) getSdkLinkType(ctx android.BaseModuleContext, name string) (ret sdkLinkType, stubs bool) {
 	switch name {
-	case android.SdkCore.JavaLibraryName(ctx.Config()),
-		android.JavaApiLibraryName(ctx.Config(), "legacy.core.platform.api.stubs"),
-		android.JavaApiLibraryName(ctx.Config(), "stable.core.platform.api.stubs"),
+	case android.SdkCore.DefaultJavaLibraryName(),
+		"legacy.core.platform.api.stubs",
+		"stable.core.platform.api.stubs",
 		"stub-annotations", "private-stub-annotations-jar",
-		android.JavaApiLibraryName(ctx.Config(), "core-lambda-stubs"),
+		"core-lambda-stubs",
 		"core-generated-annotation-stubs":
 		return javaCore, true
-	case android.SdkPublic.JavaLibraryName(ctx.Config()):
+	case android.SdkPublic.DefaultJavaLibraryName():
 		return javaSdk, true
-	case android.SdkSystem.JavaLibraryName(ctx.Config()):
+	case android.SdkSystem.DefaultJavaLibraryName():
 		return javaSystem, true
-	case android.SdkModule.JavaLibraryName(ctx.Config()):
+	case android.SdkModule.DefaultJavaLibraryName():
 		return javaModule, true
-	case android.SdkSystemServer.JavaLibraryName(ctx.Config()):
+	case android.SdkSystemServer.DefaultJavaLibraryName():
 		return javaSystemServer, true
-	case android.SdkTest.JavaLibraryName(ctx.Config()):
+	case android.SdkTest.DefaultJavaLibraryName():
 		return javaSystem, true
 	}
 
