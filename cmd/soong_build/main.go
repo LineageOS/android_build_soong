@@ -16,6 +16,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -135,10 +136,22 @@ func runMixedModeBuild(ctx *android.Context, extraNinjaDeps []string) string {
 
 	writeDepFile(cmdlineArgs.OutFile, ctx.EventHandler, ninjaDeps)
 
-	if ctx.Config().IsEnvTrue("SOONG_GENERATES_NINJA_HINT") {
+	if needToWriteNinjaHint(ctx) {
 		writeNinjaHint(ctx)
 	}
 	return cmdlineArgs.OutFile
+}
+
+func needToWriteNinjaHint(ctx *android.Context) bool {
+	switch ctx.Config().GetenvWithDefault("SOONG_GENERATES_NINJA_HINT", "") {
+	case "always":
+		return true
+	case "depend":
+		if _, err := os.Stat(filepath.Join(ctx.Config().OutDir(), ".ninja_log")); errors.Is(err, os.ErrNotExist) {
+			return true
+		}
+	}
+	return false
 }
 
 // Run the code-generation phase to convert BazelTargetModules to BUILD files.
@@ -460,7 +473,7 @@ func runSoongOnlyBuild(ctx *android.Context, extraNinjaDeps []string) string {
 		// The actual output (build.ninja) was written in the RunBlueprint() call
 		// above
 		writeDepFile(cmdlineArgs.OutFile, ctx.EventHandler, ninjaDeps)
-		if ctx.Config().IsEnvTrue("SOONG_GENERATES_NINJA_HINT") {
+		if needToWriteNinjaHint(ctx) {
 			writeNinjaHint(ctx)
 		}
 		return cmdlineArgs.OutFile
