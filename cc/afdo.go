@@ -34,7 +34,7 @@ var (
 
 var afdoProfileProjectsConfigKey = android.NewOnceKey("AfdoProfileProjects")
 
-const afdoCFlagsFormat = "-fprofile-sample-accurate -fprofile-sample-use=%s"
+const afdoCFlagsFormat = "-fprofile-sample-use=%s"
 
 func recordMissingAfdoProfileFile(ctx android.BaseModuleContext, missing string) {
 	getNamedMapForConfig(ctx.Config(), modulesMissingProfileFileKey).Store(missing, true)
