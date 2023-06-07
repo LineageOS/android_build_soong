@@ -3531,6 +3531,7 @@ type bazelApexBundleAttributes struct {
 	Tests                 bazel.LabelListAttribute
 	Base_apex_name        *string
 	Apex_available_name   *string
+	Variant_version       *string
 }
 
 type convertedNativeSharedLibs struct {
@@ -3682,6 +3683,7 @@ func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (baze
 		Logging_parent:        loggingParent,
 		Tests:                 testsAttrs,
 		Apex_available_name:   a.properties.Apex_available_name,
+		Variant_version:       a.properties.Variant_version,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
