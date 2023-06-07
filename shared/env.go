@@ -55,20 +55,23 @@ func EnvFileContents(envDeps map[string]string) ([]byte, error) {
 	return data, nil
 }
 
-// Reads and deserializes a Soong environment file located at the given file path to determine its
-// staleness. If any environment variable values have changed, it prints them out and returns true.
+// Reads and deserializes a Soong environment file located at the given file
+// path to determine its staleness. If any environment variable values have
+// changed, it prints and returns changed environment variable values and
+// returns true.
 // Failing to read or parse the file also causes it to return true.
-func StaleEnvFile(filepath string, getenv func(string) string) (bool, error) {
+func StaleEnvFile(filepath string, getenv func(string) string) (isStale bool,
+	changedEnvironmentVariable []string, err error) {
 	data, err := ioutil.ReadFile(filepath)
 	if err != nil {
-		return true, err
+		return true, nil, err
 	}
 
 	var contents envFileData
 
 	err = json.Unmarshal(data, &contents)
 	if err != nil {
-		return true, err
+		return true, nil, err
 	}
 
 	var changed []string
@@ -78,6 +81,7 @@ func StaleEnvFile(filepath string, getenv func(string) string) (bool, error) {
 		cur := getenv(key)
 		if old != cur {
 			changed = append(changed, fmt.Sprintf("%s (%q -> %q)", key, old, cur))
+			changedEnvironmentVariable = append(changedEnvironmentVariable, key)
 		}
 	}
 
@@ -86,10 +90,10 @@ func StaleEnvFile(filepath string, getenv func(string) string) (bool, error) {
 		for _, s := range changed {
 			fmt.Printf("   %s\n", s)
 		}
-		return true, nil
+		return true, changedEnvironmentVariable, nil
 	}
 
-	return false, nil
+	return false, nil, nil
 }
 
 // Deserializes and environment serialized by EnvFileContents() and returns it
