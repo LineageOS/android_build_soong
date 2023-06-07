@@ -788,6 +788,9 @@ var (
 		"binderUtilsHostTest",
 		"run_dex2oat_test",
 		"bluetooth-address-unit-tests",
+
+		// for platform_compat_config
+		"process-compat-config",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
