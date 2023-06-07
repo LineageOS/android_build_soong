@@ -131,6 +131,12 @@ message MetricsBase {
 
   // The metric of critical path in build
   optional CriticalPathInfo critical_path_info = 33;
+
+  // Environment variables that have changed value since the previous build,
+  // which were responsible for retriggering build analysis.
+  // Note that not all changed environment variables result in analysis retriggering.
+  // If there was no previous build, this list will be empty.
+  repeated string changed_environment_variable = 34;
 }
 
 message BuildConfig {
