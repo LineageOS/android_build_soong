@@ -123,6 +123,7 @@ apex {
 	name: "com.android.apogee",
 	manifest: "apogee_manifest.json",
 	androidManifest: "ApogeeAndroidManifest.xml",
+	apex_available_name: "apogee_apex_name",
 	file_contexts: ":com.android.apogee-file_contexts",
 	min_sdk_version: "29",
 	key: "com.android.apogee.key",
@@ -144,11 +145,13 @@ apex {
 	],
 	package_name: "com.android.apogee.test.package",
 	logging_parent: "logging.parent",
+	variant_version: "3",
 }
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("apex", "com.android.apogee", AttrNameToString{
-				"android_manifest": `"ApogeeAndroidManifest.xml"`,
+				"android_manifest":    `"ApogeeAndroidManifest.xml"`,
+				"apex_available_name": `"apogee_apex_name"`,
 				"binaries": `[
         ":cc_binary_1",
         ":sh_binary_2",
@@ -185,10 +188,11 @@ apex {
         ":prebuilt_1",
         ":prebuilt_2",
     ]`,
-				"updatable":      "False",
-				"compressible":   "False",
-				"package_name":   `"com.android.apogee.test.package"`,
-				"logging_parent": `"logging.parent"`,
+				"updatable":       "False",
+				"compressible":    "False",
+				"package_name":    `"com.android.apogee.test.package"`,
+				"logging_parent":  `"logging.parent"`,
+				"variant_version": `"3"`,
 			}),
 		}})
 }
