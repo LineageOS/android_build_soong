@@ -451,13 +451,17 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	_ = bootstrap.RunBlueprint(blueprintArgs, bootstrap.DoEverything, blueprintCtx, blueprintConfig)
 }
 
-func checkEnvironmentFile(currentEnv *Environment, envFile string) {
+func checkEnvironmentFile(ctx Context, currentEnv *Environment, envFile string) {
 	getenv := func(k string) string {
 		v, _ := currentEnv.Get(k)
 		return v
 	}
 
-	if stale, _ := shared.StaleEnvFile(envFile, getenv); stale {
+	// Log the changed environment variables to ChangedEnvironmentVariable field
+	if stale, changedEnvironmentVariableList, _ := shared.StaleEnvFile(envFile, getenv); stale {
+		for _, changedEnvironmentVariable := range changedEnvironmentVariableList {
+			ctx.Metrics.AddChangedEnvironmentVariable(changedEnvironmentVariable)
+		}
 		os.Remove(envFile)
 	}
 }
@@ -502,26 +506,26 @@ func runSoong(ctx Context, config Config) {
 		ctx.BeginTrace(metrics.RunSoong, "environment check")
 		defer ctx.EndTrace()
 
-		checkEnvironmentFile(soongBuildEnv, config.UsedEnvFile(soongBuildTag))
+		checkEnvironmentFile(ctx, soongBuildEnv, config.UsedEnvFile(soongBuildTag))
 
 		if config.BazelBuildEnabled() || config.Bp2Build() {
-			checkEnvironmentFile(soongBuildEnv, config.UsedEnvFile(bp2buildFilesTag))
+			checkEnvironmentFile(ctx, soongBuildEnv, config.UsedEnvFile(bp2buildFilesTag))
 		}
 
 		if config.JsonModuleGraph() {
-			checkEnvironmentFile(soongBuildEnv, config.UsedEnvFile(jsonModuleGraphTag))
+			checkEnvironmentFile(ctx, soongBuildEnv, config.UsedEnvFile(jsonModuleGraphTag))
 		}
 
 		if config.Queryview() {
-			checkEnvironmentFile(soongBuildEnv, config.UsedEnvFile(queryviewTag))
+			checkEnvironmentFile(ctx, soongBuildEnv, config.UsedEnvFile(queryviewTag))
 		}
 
 		if config.ApiBp2build() {
-			checkEnvironmentFile(soongBuildEnv, config.UsedEnvFile(apiBp2buildTag))
+			checkEnvironmentFile(ctx, soongBuildEnv, config.UsedEnvFile(apiBp2buildTag))
 		}
 
 		if config.SoongDocs() {
-			checkEnvironmentFile(soongBuildEnv, config.UsedEnvFile(soongDocsTag))
+			checkEnvironmentFile(ctx, soongBuildEnv, config.UsedEnvFile(soongDocsTag))
 		}
 	}()
 
