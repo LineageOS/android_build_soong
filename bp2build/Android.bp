@@ -74,6 +74,7 @@ bootstrap_go_package {
         "linker_config_conversion_test.go",
         "package_conversion_test.go",
         "performance_test.go",
+        "platform_compat_config_conversion_test.go",
         "prebuilt_etc_conversion_test.go",
         "python_binary_conversion_test.go",
         "python_library_conversion_test.go",
