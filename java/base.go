@@ -1388,12 +1388,20 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		// prebuilt dependencies until we support modules in the platform build, so there shouldn't be
 		// any if len(jars) == 1.
 
+		// moduleStubLinkType determines if the module is the TopLevelStubLibrary generated
+		// from sdk_library. The TopLevelStubLibrary contains only one static lib,
+		// either with .from-source or .from-text suffix.
+		// outputFile should be agnostic to the build configuration,
+		// thus "combine" the single static lib in order to prevent the static lib from being exposed
+		// to the copy rules.
+		stub, _ := moduleStubLinkType(ctx.ModuleName())
+
 		// Transform the single path to the jar into an OutputPath as that is required by the following
 		// code.
-		if moduleOutPath, ok := jars[0].(android.ModuleOutPath); ok {
+		if moduleOutPath, ok := jars[0].(android.ModuleOutPath); ok && !stub {
 			// The path contains an embedded OutputPath so reuse that.
 			outputFile = moduleOutPath.OutputPath
-		} else if outputPath, ok := jars[0].(android.OutputPath); ok {
+		} else if outputPath, ok := jars[0].(android.OutputPath); ok && !stub {
 			// The path is an OutputPath so reuse it directly.
 			outputFile = outputPath
 		} else {
