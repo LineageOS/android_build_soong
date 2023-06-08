@@ -30,6 +30,7 @@ import (
 	"text/scanner"
 
 	"android/soong/bazel"
+	"android/soong/ui/metrics/bp2build_metrics_proto"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -565,6 +566,8 @@ type Module interface {
 
 	// IsConvertedByBp2build returns whether this module was converted via bp2build
 	IsConvertedByBp2build() bool
+	GetUnconvertedReason() *UnconvertedReason
+
 	// Bp2buildTargets returns the target(s) generated for Bazel via bp2build for this module
 	Bp2buildTargets() []bp2buildInfo
 	GetUnconvertedBp2buildDeps() []string
@@ -1591,12 +1594,29 @@ func (b bp2buildInfo) BazelAttributes() []interface{} {
 }
 
 func (m *ModuleBase) addBp2buildInfo(info bp2buildInfo) {
+	if m.commonProperties.BazelConversionStatus.UnconvertedReason != nil {
+		panic(fmt.Errorf("bp2build: module '%s' marked unconvertible and also is converted", m.Name()))
+	}
 	m.commonProperties.BazelConversionStatus.Bp2buildInfo = append(m.commonProperties.BazelConversionStatus.Bp2buildInfo, info)
+}
+
+func (m *ModuleBase) setBp2buildUnconvertible(reasonType bp2build_metrics_proto.UnconvertedReasonType, detail string) {
+	if len(m.commonProperties.BazelConversionStatus.Bp2buildInfo) > 0 {
+		panic(fmt.Errorf("bp2build: module '%s' marked unconvertible and also is converted", m.Name()))
+	}
+	m.commonProperties.BazelConversionStatus.UnconvertedReason = &UnconvertedReason{
+		ReasonType: int(reasonType),
+		Detail:     detail,
+	}
 }
 
 // IsConvertedByBp2build returns whether this module was converted via bp2build.
 func (m *ModuleBase) IsConvertedByBp2build() bool {
 	return len(m.commonProperties.BazelConversionStatus.Bp2buildInfo) > 0
+}
+
+func (m *ModuleBase) GetUnconvertedReason() *UnconvertedReason {
+	return m.commonProperties.BazelConversionStatus.UnconvertedReason
 }
 
 // Bp2buildTargets returns the Bazel targets bp2build generated for this module.

@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 
+	"android/soong/ui/metrics/bp2build_metrics_proto"
 	"github.com/google/blueprint/pathtools"
 	"github.com/google/blueprint/proptools"
 
@@ -2205,5 +2206,7 @@ func (j *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		if testHost, ok := ctx.Module().(*TestHost); ok {
 			javaTestHostBp2Build(ctx, testHost)
 		}
+	default:
+		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "")
 	}
 }

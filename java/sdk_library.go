@@ -24,6 +24,7 @@ import (
 	"strings"
 	"sync"
 
+	"android/soong/ui/metrics/bp2build_metrics_proto"
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -2178,6 +2179,7 @@ type bazelSdkLibraryAttributes struct {
 // java_sdk_library bp2build converter
 func (module *SdkLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	if ctx.ModuleType() != "java_sdk_library" {
+		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "")
 		return
 	}
 
