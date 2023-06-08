@@ -11,6 +11,7 @@ var (
 	GetCcInfo           = &getCcInfoType{}
 	GetApexInfo         = &getApexInfoType{}
 	GetCcUnstrippedInfo = &getCcUnstrippedInfoType{}
+	GetPrebuiltFileInfo = &getPrebuiltFileInfo{}
 )
 
 type CcAndroidMkInfo struct {
@@ -374,4 +375,52 @@ func parseJson(jsonString string, info interface{}) error {
 		return fmt.Errorf("cannot parse cquery result '%s': %s", jsonString, err)
 	}
 	return nil
+}
+
+type getPrebuiltFileInfo struct{}
+
+// Name returns a string name for this request type. Such request type names must be unique,
+// and must only consist of alphanumeric characters.
+func (g getPrebuiltFileInfo) Name() string {
+	return "getPrebuiltFileInfo"
+}
+
+// StarlarkFunctionBody returns a starlark function body to process this request type.
+// The returned string is the body of a Starlark function which obtains
+// all request-relevant information about a target and returns a string containing
+// this information.
+// The function should have the following properties:
+//   - The arguments are `target` (a configured target) and `id_string` (the label + configuration).
+//   - The return value must be a string.
+//   - The function body should not be indented outside of its own scope.
+func (g getPrebuiltFileInfo) StarlarkFunctionBody() string {
+	return `
+p = providers(target)
+prebuilt_file_info = p.get("//build/bazel/rules:prebuilt_file.bzl%PrebuiltFileInfo")
+if not prebuilt_file_info:
+  fail("%s did not provide PrebuiltFileInfo" % id_string)
+
+return json.encode({
+	"Src": prebuilt_file_info.src.path,
+	"Dir": prebuilt_file_info.dir,
+	"Filename": prebuilt_file_info.filename,
+	"Installable": prebuilt_file_info.installable,
+})`
+}
+
+type PrebuiltFileInfo struct {
+	// TODO: b/207489266 - Fully support all properties in prebuilt_file
+	Src         string
+	Dir         string
+	Filename    string
+	Installable bool
+}
+
+// ParseResult returns a value obtained by parsing the result of the request's Starlark function.
+// The given rawString must correspond to the string output which was created by evaluating the
+// Starlark given in StarlarkFunctionBody.
+func (g getPrebuiltFileInfo) ParseResult(rawString string) (PrebuiltFileInfo, error) {
+	var info PrebuiltFileInfo
+	err := parseJson(rawString, &info)
+	return info, err
 }
