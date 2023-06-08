@@ -141,6 +141,7 @@ var (
 		"external/f2fs-tools":                    Bp2BuildDefaultTrue,
 		"external/flac":                          Bp2BuildDefaultTrueRecursively,
 		"external/fmtlib":                        Bp2BuildDefaultTrueRecursively,
+		"external/fsverity-utils":                Bp2BuildDefaultTrueRecursively,
 		"external/guava":                         Bp2BuildDefaultTrueRecursively,
 		"external/google-benchmark":              Bp2BuildDefaultTrueRecursively,
 		"external/googletest":                    Bp2BuildDefaultTrueRecursively,
@@ -346,6 +347,7 @@ var (
 		"system/core/libprocessgroup":                            Bp2BuildDefaultTrue,
 		"system/core/libprocessgroup/cgrouprc":                   Bp2BuildDefaultTrue,
 		"system/core/libprocessgroup/cgrouprc_format":            Bp2BuildDefaultTrue,
+		"system/core/libsparse":                                  Bp2BuildDefaultTrueRecursively,
 		"system/core/libsuspend":                                 Bp2BuildDefaultTrue,
 		"system/core/libsystem":                                  Bp2BuildDefaultTrueRecursively,
 		"system/core/libsysutils":                                Bp2BuildDefaultTrueRecursively,
@@ -354,7 +356,9 @@ var (
 		"system/core/mkbootfs":                                   Bp2BuildDefaultTrueRecursively,
 		"system/core/property_service/libpropertyinfoparser":     Bp2BuildDefaultTrueRecursively,
 		"system/core/property_service/libpropertyinfoserializer": Bp2BuildDefaultTrueRecursively,
+		"system/extras/f2fs_utils":                               Bp2BuildDefaultTrueRecursively,
 		"system/extras/toolchain-extras":                         Bp2BuildDefaultTrue,
+		"system/extras/verity":                                   Bp2BuildDefaultTrueRecursively,
 		"system/hardware/interfaces/media":                       Bp2BuildDefaultTrueRecursively,
 		"system/incremental_delivery/incfs":                      Bp2BuildDefaultTrue,
 		"system/libartpalette":                                   Bp2BuildDefaultTrueRecursively,
@@ -384,6 +388,7 @@ var (
 		"system/memory/libion":                                   Bp2BuildDefaultTrueRecursively,
 		"system/memory/libmemunreachable":                        Bp2BuildDefaultTrueRecursively,
 		"system/sepolicy/apex":                                   Bp2BuildDefaultTrueRecursively,
+		"system/security/fsverity":                               Bp2BuildDefaultTrueRecursively,
 		"system/testing/gtest_extras":                            Bp2BuildDefaultTrueRecursively,
 		"system/timezone/apex":                                   Bp2BuildDefaultTrueRecursively,
 		"system/timezone/output_data":                            Bp2BuildDefaultTrueRecursively,
@@ -577,22 +582,17 @@ var (
 		//frameworks/base/core/java
 		"IDropBoxManagerService_aidl",
 
-		//system/core/libsparse
-		"libsparse",
-
 		//system/extras/ext4_utils
 		"libext4_utils",
 		"mke2fs_conf",
+		"mkuserimg_mke2fs",
+		"blk_alloc_to_base_fs",
 
 		//system/extras/libfec
 		"libfec",
 
 		//system/extras/squashfs_utils
 		"libsquashfs_utils",
-
-		//system/extras/verity/fec
-		"fec",
-		"boot_signer",
 
 		//packages/apps/Car/libs/car-ui-lib/car-ui-androidx
 		// genrule dependencies for java_imports
@@ -1425,16 +1425,12 @@ var (
 		"merge_ota",
 
 		// releasetools
-		"releasetools_fsverity_metadata_generator",
 		"verity_utils",
 		"check_ota_package_signature",
 		"check_target_files_vintf",
 		"releasetools_check_target_files_vintf",
-		"releasetools_verity_utils",
-		"build_image",
 		"ota_from_target_files",
 		"releasetools_ota_from_target_files",
-		"releasetools_build_image",
 		"add_img_to_target_files",
 		"releasetools_add_img_to_target_files",
 		"fsverity_metadata_generator",
