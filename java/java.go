@@ -3104,24 +3104,15 @@ func javaBinaryHostBp2Build(ctx android.TopDownMutatorContext, m *Binary) {
 	// Attribute jvm_flags
 	var jvmFlags bazel.StringListAttribute
 	if m.binaryProperties.Jni_libs != nil {
-		jniLibPackages := map[string]bool{}
-		for _, jniLibLabel := range android.BazelLabelForModuleDeps(ctx, m.binaryProperties.Jni_libs).Includes {
-			jniLibPackage := jniLibLabel.Label
-			indexOfColon := strings.Index(jniLibLabel.Label, ":")
-			if indexOfColon > 0 {
-				// JNI lib from other package
-				jniLibPackage = jniLibLabel.Label[2:indexOfColon]
-			} else if indexOfColon == 0 {
-				// JNI lib in the same package of java_binary
-				packageOfCurrentModule := m.GetBazelLabel(ctx, m)
-				jniLibPackage = packageOfCurrentModule[2:strings.Index(packageOfCurrentModule, ":")]
-			}
-			if _, inMap := jniLibPackages[jniLibPackage]; !inMap {
-				jniLibPackages[jniLibPackage] = true
+		jniLibPackages := []string{}
+		for _, jniLib := range m.binaryProperties.Jni_libs {
+			if jniLibModule, exists := ctx.ModuleFromName(jniLib); exists {
+				otherDir := ctx.OtherModuleDir(jniLibModule)
+				jniLibPackages = append(jniLibPackages, filepath.Join(otherDir, jniLib))
 			}
 		}
 		jniLibPaths := []string{}
-		for jniLibPackage, _ := range jniLibPackages {
+		for _, jniLibPackage := range jniLibPackages {
 			// See cs/f:.*/third_party/bazel/.*java_stub_template.txt for the use of RUNPATH
 			jniLibPaths = append(jniLibPaths, "$${RUNPATH}"+jniLibPackage)
 		}
@@ -3145,9 +3136,9 @@ func javaBinaryHostBp2Build(ctx android.TopDownMutatorContext, m *Binary) {
 	}
 
 	libInfo := libraryCreationInfo{
-		deps: deps,
-		attrs: commonAttrs,
-		baseName: m.Name(),
+		deps:      deps,
+		attrs:     commonAttrs,
+		baseName:  m.Name(),
 		hasKotlin: bp2BuildInfo.hasKotlin,
 	}
 	libName := createLibraryTarget(ctx, libInfo)
@@ -3189,9 +3180,9 @@ func javaTestHostBp2Build(ctx android.TopDownMutatorContext, m *TestHost) {
 	}
 
 	libInfo := libraryCreationInfo{
-		deps: deps,
-		attrs: commonAttrs,
-		baseName: m.Name(),
+		deps:      deps,
+		attrs:     commonAttrs,
+		baseName:  m.Name(),
 		hasKotlin: bp2BuildInfo.hasKotlin,
 	}
 	libName := createLibraryTarget(ctx, libInfo)
@@ -3204,9 +3195,9 @@ func javaTestHostBp2Build(ctx android.TopDownMutatorContext, m *TestHost) {
 // libraryCreationInfo encapsulates the info needed to create java_library target from
 // java_binary_host or java_test_host.
 type libraryCreationInfo struct {
-	deps bazel.LabelListAttribute
-	attrs *javaCommonAttributes
-	baseName string
+	deps      bazel.LabelListAttribute
+	attrs     *javaCommonAttributes
+	baseName  string
 	hasKotlin bool
 }
 

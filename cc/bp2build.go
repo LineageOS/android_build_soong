@@ -434,6 +434,7 @@ type compilerAttributes struct {
 
 	features bazel.StringListAttribute
 
+	stem   bazel.StringAttribute
 	suffix bazel.StringAttribute
 
 	fdoProfile bazel.LabelAttribute
@@ -818,6 +819,9 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 						versions = addCurrentVersionIfNotPresent(versions)
 						compilerAttrs.stubsVersions.SetSelectValue(axis, cfg, versions)
 					}
+				}
+				if stem := libraryProps.Stem; stem != nil {
+					compilerAttrs.stem.SetSelectValue(axis, cfg, stem)
 				}
 				if suffix := libraryProps.Suffix; suffix != nil {
 					compilerAttrs.suffix.SetSelectValue(axis, cfg, suffix)
@@ -1737,6 +1741,7 @@ func bazelLabelForSharedDepsExcludes(ctx android.BazelConversionPathContext, mod
 
 type binaryLinkerAttrs struct {
 	Linkshared *bool
+	Stem       bazel.StringAttribute
 	Suffix     bazel.StringAttribute
 }
 
@@ -1753,6 +1758,9 @@ func bp2buildBinaryLinkerProps(ctx android.BazelConversionPathContext, m *Module
 			// TODO(b/202876379): Static_executable is arch-variant; however, linkshared is a
 			// nonconfigurable attribute. Only 4 AOSP modules use this feature, defer handling
 			ctx.ModuleErrorf("bp2build cannot migrate a module with arch/target-specific static_executable values")
+		}
+		if stem := linkerProps.Stem; stem != nil {
+			attrs.Stem.SetSelectValue(axis, config, stem)
 		}
 		if suffix := linkerProps.Suffix; suffix != nil {
 			attrs.Suffix.SetSelectValue(axis, config, suffix)
