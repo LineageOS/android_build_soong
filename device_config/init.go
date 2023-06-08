@@ -27,7 +27,7 @@ var (
 	aconfigRule = pctx.AndroidStaticRule("aconfig",
 		blueprint.RuleParams{
 			Command: `${aconfig} create-cache` +
-				` --namespace ${namespace}` +
+				` --package ${namespace}` +
 				` --declarations ${in}` +
 				` ${values}` +
 				` --cache ${out}.tmp` +
