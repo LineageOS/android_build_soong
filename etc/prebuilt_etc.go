@@ -38,6 +38,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/bazel"
+	"android/soong/bazel/cquery"
 	"android/soong/snapshot"
 )
 
@@ -329,7 +330,6 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ctx.PropertyErrorf("src", "missing prebuilt source file")
 		return
 	}
-	p.outputFilePath = android.PathForModuleOut(ctx, filename).OutputPath
 
 	if strings.Contains(filename, "/") {
 		ctx.PropertyErrorf("filename", "filename cannot contain separator '/'")
@@ -349,21 +349,42 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 	p.installDirPath = android.PathForModuleInstall(ctx, installBaseDir, p.SubDir())
 
-	// This ensures that outputFilePath has the correct name for others to
-	// use, as the source file may have a different name.
-	ctx.Build(pctx, android.BuildParams{
-		Rule:   android.Cp,
-		Output: p.outputFilePath,
-		Input:  p.sourceFilePath,
-	})
+	// Call InstallFile even when uninstallable to make the module included in the package
+	ip := installProperties{
+		installable:    p.Installable(),
+		filename:       filename,
+		sourceFilePath: p.sourceFilePath,
+		symlinks:       p.properties.Symlinks,
+	}
+	p.addInstallRules(ctx, ip)
+}
 
-	if !p.Installable() {
+type installProperties struct {
+	installable    bool
+	filename       string
+	sourceFilePath android.Path
+	symlinks       []string
+}
+
+// utility function to add install rules to the build graph.
+// Reduces code duplication between Soong and Mixed build analysis
+func (p *PrebuiltEtc) addInstallRules(ctx android.ModuleContext, ip installProperties) {
+	if !ip.installable {
 		p.SkipInstall()
 	}
 
-	// Call InstallFile even when uninstallable to make the module included in the package
-	installPath := ctx.InstallFile(p.installDirPath, p.outputFilePath.Base(), p.outputFilePath)
-	for _, sl := range p.properties.Symlinks {
+	// Copy the file from src to a location in out/ with the correct `filename`
+	// This ensures that outputFilePath has the correct name for others to
+	// use, as the source file may have a different name.
+	p.outputFilePath = android.PathForModuleOut(ctx, ip.filename).OutputPath
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   android.Cp,
+		Output: p.outputFilePath,
+		Input:  ip.sourceFilePath,
+	})
+
+	installPath := ctx.InstallFile(p.installDirPath, ip.filename, p.outputFilePath)
+	for _, sl := range ip.symlinks {
 		ctx.InstallSymlink(p.installDirPath, sl, installPath)
 	}
 }
@@ -780,4 +801,39 @@ func (module *PrebuiltEtc) ConvertWithBp2build(ctx android.TopDownMutatorContext
 	}
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, attrs)
+}
+
+var _ android.MixedBuildBuildable = (*PrebuiltEtc)(nil)
+
+func (pe *PrebuiltEtc) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
+	return true
+}
+
+func (pe *PrebuiltEtc) QueueBazelCall(ctx android.BaseModuleContext) {
+	ctx.Config().BazelContext.QueueBazelRequest(
+		pe.GetBazelLabel(ctx, pe),
+		cquery.GetPrebuiltFileInfo,
+		android.GetConfigKey(ctx),
+	)
+}
+
+func (pe *PrebuiltEtc) ProcessBazelQueryResponse(ctx android.ModuleContext) {
+	bazelCtx := ctx.Config().BazelContext
+	pfi, err := bazelCtx.GetPrebuiltFileInfo(pe.GetBazelLabel(ctx, pe), android.GetConfigKey(ctx))
+	if err != nil {
+		ctx.ModuleErrorf(err.Error())
+		return
+	}
+
+	// Set properties for androidmk
+	pe.installDirPath = android.PathForModuleInstall(ctx, pfi.Dir)
+
+	// Installation rules
+	ip := installProperties{
+		installable:    pfi.Installable,
+		filename:       pfi.Filename,
+		sourceFilePath: android.PathForSource(ctx, pfi.Src),
+		// symlinks: pe.properties.Symlinks, // TODO: b/207489266 - Fully support all properties in prebuilt_file
+	}
+	pe.addInstallRules(ctx, ip)
 }
