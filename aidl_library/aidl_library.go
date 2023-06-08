@@ -107,8 +107,10 @@ func (lib *AidlLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 type AidlLibraryInfo struct {
 	// The direct aidl files of the module
 	Srcs android.Paths
-	// The include dirs to the direct aidl files and those provided from aidl_library deps
+	// The include dirs to the direct aidl files and those provided from transitive aidl_library deps
 	IncludeDirs android.DepSet
+	// The direct hdrs and hdrs from transitive deps
+	Hdrs android.DepSet
 }
 
 // AidlLibraryProvider provides the srcs and the transitive include dirs
@@ -116,37 +118,48 @@ var AidlLibraryProvider = blueprint.NewProvider(AidlLibraryInfo{})
 
 func (lib *AidlLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	includeDirsDepSetBuilder := android.NewDepSetBuilder(android.PREORDER)
+	hdrsDepSetBuilder := android.NewDepSetBuilder(android.PREORDER)
 
 	if len(lib.properties.Srcs) == 0 && len(lib.properties.Hdrs) == 0 {
 		ctx.ModuleErrorf("at least srcs or hdrs prop must be non-empty")
 	}
 
 	srcs := android.PathsForModuleSrc(ctx, lib.properties.Srcs)
+	hdrs := android.PathsForModuleSrc(ctx, lib.properties.Hdrs)
+
 	if lib.properties.Strip_import_prefix != nil {
 		srcs = android.PathsWithModuleSrcSubDir(
 			ctx,
 			srcs,
-			android.String(lib.properties.Strip_import_prefix))
+			android.String(lib.properties.Strip_import_prefix),
+		)
+
+		hdrs = android.PathsWithModuleSrcSubDir(
+			ctx,
+			hdrs,
+			android.String(lib.properties.Strip_import_prefix),
+		)
 	}
+	hdrsDepSetBuilder.Direct(hdrs...)
 
 	includeDir := android.PathForModuleSrc(
 		ctx,
 		proptools.StringDefault(lib.properties.Strip_import_prefix, ""),
 	)
-
 	includeDirsDepSetBuilder.Direct(includeDir)
 
 	for _, dep := range ctx.GetDirectDepsWithTag(aidlLibraryTag) {
 		if ctx.OtherModuleHasProvider(dep, AidlLibraryProvider) {
 			info := ctx.OtherModuleProvider(dep, AidlLibraryProvider).(AidlLibraryInfo)
 			includeDirsDepSetBuilder.Transitive(&info.IncludeDirs)
+			hdrsDepSetBuilder.Transitive(&info.Hdrs)
 		}
 	}
 
-	// TODO(b/279960133) Propagate direct and transitive headers/srcs when aidl action sandboxes inputs
 	ctx.SetProvider(AidlLibraryProvider, AidlLibraryInfo{
 		Srcs:        srcs,
 		IncludeDirs: *includeDirsDepSetBuilder.Build(),
+		Hdrs:        *hdrsDepSetBuilder.Build(),
 	})
 }
 

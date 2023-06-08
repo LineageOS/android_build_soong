@@ -201,6 +201,7 @@ var (
 		"frameworks/av/media/module/minijail":                Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/services/minijail":                    Bp2BuildDefaultTrueRecursively,
 		"frameworks/base/libs/androidfw":                     Bp2BuildDefaultTrue,
+		"frameworks/base/libs/services":                      Bp2BuildDefaultTrue,
 		"frameworks/base/media/tests/MediaDump":              Bp2BuildDefaultTrue,
 		"frameworks/base/services/tests/servicestests/aidl":  Bp2BuildDefaultTrue,
 		"frameworks/base/proto":                              Bp2BuildDefaultTrue,
@@ -558,6 +559,9 @@ var (
 
 		//external/fec
 		"libfec_rs",
+
+		//frameworks/base/core/java
+		"IDropBoxManagerService_aidl",
 
 		//system/core/libsparse
 		"libsparse",
