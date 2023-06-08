@@ -187,6 +187,9 @@ type BazelContext interface {
 	// Returns the results of the GetCcUnstrippedInfo query
 	GetCcUnstrippedInfo(label string, cfgkey configKey) (cquery.CcUnstrippedInfo, error)
 
+	// Returns the results of the GetPrebuiltFileInfo query
+	GetPrebuiltFileInfo(label string, cfgKey configKey) (cquery.PrebuiltFileInfo, error)
+
 	// ** end Cquery Results Retrieval Functions
 
 	// Issues commands to Bazel to receive results for all cquery requests
@@ -272,11 +275,12 @@ var _ BazelContext = noopBazelContext{}
 type MockBazelContext struct {
 	OutputBaseDir string
 
-	LabelToOutputFiles  map[string][]string
-	LabelToCcInfo       map[string]cquery.CcInfo
-	LabelToPythonBinary map[string]string
-	LabelToApexInfo     map[string]cquery.ApexInfo
-	LabelToCcBinary     map[string]cquery.CcUnstrippedInfo
+	LabelToOutputFiles      map[string][]string
+	LabelToCcInfo           map[string]cquery.CcInfo
+	LabelToPythonBinary     map[string]string
+	LabelToApexInfo         map[string]cquery.ApexInfo
+	LabelToCcBinary         map[string]cquery.CcUnstrippedInfo
+	LabelToPrebuiltFileInfo map[string]cquery.PrebuiltFileInfo
 
 	BazelRequests map[string]bool
 }
@@ -321,6 +325,14 @@ func (m MockBazelContext) GetCcUnstrippedInfo(label string, _ configKey) (cquery
 	result, ok := m.LabelToCcBinary[label]
 	if !ok {
 		return cquery.CcUnstrippedInfo{}, fmt.Errorf("no target with label %q in LabelToCcBinary", label)
+	}
+	return result, nil
+}
+
+func (m MockBazelContext) GetPrebuiltFileInfo(label string, _ configKey) (cquery.PrebuiltFileInfo, error) {
+	result, ok := m.LabelToPrebuiltFileInfo[label]
+	if !ok {
+		return cquery.PrebuiltFileInfo{}, fmt.Errorf("no target with label %q in LabelToPrebuiltFileInfo", label)
 	}
 	return result, nil
 }
@@ -433,6 +445,14 @@ func (bazelCtx *mixedBuildBazelContext) GetCcUnstrippedInfo(label string, cfgKey
 	return cquery.CcUnstrippedInfo{}, fmt.Errorf("no bazel response for %s", key)
 }
 
+func (bazelCtx *mixedBuildBazelContext) GetPrebuiltFileInfo(label string, cfgKey configKey) (cquery.PrebuiltFileInfo, error) {
+	key := makeCqueryKey(label, cquery.GetPrebuiltFileInfo, cfgKey)
+	if rawString, ok := bazelCtx.results[key]; ok {
+		return cquery.GetPrebuiltFileInfo.ParseResult(strings.TrimSpace(rawString))
+	}
+	return cquery.PrebuiltFileInfo{}, fmt.Errorf("no bazel response for %s", key)
+}
+
 func (n noopBazelContext) QueueBazelRequest(_ string, _ cqueryRequest, _ configKey) {
 	panic("unimplemented")
 }
@@ -451,6 +471,10 @@ func (n noopBazelContext) GetApexInfo(_ string, _ configKey) (cquery.ApexInfo, e
 
 func (n noopBazelContext) GetCcUnstrippedInfo(_ string, _ configKey) (cquery.CcUnstrippedInfo, error) {
 	//TODO implement me
+	panic("implement me")
+}
+
+func (n noopBazelContext) GetPrebuiltFileInfo(_ string, _ configKey) (cquery.PrebuiltFileInfo, error) {
 	panic("implement me")
 }
 
