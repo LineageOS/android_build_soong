@@ -140,6 +140,13 @@ def main():
       required=False,
       help="whether to display differing files",
   )
+  parser.add_argument(
+      "--output-paths-only",
+      "-o",
+      action="store_true",
+      required=False,
+      help="Whether to only return the output paths per module",
+  )
   args = parser.parse_args()
 
   out_dir = os.environ.get("OUT_DIR", "out")
@@ -147,6 +154,11 @@ def main():
   modules = set(args.modules)
 
   module_to_outs = _find_outputs_for_modules(modules, out_dir, target_product)
+  if args.output_paths_only:
+    for m, o in module_to_outs.items():
+      print(f"{m} outputs: {o}")
+    exit(0)
+
   all_outs = set()
   for outs in module_to_outs.values():
     all_outs.update(outs)
