@@ -689,26 +689,20 @@ func (r *builtinBazelRunner) issueBazelCommand(cmdRequest bazel.CmdRequest, path
 
 func (context *mixedBuildBazelContext) createBazelCommand(config Config, runName bazel.RunName, command bazelCommand,
 	extraFlags ...string) bazel.CmdRequest {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		panic("Unknown GOOS: " + runtime.GOOS)
+	}
 	cmdFlags := []string{
 		"--output_base=" + absolutePath(context.paths.outputBase),
 		command.command,
 		command.expression,
 		"--profile=" + shared.BazelMetricsFilename(context.paths, runName),
 
-		// We don't need to set --host_platforms because it's set in bazelrc files
-		// that the bazel shell script wrapper passes
-
-		// Optimize Ninja rebuilds by ensuring Bazel write into product-agnostic
-		// output paths for the configured targets that shouldn't be affected by
-		// TARGET_PRODUCT. Otherwise product agnostic modules will be rebuilt by
-		// Ninja when the product changes, unconditionally.
-		//
-		// For example, Mainline APEXes should be identical regardless of the
-		// product (modulo arch/cpu).
-		//
-		// This flag forcibly disables the platform prefix in the intermediate
-		// outputs during a mixed build.
-		"--noexperimental_platform_in_output_dir",
+		"--host_platform=@soong_injection//product_config_platforms:mixed_builds_product-" + context.targetBuildVariant + "_" + runtime.GOOS + "_x86_64",
+		// Don't specify --platforms, because on some products/branches (like kernel-build-tools)
+		// the main platform for mixed_builds_product-variant doesn't exist because an arch isn't
+		// specified in product config. The derivative platforms that config_node transitions into
+		// will still work.
 
 		// Suppress noise
 		"--ui_event_filters=-INFO",
@@ -755,9 +749,9 @@ func (context *mixedBuildBazelContext) mainBzlFileContents() []byte {
 #####################################################
 def _config_node_transition_impl(settings, attr):
     if attr.os == "android" and attr.arch == "target":
-        target = "current_product-{VARIANT}"
+        target = "mixed_builds_product-{VARIANT}"
     else:
-        target = "current_product-{VARIANT}_%s_%s" % (attr.os, attr.arch)
+        target = "mixed_builds_product-{VARIANT}_%s_%s" % (attr.os, attr.arch)
     apex_name = ""
     if attr.within_apex:
         # //build/bazel/rules/apex:apex_name has to be set to a non_empty value,
@@ -994,9 +988,9 @@ def get_arch(target):
   platform_name = platforms[0].name
   if platform_name == "host":
     return "HOST"
-  if not platform_name.startswith("current_product-{TARGET_BUILD_VARIANT}"):
-    fail("expected platform name of the form 'current_product-{TARGET_BUILD_VARIANT}_android_<arch>' or 'current_product-{TARGET_BUILD_VARIANT}_linux_<arch>', but was " + str(platforms))
-  platform_name = platform_name.removeprefix("current_product-{TARGET_BUILD_VARIANT}").removeprefix("_")
+  if not platform_name.startswith("mixed_builds_product-{TARGET_BUILD_VARIANT}"):
+    fail("expected platform name of the form 'mixed_builds_product-{TARGET_BUILD_VARIANT}_android_<arch>' or 'mixed_builds_product-{TARGET_BUILD_VARIANT}_linux_<arch>', but was " + str(platforms))
+  platform_name = platform_name.removeprefix("mixed_builds_product-{TARGET_BUILD_VARIANT}").removeprefix("_")
   config_key = ""
   if not platform_name:
     config_key = "target|android"
@@ -1005,7 +999,7 @@ def get_arch(target):
   elif platform_name.startswith("linux_"):
     config_key = platform_name.removeprefix("linux_") + "|linux"
   else:
-    fail("expected platform name of the form 'current_product-{TARGET_BUILD_VARIANT}_android_<arch>' or 'current_product-{TARGET_BUILD_VARIANT}_linux_<arch>', but was " + str(platforms))
+    fail("expected platform name of the form 'mixed_builds_product-{TARGET_BUILD_VARIANT}_android_<arch>' or 'mixed_builds_product-{TARGET_BUILD_VARIANT}_linux_<arch>', but was " + str(platforms))
 
   within_apex = buildoptions.get("//build/bazel/rules/apex:within_apex")
   apex_sdk_version = buildoptions.get("//build/bazel/rules/apex:min_sdk_version")
