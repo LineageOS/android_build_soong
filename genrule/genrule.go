@@ -873,6 +873,7 @@ type bazelGensrcsAttributes struct {
 	Output_extension *string
 	Tools            bazel.LabelListAttribute
 	Cmd              string
+	Data             bazel.LabelListAttribute
 }
 
 const defaultShardSize = 50
@@ -952,6 +953,23 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	allReplacements.Append(tools.Value)
 	allReplacements.Append(bazel.FirstUniqueBazelLabelList(srcs_labels))
 
+	// The Output_extension prop is not in an immediately accessible field
+	// in the Module struct, so use GetProperties and cast it
+	// to the known struct prop.
+	var outputExtension *string
+	var data bazel.LabelListAttribute
+	if ctx.ModuleType() == "gensrcs" {
+		for _, propIntf := range m.GetProperties() {
+			if props, ok := propIntf.(*genSrcsProperties); ok {
+				outputExtension = props.Output_extension
+				dataFiles := android.BazelLabelForModuleSrc(ctx, props.Data)
+				allReplacements.Append(bazel.FirstUniqueBazelLabelList(dataFiles))
+				data = bazel.MakeLabelListAttribute(dataFiles)
+				break
+			}
+		}
+	}
+
 	// Replace in and out variables with $< and $@
 	var cmd string
 	if m.properties.Cmd != nil {
@@ -980,16 +998,6 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	tags := android.ApexAvailableTagsWithoutTestApexes(ctx, m)
 
 	if ctx.ModuleType() == "gensrcs" {
-		// The Output_extension prop is not in an immediately accessible field
-		// in the Module struct, so use GetProperties and cast it
-		// to the known struct prop.
-		var outputExtension *string
-		for _, propIntf := range m.GetProperties() {
-			if props, ok := propIntf.(*genSrcsProperties); ok {
-				outputExtension = props.Output_extension
-				break
-			}
-		}
 		props := bazel.BazelTargetModuleProperties{
 			Rule_class:        "gensrcs",
 			Bzl_load_location: "//build/bazel/rules:gensrcs.bzl",
@@ -999,6 +1007,7 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 			Output_extension: outputExtension,
 			Cmd:              cmd,
 			Tools:            tools,
+			Data:             data,
 		}
 		ctx.CreateBazelTargetModule(props, android.CommonAttributes{
 			Name: m.Name(),
