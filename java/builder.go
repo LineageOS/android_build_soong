@@ -305,6 +305,12 @@ type javaBuilderFlags struct {
 	proto android.ProtoFlags
 }
 
+func DefaultJavaBuilderFlags() javaBuilderFlags {
+	return javaBuilderFlags{
+		javaVersion: JAVA_VERSION_8,
+	}
+}
+
 func TransformJavaToClasses(ctx android.ModuleContext, outputFile android.WritablePath, shardIdx int,
 	srcFiles, srcJars android.Paths, flags javaBuilderFlags, deps android.Paths) {
 

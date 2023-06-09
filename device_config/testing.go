@@ -14,6 +14,16 @@
 
 package device_config
 
-import "android/soong/android"
+import (
+	"testing"
 
-var PrepareForTestWithSyspropBuildComponents = android.FixtureRegisterWithContext(registerBuildComponents)
+	"android/soong/android"
+)
+
+var PrepareForTestWithDeviceConfigBuildComponents = android.FixtureRegisterWithContext(registerBuildComponents)
+
+func runTest(t *testing.T, errorHandler android.FixtureErrorHandler, bp string) *android.TestResult {
+	return android.GroupFixturePreparers(PrepareForTestWithDeviceConfigBuildComponents).
+		ExtendWithErrorHandler(errorHandler).
+		RunTestWithBp(t, bp)
+}
