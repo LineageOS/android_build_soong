@@ -1106,3 +1106,40 @@ func TestCcBinaryWithCfiAndCfiAssemblySupport(t *testing.T) {
 		},
 	})
 }
+
+func TestCcBinaryStem(t *testing.T) {
+	runCcBinaryTestCase(t, ccBinaryBp2buildTestCase{
+		description: "cc_binary with stem property",
+		blueprint: `
+cc_binary {
+	name: "foo_with_stem_simple",
+	stem: "foo",
+}
+cc_binary {
+	name: "foo_with_arch_variant_stem",
+	arch: {
+		arm: {
+			stem: "foo-arm",
+		},
+		arm64: {
+			stem: "foo-arm64",
+		},
+	},
+}
+`,
+		targets: []testBazelTarget{
+			{"cc_binary", "foo_with_stem_simple", AttrNameToString{
+				"stem":           `"foo"`,
+				"local_includes": `["."]`,
+			}},
+			{"cc_binary", "foo_with_arch_variant_stem", AttrNameToString{
+				"stem": `select({
+        "//build/bazel/platforms/arch:arm": "foo-arm",
+        "//build/bazel/platforms/arch:arm64": "foo-arm64",
+        "//conditions:default": None,
+    })`,
+				"local_includes": `["."]`,
+			}},
+		},
+	})
+}
