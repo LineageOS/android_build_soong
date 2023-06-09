@@ -187,6 +187,9 @@ type CommonProperties struct {
 
 	// A list of java_library instances that provide additional hiddenapi annotations for the library.
 	Hiddenapi_additional_annotations []string
+
+	// Additional srcJars tacked in by GeneratedJavaLibraryModule
+	Generated_srcjars []android.Path `android:"mutated"`
 }
 
 // Properties that are specific to device modules. Host module factories should not add these when
@@ -1041,6 +1044,10 @@ func (j *Module) AddJSONData(d *map[string]interface{}) {
 
 }
 
+func (module *Module) addGeneratedSrcJars(path android.Path) {
+	module.properties.Generated_srcjars = append(module.properties.Generated_srcjars, path)
+}
+
 func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 	j.exportAidlIncludeDirs = android.PathsForModuleSrc(ctx, j.deviceProperties.Aidl.Export_include_dirs)
 
@@ -1081,6 +1088,10 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 	srcJars = append(srcJars, deps.srcJars...)
 	if aaptSrcJar != nil {
 		srcJars = append(srcJars, aaptSrcJar)
+	}
+	srcJars = append(srcJars, j.properties.Generated_srcjars...)
+	if len(j.properties.Generated_srcjars) > 0 {
+		fmt.Printf("Java module %s Generated_srcjars: %v\n", ctx.ModuleName(), j.properties.Generated_srcjars)
 	}
 	srcFiles = srcFiles.FilterOutByExt(".srcjar")
 
