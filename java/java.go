@@ -273,6 +273,8 @@ type JavaInfo struct {
 	// JacocoReportClassesFile is the path to a jar containing uninstrumented classes that will be
 	// instrumented by jacoco.
 	JacocoReportClassesFile android.Path
+
+	// TODO: Add device config declarations here?
 }
 
 var JavaInfoProvider = blueprint.NewProvider(JavaInfo{})
