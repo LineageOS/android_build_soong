@@ -870,7 +870,7 @@ func (ctx *parseContext) handleSubConfig(
 	}
 
 	// Safeguard against $(call inherit-product,$(PRODUCT_PATH))
-	const maxMatchingFiles = 155 // temporarily increased to 155 for b/284854738
+	const maxMatchingFiles = 150
 	if len(matchingPaths) > maxMatchingFiles {
 		return []starlarkNode{ctx.newBadNode(v, "there are >%d files matching the pattern, please rewrite it", maxMatchingFiles)}
 	}
