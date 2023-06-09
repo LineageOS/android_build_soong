@@ -1076,6 +1076,10 @@ func (c *Module) CcLibraryInterface() bool {
 	return false
 }
 
+func (c *Module) RustLibraryInterface() bool {
+	return false
+}
+
 func (c *Module) IsFuzzModule() bool {
 	if _, ok := c.compiler.(*fuzzBinary); ok {
 		return true
