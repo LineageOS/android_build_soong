@@ -68,7 +68,7 @@ func TestJavaBinaryHost(t *testing.T) {
 			}),
 			MakeBazelTarget("java_binary", "java-binary-host-1", AttrNameToString{
 				"main_class": `"com.android.test.MainClass"`,
-				"jvm_flags":  `["-Djava.library.path=$${RUNPATH}other"]`,
+				"jvm_flags":  `["-Djava.library.path=$${RUNPATH}other/jni-lib-1"]`,
 				"target_compatible_with": `select({
         "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
