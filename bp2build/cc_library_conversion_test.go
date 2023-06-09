@@ -4812,3 +4812,42 @@ cc_library {
 		},
 	})
 }
+
+func TestCcLibraryWithStem(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library with stem property",
+		ModuleTypeUnderTest:        "cc_library_shared",
+		ModuleTypeUnderTestFactory: cc.LibrarySharedFactory,
+		Blueprint: soongCcLibraryPreamble + `
+cc_library_shared {
+	name: "foo_with_stem_simple",
+	stem: "foo",
+}
+cc_library_shared {
+	name: "foo_with_arch_variant_stem",
+	arch: {
+		arm: {
+			stem: "foo-arm",
+		},
+		arm64: {
+			stem: "foo-arm64",
+		},
+	},
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_shared", "foo_with_stem_simple", AttrNameToString{
+				"stem":           `"foo"`,
+				"local_includes": `["."]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "foo_with_arch_variant_stem", AttrNameToString{
+				"stem": `select({
+        "//build/bazel/platforms/arch:arm": "foo-arm",
+        "//build/bazel/platforms/arch:arm64": "foo-arm64",
+        "//conditions:default": None,
+    })`,
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}
