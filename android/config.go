@@ -291,6 +291,10 @@ type config struct {
 	// "--bazel-force-enabled-modules"
 	bazelForceEnabledModules map[string]struct{}
 
+	// Names of Bazel targets as defined by BUILD files in the source tree,
+	// keyed by the directory in which they are defined.
+	bazelTargetsByDir map[string][]string
+
 	// If true, for any requests to Bazel, communicate with a Bazel proxy using
 	// unix sockets, instead of spawning Bazel as a subprocess.
 	UseBazelProxy bool
@@ -2003,6 +2007,20 @@ func (c *config) LogMixedBuild(ctx BaseModuleContext, useBazel bool) {
 	} else {
 		c.mixedBuildDisabledModules[moduleName] = struct{}{}
 	}
+}
+
+func (c *config) HasBazelBuildTargetInSource(ctx BaseModuleContext) bool {
+	moduleName := ctx.Module().Name()
+	for _, buildTarget := range c.bazelTargetsByDir[ctx.ModuleDir()] {
+		if moduleName == buildTarget {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *config) SetBazelBuildFileTargets(bazelTargetsByDir map[string][]string) {
+	c.bazelTargetsByDir = bazelTargetsByDir
 }
 
 // ApiSurfaces directory returns the source path inside the api_surfaces repo
