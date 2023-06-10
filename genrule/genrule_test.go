@@ -604,6 +604,30 @@ func TestGenSrcs(t *testing.T) {
 				"out/soong/.intermediates/gen/gen/gensrcs/in3.h",
 			},
 		},
+		{
+			name: "data",
+			prop: `
+				tools: ["tool"],
+				srcs: ["in1.txt", "in2.txt", "in3.txt"],
+				cmd: "$(location) $(in) --extra_input=$(location baz.txt) > $(out)",
+				data: ["baz.txt"],
+				shard_size: 2,
+			`,
+			cmds: []string{
+				"bash -c '__SBOX_SANDBOX_DIR__/tools/out/bin/tool in1.txt --extra_input=baz.txt > __SBOX_SANDBOX_DIR__/out/in1.h' && bash -c '__SBOX_SANDBOX_DIR__/tools/out/bin/tool in2.txt --extra_input=baz.txt > __SBOX_SANDBOX_DIR__/out/in2.h'",
+				"bash -c '__SBOX_SANDBOX_DIR__/tools/out/bin/tool in3.txt --extra_input=baz.txt > __SBOX_SANDBOX_DIR__/out/in3.h'",
+			},
+			deps: []string{
+				"out/soong/.intermediates/gen/gen/gensrcs/in1.h",
+				"out/soong/.intermediates/gen/gen/gensrcs/in2.h",
+				"out/soong/.intermediates/gen/gen/gensrcs/in3.h",
+			},
+			files: []string{
+				"out/soong/.intermediates/gen/gen/gensrcs/in1.h",
+				"out/soong/.intermediates/gen/gen/gensrcs/in2.h",
+				"out/soong/.intermediates/gen/gen/gensrcs/in3.h",
+			},
+		},
 	}
 
 	for _, test := range testcases {
