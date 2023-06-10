@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -762,12 +763,53 @@ func excludedFromSymlinkForest(ctx *android.Context, verbose bool) []string {
 	return excluded
 }
 
+// buildTargetsByPackage parses Bazel BUILD.bazel and BUILD files under
+// the workspace, and returns a map containing names of Bazel targets defined in
+// these BUILD files.
+// For example, maps "//foo/bar" to ["baz", "qux"] if `//foo/bar:{baz,qux}` exist.
+func buildTargetsByPackage(ctx *android.Context) map[string][]string {
+	existingBazelFiles, err := getExistingBazelRelatedFiles(topDir)
+	maybeQuit(err, "Error determining existing Bazel-related files")
+
+	result := map[string][]string{}
+
+	// Search for instances of `name = "$NAME"` (with arbitrary spacing).
+	targetNameRegex := regexp.MustCompile(`(?m)^\s*name\s*=\s*\"([^\"]+)\"`)
+
+	for _, path := range existingBazelFiles {
+		if !ctx.Config().Bp2buildPackageConfig.ShouldKeepExistingBuildFileForDir(filepath.Dir(path)) {
+			continue
+		}
+		fullPath := shared.JoinPath(topDir, path)
+		sourceDir := filepath.Dir(path)
+		fileInfo, err := os.Stat(fullPath)
+		maybeQuit(err, "Error accessing Bazel file '%s'", fullPath)
+
+		if !fileInfo.IsDir() &&
+			(fileInfo.Name() == "BUILD" || fileInfo.Name() == "BUILD.bazel") {
+			// Process this BUILD file.
+			buildFileContent, err := os.ReadFile(fullPath)
+			maybeQuit(err, "Error reading Bazel file '%s'", fullPath)
+
+			matches := targetNameRegex.FindAllStringSubmatch(string(buildFileContent), -1)
+			for _, match := range matches {
+				result[sourceDir] = append(result[sourceDir], match[1])
+			}
+		}
+	}
+	return result
+}
+
 // Run Soong in the bp2build mode. This creates a standalone context that registers
 // an alternate pipeline of mutators and singletons specifically for generating
 // Bazel BUILD files instead of Ninja files.
 func runBp2Build(ctx *android.Context, extraNinjaDeps []string, metricsDir string) string {
 	var codegenMetrics *bp2build.CodegenMetrics
 	ctx.EventHandler.Do("bp2build", func() {
+
+		ctx.EventHandler.Do("read_build", func() {
+			ctx.Config().SetBazelBuildFileTargets(buildTargetsByPackage(ctx))
+		})
 
 		// Propagate "allow misssing dependencies" bit. This is normally set in
 		// newContext(), but we create ctx without calling that method.

@@ -232,6 +232,63 @@ function test_bp2build_generates_all_buildfiles {
   eval "${_save_trap}"
 }
 
+function test_build_files_take_precedence {
+  _save_trap=$(trap -p EXIT)
+  trap '[[ $? -ne 0 ]] && echo Are you running this locally? Try changing --sandbox_tmpfs_path to something other than /tmp/ in build/bazel/linux.bazelrc.' EXIT
+  _build_files_take_precedence
+  eval "${_save_trap}"
+}
+
+function _build_files_take_precedence {
+  setup
+
+  # This specific directory is hardcoded in bp2build as being one
+  # where the BUILD file should be intentionally kept.
+  mkdir -p testpkg/keep_build_file
+  cat > testpkg/keep_build_file/Android.bp <<'EOF'
+genrule {
+    name: "print_origin",
+    cmd: "echo 'from_soong' > $(out)",
+    out: [
+        "origin.txt",
+    ],
+    bazel_module: {
+        bp2build_available: true,
+    },
+  }
+EOF
+
+  run_soong bp2build
+  run_bazel build --config=android --config=bp2build --config=ci //testpkg/keep_build_file:print_origin
+
+  local -r output_file="$(find -L bazel-out -name origin.txt)"
+  if [[ ! -f "${output_file}" ]]; then
+    fail "Expected origin.txt to be generated, but was missing"
+  fi
+  if ! grep from_soong "${output_file}"; then
+    fail "Expected to find 'from_soong' in '${output_file}'"
+  fi
+
+  cat > testpkg/keep_build_file/BUILD.bazel <<'EOF'
+genrule(
+    name = "print_origin",
+    outs = ["origin.txt"],
+    cmd = "echo 'from_bazel' > $@",
+)
+EOF
+
+  # Clean the workspace. There is a test infrastructure bug where run_bazel
+  # will symlink Android.bp files in the source directory again and thus
+  # pollute the workspace.
+  # TODO: b/286059878 - Remove this clean after the underlying bug is fixed.
+  run_soong clean
+  run_soong bp2build
+  run_bazel build --config=android --config=bp2build --config=ci //testpkg/keep_build_file:print_origin
+  if ! grep from_bazel "${output_file}"; then
+    fail "Expected to find 'from_bazel' in '${output_file}'"
+  fi
+}
+
 function test_bp2build_symlinks_files {
   setup
   mkdir -p foo
