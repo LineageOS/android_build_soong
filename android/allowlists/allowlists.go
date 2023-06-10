@@ -461,6 +461,9 @@ var (
 
 		// TODO(b/266459895): remove this and the placeholder BUILD file after re-enabling libunwindstack
 		"external/rust/crates/rustc-demangle-capi":/* recursive = */ false,
+
+		// Used for testing purposes only. Should not actually exist in the real source tree.
+		"testpkg/keep_build_file":/* recursive = */ false,
 	}
 
 	Bp2buildModuleAlwaysConvertList = []string{
@@ -844,9 +847,6 @@ var (
 		// java bugs
 		"libbase_ndk",  // TODO(b/186826477): fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
 		"bouncycastle", // TODO(b/274474005): Need support for custom system_modules.
-
-		// python protos
-		"libprotobuf-python", // Has a handcrafted alternative
 
 		// genrule incompatibilities
 		"brotli-fuzzer-corpus",                                       // TODO(b/202015218): outputs are in location incompatible with bazel genrule handling.
