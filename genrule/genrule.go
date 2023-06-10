@@ -203,12 +203,13 @@ var _ android.MixedBuildBuildable = (*Module)(nil)
 type taskFunc func(ctx android.ModuleContext, rawCommand string, srcFiles android.Paths) []generateTask
 
 type generateTask struct {
-	in         android.Paths
-	out        android.WritablePaths
-	depFile    android.WritablePath
-	copyTo     android.WritablePaths // For gensrcs to set on gensrcsMerge rule.
-	genDir     android.WritablePath
-	extraTools android.Paths // dependencies on tools used by the generator
+	in          android.Paths
+	out         android.WritablePaths
+	depFile     android.WritablePath
+	copyTo      android.WritablePaths // For gensrcs to set on gensrcsMerge rule.
+	genDir      android.WritablePath
+	extraTools  android.Paths // dependencies on tools used by the generator
+	extraInputs map[string][]string
 
 	cmd string
 	// For gensrsc sharding.
@@ -402,30 +403,35 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 		addLocationLabel(toolFile, toolLocation{paths})
 	}
 
-	includeDirInPaths := ctx.DeviceConfig().BuildBrokenInputDir(g.Name())
-	var srcFiles android.Paths
-	for _, in := range g.properties.Srcs {
-		paths, missingDeps := android.PathsAndMissingDepsRelativeToModuleSourceDir(android.SourceInput{
-			Context: ctx, Paths: []string{in}, ExcludePaths: g.properties.Exclude_srcs, IncludeDirs: includeDirInPaths,
-		})
-		if len(missingDeps) > 0 {
-			if !ctx.Config().AllowMissingDependencies() {
-				panic(fmt.Errorf("should never get here, the missing dependencies %q should have been reported in DepsMutator",
-					missingDeps))
-			}
+	addLabelsForInputs := func(propName string, include, exclude []string) android.Paths {
 
-			// If AllowMissingDependencies is enabled, the build will not have stopped when
-			// the dependency was added on a missing SourceFileProducer module, which will result in nonsensical
-			// "cmd: label ":..." has no files" errors later.  Add a placeholder file to the local label.
-			// The command that uses this placeholder file will never be executed because the rule will be
-			// replaced with an android.Error rule reporting the missing dependencies.
-			ctx.AddMissingDependencies(missingDeps)
-			addLocationLabel(in, errorLocation{"***missing srcs " + in + "***"})
-		} else {
-			srcFiles = append(srcFiles, paths...)
-			addLocationLabel(in, inputLocation{paths})
+		includeDirInPaths := ctx.DeviceConfig().BuildBrokenInputDir(g.Name())
+		var srcFiles android.Paths
+		for _, in := range include {
+			paths, missingDeps := android.PathsAndMissingDepsRelativeToModuleSourceDir(android.SourceInput{
+				Context: ctx, Paths: []string{in}, ExcludePaths: exclude, IncludeDirs: includeDirInPaths,
+			})
+			if len(missingDeps) > 0 {
+				if !ctx.Config().AllowMissingDependencies() {
+					panic(fmt.Errorf("should never get here, the missing dependencies %q should have been reported in DepsMutator",
+						missingDeps))
+				}
+
+				// If AllowMissingDependencies is enabled, the build will not have stopped when
+				// the dependency was added on a missing SourceFileProducer module, which will result in nonsensical
+				// "cmd: label ":..." has no files" errors later.  Add a placeholder file to the local label.
+				// The command that uses this placeholder file will never be executed because the rule will be
+				// replaced with an android.Error rule reporting the missing dependencies.
+				ctx.AddMissingDependencies(missingDeps)
+				addLocationLabel(in, errorLocation{"***missing " + propName + " " + in + "***"})
+			} else {
+				srcFiles = append(srcFiles, paths...)
+				addLocationLabel(in, inputLocation{paths})
+			}
 		}
+		return srcFiles
 	}
+	srcFiles := addLabelsForInputs("srcs", g.properties.Srcs, g.properties.Exclude_srcs)
 
 	var copyFrom android.Paths
 	var outputFiles android.WritablePaths
@@ -437,10 +443,18 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 	}
 
 	// Generate tasks, either from genrule or gensrcs.
-	for _, task := range g.taskGenerator(ctx, cmd, srcFiles) {
+	for i, task := range g.taskGenerator(ctx, cmd, srcFiles) {
 		if len(task.out) == 0 {
 			ctx.ModuleErrorf("must have at least one output file")
 			return
+		}
+
+		var extraInputs android.Paths
+		// Only handle extra inputs once as these currently are the same across all tasks
+		if i == 0 {
+			for name, values := range task.extraInputs {
+				extraInputs = append(extraInputs, addLabelsForInputs(name, values, []string{})...)
+			}
 		}
 
 		// Pick a unique path outside the task.genDir for the sbox manifest textproto,
@@ -551,6 +565,8 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 		g.rawCommands = append(g.rawCommands, rawCommand)
 
 		cmd.Text(rawCommand)
+		cmd.Implicits(srcFiles) // need to be able to reference other srcs
+		cmd.Implicits(extraInputs)
 		cmd.ImplicitOutputs(task.out)
 		cmd.Implicits(task.in)
 		cmd.ImplicitTools(tools)
@@ -820,6 +836,9 @@ func NewGenSrcs() *Module {
 				shard:      i,
 				shards:     len(shards),
 				extraTools: extraTools,
+				extraInputs: map[string][]string{
+					"data": properties.Data,
+				},
 			})
 		}
 
@@ -844,6 +863,9 @@ type genSrcsProperties struct {
 
 	// maximum number of files that will be passed on a single command line.
 	Shard_size *int64
+
+	// Additional files needed for build that are not tooling related.
+	Data []string `android:"path"`
 }
 
 type bazelGensrcsAttributes struct {
