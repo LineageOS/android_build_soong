@@ -81,6 +81,7 @@ type bazelFilegroupAttributes struct {
 type bazelAidlLibraryAttributes struct {
 	Srcs                bazel.LabelListAttribute
 	Strip_import_prefix *string
+	Deps                bazel.LabelListAttribute
 }
 
 // api srcs can be contained in filegroups.
@@ -119,9 +120,12 @@ func (fg *fileGroup) ConvertWithBp2build(ctx TopDownMutatorContext) {
 	// and then convert
 	if fg.ShouldConvertToAidlLibrary(ctx) {
 		tags := []string{"apex_available=//apex_available:anyapex"}
+		deps := bazel.MakeLabelListAttribute(BazelLabelForModuleDeps(ctx, fg.properties.Aidl.Deps))
+
 		attrs := &bazelAidlLibraryAttributes{
 			Srcs:                srcs,
 			Strip_import_prefix: fg.properties.Path,
+			Deps:                deps,
 		}
 
 		props := bazel.BazelTargetModuleProperties{
@@ -187,6 +191,14 @@ type fileGroupProperties struct {
 	// Create a make variable with the specified name that contains the list of files in the
 	// filegroup, relative to the root of the source tree.
 	Export_to_make_var *string
+
+	// aidl is explicitly provided for implicit aidl dependencies
+	// TODO(b/278298615): aidl prop is a no-op in Soong and is an escape hatch
+	// to include implicit aidl dependencies for bazel migration compatibility
+	Aidl struct {
+		// List of aidl files or filegroup depended on by srcs
+		Deps []string `android:"path"`
+	}
 }
 
 type fileGroup struct {
