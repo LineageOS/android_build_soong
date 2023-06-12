@@ -608,6 +608,11 @@ func (d *Droiddoc) doclavaDocsFlags(ctx android.ModuleContext, cmd *android.Rule
 		FlagWithArg("-Xmaxerrs ", "10").
 		FlagWithArg("-Xmaxwarns ", "10").
 		Flag("-J--add-exports=jdk.javadoc/jdk.javadoc.internal.doclets.formats.html=ALL-UNNAMED").
+		Flag("-J--add-exports=jdk.javadoc/jdk.javadoc.internal.tool=ALL-UNNAMED").
+		Flag("-J--add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED").
+		Flag("-J--add-exports=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED").
+		Flag("-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED").
+		Flag("-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED").
 		Flag("-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED").
 		FlagWithArg("-hdf page.build ", ctx.Config().BuildId()+"-$(cat "+buildNumberFile.String()+")").OrderOnly(buildNumberFile).
 		FlagWithArg("-hdf page.now ", `"$(date -d @$(cat `+ctx.Config().Getenv("BUILD_DATETIME_FILE")+`) "+%d %b %Y %k:%M")" `)
