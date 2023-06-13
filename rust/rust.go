@@ -631,6 +631,15 @@ func (mod *Module) CcLibraryInterface() bool {
 	return false
 }
 
+func (mod *Module) RustLibraryInterface() bool {
+	if mod.compiler != nil {
+		if _, ok := mod.compiler.(libraryInterface); ok {
+			return true
+		}
+	}
+	return false
+}
+
 func (mod *Module) IsFuzzModule() bool {
 	if _, ok := mod.compiler.(*fuzzDecorator); ok {
 		return true

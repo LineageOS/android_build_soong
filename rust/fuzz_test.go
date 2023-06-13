@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"android/soong/android"
+	"android/soong/cc"
 )
 
 func TestRustFuzz(t *testing.T) {
@@ -57,5 +58,70 @@ func TestRustFuzz(t *testing.T) {
 	if !strings.Contains(libtest_fuzzer.Args["rustcFlags"], "-C passes='sancov-module'") ||
 		!strings.Contains(libtest_fuzzer.Args["rustcFlags"], "--cfg fuzzing") {
 		t.Errorf("rust_fuzz dependent library does not contain the expected flags (sancov-module, cfg fuzzing).")
+	}
+}
+
+func TestRustFuzzDepBundling(t *testing.T) {
+	ctx := testRust(t, `
+			cc_library {
+				name: "libcc_transitive_dep",
+			}
+			cc_library {
+				name: "libcc_direct_dep",
+			}
+			rust_library {
+				name: "libtest_fuzzing",
+				crate_name: "test_fuzzing",
+				srcs: ["foo.rs"],
+				shared_libs: ["libcc_transitive_dep"],
+			}
+			rust_fuzz {
+				name: "fuzz_libtest",
+				srcs: ["foo.rs"],
+				rustlibs: ["libtest_fuzzing"],
+				shared_libs: ["libcc_direct_dep"],
+			}
+	`)
+
+	fuzz_libtest := ctx.ModuleForTests("fuzz_libtest", "android_arm64_armv8-a_fuzzer").Module().(*Module)
+
+	if !strings.Contains(fuzz_libtest.FuzzSharedLibraries().String(), ":libcc_direct_dep.so") {
+		t.Errorf("rust_fuzz does not contain the expected bundled direct shared libs ('libcc_direct_dep'): %#v", fuzz_libtest.FuzzSharedLibraries().String())
+	}
+	if !strings.Contains(fuzz_libtest.FuzzSharedLibraries().String(), ":libcc_transitive_dep.so") {
+		t.Errorf("rust_fuzz does not contain the expected bundled transitive shared libs ('libcc_transitive_dep'): %#v", fuzz_libtest.FuzzSharedLibraries().String())
+	}
+}
+
+func TestCCFuzzDepBundling(t *testing.T) {
+	ctx := testRust(t, `
+			cc_library {
+				name: "libcc_transitive_dep",
+			}
+			rust_ffi {
+				name: "libtest_fuzzing",
+				crate_name: "test_fuzzing",
+				srcs: ["foo.rs"],
+				shared_libs: ["libcc_transitive_dep"],
+			}
+			cc_fuzz {
+				name: "fuzz_shared_libtest",
+				shared_libs: ["libtest_fuzzing"],
+			}
+			cc_fuzz {
+				name: "fuzz_static_libtest",
+				static_libs: ["libtest_fuzzing"],
+			}
+
+	`)
+
+	fuzz_shared_libtest := ctx.ModuleForTests("fuzz_shared_libtest", "android_arm64_armv8-a_fuzzer").Module().(cc.LinkableInterface)
+	fuzz_static_libtest := ctx.ModuleForTests("fuzz_static_libtest", "android_arm64_armv8-a_fuzzer").Module().(cc.LinkableInterface)
+
+	if !strings.Contains(fuzz_shared_libtest.FuzzSharedLibraries().String(), ":libcc_transitive_dep.so") {
+		t.Errorf("cc_fuzz does not contain the expected bundled transitive shared libs from rust_ffi_shared ('libcc_transitive_dep'): %#v", fuzz_shared_libtest.FuzzSharedLibraries().String())
+	}
+	if !strings.Contains(fuzz_static_libtest.FuzzSharedLibraries().String(), ":libcc_transitive_dep.so") {
+		t.Errorf("cc_fuzz does not contain the expected bundled transitive shared libs from rust_ffi_static ('libcc_transitive_dep'): %#v", fuzz_static_libtest.FuzzSharedLibraries().String())
 	}
 }
