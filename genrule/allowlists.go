@@ -86,7 +86,6 @@ var (
 		"ltp_config_x86_64",
 		"vm-tests-tf-lib",
 		"hidl_cpp_impl_test_gen-headers",
-		"pandora_experimental-python-gen-src",
 		"Refocus-rscript",
 		"RSTest_v11-rscript",
 		"RSTest_v16-rscript",
