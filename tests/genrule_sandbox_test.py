@@ -69,7 +69,7 @@ def _find_outputs_for_modules(modules, out_dir, target_product):
     name = mod["Name"]
     if name in modules:
       for act in mod["Module"]["Actions"]:
-        if "}generate " in act["Desc"]:
+        if "}generate" in act["Desc"]:
           module_to_outs[name].update(act["Outputs"])
   return module_to_outs
 
