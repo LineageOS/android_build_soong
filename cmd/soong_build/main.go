@@ -532,8 +532,6 @@ func main() {
 
 	var finalOutputFile string
 
-	writeSymlink := false
-
 	// Run Soong for a specific activity, like bp2build, queryview
 	// or the actual Soong build for the build.ninja file.
 	switch configuration.BuildMode {
@@ -556,13 +554,8 @@ func main() {
 					maybeQuit(err, "")
 				}
 			}
-			writeSymlink = true
 		} else {
 			finalOutputFile = runSoongOnlyBuild(ctx, extraNinjaDeps)
-
-			if configuration.BuildMode == android.AnalysisNoBazel {
-				writeSymlink = true
-			}
 		}
 		writeMetrics(configuration, ctx.EventHandler, metricsDir)
 	}
@@ -579,24 +572,6 @@ func main() {
 	// are ninja inputs to the main output file, then ninja would superfluously
 	// rebuild this output file on the next build invocation.
 	touch(shared.JoinPath(topDir, finalOutputFile))
-
-	// TODO(b/277029044): Remove this function once build.<product>.ninja lands
-	if writeSymlink {
-		writeBuildNinjaSymlink(configuration, finalOutputFile)
-	}
-}
-
-// TODO(b/277029044): Remove this function once build.<product>.ninja lands
-func writeBuildNinjaSymlink(config android.Config, source string) {
-	targetPath := shared.JoinPath(topDir, config.SoongOutDir(), "build.ninja")
-	sourcePath := shared.JoinPath(topDir, source)
-
-	if targetPath == sourcePath {
-		return
-	}
-
-	os.Remove(targetPath)
-	os.Symlink(sourcePath, targetPath)
 }
 
 func writeUsedEnvironmentFile(configuration android.Config) {
