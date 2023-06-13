@@ -100,6 +100,9 @@ type LinkableInterface interface {
 	CcLibrary() bool
 	CcLibraryInterface() bool
 
+	// RustLibraryInterface returns true if this is a Rust library module
+	RustLibraryInterface() bool
+
 	// BaseModuleName returns the android.ModuleBase.BaseModuleName() value for this module.
 	BaseModuleName() string
 
