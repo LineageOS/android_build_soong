@@ -62,8 +62,7 @@ var fuzzerFlags = []string{
 	"-C llvm-args=-sanitizer-coverage-level=3",
 	"-C llvm-args=-sanitizer-coverage-trace-compares",
 	"-C llvm-args=-sanitizer-coverage-inline-8bit-counters",
-	"-C llvm-args=-sanitizer-coverage-trace-geps",
-	"-C llvm-args=-sanitizer-coverage-prune-blocks=0",
+	"-C llvm-args=-sanitizer-coverage-pc-table",
 
 	// See https://github.com/rust-fuzz/cargo-fuzz/pull/193
 	"-C link-dead-code",
