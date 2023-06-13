@@ -744,7 +744,11 @@ variant {
 							bp.Abi_X86_64: 0,
 						},
 					},
-					expected: SelectionResult{},
+					expected: SelectionResult{
+						"base",
+						[]string{
+							"standalones/standalone-x86.x86_64.apex",
+						}},
 				},
 				{
 					name: "multi-variant multi-target cross-target",

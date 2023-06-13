@@ -117,6 +117,7 @@ func newContext(configuration android.Config) *android.Context {
 	ctx.Register()
 	ctx.SetNameInterface(newNameResolver(configuration))
 	ctx.SetAllowMissingDependencies(configuration.AllowMissingDependencies())
+	ctx.AddIncludeTags(configuration.IncludeTags()...)
 	return ctx
 }
 

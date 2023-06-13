@@ -24,6 +24,7 @@ import (
 	"android/soong/android"
 	"android/soong/java"
 	"android/soong/provenance"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
@@ -817,6 +818,8 @@ func (p *prebuiltApexExtractorModule) GenerateAndroidBuildActions(ctx android.Mo
 	}
 	apexSet := android.SingleSourcePathFromSupplier(ctx, srcsSupplier, "set")
 	p.extractedApex = android.PathForModuleOut(ctx, "extracted", apexSet.Base())
+	// Filter out NativeBridge archs (b/260115309)
+	abis := java.SupportedAbis(ctx, true)
 	ctx.Build(pctx,
 		android.BuildParams{
 			Rule:        extractMatchingApex,
@@ -824,7 +827,7 @@ func (p *prebuiltApexExtractorModule) GenerateAndroidBuildActions(ctx android.Mo
 			Inputs:      android.Paths{apexSet},
 			Output:      p.extractedApex,
 			Args: map[string]string{
-				"abis":              strings.Join(java.SupportedAbis(ctx), ","),
+				"abis":              strings.Join(abis, ","),
 				"allow-prereleased": strconv.FormatBool(proptools.Bool(p.properties.Prerelease)),
 				"sdk-version":       ctx.Config().PlatformSdkVersion().String(),
 			},

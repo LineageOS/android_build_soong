@@ -456,6 +456,8 @@ type productVariables struct {
 	GenerateAidlNdkPlatformBackend bool `json:",omitempty"`
 
 	ForceMultilibFirstOnDevice bool `json:",omitempty"`
+
+	IncludeTags []string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
