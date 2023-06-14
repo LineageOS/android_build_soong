@@ -87,3 +87,40 @@ bootstrap_go_package {
 		)},
 	})
 }
+
+func TestConvertGoBinaryWithTransitiveDeps(t *testing.T) {
+	bp := `
+blueprint_go_binary {
+	name: "foo",
+	srcs: ["main.go"],
+	deps: ["bar"],
+}
+`
+	depBp := `
+bootstrap_go_package {
+	name: "bar",
+	deps: ["baz"],
+}
+bootstrap_go_package {
+	name: "baz",
+}
+`
+	t.Parallel()
+	runGoTests(t, Bp2buildTestCase{
+		Description: "Convert blueprint_go_binary to go_binary",
+		Blueprint:   bp,
+		Filesystem: map[string]string{
+			"bar/Android.bp": depBp, // Put dep in Android.bp to reduce boilerplate in ExpectedBazelTargets
+		},
+		ExpectedBazelTargets: []string{makeBazelTargetHostOrDevice("go_binary", "foo",
+			AttrNameToString{
+				"deps": `[
+        "//bar:bar",
+        "//bar:baz",
+    ]`,
+				"srcs": `[":main.go"]`,
+			},
+			android.HostSupported,
+		)},
+	})
+}
