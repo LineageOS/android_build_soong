@@ -258,6 +258,7 @@ type productVariables struct {
 
 	DefaultAppCertificate *string `json:",omitempty"`
 
+	AppsDefaultVersionCode *string `json:",omitempty"`
 	AppsDefaultVersionName *string `json:",omitempty"`
 
 	Allow_missing_dependencies   *bool    `json:",omitempty"`
