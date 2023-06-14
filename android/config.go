@@ -837,6 +837,10 @@ func (c *config) DefaultAppTargetSdk(ctx EarlyModuleContext) ApiLevel {
 	return ApiLevelOrPanic(ctx, codename)
 }
 
+func (c *config) AppsDefaultVersionCode() string {
+	return String(c.productVariables.AppsDefaultVersionCode)
+}
+
 func (c *config) AppsDefaultVersionName() string {
 	return String(c.productVariables.AppsDefaultVersionName)
 }

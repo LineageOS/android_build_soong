@@ -228,7 +228,14 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext android.SdkConte
 
 	// Version code
 	if !hasVersionCode {
-		linkFlags = append(linkFlags, "--version-code", ctx.Config().PlatformSdkVersion().String())
+		var versionCode string
+		if ctx.ModuleName() == "framework-res" {
+			// Always use PlatformSdkVersion for framework-res.
+			versionCode = ctx.Config().PlatformSdkVersion().String()
+		} else {
+			versionCode = ctx.Config().AppsDefaultVersionCode()
+		}
+		linkFlags = append(linkFlags, "--version-code", versionCode)
 	}
 
 	if !hasVersionName {
