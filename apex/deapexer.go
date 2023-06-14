@@ -140,7 +140,6 @@ func (p *Deapexer) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			Tool(android.PathForSource(ctx, "build/soong/scripts/unpack-prebuilt-apex.sh")).
 			BuiltTool("deapexer").
 			BuiltTool("debugfs").
-			BuiltTool("blkid").
 			BuiltTool("fsck.erofs").
 			Input(p.inputApex).
 			Text(deapexerOutput.String())
