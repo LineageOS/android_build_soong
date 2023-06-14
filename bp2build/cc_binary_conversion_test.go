@@ -868,6 +868,25 @@ func TestCcBinaryWithUBSanPropertiesArchSpecific(t *testing.T) {
 	})
 }
 
+func TestCcBinaryWithSanitizerBlocklist(t *testing.T) {
+	runCcBinaryTestCase(t, ccBinaryBp2buildTestCase{
+		description: "cc_binary has the correct feature when sanitize.blocklist is provided",
+		blueprint: `
+{rule_name} {
+	name: "foo",
+	sanitize: {
+		blocklist: "foo_blocklist.txt",
+	},
+}`,
+		targets: []testBazelTarget{
+			{"cc_binary", "foo", AttrNameToString{
+				"local_includes": `["."]`,
+				"features":       `["ubsan_blocklist_foo_blocklist_txt"]`,
+			}},
+		},
+	})
+}
+
 func TestCcBinaryWithThinLto(t *testing.T) {
 	runCcBinaryTestCase(t, ccBinaryBp2buildTestCase{
 		description: "cc_binary has correct features when thin LTO is enabled",
