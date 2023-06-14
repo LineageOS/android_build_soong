@@ -1490,6 +1490,8 @@ var (
 		"libprotobuf-full-test", // TODO(b/246997908): cannot convert proto_libraries which implicitly include other srcs in the same directory
 		"libprotobuf-lite-test", // TODO(b/246997908): cannot convert proto_libraries which implicitly include other srcs in the same directory
 
+		"expresscatalogvalidator", // TODO(b/246997908): cannot convert proto_libraries which implicitly include other srcs in the same directory
+
 		// depends on other //art modules
 		"libart-for-test",
 		"libart_generated_headers",
