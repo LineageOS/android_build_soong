@@ -62,12 +62,14 @@ var (
 		"-fast-isel=false",
 	}
 
+	sanitizeIgnorelistPrefix = "-fsanitize-ignorelist="
+
 	cfiBlocklistPath     = "external/compiler-rt/lib/cfi"
 	cfiBlocklistFilename = "cfi_blocklist.txt"
 	cfiEnableFlag        = "-fsanitize=cfi"
 	cfiCrossDsoFlag      = "-fsanitize-cfi-cross-dso"
 	cfiCflags            = []string{"-flto", cfiCrossDsoFlag,
-		"-fsanitize-ignorelist=" + cfiBlocklistPath + "/" + cfiBlocklistFilename}
+		sanitizeIgnorelistPrefix + cfiBlocklistPath + "/" + cfiBlocklistFilename}
 	// -flto and -fvisibility are required by clang when -fsanitize=cfi is
 	// used, but have no effect on assembly files
 	cfiAsflags = []string{"-flto", "-fvisibility=default"}
@@ -401,6 +403,7 @@ func init() {
 	exportedVars.ExportStringList("CfiLdFlags", cfiLdflags[2:])
 	exportedVars.ExportStringList("CfiAsFlags", cfiAsflags[1:])
 
+	exportedVars.ExportString("SanitizeIgnorelistPrefix", sanitizeIgnorelistPrefix)
 	exportedVars.ExportString("CfiCrossDsoFlag", cfiCrossDsoFlag)
 	exportedVars.ExportString("CfiBlocklistPath", cfiBlocklistPath)
 	exportedVars.ExportString("CfiBlocklistFilename", cfiBlocklistFilename)
@@ -965,7 +968,7 @@ func (s *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 
 	blocklist := android.OptionalPathForModuleSrc(ctx, s.Properties.Sanitize.Blocklist)
 	if blocklist.Valid() {
-		flags.Local.CFlags = append(flags.Local.CFlags, "-fsanitize-ignorelist="+blocklist.String())
+		flags.Local.CFlags = append(flags.Local.CFlags, sanitizeIgnorelistPrefix+blocklist.String())
 		flags.CFlagsDeps = append(flags.CFlagsDeps, blocklist.Path())
 	}
 
