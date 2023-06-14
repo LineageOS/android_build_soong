@@ -23,6 +23,12 @@ import (
 	"github.com/google/blueprint"
 )
 
+var NoGlobalThinLTOPreparer = android.GroupFixturePreparers(
+	prepareForCcTest,
+	android.FixtureModifyEnv(func(env map[string]string) {
+		env["GLOBAL_THINLTO"] = "false"
+	}))
+
 func TestThinLtoDeps(t *testing.T) {
 	t.Parallel()
 	bp := `
@@ -57,9 +63,7 @@ func TestThinLtoDeps(t *testing.T) {
 	}
 `
 
-	result := android.GroupFixturePreparers(
-		prepareForCcTest,
-	).RunTestWithBp(t, bp)
+	result := NoGlobalThinLTOPreparer.RunTestWithBp(t, bp)
 
 	libLto := result.ModuleForTests("lto_enabled", "android_arm64_armv8-a_shared").Module()
 
@@ -137,9 +141,7 @@ func TestThinLtoOnlyOnStaticDep(t *testing.T) {
 	}
 `
 
-	result := android.GroupFixturePreparers(
-		prepareForCcTest,
-	).RunTestWithBp(t, bp)
+	result := NoGlobalThinLTOPreparer.RunTestWithBp(t, bp)
 
 	libRoot := result.ModuleForTests("root", "android_arm64_armv8-a_shared").Module()
 	libRootLtoNever := result.ModuleForTests("root_no_lto", "android_arm64_armv8-a_shared").Module()
@@ -197,9 +199,7 @@ func TestLtoDisabledButEnabledForArch(t *testing.T) {
 			},
 		},
 	}`
-	result := android.GroupFixturePreparers(
-		prepareForCcTest,
-	).RunTestWithBp(t, bp)
+	result := NoGlobalThinLTOPreparer.RunTestWithBp(t, bp)
 
 	libFooWithLto := result.ModuleForTests("libfoo", "android_arm_armv7-a-neon_shared").Rule("ld")
 	libFooWithoutLto := result.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Rule("ld")
@@ -227,9 +227,7 @@ func TestLtoDoesNotPropagateToRuntimeLibs(t *testing.T) {
 		},
 	}`
 
-	result := android.GroupFixturePreparers(
-		prepareForCcTest,
-	).RunTestWithBp(t, bp)
+	result := NoGlobalThinLTOPreparer.RunTestWithBp(t, bp)
 
 	libFoo := result.ModuleForTests("libfoo", "android_arm_armv7-a-neon_shared").Rule("ld")
 	libBar := result.ModuleForTests("runtime_libbar", "android_arm_armv7-a-neon_shared").Rule("ld")
