@@ -324,6 +324,7 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 			envVars = append(envVars, "CARGO_BIN_NAME="+strings.TrimSuffix(outputFile.Base(), outputFile.Ext()))
 		}
 		envVars = append(envVars, "CARGO_CRATE_NAME="+ctx.RustModule().CrateName())
+		envVars = append(envVars, "CARGO_PKG_NAME="+ctx.RustModule().CrateName())
 		pkgVersion := ctx.RustModule().compiler.CargoPkgVersion()
 		if pkgVersion != "" {
 			envVars = append(envVars, "CARGO_PKG_VERSION="+pkgVersion)
