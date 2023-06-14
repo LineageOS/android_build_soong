@@ -124,7 +124,6 @@ var (
 		"nos_app_weaver_service_genc++_headers",
 		"nos_app_weaver_service_genc++_mock",
 		"nos_generator_test_service_genc++",
-		"pandora-python-gen-src",
 	}
 
 	SandboxingDenyPathList = []string{
