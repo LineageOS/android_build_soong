@@ -817,6 +817,9 @@ func runBp2Build(ctx *android.Context, extraNinjaDeps []string, metricsDir strin
 		ctx.SetNameInterface(newNameResolver(ctx.Config()))
 		ctx.RegisterForBazelConversion()
 		ctx.SetModuleListFile(cmdlineArgs.ModuleListFile)
+		// Skip cloning modules during bp2build's blueprint run. Some mutators set
+		// bp2build-related module values which should be preserved during codegen.
+		ctx.SkipCloneModulesAfterMutators = true
 
 		var ninjaDeps []string
 		ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
