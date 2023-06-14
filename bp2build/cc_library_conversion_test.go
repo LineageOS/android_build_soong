@@ -4179,6 +4179,32 @@ cc_library {
 	})
 }
 
+func TestCcLibraryWithSanitizerBlocklist(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library has correct feature when sanitize.blocklist is provided",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+cc_library {
+		name: "foo",
+		sanitize: {
+			blocklist: "foo_blocklist.txt",
+		},
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+				"features":       `["ubsan_blocklist_foo_blocklist_txt"]`,
+				"local_includes": `["."]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"features":       `["ubsan_blocklist_foo_blocklist_txt"]`,
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}
+
 func TestCcLibraryWithUBSanPropertiesArchSpecific(t *testing.T) {
 	runCcLibraryTestCase(t, Bp2buildTestCase{
 		Description:                "cc_library has correct feature select when UBSan props are specified in arch specific blocks",

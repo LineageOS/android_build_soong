@@ -1905,6 +1905,26 @@ cc_library_static {
 	})
 }
 
+func TestCcLibraryStaticWithSanitizerBlocklist(t *testing.T) {
+	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
+		Description: "cc_library_static has correct features when sanitize.blocklist is provided",
+		Blueprint: `
+cc_library_static {
+	name: "foo",
+	sanitize: {
+		blocklist: "foo_blocklist.txt",
+	},
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+				"features":       `["ubsan_blocklist_foo_blocklist_txt"]`,
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}
+
 func TestCcLibraryStaticWithThinLto(t *testing.T) {
 	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
 		Description: "cc_library_static has correct features when thin lto is enabled",

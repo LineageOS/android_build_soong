@@ -1934,7 +1934,6 @@ func allEnabledSanitizersSupportedByBazel(ctx android.BaseModuleContext, c *Modu
 		sanitizeProps.Safestack,
 		sanitizeProps.Scudo,
 		BoolPtr(len(c.sanitize.Properties.Sanitize.Recover) > 0),
-		BoolPtr(c.sanitize.Properties.Sanitize.Blocklist != nil),
 	}
 	for _, san := range unsupportedSanitizers {
 		if Bool(san) {
