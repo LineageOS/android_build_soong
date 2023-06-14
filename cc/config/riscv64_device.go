@@ -29,14 +29,14 @@ var (
 		// A temporary fix for SExtWRemoval miscompilation bug.
 		"-mllvm",
 		"-riscv-disable-sextw-removal=true",
-		"-march=rv64gc_zbb",
+		"-march=rv64gc_zba_zbb",
 	}
 
 	riscv64ArchVariantCflags = map[string][]string{}
 
 	riscv64Ldflags = []string{
 		"-Wl,--hash-style=gnu",
-		"-march=rv64gc_zbb",
+		"-march=rv64gc_zba_zbb",
 	}
 
 	riscv64Lldflags = append(riscv64Ldflags,
