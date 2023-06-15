@@ -229,8 +229,6 @@ type mixedBuildBazelContext struct {
 	bazelEnabledModules map[string]bool
 	// DCLA modules are enabled when used in apex.
 	bazelDclaEnabledModules map[string]bool
-	// If true, modules are bazel-enabled by default, unless present in bazelDisabledModules.
-	modulesDefaultToBazel bool
 
 	targetProduct      string
 	targetBuildVariant string
@@ -497,10 +495,8 @@ func GetBazelEnabledAndDisabledModules(buildMode SoongBuildMode, forceEnabled ma
 		for enabledAdHocModule := range forceEnabled {
 			enabledModules[enabledAdHocModule] = true
 		}
-	case BazelDevMode:
-		AddToStringSet(disabledModules, allowlists.MixedBuildsDisabledList)
 	default:
-		panic("Expected BazelProdMode, BazelStagingMode, or BazelDevMode")
+		panic("Expected BazelProdMode or BazelStagingMode")
 	}
 	return enabledModules, disabledModules
 }
@@ -518,7 +514,7 @@ func GetBazelEnabledModules(buildMode SoongBuildMode) []string {
 }
 
 func NewBazelContext(c *config) (BazelContext, error) {
-	if c.BuildMode != BazelProdMode && c.BuildMode != BazelStagingMode && c.BuildMode != BazelDevMode {
+	if c.BuildMode != BazelProdMode && c.BuildMode != BazelStagingMode {
 		return noopBazelContext{}, nil
 	}
 
@@ -582,7 +578,6 @@ func NewBazelContext(c *config) (BazelContext, error) {
 	return &mixedBuildBazelContext{
 		bazelRunner:             &builtinBazelRunner{c.UseBazelProxy, absolutePath(c.outDir)},
 		paths:                   &paths,
-		modulesDefaultToBazel:   c.BuildMode == BazelDevMode,
 		bazelEnabledModules:     enabledModules,
 		bazelDisabledModules:    disabledModules,
 		bazelDclaEnabledModules: dclaEnabledModules,
@@ -606,7 +601,7 @@ func (context *mixedBuildBazelContext) IsModuleNameAllowed(moduleName string, wi
 		return true
 	}
 
-	return context.modulesDefaultToBazel
+	return false
 }
 
 func (context *mixedBuildBazelContext) IsModuleDclaAllowed(moduleName string) bool {
