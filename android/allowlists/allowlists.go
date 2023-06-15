@@ -334,6 +334,7 @@ var (
 		"system/apex":                                            Bp2BuildDefaultFalse, // TODO(b/207466993): flaky failures
 		"system/apex/apexer":                                     Bp2BuildDefaultTrue,
 		"system/apex/libs":                                       Bp2BuildDefaultTrueRecursively,
+		"system/apex/libs/libapexsupport":                        Bp2BuildDefaultFalseRecursively, // TODO(b/267572288): depends on rust
 		"system/apex/proto":                                      Bp2BuildDefaultTrueRecursively,
 		"system/apex/tools":                                      Bp2BuildDefaultTrueRecursively,
 		"system/core/debuggerd":                                  Bp2BuildDefaultTrueRecursively,
