@@ -263,7 +263,6 @@ func TestIsModuleNameAllowed(t *testing.T) {
 	}
 
 	bazelContext := &mixedBuildBazelContext{
-		modulesDefaultToBazel:   false,
 		bazelEnabledModules:     enabledModules,
 		bazelDisabledModules:    disabledModules,
 		bazelDclaEnabledModules: dclaEnabledModules,

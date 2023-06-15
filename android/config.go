@@ -96,7 +96,6 @@ type CmdArgs struct {
 	MultitreeBuild bool
 
 	BazelMode                bool
-	BazelModeDev             bool
 	BazelModeStaging         bool
 	BazelForceEnabledModules string
 
@@ -131,11 +130,6 @@ const (
 
 	// Generate a documentation file for module type definitions and exit.
 	GenerateDocFile
-
-	// Use bazel during analysis of many allowlisted build modules. The allowlist
-	// is considered a "developer mode" allowlist, as some modules may be
-	// allowlisted on an experimental basis.
-	BazelDevMode
 
 	// Use bazel during analysis of a few allowlisted build modules. The allowlist
 	// is considered "staging, as these are modules being prepared to be released
@@ -622,7 +616,6 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 	setBuildMode(cmdArgs.BazelApiBp2buildDir, ApiBp2build)
 	setBuildMode(cmdArgs.ModuleGraphFile, GenerateModuleGraph)
 	setBuildMode(cmdArgs.DocFile, GenerateDocFile)
-	setBazelMode(cmdArgs.BazelModeDev, "--bazel-mode-dev", BazelDevMode)
 	setBazelMode(cmdArgs.BazelMode, "--bazel-mode", BazelProdMode)
 	setBazelMode(cmdArgs.BazelModeStaging, "--bazel-mode-staging", BazelStagingMode)
 
@@ -729,7 +722,7 @@ func (c *config) IsMixedBuildsEnabled() bool {
 		return true
 	}).(bool)
 
-	bazelModeEnabled := c.BuildMode == BazelProdMode || c.BuildMode == BazelDevMode || c.BuildMode == BazelStagingMode
+	bazelModeEnabled := c.BuildMode == BazelProdMode || c.BuildMode == BazelStagingMode
 	return globalMixedBuildsSupport && bazelModeEnabled
 }
 

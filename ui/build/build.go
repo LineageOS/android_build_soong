@@ -114,15 +114,12 @@ func checkBazelMode(ctx Context, config Config) {
 	if config.bazelProdMode {
 		count++
 	}
-	if config.bazelDevMode {
-		count++
-	}
 	if config.bazelStagingMode {
 		count++
 	}
 	if count > 1 {
 		ctx.Fatalln("Conflicting bazel mode.\n" +
-			"Do not specify more than one of --bazel-mode and --bazel-mode-dev and --bazel-mode-staging ")
+			"Do not specify more than one of --bazel-mode and --bazel-mode-staging ")
 	}
 }
 
