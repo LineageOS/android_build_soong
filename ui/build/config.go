@@ -111,7 +111,6 @@ type configImpl struct {
 	pathReplaced bool
 
 	bazelProdMode    bool
-	bazelDevMode     bool
 	bazelStagingMode bool
 
 	// Set by multiproduct_kati
@@ -853,8 +852,6 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			c.multitreeBuild = true
 		} else if arg == "--bazel-mode" {
 			c.bazelProdMode = true
-		} else if arg == "--bazel-mode-dev" {
-			c.bazelDevMode = true
 		} else if arg == "--bazel-mode-staging" {
 			c.bazelStagingMode = true
 		} else if arg == "--search-api-dir" {
@@ -960,7 +957,7 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			c.arguments = append(c.arguments, arg)
 		}
 	}
-	if (!c.bazelProdMode) && (!c.bazelDevMode) && (!c.bazelStagingMode) {
+	if (!c.bazelProdMode) && (!c.bazelStagingMode) {
 		c.bazelProdMode = defaultBazelProdMode(c)
 	}
 }
@@ -1385,7 +1382,7 @@ func (c *configImpl) UseRBE() bool {
 }
 
 func (c *configImpl) BazelBuildEnabled() bool {
-	return c.bazelProdMode || c.bazelDevMode || c.bazelStagingMode
+	return c.bazelProdMode || c.bazelStagingMode
 }
 
 func (c *configImpl) StartRBE() bool {
