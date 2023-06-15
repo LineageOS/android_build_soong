@@ -167,10 +167,6 @@ func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
 		},
 		{
 			dir:      "allowlists",
-			basename: "env.bzl",
-		},
-		{
-			dir:      "allowlists",
 			basename: "mixed_build_prod_allowlist.txt",
 		},
 		{
