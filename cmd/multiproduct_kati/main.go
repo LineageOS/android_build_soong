@@ -50,7 +50,6 @@ var alternateResultDir = flag.Bool("dist", false, "write select results to $DIST
 
 var bazelMode = flag.Bool("bazel-mode", false, "use bazel for analysis of certain modules")
 var bazelModeStaging = flag.Bool("bazel-mode-staging", false, "use bazel for analysis of certain near-ready modules")
-var bazelModeDev = flag.Bool("bazel-mode-dev", false, "use bazel for analysis of a large number of modules (less stable)")
 
 var onlyConfig = flag.Bool("only-config", false, "Only run product config (not Soong or Kati)")
 var onlySoong = flag.Bool("only-soong", false, "Only run product config and Soong (not Kati)")
@@ -228,10 +227,6 @@ func getBazelArg() string {
 	if *bazelModeStaging {
 		count++
 		str = "--bazel-mode-staging"
-	}
-	if *bazelModeDev {
-		count++
-		str = "--bazel-mode-dev"
 	}
 
 	if count > 1 {
