@@ -28,7 +28,7 @@ import (
 	"android/soong/android/allowlists"
 	"android/soong/bazel/cquery"
 	"android/soong/shared"
-	"android/soong/starlark_fmt"
+	"android/soong/starlark_import"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/metrics"
@@ -44,34 +44,6 @@ var (
 		Description: "",
 		CommandDeps: []string{"${bazelBuildRunfilesTool}"},
 	}, "outDir")
-	allowedBazelEnvironmentVars = []string{
-		// clang-tidy
-		"ALLOW_LOCAL_TIDY_TRUE",
-		"DEFAULT_TIDY_HEADER_DIRS",
-		"TIDY_TIMEOUT",
-		"WITH_TIDY",
-		"WITH_TIDY_FLAGS",
-		"TIDY_EXTERNAL_VENDOR",
-
-		"SKIP_ABI_CHECKS",
-		"UNSAFE_DISABLE_APEX_ALLOWED_DEPS_CHECK",
-		"AUTO_ZERO_INITIALIZE",
-		"AUTO_PATTERN_INITIALIZE",
-		"AUTO_UNINITIALIZE",
-		"USE_CCACHE",
-		"LLVM_NEXT",
-		"LLVM_PREBUILTS_VERSION",
-		"LLVM_RELEASE_VERSION",
-		"ALLOW_UNKNOWN_WARNING_OPTION",
-
-		"UNBUNDLED_BUILD_TARGET_SDK_WITH_API_FINGERPRINT",
-
-		// Overrides the version in the apex_manifest.json. The version is unique for
-		// each branch (internal, aosp, mainline releases, dessert releases).  This
-		// enables modules built on an older branch to be installed against a newer
-		// device for development purposes.
-		"OVERRIDE_APEX_MANIFEST_DEFAULT_VERSION",
-	}
 )
 
 func registerMixedBuildsMutator(ctx RegisterMutatorsContext) {
@@ -722,7 +694,11 @@ func (context *mixedBuildBazelContext) createBazelCommand(config Config, runName
 		// explicitly in BUILD files.
 		"BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1",
 	}
-	for _, envvar := range allowedBazelEnvironmentVars {
+	capturedEnvVars, err := starlark_import.GetStarlarkValue[[]string]("captured_env_vars")
+	if err != nil {
+		panic(err)
+	}
+	for _, envvar := range capturedEnvVars {
 		val := config.Getenv(envvar)
 		if val == "" {
 			continue
@@ -1440,14 +1416,4 @@ func GetConfigKeyApexVariant(ctx BaseModuleContext, apexKey *ApexConfigKey) conf
 
 func bazelDepsetName(contentHash string) string {
 	return fmt.Sprintf("bazel_depset_%s", contentHash)
-}
-
-func EnvironmentVarsFile(config Config) string {
-	return fmt.Sprintf(bazel.GeneratedBazelFileWarning+`
-_env = %s
-
-env = _env
-`,
-		starlark_fmt.PrintStringList(allowedBazelEnvironmentVars, 0),
-	)
 }
