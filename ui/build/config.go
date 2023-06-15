@@ -42,7 +42,7 @@ const (
 	jsonSuffix   = "json"
 
 	configFetcher         = "vendor/google/tools/soong/expconfigfetcher"
-	envConfigFetchTimeout = 10 * time.Second
+	envConfigFetchTimeout = 20 * time.Second
 )
 
 var (
