@@ -1018,7 +1018,6 @@ func TestBuildConfig(t *testing.T) {
 		environ             Environment
 		arguments           []string
 		useBazel            bool
-		bazelDevMode        bool
 		bazelProdMode       bool
 		bazelStagingMode    bool
 		expectedBuildConfig *smpb.BuildConfig
@@ -1097,19 +1096,6 @@ func TestBuildConfig(t *testing.T) {
 			},
 		},
 		{
-			name:         "bazel mixed build from dev mode",
-			environ:      Environment{},
-			bazelDevMode: true,
-			expectedBuildConfig: &smpb.BuildConfig{
-				ForceUseGoma:                proto.Bool(false),
-				UseGoma:                     proto.Bool(false),
-				UseRbe:                      proto.Bool(false),
-				BazelMixedBuild:             proto.Bool(true),
-				ForceDisableBazelMixedBuild: proto.Bool(false),
-				NinjaWeightListSource:       smpb.BuildConfig_NOT_USED.Enum(),
-			},
-		},
-		{
 			name:          "bazel mixed build from prod mode",
 			environ:       Environment{},
 			bazelProdMode: true,
@@ -1158,8 +1144,8 @@ func TestBuildConfig(t *testing.T) {
 				"USE_RBE=1",
 				"BUILD_BROKEN_DISABLE_BAZEL=1",
 			},
-			useBazel:     true,
-			bazelDevMode: true,
+			useBazel:      true,
+			bazelProdMode: true,
 			expectedBuildConfig: &smpb.BuildConfig{
 				ForceUseGoma:                proto.Bool(true),
 				UseGoma:                     proto.Bool(true),
@@ -1176,7 +1162,6 @@ func TestBuildConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			c := &configImpl{
 				environ:          &tc.environ,
-				bazelDevMode:     tc.bazelDevMode,
 				bazelProdMode:    tc.bazelProdMode,
 				bazelStagingMode: tc.bazelStagingMode,
 				arguments:        tc.arguments,
