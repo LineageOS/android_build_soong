@@ -1090,9 +1090,6 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		srcJars = append(srcJars, aaptSrcJar)
 	}
 	srcJars = append(srcJars, j.properties.Generated_srcjars...)
-	if len(j.properties.Generated_srcjars) > 0 {
-		fmt.Printf("Java module %s Generated_srcjars: %v\n", ctx.ModuleName(), j.properties.Generated_srcjars)
-	}
 	srcFiles = srcFiles.FilterOutByExt(".srcjar")
 
 	if j.properties.Jarjar_rules != nil {
