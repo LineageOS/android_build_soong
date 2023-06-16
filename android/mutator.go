@@ -16,6 +16,7 @@ package android
 
 import (
 	"android/soong/bazel"
+	"android/soong/ui/metrics/bp2build_metrics_proto"
 
 	"github.com/google/blueprint"
 )
@@ -270,6 +271,10 @@ type TopDownMutatorContext interface {
 	// platforms, as dictated by a given bool attribute: the target will not be buildable in
 	// any platform for which this bool attribute is false.
 	CreateBazelTargetModuleWithRestrictions(bazel.BazelTargetModuleProperties, CommonAttributes, interface{}, bazel.BoolAttribute)
+
+	// MarkBp2buildUnconvertible registers the current module as "unconvertible to bp2build" for the
+	// given reason.
+	MarkBp2buildUnconvertible(reasonType bp2build_metrics_proto.UnconvertedReasonType, detail string)
 
 	// CreateBazelTargetAliasInDir creates an alias definition in `dir` directory.
 	// This function can be used to create alias definitions in a directory that is different
@@ -716,6 +721,12 @@ func (t *topDownMutatorContext) CreateBazelTargetModuleWithRestrictions(
 	attrs interface{},
 	enabledProperty bazel.BoolAttribute) {
 	t.createBazelTargetModule(bazelProps, commonAttrs, attrs, enabledProperty)
+}
+
+func (t *topDownMutatorContext) MarkBp2buildUnconvertible(
+	reasonType bp2build_metrics_proto.UnconvertedReasonType, detail string) {
+	mod := t.Module()
+	mod.base().setBp2buildUnconvertible(reasonType, detail)
 }
 
 var (
