@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strings"
 
+	"android/soong/ui/metrics/bp2build_metrics_proto"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -109,6 +110,7 @@ type linkerConfigAttributes struct {
 func (l *linkerConfig) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	if l.properties.Src == nil {
 		ctx.PropertyErrorf("src", "empty src is not supported")
+		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_UNSUPPORTED, "")
 		return
 	}
 	src := android.BazelLabelForModuleSrcSingle(ctx, *l.properties.Src)
