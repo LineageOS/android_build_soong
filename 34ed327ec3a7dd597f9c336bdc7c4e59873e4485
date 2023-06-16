@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "b805a0dd_71c0878b",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 25732
+      },
+      "writtenOn": "2023-06-16T10:49:29Z",
+      "side": 1,
+      "message": "Looks like all these rules are now properly handled in vendor/lineage and it will rebuild the kernel when the kernel sources has been edited, why would you need to delete everything?",
+      "revId": "34ed327ec3a7dd597f9c336bdc7c4e59873e4485",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
