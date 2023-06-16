@@ -17,6 +17,7 @@ package rust
 import (
 	"github.com/google/blueprint"
 
+	"android/soong/android"
 	"android/soong/cc"
 )
 
@@ -70,7 +71,10 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 		// no_std modules are missing libprofiler_builtins which provides coverage, so we need to add it as a dependency.
 		if rustModule, ok := ctx.Module().(*Module); ok && rustModule.compiler.noStdlibs() {
 			profiler_builtins := ctx.GetDirectDepWithTag(ProfilerBuiltins, rlibDepTag).(*Module)
-			deps.RLibs = append(deps.RLibs, RustLibrary{Path: profiler_builtins.OutputFile().Path(), CrateName: profiler_builtins.CrateName()})
+			deps.Rlibs = android.AddDirectToDepSet[RustLibrary](deps.Rlibs, RustLibrary{
+				Path:      profiler_builtins.OutputFile().Path(),
+				CrateName: profiler_builtins.CrateName(),
+			})
 		}
 
 		if cc.EnableContinuousCoverage(ctx) {
