@@ -377,11 +377,11 @@ func TestSourceProviderDeps(t *testing.T) {
 
 	// Check that our bindings are picked up as crate dependencies as well
 	libfooMod := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_dylib").Module().(*Module)
-	if !android.InList("libbindings.dylib-std", libfooMod.Properties.AndroidMkRlibs) {
+	if !android.InList("libbindings", libfooMod.Properties.AndroidMkRlibs) {
 		t.Errorf("bindgen dependency not detected as a rlib dependency (dependency missing from AndroidMkRlibs)")
 	}
 	fizzBuzzMod := ctx.ModuleForTests("fizz-buzz-dep", "android_arm64_armv8-a").Module().(*Module)
-	if !android.InList("libbindings.dylib-std", fizzBuzzMod.Properties.AndroidMkRlibs) {
+	if !android.InList("libbindings", fizzBuzzMod.Properties.AndroidMkRlibs) {
 		t.Errorf("bindgen dependency not detected as a rlib dependency (dependency missing from AndroidMkRlibs)")
 	}
 	libprocmacroMod := ctx.ModuleForTests("libprocmacro", "linux_glibc_x86_64").Module().(*Module)
