@@ -247,10 +247,10 @@ func TestAutoDeps(t *testing.T) {
 		if !android.InList("libbar", dyn.Module().(*Module).Properties.AndroidMkDylibs) {
 			t.Errorf("libbar not present as dynamic dependency in dynamic lib")
 		}
-		if android.InList("libbar.dylib-std", dyn.Module().(*Module).Properties.AndroidMkRlibs) {
+		if android.InList("libbar", dyn.Module().(*Module).Properties.AndroidMkRlibs) {
 			t.Errorf("libbar present as rlib dependency in dynamic lib")
 		}
-		if !android.InList("librlib_only.dylib-std", dyn.Module().(*Module).Properties.AndroidMkRlibs) {
+		if !android.InList("librlib_only", dyn.Module().(*Module).Properties.AndroidMkRlibs) {
 			t.Errorf("librlib_only should be selected by rustlibs as an rlib.")
 		}
 	}
