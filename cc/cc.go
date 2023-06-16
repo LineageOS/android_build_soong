@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 
+	"android/soong/ui/metrics/bp2build_metrics_proto"
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -4103,6 +4104,8 @@ func (c *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		} else {
 			sharedOrStaticLibraryBp2Build(ctx, c, false)
 		}
+	default:
+		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "")
 	}
 }
 
