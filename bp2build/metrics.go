@@ -38,6 +38,7 @@ func CreateCodegenMetrics() CodegenMetrics {
 			RuleClassCount:           make(map[string]uint64),
 			ConvertedModuleTypeCount: make(map[string]uint64),
 			TotalModuleTypeCount:     make(map[string]uint64),
+			UnconvertedModules:       make(map[string]*bp2build_metrics_proto.UnconvertedReason),
 		},
 		convertedModulePathMap: make(map[string]string),
 	}
@@ -149,11 +150,6 @@ func (metrics *CodegenMetrics) AddEvent(event *bp2build_metrics_proto.Event) {
 	metrics.serialized.Events = append(metrics.serialized.Events, event)
 }
 
-func (metrics *CodegenMetrics) AddUnconvertedModule(moduleType string) {
-	metrics.serialized.UnconvertedModuleCount += 1
-	metrics.serialized.TotalModuleTypeCount[moduleType] += 1
-}
-
 func (metrics *CodegenMetrics) SetSymlinkCount(n uint64) {
 	if m := metrics.serialized.WorkspaceSymlinkCount; m != 0 {
 		fmt.Fprintf(os.Stderr, "unexpected non-zero workspaceSymlinkCount of %d", m)
@@ -187,7 +183,7 @@ const (
 	Handcrafted
 )
 
-func (metrics *CodegenMetrics) AddConvertedModule(m blueprint.Module, moduleType string, dir string, conversionType ConversionType) {
+func (metrics *CodegenMetrics) AddConvertedModule(m blueprint.Module, moduleType string, dir string) {
 	//a package module has empty name
 	if moduleType == "package" {
 		return
@@ -198,10 +194,25 @@ func (metrics *CodegenMetrics) AddConvertedModule(m blueprint.Module, moduleType
 	metrics.convertedModulePathMap[moduleName] = "//" + dir
 	metrics.serialized.ConvertedModuleTypeCount[moduleType] += 1
 	metrics.serialized.TotalModuleTypeCount[moduleType] += 1
+	metrics.serialized.GeneratedModuleCount += 1
+}
 
-	if conversionType == Handcrafted {
+func (metrics *CodegenMetrics) AddUnconvertedModule(m blueprint.Module, moduleType string, dir string,
+	reason android.UnconvertedReason) {
+	//a package module has empty name
+	if moduleType == "package" {
+		return
+	}
+	// Undo prebuilt_ module name prefix modifications
+	moduleName := android.RemoveOptionalPrebuiltPrefix(m.Name())
+	metrics.serialized.UnconvertedModules[moduleName] = &bp2build_metrics_proto.UnconvertedReason{
+		Type:   bp2build_metrics_proto.UnconvertedReasonType(reason.ReasonType),
+		Detail: reason.Detail,
+	}
+	metrics.serialized.UnconvertedModuleCount += 1
+	metrics.serialized.TotalModuleTypeCount[moduleType] += 1
+
+	if reason.ReasonType == int(bp2build_metrics_proto.UnconvertedReasonType_DEFINED_IN_BUILD_FILE) {
 		metrics.serialized.HandCraftedModuleCount += 1
-	} else if conversionType == Generated {
-		metrics.serialized.GeneratedModuleCount += 1
 	}
 }
