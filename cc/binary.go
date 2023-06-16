@@ -609,6 +609,9 @@ func binaryBp2buildAttrs(ctx android.TopDownMutatorContext, m *Module) binaryAtt
 		baseAttrs.implementationDeps.Add(baseAttrs.protoDependency)
 	}
 
+	// binaries don't have implementation_whole_archive_deps
+	baseAttrs.wholeArchiveDeps.Append(baseAttrs.implementationWholeArchiveDeps)
+
 	attrs := binaryAttributes{
 		binaryLinkerAttrs: binaryLinkerAttrs,
 
