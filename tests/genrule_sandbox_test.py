@@ -69,7 +69,7 @@ def _find_outputs_for_modules(modules, out_dir, target_product):
     name = mod["Name"]
     if name in modules:
       for act in mod["Module"]["Actions"]:
-        if "}generate " in act["Desc"]:
+        if "}generate" in act["Desc"]:
           module_to_outs[name].update(act["Outputs"])
   return module_to_outs
 
@@ -90,6 +90,7 @@ def _store_outputs_to_tmp(output_files):
 
 
 def _diff_outs(file1, file2, show_diff):
+  output = None
   base_args = ["diff"]
   if not show_diff:
     base_args.append("--brief")
@@ -154,6 +155,10 @@ def main():
   modules = set(args.modules)
 
   module_to_outs = _find_outputs_for_modules(modules, out_dir, target_product)
+  if not module_to_outs:
+    print("No outputs found")
+    exit(1)
+
   if args.output_paths_only:
     for m, o in module_to_outs.items():
       print(f"{m} outputs: {o}")
