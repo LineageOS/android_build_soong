@@ -411,10 +411,9 @@ func TestJavaSdkLibrary_StubOrImplOnlyLibs(t *testing.T) {
 		android.AssertStringListContainsEquals(t, "bad combined inputs for "+sdklib, combineJarInputs, depPath, combined)
 	}
 	for _, expectation := range expectations {
-		verify("sdklib", expectation.lib, expectation.on_impl_classpath, expectation.in_impl_combined)
 		verify("sdklib.impl", expectation.lib, expectation.on_impl_classpath, expectation.in_impl_combined)
 
-		stubName := apiScopePublic.stubsLibraryModuleName("sdklib")
+		stubName := apiScopePublic.sourceStubLibraryModuleName("sdklib")
 		verify(stubName, expectation.lib, expectation.on_stub_classpath, expectation.in_stub_combined)
 	}
 }
