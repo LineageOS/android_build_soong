@@ -483,6 +483,7 @@ type ModuleContext interface {
 	TargetRequiredModuleNames() []string
 
 	ModuleSubDir() string
+	SoongConfigTraceHash() string
 
 	Variable(pctx PackageContext, name, value string)
 	Rule(pctx PackageContext, name string, params blueprint.RuleParams, argNames ...string) blueprint.Rule
@@ -987,7 +988,11 @@ type commonProperties struct {
 	// Bazel conversion status
 	BazelConversionStatus BazelConversionStatus `blueprint:"mutated"`
 
-	// SoongConfigTrace records accesses to VendorVars (soong_config)
+	// SoongConfigTrace records accesses to VendorVars (soong_config). The trace will be hashed
+	// and used as a subdir of PathForModuleOut.  Note that we mainly focus on incremental
+	// builds among similar products (e.g. aosp_cf_x86_64_phone and aosp_cf_x86_64_foldable),
+	// and there are variables other than soong_config, which isn't captured by soong config
+	// trace, but influence modules among products.
 	SoongConfigTrace     soongConfigTrace `blueprint:"mutated"`
 	SoongConfigTraceHash string           `blueprint:"mutated"`
 }
@@ -3192,7 +3197,7 @@ func (m *moduleContext) ModuleSubDir() string {
 	return m.bp.ModuleSubDir()
 }
 
-func (m *moduleContext) ModuleSoongConfigHash() string {
+func (m *moduleContext) SoongConfigTraceHash() string {
 	return m.module.base().commonProperties.SoongConfigTraceHash
 }
 
