@@ -61,6 +61,7 @@ var (
 		"--aarch64-enable-global-isel-at-O=-1",
 		"-fast-isel=false",
 		"-hwasan-use-after-scope=1",
+		"-dom-tree-reachability-max-bbs-to-explore=128",
 	}
 
 	cfiBlocklistPath     = "external/compiler-rt/lib/cfi"
