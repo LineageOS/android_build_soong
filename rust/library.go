@@ -25,8 +25,7 @@ import (
 )
 
 var (
-	DylibStdlibSuffix = ".dylib-std"
-	RlibStdlibSuffix  = ".rlib-std"
+	RlibStdlibSuffix = ".rlib-std"
 )
 
 func init() {
@@ -756,7 +755,6 @@ func LibstdMutator(mctx android.BottomUpMutatorContext) {
 					dylib.Disable()
 				}
 				rlib.Properties.RustSubName += RlibStdlibSuffix
-				dylib.Properties.RustSubName += DylibStdlibSuffix
 			}
 		}
 	}
