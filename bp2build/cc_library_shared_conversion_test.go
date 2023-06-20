@@ -1535,3 +1535,23 @@ cc_library_static {
 		},
 	})
 }
+
+func TestCcLibrarySharedExplicitlyDisablesCfiWhenFalse(t *testing.T) {
+	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		Description: "cc_library_shared disables cfi when explciitly set to false in the bp",
+		Blueprint: `
+cc_library_shared {
+	name: "foo",
+	sanitize: {
+		cfi: false,
+	},
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"features":       `["-android_cfi"]`,
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}

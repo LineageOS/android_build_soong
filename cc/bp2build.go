@@ -1787,7 +1787,9 @@ func bp2buildSanitizerFeatures(ctx android.BazelConversionPathContext, m *Module
 				blocklistFeatureSuffix := strings.Replace(strings.ToLower(*blocklist), ".", "_", -1)
 				features = append(features, "ubsan_blocklist_"+blocklistFeatureSuffix)
 			}
-			if proptools.Bool(sanitizerProps.Sanitize.Cfi) {
+			if sanitizerProps.Sanitize.Cfi != nil && !proptools.Bool(sanitizerProps.Sanitize.Cfi) {
+				features = append(features, "-android_cfi")
+			} else if proptools.Bool(sanitizerProps.Sanitize.Cfi) {
 				features = append(features, "android_cfi")
 				if proptools.Bool(sanitizerProps.Sanitize.Config.Cfi_assembly_support) {
 					features = append(features, "android_cfi_assembly_support")
