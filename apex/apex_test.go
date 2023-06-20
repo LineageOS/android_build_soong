@@ -6122,32 +6122,6 @@ func TestApexWithTests(t *testing.T) {
 	ensureContainsOnce(t, flatAndroidMk, "LOCAL_TEST_DATA := :testdata/baz\n")
 }
 
-func TestInstallExtraFlattenedApexes(t *testing.T) {
-	ctx := testApex(t, `
-		apex {
-			name: "myapex",
-			key: "myapex.key",
-			updatable: false,
-		}
-		apex_key {
-			name: "myapex.key",
-			public_key: "testkey.avbpubkey",
-			private_key: "testkey.pem",
-		}
-	`,
-		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
-			variables.InstallExtraFlattenedApexes = proptools.BoolPtr(true)
-		}),
-	)
-	ab := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
-	ensureListContains(t, ab.makeModulesToInstall, "myapex.flattened")
-	mk := android.AndroidMkDataForTest(t, ctx, ab)
-	var builder strings.Builder
-	mk.Custom(&builder, ab.Name(), "TARGET_", "", mk)
-	androidMk := builder.String()
-	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES := apex_manifest.pb.myapex apex_pubkey.myapex myapex.flattened\n")
-}
-
 func TestErrorsIfDepsAreNotEnabled(t *testing.T) {
 	testApexError(t, `module "myapex" .* depends on disabled module "libfoo"`, `
 		apex {
