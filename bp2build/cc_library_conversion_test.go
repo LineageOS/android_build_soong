@@ -4839,6 +4839,32 @@ cc_library {
 	})
 }
 
+func TestCcLibraryExplicitlyDisablesCfiWhenFalse(t *testing.T) {
+	runCcLibraryTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library disables cfi when explciitly set to false in the bp",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+cc_library {
+	name: "foo",
+	sanitize: {
+		cfi: false,
+	},
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
+				"features":       `["-android_cfi"]`,
+				"local_includes": `["."]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"features":       `["-android_cfi"]`,
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}
+
 func TestCcLibraryWithStem(t *testing.T) {
 	runCcLibraryTestCase(t, Bp2buildTestCase{
 		Description:                "cc_library with stem property",
