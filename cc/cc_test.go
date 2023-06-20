@@ -4981,7 +4981,7 @@ func TestIncludeDirectoryOrdering(t *testing.T) {
 	cppOnly := []string{"-fPIC", "${config.CommonGlobalCppflags}", "${config.DeviceGlobalCppflags}", "${config.ArmCppflags}"}
 
 	cflags := []string{"-Werror", "-std=candcpp"}
-	cstd := []string{"-std=gnu11", "-std=conly"}
+	cstd := []string{"-std=gnu17", "-std=conly"}
 	cppstd := []string{"-std=gnu++17", "-std=cpp", "-fno-rtti"}
 
 	lastIncludes := []string{
