@@ -1012,6 +1012,17 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 				break
 			}
 		}
+		bazelName := m.Name()
+		for _, out := range outs {
+			if out == bazelName {
+				// This is a workaround to circumvent a Bazel warning where a genrule's
+				// out may not have the same name as the target itself. This makes no
+				// difference for reverse dependencies, because they may depend on the
+				// out file by name.
+				bazelName = bazelName + "-gen"
+				break
+			}
+		}
 		attrs := &bazelGenruleAttributes{
 			Srcs:  srcs,
 			Outs:  outs,
@@ -1022,7 +1033,7 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 			Rule_class: "genrule",
 		}
 		ctx.CreateBazelTargetModule(props, android.CommonAttributes{
-			Name: m.Name(),
+			Name: bazelName,
 			Tags: tags,
 		}, attrs)
 	}
