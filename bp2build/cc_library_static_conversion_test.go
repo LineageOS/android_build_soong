@@ -2165,3 +2165,23 @@ cc_library_static {
 		},
 	})
 }
+
+func TestCcLibraryStaticExplicitlyDisablesCfiWhenFalse(t *testing.T) {
+	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
+		Description: "cc_library_static disables cfi when explciitly set to false in the bp",
+		Blueprint: `
+cc_library_static {
+	name: "foo",
+	sanitize: {
+		cfi: false,
+	},
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+				"features":       `["-android_cfi"]`,
+				"local_includes": `["."]`,
+			}),
+		},
+	})
+}

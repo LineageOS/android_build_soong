@@ -1126,6 +1126,26 @@ func TestCcBinaryWithCfiAndCfiAssemblySupport(t *testing.T) {
 	})
 }
 
+func TestCcBinaryExplicitlyDisablesCfiWhenFalse(t *testing.T) {
+	runCcBinaryTestCase(t, ccBinaryBp2buildTestCase{
+		description: "cc_binary disables cfi when explciitly set to false in the bp",
+		blueprint: `
+{rule_name} {
+	name: "foo",
+	sanitize: {
+		cfi: false,
+	},
+}
+`,
+		targets: []testBazelTarget{
+			{"cc_binary", "foo", AttrNameToString{
+				"features":       `["-android_cfi"]`,
+				"local_includes": `["."]`,
+			}},
+		},
+	})
+}
+
 func TestCcBinaryStem(t *testing.T) {
 	runCcBinaryTestCase(t, ccBinaryBp2buildTestCase{
 		description: "cc_binary with stem property",
