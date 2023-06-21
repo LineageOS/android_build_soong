@@ -21,7 +21,7 @@ message BazelMetrics {
   repeated PhaseTiming phase_timings = 1;
   optional int64 total = 2;
   optional int32 exit_code = 3;
-  optional string sponge_id = 4;
+  optional string bes_id = 4;
 }
 
 message PhaseTiming {
