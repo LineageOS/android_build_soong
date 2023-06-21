@@ -1486,6 +1486,7 @@ var (
 		"tradefed",
 		"permissive_mte_test",
 		"ICU4CTestRunner",
+		"DeviceLongPollingStubTest",
 
 		"HelloWorldHostTest", // TODO(b/280452825): Convert HelloWorldHostTest to b test
 
