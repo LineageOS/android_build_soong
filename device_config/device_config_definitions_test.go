@@ -36,7 +36,7 @@ func TestDeviceConfigDefinitions(t *testing.T) {
 	// Check that the provider has the right contents
 	depData := result.ModuleProvider(module, definitionsProviderKey).(definitionsProviderData)
 	android.AssertStringEquals(t, "namespace", depData.namespace, "com.example.package")
-	if !strings.HasSuffix(depData.intermediatePath.String(), "/intermediate.json") {
+	if !strings.HasSuffix(depData.intermediatePath.String(), "/intermediate.pb") {
 		t.Errorf("Missing intermediates path in provider: %s", depData.intermediatePath.String())
 	}
 }
