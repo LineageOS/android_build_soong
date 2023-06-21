@@ -521,7 +521,23 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 	a.dexpreopter.preventInstall = a.appProperties.PreventInstall
 
 	if ctx.ModuleName() != "framework-res" {
-		a.Module.compile(ctx, a.aaptSrcJar)
+		var extraSrcJars android.Paths
+		var extraClasspathJars android.Paths
+		var extraCombinedJars android.Paths
+		if a.useResourceProcessorBusyBox() {
+			// When building an app with ResourceProcessorBusyBox enabled ResourceProcessorBusyBox has already
+			// created R.class files that provide IDs for resources in busybox/R.jar.  Pass that file in the
+			// classpath when compiling everything else, and add it to the final classes jar.
+			extraClasspathJars = android.Paths{a.aapt.rJar}
+			extraCombinedJars = android.Paths{a.aapt.rJar}
+		} else {
+			// When building an app without ResourceProcessorBusyBox the aapt2 rule creates R.srcjar containing
+			// R.java files for the app's package and the packages from all transitive static android_library
+			// dependencies.  Compile the srcjar alongside the rest of the sources.
+			extraSrcJars = android.Paths{a.aapt.aaptSrcJar}
+		}
+
+		a.Module.compile(ctx, extraSrcJars, extraClasspathJars, extraCombinedJars)
 	}
 
 	return a.dexJarFile.PathOrNil()

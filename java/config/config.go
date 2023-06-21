@@ -148,6 +148,8 @@ func init() {
 	pctx.SourcePathVariable("JavaKytheExtractorJar", "prebuilts/build-tools/common/framework/javac_extractor.jar")
 	pctx.SourcePathVariable("Ziptime", "prebuilts/build-tools/${hostPrebuiltTag}/bin/ziptime")
 
+	pctx.SourcePathVariable("ResourceProcessorBusyBox", "prebuilts/bazel/common/android_tools/android_tools/all_android_tools_deploy.jar")
+
 	pctx.HostBinToolVariable("GenKotlinBuildFileCmd", "gen-kotlin-build-file")
 
 	pctx.SourcePathVariable("JarArgsCmd", "build/soong/scripts/jar-args.sh")
