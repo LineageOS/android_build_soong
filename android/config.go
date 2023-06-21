@@ -1681,10 +1681,6 @@ func (c *config) InterPartitionJavaLibraryAllowList() []string {
 	return c.productVariables.InterPartitionJavaLibraryAllowList
 }
 
-func (c *config) InstallExtraFlattenedApexes() bool {
-	return Bool(c.productVariables.InstallExtraFlattenedApexes)
-}
-
 func (c *config) ProductHiddenAPIStubs() []string {
 	return c.productVariables.ProductHiddenAPIStubs
 }
