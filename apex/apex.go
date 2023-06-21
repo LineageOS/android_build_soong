@@ -2151,10 +2151,6 @@ func (a *apexBundle) setApexTypeAndSuffix(ctx android.ModuleContext) {
 		} else {
 			a.suffix = ""
 			a.primaryApexType = true
-
-			if ctx.Config().InstallExtraFlattenedApexes() {
-				a.makeModulesToInstall = append(a.makeModulesToInstall, a.Name()+flattenedSuffix)
-			}
 		}
 	case zipApex:
 		if proptools.String(a.properties.Payload_type) == "zip" {
