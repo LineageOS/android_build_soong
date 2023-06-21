@@ -404,6 +404,9 @@ func main() {
 	var wg sync.WaitGroup
 	for i := 0; i < jobs; i++ {
 		wg.Add(1)
+		// To smooth out the spikes in memory usage, skew the
+		// initial starting time of the jobs by a small amount.
+		time.Sleep(15 * time.Second)
 		go func() {
 			defer wg.Done()
 			for {
