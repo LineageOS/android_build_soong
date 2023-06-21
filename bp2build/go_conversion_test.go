@@ -75,11 +75,11 @@ bootstrap_go_package {
 				"deps":       `["//bar:bar"]`,
 				"importpath": `"android/foo"`,
 				"srcs": `[
-        ":foo1.go",
-        ":foo2.go",
+        "foo1.go",
+        "foo2.go",
     ] + select({
-        "//build/bazel/platforms/os:darwin": [":foo_darwin.go"],
-        "//build/bazel/platforms/os:linux_glibc": [":foo_linux.go"],
+        "//build/bazel/platforms/os:darwin": ["foo_darwin.go"],
+        "//build/bazel/platforms/os:linux_glibc": ["foo_linux.go"],
         "//conditions:default": [],
     })`,
 			},
@@ -118,7 +118,31 @@ bootstrap_go_package {
         "//bar:bar",
         "//bar:baz",
     ]`,
-				"srcs": `[":main.go"]`,
+				"srcs": `["main.go"]`,
+			},
+			android.HostSupported,
+		)},
+	})
+}
+
+func TestConvertGoBinaryWithSrcInDifferentPackage(t *testing.T) {
+	bp := `
+blueprint_go_binary {
+	name: "foo",
+	srcs: ["subdir/main.go"],
+}
+`
+	t.Parallel()
+	runGoTests(t, Bp2buildTestCase{
+		Description: "Convert blueprint_go_binary with src in different package",
+		Blueprint:   bp,
+		Filesystem: map[string]string{
+			"subdir/Android.bp": "",
+		},
+		ExpectedBazelTargets: []string{makeBazelTargetHostOrDevice("go_binary", "foo",
+			AttrNameToString{
+				"deps": `[]`,
+				"srcs": `["//subdir:main.go"]`,
 			},
 			android.HostSupported,
 		)},

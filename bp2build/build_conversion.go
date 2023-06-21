@@ -302,21 +302,25 @@ func targetNotCompatibleWithAndroid() bazel.LabelListAttribute {
 
 // helper function to return labels for srcs used in bootstrap_go_package and bootstrap_go_binary
 // this function has the following limitations which make it unsuitable for widespread use
-// 1. wildcard patterns in srcs
-// 2. package boundary violations
-// (1) is ok for go since build/blueprint does not support it. (2) _might_ be ok too.
+// - wildcard patterns in srcs
+// This is ok for go since build/blueprint does not support it.
 //
 // Prefer to use `BazelLabelForModuleSrc` instead
-func goSrcLabels(srcs []string, linuxSrcs, darwinSrcs []string) bazel.LabelListAttribute {
+func goSrcLabels(cfg android.Config, moduleDir string, srcs []string, linuxSrcs, darwinSrcs []string) bazel.LabelListAttribute {
 	labels := func(srcs []string) bazel.LabelList {
 		ret := []bazel.Label{}
 		for _, src := range srcs {
 			srcLabel := bazel.Label{
-				Label: ":" + src, // TODO - b/284483729: Fix for possible package boundary violations
+				Label: src,
 			}
 			ret = append(ret, srcLabel)
 		}
-		return bazel.MakeLabelList(ret)
+		// Respect package boundaries
+		return android.TransformSubpackagePaths(
+			cfg,
+			moduleDir,
+			bazel.MakeLabelList(ret),
+		)
 	}
 
 	ret := bazel.LabelListAttribute{}
@@ -371,8 +375,11 @@ func generateBazelTargetsGoPackage(ctx *android.Context, g *bootstrap.GoPackage,
 		Importpath: bazel.StringAttribute{
 			Value: proptools.StringPtr(g.GoPkgPath()),
 		},
-		Srcs:                   goSrcLabels(g.Srcs(), g.LinuxSrcs(), g.DarwinSrcs()),
-		Deps:                   goDepLabels(transitiveDeps, goModulesMap),
+		Srcs: goSrcLabels(ctx.Config(), ctx.ModuleDir(g), g.Srcs(), g.LinuxSrcs(), g.DarwinSrcs()),
+		Deps: goDepLabels(
+			android.FirstUniqueStrings(transitiveDeps),
+			goModulesMap,
+		),
 		Target_compatible_with: targetNotCompatibleWithAndroid(),
 	}
 
@@ -444,7 +451,7 @@ func generateBazelTargetsGoBinary(ctx *android.Context, g *bootstrap.GoBinary, g
 	transitiveDeps := transitiveGoDeps(g.Deps(), goModulesMap)
 
 	ga := goAttributes{
-		Srcs:                   goSrcLabels(g.Srcs(), g.LinuxSrcs(), g.DarwinSrcs()),
+		Srcs:                   goSrcLabels(ctx.Config(), ctx.ModuleDir(g), g.Srcs(), g.LinuxSrcs(), g.DarwinSrcs()),
 		Deps:                   goDepLabels(transitiveDeps, goModulesMap),
 		Target_compatible_with: targetNotCompatibleWithAndroid(),
 	}
