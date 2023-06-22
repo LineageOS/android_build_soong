@@ -25,6 +25,7 @@ import (
 	"sync"
 
 	"android/soong/ui/metrics/bp2build_metrics_proto"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -1698,7 +1699,6 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 		"MissingPermission",
 		"SdkConstant",
 		"Todo",
-		"Typo",
 		"UnavailableSymbol",
 	}
 	droidstubsArgs = append(droidstubsArgs, android.JoinWithPrefix(disabledWarnings, "--hide "))
