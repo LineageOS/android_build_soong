@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package device_config
+package aconfig
 
 import (
 	"android/soong/android"
 	"github.com/google/blueprint"
 )
 
-// Properties for "device_config_value"
+// Properties for "aconfig_value"
 type ValuesModule struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
@@ -45,7 +45,7 @@ func ValuesFactory() android.Module {
 	return module
 }
 
-// Provider published by device_config_value_set
+// Provider published by aconfig_value_set
 type valuesProviderData struct {
 	// The package that this values module values
 	Package string
@@ -61,7 +61,7 @@ func (module *ValuesModule) GenerateAndroidBuildActions(ctx android.ModuleContex
 		ctx.PropertyErrorf("package", "missing package property")
 	}
 
-	// Provide the our source files list to the device_config_value_set as a list of files
+	// Provide the our source files list to the aconfig_value_set as a list of files
 	providerData := valuesProviderData{
 		Package: module.properties.Package,
 		Values:  android.PathsForModuleSrc(ctx, module.properties.Srcs),
