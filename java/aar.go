@@ -176,6 +176,7 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext android.SdkConte
 	linkFlags = append(linkFlags, a.aaptProperties.Aaptflags...)
 
 	linkFlags = append(linkFlags, "--no-static-lib-packages")
+	linkFlags = append(linkFlags, "--enable-compact-entries")
 
 	// Find implicit or explicit asset and resource dirs
 	assetDirs := android.PathsWithOptionalDefaultForModuleSrc(ctx, a.aaptProperties.Asset_dirs, "assets")
