@@ -51,9 +51,9 @@ var valueSetTag = valueSetType{}
 
 // Provider published by device_config_value_set
 type valueSetProviderData struct {
-	// The namespace of each of the
-	// (map of namespace --> device_config_module)
-	AvailableNamespaces map[string]android.Paths
+	// The package of each of the
+	// (map of package --> device_config_module)
+	AvailablePackages map[string]android.Paths
 }
 
 var valueSetProviderKey = blueprint.NewProvider(valueSetProviderData{})
@@ -70,10 +70,10 @@ func (module *ValueSetModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (module *ValueSetModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	// Accumulate the namespaces of the values modules listed, and set that as an
+	// Accumulate the packages of the values modules listed, and set that as an
 	// valueSetProviderKey provider that device_config modules can read and use
 	// to append values to their aconfig actions.
-	namespaces := make(map[string]android.Paths)
+	packages := make(map[string]android.Paths)
 	ctx.VisitDirectDeps(func(dep android.Module) {
 		if !ctx.OtherModuleHasProvider(dep, valuesProviderKey) {
 			// Other modules get injected as dependencies too, for example the license modules
@@ -83,10 +83,10 @@ func (module *ValueSetModule) GenerateAndroidBuildActions(ctx android.ModuleCont
 
 		srcs := make([]android.Path, len(depData.Values))
 		copy(srcs, depData.Values)
-		namespaces[depData.Namespace] = srcs
+		packages[depData.Package] = srcs
 
 	})
 	ctx.SetProvider(valueSetProviderKey, valueSetProviderData{
-		AvailableNamespaces: namespaces,
+		AvailablePackages: packages,
 	})
 }
