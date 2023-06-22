@@ -1,6 +1,6 @@
 module android/soong
 
-go 1.19
+go 1.20
 
 require (
 	github.com/google/blueprint v0.0.0

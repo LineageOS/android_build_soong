@@ -566,7 +566,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	}
 
 	if library.static() {
-		depSet := android.NewDepSetBuilder(android.TOPOLOGICAL).Direct(outputFile).Build()
+		depSet := android.NewDepSetBuilder[android.Path](android.TOPOLOGICAL).Direct(outputFile).Build()
 		ctx.SetProvider(cc.StaticLibraryInfoProvider, cc.StaticLibraryInfo{
 			StaticLibrary: outputFile,
 
