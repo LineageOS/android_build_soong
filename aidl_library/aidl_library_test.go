@@ -52,7 +52,7 @@ func TestAidlLibrary(t *testing.T) {
 		t,
 		"aidl include dirs",
 		[]string{"package_foo/a", "package_bar/x"},
-		actualInfo.IncludeDirs.ToList().Strings(),
+		android.Paths(actualInfo.IncludeDirs.ToList()).Strings(),
 	)
 
 	android.AssertPathsRelativeToTopEquals(
@@ -101,7 +101,7 @@ func TestAidlLibraryWithoutStripImportPrefix(t *testing.T) {
 		t,
 		"aidl include dirs",
 		[]string{"package_foo", "package_bar"},
-		actualInfo.IncludeDirs.ToList().Strings(),
+		android.Paths(actualInfo.IncludeDirs.ToList()).Strings(),
 	)
 
 	android.AssertPathsRelativeToTopEquals(
