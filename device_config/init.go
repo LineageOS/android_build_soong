@@ -26,7 +26,7 @@ var (
 	aconfigRule = pctx.AndroidStaticRule("aconfig",
 		blueprint.RuleParams{
 			Command: `${aconfig} create-cache` +
-				` --package ${namespace}` +
+				` --package ${package}` +
 				` --declarations ${in}` +
 				` ${values}` +
 				` --cache ${out}.tmp` +
@@ -36,7 +36,7 @@ var (
 				"${aconfig}",
 			},
 			Restat: true,
-		}, "release_version", "namespace", "values")
+		}, "release_version", "package", "values")
 
 	// For java_device_config_definitions_library: Generate java file
 	srcJarRule = pctx.AndroidStaticRule("aconfig_srcjar",
