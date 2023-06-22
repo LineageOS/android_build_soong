@@ -940,12 +940,8 @@ var (
 
 		//system/libvintf
 		// depends on apex-info-list-tinyxml, unconverted xsd_config Soong module type.
-		"libvintf",
-		"vintf",
 		"libassemblevintf",
 		"assemble_vintf",
-		"libvintffm",
-		"vintffm",
 		"checkvintf",
 
 		// depends on audio_policy_configuration_aidl_default, xsd_config module.

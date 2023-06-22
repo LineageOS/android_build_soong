@@ -398,6 +398,9 @@ type compilerAttributes struct {
 	cppFlags bazel.StringListAttribute
 	srcs     bazel.LabelListAttribute
 
+	// xsd config sources
+	xsdInSrcs bazel.StringListAttribute
+
 	// Lex sources and options
 	lSrcs   bazel.LabelListAttribute
 	llSrcs  bazel.LabelListAttribute
@@ -484,8 +487,13 @@ func parseCommandLineFlags(soongFlags []string, filterOut ...filterOutFn) []stri
 func (ca *compilerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversionPathContext, axis bazel.ConfigurationAxis, config string, props *BaseCompilerProperties) {
 	// If there's arch specific srcs or exclude_srcs, generate a select entry for it.
 	// TODO(b/186153868): do this for OS specific srcs and exclude_srcs too.
-	if srcsList, ok := parseSrcs(ctx, props); ok {
+	srcsList, xsdList, ok := parseSrcs(ctx, props)
+
+	if ok {
 		ca.srcs.SetSelectValue(axis, config, srcsList)
+	}
+	if len(xsdList) > 0 {
+		ca.xsdInSrcs.SetSelectValue(axis, config, xsdList)
 	}
 
 	localIncludeDirs := props.Local_include_dirs
@@ -588,11 +596,11 @@ func (ca *compilerAttributes) finalize(ctx android.BazelConversionPathContext, i
 }
 
 // Parse srcs from an arch or OS's props value.
-func parseSrcs(ctx android.BazelConversionPathContext, props *BaseCompilerProperties) (bazel.LabelList, bool) {
+func parseSrcs(ctx android.BazelConversionPathContext, props *BaseCompilerProperties) (bazel.LabelList, []string, bool) {
 	anySrcs := false
 	// Add srcs-like dependencies such as generated files.
 	// First create a LabelList containing these dependencies, then merge the values with srcs.
-	genSrcs, _ := android.PartitionXsdSrcs(ctx, props.Generated_sources)
+	genSrcs, xsd := android.PartitionXsdSrcs(ctx, props.Generated_sources)
 	generatedSrcsLabelList := android.BazelLabelForModuleDepsExcludes(ctx, genSrcs, props.Exclude_generated_sources)
 	if len(props.Generated_sources) > 0 || len(props.Exclude_generated_sources) > 0 {
 		anySrcs = true
@@ -604,7 +612,7 @@ func parseSrcs(ctx android.BazelConversionPathContext, props *BaseCompilerProper
 		anySrcs = true
 	}
 
-	return bazel.AppendBazelLabelLists(allSrcsLabelList, generatedSrcsLabelList), anySrcs
+	return bazel.AppendBazelLabelLists(allSrcsLabelList, generatedSrcsLabelList), xsd, anySrcs
 }
 
 func bp2buildStdVal(std *string, prefix string, useGnu bool) *string {
@@ -718,14 +726,6 @@ func bp2BuildYasm(ctx android.Bp2buildMutatorContext, m *Module, ca compilerAttr
 	return ret
 }
 
-// Replaces //a/b/my_xsd_config with //a/b/my_xsd_config-cpp
-func xsdConfigCppTarget(ctx android.BazelConversionPathContext, mod blueprint.Module) string {
-	callback := func(xsd android.XsdConfigBp2buildTargets) string {
-		return xsd.CppBp2buildTargetName()
-	}
-	return android.XsdConfigBp2buildTarget(ctx, mod, callback)
-}
-
 // bp2BuildParseBaseProps returns all compiler, linker, library attributes of a cc module..
 func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) baseAttributes {
 	archVariantCompilerProps := module.GetArchVariantProperties(ctx, &BaseCompilerProperties{})
@@ -762,15 +762,9 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 	for _, axis := range bazel.SortedConfigurationAxes(axisToConfigs) {
 		configs := axisToConfigs[axis]
 		for cfg := range configs {
-			var allHdrs []string
+			var allHdrs, allHdrsXsd []string
 			if baseCompilerProps, ok := archVariantCompilerProps[axis][cfg].(*BaseCompilerProperties); ok {
-				ah, allHdrsXsd := android.PartitionXsdSrcs(ctx, baseCompilerProps.Generated_headers)
-				allHdrs = ah
-				// in the synthetic bp2build workspace, xsd sources are compiled to a static library
-				xsdCppConfigLibraryLabels := android.BazelLabelForModuleDepsWithFn(ctx, allHdrsXsd, xsdConfigCppTarget)
-				iwad := linkerAttrs.implementationWholeArchiveDeps.SelectValue(axis, cfg)
-				(&iwad).Append(xsdCppConfigLibraryLabels)
-				linkerAttrs.implementationWholeArchiveDeps.SetSelectValue(axis, cfg, bazel.FirstUniqueBazelLabelList(iwad))
+				allHdrs, allHdrsXsd = android.PartitionXsdSrcs(ctx, baseCompilerProps.Generated_headers)
 
 				if baseCompilerProps.Lex != nil {
 					compilerAttrs.lexopts.SetSelectValue(axis, cfg, baseCompilerProps.Lex.Flags)
@@ -784,14 +778,19 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 				aidlLibs.Append(android.BazelLabelForModuleDeps(ctx, baseCompilerProps.Aidl.Libs))
 			}
 
-			var exportHdrs []string
+			var exportHdrs, exportHdrsXsd []string
 
 			if baseLinkerProps, ok := archVariantLinkerProps[axis][cfg].(*BaseLinkerProperties); ok {
-				exportHdrs = baseLinkerProps.Export_generated_headers
-
+				exportHdrs, exportHdrsXsd = android.PartitionXsdSrcs(ctx, baseLinkerProps.Export_generated_headers)
 				(&linkerAttrs).bp2buildForAxisAndConfig(ctx, module, axis, cfg, baseLinkerProps)
 			}
+
+			// in the synthetic bp2build workspace, xsd sources are compiled to a static library
+			xsdList := compilerAttrs.xsdInSrcs.SelectValue(axis, cfg)
+			allHdrsXsd = android.FirstUniqueStrings(append(xsdList, allHdrsXsd...))
 			headers := maybePartitionExportedAndImplementationsDeps(ctx, !module.Binary(), allHdrs, exportHdrs, android.BazelLabelForModuleDeps)
+			xsdConfigLibs := maybePartitionExportedAndImplementationsDeps(ctx, !module.Binary(), allHdrsXsd, exportHdrsXsd, bazelLabelForXsdConfig)
+
 			implementationHdrs.SetSelectValue(axis, cfg, headers.implementation)
 			compilerAttrs.hdrs.SetSelectValue(axis, cfg, headers.export)
 
@@ -826,6 +825,15 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 				if suffix := libraryProps.Suffix; suffix != nil {
 					compilerAttrs.suffix.SetSelectValue(axis, cfg, suffix)
 				}
+			}
+
+			if len(allHdrsXsd) > 0 {
+				wholeStaticLibs := linkerAttrs.implementationWholeArchiveDeps.SelectValue(axis, cfg)
+				(&wholeStaticLibs).Append(xsdConfigLibs.implementation)
+				linkerAttrs.implementationWholeArchiveDeps.SetSelectValue(axis, cfg, wholeStaticLibs)
+				wholeStaticLibs = linkerAttrs.wholeArchiveDeps.SelectValue(axis, cfg)
+				(&wholeStaticLibs).Append(xsdConfigLibs.export)
+				linkerAttrs.wholeArchiveDeps.SetSelectValue(axis, cfg, wholeStaticLibs)
 			}
 		}
 	}
@@ -1701,6 +1709,18 @@ func bazelLabelForStaticWholeModuleDeps(ctx android.BazelConversionPathContext, 
 		}
 	}
 	return label
+}
+
+// Replaces //a/b/my_xsd_config with //a/b/my_xsd_config-cpp
+func xsdConfigCppTarget(ctx android.BazelConversionPathContext, mod blueprint.Module) string {
+	callback := func(xsd android.XsdConfigBp2buildTargets) string {
+		return xsd.CppBp2buildTargetName()
+	}
+	return android.XsdConfigBp2buildTarget(ctx, mod, callback)
+}
+
+func bazelLabelForXsdConfig(ctx android.BazelConversionPathContext, modules []string) bazel.LabelList {
+	return android.BazelLabelForModuleDepsWithFn(ctx, modules, xsdConfigCppTarget)
 }
 
 func bazelLabelForWholeDeps(ctx android.BazelConversionPathContext, modules []string) bazel.LabelList {
