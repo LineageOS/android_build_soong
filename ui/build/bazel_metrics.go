@@ -121,6 +121,7 @@ func ProcessBazelMetrics(bazelProfileFile string, bazelMetricsFile string, ctx C
 			}
 		}
 		bazelMetrics.PhaseTimings = phaseTimings
+		bazelMetrics.BesId = proto.String(config.besId)
 
 		return bazelMetrics
 	}
