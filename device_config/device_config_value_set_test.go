@@ -25,7 +25,7 @@ func TestDeviceConfigValueSet(t *testing.T) {
 				device_config_values {
 					name: "one",
 					srcs: [ "blah.aconfig_values" ],
-					namespace: "foo.namespace"
+					package: "foo.package"
 				}
 
 				device_config_value_set {
@@ -39,5 +39,5 @@ func TestDeviceConfigValueSet(t *testing.T) {
 
 	// Check that the provider has the right contents
 	depData := result.ModuleProvider(module, valueSetProviderKey).(valueSetProviderData)
-	android.AssertStringEquals(t, "AvailableNamespaces", "blah.aconfig_values", depData.AvailableNamespaces["foo.namespace"][0].String())
+	android.AssertStringEquals(t, "AvailablePackages", "blah.aconfig_values", depData.AvailablePackages["foo.package"][0].String())
 }
