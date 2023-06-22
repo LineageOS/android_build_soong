@@ -41,6 +41,7 @@ var (
 	}
 
 	GlobalRustFlags = []string{
+		"-Z stack-protector=strong",
 		"-Z remap-cwd-prefix=.",
 		"-C codegen-units=1",
 		"-C debuginfo=2",
