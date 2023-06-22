@@ -151,7 +151,7 @@ type PathDeps struct {
 	StaticLibs, LateStaticLibs, WholeStaticLibs android.Paths
 
 	// Transitive static library dependencies of static libraries for use in ordering.
-	TranstiveStaticLibrariesForOrdering *android.DepSet
+	TranstiveStaticLibrariesForOrdering *android.DepSet[android.Path]
 
 	// Paths to .o files
 	Objs Objects
@@ -3550,8 +3550,8 @@ func ChooseStubOrImpl(ctx android.ModuleContext, dep android.Module) (SharedLibr
 // to match the topological order of the dependency tree, including any static analogues of
 // direct shared libraries.  It returns the ordered static dependencies, and an android.DepSet
 // of the transitive dependencies.
-func orderStaticModuleDeps(staticDeps []StaticLibraryInfo, sharedDeps []SharedLibraryInfo) (ordered android.Paths, transitive *android.DepSet) {
-	transitiveStaticLibsBuilder := android.NewDepSetBuilder(android.TOPOLOGICAL)
+func orderStaticModuleDeps(staticDeps []StaticLibraryInfo, sharedDeps []SharedLibraryInfo) (ordered android.Paths, transitive *android.DepSet[android.Path]) {
+	transitiveStaticLibsBuilder := android.NewDepSetBuilder[android.Path](android.TOPOLOGICAL)
 	var staticPaths android.Paths
 	for _, staticDep := range staticDeps {
 		staticPaths = append(staticPaths, staticDep.StaticLibrary)
