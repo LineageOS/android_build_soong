@@ -113,7 +113,7 @@ func (ndk *ndkPrebuiltStlLinker) link(ctx ModuleContext, flags Flags,
 	ndk.libraryDecorator.flagExporter.setProvider(ctx)
 
 	if ndk.static() {
-		depSet := android.NewDepSetBuilder(android.TOPOLOGICAL).Direct(lib).Build()
+		depSet := android.NewDepSetBuilder[android.Path](android.TOPOLOGICAL).Direct(lib).Build()
 		ctx.SetProvider(StaticLibraryInfoProvider, StaticLibraryInfo{
 			StaticLibrary: lib,
 

@@ -117,18 +117,18 @@ type LintDepSetsIntf interface {
 }
 
 type LintDepSets struct {
-	HTML, Text, XML *android.DepSet
+	HTML, Text, XML *android.DepSet[android.Path]
 }
 
 type LintDepSetsBuilder struct {
-	HTML, Text, XML *android.DepSetBuilder
+	HTML, Text, XML *android.DepSetBuilder[android.Path]
 }
 
 func NewLintDepSetBuilder() LintDepSetsBuilder {
 	return LintDepSetsBuilder{
-		HTML: android.NewDepSetBuilder(android.POSTORDER),
-		Text: android.NewDepSetBuilder(android.POSTORDER),
-		XML:  android.NewDepSetBuilder(android.POSTORDER),
+		HTML: android.NewDepSetBuilder[android.Path](android.POSTORDER),
+		Text: android.NewDepSetBuilder[android.Path](android.POSTORDER),
+		XML:  android.NewDepSetBuilder[android.Path](android.POSTORDER),
 	}
 }
 
@@ -553,9 +553,9 @@ func (l *linter) lint(ctx android.ModuleContext) {
 }
 
 func BuildModuleLintReportZips(ctx android.ModuleContext, depSets LintDepSets) android.Paths {
-	htmlList := depSets.HTML.ToSortedList()
-	textList := depSets.Text.ToSortedList()
-	xmlList := depSets.XML.ToSortedList()
+	htmlList := android.SortedUniquePaths(depSets.HTML.ToList())
+	textList := android.SortedUniquePaths(depSets.Text.ToList())
+	xmlList := android.SortedUniquePaths(depSets.XML.ToList())
 
 	if len(htmlList) == 0 && len(textList) == 0 && len(xmlList) == 0 {
 		return nil

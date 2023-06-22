@@ -140,7 +140,7 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 		}
 
 		if p.static() {
-			depSet := android.NewDepSetBuilder(android.TOPOLOGICAL).Direct(in).Build()
+			depSet := android.NewDepSetBuilder[android.Path](android.TOPOLOGICAL).Direct(in).Build()
 			ctx.SetProvider(StaticLibraryInfoProvider, StaticLibraryInfo{
 				StaticLibrary: in,
 
@@ -508,7 +508,7 @@ func (h *prebuiltLibraryBazelHandler) processStaticBazelQueryResponse(ctx androi
 
 	h.module.outputFile = android.OptionalPathForPath(outputPath)
 
-	depSet := android.NewDepSetBuilder(android.TOPOLOGICAL).Direct(outputPath).Build()
+	depSet := android.NewDepSetBuilder[android.Path](android.TOPOLOGICAL).Direct(outputPath).Build()
 	ctx.SetProvider(StaticLibraryInfoProvider, StaticLibraryInfo{
 		StaticLibrary:                        outputPath,
 		TransitiveStaticLibrariesForOrdering: depSet,
