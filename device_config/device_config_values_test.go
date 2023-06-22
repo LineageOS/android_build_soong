@@ -25,7 +25,7 @@ func TestDeviceConfigValues(t *testing.T) {
 				device_config_values {
 					name: "module_name",
 					srcs: [ "blah.aconfig_values" ],
-					namespace: "foo.namespace"
+					package: "foo.package"
 				}
 			`
 	result := runTest(t, android.FixtureExpectsNoErrors, bp)
@@ -34,6 +34,6 @@ func TestDeviceConfigValues(t *testing.T) {
 
 	// Check that the provider has the right contents
 	depData := result.ModuleProvider(module, valuesProviderKey).(valuesProviderData)
-	android.AssertStringEquals(t, "namespace", "foo.namespace", depData.Namespace)
+	android.AssertStringEquals(t, "package", "foo.package", depData.Package)
 	android.AssertPathsEndWith(t, "srcs", []string{"blah.aconfig_values"}, depData.Values)
 }

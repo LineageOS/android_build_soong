@@ -62,7 +62,7 @@ func (callbacks *JavaDeviceConfigDefinitionsLibraryCallbacks) GenerateSourceJarB
 	srcJarPath := android.PathForModuleGen(ctx, ctx.ModuleName()+".srcjar")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        srcJarRule,
-		Input:       definitions.intermediatePath,
+		Input:       definitions.IntermediatePath,
 		Output:      srcJarPath,
 		Description: "device_config.srcjar",
 	})
