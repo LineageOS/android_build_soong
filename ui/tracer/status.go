@@ -16,6 +16,7 @@ package tracer
 
 import (
 	"android/soong/ui/status"
+	"strings"
 	"time"
 )
 
@@ -60,6 +61,24 @@ func (s *statusOutput) StartAction(action *status.Action, counts status.Counts) 
 	}
 }
 
+func (s *statusOutput) parseTags(rawTags string) map[string]string {
+	if rawTags == "" {
+		return nil
+	}
+
+	tags := map[string]string{}
+	for _, pair := range strings.Split(rawTags, ";") {
+		if pair == "" {
+			// Ignore empty tag pairs. It's hard to generate these cleanly from
+			// make so some tag strings might be something like ";key=value".
+			continue
+		}
+		parts := strings.SplitN(pair, "=", 2)
+		tags[parts[0]] = parts[1]
+	}
+	return tags
+}
+
 func (s *statusOutput) FinishAction(result status.ActionResult, counts status.Counts) {
 	start, ok := s.running[result.Action]
 	if !ok {
@@ -90,20 +109,22 @@ func (s *statusOutput) FinishAction(result status.ActionResult, counts status.Co
 			IOOutputKB:                 result.Stats.IOOutputKB,
 			VoluntaryContextSwitches:   result.Stats.VoluntaryContextSwitches,
 			InvoluntaryContextSwitches: result.Stats.InvoluntaryContextSwitches,
+			Tags:                       s.parseTags(result.Stats.Tags),
 		},
 	})
 }
 
 type statsArg struct {
-	UserTime                   uint32 `json:"user_time"`
-	SystemTime                 uint32 `json:"system_time_ms"`
-	MaxRssKB                   uint64 `json:"max_rss_kb"`
-	MinorPageFaults            uint64 `json:"minor_page_faults"`
-	MajorPageFaults            uint64 `json:"major_page_faults"`
-	IOInputKB                  uint64 `json:"io_input_kb"`
-	IOOutputKB                 uint64 `json:"io_output_kb"`
-	VoluntaryContextSwitches   uint64 `json:"voluntary_context_switches"`
-	InvoluntaryContextSwitches uint64 `json:"involuntary_context_switches"`
+	UserTime                   uint32            `json:"user_time"`
+	SystemTime                 uint32            `json:"system_time_ms"`
+	MaxRssKB                   uint64            `json:"max_rss_kb"`
+	MinorPageFaults            uint64            `json:"minor_page_faults"`
+	MajorPageFaults            uint64            `json:"major_page_faults"`
+	IOInputKB                  uint64            `json:"io_input_kb"`
+	IOOutputKB                 uint64            `json:"io_output_kb"`
+	VoluntaryContextSwitches   uint64            `json:"voluntary_context_switches"`
+	InvoluntaryContextSwitches uint64            `json:"involuntary_context_switches"`
+	Tags                       map[string]string `json:"tags"`
 }
 
 func (s *statusOutput) Flush()                                        {}
