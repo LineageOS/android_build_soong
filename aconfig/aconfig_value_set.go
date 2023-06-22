@@ -12,20 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package device_config
+package aconfig
 
 import (
 	"android/soong/android"
 	"github.com/google/blueprint"
 )
 
-// Properties for "device_config_value_set"
+// Properties for "aconfig_value_set"
 type ValueSetModule struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 
 	properties struct {
-		// device_config_values modules
+		// aconfig_values modules
 		Values []string
 	}
 }
@@ -49,11 +49,11 @@ type valueSetType struct {
 
 var valueSetTag = valueSetType{}
 
-// Provider published by device_config_value_set
+// Provider published by aconfig_value_set
 type valueSetProviderData struct {
-	// The namespace of each of the
-	// (map of namespace --> device_config_module)
-	AvailableNamespaces map[string]android.Paths
+	// The package of each of the
+	// (map of package --> aconfig_module)
+	AvailablePackages map[string]android.Paths
 }
 
 var valueSetProviderKey = blueprint.NewProvider(valueSetProviderData{})
@@ -63,17 +63,17 @@ func (module *ValueSetModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 	for _, dep := range deps {
 		_, ok := dep.(*ValuesModule)
 		if !ok {
-			ctx.PropertyErrorf("values", "values must be a device_config_values module")
+			ctx.PropertyErrorf("values", "values must be a aconfig_values module")
 			return
 		}
 	}
 }
 
 func (module *ValueSetModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	// Accumulate the namespaces of the values modules listed, and set that as an
-	// valueSetProviderKey provider that device_config modules can read and use
+	// Accumulate the packages of the values modules listed, and set that as an
+	// valueSetProviderKey provider that aconfig modules can read and use
 	// to append values to their aconfig actions.
-	namespaces := make(map[string]android.Paths)
+	packages := make(map[string]android.Paths)
 	ctx.VisitDirectDeps(func(dep android.Module) {
 		if !ctx.OtherModuleHasProvider(dep, valuesProviderKey) {
 			// Other modules get injected as dependencies too, for example the license modules
@@ -83,10 +83,10 @@ func (module *ValueSetModule) GenerateAndroidBuildActions(ctx android.ModuleCont
 
 		srcs := make([]android.Path, len(depData.Values))
 		copy(srcs, depData.Values)
-		namespaces[depData.Namespace] = srcs
+		packages[depData.Package] = srcs
 
 	})
 	ctx.SetProvider(valueSetProviderKey, valueSetProviderData{
-		AvailableNamespaces: namespaces,
+		AvailablePackages: packages,
 	})
 }

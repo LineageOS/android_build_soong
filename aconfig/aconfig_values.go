@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package device_config
+package aconfig
 
 import (
 	"android/soong/android"
 	"github.com/google/blueprint"
 )
 
-// Properties for "device_config_value"
+// Properties for "aconfig_value"
 type ValuesModule struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
@@ -28,8 +28,8 @@ type ValuesModule struct {
 		// aconfig files, relative to this Android.bp file
 		Srcs []string `android:"path"`
 
-		// Release config flag namespace
-		Namespace string
+		// Release config flag package
+		Package string
 	}
 }
 
@@ -45,10 +45,10 @@ func ValuesFactory() android.Module {
 	return module
 }
 
-// Provider published by device_config_value_set
+// Provider published by aconfig_value_set
 type valuesProviderData struct {
-	// The namespace that this values module values
-	Namespace string
+	// The package that this values module values
+	Package string
 
 	// The values aconfig files, relative to the root of the tree
 	Values android.Paths
@@ -57,14 +57,14 @@ type valuesProviderData struct {
 var valuesProviderKey = blueprint.NewProvider(valuesProviderData{})
 
 func (module *ValuesModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	if len(module.properties.Namespace) == 0 {
-		ctx.PropertyErrorf("namespace", "missing namespace property")
+	if len(module.properties.Package) == 0 {
+		ctx.PropertyErrorf("package", "missing package property")
 	}
 
-	// Provide the our source files list to the device_config_value_set as a list of files
+	// Provide the our source files list to the aconfig_value_set as a list of files
 	providerData := valuesProviderData{
-		Namespace: module.properties.Namespace,
-		Values:    android.PathsForModuleSrc(ctx, module.properties.Srcs),
+		Package: module.properties.Package,
+		Values:  android.PathsForModuleSrc(ctx, module.properties.Srcs),
 	}
 	ctx.SetProvider(valuesProviderKey, providerData)
 }

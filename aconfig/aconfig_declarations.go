@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package device_config
+package aconfig
 
 import (
 	"android/soong/android"
@@ -21,27 +21,27 @@ import (
 	"strings"
 )
 
-type DefinitionsModule struct {
+type DeclarationsModule struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 
-	// Properties for "device_config_definitions"
+	// Properties for "aconfig_declarations"
 	properties struct {
 		// aconfig files, relative to this Android.bp file
 		Srcs []string `android:"path"`
 
-		// Release config flag namespace
-		Namespace string
+		// Release config flag package
+		Package string
 
-		// Values from TARGET_RELEASE / RELEASE_DEVICE_CONFIG_VALUE_SETS
+		// Values from TARGET_RELEASE / RELEASE_ACONFIG_VALUE_SETS
 		Values []string `blueprint:"mutated"`
 	}
 
 	intermediatePath android.WritablePath
 }
 
-func DefinitionsFactory() android.Module {
-	module := &DefinitionsModule{}
+func DeclarationsFactory() android.Module {
+	module := &DeclarationsModule{}
 
 	android.InitAndroidModule(module)
 	android.InitDefaultableModule(module)
@@ -58,24 +58,24 @@ type implicitValuesTagType struct {
 
 var implicitValuesTag = implicitValuesTagType{}
 
-func (module *DefinitionsModule) DepsMutator(ctx android.BottomUpMutatorContext) {
+func (module *DeclarationsModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// Validate Properties
 	if len(module.properties.Srcs) == 0 {
 		ctx.PropertyErrorf("srcs", "missing source files")
 		return
 	}
-	if len(module.properties.Namespace) == 0 {
-		ctx.PropertyErrorf("namespace", "missing namespace property")
+	if len(module.properties.Package) == 0 {
+		ctx.PropertyErrorf("package", "missing package property")
 	}
 
-	// Add a dependency on the device_config_value_sets defined in
-	// RELEASE_DEVICE_CONFIG_VALUE_SETS, and add any device_config_values that
-	// match our namespace.
-	valuesFromConfig := ctx.Config().ReleaseDeviceConfigValueSets()
+	// Add a dependency on the aconfig_value_sets defined in
+	// RELEASE_ACONFIG_VALUE_SETS, and add any aconfig_values that
+	// match our package.
+	valuesFromConfig := ctx.Config().ReleaseAconfigValueSets()
 	ctx.AddDependency(ctx.Module(), implicitValuesTag, valuesFromConfig...)
 }
 
-func (module *DefinitionsModule) OutputFiles(tag string) (android.Paths, error) {
+func (module *DeclarationsModule) OutputFiles(tag string) (android.Paths, error) {
 	switch tag {
 	case "":
 		// The default output of this module is the intermediates format, which is
@@ -83,7 +83,7 @@ func (module *DefinitionsModule) OutputFiles(tag string) (android.Paths, error) 
 		// correctly.
 		return []android.Path{module.intermediatePath}, nil
 	default:
-		return nil, fmt.Errorf("unsupported device_config_definitions module reference tag %q", tag)
+		return nil, fmt.Errorf("unsupported aconfig_declarations module reference tag %q", tag)
 	}
 }
 
@@ -96,23 +96,23 @@ func joinAndPrefix(prefix string, values []string) string {
 	return sb.String()
 }
 
-// Provider published by device_config_value_set
-type definitionsProviderData struct {
-	namespace        string
-	intermediatePath android.WritablePath
+// Provider published by aconfig_value_set
+type declarationsProviderData struct {
+	Package          string
+	IntermediatePath android.WritablePath
 }
 
-var definitionsProviderKey = blueprint.NewProvider(definitionsProviderData{})
+var declarationsProviderKey = blueprint.NewProvider(declarationsProviderData{})
 
-func (module *DefinitionsModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	// Get the values that came from the global RELEASE_DEVICE_CONFIG_VALUE_SETS flag
+func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	// Get the values that came from the global RELEASE_ACONFIG_VALUE_SETS flag
 	ctx.VisitDirectDeps(func(dep android.Module) {
 		if !ctx.OtherModuleHasProvider(dep, valueSetProviderKey) {
 			// Other modules get injected as dependencies too, for example the license modules
 			return
 		}
 		depData := ctx.OtherModuleProvider(dep, valueSetProviderKey).(valueSetProviderData)
-		valuesFiles, ok := depData.AvailableNamespaces[module.properties.Namespace]
+		valuesFiles, ok := depData.AvailablePackages[module.properties.Package]
 		if ok {
 			for _, path := range valuesFiles {
 				module.properties.Values = append(module.properties.Values, path.String())
@@ -127,17 +127,17 @@ func (module *DefinitionsModule) GenerateAndroidBuildActions(ctx android.ModuleC
 		Rule:        aconfigRule,
 		Inputs:      inputFiles,
 		Output:      intermediatePath,
-		Description: "device_config_definitions",
+		Description: "aconfig_declarations",
 		Args: map[string]string{
 			"release_version": ctx.Config().ReleaseVersion(),
-			"namespace":       module.properties.Namespace,
+			"package":         module.properties.Package,
 			"values":          joinAndPrefix(" --values ", module.properties.Values),
 		},
 	})
 
-	ctx.SetProvider(definitionsProviderKey, definitionsProviderData{
-		namespace:        module.properties.Namespace,
-		intermediatePath: intermediatePath,
+	ctx.SetProvider(declarationsProviderKey, declarationsProviderData{
+		Package:          module.properties.Package,
+		IntermediatePath: intermediatePath,
 	})
 
 }

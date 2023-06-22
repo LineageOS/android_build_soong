@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package device_config
+package aconfig
 
 import (
 	"android/soong/android"
@@ -20,13 +20,13 @@ import (
 )
 
 var (
-	pctx = android.NewPackageContext("android/soong/device_config")
+	pctx = android.NewPackageContext("android/soong/aconfig")
 
-	// For device_config_definitions: Generate cache file
+	// For aconfig_declarations: Generate cache file
 	aconfigRule = pctx.AndroidStaticRule("aconfig",
 		blueprint.RuleParams{
 			Command: `${aconfig} create-cache` +
-				` --package ${namespace}` +
+				` --package ${package}` +
 				` --declarations ${in}` +
 				` ${values}` +
 				` --cache ${out}.tmp` +
@@ -36,9 +36,9 @@ var (
 				"${aconfig}",
 			},
 			Restat: true,
-		}, "release_version", "namespace", "values")
+		}, "release_version", "package", "values")
 
-	// For java_device_config_definitions_library: Generate java file
+	// For java_aconfig_library: Generate java file
 	srcJarRule = pctx.AndroidStaticRule("aconfig_srcjar",
 		blueprint.RuleParams{
 			Command: `rm -rf ${out}.tmp` +
@@ -63,8 +63,8 @@ func init() {
 }
 
 func registerBuildComponents(ctx android.RegistrationContext) {
-	ctx.RegisterModuleType("device_config_definitions", DefinitionsFactory)
-	ctx.RegisterModuleType("device_config_values", ValuesFactory)
-	ctx.RegisterModuleType("device_config_value_set", ValueSetFactory)
-	ctx.RegisterModuleType("java_device_config_definitions_library", JavaDefinitionsLibraryFactory)
+	ctx.RegisterModuleType("aconfig_declarations", DeclarationsFactory)
+	ctx.RegisterModuleType("aconfig_values", ValuesFactory)
+	ctx.RegisterModuleType("aconfig_value_set", ValueSetFactory)
+	ctx.RegisterModuleType("java_aconfig_library", JavaDeclarationsLibraryFactory)
 }
