@@ -239,7 +239,9 @@ func createUncompressDexRules() []Rule {
 func createInitFirstStageRules() []Rule {
 	return []Rule{
 		NeverAllow().
+			Without("name", "init_first_stage_defaults").
 			Without("name", "init_first_stage").
+			Without("name", "init_first_stage.microdroid").
 			With("install_in_root", "true").
 			Because("install_in_root is only for init_first_stage."),
 	}
