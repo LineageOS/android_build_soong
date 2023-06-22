@@ -42,6 +42,16 @@ func Concat[T any](s1, s2 []T) []T {
 	return res
 }
 
+// JoinPathsWithPrefix converts the paths to strings, prefixes them
+// with prefix and then joins them separated by " ".
+func JoinPathsWithPrefix(paths []Path, prefix string) string {
+	strs := make([]string, len(paths))
+	for i := range paths {
+		strs[i] = paths[i].String()
+	}
+	return JoinWithPrefixAndSeparator(strs, prefix, " ")
+}
+
 // JoinWithPrefix prepends the prefix to each string in the list and
 // returns them joined together with " " as separator.
 func JoinWithPrefix(strs []string, prefix string) string {
