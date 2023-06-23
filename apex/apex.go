@@ -79,7 +79,7 @@ func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
 	ctx.BottomUp("mark_platform_availability", markPlatformAvailability).Parallel()
 	ctx.BottomUp("apex", apexMutator).Parallel()
 	ctx.BottomUp("apex_directly_in_any", apexDirectlyInAnyMutator).Parallel()
-	ctx.BottomUp("apex_flattened", apexFlattenedMutator).Parallel()
+	ctx.BottomUp("apex_packaging", apexPackagingMutator).Parallel()
 	ctx.BottomUp("apex_dcla_deps", apexDCLADepsMutator).Parallel()
 	// Register after apex_info mutator so that it can use ApexVariationName
 	ctx.TopDown("apex_strict_updatability_lint", apexStrictUpdatibilityLintMutator).Parallel()
@@ -216,9 +216,7 @@ type apexBundleProperties struct {
 
 	HideFromMake bool `blueprint:"mutated"`
 
-	// Internal package method for this APEX. When payload_type is image, this can be either
-	// imageApex or flattenedApex depending on Config.FlattenApex(). When payload_type is zip,
-	// this becomes zipApex.
+	// Internal package method for this APEX.
 	ApexType apexPackaging `blueprint:"mutated"`
 
 	// Name that dependencies can specify in their apex_available properties to refer to this module.
@@ -427,7 +425,7 @@ type apexBundle struct {
 	// one gets installed to the device.
 	primaryApexType bool
 
-	// Suffix of module name in Android.mk ".flattened", ".apex", ".zipapex", or ""
+	// Suffix of module name in Android.mk ".apex", ".zipapex", or ""
 	suffix string
 
 	// File system type of apex_payload.img
@@ -535,8 +533,7 @@ var (
 // apexFile represents a file in an APEX bundle. This is created during the first half of
 // GenerateAndroidBuildActions by traversing the dependencies of the APEX. Then in the second half
 // of the function, this is used to create commands that copies the files into a staging directory,
-// where they are packaged into the APEX file. This struct is also used for creating Make modules
-// for each of the files in case when the APEX is flattened.
+// where they are packaged into the APEX file.
 type apexFile struct {
 	// buildFile is put in the installDir inside the APEX.
 	builtFile  android.Path
@@ -1367,12 +1364,8 @@ const (
 	// zipApex is a packaging method where contents are directly included in the zip container.
 	// This is used for host-side testing - because the contents are easily accessible by
 	// unzipping the container.
+	// TODO(b/279835185) deprecate zipApex
 	zipApex
-
-	// flattendApex is a packaging method where contents are not included in the APEX file, but
-	// installed to /apex/<apexname> directory on the device. This packaging method is used for
-	// old devices where the filesystem-based APEX file can't be supported.
-	flattenedApex
 )
 
 const (
@@ -1380,12 +1373,10 @@ const (
 	imageApexSuffix  = ".apex"
 	imageCapexSuffix = ".capex"
 	zipApexSuffix    = ".zipapex"
-	flattenedSuffix  = ".flattened"
 
 	// variant names each of which is for a packaging method
-	imageApexType     = "image"
-	zipApexType       = "zip"
-	flattenedApexType = "flattened"
+	imageApexType = "image"
+	zipApexType   = "zip"
 
 	ext4FsType  = "ext4"
 	f2fsFsType  = "f2fs"
@@ -1415,9 +1406,8 @@ func (a apexPackaging) name() string {
 	}
 }
 
-// apexFlattenedMutator creates one or more variations each of which is for a packaging method.
-// TODO(jiyong): give a better name to this mutator
-func apexFlattenedMutator(mctx android.BottomUpMutatorContext) {
+// apexPackagingMutator creates one or more variations each of which is for a packaging method.
+func apexPackagingMutator(mctx android.BottomUpMutatorContext) {
 	if !mctx.Module().Enabled() {
 		return
 	}
@@ -1425,19 +1415,11 @@ func apexFlattenedMutator(mctx android.BottomUpMutatorContext) {
 		var variants []string
 		switch proptools.StringDefault(ab.properties.Payload_type, "image") {
 		case "image":
-			// This is the normal case. Note that both image and flattend APEXes are
-			// created. The image type is installed to the system partition, while the
-			// flattened APEX is (optionally) installed to the system_ext partition.
-			// This is mostly for GSI which has to support wide range of devices. If GSI
-			// is installed on a newer (APEX-capable) device, the image APEX in the
-			// system will be used. However, if the same GSI is installed on an old
-			// device which can't support image APEX, the flattened APEX in the
-			// system_ext partion (which still is part of GSI) is used instead.
-			variants = append(variants, imageApexType, flattenedApexType)
+			variants = append(variants, imageApexType)
 		case "zip":
 			variants = append(variants, zipApexType)
 		case "both":
-			variants = append(variants, imageApexType, zipApexType, flattenedApexType)
+			variants = append(variants, imageApexType, zipApexType)
 		default:
 			mctx.PropertyErrorf("payload_type", "%q is not one of \"image\", \"zip\", or \"both\".", *ab.properties.Payload_type)
 			return
@@ -1451,18 +1433,12 @@ func apexFlattenedMutator(mctx android.BottomUpMutatorContext) {
 				modules[i].(*apexBundle).properties.ApexType = imageApex
 			case zipApexType:
 				modules[i].(*apexBundle).properties.ApexType = zipApex
-			case flattenedApexType:
-				modules[i].(*apexBundle).properties.ApexType = flattenedApex
-				// See the comment above for why system_ext.
-				if !mctx.Config().FlattenApex() && ab.Platform() {
-					modules[i].(*apexBundle).MakeAsSystemExt()
-				}
 			}
 		}
 	} else if _, ok := mctx.Module().(*OverrideApex); ok {
 		// payload_type is forcibly overridden to "image"
 		// TODO(jiyong): is this the right decision?
-		mctx.CreateVariations(imageApexType, flattenedApexType)
+		mctx.CreateVariations(imageApexType)
 	}
 }
 
@@ -1497,9 +1473,6 @@ func (a *apexBundle) OutputFiles(tag string) (android.Paths, error) {
 var _ multitree.Exportable = (*apexBundle)(nil)
 
 func (a *apexBundle) Exportable() bool {
-	if a.properties.ApexType == flattenedApex {
-		return false
-	}
 	return true
 }
 
@@ -2143,15 +2116,10 @@ func (a *apexBundle) setPayloadFsType(ctx android.ModuleContext) {
 
 func (a *apexBundle) setApexTypeAndSuffix(ctx android.ModuleContext) {
 	// Set suffix and primaryApexType depending on the ApexType
-	buildFlattenedAsDefault := ctx.Config().FlattenApex()
 	switch a.properties.ApexType {
 	case imageApex:
-		if buildFlattenedAsDefault {
-			a.suffix = imageApexSuffix
-		} else {
-			a.suffix = ""
-			a.primaryApexType = true
-		}
+		a.suffix = ""
+		a.primaryApexType = true
 	case zipApex:
 		if proptools.String(a.properties.Payload_type) == "zip" {
 			a.suffix = ""
@@ -2159,17 +2127,10 @@ func (a *apexBundle) setApexTypeAndSuffix(ctx android.ModuleContext) {
 		} else {
 			a.suffix = zipApexSuffix
 		}
-	case flattenedApex:
-		if buildFlattenedAsDefault {
-			a.suffix = ""
-			a.primaryApexType = true
-		} else {
-			a.suffix = flattenedSuffix
-		}
 	}
 }
 
-func (a apexBundle) isCompressable() bool {
+func (a *apexBundle) isCompressable() bool {
 	return proptools.BoolDefault(a.overridableProperties.Compressible, false) && !a.testApex
 }
 
@@ -2668,32 +2629,9 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// 4) generate the build rules to create the APEX. This is done in builder.go.
 	a.buildManifest(ctx, vctx.provideNativeLibs, vctx.requireNativeLibs)
-	if a.properties.ApexType == flattenedApex {
-		a.buildFlattenedApex(ctx)
-	} else {
-		a.buildUnflattenedApex(ctx)
-	}
+	a.buildApex(ctx)
 	a.buildApexDependencyInfo(ctx)
 	a.buildLintReports(ctx)
-
-	// Append meta-files to the filesInfo list so that they are reflected in Android.mk as well.
-	if a.installable() {
-		// For flattened APEX, make sure that APEX manifest and apex_pubkey are also copied
-		// along with other ordinary files. (Note that this is done by apexer for
-		// non-flattened APEXes)
-		a.filesInfo = append(a.filesInfo, newApexFile(ctx, a.manifestPbOut, "apex_manifest.pb", ".", etc, nil))
-
-		// Place the public key as apex_pubkey. This is also done by apexer for
-		// non-flattened APEXes case.
-		// TODO(jiyong): Why do we need this CP rule?
-		copiedPubkey := android.PathForModuleOut(ctx, "apex_pubkey")
-		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.Cp,
-			Input:  a.publicKeyFile,
-			Output: copiedPubkey,
-		})
-		a.filesInfo = append(a.filesInfo, newApexFile(ctx, copiedPubkey, "apex_pubkey", ".", etc, nil))
-	}
 }
 
 // apexBootclasspathFragmentFiles returns the list of apexFile structures defining the files that
