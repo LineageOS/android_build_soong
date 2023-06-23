@@ -429,6 +429,7 @@ var (
 		// e.g. ERROR: Analysis of target '@soong_injection//mixed_builds:buildroot' failed
 		"external/bazelbuild-rules_android":/* recursive = */ true,
 		"external/bazelbuild-rules_license":/* recursive = */ true,
+		"external/bazelbuild-rules_go":/* recursive = */ true,
 		"external/bazelbuild-kotlin-rules":/* recursive = */ true,
 		"external/bazel-skylib":/* recursive = */ true,
 		"external/protobuf":/* recursive = */ false,
