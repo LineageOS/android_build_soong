@@ -647,7 +647,7 @@ func (s StubDexJarsByModule) addStubDexJar(ctx android.ModuleContext, module and
 	// public version is provided by the art.module.public.api module. In those cases it is necessary
 	// to treat all those modules as they were the same name, otherwise it will result in multiple
 	// definitions of a single class being passed to hidden API processing which will cause an error.
-	if name == scope.nonUpdatablePrebuiltModule || name == android.JavaApiLibraryName(ctx.Config(), scope.nonUpdatableSourceModule) {
+	if name == scope.nonUpdatablePrebuiltModule || name == scope.nonUpdatableSourceModule {
 		// Treat all *android-non-updatable* modules as if they were part of an android-non-updatable
 		// java_sdk_library.
 		// TODO(b/192067200): Remove once android-non-updatable is a java_sdk_library or equivalent.

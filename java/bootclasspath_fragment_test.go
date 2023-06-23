@@ -432,39 +432,3 @@ func TestBootclasspathFragment_Test(t *testing.T) {
 	fragment = result.Module("a_test_fragment", "android_common").(*BootclasspathFragmentModule)
 	android.AssertBoolEquals(t, "is a test fragment by type", true, fragment.isTestFragment())
 }
-
-func TestBootclassFragment_LinkTextStub(t *testing.T) {
-	result := android.GroupFixturePreparers(
-		prepareForJavaTest,
-		prepareForTestWithBootclasspathFragment,
-		PrepareForTestWithJavaSdkLibraryFiles,
-		FixtureWithLastReleaseApis("mysdklibrary"),
-		android.FixtureModifyConfig(func(config android.Config) {
-			config.SetBuildFromTextStub(true)
-		}),
-	).RunTestWithBp(t, `
-        bootclasspath_fragment {
-            name: "myfragment",
-            contents: ["mysdklibrary"],
-            hidden_api: {split_packages: ["*"]},
-            additional_stubs: [
-                "android-non-updatable",
-            ],
-        }
-        java_sdk_library {
-            name: "mysdklibrary",
-            srcs: ["a.java"],
-            shared_library: false,
-            public: {enabled: true},
-            system: {enabled: true},
-        }
-    `)
-
-	fragment := result.ModuleForTests("myfragment", "android_common")
-	ruleCommand := fragment.Rule("modularHiddenAPIStubFlagsFile").RuleParams.Command
-	android.AssertStringDoesContain(t, "Command expected to contain library as dependency stub dex",
-		ruleCommand, "--dependency-stub-dex=out/soong/.intermediates/default/java/android-non-updatable.stubs.module_lib.from-text/android_common/dex/android-non-updatable.stubs.module_lib.from-text.jar")
-	android.AssertStringDoesNotContain(t,
-		"Command not expected to contain multiple api_library as dependency stub dex", ruleCommand,
-		"--dependency-stub-dex=out/soong/.intermediates/default/java/android-non-updatable.stubs.from-text/android_common/dex/android-non-updatable.stubs.from-text.jar")
-}
