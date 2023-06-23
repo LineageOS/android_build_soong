@@ -358,7 +358,7 @@ var neverallowTests = []struct {
 			`),
 		},
 		expectedErrors: []string{
-			`exclude_static_libs property is only allowed for java modules defined in build/soong`,
+			`exclude_static_libs property is only allowed for java modules defined in build/soong, libcore, and frameworks/base/api`,
 		},
 	},
 }
