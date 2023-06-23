@@ -1525,10 +1525,10 @@ type ModuleBase struct {
 
 	noAddressSanitizer   bool
 	installFiles         InstallPaths
-	installFilesDepSet   *installPathsDepSet
+	installFilesDepSet   *DepSet[InstallPath]
 	checkbuildFiles      Paths
 	packagingSpecs       []PackagingSpec
-	packagingSpecsDepSet *packagingSpecsDepSet
+	packagingSpecsDepSet *DepSet[PackagingSpec]
 	// katiInstalls tracks the install rules that were created by Soong but are being exported
 	// to Make to convert to ninja rules so that Make can add additional dependencies.
 	katiInstalls katiInstalls
@@ -2108,9 +2108,9 @@ func (m *ModuleBase) EffectiveLicenseFiles() Paths {
 
 // computeInstallDeps finds the installed paths of all dependencies that have a dependency
 // tag that is annotated as needing installation via the isInstallDepNeeded method.
-func (m *ModuleBase) computeInstallDeps(ctx ModuleContext) ([]*installPathsDepSet, []*packagingSpecsDepSet) {
-	var installDeps []*installPathsDepSet
-	var packagingSpecs []*packagingSpecsDepSet
+func (m *ModuleBase) computeInstallDeps(ctx ModuleContext) ([]*DepSet[InstallPath], []*DepSet[PackagingSpec]) {
+	var installDeps []*DepSet[InstallPath]
+	var packagingSpecs []*DepSet[PackagingSpec]
 	ctx.VisitDirectDeps(func(dep Module) {
 		if isInstallDepNeeded(dep, ctx.OtherModuleDependencyTag(dep)) {
 			// Installation is still handled by Make, so anything hidden from Make is not
@@ -2405,7 +2405,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	// set m.installFilesDepSet to only the transitive dependencies to be used as the dependencies
 	// of installed files of this module.  It will be replaced by a depset including the installed
 	// files of this module at the end for use by modules that depend on this one.
-	m.installFilesDepSet = newInstallPathsDepSet(nil, dependencyInstallFiles)
+	m.installFilesDepSet = NewDepSet[InstallPath](TOPOLOGICAL, nil, dependencyInstallFiles)
 
 	// Temporarily continue to call blueprintCtx.GetMissingDependencies() to maintain the previous behavior of never
 	// reporting missing dependency errors in Blueprint when AllowMissingDependencies == true.
@@ -2512,8 +2512,8 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		}
 	}
 
-	m.installFilesDepSet = newInstallPathsDepSet(m.installFiles, dependencyInstallFiles)
-	m.packagingSpecsDepSet = newPackagingSpecsDepSet(m.packagingSpecs, dependencyPackagingSpecs)
+	m.installFilesDepSet = NewDepSet[InstallPath](TOPOLOGICAL, m.installFiles, dependencyInstallFiles)
+	m.packagingSpecsDepSet = NewDepSet[PackagingSpec](TOPOLOGICAL, m.packagingSpecs, dependencyPackagingSpecs)
 
 	buildLicenseMetadata(ctx, m.licenseMetadataFile)
 
@@ -3394,7 +3394,7 @@ func (m *moduleContext) installFile(installPath InstallPath, name string, srcPat
 	m.module.base().hooks.runInstallHooks(m, srcPath, fullInstallPath, false)
 
 	if !m.skipInstall() {
-		deps = append(deps, m.module.base().installFilesDepSet.ToList().Paths()...)
+		deps = append(deps, InstallPaths(m.module.base().installFilesDepSet.ToList()).Paths()...)
 
 		var implicitDeps, orderOnlyDeps Paths
 
@@ -3967,26 +3967,6 @@ type IdeInfo struct {
 func CheckBlueprintSyntax(ctx BaseModuleContext, filename string, contents string) []error {
 	bpctx := ctx.blueprintBaseModuleContext()
 	return blueprint.CheckBlueprintSyntax(bpctx.ModuleFactories(), filename, contents)
-}
-
-// installPathsDepSet is a thin type-safe wrapper around the generic depSet.  It always uses
-// topological order.
-type installPathsDepSet struct {
-	depSet
-}
-
-// newInstallPathsDepSet returns an immutable packagingSpecsDepSet with the given direct and
-// transitive contents.
-func newInstallPathsDepSet(direct InstallPaths, transitive []*installPathsDepSet) *installPathsDepSet {
-	return &installPathsDepSet{*newDepSet(TOPOLOGICAL, direct, transitive)}
-}
-
-// ToList returns the installPathsDepSet flattened to a list in topological order.
-func (d *installPathsDepSet) ToList() InstallPaths {
-	if d == nil {
-		return nil
-	}
-	return d.depSet.ToList().(InstallPaths)
 }
 
 func registerSoongConfigTraceMutator(ctx RegisterMutatorsContext) {

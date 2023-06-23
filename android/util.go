@@ -284,38 +284,74 @@ func FirstUniqueStrings(list []string) []string {
 	list = CopyOf(list)
 	// 128 was chosen based on BenchmarkFirstUniqueStrings results.
 	if len(list) > 128 {
-		return firstUniqueStringsMap(list)
+		return firstUnique(list)
 	}
-	return firstUniqueStringsList(list)
+	return firstUnique(list)
 }
 
-func firstUniqueStringsList(list []string) []string {
-	k := 0
+// firstUnique returns all unique elements of a slice, keeping the first copy of each.  It
+// modifies the slice contents in place, and returns a subslice of the original slice.
+func firstUnique[T comparable](slice []T) []T {
+	// 4 was chosen based on Benchmark_firstUnique results.
+	if len(slice) > 4 {
+		return firstUniqueMap(slice)
+	}
+	return firstUniqueList(slice)
+}
+
+// firstUniqueList is an implementation of firstUnique using an O(N^2) list comparison to look for
+// duplicates.
+func firstUniqueList[T any](in []T) []T {
+	writeIndex := 0
 outer:
-	for i := 0; i < len(list); i++ {
-		for j := 0; j < k; j++ {
-			if list[i] == list[j] {
+	for readIndex := 0; readIndex < len(in); readIndex++ {
+		for compareIndex := 0; compareIndex < writeIndex; compareIndex++ {
+			if interface{}(in[readIndex]) == interface{}(in[compareIndex]) {
+				// The value at readIndex already exists somewhere in the output region
+				// of the slice before writeIndex, skip it.
 				continue outer
 			}
 		}
-		list[k] = list[i]
-		k++
+		if readIndex != writeIndex {
+			in[writeIndex] = in[readIndex]
+		}
+		writeIndex++
 	}
-	return list[:k]
+	return in[0:writeIndex]
 }
 
-func firstUniqueStringsMap(list []string) []string {
-	k := 0
-	seen := make(map[string]bool, len(list))
-	for i := 0; i < len(list); i++ {
-		if seen[list[i]] {
+// firstUniqueMap is an implementation of firstUnique using an O(N) hash set lookup to look for
+// duplicates.
+func firstUniqueMap[T comparable](in []T) []T {
+	writeIndex := 0
+	seen := make(map[T]bool, len(in))
+	for readIndex := 0; readIndex < len(in); readIndex++ {
+		if _, exists := seen[in[readIndex]]; exists {
 			continue
 		}
-		seen[list[i]] = true
-		list[k] = list[i]
-		k++
+		seen[in[readIndex]] = true
+		if readIndex != writeIndex {
+			in[writeIndex] = in[readIndex]
+		}
+		writeIndex++
 	}
-	return list[:k]
+	return in[0:writeIndex]
+}
+
+// reverseSliceInPlace reverses the elements of a slice in place.
+func reverseSliceInPlace[T any](in []T) {
+	for i, j := 0, len(in)-1; i < j; i, j = i+1, j-1 {
+		in[i], in[j] = in[j], in[i]
+	}
+}
+
+// reverseSlice returns a copy of a slice in reverse order.
+func reverseSlice[T any](in []T) []T {
+	out := make([]T, len(in))
+	for i := 0; i < len(in); i++ {
+		out[i] = in[len(in)-1-i]
+	}
+	return out
 }
 
 // LastUniqueStrings returns all unique elements of a slice of strings, keeping the last copy of

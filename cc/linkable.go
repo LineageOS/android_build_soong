@@ -345,7 +345,7 @@ type SharedLibraryInfo struct {
 	TableOfContents android.OptionalPath
 
 	// should be obtained from static analogue
-	TransitiveStaticLibrariesForOrdering *android.DepSet
+	TransitiveStaticLibrariesForOrdering *android.DepSet[android.Path]
 }
 
 var SharedLibraryInfoProvider = blueprint.NewProvider(SharedLibraryInfo{})
@@ -387,7 +387,7 @@ type StaticLibraryInfo struct {
 	// This isn't the actual transitive DepSet, shared library dependencies have been
 	// converted into static library analogues.  It is only used to order the static
 	// library dependencies that were specified for the current module.
-	TransitiveStaticLibrariesForOrdering *android.DepSet
+	TransitiveStaticLibrariesForOrdering *android.DepSet[android.Path]
 }
 
 var StaticLibraryInfoProvider = blueprint.NewProvider(StaticLibraryInfo{})
