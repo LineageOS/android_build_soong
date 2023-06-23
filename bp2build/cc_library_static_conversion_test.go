@@ -2185,3 +2185,33 @@ cc_library_static {
 		},
 	})
 }
+
+func TestCCLibraryStaticRscriptSrc(t *testing.T) {
+	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
+		Description: `cc_library_static with rscript files in sources`,
+		Blueprint: `
+cc_library_static{
+    name : "foo",
+    srcs : [
+        "ccSrc.cc",
+        "rsSrc.rscript",
+    ],
+    include_build_directory: false,
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("rscript_to_cpp", "foo_renderscript", AttrNameToString{
+				"srcs": `["rsSrc.rscript"]`,
+			}),
+			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+				"absolute_includes": `[
+        "frameworks/rs",
+        "frameworks/rs/cpp",
+    ]`,
+				"local_includes": `["."]`,
+				"srcs": `[
+        "ccSrc.cc",
+        "foo_renderscript",
+    ]`,
+			})}})
+}

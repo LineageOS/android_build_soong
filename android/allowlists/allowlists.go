@@ -131,6 +131,7 @@ var (
 		"external/brotli":                        Bp2BuildDefaultTrue,
 		"external/bsdiff":                        Bp2BuildDefaultTrueRecursively,
 		"external/bzip2":                         Bp2BuildDefaultTrueRecursively,
+		"external/clang/lib":                     Bp2BuildDefaultTrue,
 		"external/conscrypt":                     Bp2BuildDefaultTrue,
 		"external/e2fsprogs":                     Bp2BuildDefaultTrueRecursively,
 		"external/eigen":                         Bp2BuildDefaultTrueRecursively,
@@ -796,6 +797,13 @@ var (
 
 		// for platform_compat_config
 		"process-compat-config",
+
+		// cc_* modules with rscript srcs
+		"rstest-latency",
+		"libRScpp_static",
+		"rs-headers",
+		"rs_script_api",
+		"libRSDispatch",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
