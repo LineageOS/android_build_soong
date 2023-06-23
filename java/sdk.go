@@ -148,7 +148,7 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext)
 	toModule := func(module string, aidl android.Path) sdkDep {
 		// Select the kind of system modules needed for the sdk version.
 		systemModulesKind := systemModuleKind(sdkVersion.Kind, android.FutureApiLevel)
-		systemModules := android.JavaApiLibraryName(ctx.Config(), fmt.Sprintf("core-%s-stubs-system-modules", systemModulesKind))
+		systemModules := fmt.Sprintf("core-%s-stubs-system-modules", systemModulesKind)
 		return sdkDep{
 			useModule:          true,
 			bootclasspath:      []string{module, config.DefaultLambdaStubsLibrary},
@@ -198,7 +198,7 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext)
 		return sdkDep{
 			useModule:        true,
 			bootclasspath:    []string{android.SdkCore.DefaultJavaLibraryName(), config.DefaultLambdaStubsLibrary},
-			systemModules:    android.JavaApiLibraryName(ctx.Config(), "core-public-stubs-system-modules"),
+			systemModules:    "core-public-stubs-system-modules",
 			noFrameworksLibs: true,
 		}
 	case android.SdkModule:
