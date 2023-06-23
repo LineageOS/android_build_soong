@@ -892,7 +892,7 @@ func (handler *ccLibraryBazelHandler) generateStaticBazelBuildActions(ctx androi
 
 		// TODO(b/190524881): Include transitive static libraries in this provider to support
 		// static libraries with deps.
-		TransitiveStaticLibrariesForOrdering: android.NewDepSetBuilder(android.TOPOLOGICAL).
+		TransitiveStaticLibrariesForOrdering: android.NewDepSetBuilder[android.Path](android.TOPOLOGICAL).
 			Direct(outputFilePath).
 			Build(),
 	})
@@ -1649,7 +1649,7 @@ func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 			Objects:                      library.objects,
 			WholeStaticLibsFromPrebuilts: library.wholeStaticLibsFromPrebuilts,
 
-			TransitiveStaticLibrariesForOrdering: android.NewDepSetBuilder(android.TOPOLOGICAL).
+			TransitiveStaticLibrariesForOrdering: android.NewDepSetBuilder[android.Path](android.TOPOLOGICAL).
 				Direct(outputFile).
 				Transitive(deps.TranstiveStaticLibrariesForOrdering).
 				Build(),
@@ -1794,7 +1794,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	library.coverageOutputFile = transformCoverageFilesToZip(ctx, objs, library.getLibName(ctx))
 	library.linkSAbiDumpFiles(ctx, objs, fileName, unstrippedOutputFile)
 
-	var transitiveStaticLibrariesForOrdering *android.DepSet
+	var transitiveStaticLibrariesForOrdering *android.DepSet[android.Path]
 	if static := ctx.GetDirectDepsWithTag(staticVariantTag); len(static) > 0 {
 		s := ctx.OtherModuleProvider(static[0], StaticLibraryInfoProvider).(StaticLibraryInfo)
 		transitiveStaticLibrariesForOrdering = s.TransitiveStaticLibrariesForOrdering

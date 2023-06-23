@@ -231,10 +231,10 @@ type JavaInfo struct {
 	HeaderJars android.Paths
 
 	// set of header jars for all transitive libs deps
-	TransitiveLibsHeaderJars *android.DepSet
+	TransitiveLibsHeaderJars *android.DepSet[android.Path]
 
 	// set of header jars for all transitive static libs deps
-	TransitiveStaticLibsHeaderJars *android.DepSet
+	TransitiveStaticLibsHeaderJars *android.DepSet[android.Path]
 
 	// ImplementationAndResourceJars is a list of jars that contain the implementations of classes
 	// in the module as well as any resources included in the module.

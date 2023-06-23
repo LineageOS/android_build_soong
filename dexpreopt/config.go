@@ -321,7 +321,7 @@ func getGlobalConfigRaw(ctx android.PathContext) globalConfigAndRaw {
 				missingDepsCtx.AddMissingDependencies([]string{err.Error()})
 			}
 		} else {
-			android.ReportPathErrorf(ctx, "%w", err)
+			android.ReportPathErrorf(ctx, "%s", err)
 		}
 	}
 
