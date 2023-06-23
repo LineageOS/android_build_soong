@@ -1514,7 +1514,7 @@ func (c *configImpl) GoogleProdCredsExist() bool {
 	if googleProdCredsExistCache {
 		return googleProdCredsExistCache
 	}
-	if _, err := exec.Command("/usr/bin/gcertstatus").Output(); err != nil {
+	if _, err := exec.Command("/usr/bin/gcertstatus", "-nocheck_ssh").Output(); err != nil {
 		return false
 	}
 	googleProdCredsExistCache = true
