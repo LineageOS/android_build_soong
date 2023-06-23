@@ -3206,7 +3206,7 @@ func TestAndroidMk_VendorApexRequired(t *testing.T) {
 	var builder strings.Builder
 	data.Custom(&builder, name, prefix, "", data)
 	androidMk := builder.String()
-	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES := libc++.vendor.myapex:64 mylib.vendor.myapex:64 apex_manifest.pb.myapex apex_pubkey.myapex libc.vendor libm.vendor libdl.vendor\n")
+	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES := libc++.vendor.myapex:64 mylib.vendor.myapex:64 libc.vendor libm.vendor libdl.vendor\n")
 }
 
 func TestAndroidMkWritesCommonProperties(t *testing.T) {
@@ -4934,17 +4934,17 @@ func TestApexWithShBinary(t *testing.T) {
 
 func TestApexInVariousPartition(t *testing.T) {
 	testcases := []struct {
-		propName, parition, flattenedPartition string
+		propName, partition string
 	}{
-		{"", "system", "system_ext"},
-		{"product_specific: true", "product", "product"},
-		{"soc_specific: true", "vendor", "vendor"},
-		{"proprietary: true", "vendor", "vendor"},
-		{"vendor: true", "vendor", "vendor"},
-		{"system_ext_specific: true", "system_ext", "system_ext"},
+		{"", "system"},
+		{"product_specific: true", "product"},
+		{"soc_specific: true", "vendor"},
+		{"proprietary: true", "vendor"},
+		{"vendor: true", "vendor"},
+		{"system_ext_specific: true", "system_ext"},
 	}
 	for _, tc := range testcases {
-		t.Run(tc.propName+":"+tc.parition, func(t *testing.T) {
+		t.Run(tc.propName+":"+tc.partition, func(t *testing.T) {
 			ctx := testApex(t, `
 				apex {
 					name: "myapex",
@@ -4961,15 +4961,8 @@ func TestApexInVariousPartition(t *testing.T) {
 			`)
 
 			apex := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
-			expected := "out/soong/target/product/test_device/" + tc.parition + "/apex"
+			expected := "out/soong/target/product/test_device/" + tc.partition + "/apex"
 			actual := apex.installDir.RelativeToTop().String()
-			if actual != expected {
-				t.Errorf("wrong install path. expected %q. actual %q", expected, actual)
-			}
-
-			flattened := ctx.ModuleForTests("myapex", "android_common_myapex_flattened").Module().(*apexBundle)
-			expected = "out/soong/target/product/test_device/" + tc.flattenedPartition + "/apex"
-			actual = flattened.installDir.RelativeToTop().String()
 			if actual != expected {
 				t.Errorf("wrong install path. expected %q. actual %q", expected, actual)
 			}
@@ -6110,16 +6103,7 @@ func TestApexWithTests(t *testing.T) {
 	ensureContains(t, androidMk, "LOCAL_MODULE := mytest1.myapex\n")
 	ensureContains(t, androidMk, "LOCAL_MODULE := mytest2.myapex\n")
 	ensureContains(t, androidMk, "LOCAL_MODULE := mytest3.myapex\n")
-	ensureContains(t, androidMk, "LOCAL_MODULE := apex_manifest.pb.myapex\n")
-	ensureContains(t, androidMk, "LOCAL_MODULE := apex_pubkey.myapex\n")
 	ensureContains(t, androidMk, "LOCAL_MODULE := myapex\n")
-
-	flatBundle := ctx.ModuleForTests("myapex", "android_common_myapex_flattened").Module().(*apexBundle)
-	data = android.AndroidMkDataForTest(t, ctx, flatBundle)
-	data.Custom(&builder, name, prefix, "", data)
-	flatAndroidMk := builder.String()
-	ensureContainsOnce(t, flatAndroidMk, "LOCAL_TEST_DATA := :baz :bar/baz\n")
-	ensureContainsOnce(t, flatAndroidMk, "LOCAL_TEST_DATA := :testdata/baz\n")
 }
 
 func TestErrorsIfDepsAreNotEnabled(t *testing.T) {
@@ -7169,13 +7153,11 @@ func TestOverrideApex(t *testing.T) {
 	androidMk := builder.String()
 	ensureContains(t, androidMk, "LOCAL_MODULE := override_app.override_myapex")
 	ensureContains(t, androidMk, "LOCAL_MODULE := overrideBpf.o.override_myapex")
-	ensureContains(t, androidMk, "LOCAL_MODULE := apex_manifest.pb.override_myapex")
 	ensureContains(t, androidMk, "LOCAL_MODULE_STEM := override_myapex.apex")
 	ensureContains(t, androidMk, "LOCAL_OVERRIDES_MODULES := unknownapex myapex")
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := app.myapex")
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := bpf.myapex")
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := override_app.myapex")
-	ensureNotContains(t, androidMk, "LOCAL_MODULE := apex_manifest.pb.myapex")
 	ensureNotContains(t, androidMk, "LOCAL_MODULE_STEM := myapex.apex")
 }
 
@@ -7758,7 +7740,7 @@ func TestCarryRequiredModuleNames(t *testing.T) {
 	var builder strings.Builder
 	data.Custom(&builder, name, prefix, "", data)
 	androidMk := builder.String()
-	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES := mylib.myapex:64 apex_manifest.pb.myapex apex_pubkey.myapex a b\n")
+	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES := mylib.myapex:64 a b\n")
 	ensureContains(t, androidMk, "LOCAL_HOST_REQUIRED_MODULES := c d\n")
 	ensureContains(t, androidMk, "LOCAL_TARGET_REQUIRED_MODULES := e f\n")
 }
@@ -7966,7 +7948,7 @@ func TestSymlinksFromApexToSystemRequiredModuleNames(t *testing.T) {
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := prebuilt_myotherlib.myapex\n")
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := myotherlib.myapex\n")
 	// `myapex` should have `myotherlib` in its required line, not `prebuilt_myotherlib`
-	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES := mylib.myapex:64 myotherlib:64 apex_manifest.pb.myapex apex_pubkey.myapex\n")
+	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES := mylib.myapex:64 myotherlib:64\n")
 }
 
 func TestApexWithJniLibs(t *testing.T) {
@@ -9295,7 +9277,7 @@ func TestApexKeysTxt(t *testing.T) {
 
 	apexKeysText := ctx.SingletonForTests("apex_keys_text")
 	content := apexKeysText.MaybeDescription("apexkeys.txt").BuildParams.Args["content"]
-	ensureContains(t, content, `name="myapex.apex" public_key="vendor/foo/devkeys/testkey.avbpubkey" private_key="vendor/foo/devkeys/testkey.pem" container_certificate="vendor/foo/devkeys/test.x509.pem" container_private_key="vendor/foo/devkeys/test.pk8" partition="system_ext" sign_tool="sign_myapex"`)
+	ensureContains(t, content, `name="myapex.apex" public_key="vendor/foo/devkeys/testkey.avbpubkey" private_key="vendor/foo/devkeys/testkey.pem" container_certificate="vendor/foo/devkeys/test.x509.pem" container_private_key="vendor/foo/devkeys/test.pk8" partition="system" sign_tool="sign_myapex"`)
 }
 
 func TestApexKeysTxtOverrides(t *testing.T) {
@@ -9518,7 +9500,7 @@ func TestPreferredPrebuiltSharedLibDep(t *testing.T) {
 
 	// The make level dependency needs to be on otherlib - prebuilt_otherlib isn't
 	// a thing there.
-	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES := libc++:64 mylib.myapex:64 apex_manifest.pb.myapex apex_pubkey.myapex otherlib\n")
+	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES := libc++:64 mylib.myapex:64 otherlib\n")
 }
 
 func TestExcludeDependency(t *testing.T) {
@@ -9912,7 +9894,7 @@ func TestAndroidMk_DexpreoptBuiltInstalledForApex(t *testing.T) {
 	var builder strings.Builder
 	data.Custom(&builder, apexBundle.BaseModuleName(), "TARGET_", "", data)
 	androidMk := builder.String()
-	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES := foo.myapex apex_manifest.pb.myapex apex_pubkey.myapex foo-dexpreopt-arm64-apex@myapex@javalib@foo.jar@classes.odex foo-dexpreopt-arm64-apex@myapex@javalib@foo.jar@classes.vdex\n")
+	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES := foo.myapex foo-dexpreopt-arm64-apex@myapex@javalib@foo.jar@classes.odex foo-dexpreopt-arm64-apex@myapex@javalib@foo.jar@classes.vdex\n")
 }
 
 func TestAndroidMk_DexpreoptBuiltInstalledForApex_Prebuilt(t *testing.T) {
@@ -9988,7 +9970,7 @@ func TestAndroidMk_RequiredModules(t *testing.T) {
 	var builder strings.Builder
 	data.Custom(&builder, apexBundle.BaseModuleName(), "TARGET_", "", data)
 	androidMk := builder.String()
-	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES := foo.myapex apex_manifest.pb.myapex apex_pubkey.myapex otherapex")
+	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES := foo.myapex otherapex")
 }
 
 func TestAndroidMk_RequiredDeps(t *testing.T) {
@@ -10012,15 +9994,7 @@ func TestAndroidMk_RequiredDeps(t *testing.T) {
 	var builder strings.Builder
 	data.Custom(&builder, bundle.BaseModuleName(), "TARGET_", "", data)
 	androidMk := builder.String()
-	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES := apex_manifest.pb.myapex apex_pubkey.myapex foo\n")
-
-	flattenedBundle := ctx.ModuleForTests("myapex", "android_common_myapex_flattened").Module().(*apexBundle)
-	flattenedBundle.makeModulesToInstall = append(flattenedBundle.makeModulesToInstall, "foo")
-	flattenedData := android.AndroidMkDataForTest(t, ctx, flattenedBundle)
-	var flattenedBuilder strings.Builder
-	flattenedData.Custom(&flattenedBuilder, flattenedBundle.BaseModuleName(), "TARGET_", "", flattenedData)
-	flattenedAndroidMk := flattenedBuilder.String()
-	ensureContains(t, flattenedAndroidMk, "LOCAL_REQUIRED_MODULES := apex_manifest.pb.myapex.flattened apex_pubkey.myapex.flattened foo\n")
+	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES := foo\n")
 }
 
 func TestApexOutputFileProducer(t *testing.T) {
