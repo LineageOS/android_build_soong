@@ -1974,11 +1974,36 @@ func GetApexConfigKey(ctx android.BaseModuleContext) *android.ApexConfigKey {
 		apexKey := android.ApexConfigKey{
 			WithinApex:     true,
 			ApexSdkVersion: findApexSdkVersion(ctx, apexInfo).String(),
+			ApiDomain:      findApiDomain(apexInfo),
 		}
 		return &apexKey
 	}
 
 	return nil
+}
+
+// Returns the api domain of a module for an apexInfo group
+// Input:
+// ai.InApexModules: [com.android.foo, test_com.android.foo, com.google.android.foo]
+// Return:
+// com.android.foo
+
+// If a module is included in multiple api domains (collated by min_sdk_version), it will return
+// the first match. The other matches have the same build actions since they share a min_sdk_version, so returning
+// the first match is fine.
+func findApiDomain(ai android.ApexInfo) string {
+	// Remove any test apexes
+	matches, _ := android.FilterList(ai.InApexModules, ai.TestApexes)
+	// Remove any google apexes. Rely on naming convention.
+	pred := func(s string) bool { return !strings.HasPrefix(s, "com.google") }
+	matches = android.FilterListPred(matches, pred)
+	if len(matches) > 0 {
+		// Return the first match
+		return android.SortedUniqueStrings(matches)[0]
+	} else {
+		// No apex in the tree has a dependency on this module
+		return ""
+	}
 }
 
 func (c *Module) ProcessBazelQueryResponse(ctx android.ModuleContext) {
