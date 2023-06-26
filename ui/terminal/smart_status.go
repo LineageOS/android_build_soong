@@ -53,6 +53,13 @@ type smartStatusOutput struct {
 	done            chan bool
 	sigwinch        chan os.Signal
 	sigwinchHandled chan bool
+
+	// Once there is a failure, we stop printing command output so the error
+	// is easier to find
+	haveFailures bool
+	// If we are dropping errors, then at the end, we report a message to go
+	// look in the verbose log if you want that command output.
+	postFailureActionCount int
 }
 
 // NewSmartStatusOutput returns a StatusOutput that represents the
@@ -165,12 +172,20 @@ func (s *smartStatusOutput) FinishAction(result status.ActionResult, counts stat
 		}
 	}
 
+	s.statusLine(progress)
+
+	// Stop printing when there are failures, but don't skip actions that also have their own errors.
 	if output != "" {
-		s.statusLine(progress)
-		s.requestLine()
-		s.print(output)
-	} else {
-		s.statusLine(progress)
+		if !s.haveFailures || result.Error != nil {
+			s.requestLine()
+			s.print(output)
+		} else {
+			s.postFailureActionCount++
+		}
+	}
+
+	if result.Error != nil {
+		s.haveFailures = true
 	}
 }
 
@@ -186,6 +201,15 @@ func (s *smartStatusOutput) Flush() {
 	defer s.lock.Unlock()
 
 	s.stopSigwinch()
+
+	if s.postFailureActionCount > 0 {
+		s.requestLine()
+		if s.postFailureActionCount == 1 {
+			s.print(fmt.Sprintf("There was 1 action that completed after the action that failed. See verbose.log.gz for its output."))
+		} else {
+			s.print(fmt.Sprintf("There were %d actions that completed after the action that failed. See verbose.log.gz for their output.", s.postFailureActionCount))
+		}
+	}
 
 	s.requestLine()
 
