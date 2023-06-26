@@ -144,6 +144,7 @@ function create_mock_bazel {
   symlink_directory prebuilts/jdk
   symlink_directory external/bazel-skylib
   symlink_directory external/bazelbuild-rules_android
+  symlink_directory external/bazelbuild-rules_go
   symlink_directory external/bazelbuild-rules_license
   symlink_directory external/bazelbuild-kotlin-rules
 
