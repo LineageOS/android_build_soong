@@ -133,9 +133,7 @@ func (p *prebuiltCommon) isForceDisabled() bool {
 }
 
 func (p *prebuiltCommon) checkForceDisable(ctx android.ModuleContext) bool {
-	// If the device is configured to use flattened APEX, force disable the prebuilt because
-	// the prebuilt is a non-flattened one.
-	forceDisable := ctx.Config().FlattenApex()
+	forceDisable := false
 
 	// Force disable the prebuilts when we are doing unbundled build. We do unbundled build
 	// to build the prebuilts themselves.
