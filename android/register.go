@@ -15,9 +15,13 @@
 package android
 
 import (
+	"bufio"
 	"fmt"
+	"path/filepath"
 	"reflect"
+	"regexp"
 
+	"android/soong/shared"
 	"github.com/google/blueprint"
 )
 
@@ -195,6 +199,49 @@ func registerModuleTypes(ctx *Context) {
 func (ctx *Context) RegisterForBazelConversion() {
 	registerModuleTypes(ctx)
 	RegisterMutatorsForBazelConversion(ctx, bp2buildPreArchMutators)
+}
+
+func (c *Context) ParseBuildFiles(topDir string, existingBazelFiles []string) error {
+	result := map[string][]string{}
+
+	// Search for instances of `name = "$NAME"` (with arbitrary spacing).
+	targetNameRegex := regexp.MustCompile(`(?m)^\s*name\s*=\s*\"([^\"]+)\"`)
+
+	parseBuildFile := func(path string) error {
+		fullPath := shared.JoinPath(topDir, path)
+		sourceDir := filepath.Dir(path)
+
+		fileInfo, err := c.Config().fs.Stat(fullPath)
+		if err != nil {
+			return fmt.Errorf("Error accessing Bazel file '%s': %s", path, err)
+		}
+		if !fileInfo.IsDir() &&
+			(fileInfo.Name() == "BUILD" || fileInfo.Name() == "BUILD.bazel") {
+			f, err := c.Config().fs.Open(fullPath)
+			if err != nil {
+				return fmt.Errorf("Error reading Bazel file '%s': %s", path, err)
+			}
+			defer f.Close()
+			scanner := bufio.NewScanner(f)
+			for scanner.Scan() {
+				line := scanner.Text()
+				matches := targetNameRegex.FindAllStringSubmatch(line, -1)
+				for _, match := range matches {
+					result[sourceDir] = append(result[sourceDir], match[1])
+				}
+			}
+		}
+		return nil
+	}
+
+	for _, path := range existingBazelFiles {
+		err := parseBuildFile(path)
+		if err != nil {
+			return err
+		}
+	}
+	c.Config().SetBazelBuildFileTargets(result)
+	return nil
 }
 
 // RegisterForApiBazelConversion is similar to RegisterForBazelConversion except that
