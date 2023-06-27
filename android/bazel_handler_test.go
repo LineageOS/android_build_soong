@@ -58,11 +58,12 @@ func TestRequestResultsAfterInvokeBazel(t *testing.T) {
 	apexKey := ApexConfigKey{
 		WithinApex:     true,
 		ApexSdkVersion: "29",
+		ApiDomain:      "myapex",
 	}
 	cfg_foo := configKey{"arm64_armv8-a", Android, apexKey}
 	cfg_bar := configKey{arch: "arm64_armv8-a", osType: Android}
 	cmd_results := []string{
-		`@//foo:foo|arm64_armv8-a|android|within_apex|29>>out/foo/foo.txt`,
+		`@//foo:foo|arm64_armv8-a|android|within_apex|29|myapex>>out/foo/foo.txt`,
 		`@//foo:bar|arm64_armv8-a|android>>out/foo/bar.txt`,
 	}
 	bazelContext, _ := testBazelContext(t, map[bazelCommand]string{cqueryCmd: strings.Join(cmd_results, "\n")})
