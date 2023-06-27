@@ -38,7 +38,10 @@ const (
 	protoSrcPartition   = "proto"
 	aidlSrcPartition    = "aidl"
 	syspropSrcPartition = "sysprop"
-	yaccSrcPartition    = "yacc"
+
+	yaccSrcPartition = "yacc"
+
+	rScriptSrcPartition = "renderScript"
 
 	stubsSuffix = "_stub_libs_current"
 )
@@ -149,8 +152,9 @@ func groupSrcsByExtension(ctx android.BazelConversionPathContext, srcs bazel.Lab
 		// 		contains .l or .ll files we will need to find a way to add a
 		// 		LabelMapper for these that identifies these filegroups and
 		//		converts them appropriately
-		lSrcPartition:  bazel.LabelPartition{Extensions: []string{".l"}},
-		llSrcPartition: bazel.LabelPartition{Extensions: []string{".ll"}},
+		lSrcPartition:       bazel.LabelPartition{Extensions: []string{".l"}},
+		llSrcPartition:      bazel.LabelPartition{Extensions: []string{".ll"}},
+		rScriptSrcPartition: bazel.LabelPartition{Extensions: []string{".fs", ".rscript"}},
 		// C++ is the "catch-all" group, and comprises generated sources because we don't
 		// know the language of these sources until the genrule is executed.
 		cppSrcPartition:     bazel.LabelPartition{Extensions: []string{".cpp", ".cc", ".cxx", ".mm"}, LabelMapper: addSuffixForFilegroup("_cpp_srcs"), Keep_remainder: true},
@@ -412,6 +416,8 @@ type compilerAttributes struct {
 	yaccGenLocationHeader bazel.BoolAttribute
 	yaccGenPositionHeader bazel.BoolAttribute
 
+	rsSrcs bazel.LabelListAttribute
+
 	hdrs bazel.LabelListAttribute
 
 	rtti bazel.BoolAttribute
@@ -426,8 +432,9 @@ type compilerAttributes struct {
 
 	includes BazelIncludes
 
-	protoSrcs bazel.LabelListAttribute
-	aidlSrcs  bazel.LabelListAttribute
+	protoSrcs   bazel.LabelListAttribute
+	aidlSrcs    bazel.LabelListAttribute
+	rscriptSrcs bazel.LabelListAttribute
 
 	stubsSymbolFile *string
 	stubsVersions   bazel.StringListAttribute
@@ -582,6 +589,7 @@ func (ca *compilerAttributes) finalize(ctx android.BazelConversionPathContext, i
 		ca.yaccSrc = bazel.MakeLabelAttribute(yacc.Value.Includes[0].Label)
 	}
 	ca.syspropSrcs = partitionedSrcs[syspropSrcPartition]
+	ca.rscriptSrcs = partitionedSrcs[rScriptSrcPartition]
 
 	ca.absoluteIncludes.DeduplicateAxesFromBase()
 	ca.localIncludes.DeduplicateAxesFromBase()
@@ -902,6 +910,12 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 	compilerAttrs.localIncludes.Prepend = true
 	compilerAttrs.absoluteIncludes.Prepend = true
 	compilerAttrs.hdrs.Prepend = true
+
+	convertedRsSrcs, rsAbsIncludes, rsLocalIncludes := bp2buildRScript(ctx, module, compilerAttrs)
+	(&compilerAttrs).srcs.Add(&convertedRsSrcs)
+	(&compilerAttrs).absoluteIncludes.Append(rsAbsIncludes)
+	(&compilerAttrs).localIncludes.Append(rsLocalIncludes)
+	(&compilerAttrs).localIncludes.Value = android.FirstUniqueStrings(compilerAttrs.localIncludes.Value)
 
 	features := compilerAttrs.features.Clone().Append(linkerAttrs.features).Append(bp2buildSanitizerFeatures(ctx, module))
 	features = features.Append(bp2buildLtoFeatures(ctx, module))
