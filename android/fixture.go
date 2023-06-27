@@ -275,6 +275,15 @@ func FixtureModifyContext(mutator func(ctx *TestContext)) FixturePreparer {
 	})
 }
 
+// Sync the mock filesystem with the current config, then modify the context,
+// This allows context modification that requires filesystem access.
+func FixtureModifyContextWithMockFs(mutator func(ctx *TestContext)) FixturePreparer {
+	return newSimpleFixturePreparer(func(f *fixture) {
+		f.config.mockFileSystem("", f.mockFS)
+		mutator(f.ctx)
+	})
+}
+
 func FixtureRegisterWithContext(registeringFunc func(ctx RegistrationContext)) FixturePreparer {
 	return FixtureModifyContext(func(ctx *TestContext) { registeringFunc(ctx) })
 }
