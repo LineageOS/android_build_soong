@@ -29,10 +29,8 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 
 	// These are used by make when LOCAL_PRIVATE_PLATFORM_APIS is set (equivalent to platform_apis in blueprint):
 	ctx.Strict("LEGACY_CORE_PLATFORM_BOOTCLASSPATH_LIBRARIES",
-		strings.Join(android.JavaApiLibraryNames(ctx.Config(), LegacyCorePlatformBootclasspathLibraries), " "))
-	ctx.Strict("LEGACY_CORE_PLATFORM_SYSTEM_MODULES",
-		android.JavaApiLibraryName(ctx.Config(), LegacyCorePlatformSystemModules),
-	)
+		strings.Join(LegacyCorePlatformBootclasspathLibraries, " "))
+	ctx.Strict("LEGACY_CORE_PLATFORM_SYSTEM_MODULES", LegacyCorePlatformSystemModules)
 
 	ctx.Strict("ANDROID_JAVA_HOME", "${JavaHome}")
 	ctx.Strict("ANDROID_JAVA8_HOME", "prebuilts/jdk/jdk8/${hostPrebuiltTag}")
