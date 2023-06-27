@@ -532,13 +532,15 @@ func runSoong(ctx Context, config Config) {
 	runMicrofactory(ctx, config, "bpglob", "github.com/google/blueprint/bootstrap/bpglob",
 		map[string]string{"github.com/google/blueprint": "build/blueprint"})
 
-	ninja := func(name, ninjaFile string, targets ...string) {
-		ctx.BeginTrace(metrics.RunSoong, name)
+	ninja := func(targets ...string) {
+		ctx.BeginTrace(metrics.RunSoong, "bootstrap")
 		defer ctx.EndTrace()
 
 		if config.IsPersistentBazelEnabled() {
 			bazelProxy := bazel.NewProxyServer(ctx.Logger, config.OutDir(), filepath.Join(config.SoongOutDir(), "workspace"), config.GetBazeliskBazelVersion())
-			bazelProxy.Start()
+			if err := bazelProxy.Start(); err != nil {
+				ctx.Fatalf("Failed to create bazel proxy")
+			}
 			defer bazelProxy.Close()
 		}
 
@@ -556,7 +558,7 @@ func runSoong(ctx Context, config Config) {
 			"-w", "missingoutfile=err",
 			"-j", strconv.Itoa(config.Parallel()),
 			"--frontend_file", fifo,
-			"-f", filepath.Join(config.SoongOutDir(), ninjaFile),
+			"-f", filepath.Join(config.SoongOutDir(), "bootstrap.ninja"),
 		}
 
 		if extra, ok := config.Environment().Get("SOONG_UI_NINJA_ARGS"); ok {
@@ -565,7 +567,7 @@ func runSoong(ctx Context, config Config) {
 		}
 
 		ninjaArgs = append(ninjaArgs, targets...)
-		cmd := Command(ctx, config, "soong "+name,
+		cmd := Command(ctx, config, "soong bootstrap",
 			config.PrebuiltBuildTool("ninja"), ninjaArgs...)
 
 		var ninjaEnv Environment
@@ -606,7 +608,7 @@ func runSoong(ctx Context, config Config) {
 		targets = append(targets, config.SoongNinjaFile())
 	}
 
-	ninja("bootstrap", "bootstrap.ninja", targets...)
+	ninja(targets...)
 
 	distGzipFile(ctx, config, config.SoongNinjaFile(), "soong")
 	distFile(ctx, config, config.SoongVarsFile(), "soong")
