@@ -48,7 +48,6 @@ var (
 
 	SandboxingDenyModuleList = []string{
 		"RsBalls-rscript",
-		"CtsRsBlasTestCases-rscript",
 		"pvmfw_fdt_template_rs",
 		"RSTest_v14-rscript",
 		"com.android.apex.test.bar_stripped",
@@ -95,7 +94,6 @@ var (
 		"com.android.apex.test.baz_stripped",
 		"com.android.apex.test.foo_stripped",
 		"com.android.apex.test.sharedlibs_generated",
-		"CtsRenderscriptTestCases-rscript",
 		"BlueberryFacadeAndCertGeneratedStub_py",
 		"BlueberryFacadeGeneratedStub_cc",
 		"BlueberryFacadeGeneratedStub_h",
