@@ -1555,3 +1555,33 @@ cc_library_shared {
 		},
 	})
 }
+
+func TestCCLibrarySharedRscriptSrc(t *testing.T) {
+	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		Description: ``,
+		Blueprint: `
+cc_library_shared{
+    name : "foo",
+    srcs : [
+        "ccSrc.cc",
+        "rsSrc.rscript",
+    ],
+    include_build_directory: false,
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("rscript_to_cpp", "foo_renderscript", AttrNameToString{
+				"srcs": `["rsSrc.rscript"]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"absolute_includes": `[
+        "frameworks/rs",
+        "frameworks/rs/cpp",
+    ]`,
+				"local_includes": `["."]`,
+				"srcs": `[
+        "ccSrc.cc",
+        "foo_renderscript",
+    ]`,
+			})}})
+}
