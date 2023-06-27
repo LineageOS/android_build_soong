@@ -217,6 +217,22 @@ func rustEnvVars(ctx ModuleContext, deps PathDeps) []string {
 		envVars = append(envVars, "OUT_DIR=out")
 	}
 
+	envVars = append(envVars, "ANDROID_RUST_VERSION="+config.GetRustVersion(ctx))
+
+	if ctx.RustModule().compiler.CargoEnvCompat() {
+		if bin, ok := ctx.RustModule().compiler.(*binaryDecorator); ok {
+			envVars = append(envVars, "CARGO_BIN_NAME="+bin.getStem(ctx))
+		}
+		envVars = append(envVars, "CARGO_CRATE_NAME="+ctx.RustModule().CrateName())
+		envVars = append(envVars, "CARGO_PKG_NAME="+ctx.RustModule().CrateName())
+		pkgVersion := ctx.RustModule().compiler.CargoPkgVersion()
+		if pkgVersion != "" {
+			envVars = append(envVars, "CARGO_PKG_VERSION="+pkgVersion)
+		}
+	}
+
+	envVars = append(envVars, "AR=${cc_config.ClangBin}/llvm-ar")
+
 	return envVars
 }
 
@@ -316,22 +332,6 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 		})
 		implicits = append(implicits, outputs.Paths()...)
 	}
-
-	envVars = append(envVars, "ANDROID_RUST_VERSION="+config.GetRustVersion(ctx))
-
-	if ctx.RustModule().compiler.CargoEnvCompat() {
-		if _, ok := ctx.RustModule().compiler.(*binaryDecorator); ok {
-			envVars = append(envVars, "CARGO_BIN_NAME="+strings.TrimSuffix(outputFile.Base(), outputFile.Ext()))
-		}
-		envVars = append(envVars, "CARGO_CRATE_NAME="+ctx.RustModule().CrateName())
-		envVars = append(envVars, "CARGO_PKG_NAME="+ctx.RustModule().CrateName())
-		pkgVersion := ctx.RustModule().compiler.CargoPkgVersion()
-		if pkgVersion != "" {
-			envVars = append(envVars, "CARGO_PKG_VERSION="+pkgVersion)
-		}
-	}
-
-	envVars = append(envVars, "AR=${cc_config.ClangBin}/llvm-ar")
 
 	if flags.Clippy {
 		clippyFile := android.PathForModuleOut(ctx, outputFile.Base()+".clippy")
