@@ -440,6 +440,7 @@ var (
 		"external/bazelbuild-rules_license":/* recursive = */ true,
 		"external/bazelbuild-rules_go":/* recursive = */ true,
 		"external/bazelbuild-rules_python":/* recursive = */ true,
+		"external/bazelbuild-rules_rust":/* recursive = */ true,
 		"external/bazelbuild-kotlin-rules":/* recursive = */ true,
 		"external/bazel-skylib":/* recursive = */ true,
 		"external/protobuf":/* recursive = */ false,
@@ -467,6 +468,7 @@ var (
 		"prebuilts/sdk/tools":/* recursive = */ false,
 		"prebuilts/r8":/* recursive = */ false,
 		"prebuilts/runtime":/* recursive = */ false,
+		"prebuilts/rust":/* recursive = */ true,
 
 		// not recursive due to conflicting workspace paths in tools/atest/bazel/rules
 		"tools/asuite/atest":/* recursive = */ false,
