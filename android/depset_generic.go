@@ -175,16 +175,6 @@ func (d *DepSet[T]) walk(visit func([]T)) {
 // its transitive dependencies, in which case the ordering of the duplicated element is not
 // guaranteed).
 func (d *DepSet[T]) ToList() []T {
-	return d.toList(firstUnique[T])
-}
-
-// toList returns the DepSet flattened to a list.  The order in the list is based on the order
-// of the DepSet.  POSTORDER and PREORDER orders return a postordered or preordered left to right
-// flattened list.  TOPOLOGICAL returns a list that guarantees that elements of children are listed
-// after all of their parents (unless there are duplicate direct elements in the DepSet or any of
-// its transitive dependencies, in which case the ordering of the duplicated element is not
-// guaranteed).  The firstUniqueFunc is used to remove duplicates from the list.
-func (d *DepSet[T]) toList(firstUniqueFunc func([]T) []T) []T {
 	if d == nil {
 		return nil
 	}
@@ -192,7 +182,7 @@ func (d *DepSet[T]) toList(firstUniqueFunc func([]T) []T) []T {
 	d.walk(func(paths []T) {
 		list = append(list, paths...)
 	})
-	list = firstUniqueFunc(list)
+	list = firstUniqueInPlace(list)
 	if d.reverse {
 		reverseSliceInPlace(list)
 	}
