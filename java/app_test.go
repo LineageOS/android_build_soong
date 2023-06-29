@@ -2697,7 +2697,7 @@ func TestUsesLibraries(t *testing.T) {
 	cmd := app.Rule("dexpreopt").RuleParams.Command
 	android.AssertStringDoesContain(t, "dexpreopt app cmd context", cmd, "--context-json=")
 	android.AssertStringDoesContain(t, "dexpreopt app cmd product_packages", cmd,
-		"--product-packages=out/soong/target/product/test_device/product_packages.txt")
+		"--product-packages=out/soong/.intermediates/app/android_common/dexpreopt/product_packages.txt")
 }
 
 func TestDexpreoptBcp(t *testing.T) {
