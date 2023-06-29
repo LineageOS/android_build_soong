@@ -97,6 +97,7 @@ load("@//build/bazel/product_config:android_product.bzl", "android_product")
 android_product(
     name = "mixed_builds_product-{VARIANT}",
     soong_variables = _soong_variables,
+    extra_constraints = ["@//build/bazel/platforms:mixed_builds"],
 )
 `)),
 		newFile(
