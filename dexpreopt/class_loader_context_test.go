@@ -97,10 +97,11 @@ func TestCLC(t *testing.T) {
 
 	fixClassLoaderContext(m)
 
-	var havePaths android.Paths
+	var actualNames []string
+	var actualPaths android.Paths
 	var haveUsesLibsReq, haveUsesLibsOpt []string
 	if valid && validationError == nil {
-		havePaths = ComputeClassLoaderContextDependencies(m)
+		actualNames, actualPaths = ComputeClassLoaderContextDependencies(m)
 		haveUsesLibsReq, haveUsesLibsOpt = m.UsesLibs()
 	}
 
@@ -112,19 +113,26 @@ func TestCLC(t *testing.T) {
 	})
 
 	// Test that all expected build paths are gathered.
-	t.Run("paths", func(t *testing.T) {
-		wantPaths := []string{
+	t.Run("names and paths", func(t *testing.T) {
+		expectedNames := []string{
+			"a'", "a1", "a2", "a3", "android.hidl.base-V1.0-java", "android.hidl.manager-V1.0-java", "b",
+			"b1", "b2", "b3", "c", "c2", "d", "f",
+		}
+		expectedPaths := []string{
 			"out/soong/android.hidl.manager-V1.0-java.jar", "out/soong/android.hidl.base-V1.0-java.jar",
 			"out/soong/a.jar", "out/soong/b.jar", "out/soong/c.jar", "out/soong/d.jar",
 			"out/soong/a2.jar", "out/soong/b2.jar", "out/soong/c2.jar",
 			"out/soong/a1.jar", "out/soong/b1.jar",
 			"out/soong/f.jar", "out/soong/a3.jar", "out/soong/b3.jar",
 		}
-		actual := havePaths.Strings()
+		actualPathsStrs := actualPaths.Strings()
 		// The order does not matter.
-		sort.Strings(wantPaths)
-		sort.Strings(actual)
-		android.AssertArrayString(t, "", wantPaths, actual)
+		sort.Strings(expectedNames)
+		sort.Strings(actualNames)
+		android.AssertArrayString(t, "", expectedNames, actualNames)
+		sort.Strings(expectedPaths)
+		sort.Strings(actualPathsStrs)
+		android.AssertArrayString(t, "", expectedPaths, actualPathsStrs)
 	})
 
 	// Test the JSON passed to construct_context.py.

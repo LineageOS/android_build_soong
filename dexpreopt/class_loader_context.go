@@ -310,7 +310,7 @@ func (clcMap ClassLoaderContextMap) addContext(ctx android.ModuleInstallPathCont
 	// Nested class loader context shouldn't have conditional part (it is allowed only at the top level).
 	for ver, _ := range nestedClcMap {
 		if ver != AnySdkVersion {
-			clcPaths := ComputeClassLoaderContextDependencies(nestedClcMap)
+			_, clcPaths := ComputeClassLoaderContextDependencies(nestedClcMap)
 			return fmt.Errorf("nested class loader context shouldn't have conditional part: %+v", clcPaths)
 		}
 	}
@@ -553,27 +553,28 @@ func validateClassLoaderContextRec(sdkVer int, clcs []*ClassLoaderContext) (bool
 	return true, nil
 }
 
-// Returns a slice of build paths for all possible dependencies that the class loader context may
-// refer to.
+// Returns a slice of library names and a slice of build paths for all possible dependencies that
+// the class loader context may refer to.
 // Perform a depth-first preorder traversal of the class loader context tree for each SDK version.
-func ComputeClassLoaderContextDependencies(clcMap ClassLoaderContextMap) android.Paths {
-	var paths android.Paths
+func ComputeClassLoaderContextDependencies(clcMap ClassLoaderContextMap) (names []string, paths android.Paths) {
 	for _, clcs := range clcMap {
-		hostPaths := ComputeClassLoaderContextDependenciesRec(clcs)
-		paths = append(paths, hostPaths...)
+		currentNames, currentPaths := ComputeClassLoaderContextDependenciesRec(clcs)
+		names = append(names, currentNames...)
+		paths = append(paths, currentPaths...)
 	}
-	return android.FirstUniquePaths(paths)
+	return android.FirstUniqueStrings(names), android.FirstUniquePaths(paths)
 }
 
 // Helper function for ComputeClassLoaderContextDependencies() that handles recursion.
-func ComputeClassLoaderContextDependenciesRec(clcs []*ClassLoaderContext) android.Paths {
-	var paths android.Paths
+func ComputeClassLoaderContextDependenciesRec(clcs []*ClassLoaderContext) (names []string, paths android.Paths) {
 	for _, clc := range clcs {
-		subPaths := ComputeClassLoaderContextDependenciesRec(clc.Subcontexts)
+		subNames, subPaths := ComputeClassLoaderContextDependenciesRec(clc.Subcontexts)
+		names = append(names, clc.Name)
 		paths = append(paths, clc.Host)
+		names = append(names, subNames...)
 		paths = append(paths, subPaths...)
 	}
-	return paths
+	return names, paths
 }
 
 // Class loader contexts that come from Make via JSON dexpreopt.config. JSON CLC representation is
