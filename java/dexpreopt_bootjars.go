@@ -789,7 +789,6 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 		Flag("--generate-build-id").
 		Flag("--image-format=lz4hc").
 		FlagWithArg("--oat-symbols=", symbolsFile.String()).
-		Flag("--strip").
 		FlagWithArg("--oat-file=", outputPath.String()).
 		FlagWithArg("--oat-location=", oatLocation).
 		FlagWithArg("--image=", imagePath.String()).
@@ -798,6 +797,11 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 		FlagWithArg("--no-inline-from=", "core-oj.jar").
 		Flag("--force-determinism").
 		Flag("--abort-on-hard-verifier-error")
+
+	// We don't strip on host to make perf tools work.
+	if image.target.Os == android.Android {
+		cmd.Flag("--strip")
+	}
 
 	// If the image is profile-guided but the profile is disabled, we omit "--compiler-filter" to
 	// leave the decision to dex2oat to pick the compiler filter.
