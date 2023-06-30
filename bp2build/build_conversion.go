@@ -438,6 +438,21 @@ var (
 	}
 )
 
+func testOfGoPackageIsIncompatible(g *bootstrap.GoPackage) bool {
+	return android.InList(g.Name(), goTestsDenylist) ||
+		// Denylist tests of soong_build
+		// Theses tests have a guard that prevent usage outside a test environment
+		// The guard (`ensureTestOnly`) looks for a `-test` in os.Args, which is present in soong's gotestrunner, but missing in `b test`
+		g.IsPluginFor("soong_build") ||
+		// soong-android is a dep of soong_build
+		// This dependency is created by soong_build by listing it in its deps explicitly in Android.bp, and not via `plugin_for` in `soong-android`
+		g.Name() == "soong-android"
+}
+
+func testOfGoBinaryIsIncompatible(g *bootstrap.GoBinary) bool {
+	return android.InList(g.Name(), goTestsDenylist)
+}
+
 func generateBazelTargetsGoPackage(ctx *android.Context, g *bootstrap.GoPackage, goModulesMap nameToGoLibraryModule) ([]BazelTarget, []error) {
 	ca := android.CommonAttributes{
 		Name: g.Name(),
@@ -481,7 +496,7 @@ func generateBazelTargetsGoPackage(ctx *android.Context, g *bootstrap.GoPackage,
 	}
 
 	// If the library contains test srcs, create an additional go_test target
-	if !android.InList(g.Name(), goTestsDenylist) && (len(g.TestSrcs()) > 0 || len(g.LinuxTestSrcs()) > 0 || len(g.DarwinTestSrcs()) > 0) {
+	if !testOfGoPackageIsIncompatible(g) && (len(g.TestSrcs()) > 0 || len(g.LinuxTestSrcs()) > 0 || len(g.DarwinTestSrcs()) > 0) {
 		gp := goTestProperties{
 			name:           g.Name() + "-test",
 			dir:            ctx.ModuleDir(g),
@@ -559,7 +574,7 @@ func generateBazelTargetsGoBinary(ctx *android.Context, g *bootstrap.GoBinary, g
 	goSource := ""
 	// If the library contains test srcs, create an additional go_test target
 	// The go_test target will embed a go_source containining the source .go files it tests
-	if !android.InList(g.Name(), goTestsDenylist) && (len(g.TestSrcs()) > 0 || len(g.LinuxTestSrcs()) > 0 || len(g.DarwinTestSrcs()) > 0) {
+	if !testOfGoBinaryIsIncompatible(g) && (len(g.TestSrcs()) > 0 || len(g.LinuxTestSrcs()) > 0 || len(g.DarwinTestSrcs()) > 0) {
 		// Create a go_source containing the source .go files of go_library
 		// This target will be an `embed` of the go_binary and go_test
 		goSource = g.Name() + "-source"
