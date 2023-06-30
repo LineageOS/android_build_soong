@@ -704,6 +704,10 @@ func (c *config) IsMixedBuildsEnabled() bool {
 		if c.productVariables.DeviceArch != nil && *c.productVariables.DeviceArch == "riscv64" {
 			return false
 		}
+		// Disable Bazel when Kythe is running
+		if c.EmitXrefRules() {
+			return false
+		}
 		if c.IsEnvTrue("GLOBAL_THINLTO") {
 			return false
 		}
