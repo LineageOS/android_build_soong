@@ -31,9 +31,9 @@ import (
 
 func init() {
 	pctx.HostBinToolVariable("ndkStubGenerator", "ndkstubgen")
-	pctx.HostBinToolVariable("abidiff", "abidiff")
 	pctx.HostBinToolVariable("abidw", "abidw")
 	pctx.HostBinToolVariable("stg", "stg")
+	pctx.HostBinToolVariable("stgdiff", "stgdiff")
 }
 
 var (
@@ -58,14 +58,14 @@ var (
 			CommandDeps: []string{"$stg"},
 		})
 
-	abidiff = pctx.AndroidStaticRule("abidiff",
+	stgdiff = pctx.AndroidStaticRule("stgdiff",
 		blueprint.RuleParams{
 			// Need to create *some* output for ninja. We don't want to use tee
 			// because we don't want to spam the build output with "nothing
 			// changed" messages, so redirect output message to $out, and if
 			// changes were detected print the output and fail.
-			Command:     "$abidiff $args $in > $out || (cat $out && false)",
-			CommandDeps: []string{"$abidiff"},
+			Command:     "$stgdiff $args --stg $in -o $out || (cat $out && false)",
+			CommandDeps: []string{"$stgdiff"},
 		}, "args")
 
 	ndkLibrarySuffix = ".ndk"
@@ -392,7 +392,7 @@ func findNextApiLevel(ctx ModuleContext, apiLevel android.ApiLevel) *android.Api
 func (this *stubDecorator) diffAbi(ctx ModuleContext) {
 	// Catch any ABI changes compared to the checked-in definition of this API
 	// level.
-	abiDiffPath := android.PathForModuleOut(ctx, "abidiff.timestamp")
+	abiDiffPath := android.PathForModuleOut(ctx, "stgdiff.timestamp")
 	prebuiltAbiDump := this.findPrebuiltAbiDump(ctx, this.apiLevel)
 	missingPrebuiltError := fmt.Sprintf(
 		"Did not find prebuilt ABI dump for %q (%q). Generate with "+
@@ -408,11 +408,14 @@ func (this *stubDecorator) diffAbi(ctx ModuleContext) {
 		})
 	} else {
 		ctx.Build(pctx, android.BuildParams{
-			Rule: abidiff,
-			Description: fmt.Sprintf("abidiff %s %s", prebuiltAbiDump,
+			Rule: stgdiff,
+			Description: fmt.Sprintf("Comparing ABI %s %s", prebuiltAbiDump,
 				this.abiDumpPath),
 			Output: abiDiffPath,
 			Inputs: android.Paths{prebuiltAbiDump.Path(), this.abiDumpPath},
+			Args: map[string]string{
+				"args": "--format=small",
+			},
 		})
 	}
 	this.abiDiffPaths = append(this.abiDiffPaths, abiDiffPath)
@@ -439,13 +442,13 @@ func (this *stubDecorator) diffAbi(ctx ModuleContext) {
 			})
 		} else {
 			ctx.Build(pctx, android.BuildParams{
-				Rule: abidiff,
+				Rule: stgdiff,
 				Description: fmt.Sprintf("abidiff %s %s", this.abiDumpPath,
 					nextAbiDump),
 				Output: nextAbiDiffPath,
 				Inputs: android.Paths{this.abiDumpPath, nextAbiDump.Path()},
 				Args: map[string]string{
-					"args": "--no-added-syms",
+					"args": "--format=small --ignore=interface_addition",
 				},
 			})
 		}
