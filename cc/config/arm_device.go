@@ -43,9 +43,7 @@ var (
 
 	armNoFixCortexA8LdFlags = []string{"-Wl,--no-fix-cortex-a8"}
 
-	armArmCflags = []string{
-		"-fstrict-aliasing",
-	}
+	armArmCflags = []string{}
 
 	armThumbCflags = []string{
 		"-mthumb",
