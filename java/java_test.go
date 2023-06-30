@@ -2208,7 +2208,7 @@ func TestJavaApiLibraryStaticLibsLink(t *testing.T) {
 	}
 }
 
-func TestJavaApiLibraryDepApiSrcs(t *testing.T) {
+func TestJavaApiLibraryFullApiSurfaceStub(t *testing.T) {
 	provider_bp_a := `
 	java_api_contribution {
 		name: "foo1",
@@ -2234,7 +2234,7 @@ func TestJavaApiLibraryDepApiSrcs(t *testing.T) {
 			name: "bar1",
 			api_surface: "public",
 			api_contributions: ["foo1"],
-			dep_api_srcs: "lib1",
+			full_api_surface_stub: "lib1",
 		}
 		`,
 		map[string][]byte{
@@ -2247,9 +2247,7 @@ func TestJavaApiLibraryDepApiSrcs(t *testing.T) {
 	manifest := m.Output("metalava.sbox.textproto")
 	sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
 	manifestCommand := sboxProto.Commands[0].GetCommand()
-
-	android.AssertStringDoesContain(t, "Command expected to contain module srcjar file", manifestCommand, "bar1-stubs.srcjar")
-	android.AssertStringDoesContain(t, "Command expected to contain output files list text file flag", manifestCommand, "--out __SBOX_SANDBOX_DIR__/out/sources.txt")
+	android.AssertStringDoesContain(t, "Command expected to contain full_api_surface_stub output jar", manifestCommand, "lib1.jar")
 }
 
 func TestJavaApiLibraryFilegroupInput(t *testing.T) {
