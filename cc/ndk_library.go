@@ -32,8 +32,8 @@ import (
 func init() {
 	pctx.HostBinToolVariable("ndkStubGenerator", "ndkstubgen")
 	pctx.HostBinToolVariable("abidiff", "abidiff")
-	pctx.HostBinToolVariable("abitidy", "abitidy")
 	pctx.HostBinToolVariable("abidw", "abidw")
+	pctx.HostBinToolVariable("stg", "stg")
 }
 
 var (
@@ -52,11 +52,11 @@ var (
 			CommandDeps: []string{"$abidw"},
 		}, "symbolList")
 
-	abitidy = pctx.AndroidStaticRule("abitidy",
+	xml2stg = pctx.AndroidStaticRule("xml2stg",
 		blueprint.RuleParams{
-			Command:     "$abitidy --all $flags -i $in -o $out",
-			CommandDeps: []string{"$abitidy"},
-		}, "flags")
+			Command:     "$stg --abi -i $in -o $out",
+			CommandDeps: []string{"$stg"},
+		})
 
 	abidiff = pctx.AndroidStaticRule("abidiff",
 		blueprint.RuleParams{
@@ -106,12 +106,6 @@ type libraryProperties struct {
 	// used. This is only needed to work around platform bugs like
 	// https://github.com/android-ndk/ndk/issues/265.
 	Unversioned_until *string
-
-	// If true, does not emit errors when APIs lacking type information are
-	// found. This is false by default and should not be enabled outside bionic,
-	// where it is enabled pending a fix for http://b/190554910 (no debug info
-	// for asm implemented symbols).
-	Allow_untyped_symbols *bool
 
 	// Headers presented by this library to the Public API Surface
 	Export_header_libs []string
@@ -326,7 +320,7 @@ func (this *stubDecorator) findPrebuiltAbiDump(ctx ModuleContext,
 	apiLevel android.ApiLevel) android.OptionalPath {
 
 	subpath := filepath.Join("prebuilts/abi-dumps/ndk", apiLevel.String(),
-		ctx.Arch().ArchType.String(), this.libraryName(ctx), "abi.xml")
+		ctx.Arch().ArchType.String(), this.libraryName(ctx), "abi.stg")
 	return android.ExistentPathForSource(ctx, subpath)
 }
 
@@ -375,19 +369,12 @@ func (this *stubDecorator) dumpAbi(ctx ModuleContext, symbolList android.Path) {
 
 	this.abiDumpPath = getNdkAbiDumpInstallBase(ctx).Join(ctx,
 		this.apiLevel.String(), ctx.Arch().ArchType.String(),
-		this.libraryName(ctx), "abi.xml")
-	untypedFlag := "--abort-on-untyped-symbols"
-	if proptools.BoolDefault(this.properties.Allow_untyped_symbols, false) {
-		untypedFlag = ""
-	}
+		this.libraryName(ctx), "abi.stg")
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        abitidy,
-		Description: fmt.Sprintf("abitidy %s", implementationLibrary),
+		Rule:        xml2stg,
+		Description: fmt.Sprintf("xml2stg %s", implementationLibrary),
 		Input:       abiRawPath,
 		Output:      this.abiDumpPath,
-		Args: map[string]string{
-			"flags": untypedFlag,
-		},
 	})
 }
 
