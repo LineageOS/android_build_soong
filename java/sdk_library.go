@@ -1780,12 +1780,12 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 
 func (module *SdkLibrary) createApiLibrary(mctx android.DefaultableHookContext, apiScope *apiScope) {
 	props := struct {
-		Name              *string
-		Visibility        []string
-		Api_contributions []string
-		Libs              []string
-		Static_libs       []string
-		Dep_api_srcs      *string
+		Name                  *string
+		Visibility            []string
+		Api_contributions     []string
+		Libs                  []string
+		Static_libs           []string
+		Full_api_surface_stub *string
 	}{}
 
 	props.Name = proptools.StringPtr(module.apiLibraryModuleName(apiScope))
@@ -1807,12 +1807,12 @@ func (module *SdkLibrary) createApiLibrary(mctx android.DefaultableHookContext, 
 	props.Libs = append(props.Libs, module.sdkLibraryProperties.Stub_only_libs...)
 	props.Libs = append(props.Libs, "stub-annotations")
 	props.Static_libs = module.sdkLibraryProperties.Stub_only_static_libs
-	props.Dep_api_srcs = proptools.StringPtr(apiScope.kind.DefaultJavaLibraryName() + ".from-text")
+	props.Full_api_surface_stub = proptools.StringPtr(apiScope.kind.DefaultJavaLibraryName() + ".from-text")
 
 	// android_module_lib_stubs_current.from-text only comprises api contributions from art, conscrypt and i18n.
 	// Thus, replace with android_module_lib_stubs_current_full.from-text, which comprises every api domains.
 	if apiScope.kind == android.SdkModule {
-		props.Dep_api_srcs = proptools.StringPtr(apiScope.kind.DefaultJavaLibraryName() + "_full.from-text")
+		props.Full_api_surface_stub = proptools.StringPtr(apiScope.kind.DefaultJavaLibraryName() + "_full.from-text")
 	}
 
 	mctx.CreateModule(ApiLibraryFactory, &props)
