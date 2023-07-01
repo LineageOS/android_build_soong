@@ -653,6 +653,8 @@ func generateBazelTargetsGoBinary(ctx *android.Context, g *bootstrap.GoBinary, g
 }
 
 func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (conversionResults, []error) {
+	ctx.Context().BeginEvent("GenerateBazelTargets")
+	defer ctx.Context().EndEvent("GenerateBazelTargets")
 	buildFileToTargets := make(map[string]BazelTargets)
 
 	// Simple metrics tracking for bp2build
