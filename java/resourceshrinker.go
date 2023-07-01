@@ -22,7 +22,8 @@ import (
 
 var shrinkResources = pctx.AndroidStaticRule("shrinkResources",
 	blueprint.RuleParams{
-		Command:     `${config.ResourceShrinkerCmd} --output $out --input $in --raw_resources $raw_resources`,
+		// Note that we suppress stdout to avoid successful log confirmations.
+		Command:     `${config.ResourceShrinkerCmd} --output $out --input $in --raw_resources $raw_resources >/dev/null`,
 		CommandDeps: []string{"${config.ResourceShrinkerCmd}"},
 	}, "raw_resources")
 
