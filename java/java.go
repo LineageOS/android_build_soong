@@ -676,6 +676,8 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.minSdkVersion = j.MinSdkVersion(ctx)
 	j.maxSdkVersion = j.MaxSdkVersion(ctx)
 
+	j.stem = proptools.StringDefault(j.overridableDeviceProperties.Stem, ctx.ModuleName())
+
 	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 	if !apexInfo.IsForPlatform() {
 		j.hideApexVariantFromMake = true
@@ -1468,6 +1470,8 @@ func (j *Binary) HostToolPath() android.OptionalPath {
 }
 
 func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	j.stem = proptools.StringDefault(j.overridableDeviceProperties.Stem, ctx.ModuleName())
+
 	if ctx.Arch().ArchType == android.Common {
 		// Compile the jar
 		if j.binaryProperties.Main_class != nil {

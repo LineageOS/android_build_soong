@@ -666,8 +666,17 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	a.aapt.useEmbeddedNativeLibs = a.useEmbeddedNativeLibs(ctx)
 	a.aapt.useEmbeddedDex = Bool(a.appProperties.Use_embedded_dex)
 
+	// Unlike installApkName, a.stem should respect base module name for override_android_app.
+	// Therefore, use ctx.ModuleName() instead of a.Name().
+	a.stem = proptools.StringDefault(a.overridableDeviceProperties.Stem, ctx.ModuleName())
+
 	// Check if the install APK name needs to be overridden.
-	a.installApkName = ctx.DeviceConfig().OverridePackageNameFor(a.Stem())
+	// Both android_app and override_android_app module are expected to possess
+	// its module bound apk path. However, override_android_app inherits ctx.ModuleName()
+	// from the base module. Therefore, use a.Name() which represents
+	// the module name for both android_app and override_android_app.
+	a.installApkName = ctx.DeviceConfig().OverridePackageNameFor(
+		proptools.StringDefault(a.overridableDeviceProperties.Stem, a.Name()))
 
 	if ctx.ModuleName() == "framework-res" {
 		// framework-res.apk is installed as system/framework/framework-res.apk
