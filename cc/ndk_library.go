@@ -44,6 +44,7 @@ var (
 			CommandDeps: []string{"$ndkStubGenerator"},
 		}, "arch", "apiLevel", "apiMap", "flags")
 
+	// TODO(b/156513478): remove once migration to STG is complete
 	abidw = pctx.AndroidStaticRule("abidw",
 		blueprint.RuleParams{
 			Command: "$abidw --type-id-style hash --no-corpus-path " +
@@ -52,6 +53,13 @@ var (
 			CommandDeps: []string{"$abidw"},
 		}, "symbolList")
 
+	stg = pctx.AndroidStaticRule("stg",
+		blueprint.RuleParams{
+			Command:     "$stg -S :$symbolList --elf $in -o $out",
+			CommandDeps: []string{"$stg"},
+		}, "symbolList")
+
+	// TODO(b/156513478): remove once migration to STG is complete
 	xml2stg = pctx.AndroidStaticRule("xml2stg",
 		blueprint.RuleParams{
 			Command:     "$stg --abi -i $in -o $out",
@@ -109,6 +117,10 @@ type libraryProperties struct {
 
 	// Headers presented by this library to the Public API Surface
 	Export_header_libs []string
+
+	// TODO(b/156513478): remove once migration to STG is complete
+	// Fall back to the legacy abidw ABI extraction pipeline
+	Legacy_use_abidw *bool
 }
 
 type stubDecorator struct {
@@ -351,7 +363,8 @@ func canDiffAbi() bool {
 	return false
 }
 
-func (this *stubDecorator) dumpAbi(ctx ModuleContext, symbolList android.Path) {
+// TODO(b/156513478): remove once migration to STG is complete
+func (this *stubDecorator) dumpAbiLegacy(ctx ModuleContext, symbolList android.Path) {
 	implementationLibrary := this.findImplementationLibrary(ctx)
 	abiRawPath := getNdkAbiDumpInstallBase(ctx).Join(ctx,
 		this.apiLevel.String(), ctx.Arch().ArchType.String(),
@@ -375,6 +388,23 @@ func (this *stubDecorator) dumpAbi(ctx ModuleContext, symbolList android.Path) {
 		Description: fmt.Sprintf("xml2stg %s", implementationLibrary),
 		Input:       abiRawPath,
 		Output:      this.abiDumpPath,
+	})
+}
+
+func (this *stubDecorator) dumpAbi(ctx ModuleContext, symbolList android.Path) {
+	implementationLibrary := this.findImplementationLibrary(ctx)
+	this.abiDumpPath = getNdkAbiDumpInstallBase(ctx).Join(ctx,
+		this.apiLevel.String(), ctx.Arch().ArchType.String(),
+		this.libraryName(ctx), "abi.stg")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        stg,
+		Description: fmt.Sprintf("stg %s", implementationLibrary),
+		Input:       implementationLibrary,
+		Implicit:    symbolList,
+		Output:      this.abiDumpPath,
+		Args: map[string]string{
+			"symbolList": symbolList.String(),
+		},
 	})
 }
 
@@ -476,7 +506,11 @@ func (c *stubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) O
 	objs := compileStubLibrary(ctx, flags, nativeAbiResult.stubSrc)
 	c.versionScriptPath = nativeAbiResult.versionScript
 	if canDumpAbi(ctx.Config()) {
-		c.dumpAbi(ctx, nativeAbiResult.symbolList)
+		if proptools.BoolDefault(c.properties.Legacy_use_abidw, false) {
+			c.dumpAbiLegacy(ctx, nativeAbiResult.symbolList)
+		} else {
+			c.dumpAbi(ctx, nativeAbiResult.symbolList)
+		}
 		if canDiffAbi() {
 			c.diffAbi(ctx)
 		}
