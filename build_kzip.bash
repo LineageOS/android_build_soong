@@ -71,7 +71,7 @@ done
 set +e
 
 declare -r kzip_count=$(find "$out" -name '*.kzip' | wc -l)
-(($kzip_count>100000)) || { printf "Too few kzip files were generated: %d\n" $kzip_count; exit 1; }
+(($kzip_count>100000)) || { >&2 printf "ERROR: Too few kzip files were generated: %d\n" $kzip_count; exit 1; }
 
 # Pack
 declare -r allkzip="$KZIP_NAME.kzip"
