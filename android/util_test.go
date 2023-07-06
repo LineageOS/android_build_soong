@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unsafe"
 )
 
 var firstUniqueStringsTestCases = []struct {
@@ -750,6 +751,68 @@ func TestSortedUniqueStringValues(t *testing.T) {
 			got := SortedUniqueStringValues(tt.in)
 			if g, w := got, tt.expected; !reflect.DeepEqual(g, w) {
 				t.Errorf("wanted %q, got %q", w, g)
+			}
+		})
+	}
+}
+
+var reverseTestCases = []struct {
+	name     string
+	in       []string
+	expected []string
+}{
+	{
+		name:     "nil",
+		in:       nil,
+		expected: nil,
+	},
+	{
+		name:     "empty",
+		in:       []string{},
+		expected: []string{},
+	},
+	{
+		name:     "one",
+		in:       []string{"one"},
+		expected: []string{"one"},
+	},
+	{
+		name:     "even",
+		in:       []string{"one", "two"},
+		expected: []string{"two", "one"},
+	},
+	{
+		name:     "odd",
+		in:       []string{"one", "two", "three"},
+		expected: []string{"three", "two", "one"},
+	},
+}
+
+func TestReverseSliceInPlace(t *testing.T) {
+	for _, testCase := range reverseTestCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			slice := CopyOf(testCase.in)
+			slice2 := slice
+			ReverseSliceInPlace(slice)
+			if !reflect.DeepEqual(slice, testCase.expected) {
+				t.Errorf("expected %#v, got %#v", testCase.expected, slice)
+			}
+			if unsafe.SliceData(slice) != unsafe.SliceData(slice2) {
+				t.Errorf("expected slices to share backing array")
+			}
+		})
+	}
+}
+
+func TestReverseSlice(t *testing.T) {
+	for _, testCase := range reverseTestCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			slice := ReverseSlice(testCase.in)
+			if !reflect.DeepEqual(slice, testCase.expected) {
+				t.Errorf("expected %#v, got %#v", testCase.expected, slice)
+			}
+			if slice != nil && unsafe.SliceData(testCase.in) == unsafe.SliceData(slice) {
+				t.Errorf("expected slices to have different backing arrays")
 			}
 		})
 	}
