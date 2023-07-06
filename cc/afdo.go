@@ -34,7 +34,8 @@ var (
 
 var afdoProfileProjectsConfigKey = android.NewOnceKey("AfdoProfileProjects")
 
-const afdoCFlagsFormat = "-fprofile-sample-use=%s"
+// This flag needs to be in both CFlags and LdFlags to ensure correct symbol ordering
+const afdoFlagsFormat = "-fprofile-sample-use=%s"
 
 func recordMissingAfdoProfileFile(ctx android.BaseModuleContext, missing string) {
 	getNamedMapForConfig(ctx.Config(), modulesMissingProfileFileKey).Store(missing, true)
@@ -86,7 +87,7 @@ func (afdo *afdo) flags(ctx ModuleContext, flags Flags) Flags {
 	}
 	if path := afdo.Properties.FdoProfilePath; path != nil {
 		// The flags are prepended to allow overriding.
-		profileUseFlag := fmt.Sprintf(afdoCFlagsFormat, *path)
+		profileUseFlag := fmt.Sprintf(afdoFlagsFormat, *path)
 		flags.Local.CFlags = append([]string{profileUseFlag}, flags.Local.CFlags...)
 		flags.Local.LdFlags = append([]string{profileUseFlag, "-Wl,-mllvm,-no-warn-sample-unused=true"}, flags.Local.LdFlags...)
 
