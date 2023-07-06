@@ -16,8 +16,7 @@ TOP="$(readlink -f "$(dirname "$0")"/../../..)"
 # mock client.
 "$TOP/build/soong/tests/apex_comparison_tests.sh"
 "$TOP/build/soong/tests/apex_comparison_tests.sh" "module_arm64only"
-# TODO(b/289141798): uncomment the first dcla_apex_comparison_test.sh
-#TEST_BAZEL=true extra_build_params=--bazel-mode-staging "$TOP/build/soong/tests/dcla_apex_comparison_test.sh"
+TEST_BAZEL=true extra_build_params=--bazel-mode-staging "$TOP/build/soong/tests/dcla_apex_comparison_test.sh"
 #BUILD_BROKEN_DISABLE_BAZEL=true "$TOP/build/soong/tests/dcla_apex_comparison_test.sh"
 "$TOP/build/soong/tests/apex_cc_module_arch_variant_tests.sh"
 "$TOP/build/soong/tests/apex_cc_module_arch_variant_tests.sh" "aosp_arm" "armv7-a"
