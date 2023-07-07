@@ -1884,10 +1884,10 @@ func decodeMultilibTargets(multilib string, targets []Target, prefer32 bool) ([]
 		buildTargets = filterMultilibTargets(targets, "lib64")
 		// Reverse the targets so that the first architecture can depend on the second
 		// architecture module in order to merge the outputs.
-		reverseSliceInPlace(buildTargets)
+		ReverseSliceInPlace(buildTargets)
 	case "darwin_universal_common_first":
 		archTargets := filterMultilibTargets(targets, "lib64")
-		reverseSliceInPlace(archTargets)
+		ReverseSliceInPlace(archTargets)
 		buildTargets = append(getCommonTargets(targets), archTargets...)
 	default:
 		return nil, fmt.Errorf(`compile_multilib must be "both", "first", "32", "64", "prefer32" or "first_prefer32" found %q`,
