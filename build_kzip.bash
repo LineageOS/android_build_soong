@@ -44,7 +44,7 @@ kzip_targets=(
   # xref_rust
 )
 
-build/soong/soong_ui.bash --build-mode --all-modules --dir=$PWD -k "${kzip_targets[@]}"
+build/soong/soong_ui.bash --build-mode --all-modules --dir=$PWD -k --skip-soong-tests --ninja_weight_source=not_used "${kzip_targets[@]}"
 
 # Build extraction file for Go the files in build/{blueprint,soong} directories.
 declare -r abspath_out=$(realpath "${out}")
