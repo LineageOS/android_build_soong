@@ -166,7 +166,7 @@ func (s *sdkRepoHost) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 	} else {
 		llvmStrip := config.ClangPath(ctx, "bin/llvm-strip")
-		llvmLib := config.ClangPath(ctx, "lib/x86_64-unknown-linux-gnu/libc++.so.1")
+		llvmLib := config.ClangPath(ctx, "lib/x86_64-unknown-linux-gnu/libc++.so")
 		for _, strip := range s.properties.Strip_files {
 			cmd := builder.Command().Tool(llvmStrip).ImplicitTool(llvmLib)
 			if !ctx.Windows() {
