@@ -79,8 +79,8 @@ func NewDepSet[T depSettableType](order DepSetOrder, direct []T, transitive []*D
 	if order == TOPOLOGICAL {
 		// TOPOLOGICAL is implemented as a postorder traversal followed by reversing the output.
 		// Pre-reverse the inputs here so their order is maintained in the output.
-		directCopy = reverseSlice(direct)
-		transitiveCopy = reverseSlice(transitive)
+		directCopy = ReverseSlice(direct)
+		transitiveCopy = ReverseSlice(transitive)
 	} else {
 		directCopy = append([]T(nil), direct...)
 		transitiveCopy = append([]*DepSet[T](nil), transitive...)
@@ -184,7 +184,7 @@ func (d *DepSet[T]) ToList() []T {
 	})
 	list = firstUniqueInPlace(list)
 	if d.reverse {
-		reverseSliceInPlace(list)
+		ReverseSliceInPlace(list)
 	}
 	return list
 }
