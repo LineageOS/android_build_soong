@@ -1270,6 +1270,12 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 		// because this would cause circular dependency. So, until we move aquery processing
 		// to the 'android' package, we need to handle special cases here.
 		switch buildStatement.Mnemonic {
+		case "RepoMappingManifest":
+			// It appears RepoMappingManifest files currently have
+			// non-deterministic content. Just emit empty files for
+			// now because they're unused.
+			out := PathForBazelOut(ctx, buildStatement.OutputPaths[0])
+			WriteFileRuleVerbatim(ctx, out, "")
 		case "FileWrite", "SourceSymlinkManifest":
 			out := PathForBazelOut(ctx, buildStatement.OutputPaths[0])
 			WriteFileRuleVerbatim(ctx, out, buildStatement.FileContents)
