@@ -677,7 +677,7 @@ func (a *aqueryArtifactHandler) actionToBuildStatement(actionEntry *analysis_v2_
 		if len(actionEntry.Arguments) < 1 {
 			return a.templateExpandActionBuildStatement(actionEntry)
 		}
-	case "FileWrite", "SourceSymlinkManifest":
+	case "FileWrite", "SourceSymlinkManifest", "RepoMappingManifest":
 		return a.fileWriteActionBuildStatement(actionEntry)
 	case "SymlinkTree":
 		return a.symlinkTreeActionBuildStatement(actionEntry)
