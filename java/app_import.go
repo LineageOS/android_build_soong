@@ -319,7 +319,16 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	// Sign or align the package if package has not been preprocessed
 
 	if a.preprocessed {
-		a.outputFile = srcApk
+		var output android.WritablePath
+		// If using the input APK unmodified, still make a copy of it so that the output filename has the
+		// right basename.
+		output = android.PathForModuleOut(ctx, apkFilename)
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.Cp,
+			Input:  srcApk,
+			Output: output,
+		})
+		a.outputFile = output
 		a.certificate = PresignedCertificate
 	} else if !Bool(a.properties.Presigned) {
 		// If the certificate property is empty at this point, default_dev_cert must be set to true.
