@@ -1918,7 +1918,7 @@ cc_library_static {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
-				"features":       `["ubsan_blocklist_foo_blocklist_txt"]`,
+				"features":       `["sanitizer_blocklist_foo_blocklist_txt"]`,
 				"local_includes": `["."]`,
 			}),
 		},

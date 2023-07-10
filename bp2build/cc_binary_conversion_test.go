@@ -881,7 +881,7 @@ func TestCcBinaryWithSanitizerBlocklist(t *testing.T) {
 		targets: []testBazelTarget{
 			{"cc_binary", "foo", AttrNameToString{
 				"local_includes": `["."]`,
-				"features":       `["ubsan_blocklist_foo_blocklist_txt"]`,
+				"features":       `["sanitizer_blocklist_foo_blocklist_txt"]`,
 			}},
 		},
 	})

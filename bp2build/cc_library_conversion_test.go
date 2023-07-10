@@ -4194,11 +4194,11 @@ cc_library {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{
-				"features":       `["ubsan_blocklist_foo_blocklist_txt"]`,
+				"features":       `["sanitizer_blocklist_foo_blocklist_txt"]`,
 				"local_includes": `["."]`,
 			}),
 			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"features":       `["ubsan_blocklist_foo_blocklist_txt"]`,
+				"features":       `["sanitizer_blocklist_foo_blocklist_txt"]`,
 				"local_includes": `["."]`,
 			}),
 		},
