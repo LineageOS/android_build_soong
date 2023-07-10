@@ -1571,7 +1571,9 @@ func androidAppCertificateBp2Build(ctx android.TopDownMutatorContext, module *An
 }
 
 type manifestValueAttribute struct {
-	MinSdkVersion *string
+	MinSdkVersion    *string
+	MaxSdkVersion    *string
+	TargetSdkVersion *string
 }
 
 type bazelAndroidAppAttributes struct {
@@ -1601,9 +1603,22 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	// MinSdkVersion(ctx) calls SdkVersion(ctx) if no value for min_sdk_version is set
 	minSdkVersion := a.MinSdkVersion(ctx)
 	if !minSdkVersion.IsPreview() && !minSdkVersion.IsInvalid() {
-		minSdkStr, err := minSdkVersion.EffectiveVersionString(ctx)
-		if err == nil {
+		if minSdkStr, err := minSdkVersion.EffectiveVersionString(ctx); err == nil {
 			manifestValues.MinSdkVersion = &minSdkStr
+		}
+	}
+
+	maxSdkVersion := a.MaxSdkVersion(ctx)
+	if !maxSdkVersion.IsPreview() && !maxSdkVersion.IsInvalid() {
+		if maxSdkStr, err := maxSdkVersion.EffectiveVersionString(ctx); err == nil {
+			manifestValues.MaxSdkVersion = &maxSdkStr
+		}
+	}
+
+	targetSdkVersion := a.TargetSdkVersion(ctx)
+	if !targetSdkVersion.IsPreview() && !targetSdkVersion.IsInvalid() {
+		if targetSdkStr, err := targetSdkVersion.EffectiveVersionString(ctx); err == nil {
+			manifestValues.TargetSdkVersion = &targetSdkStr
 		}
 	}
 
