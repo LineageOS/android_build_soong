@@ -435,6 +435,7 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 		cmd = g.CmdModifier(ctx, cmd)
 	}
 
+	var extraInputs android.Paths
 	// Generate tasks, either from genrule or gensrcs.
 	for i, task := range g.taskGenerator(ctx, cmd, srcFiles) {
 		if len(task.out) == 0 {
@@ -442,7 +443,6 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 			return
 		}
 
-		var extraInputs android.Paths
 		// Only handle extra inputs once as these currently are the same across all tasks
 		if i == 0 {
 			for name, values := range task.extraInputs {
