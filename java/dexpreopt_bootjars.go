@@ -972,6 +972,8 @@ func bootFrameworkProfileRule(ctx android.ModuleContext, image *bootImageConfig)
 
 func dumpOatRules(ctx android.ModuleContext, image *bootImageConfig) {
 	var allPhonies android.Paths
+	name := image.name
+	global := dexpreopt.GetGlobalConfig(ctx)
 	for _, image := range image.variants {
 		arch := image.target.Arch.ArchType
 		suffix := arch.String()
@@ -980,36 +982,39 @@ func dumpOatRules(ctx android.ModuleContext, image *bootImageConfig) {
 			suffix = "host-" + suffix
 		}
 		// Create a rule to call oatdump.
-		output := android.PathForOutput(ctx, "boot."+suffix+".oatdump.txt")
+		output := android.PathForOutput(ctx, name+"."+suffix+".oatdump.txt")
 		rule := android.NewRuleBuilder(pctx, ctx)
 		imageLocationsOnHost, _ := image.imageLocations()
-		rule.Command().
+		cmd := rule.Command().
 			BuiltTool("oatdump").
 			FlagWithInputList("--runtime-arg -Xbootclasspath:", image.dexPathsDeps.Paths(), ":").
 			FlagWithList("--runtime-arg -Xbootclasspath-locations:", image.dexLocationsDeps, ":").
 			FlagWithArg("--image=", strings.Join(imageLocationsOnHost, ":")).Implicits(image.imagesDeps.Paths()).
 			FlagWithOutput("--output=", output).
 			FlagWithArg("--instruction-set=", arch.String())
-		rule.Build("dump-oat-boot-"+suffix, "dump oat boot "+arch.String())
+		if global.EnableUffdGc && image.target.Os == android.Android {
+			cmd.Flag("--runtime-arg").Flag("-Xgc:CMC")
+		}
+		rule.Build("dump-oat-"+name+"-"+suffix, "dump oat "+name+" "+arch.String())
 
 		// Create a phony rule that depends on the output file and prints the path.
-		phony := android.PathForPhony(ctx, "dump-oat-boot-"+suffix)
+		phony := android.PathForPhony(ctx, "dump-oat-"+name+"-"+suffix)
 		rule = android.NewRuleBuilder(pctx, ctx)
 		rule.Command().
 			Implicit(output).
 			ImplicitOutput(phony).
 			Text("echo").FlagWithArg("Output in ", output.String())
-		rule.Build("phony-dump-oat-boot-"+suffix, "dump oat boot "+arch.String())
+		rule.Build("phony-dump-oat-"+name+"-"+suffix, "dump oat "+name+" "+arch.String())
 
 		allPhonies = append(allPhonies, phony)
 	}
 
-	phony := android.PathForPhony(ctx, "dump-oat-boot")
+	phony := android.PathForPhony(ctx, "dump-oat-"+name)
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        android.Phony,
 		Output:      phony,
 		Inputs:      allPhonies,
-		Description: "dump-oat-boot",
+		Description: "dump-oat-"+name,
 	})
 }
 
