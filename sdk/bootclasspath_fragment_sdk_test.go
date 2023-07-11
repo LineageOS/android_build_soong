@@ -86,27 +86,27 @@ func TestSnapshotWithBootclasspathFragment_ImageName(t *testing.T) {
 
 		// Add a platform_bootclasspath that depends on the fragment.
 		fixtureAddPlatformBootclasspathForBootclasspathFragmentWithExtra(
-			"com.android.art", "mybootclasspathfragment", java.ApexBootJarFragmentsForPlatformBootclasspath),
+			"com.android.art", "art-bootclasspath-fragment", java.ApexBootJarFragmentsForPlatformBootclasspath),
 
 		java.PrepareForBootImageConfigTest,
 		java.PrepareApexBootJarConfigsAndModules,
 		android.FixtureWithRootAndroidBp(`
 			sdk {
 				name: "mysdk",
-				bootclasspath_fragments: ["mybootclasspathfragment"],
+				bootclasspath_fragments: ["art-bootclasspath-fragment"],
 			}
 
 			apex {
 				name: "com.android.art",
 				key: "com.android.art.key",
 				bootclasspath_fragments: [
-					"mybootclasspathfragment",
+					"art-bootclasspath-fragment",
 				],
 				updatable: false,
 			}
 
 			bootclasspath_fragment {
-				name: "mybootclasspathfragment",
+				name: "art-bootclasspath-fragment",
 				image_name: "art",
 				contents: ["core1", "core2"],
 				apex_available: ["com.android.art"],
@@ -142,10 +142,10 @@ func TestSnapshotWithBootclasspathFragment_ImageName(t *testing.T) {
 	).RunTest(t)
 
 	// A preparer to update the test fixture used when processing an unpackage snapshot.
-	preparerForSnapshot := fixtureAddPrebuiltApexForBootclasspathFragment("com.android.art", "mybootclasspathfragment")
+	preparerForSnapshot := fixtureAddPrebuiltApexForBootclasspathFragment("com.android.art", "art-bootclasspath-fragment")
 
 	// Check that source on its own configures the bootImageConfig correctly.
-	java.CheckMutatedArtBootImageConfig(t, result, "out/soong/.intermediates/mybootclasspathfragment/android_common_apex10000/meta_lic")
+	java.CheckMutatedArtBootImageConfig(t, result, "out/soong/.intermediates/art-bootclasspath-fragment/android_common_apex10000/meta_lic")
 	java.CheckMutatedFrameworkBootImageConfig(t, result, "out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic")
 
 	CheckSnapshot(t, result, "mysdk", "",
@@ -153,7 +153,7 @@ func TestSnapshotWithBootclasspathFragment_ImageName(t *testing.T) {
 // This is auto-generated. DO NOT EDIT.
 
 prebuilt_bootclasspath_fragment {
-    name: "mybootclasspathfragment",
+    name: "art-bootclasspath-fragment",
     prefer: false,
     visibility: ["//visibility:public"],
     apex_available: ["com.android.art"],
@@ -189,12 +189,12 @@ java_import {
 }
 `),
 		checkAllCopyRules(`
-.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/annotation-flags.csv -> hiddenapi/annotation-flags.csv
-.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/metadata.csv -> hiddenapi/metadata.csv
-.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/index.csv -> hiddenapi/index.csv
-.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/signature-patterns.csv -> hiddenapi/signature-patterns.csv
-.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/filtered-stub-flags.csv -> hiddenapi/filtered-stub-flags.csv
-.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/filtered-flags.csv -> hiddenapi/filtered-flags.csv
+.intermediates/art-bootclasspath-fragment/android_common/modular-hiddenapi/annotation-flags.csv -> hiddenapi/annotation-flags.csv
+.intermediates/art-bootclasspath-fragment/android_common/modular-hiddenapi/metadata.csv -> hiddenapi/metadata.csv
+.intermediates/art-bootclasspath-fragment/android_common/modular-hiddenapi/index.csv -> hiddenapi/index.csv
+.intermediates/art-bootclasspath-fragment/android_common/modular-hiddenapi/signature-patterns.csv -> hiddenapi/signature-patterns.csv
+.intermediates/art-bootclasspath-fragment/android_common/modular-hiddenapi/filtered-stub-flags.csv -> hiddenapi/filtered-stub-flags.csv
+.intermediates/art-bootclasspath-fragment/android_common/modular-hiddenapi/filtered-flags.csv -> hiddenapi/filtered-flags.csv
 .intermediates/mysdk/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/core1.jar
 .intermediates/mysdk/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/core2.jar
 		`),
@@ -213,7 +213,7 @@ java_import {
 					java.ApexBootJarDexJarPaths...,
 				)...,
 			)
-			java.CheckMutatedArtBootImageConfig(t, result, "out/soong/.intermediates/snapshot/mybootclasspathfragment/android_common_com.android.art/meta_lic")
+			java.CheckMutatedArtBootImageConfig(t, result, "out/soong/.intermediates/snapshot/art-bootclasspath-fragment/android_common_com.android.art/meta_lic")
 			java.CheckMutatedFrameworkBootImageConfig(t, result, "out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic")
 		}),
 
@@ -221,7 +221,7 @@ java_import {
 
 		// Check the behavior of the snapshot when the source is preferred.
 		snapshotTestChecker(checkSnapshotWithSourcePreferred, func(t *testing.T, result *android.TestResult) {
-			java.CheckMutatedArtBootImageConfig(t, result, "out/soong/.intermediates/mybootclasspathfragment/android_common_apex10000/meta_lic")
+			java.CheckMutatedArtBootImageConfig(t, result, "out/soong/.intermediates/art-bootclasspath-fragment/android_common_apex10000/meta_lic")
 			java.CheckMutatedFrameworkBootImageConfig(t, result, "out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic")
 		}),
 
@@ -229,7 +229,7 @@ java_import {
 
 		// Check the behavior of the snapshot when it is preferred.
 		snapshotTestChecker(checkSnapshotPreferredWithSource, func(t *testing.T, result *android.TestResult) {
-			java.CheckMutatedArtBootImageConfig(t, result, "out/soong/.intermediates/snapshot/prebuilt_mybootclasspathfragment/android_common_com.android.art/meta_lic")
+			java.CheckMutatedArtBootImageConfig(t, result, "out/soong/.intermediates/snapshot/prebuilt_art-bootclasspath-fragment/android_common_com.android.art/meta_lic")
 			java.CheckMutatedFrameworkBootImageConfig(t, result, "out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic")
 		}),
 	)

@@ -44,18 +44,18 @@ var PrepareApexBootJarConfigs = FixtureConfigureApexBootJars(
 
 var PrepareApexBootJarConfigsAndModules = android.GroupFixturePreparers(
 	PrepareApexBootJarConfigs,
-	prepareApexBootJarModule("com.android.foo", "framework-foo"),
-	prepareApexBootJarModule("com.android.bar", "framework-bar"),
+	PrepareApexBootJarModule("com.android.foo", "framework-foo"),
+	PrepareApexBootJarModule("com.android.bar", "framework-bar"),
 )
 
 var ApexBootJarFragmentsForPlatformBootclasspath = fmt.Sprintf(`
 	{
 		apex: "%[1]s",
-		module: "%[1]s-bootclasspathfragment",
+		module: "%[1]s-bootclasspath-fragment",
 	},
 	{
 		apex: "%[2]s",
-		module: "%[2]s-bootclasspathfragment",
+		module: "%[2]s-bootclasspath-fragment",
 	},
 `, "com.android.foo", "com.android.bar")
 
@@ -64,15 +64,22 @@ var ApexBootJarDexJarPaths = []string{
 	"out/soong/.intermediates/packages/modules/com.android.foo/framework-foo/android_common_apex10000/aligned/framework-foo.jar",
 }
 
-func prepareApexBootJarModule(apexName string, moduleName string) android.FixturePreparer {
+func PrepareApexBootJarModule(apexName string, moduleName string) android.FixturePreparer {
 	moduleSourceDir := fmt.Sprintf("packages/modules/%s", apexName)
+	fragmentName := apexName+"-bootclasspath-fragment"
+	imageNameProp := ""
+	if apexName == "com.android.art" {
+		fragmentName = "art-bootclasspath-fragment"
+		imageNameProp = `image_name: "art",`
+	}
+
 	return android.GroupFixturePreparers(
 		android.FixtureAddTextFile(moduleSourceDir+"/Android.bp", fmt.Sprintf(`
 			apex {
 				name: "%[1]s",
 				key: "%[1]s.key",
 				bootclasspath_fragments: [
-					"%[1]s-bootclasspathfragment",
+					"%[3]s",
 				],
 				updatable: false,
 			}
@@ -84,7 +91,8 @@ func prepareApexBootJarModule(apexName string, moduleName string) android.Fixtur
 			}
 
 			bootclasspath_fragment {
-				name: "%[1]s-bootclasspathfragment",
+				name: "%[3]s",
+				%[4]s
 				contents: ["%[2]s"],
 				apex_available: ["%[1]s"],
 				hidden_api: {
@@ -100,7 +108,7 @@ func prepareApexBootJarModule(apexName string, moduleName string) android.Fixtur
 				compile_dex: true,
 				apex_available: ["%[1]s"],
 			}
-		`, apexName, moduleName)),
+		`, apexName, moduleName, fragmentName, imageNameProp)),
 		android.FixtureMergeMockFs(android.MockFS{
 			fmt.Sprintf("%s/apex_manifest.json", moduleSourceDir):          nil,
 			fmt.Sprintf("%s/%s.avbpubkey", moduleSourceDir, apexName):      nil,
@@ -192,7 +200,7 @@ func CheckArtBootImageConfig(t *testing.T, result *android.TestResult) {
 // getArtImageConfig gets the ART bootImageConfig that was created during the test.
 func getArtImageConfig(result *android.TestResult) *bootImageConfig {
 	pathCtx := &android.TestPathContext{TestResult: result}
-	imageConfig := artBootImageConfig(pathCtx)
+	imageConfig := genBootImageConfigs(pathCtx)["art"]
 	return imageConfig
 }
 
@@ -1136,7 +1144,6 @@ func nestedCheckBootImageConfig(t *testing.T, imageConfig *bootImageConfig, expe
 	android.AssertPathRelativeToTopEquals(t, "dir", expected.dir, imageConfig.dir)
 	android.AssertPathRelativeToTopEquals(t, "symbolsDir", expected.symbolsDir, imageConfig.symbolsDir)
 	android.AssertStringEquals(t, "installDir", expected.installDir, imageConfig.installDir)
-	android.AssertStringEquals(t, "profileInstallPathInApex", expected.profileInstallPathInApex, imageConfig.profileInstallPathInApex)
 	android.AssertDeepEquals(t, "modules", expected.modules, imageConfig.modules)
 	android.AssertPathsRelativeToTopEquals(t, "dexPaths", expected.dexPaths, imageConfig.dexPaths.Paths())
 	android.AssertPathsRelativeToTopEquals(t, "dexPathsDeps", expected.dexPathsDeps, imageConfig.dexPathsDeps.Paths())

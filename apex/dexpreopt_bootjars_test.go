@@ -155,7 +155,7 @@ func testDexpreoptBoot(t *testing.T, ruleFile string, expectedInputs, expectedOu
 }
 
 func TestDexpreoptBootJarsWithSourceArtApex(t *testing.T) {
-	ruleFile := "boot.art"
+	ruleFile := "out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot.art"
 
 	expectedInputs := []string{
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/core-oj.jar",
@@ -192,7 +192,7 @@ func TestDexpreoptBootJarsWithSourceArtApex(t *testing.T) {
 // The only difference is that the ART profile should be deapexed from the prebuilt APEX. Other
 // inputs and outputs should be the same as above.
 func TestDexpreoptBootJarsWithPrebuiltArtApex(t *testing.T) {
-	ruleFile := "boot.art"
+	ruleFile := "out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot.art"
 
 	expectedInputs := []string{
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/core-oj.jar",
