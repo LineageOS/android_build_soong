@@ -4979,6 +4979,7 @@ func TestIncludeDirectoryOrdering(t *testing.T) {
 
 	conly := []string{"-fPIC", "${config.CommonGlobalConlyflags}"}
 	cppOnly := []string{"-fPIC", "${config.CommonGlobalCppflags}", "${config.DeviceGlobalCppflags}", "${config.ArmCppflags}"}
+	ltoFlags := []string{"-flto=thin", "-fsplit-lto-unit"}
 
 	cflags := []string{"-Werror", "-std=candcpp"}
 	cstd := []string{"-std=gnu17", "-std=conly"}
@@ -5005,17 +5006,17 @@ func TestIncludeDirectoryOrdering(t *testing.T) {
 		{
 			name:     "c",
 			src:      "foo.c",
-			expected: combineSlices(baseExpectedFlags, conly, expectedIncludes, cflags, cstd, lastIncludes, []string{"${config.NoOverrideGlobalCflags}", "${config.NoOverrideExternalGlobalCflags}"}),
+			expected: combineSlices(baseExpectedFlags, conly, expectedIncludes, cflags, ltoFlags, cstd, lastIncludes, []string{"${config.NoOverrideGlobalCflags}", "${config.NoOverrideExternalGlobalCflags}"}),
 		},
 		{
 			name:     "cc",
 			src:      "foo.cc",
-			expected: combineSlices(baseExpectedFlags, cppOnly, expectedIncludes, cflags, cppstd, lastIncludes, []string{"${config.NoOverrideGlobalCflags}", "${config.NoOverrideExternalGlobalCflags}"}),
+			expected: combineSlices(baseExpectedFlags, cppOnly, expectedIncludes, cflags, ltoFlags, cppstd, lastIncludes, []string{"${config.NoOverrideGlobalCflags}", "${config.NoOverrideExternalGlobalCflags}"}),
 		},
 		{
 			name:     "assemble",
 			src:      "foo.s",
-			expected: combineSlices(baseExpectedFlags, []string{"${config.CommonGlobalAsflags}"}, expectedIncludes, lastIncludes),
+			expected: combineSlices(baseExpectedFlags, []string{"${config.CommonGlobalAsflags}"}, expectedIncludes, ltoFlags, lastIncludes),
 		},
 	}
 
