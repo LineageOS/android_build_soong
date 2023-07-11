@@ -505,8 +505,7 @@ func (d *dexpreoptBootJars) GenerateSingletonBuildActions(ctx android.SingletonC
 		// No module has enabled dexpreopting, so we assume there will be no boot image to make.
 		return
 	}
-	archType := ctx.Config().Targets[android.Android][0].Arch.ArchType
-	d.dexpreoptConfigForMake = android.PathForOutput(ctx, toDexpreoptDirName(archType), "dexpreopt.config")
+	d.dexpreoptConfigForMake = android.PathForOutput(ctx, getDexpreoptDirName(ctx), "dexpreopt.config")
 	writeGlobalConfigForMake(ctx, d.dexpreoptConfigForMake)
 
 	global := dexpreopt.GetGlobalConfig(ctx)
@@ -885,11 +884,7 @@ const failureMessage = `ERROR: Dex2oat failed to compile a boot image.
 It is likely that the boot classpath is inconsistent.
 Rebuild with ART_BOOT_IMAGE_EXTRA_ARGS="--runtime-arg -verbose:verifier" to see verification errors.`
 
-func bootImageProfileRule(ctx android.ModuleContext, image *bootImageConfig) android.WritablePath {
-	if !image.isProfileGuided() {
-		return nil
-	}
-
+func bootImageProfileRuleCommon(ctx android.ModuleContext, name string, dexFiles android.Paths, dexLocations []string) android.WritablePath {
 	globalSoong := dexpreopt.GetGlobalSoongConfig(ctx)
 	global := dexpreopt.GetGlobalConfig(ctx)
 
@@ -916,27 +911,38 @@ func bootImageProfileRule(ctx android.ModuleContext, image *bootImageConfig) and
 	if path := android.ExistentPathForSource(ctx, extraProfile); path.Valid() {
 		profiles = append(profiles, path.Path())
 	}
-	bootImageProfile := image.dir.Join(ctx, "boot-image-profile.txt")
+	bootImageProfile := android.PathForModuleOut(ctx, name, "boot-image-profile.txt")
 	rule.Command().Text("cat").Inputs(profiles).Text(">").Output(bootImageProfile)
 
-	profile := image.dir.Join(ctx, "boot.prof")
+	profile := android.PathForModuleOut(ctx, name, "boot.prof")
 
 	rule.Command().
 		Text(`ANDROID_LOG_TAGS="*:e"`).
 		Tool(globalSoong.Profman).
 		Flag("--output-profile-type=boot").
 		FlagWithInput("--create-profile-from=", bootImageProfile).
-		FlagForEachInput("--apk=", image.dexPathsDeps.Paths()).
-		FlagForEachArg("--dex-location=", image.getAnyAndroidVariant().dexLocationsDeps).
+		FlagForEachInput("--apk=", dexFiles).
+		FlagForEachArg("--dex-location=", dexLocations).
 		FlagWithOutput("--reference-profile-file=", profile)
 
+	rule.Build("bootJarsProfile_"+name, "profile boot jars "+name)
+
+	return profile
+}
+
+func bootImageProfileRule(ctx android.ModuleContext, image *bootImageConfig) android.WritablePath {
+	if !image.isProfileGuided() {
+		return nil
+	}
+
+	profile := bootImageProfileRuleCommon(ctx, image.name, image.dexPathsDeps.Paths(), image.getAnyAndroidVariant().dexLocationsDeps)
+
 	if image == defaultBootImageConfig(ctx) {
+		rule := android.NewRuleBuilder(pctx, ctx)
 		rule.Install(profile, "/system/etc/boot-image.prof")
 		image.profileInstalls = append(image.profileInstalls, rule.Installs()...)
 		image.profileLicenseMetadataFile = android.OptionalPathForPath(ctx.LicenseMetadataFile())
 	}
-
-	rule.Build("bootJarsProfile", "profile boot jars")
 
 	return profile
 }
@@ -976,6 +982,8 @@ func bootFrameworkProfileRule(ctx android.ModuleContext, image *bootImageConfig)
 
 func dumpOatRules(ctx android.ModuleContext, image *bootImageConfig) {
 	var allPhonies android.Paths
+	name := image.name
+	global := dexpreopt.GetGlobalConfig(ctx)
 	for _, image := range image.variants {
 		arch := image.target.Arch.ArchType
 		suffix := arch.String()
@@ -984,36 +992,39 @@ func dumpOatRules(ctx android.ModuleContext, image *bootImageConfig) {
 			suffix = "host-" + suffix
 		}
 		// Create a rule to call oatdump.
-		output := android.PathForOutput(ctx, "boot."+suffix+".oatdump.txt")
+		output := android.PathForOutput(ctx, name+"."+suffix+".oatdump.txt")
 		rule := android.NewRuleBuilder(pctx, ctx)
 		imageLocationsOnHost, _ := image.imageLocations()
-		rule.Command().
+		cmd := rule.Command().
 			BuiltTool("oatdump").
 			FlagWithInputList("--runtime-arg -Xbootclasspath:", image.dexPathsDeps.Paths(), ":").
 			FlagWithList("--runtime-arg -Xbootclasspath-locations:", image.dexLocationsDeps, ":").
 			FlagWithArg("--image=", strings.Join(imageLocationsOnHost, ":")).Implicits(image.imagesDeps.Paths()).
 			FlagWithOutput("--output=", output).
 			FlagWithArg("--instruction-set=", arch.String())
-		rule.Build("dump-oat-boot-"+suffix, "dump oat boot "+arch.String())
+		if global.EnableUffdGc && image.target.Os == android.Android {
+			cmd.Flag("--runtime-arg").Flag("-Xgc:CMC")
+		}
+		rule.Build("dump-oat-"+name+"-"+suffix, "dump oat "+name+" "+arch.String())
 
 		// Create a phony rule that depends on the output file and prints the path.
-		phony := android.PathForPhony(ctx, "dump-oat-boot-"+suffix)
+		phony := android.PathForPhony(ctx, "dump-oat-"+name+"-"+suffix)
 		rule = android.NewRuleBuilder(pctx, ctx)
 		rule.Command().
 			Implicit(output).
 			ImplicitOutput(phony).
 			Text("echo").FlagWithArg("Output in ", output.String())
-		rule.Build("phony-dump-oat-boot-"+suffix, "dump oat boot "+arch.String())
+		rule.Build("phony-dump-oat-"+name+"-"+suffix, "dump oat "+name+" "+arch.String())
 
 		allPhonies = append(allPhonies, phony)
 	}
 
-	phony := android.PathForPhony(ctx, "dump-oat-boot")
+	phony := android.PathForPhony(ctx, "dump-oat-"+name)
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        android.Phony,
 		Output:      phony,
 		Inputs:      allPhonies,
-		Description: "dump-oat-boot",
+		Description: "dump-oat-"+name,
 	})
 }
 

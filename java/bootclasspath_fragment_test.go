@@ -40,6 +40,12 @@ func TestBootclasspathFragment_UnknownImageName(t *testing.T) {
 				image_name: "unknown",
 				contents: ["foo"],
 			}
+
+			java_library {
+				name: "foo",
+				srcs: ["foo.java"],
+				installable: true,
+			}
 		`)
 }
 
@@ -52,6 +58,11 @@ func TestPrebuiltBootclasspathFragment_UnknownImageName(t *testing.T) {
 				name: "unknown-bootclasspath-fragment",
 				image_name: "unknown",
 				contents: ["foo"],
+			}
+
+			java_import {
+				name: "foo",
+				jars: ["foo.jar"],
 			}
 		`)
 }
@@ -72,6 +83,18 @@ func TestBootclasspathFragmentInconsistentArtConfiguration_Platform(t *testing.T
 					"apex",
 				],
 			}
+
+			java_library {
+				name: "foo",
+				srcs: ["foo.java"],
+				installable: true,
+			}
+
+			java_library {
+				name: "bar",
+				srcs: ["bar.java"],
+				installable: true,
+			}
 		`)
 }
 
@@ -91,6 +114,18 @@ func TestBootclasspathFragmentInconsistentArtConfiguration_ApexMixture(t *testin
 					"apex1",
 					"apex2",
 				],
+			}
+
+			java_library {
+				name: "foo",
+				srcs: ["foo.java"],
+				installable: true,
+			}
+
+			java_library {
+				name: "bar",
+				srcs: ["bar.java"],
+				installable: true,
 			}
 		`)
 }
