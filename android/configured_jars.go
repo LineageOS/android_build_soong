@@ -311,4 +311,9 @@ func EmptyConfiguredJarList() ConfiguredJarList {
 	return ConfiguredJarList{}
 }
 
+// IsConfiguredJarForPlatform returns true if the given apex name is a special name for the platform.
+func IsConfiguredJarForPlatform(apex string) bool {
+	return apex == "platform" || apex == "system_ext"
+}
+
 var earlyBootJarsKey = NewOnceKey("earlyBootJars")

@@ -77,7 +77,7 @@ func addDependencyOntoApexVariants(ctx android.BottomUpMutatorContext, propertyN
 // Use gatherApexModulePairDepsWithTag to retrieve the dependencies.
 func addDependencyOntoApexModulePair(ctx android.BottomUpMutatorContext, apex string, name string, tag blueprint.DependencyTag) {
 	var variations []blueprint.Variation
-	if apex != "platform" && apex != "system_ext" {
+	if !android.IsConfiguredJarForPlatform(apex) {
 		// Pick the correct apex variant.
 		variations = []blueprint.Variation{
 			{Mutator: "apex", Variation: apex},
