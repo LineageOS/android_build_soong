@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"testing"
 
 	"android/soong/android"
@@ -557,10 +558,12 @@ func TestGenSrcs(t *testing.T) {
 
 		allowMissingDependencies bool
 
-		err   string
-		cmds  []string
-		deps  []string
-		files []string
+		err    string
+		cmds   []string
+		deps   []string
+		files  []string
+		shards int
+		inputs []string
 	}{
 		{
 			name: "gensrcs",
@@ -627,7 +630,27 @@ func TestGenSrcs(t *testing.T) {
 				"out/soong/.intermediates/gen/gen/gensrcs/in2.h",
 				"out/soong/.intermediates/gen/gen/gensrcs/in3.h",
 			},
+			shards: 2,
+			inputs: []string{
+				"baz.txt",
+			},
 		},
+	}
+
+	checkInputs := func(t *testing.T, rule android.TestingBuildParams, inputs []string) {
+		t.Helper()
+		if len(inputs) == 0 {
+			return
+		}
+		inputBaseNames := map[string]bool{}
+		for _, f := range rule.Implicits {
+			inputBaseNames[f.Base()] = true
+		}
+		for _, f := range inputs {
+			if _, ok := inputBaseNames[f]; !ok {
+				t.Errorf("Expected to find input file %q for %q, but did not", f, rule.Description)
+			}
+		}
 	}
 
 	for _, test := range testcases {
@@ -647,8 +670,19 @@ func TestGenSrcs(t *testing.T) {
 				ExtendWithErrorHandler(android.FixtureExpectsAllErrorsToMatchAPattern(expectedErrors)).
 				RunTestWithBp(t, testGenruleBp()+bp)
 
+			mod := result.ModuleForTests("gen", "")
 			if expectedErrors != nil {
 				return
+			}
+
+			if test.shards > 0 {
+				for i := 0; i < test.shards; i++ {
+					r := mod.Rule("generator" + strconv.Itoa(i))
+					checkInputs(t, r, test.inputs)
+				}
+			} else {
+				r := mod.Rule("generator")
+				checkInputs(t, r, test.inputs)
 			}
 
 			gen := result.Module("gen", "").(*Module)
