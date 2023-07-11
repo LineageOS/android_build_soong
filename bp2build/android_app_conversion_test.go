@@ -349,7 +349,7 @@ android_app {
 		}})
 }
 
-func TestAndroidAppMinSdkProvided(t *testing.T) {
+func TestAndroidAppManifestSdkVersionsProvided(t *testing.T) {
 	runAndroidAppTestCase(t, Bp2buildTestCase{
 		Description:                "Android app with value for min_sdk_version",
 		ModuleTypeUnderTest:        "android_app",
@@ -359,7 +359,9 @@ func TestAndroidAppMinSdkProvided(t *testing.T) {
 android_app {
         name: "foo",
         sdk_version: "current",
-				min_sdk_version: "24",
+        min_sdk_version: "24",
+        max_sdk_version: "30",
+        target_sdk_version: "29",
 }
 `,
 		ExpectedBazelTargets: []string{
@@ -367,14 +369,16 @@ android_app {
 				"manifest":       `"AndroidManifest.xml"`,
 				"resource_files": `[]`,
 				"manifest_values": `{
+        "maxSdkVersion": "30",
         "minSdkVersion": "24",
+        "targetSdkVersion": "29",
     }`,
 				"sdk_version": `"current"`,
 			}),
 		}})
 }
 
-func TestAndroidAppMinSdkDefaultToSdkVersion(t *testing.T) {
+func TestAndroidAppMinAndTargetSdkDefaultToSdkVersion(t *testing.T) {
 	runAndroidAppTestCase(t, Bp2buildTestCase{
 		Description:                "Android app with value for sdk_version",
 		ModuleTypeUnderTest:        "android_app",
@@ -392,6 +396,7 @@ android_app {
 				"resource_files": `[]`,
 				"manifest_values": `{
         "minSdkVersion": "30",
+        "targetSdkVersion": "30",
     }`,
 				"sdk_version": `"30"`,
 			}),
