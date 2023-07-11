@@ -162,8 +162,8 @@ func TestDexpreoptBootJarsWithSourceArtApex(t *testing.T) {
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/foo.jar",
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/bar.jar",
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/baz.jar",
-		"out/soong/dexpreopt_arm64/dex_artjars/boot.prof",
-		"out/soong/dexpreopt_arm64/dex_bootjars/boot.prof",
+		"out/soong/.intermediates/art-bootclasspath-fragment/android_common_apex10000/art/boot.prof",
+		"out/soong/.intermediates/platform-bootclasspath/android_common/boot/boot.prof",
 	}
 
 	expectedOutputs := []string{
@@ -200,7 +200,7 @@ func TestDexpreoptBootJarsWithPrebuiltArtApex(t *testing.T) {
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/bar.jar",
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/baz.jar",
 		"out/soong/.intermediates/com.android.art.deapexer/android_common/deapexer/etc/boot-image.prof",
-		"out/soong/dexpreopt_arm64/dex_bootjars/boot.prof",
+		"out/soong/.intermediates/platform-bootclasspath/android_common/boot/boot.prof",
 	}
 
 	expectedOutputs := []string{

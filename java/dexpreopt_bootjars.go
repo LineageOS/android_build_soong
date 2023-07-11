@@ -880,11 +880,7 @@ const failureMessage = `ERROR: Dex2oat failed to compile a boot image.
 It is likely that the boot classpath is inconsistent.
 Rebuild with ART_BOOT_IMAGE_EXTRA_ARGS="--runtime-arg -verbose:verifier" to see verification errors.`
 
-func bootImageProfileRule(ctx android.ModuleContext, image *bootImageConfig) android.WritablePath {
-	if !image.isProfileGuided() {
-		return nil
-	}
-
+func bootImageProfileRuleCommon(ctx android.ModuleContext, name string, dexFiles android.Paths, dexLocations []string) android.WritablePath {
 	globalSoong := dexpreopt.GetGlobalSoongConfig(ctx)
 	global := dexpreopt.GetGlobalConfig(ctx)
 
@@ -911,27 +907,38 @@ func bootImageProfileRule(ctx android.ModuleContext, image *bootImageConfig) and
 	if path := android.ExistentPathForSource(ctx, extraProfile); path.Valid() {
 		profiles = append(profiles, path.Path())
 	}
-	bootImageProfile := image.dir.Join(ctx, "boot-image-profile.txt")
+	bootImageProfile := android.PathForModuleOut(ctx, name, "boot-image-profile.txt")
 	rule.Command().Text("cat").Inputs(profiles).Text(">").Output(bootImageProfile)
 
-	profile := image.dir.Join(ctx, "boot.prof")
+	profile := android.PathForModuleOut(ctx, name, "boot.prof")
 
 	rule.Command().
 		Text(`ANDROID_LOG_TAGS="*:e"`).
 		Tool(globalSoong.Profman).
 		Flag("--output-profile-type=boot").
 		FlagWithInput("--create-profile-from=", bootImageProfile).
-		FlagForEachInput("--apk=", image.dexPathsDeps.Paths()).
-		FlagForEachArg("--dex-location=", image.getAnyAndroidVariant().dexLocationsDeps).
+		FlagForEachInput("--apk=", dexFiles).
+		FlagForEachArg("--dex-location=", dexLocations).
 		FlagWithOutput("--reference-profile-file=", profile)
 
+	rule.Build("bootJarsProfile_"+name, "profile boot jars "+name)
+
+	return profile
+}
+
+func bootImageProfileRule(ctx android.ModuleContext, image *bootImageConfig) android.WritablePath {
+	if !image.isProfileGuided() {
+		return nil
+	}
+
+	profile := bootImageProfileRuleCommon(ctx, image.name, image.dexPathsDeps.Paths(), image.getAnyAndroidVariant().dexLocationsDeps)
+
 	if image == defaultBootImageConfig(ctx) {
+		rule := android.NewRuleBuilder(pctx, ctx)
 		rule.Install(profile, "/system/etc/boot-image.prof")
 		image.profileInstalls = append(image.profileInstalls, rule.Installs()...)
 		image.profileLicenseMetadataFile = android.OptionalPathForPath(ctx.LicenseMetadataFile())
 	}
-
-	rule.Build("bootJarsProfile", "profile boot jars")
 
 	return profile
 }
