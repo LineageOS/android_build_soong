@@ -464,6 +464,17 @@ func generateBazelTargetsGoBinary(ctx *android.Context, g *bootstrap.GoBinary, g
 	return []BazelTarget{binTarget}, nil
 }
 
+var (
+	// TODO - b/284483729: Remove this denyilst
+	// Temporary denylist of go binaries that are currently used in mixed builds
+	// This denylist allows us to rollout bp2build converters for go targets without affecting mixed builds
+	goBinaryDenylist = []string{
+		"soong_zip",
+		"zip2zip",
+		"bazel_notice_gen",
+	}
+)
+
 func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (conversionResults, []error) {
 	buildFileToTargets := make(map[string]BazelTargets)
 
@@ -556,7 +567,7 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 				targets, targetErrs = generateBazelTargetsGoPackage(bpCtx, glib, nameToGoLibMap)
 				errs = append(errs, targetErrs...)
 				metrics.IncrementRuleClassCount("go_library")
-			} else if gbin, ok := m.(*bootstrap.GoBinary); ok {
+			} else if gbin, ok := m.(*bootstrap.GoBinary); ok && !android.InList(m.Name(), goBinaryDenylist) {
 				targets, targetErrs = generateBazelTargetsGoBinary(bpCtx, gbin, nameToGoLibMap)
 				errs = append(errs, targetErrs...)
 				metrics.IncrementRuleClassCount("go_binary")
