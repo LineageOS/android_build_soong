@@ -97,8 +97,6 @@ var (
 		"BlueberryFacadeGeneratedStub_cc",
 		"BlueberryFacadeGeneratedStub_h",
 		"BluetoothGeneratedDumpsysDataSchema_h",
-		"OpenwrtControlServerProto_cc",
-		"OpenwrtControlServerProto_h",
 		"c2hal_test_genc++",
 		"c2hal_test_genc++_headers",
 		"hidl2aidl_test_gen_aidl",
