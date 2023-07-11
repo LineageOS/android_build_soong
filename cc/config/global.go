@@ -111,6 +111,9 @@ var (
 
 		// Turn off FMA which got enabled by default in clang-r445002 (http://b/218805949)
 		"-ffp-contract=off",
+
+		// Using simple template names reduces the size of debug builds.
+		"-gsimple-template-names",
 	}
 
 	commonGlobalConlyflags = []string{}
