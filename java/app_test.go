@@ -717,7 +717,262 @@ func TestAppJavaResources(t *testing.T) {
 	}
 }
 
-func TestAndroidResources(t *testing.T) {
+func TestAndroidResourceProcessor(t *testing.T) {
+	testCases := []struct {
+		name string
+
+		dontVerifyApp bool
+		appResources  []string
+		appOverlays   []string
+		appImports    []string
+		appSrcJars    []string
+		appClasspath  []string
+		appCombined   []string
+
+		dontVerifyDirect bool
+		directResources  []string
+		directOverlays   []string
+		directImports    []string
+		directSrcJars    []string
+		directClasspath  []string
+		directCombined   []string
+
+		dontVerifyTransitive bool
+		transitiveResources  []string
+		transitiveOverlays   []string
+		transitiveImports    []string
+		transitiveSrcJars    []string
+		transitiveClasspath  []string
+		transitiveCombined   []string
+
+		dontVerifyDirectImport bool
+		directImportResources  []string
+		directImportOverlays   []string
+		directImportImports    []string
+
+		dontVerifyTransitiveImport bool
+		transitiveImportResources  []string
+		transitiveImportOverlays   []string
+		transitiveImportImports    []string
+	}{
+		{
+			name: "legacy",
+
+			appResources: nil,
+			appOverlays: []string{
+				"out/soong/.intermediates/transitive/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive_import/android_common/package-res.apk",
+				"out/soong/.intermediates/direct/android_common/package-res.apk",
+				"out/soong/.intermediates/direct_import/android_common/package-res.apk",
+				"out/soong/.intermediates/app/android_common/aapt2/app/res/values_strings.arsc.flat",
+			},
+			appImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
+			appSrcJars: []string{"out/soong/.intermediates/app/android_common/gen/android/R.srcjar"},
+			appClasspath: []string{
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/direct/android_common/turbine-combined/direct.jar",
+				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
+			},
+			appCombined: []string{
+				"out/soong/.intermediates/app/android_common/javac/app.jar",
+				"out/soong/.intermediates/direct/android_common/combined/direct.jar",
+				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
+			},
+
+			directResources: nil,
+			directOverlays: []string{
+				"out/soong/.intermediates/transitive/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive_import/android_common/package-res.apk",
+				"out/soong/.intermediates/direct/android_common/aapt2/direct/res/values_strings.arsc.flat",
+			},
+			directImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
+			directSrcJars: []string{"out/soong/.intermediates/direct/android_common/gen/android/R.srcjar"},
+			directClasspath: []string{
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/transitive/android_common/turbine-combined/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/classes-combined.jar",
+			},
+			directCombined: []string{
+				"out/soong/.intermediates/direct/android_common/javac/direct.jar",
+				"out/soong/.intermediates/transitive/android_common/javac/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/classes-combined.jar",
+			},
+
+			transitiveResources: []string{"out/soong/.intermediates/transitive/android_common/aapt2/transitive/res/values_strings.arsc.flat"},
+			transitiveOverlays:  nil,
+			transitiveImports:   []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
+			transitiveSrcJars:   []string{"out/soong/.intermediates/transitive/android_common/gen/android/R.srcjar"},
+			transitiveClasspath: []string{"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar"},
+			transitiveCombined:  nil,
+
+			directImportResources: nil,
+			directImportOverlays: []string{
+				"out/soong/.intermediates/direct_import/android_common/flat-res/gen_res.flata",
+				"out/soong/.intermediates/direct_import_dep/android_common/package-res.apk",
+			},
+			directImportImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
+
+			transitiveImportResources: nil,
+			transitiveImportOverlays: []string{
+				"out/soong/.intermediates/transitive_import/android_common/flat-res/gen_res.flata",
+				"out/soong/.intermediates/transitive_import_dep/android_common/package-res.apk",
+			},
+			transitiveImportImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			bp := fmt.Sprintf(`
+				android_app {
+					name: "app",
+					sdk_version: "current",
+					srcs: ["app/app.java"],
+					resource_dirs: ["app/res"],
+					manifest: "app/AndroidManifest.xml",
+					static_libs: ["direct", "direct_import"],
+				}
+
+				android_library {
+					name: "direct",
+					sdk_version: "current",
+					srcs: ["direct/direct.java"],
+					resource_dirs: ["direct/res"],
+					manifest: "direct/AndroidManifest.xml",
+					static_libs: ["transitive", "transitive_import"],
+				}
+
+				android_library {
+					name: "transitive",
+					sdk_version: "current",
+					srcs: ["transitive/transitive.java"],
+					resource_dirs: ["transitive/res"],
+					manifest: "transitive/AndroidManifest.xml",
+				}
+
+				android_library_import {
+					name: "direct_import",
+					sdk_version: "current",
+					aars: ["direct_import.aar"],
+					static_libs: ["direct_import_dep"],
+				}
+
+				android_library_import {
+					name: "direct_import_dep",
+					sdk_version: "current",
+					aars: ["direct_import_dep.aar"],
+				}
+
+				android_library_import {
+					name: "transitive_import",
+					sdk_version: "current",
+					aars: ["transitive_import.aar"],
+					static_libs: ["transitive_import_dep"],
+				}
+
+				android_library_import {
+					name: "transitive_import_dep",
+					sdk_version: "current",
+					aars: ["transitive_import_dep.aar"],
+				}
+			`)
+
+			fs := android.MockFS{
+				"app/res/values/strings.xml":        nil,
+				"direct/res/values/strings.xml":     nil,
+				"transitive/res/values/strings.xml": nil,
+			}
+
+			result := android.GroupFixturePreparers(
+				PrepareForTestWithJavaDefaultModules,
+				PrepareForTestWithOverlayBuildComponents,
+				fs.AddToFixture(),
+			).RunTestWithBp(t, bp)
+
+			type aaptInfo struct {
+				resources, overlays, imports, srcJars, classpath, combined android.Paths
+			}
+
+			getAaptInfo := func(moduleName string) (aaptInfo aaptInfo) {
+				mod := result.ModuleForTests(moduleName, "android_common")
+				resourceListRule := mod.MaybeOutput("aapt2/res.list")
+				overlayListRule := mod.MaybeOutput("aapt2/overlay.list")
+				aaptRule := mod.Rule("aapt2Link")
+				javacRule := mod.MaybeRule("javac")
+				combinedRule := mod.MaybeOutput("combined/" + moduleName + ".jar")
+
+				aaptInfo.resources = resourceListRule.Inputs
+				aaptInfo.overlays = overlayListRule.Inputs
+
+				aaptFlags := strings.Split(aaptRule.Args["flags"], " ")
+				for i, flag := range aaptFlags {
+					if flag == "-I" && i+1 < len(aaptFlags) {
+						aaptInfo.imports = append(aaptInfo.imports, android.PathForTesting(aaptFlags[i+1]))
+					}
+				}
+
+				if len(javacRule.Args["srcJars"]) > 0 {
+					aaptInfo.srcJars = android.PathsForTesting(strings.Split(javacRule.Args["srcJars"], " ")...)
+				}
+
+				if len(javacRule.Args["classpath"]) > 0 {
+					classpathArg := strings.TrimPrefix(javacRule.Args["classpath"], "-classpath ")
+					aaptInfo.classpath = android.PathsForTesting(strings.Split(classpathArg, ":")...)
+				}
+
+				aaptInfo.combined = combinedRule.Inputs
+				return
+			}
+
+			app := getAaptInfo("app")
+			direct := getAaptInfo("direct")
+			transitive := getAaptInfo("transitive")
+			directImport := getAaptInfo("direct_import")
+			transitiveImport := getAaptInfo("transitive_import")
+
+			if !testCase.dontVerifyApp {
+				android.AssertPathsRelativeToTopEquals(t, "app resources", testCase.appResources, app.resources)
+				android.AssertPathsRelativeToTopEquals(t, "app overlays", testCase.appOverlays, app.overlays)
+				android.AssertPathsRelativeToTopEquals(t, "app imports", testCase.appImports, app.imports)
+				android.AssertPathsRelativeToTopEquals(t, "app srcjars", testCase.appSrcJars, app.srcJars)
+				android.AssertPathsRelativeToTopEquals(t, "app classpath", testCase.appClasspath, app.classpath)
+				android.AssertPathsRelativeToTopEquals(t, "app combined", testCase.appCombined, app.combined)
+			}
+
+			if !testCase.dontVerifyDirect {
+				android.AssertPathsRelativeToTopEquals(t, "direct resources", testCase.directResources, direct.resources)
+				android.AssertPathsRelativeToTopEquals(t, "direct overlays", testCase.directOverlays, direct.overlays)
+				android.AssertPathsRelativeToTopEquals(t, "direct imports", testCase.directImports, direct.imports)
+				android.AssertPathsRelativeToTopEquals(t, "direct srcjars", testCase.directSrcJars, direct.srcJars)
+				android.AssertPathsRelativeToTopEquals(t, "direct classpath", testCase.directClasspath, direct.classpath)
+				android.AssertPathsRelativeToTopEquals(t, "direct combined", testCase.directCombined, direct.combined)
+			}
+
+			if !testCase.dontVerifyTransitive {
+				android.AssertPathsRelativeToTopEquals(t, "transitive resources", testCase.transitiveResources, transitive.resources)
+				android.AssertPathsRelativeToTopEquals(t, "transitive overlays", testCase.transitiveOverlays, transitive.overlays)
+				android.AssertPathsRelativeToTopEquals(t, "transitive imports", testCase.transitiveImports, transitive.imports)
+				android.AssertPathsRelativeToTopEquals(t, "transitive srcjars", testCase.transitiveSrcJars, transitive.srcJars)
+				android.AssertPathsRelativeToTopEquals(t, "transitive classpath", testCase.transitiveClasspath, transitive.classpath)
+				android.AssertPathsRelativeToTopEquals(t, "transitive combined", testCase.transitiveCombined, transitive.combined)
+			}
+
+			if !testCase.dontVerifyDirectImport {
+				android.AssertPathsRelativeToTopEquals(t, "direct_import resources", testCase.directImportResources, directImport.resources)
+				android.AssertPathsRelativeToTopEquals(t, "direct_import overlays", testCase.directImportOverlays, directImport.overlays)
+				android.AssertPathsRelativeToTopEquals(t, "direct_import imports", testCase.directImportImports, directImport.imports)
+			}
+
+			if !testCase.dontVerifyTransitiveImport {
+				android.AssertPathsRelativeToTopEquals(t, "transitive_import resources", testCase.transitiveImportResources, transitiveImport.resources)
+				android.AssertPathsRelativeToTopEquals(t, "transitive_import overlays", testCase.transitiveImportOverlays, transitiveImport.overlays)
+				android.AssertPathsRelativeToTopEquals(t, "transitive_import imports", testCase.transitiveImportImports, transitiveImport.imports)
+			}
+		})
+	}
+}
+
+func TestAndroidResourceOverlays(t *testing.T) {
 	testCases := []struct {
 		name                       string
 		enforceRROTargets          []string
