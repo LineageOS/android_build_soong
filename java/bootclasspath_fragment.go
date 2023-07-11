@@ -389,10 +389,6 @@ var BootclasspathFragmentApexContentInfoProvider = blueprint.NewProvider(Bootcla
 // BootclasspathFragmentApexContentInfo contains the bootclasspath_fragments contributions to the
 // apex contents.
 type BootclasspathFragmentApexContentInfo struct {
-	// The configured modules, will be empty if this is from a bootclasspath_fragment that does not
-	// set image_name: "art".
-	modules android.ConfiguredJarList
-
 	// Map from the base module name (without prebuilt_ prefix) of a fragment's contents module to the
 	// hidden API encoded dex jar path.
 	contentModuleDexJarPaths bootDexJarByModule
@@ -403,10 +399,6 @@ type BootclasspathFragmentApexContentInfo struct {
 	// Install path of the boot image profile if it needs to be installed in the APEX, or empty if not
 	// needed.
 	profileInstallPathInApex string
-}
-
-func (i BootclasspathFragmentApexContentInfo) Modules() android.ConfiguredJarList {
-	return i.modules
 }
 
 // DexBootJarPathForContentModule returns the path to the dex boot jar for specified module.
@@ -597,7 +589,6 @@ func (b *BootclasspathFragmentModule) provideApexContentInfo(ctx android.ModuleC
 	}
 
 	if imageConfig != nil {
-		info.modules = imageConfig.modules
 		global := dexpreopt.GetGlobalConfig(ctx)
 		if !global.DisableGenerateProfile {
 			info.profilePathOnHost = bootImageFiles.profile

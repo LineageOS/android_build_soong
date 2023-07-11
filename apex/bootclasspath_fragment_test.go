@@ -46,78 +46,6 @@ var prepareForTestWithArtApex = android.GroupFixturePreparers(
 	dexpreopt.FixtureSetBootImageProfiles("art/build/boot/boot-image-profile.txt"),
 )
 
-func TestBootclasspathFragments(t *testing.T) {
-	result := android.GroupFixturePreparers(
-		prepareForTestWithBootclasspathFragment,
-		// Configure some libraries in the art bootclasspath_fragment and platform_bootclasspath.
-		java.FixtureConfigureBootJars("com.android.art:baz", "com.android.art:quuz", "platform:foo", "platform:bar"),
-		prepareForTestWithArtApex,
-
-		java.PrepareForTestWithJavaSdkLibraryFiles,
-		java.FixtureWithLastReleaseApis("foo"),
-	).RunTestWithBp(t, `
-		java_sdk_library {
-			name: "foo",
-			srcs: ["b.java"],
-		}
-
-		java_library {
-			name: "bar",
-			srcs: ["b.java"],
-			installable: true,
-		}
-
-		apex {
-			name: "com.android.art",
-			key: "com.android.art.key",
-			bootclasspath_fragments: ["art-bootclasspath-fragment"],
-			updatable: false,
-		}
-
-		apex_key {
-			name: "com.android.art.key",
-			public_key: "com.android.art.avbpubkey",
-			private_key: "com.android.art.pem",
-		}
-
-		java_library {
-			name: "baz",
-			apex_available: [
-				"com.android.art",
-			],
-			srcs: ["b.java"],
-			compile_dex: true,
-		}
-
-		java_library {
-			name: "quuz",
-			apex_available: [
-				"com.android.art",
-			],
-			srcs: ["b.java"],
-			compile_dex: true,
-		}
-
-		bootclasspath_fragment {
-			name: "art-bootclasspath-fragment",
-			image_name: "art",
-			// Must match the "com.android.art:" entries passed to FixtureConfigureBootJars above.
-			contents: ["baz", "quuz"],
-			apex_available: [
-				"com.android.art",
-			],
-			hidden_api: {
-				split_packages: ["*"],
-			},
-		}
-`,
-	)
-
-	// Make sure that the art-bootclasspath-fragment is using the correct configuration.
-	checkBootclasspathFragment(t, result, "art-bootclasspath-fragment", "android_common_apex10000",
-		"com.android.art:baz,com.android.art:quuz")
-}
-
 func TestBootclasspathFragments_FragmentDependency(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForTestWithBootclasspathFragment,
@@ -246,16 +174,6 @@ func TestBootclasspathFragments_FragmentDependency(t *testing.T) {
 	checkAPIScopeStubs("other", otherInfo, java.SystemHiddenAPIScope, bazSystemStubs, fooSystemStubs)
 	checkAPIScopeStubs("other", otherInfo, java.TestHiddenAPIScope, bazTestStubs, fooSystemStubs)
 	checkAPIScopeStubs("other", otherInfo, java.CorePlatformHiddenAPIScope)
-}
-
-func checkBootclasspathFragment(t *testing.T, result *android.TestResult, moduleName, variantName string, expectedConfiguredModules string) {
-	t.Helper()
-
-	bootclasspathFragment := result.ModuleForTests(moduleName, variantName).Module().(*java.BootclasspathFragmentModule)
-
-	bootclasspathFragmentInfo := result.ModuleProvider(bootclasspathFragment, java.BootclasspathFragmentApexContentInfoProvider).(java.BootclasspathFragmentApexContentInfo)
-	modules := bootclasspathFragmentInfo.Modules()
-	android.AssertStringEquals(t, "invalid modules for "+moduleName, expectedConfiguredModules, modules.String())
 }
 
 func TestBootclasspathFragmentInArtApex(t *testing.T) {
