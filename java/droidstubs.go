@@ -525,8 +525,7 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 		cmd.FlagWithInputList("-classpath ", classpath.Paths(), ":")
 	}
 
-	cmd.Flag("--no-banner").
-		Flag("--color").
+	cmd.Flag("--color").
 		Flag("--quiet").
 		Flag("--format=v2").
 		FlagWithArg("--repeat-errors-max ", "10").
