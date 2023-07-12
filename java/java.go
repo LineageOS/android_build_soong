@@ -1716,8 +1716,7 @@ func metalavaStubCmd(ctx android.ModuleContext, rule *android.RuleBuilder,
 		FlagWithArg("-encoding ", "UTF-8").
 		FlagWithInputList("--source-files ", srcs, " ")
 
-	cmd.Flag("--no-banner").
-		Flag("--color").
+	cmd.Flag("--color").
 		Flag("--quiet").
 		Flag("--format=v2").
 		Flag("--include-annotations").
