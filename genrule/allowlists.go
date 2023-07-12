@@ -115,8 +115,6 @@ var (
 		"nos_app_weaver_service_genc++_headers",
 		"nos_app_weaver_service_genc++_mock",
 		"nos_generator_test_service_genc++",
-		"framework-cppstream-protos",
-		"framework-javastream-protos",
 		"aidl_camera_build_version",
 		"cronet_aml_base_android_runtime_unchecked_jni_headers",
 		"cronet_aml_base_android_runtime_jni_headers",
