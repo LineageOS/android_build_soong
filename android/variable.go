@@ -401,9 +401,10 @@ type productVariables struct {
 
 	WithDexpreopt bool `json:",omitempty"`
 
-	ManifestPackageNameOverrides []string `json:",omitempty"`
-	CertificateOverrides         []string `json:",omitempty"`
-	PackageNameOverrides         []string `json:",omitempty"`
+	ManifestPackageNameOverrides   []string `json:",omitempty"`
+	CertificateOverrides           []string `json:",omitempty"`
+	PackageNameOverrides           []string `json:",omitempty"`
+	ConfiguredJarLocationOverrides []string `json:",omitempty"`
 
 	ApexGlobalMinSdkVersionOverride *string `json:",omitempty"`
 
