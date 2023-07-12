@@ -42,7 +42,8 @@ var (
 	// TODO(b/143658984): goma can't handle the --system argument to javac.
 	javac, javacRE = pctx.MultiCommandRemoteStaticRules("javac",
 		blueprint.RuleParams{
-			Command: `rm -rf "$outDir" "$annoDir" "$srcJarDir" "$out" && mkdir -p "$outDir" "$annoDir" "$srcJarDir" && ` +
+			Command: `rm -rf "$outDir" "$annoDir" "$annoSrcJar" "$srcJarDir" "$out" && ` +
+				`mkdir -p "$outDir" "$annoDir" "$srcJarDir" && ` +
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
 				`(if [ -s $srcJarDir/list ] || [ -s $out.rsp ] ; then ` +
 				`${config.SoongJavacWrapper} $javaTemplate${config.JavacCmd} ` +
@@ -50,6 +51,7 @@ var (
 				`$processorpath $processor $javacFlags $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
 				`-d $outDir -s $annoDir @$out.rsp @$srcJarDir/list ; fi ) && ` +
+				`$annoSrcJarTemplate${config.SoongZipCmd} -jar -o $annoSrcJar -C $annoDir -D $annoDir && ` +
 				`$zipTemplate${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir && ` +
 				`rm -rf "$srcJarDir"`,
 			CommandDeps: []string{
@@ -73,8 +75,15 @@ var (
 				ExecStrategy: "${config.REJavacExecStrategy}",
 				Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 			},
+			"$annoSrcJarTemplate": &remoteexec.REParams{
+				Labels:       map[string]string{"type": "tool", "name": "soong_zip"},
+				Inputs:       []string{"${config.SoongZipCmd}", "$annoDir"},
+				OutputFiles:  []string{"$annoSrcJar"},
+				ExecStrategy: "${config.REJavacExecStrategy}",
+				Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+			},
 		}, []string{"javacFlags", "bootClasspath", "classpath", "processorpath", "processor", "srcJars", "srcJarDir",
-			"outDir", "annoDir", "javaVersion"}, nil)
+			"outDir", "annoDir", "annoSrcJar", "javaVersion"}, nil)
 
 	_ = pctx.VariableFunc("kytheCorpus",
 		func(ctx android.PackageVarContext) string { return ctx.Config().XrefCorpusName() })
@@ -312,7 +321,7 @@ func DefaultJavaBuilderFlags() javaBuilderFlags {
 }
 
 func TransformJavaToClasses(ctx android.ModuleContext, outputFile android.WritablePath, shardIdx int,
-	srcFiles, srcJars android.Paths, flags javaBuilderFlags, deps android.Paths) {
+	srcFiles, srcJars android.Paths, annoSrcJar android.WritablePath, flags javaBuilderFlags, deps android.Paths) {
 
 	// Compile java sources into .class files
 	desc := "javac"
@@ -320,7 +329,7 @@ func TransformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 		desc += strconv.Itoa(shardIdx)
 	}
 
-	transformJavaToClasses(ctx, outputFile, shardIdx, srcFiles, srcJars, flags, deps, "javac", desc)
+	transformJavaToClasses(ctx, outputFile, shardIdx, srcFiles, srcJars, annoSrcJar, flags, deps, "javac", desc)
 }
 
 // Emits the rule to generate Xref input file (.kzip file) for the given set of source files and source jars
@@ -494,7 +503,7 @@ func TurbineApt(ctx android.ModuleContext, outputSrcJar, outputResJar android.Wr
 // suffix will be appended to various intermediate files and directories to avoid collisions when
 // this function is called twice in the same module directory.
 func transformJavaToClasses(ctx android.ModuleContext, outputFile android.WritablePath,
-	shardIdx int, srcFiles, srcJars android.Paths,
+	shardIdx int, srcFiles, srcJars android.Paths, annoSrcJar android.WritablePath,
 	flags javaBuilderFlags, deps android.Paths,
 	intermediatesDir, desc string) {
 
@@ -541,11 +550,12 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 		rule = javacRE
 	}
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        rule,
-		Description: desc,
-		Output:      outputFile,
-		Inputs:      srcFiles,
-		Implicits:   deps,
+		Rule:           rule,
+		Description:    desc,
+		Output:         outputFile,
+		ImplicitOutput: annoSrcJar,
+		Inputs:         srcFiles,
+		Implicits:      deps,
 		Args: map[string]string{
 			"javacFlags":    flags.javacFlags,
 			"bootClasspath": bootClasspath,
@@ -556,6 +566,7 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 			"srcJarDir":     android.PathForModuleOut(ctx, intermediatesDir, srcJarDir).String(),
 			"outDir":        android.PathForModuleOut(ctx, intermediatesDir, outDir).String(),
 			"annoDir":       android.PathForModuleOut(ctx, intermediatesDir, annoDir).String(),
+			"annoSrcJar":    annoSrcJar.String(),
 			"javaVersion":   flags.javaVersion.String(),
 		},
 	})
