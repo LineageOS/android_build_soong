@@ -175,7 +175,7 @@ func TestTransformSubpackagePath(t *testing.T) {
 		"./z/b.c": "z/b.c",
 	}
 	for in, out := range pairs {
-		actual := transformSubpackagePath(ctx, bazel.Label{Label: in}).Label
+		actual := transformSubpackagePath(ctx.Config(), ctx.ModuleDir(), bazel.Label{Label: in}).Label
 		if actual != out {
 			t.Errorf("expected:\n%v\nactual:\n%v", out, actual)
 		}
