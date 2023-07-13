@@ -223,4 +223,65 @@ function test_sbom_aosp_cf_x86_64_phone {
   cleanup "${out_dir}"
 }
 
+function test_sbom_unbundled_apex {
+  # Setup
+  out_dir="$(setup)"
+
+  # run_soong to build com.android.adbd.apex
+  run_soong "module_arm64" "${out_dir}" "sbom deapexer" "com.android.adbd"
+
+  deapexer=${out_dir}/host/linux-x86/bin/deapexer
+  debugfs=${out_dir}/host/linux-x86/bin/debugfs_static
+  apex_file=${out_dir}/target/product/module_arm64/system/apex/com.android.adbd.apex
+  echo "============ Diffing files in $apex_file and SBOM"
+  set +e
+  # deapexer prints the list of all files and directories
+  # sed extracts the file/directory names
+  # grep removes directories
+  # sed removes leading ./ in file names
+  diff -I /system/apex/com.android.adbd.apex -I apex_manifest.pb \
+      <($deapexer --debugfs_path=$debugfs list --extents ${apex_file} | sed -E 's#(.*) \[.*\]$#\1#' | grep -v "/$" | sed -E 's#^\./(.*)#\1#' | sort -n) \
+      <(grep '"fileName": ' ${apex_file}.spdx.json | sed -E 's/.*"fileName": "(.*)",/\1/' | sort -n )
+
+  if [ $? != "0" ]; then
+    echo "Diffs found in $apex_file and SBOM"
+    exit 1
+  else
+    echo "No diffs."
+  fi
+  set -e
+
+  # Teardown
+  cleanup "${out_dir}"
+}
+
+function test_sbom_unbundled_apk {
+  # Setup
+  out_dir="$(setup)"
+
+  # run_soong to build Browser2.apk
+  run_soong "module_arm64" "${out_dir}" "sbom" "Browser2"
+
+  sbom_file=${out_dir}/target/product/module_arm64/system/product/app/Browser2/Browser2.apk.spdx.json
+  echo "============ Diffing files in Browser2.apk and SBOM"
+  set +e
+  # There is only one file in SBOM of APKs
+  diff \
+      <(echo "/system/product/app/Browser2/Browser2.apk" ) \
+      <(grep '"fileName": ' ${sbom_file} | sed -E 's/.*"fileName": "(.*)",/\1/' )
+
+  if [ $? != "0" ]; then
+    echo "Diffs found in $sbom_file"
+    exit 1
+  else
+    echo "No diffs."
+  fi
+  set -e
+
+  # Teardown
+  cleanup "${out_dir}"
+}
+
 test_sbom_aosp_cf_x86_64_phone
+test_sbom_unbundled_apex
+test_sbom_unbundled_apk
