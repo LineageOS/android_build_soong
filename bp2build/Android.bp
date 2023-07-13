@@ -19,6 +19,7 @@ bootstrap_go_package {
         "testing.go",
     ],
     deps: [
+        "blueprint-bootstrap",
         "soong-aidl-library",
         "soong-android",
         "soong-android-allowlists",
@@ -37,6 +38,7 @@ bootstrap_go_package {
         "soong-ui-metrics",
     ],
     testSrcs: [
+        "go_conversion_test.go",
         "aar_conversion_test.go",
         "aidl_library_conversion_test.go",
         "android_app_certificate_conversion_test.go",
