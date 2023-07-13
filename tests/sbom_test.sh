@@ -90,10 +90,12 @@ diff_excludes[system]=\
  -I /system/lib64/android.hardware.security.sharedsecret-V1-ndk.so \
  -I /system/lib64/android.security.compat-ndk.so \
  -I /system/lib64/libkeymaster4_1support.so \
+ -I /system/lib64/libkeymaster4support.so \
  -I /system/lib64/libkeymint.so \
  -I /system/lib64/libkeystore2_aaid.so \
  -I /system/lib64/libkeystore2_apc_compat.so \
  -I /system/lib64/libkeystore2_crypto.so \
+ -I /system/lib64/libkeystore-attestation-application-id.so \
  -I /system/lib64/libkm_compat_service.so \
  -I /system/lib64/libkm_compat.so \
  -I /system/lib64/vndk-29 \
