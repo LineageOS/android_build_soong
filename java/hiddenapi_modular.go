@@ -1236,7 +1236,6 @@ func buildRuleToGenerateRemovedDexSignatures(ctx android.ModuleContext, suffix s
 	rule := android.NewRuleBuilder(pctx, ctx)
 	rule.Command().
 		BuiltTool("metalava").
-		Flag("--no-banner").
 		Inputs(removedTxtFiles).
 		FlagWithOutput("--dex-api ", output)
 	rule.Build("modular-hiddenapi-removed-dex-signatures"+suffix, "modular hiddenapi removed dex signatures"+suffix)
