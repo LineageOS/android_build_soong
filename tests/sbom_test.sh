@@ -111,6 +111,14 @@ function test_sbom_aosp_cf_x86_64_phone {
     -I /system/lib64/android.hardware.security.rkp-V3-ndk.so \
     -I /system/lib64/android.hardware.security.sharedsecret-V1-ndk.so \
     -I /system/lib64/android.security.compat-ndk.so \
+    -I /system/lib64/libcuttlefish_allocd_utils.so \
+    -I /system/lib64/libcuttlefish_device_config_proto.so \
+    -I /system/lib64/libcuttlefish_device_config.so \
+    -I /system/lib64/libcuttlefish_fs.so \
+    -I /system/lib64/libcuttlefish_kernel_log_monitor_utils.so \
+    -I /system/lib64/libcuttlefish_utils.so \
+    -I /system/lib64/libfruit.so \
+    -I /system/lib64/libgflags.so \
     -I /system/lib64/libkeymaster4_1support.so \
     -I /system/lib64/libkeymaster4support.so \
     -I /system/lib64/libkeymint.so \
