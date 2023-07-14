@@ -386,7 +386,7 @@ func (image bootImageConfig) moduleName(ctx android.PathContext, idx int) string
 	m := image.modules.Jar(idx)
 	name := image.stem
 	if idx != 0 || image.extends != nil {
-		name += "-" + android.ModuleStem(m)
+		name += "-" + android.ModuleStem(ctx.Config(), image.modules.Apex(idx), m)
 	}
 	return name
 }
