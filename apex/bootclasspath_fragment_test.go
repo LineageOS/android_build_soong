@@ -297,6 +297,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 			// Configure some libraries in the art bootclasspath_fragment that match the source
 			// bootclasspath_fragment's contents property.
 			java.FixtureConfigureBootJars("com.android.art:foo", "com.android.art:bar"),
+			dexpreopt.FixtureSetTestOnlyArtBootImageJars("com.android.art:foo", "com.android.art:bar"),
 			addSource("foo", "bar"),
 			java.FixtureSetBootImageInstallDirOnDevice("art", "apex/com.android.art/javalib"),
 		).RunTest(t)
@@ -315,7 +316,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 
 		// Make sure that the source bootclasspath_fragment copies its dex files to the predefined
 		// locations for the art image.
-		module := result.ModuleForTests("art-bootclasspath-fragment", "android_common_apex10000")
+		module := result.ModuleForTests("dex_bootjars", "android_common")
 		checkCopiesToPredefinedLocationForArt(t, result.Config, module, "bar", "foo")
 	})
 
@@ -364,6 +365,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 			// Configure some libraries in the art bootclasspath_fragment that match the source
 			// bootclasspath_fragment's contents property.
 			java.FixtureConfigureBootJars("com.android.art:foo", "com.android.art:bar"),
+			dexpreopt.FixtureSetTestOnlyArtBootImageJars("com.android.art:foo", "com.android.art:bar"),
 			addSource("foo", "bar"),
 
 			// Make sure that a preferred prebuilt with consistent contents doesn't affect the apex.
@@ -386,7 +388,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 
 		// Make sure that the prebuilt bootclasspath_fragment copies its dex files to the predefined
 		// locations for the art image.
-		module := result.ModuleForTests("prebuilt_art-bootclasspath-fragment", "android_common_com.android.art")
+		module := result.ModuleForTests("dex_bootjars", "android_common")
 		checkCopiesToPredefinedLocationForArt(t, result.Config, module, "bar", "foo")
 	})
 
@@ -462,6 +464,7 @@ func TestBootclasspathFragmentInPrebuiltArtApex(t *testing.T) {
 
 		// Configure some libraries in the art bootclasspath_fragment.
 		java.FixtureConfigureBootJars("com.android.art:foo", "com.android.art:bar"),
+		dexpreopt.FixtureSetTestOnlyArtBootImageJars("com.android.art:foo", "com.android.art:bar"),
 		java.FixtureSetBootImageInstallDirOnDevice("art", "apex/com.android.art/javalib"),
 	)
 
@@ -537,7 +540,7 @@ func TestBootclasspathFragmentInPrebuiltArtApex(t *testing.T) {
 			`prebuilt_foo`,
 		})
 
-		module := result.ModuleForTests("art-bootclasspath-fragment", "android_common_com.android.art")
+		module := result.ModuleForTests("dex_bootjars", "android_common")
 		checkCopiesToPredefinedLocationForArt(t, result.Config, module, "bar", "foo")
 	})
 

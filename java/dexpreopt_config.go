@@ -40,57 +40,67 @@ func dexpreoptTargets(ctx android.PathContext) []android.Target {
 }
 
 var (
-	bootImageConfigKey     = android.NewOnceKey("bootImageConfig")
-	bootImageConfigRawKey  = android.NewOnceKey("bootImageConfigRaw")
-	artBootImageName       = "art"
-	frameworkBootImageName = "boot"
-	mainlineBootImageName  = "mainline"
-	bootImageStem          = "boot"
+	bootImageConfigKey       = android.NewOnceKey("bootImageConfig")
+	bootImageConfigRawKey    = android.NewOnceKey("bootImageConfigRaw")
+	frameworkBootImageName   = "boot"
+	mainlineBootImageName    = "mainline"
+	bootImageStem            = "boot"
+	profileInstallPathInApex = "etc/boot-image.prof"
 )
+
+// getImageNames returns an ordered list of image names. The order doesn't matter but needs to be
+// deterministic. The names listed here must match the map keys returned by genBootImageConfigs.
+func getImageNames() []string {
+	return []string{"art", "boot", "mainline"}
+}
 
 func genBootImageConfigRaw(ctx android.PathContext) map[string]*bootImageConfig {
 	return ctx.Config().Once(bootImageConfigRawKey, func() interface{} {
 		global := dexpreopt.GetGlobalConfig(ctx)
 
-		artModules := global.ArtApexJars
-		frameworkModules := global.BootJars // This includes `artModules`.
+		artBootImageName := "art"           // Keep this local to avoid accidental references.
+		frameworkModules := global.BootJars // This includes `global.ArtApexJars`.
 		mainlineBcpModules := global.ApexBootJars
 		frameworkSubdir := "system/framework"
 
-		// ART config for the primary boot image in the ART apex.
-		// It includes the Core Libraries.
+		profileImports := []string{"com.android.art"}
+
+		// ART boot image for testing only. Do not rely on it to make any build-time decision.
 		artCfg := bootImageConfig{
-			name:                     artBootImageName,
-			stem:                     bootImageStem,
-			installDir:               "apex/art_boot_images/javalib",
-			profileInstallPathInApex: "etc/boot-image.prof",
-			modules:                  artModules,
-			preloadedClassesFile:     "art/build/boot/preloaded-classes",
-			compilerFilter:           "speed-profile",
-			singleImage:              false,
+			name:                 artBootImageName,
+			enabledIfExists:      "art-bootclasspath-fragment",
+			stem:                 bootImageStem,
+			installDir:           "apex/art_boot_images/javalib",
+			modules:              global.TestOnlyArtBootImageJars,
+			preloadedClassesFile: "art/build/boot/preloaded-classes",
+			compilerFilter:       "speed-profile",
+			singleImage:          false,
+			profileImports:       profileImports,
 		}
 
 		// Framework config for the boot image extension.
 		// It includes framework libraries and depends on the ART config.
 		frameworkCfg := bootImageConfig{
 			name:                 frameworkBootImageName,
+			enabledIfExists:      "platform-bootclasspath",
 			stem:                 bootImageStem,
 			installDir:           frameworkSubdir,
 			modules:              frameworkModules,
 			preloadedClassesFile: "frameworks/base/config/preloaded-classes",
 			compilerFilter:       "speed-profile",
 			singleImage:          false,
-			profileImports:       []*bootImageConfig{&artCfg},
+			profileImports:       profileImports,
 		}
 
 		mainlineCfg := bootImageConfig{
-			extends:        &frameworkCfg,
-			name:           mainlineBootImageName,
-			stem:           bootImageStem,
-			installDir:     frameworkSubdir,
-			modules:        mainlineBcpModules,
-			compilerFilter: "verify",
-			singleImage:    true,
+			extends:         &frameworkCfg,
+			name:            mainlineBootImageName,
+			enabledIfExists: "platform-bootclasspath",
+			stem:            bootImageStem,
+			installDir:      frameworkSubdir,
+			modules:         mainlineBcpModules,
+			compilerFilter:  "verify",
+			singleImage:     true,
 		}
 
 		return map[string]*bootImageConfig{
@@ -180,16 +190,24 @@ func calculateDepsRecursive(c *bootImageConfig, targets []android.Target, visite
 	}
 }
 
-func artBootImageConfig(ctx android.PathContext) *bootImageConfig {
-	return genBootImageConfigs(ctx)[artBootImageName]
-}
-
 func defaultBootImageConfig(ctx android.PathContext) *bootImageConfig {
 	return genBootImageConfigs(ctx)[frameworkBootImageName]
 }
 
 func mainlineBootImageConfig(ctx android.PathContext) *bootImageConfig {
 	return genBootImageConfigs(ctx)[mainlineBootImageName]
+}
+
+// isProfileProviderApex returns true if this apex provides a boot image profile.
+func isProfileProviderApex(ctx android.PathContext, apexName string) bool {
+	for _, config := range genBootImageConfigs(ctx) {
+		for _, profileImport := range config.profileImports {
+			if profileImport == apexName {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // Apex boot config allows to access build/install paths of apex boot jars without going
