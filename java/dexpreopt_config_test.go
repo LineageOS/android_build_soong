@@ -16,6 +16,7 @@ package java
 
 import (
 	"runtime"
+	"sort"
 	"testing"
 
 	"android/soong/android"
@@ -34,4 +35,23 @@ func TestBootImageConfig(t *testing.T) {
 	CheckArtBootImageConfig(t, result)
 	CheckFrameworkBootImageConfig(t, result)
 	CheckMainlineBootImageConfig(t, result)
+}
+
+func TestImageNames(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		PrepareForBootImageConfigTest,
+	).RunTest(t)
+
+	names := getImageNames()
+	sort.Strings(names)
+
+	ctx := &android.TestPathContext{TestResult: result}
+	configs := genBootImageConfigs(ctx)
+	namesFromConfigs := make([]string, 0, len(configs))
+	for name, _ := range configs {
+		namesFromConfigs = append(namesFromConfigs, name)
+	}
+	sort.Strings(namesFromConfigs)
+
+	android.AssertArrayString(t, "getImageNames vs genBootImageConfigs", names, namesFromConfigs)
 }

@@ -813,8 +813,8 @@ func checkFrameworkBootImageConfig(t *testing.T, result *android.TestResult, mut
 			},
 		},
 		profileInstalls: []normalizedInstall{
+			{from: "out/soong/.intermediates/default/java/dex_bootjars/android_common/boot/boot.prof", to: "/system/etc/boot-image.prof"},
 			{from: "out/soong/dexpreopt_arm64/dex_bootjars/boot.bprof", to: "/system/etc/boot-image.bprof"},
-			{from: "out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/boot/boot.prof", to: "/system/etc/boot-image.prof"},
 		},
 		profileLicenseMetadataFile: expectedLicenseMetadataFile,
 	}
@@ -1230,14 +1230,14 @@ DEXPREOPT_IMAGE_LICENSE_METADATA_art_arm=%[1]s
 DEXPREOPT_IMAGE_LICENSE_METADATA_art_arm64=%[1]s
 DEXPREOPT_IMAGE_LICENSE_METADATA_art_host_x86=%[1]s
 DEXPREOPT_IMAGE_LICENSE_METADATA_art_host_x86_64=%[1]s
-DEXPREOPT_IMAGE_LICENSE_METADATA_boot_arm=out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic
-DEXPREOPT_IMAGE_LICENSE_METADATA_boot_arm64=out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic
-DEXPREOPT_IMAGE_LICENSE_METADATA_boot_host_x86=out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic
-DEXPREOPT_IMAGE_LICENSE_METADATA_boot_host_x86_64=out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic
-DEXPREOPT_IMAGE_LICENSE_METADATA_mainline_arm=out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic
-DEXPREOPT_IMAGE_LICENSE_METADATA_mainline_arm64=out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic
-DEXPREOPT_IMAGE_LICENSE_METADATA_mainline_host_x86=out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic
-DEXPREOPT_IMAGE_LICENSE_METADATA_mainline_host_x86_64=out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic
+DEXPREOPT_IMAGE_LICENSE_METADATA_boot_arm=out/soong/.intermediates/default/java/dex_bootjars/android_common/meta_lic
+DEXPREOPT_IMAGE_LICENSE_METADATA_boot_arm64=out/soong/.intermediates/default/java/dex_bootjars/android_common/meta_lic
+DEXPREOPT_IMAGE_LICENSE_METADATA_boot_host_x86=out/soong/.intermediates/default/java/dex_bootjars/android_common/meta_lic
+DEXPREOPT_IMAGE_LICENSE_METADATA_boot_host_x86_64=out/soong/.intermediates/default/java/dex_bootjars/android_common/meta_lic
+DEXPREOPT_IMAGE_LICENSE_METADATA_mainline_arm=out/soong/.intermediates/default/java/dex_bootjars/android_common/meta_lic
+DEXPREOPT_IMAGE_LICENSE_METADATA_mainline_arm64=out/soong/.intermediates/default/java/dex_bootjars/android_common/meta_lic
+DEXPREOPT_IMAGE_LICENSE_METADATA_mainline_host_x86=out/soong/.intermediates/default/java/dex_bootjars/android_common/meta_lic
+DEXPREOPT_IMAGE_LICENSE_METADATA_mainline_host_x86_64=out/soong/.intermediates/default/java/dex_bootjars/android_common/meta_lic
 DEXPREOPT_IMAGE_LOCATIONS_ON_DEVICEart=/apex/art_boot_images/javalib/boot.art
 DEXPREOPT_IMAGE_LOCATIONS_ON_DEVICEboot=/system/framework/boot.art
 DEXPREOPT_IMAGE_LOCATIONS_ON_DEVICEmainline=/system/framework/boot.art:/system/framework/boot-framework-foo.art
@@ -1245,8 +1245,8 @@ DEXPREOPT_IMAGE_LOCATIONS_ON_HOSTart=out/soong/dexpreopt_arm64/dex_artjars/andro
 DEXPREOPT_IMAGE_LOCATIONS_ON_HOSTboot=out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/boot.art
 DEXPREOPT_IMAGE_LOCATIONS_ON_HOSTmainline=out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/boot.art:out/soong/dexpreopt_arm64/dex_mainlinejars/android/system/framework/boot-framework-foo.art
 DEXPREOPT_IMAGE_NAMES=art boot mainline
-DEXPREOPT_IMAGE_PROFILE_BUILT_INSTALLED=out/soong/dexpreopt_arm64/dex_bootjars/boot.bprof:/system/etc/boot-image.bprof out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/boot/boot.prof:/system/etc/boot-image.prof
-DEXPREOPT_IMAGE_PROFILE_LICENSE_METADATA=out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic
+DEXPREOPT_IMAGE_PROFILE_BUILT_INSTALLED=out/soong/.intermediates/default/java/dex_bootjars/android_common/boot/boot.prof:/system/etc/boot-image.prof out/soong/dexpreopt_arm64/dex_bootjars/boot.bprof:/system/etc/boot-image.bprof
+DEXPREOPT_IMAGE_PROFILE_LICENSE_METADATA=out/soong/.intermediates/default/java/dex_bootjars/android_common/meta_lic
 DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_art_arm=out/soong/dexpreopt_arm64/dex_artjars_unstripped/android/apex/art_boot_images/javalib/arm/boot.oat:/apex/art_boot_images/javalib/arm/boot.oat out/soong/dexpreopt_arm64/dex_artjars_unstripped/android/apex/art_boot_images/javalib/arm/boot-core2.oat:/apex/art_boot_images/javalib/arm/boot-core2.oat
 DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_art_arm64=out/soong/dexpreopt_arm64/dex_artjars_unstripped/android/apex/art_boot_images/javalib/arm64/boot.oat:/apex/art_boot_images/javalib/arm64/boot.oat out/soong/dexpreopt_arm64/dex_artjars_unstripped/android/apex/art_boot_images/javalib/arm64/boot-core2.oat:/apex/art_boot_images/javalib/arm64/boot-core2.oat
 DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_art_host_x86=out/soong/dexpreopt_arm64/dex_artjars_unstripped/linux_glibc/apex/art_boot_images/javalib/x86/boot.oat:/apex/art_boot_images/javalib/x86/boot.oat out/soong/dexpreopt_arm64/dex_artjars_unstripped/linux_glibc/apex/art_boot_images/javalib/x86/boot-core2.oat:/apex/art_boot_images/javalib/x86/boot-core2.oat
