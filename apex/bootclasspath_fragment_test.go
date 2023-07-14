@@ -315,7 +315,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 
 		// Make sure that the source bootclasspath_fragment copies its dex files to the predefined
 		// locations for the art image.
-		module := result.ModuleForTests("art-bootclasspath-fragment", "android_common_apex10000")
+		module := result.ModuleForTests("dex_bootjars", "android_common")
 		checkCopiesToPredefinedLocationForArt(t, result.Config, module, "bar", "foo")
 	})
 
@@ -386,7 +386,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 
 		// Make sure that the prebuilt bootclasspath_fragment copies its dex files to the predefined
 		// locations for the art image.
-		module := result.ModuleForTests("prebuilt_art-bootclasspath-fragment", "android_common_com.android.art")
+		module := result.ModuleForTests("dex_bootjars", "android_common")
 		checkCopiesToPredefinedLocationForArt(t, result.Config, module, "bar", "foo")
 	})
 
@@ -537,7 +537,7 @@ func TestBootclasspathFragmentInPrebuiltArtApex(t *testing.T) {
 			`prebuilt_foo`,
 		})
 
-		module := result.ModuleForTests("art-bootclasspath-fragment", "android_common_com.android.art")
+		module := result.ModuleForTests("dex_bootjars", "android_common")
 		checkCopiesToPredefinedLocationForArt(t, result.Config, module, "bar", "foo")
 	})
 
