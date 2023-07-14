@@ -500,6 +500,8 @@ type Module struct {
 	maxSdkVersion android.ApiLevel
 
 	sourceExtensions []string
+
+	annoSrcJars android.Paths
 }
 
 func (j *Module) CheckStableSdkVersion(ctx android.BaseModuleContext) error {
@@ -1255,8 +1257,9 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			// this module, or else we could have duplicated errorprone messages.
 			errorproneFlags := enableErrorproneFlags(flags)
 			errorprone := android.PathForModuleOut(ctx, "errorprone", jarName)
+			errorproneAnnoSrcJar := android.PathForModuleOut(ctx, "errorprone", "anno.srcjar")
 
-			transformJavaToClasses(ctx, errorprone, -1, uniqueJavaFiles, srcJars, errorproneFlags, nil,
+			transformJavaToClasses(ctx, errorprone, -1, uniqueJavaFiles, srcJars, errorproneAnnoSrcJar, errorproneFlags, nil,
 				"errorprone", "errorprone")
 
 			extraJarDeps = append(extraJarDeps, errorprone)
@@ -1657,18 +1660,24 @@ func (j *Module) compileJavaClasses(ctx android.ModuleContext, jarName string, i
 	srcFiles, srcJars android.Paths, flags javaBuilderFlags, extraJarDeps android.Paths) android.WritablePath {
 
 	kzipName := pathtools.ReplaceExtension(jarName, "kzip")
+	annoSrcJar := android.PathForModuleOut(ctx, "javac", "anno.srcjar")
 	if idx >= 0 {
 		kzipName = strings.TrimSuffix(jarName, filepath.Ext(jarName)) + strconv.Itoa(idx) + ".kzip"
+		annoSrcJar = android.PathForModuleOut(ctx, "javac", "anno-"+strconv.Itoa(idx)+".srcjar")
 		jarName += strconv.Itoa(idx)
 	}
 
 	classes := android.PathForModuleOut(ctx, "javac", jarName).OutputPath
-	TransformJavaToClasses(ctx, classes, idx, srcFiles, srcJars, flags, extraJarDeps)
+	TransformJavaToClasses(ctx, classes, idx, srcFiles, srcJars, annoSrcJar, flags, extraJarDeps)
 
 	if ctx.Config().EmitXrefRules() {
 		extractionFile := android.PathForModuleOut(ctx, kzipName)
 		emitXrefRule(ctx, extractionFile, idx, srcFiles, srcJars, flags, extraJarDeps)
 		j.kytheFiles = append(j.kytheFiles, extractionFile)
+	}
+
+	if len(flags.processorPath) > 0 {
+		j.annoSrcJars = append(j.annoSrcJars, annoSrcJar)
 	}
 
 	return classes
@@ -1850,6 +1859,7 @@ func (j *Module) IDEInfo(dpInfo *android.IdeInfo) {
 	dpInfo.Paths = append(dpInfo.Paths, j.modulePaths...)
 	dpInfo.Static_libs = append(dpInfo.Static_libs, j.properties.Static_libs...)
 	dpInfo.Libs = append(dpInfo.Libs, j.properties.Libs...)
+	dpInfo.SrcJars = append(dpInfo.SrcJars, j.annoSrcJars.Strings()...)
 }
 
 func (j *Module) CompilerDeps() []string {
