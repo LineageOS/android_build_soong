@@ -198,7 +198,7 @@ func BazelLabelForModuleSrcExcludes(ctx BazelConversionPathContext, paths, exclu
 	}
 	labels := expandSrcsForBazel(ctx, paths, excluded)
 	labels.Excludes = excludeLabels.Includes
-	labels = transformSubpackagePaths(ctx, labels)
+	labels = TransformSubpackagePaths(ctx.Config(), ctx.ModuleDir(), labels)
 	return labels
 }
 
@@ -237,7 +237,7 @@ func isPackageBoundary(config Config, prefix string, components []string, compon
 // if the "async_safe" directory is actually a package and not just a directory.
 //
 // In particular, paths that extend into packages are transformed into absolute labels beginning with //.
-func transformSubpackagePath(ctx BazelConversionPathContext, path bazel.Label) bazel.Label {
+func transformSubpackagePath(cfg Config, dir string, path bazel.Label) bazel.Label {
 	var newPath bazel.Label
 
 	// Don't transform OriginalModuleName
@@ -281,7 +281,7 @@ func transformSubpackagePath(ctx BazelConversionPathContext, path bazel.Label) b
 	for i := len(pathComponents) - 1; i >= 0; i-- {
 		pathComponent := pathComponents[i]
 		var sep string
-		if !foundPackageBoundary && isPackageBoundary(ctx.Config(), ctx.ModuleDir(), pathComponents, i) {
+		if !foundPackageBoundary && isPackageBoundary(cfg, dir, pathComponents, i) {
 			sep = ":"
 			foundPackageBoundary = true
 		} else {
@@ -295,7 +295,7 @@ func transformSubpackagePath(ctx BazelConversionPathContext, path bazel.Label) b
 	}
 	if foundPackageBoundary {
 		// Ensure paths end up looking like //bionic/... instead of //./bionic/...
-		moduleDir := ctx.ModuleDir()
+		moduleDir := dir
 		if strings.HasPrefix(moduleDir, ".") {
 			moduleDir = moduleDir[1:]
 		}
@@ -313,13 +313,13 @@ func transformSubpackagePath(ctx BazelConversionPathContext, path bazel.Label) b
 
 // Transform paths to acknowledge package boundaries
 // See transformSubpackagePath() for more information
-func transformSubpackagePaths(ctx BazelConversionPathContext, paths bazel.LabelList) bazel.LabelList {
+func TransformSubpackagePaths(cfg Config, dir string, paths bazel.LabelList) bazel.LabelList {
 	var newPaths bazel.LabelList
 	for _, include := range paths.Includes {
-		newPaths.Includes = append(newPaths.Includes, transformSubpackagePath(ctx, include))
+		newPaths.Includes = append(newPaths.Includes, transformSubpackagePath(cfg, dir, include))
 	}
 	for _, exclude := range paths.Excludes {
-		newPaths.Excludes = append(newPaths.Excludes, transformSubpackagePath(ctx, exclude))
+		newPaths.Excludes = append(newPaths.Excludes, transformSubpackagePath(cfg, dir, exclude))
 	}
 	return newPaths
 }
