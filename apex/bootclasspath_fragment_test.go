@@ -297,6 +297,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 			// Configure some libraries in the art bootclasspath_fragment that match the source
 			// bootclasspath_fragment's contents property.
 			java.FixtureConfigureBootJars("com.android.art:foo", "com.android.art:bar"),
+			dexpreopt.FixtureSetTestOnlyArtBootImageJars("com.android.art:foo", "com.android.art:bar"),
 			addSource("foo", "bar"),
 			java.FixtureSetBootImageInstallDirOnDevice("art", "apex/com.android.art/javalib"),
 		).RunTest(t)
@@ -364,6 +365,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 			// Configure some libraries in the art bootclasspath_fragment that match the source
 			// bootclasspath_fragment's contents property.
 			java.FixtureConfigureBootJars("com.android.art:foo", "com.android.art:bar"),
+			dexpreopt.FixtureSetTestOnlyArtBootImageJars("com.android.art:foo", "com.android.art:bar"),
 			addSource("foo", "bar"),
 
 			// Make sure that a preferred prebuilt with consistent contents doesn't affect the apex.
@@ -462,6 +464,7 @@ func TestBootclasspathFragmentInPrebuiltArtApex(t *testing.T) {
 
 		// Configure some libraries in the art bootclasspath_fragment.
 		java.FixtureConfigureBootJars("com.android.art:foo", "com.android.art:bar"),
+		dexpreopt.FixtureSetTestOnlyArtBootImageJars("com.android.art:foo", "com.android.art:bar"),
 		java.FixtureSetBootImageInstallDirOnDevice("art", "apex/com.android.art/javalib"),
 	)
 
