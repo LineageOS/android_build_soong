@@ -48,6 +48,7 @@ func (cov *coverage) props() []interface{} {
 func getGcovProfileLibraryName(ctx ModuleContextIntf) string {
 	// This function should only ever be called for a cc.Module, so the
 	// following statement should always succeed.
+	// LINT.IfChange
 	if ctx.useSdk() {
 		return "libprofile-extras_ndk"
 	} else {
@@ -63,6 +64,7 @@ func getClangProfileLibraryName(ctx ModuleContextIntf) string {
 	} else {
 		return "libprofile-clang-extras"
 	}
+	// LINT.ThenChange(library.go)
 }
 
 func (cov *coverage) deps(ctx DepsContext, deps Deps) Deps {
