@@ -111,6 +111,13 @@ func FixtureSetArtBootJars(bootJars ...string) android.FixturePreparer {
 	})
 }
 
+// FixtureSetTestOnlyArtBootImageJars enables dexpreopt and sets the TestOnlyArtBootImageJars property.
+func FixtureSetTestOnlyArtBootImageJars(bootJars ...string) android.FixturePreparer {
+	return FixtureModifyGlobalConfig(func(_ android.PathContext, dexpreoptConfig *GlobalConfig) {
+		dexpreoptConfig.TestOnlyArtBootImageJars = android.CreateTestConfiguredJarList(bootJars)
+	})
+}
+
 // FixtureSetBootJars enables dexpreopt and sets the BootJars property.
 func FixtureSetBootJars(bootJars ...string) android.FixturePreparer {
 	return FixtureModifyGlobalConfig(func(_ android.PathContext, dexpreoptConfig *GlobalConfig) {

@@ -45,7 +45,8 @@ type GlobalConfig struct {
 	BootJars     android.ConfiguredJarList // modules for jars that form the boot class path
 	ApexBootJars android.ConfiguredJarList // jars within apex that form the boot class path
 
-	ArtApexJars android.ConfiguredJarList // modules for jars that are in the ART APEX
+	ArtApexJars              android.ConfiguredJarList // modules for jars that are in the ART APEX
+	TestOnlyArtBootImageJars android.ConfiguredJarList // modules for jars to be included in the ART boot image for testing
 
 	SystemServerJars               android.ConfiguredJarList // system_server classpath jars on the platform
 	SystemServerApps               []string                  // apps that are loaded into system server
@@ -700,6 +701,7 @@ func GlobalConfigForTests(ctx android.PathContext) *GlobalConfig {
 		BootJars:                           android.EmptyConfiguredJarList(),
 		ApexBootJars:                       android.EmptyConfiguredJarList(),
 		ArtApexJars:                        android.EmptyConfiguredJarList(),
+		TestOnlyArtBootImageJars:           android.EmptyConfiguredJarList(),
 		SystemServerJars:                   android.EmptyConfiguredJarList(),
 		SystemServerApps:                   nil,
 		ApexSystemServerJars:               android.EmptyConfiguredJarList(),
