@@ -368,13 +368,8 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 
 				filterRRO := func(filter overlayType) android.Paths {
 					var paths android.Paths
-					seen := make(map[android.Path]bool)
-					for _, d := range app.rroDirsDepSet.ToList() {
+					for _, d := range app.rroDirs {
 						if d.overlayType == filter {
-							if seen[d.path] {
-								continue
-							}
-							seen[d.path] = true
 							paths = append(paths, d.path)
 						}
 					}
