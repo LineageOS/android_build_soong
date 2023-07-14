@@ -145,8 +145,8 @@ func TestSnapshotWithBootclasspathFragment_ImageName(t *testing.T) {
 	preparerForSnapshot := fixtureAddPrebuiltApexForBootclasspathFragment("com.android.art", "art-bootclasspath-fragment")
 
 	// Check that source on its own configures the bootImageConfig correctly.
-	java.CheckMutatedArtBootImageConfig(t, result, "out/soong/.intermediates/art-bootclasspath-fragment/android_common_apex10000/meta_lic")
-	java.CheckMutatedFrameworkBootImageConfig(t, result, "out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic")
+	java.CheckMutatedArtBootImageConfig(t, result, "out/soong/.intermediates/default/java/dex_bootjars/android_common/meta_lic")
+	java.CheckMutatedFrameworkBootImageConfig(t, result, "out/soong/.intermediates/default/java/dex_bootjars/android_common/meta_lic")
 
 	CheckSnapshot(t, result, "mysdk", "",
 		checkAndroidBpContents(`
@@ -213,24 +213,24 @@ java_import {
 					java.ApexBootJarDexJarPaths...,
 				)...,
 			)
-			java.CheckMutatedArtBootImageConfig(t, result, "out/soong/.intermediates/snapshot/art-bootclasspath-fragment/android_common_com.android.art/meta_lic")
-			java.CheckMutatedFrameworkBootImageConfig(t, result, "out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic")
+			java.CheckMutatedArtBootImageConfig(t, result, "out/soong/.intermediates/default/java/dex_bootjars/android_common/meta_lic")
+			java.CheckMutatedFrameworkBootImageConfig(t, result, "out/soong/.intermediates/default/java/dex_bootjars/android_common/meta_lic")
 		}),
 
 		snapshotTestPreparer(checkSnapshotWithSourcePreferred, preparerForSnapshot),
 
 		// Check the behavior of the snapshot when the source is preferred.
 		snapshotTestChecker(checkSnapshotWithSourcePreferred, func(t *testing.T, result *android.TestResult) {
-			java.CheckMutatedArtBootImageConfig(t, result, "out/soong/.intermediates/art-bootclasspath-fragment/android_common_apex10000/meta_lic")
-			java.CheckMutatedFrameworkBootImageConfig(t, result, "out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic")
+			java.CheckMutatedArtBootImageConfig(t, result, "out/soong/.intermediates/default/java/dex_bootjars/android_common/meta_lic")
+			java.CheckMutatedFrameworkBootImageConfig(t, result, "out/soong/.intermediates/default/java/dex_bootjars/android_common/meta_lic")
 		}),
 
 		snapshotTestPreparer(checkSnapshotPreferredWithSource, preparerForSnapshot),
 
 		// Check the behavior of the snapshot when it is preferred.
 		snapshotTestChecker(checkSnapshotPreferredWithSource, func(t *testing.T, result *android.TestResult) {
-			java.CheckMutatedArtBootImageConfig(t, result, "out/soong/.intermediates/snapshot/prebuilt_art-bootclasspath-fragment/android_common_com.android.art/meta_lic")
-			java.CheckMutatedFrameworkBootImageConfig(t, result, "out/soong/.intermediates/frameworks/base/boot/platform-bootclasspath/android_common/meta_lic")
+			java.CheckMutatedArtBootImageConfig(t, result, "out/soong/.intermediates/default/java/dex_bootjars/android_common/meta_lic")
+			java.CheckMutatedFrameworkBootImageConfig(t, result, "out/soong/.intermediates/default/java/dex_bootjars/android_common/meta_lic")
 		}),
 	)
 
