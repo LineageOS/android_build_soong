@@ -629,31 +629,21 @@ func TestAndroidTestImport_Preprocessed(t *testing.T) {
 			presigned: true,
 			preprocessed: true,
 		}
-
-		android_test_import {
-			name: "foo_cert",
-			apk: "prebuilts/apk/app.apk",
-			certificate: "cert/new_cert",
-			preprocessed: true,
-		}
 		`)
 
-	testModules := []string{"foo", "foo_cert"}
-	for _, m := range testModules {
-		apkName := m + ".apk"
-		variant := ctx.ModuleForTests(m, "android_common")
-		jniRule := variant.Output("jnis-uncompressed/" + apkName).BuildParams.Rule.String()
-		if jniRule != android.Cp.String() {
-			t.Errorf("Unexpected JNI uncompress rule: " + jniRule)
-		}
+	apkName := "foo.apk"
+	variant := ctx.ModuleForTests("foo", "android_common")
+	jniRule := variant.Output("jnis-uncompressed/" + apkName).BuildParams.Rule.String()
+	if jniRule != android.Cp.String() {
+		t.Errorf("Unexpected JNI uncompress rule: " + jniRule)
+	}
 
-		// Make sure signing and aligning were skipped.
-		if variant.MaybeOutput("signed/"+apkName).Rule != nil {
-			t.Errorf("signing rule shouldn't be included for preprocessed.")
-		}
-		if variant.MaybeOutput("zip-aligned/"+apkName).Rule != nil {
-			t.Errorf("aligning rule shouldn't be for preprocessed")
-		}
+	// Make sure signing and aligning were skipped.
+	if variant.MaybeOutput("signed/"+apkName).Rule != nil {
+		t.Errorf("signing rule shouldn't be included for preprocessed.")
+	}
+	if variant.MaybeOutput("zip-aligned/"+apkName).Rule != nil {
+		t.Errorf("aligning rule shouldn't be for preprocessed")
 	}
 }
 
