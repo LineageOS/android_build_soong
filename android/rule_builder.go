@@ -582,10 +582,8 @@ func (r *RuleBuilder) Build(name string, desc string) {
 
 		// Add copy rules to the manifest to copy each output file from the sbox directory.
 		// to the output directory after running the commands.
-		sboxOutputs := make([]string, len(outputs))
-		for i, output := range outputs {
+		for _, output := range outputs {
 			rel := Rel(r.ctx, r.outDir.String(), output.String())
-			sboxOutputs[i] = filepath.Join(sboxOutDir, rel)
 			command.CopyAfter = append(command.CopyAfter, &sbox_proto.Copy{
 				From: proto.String(filepath.Join(sboxOutSubDir, rel)),
 				To:   proto.String(output.String()),
