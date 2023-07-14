@@ -108,7 +108,7 @@ func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
 		var ltoLdFlags []string
 
 		// The module did not explicitly turn on LTO. Only leverage LTO's
-		// better dead code elinmination and CFG simplification, but do
+		// better dead code elimination and CFG simplification, but do
 		// not perform costly optimizations for a balance between compile
 		// time, binary size and performance.
 		if !lto.ThinLTO() {
