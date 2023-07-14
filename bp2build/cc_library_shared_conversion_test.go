@@ -1225,7 +1225,7 @@ cc_library_shared {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"features":       `["ubsan_blocklist_foo_blocklist_txt"]`,
+				"features":       `["sanitizer_blocklist_foo_blocklist_txt"]`,
 				"local_includes": `["."]`,
 			}),
 		},
