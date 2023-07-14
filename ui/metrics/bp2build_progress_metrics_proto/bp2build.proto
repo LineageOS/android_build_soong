@@ -38,6 +38,9 @@ message Bp2buildConversionProgress {
 
     // Total number of transitive dependencies.
     int32 num_deps = 5;
+
+    // Unconverted reasons from heuristics
+    repeated string unconverted_reasons_from_heuristics = 6;
   }
 
   // Modules that the transitive dependencies were identified for.
