@@ -74,6 +74,9 @@ func (lto *lto) begin(ctx BaseModuleContext) {
 	} else if ctx.Host() {
 		// Performance and binary size are less important for host binaries.
 		ltoDefault = false
+	} else if ctx.Arch().ArchType.Multilib == "lib32" {
+		// LP32 has many subtle issues and less test coverage.
+		ltoDefault = false
 	}
 
 	// Then, determine the actual LTO mode to use. If different from `ltoDefault`, a variant needs
