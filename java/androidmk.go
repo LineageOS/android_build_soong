@@ -123,6 +123,8 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 					if library.dexpreopter.configPath != nil {
 						entries.SetPath("LOCAL_SOONG_DEXPREOPT_CONFIG", library.dexpreopter.configPath)
 					}
+
+					entries.SetOptionalPaths("LOCAL_ACONFIG_FILES", library.getTransitiveAconfigFiles().ToList())
 				},
 			},
 		})
@@ -220,6 +222,7 @@ func (prebuilt *Import) AndroidMkEntries() []android.AndroidMkEntries {
 				entries.SetPath("LOCAL_SOONG_CLASSES_JAR", prebuilt.combinedClasspathFile)
 				entries.SetString("LOCAL_SDK_VERSION", prebuilt.sdkVersion.String())
 				entries.SetString("LOCAL_MODULE_STEM", prebuilt.Stem())
+				// TODO(b/289117800): LOCAL_ACONFIG_FILES for prebuilts
 			},
 		},
 	}}
@@ -244,6 +247,7 @@ func (prebuilt *DexImport) AndroidMkEntries() []android.AndroidMkEntries {
 					entries.SetString("LOCAL_SOONG_BUILT_INSTALLED", prebuilt.dexpreopter.builtInstalled)
 				}
 				entries.SetString("LOCAL_MODULE_STEM", prebuilt.Stem())
+				// TODO(b/289117800): LOCAL_ACONFIG_FILES for prebuilts
 			},
 		},
 	}}
@@ -269,6 +273,7 @@ func (prebuilt *AARImport) AndroidMkEntries() []android.AndroidMkEntries {
 				entries.SetPath("LOCAL_SOONG_STATIC_LIBRARY_EXTRA_PACKAGES", prebuilt.extraAaptPackagesFile)
 				entries.SetPath("LOCAL_FULL_MANIFEST_FILE", prebuilt.manifest)
 				entries.SetString("LOCAL_SDK_VERSION", prebuilt.sdkVersion.String())
+				// TODO(b/289117800): LOCAL_ACONFIG_FILES for prebuilts
 			},
 		},
 	}}
@@ -295,6 +300,7 @@ func (binary *Binary) AndroidMkEntries() []android.AndroidMkEntries {
 					if len(binary.dexpreopter.builtInstalled) > 0 {
 						entries.SetString("LOCAL_SOONG_BUILT_INSTALLED", binary.dexpreopter.builtInstalled)
 					}
+					entries.SetOptionalPaths("LOCAL_ACONFIG_FILES", binary.getTransitiveAconfigFiles().ToList())
 				},
 			},
 			ExtraFooters: []android.AndroidMkExtraFootersFunc{
@@ -437,6 +443,10 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 				}
 
 				entries.SetOptionalPaths("LOCAL_SOONG_LINT_REPORTS", app.linter.reports)
+
+				if app.Name() != "framework-res" {
+					entries.SetOptionalPaths("LOCAL_ACONFIG_FILES", app.getTransitiveAconfigFiles().ToList())
+				}
 			},
 		},
 		ExtraFooters: []android.AndroidMkExtraFootersFunc{
@@ -512,6 +522,7 @@ func (a *AndroidLibrary) AndroidMkEntries() []android.AndroidMkEntries {
 		entries.SetPath("LOCAL_FULL_MANIFEST_FILE", a.mergedManifestFile)
 		entries.AddStrings("LOCAL_SOONG_EXPORT_PROGUARD_FLAGS", a.exportedProguardFlagFiles.Strings()...)
 		entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", true)
+		entries.SetOptionalPaths("LOCAL_ACONFIG_FILES", a.getTransitiveAconfigFiles().ToList())
 	})
 
 	return entriesList
@@ -684,6 +695,7 @@ func (a *AndroidAppImport) AndroidMkEntries() []android.AndroidMkEntries {
 				if Bool(a.properties.Export_package_resources) {
 					entries.SetPath("LOCAL_SOONG_RESOURCE_EXPORT_PACKAGE", a.outputFile)
 				}
+				// TODO(b/289117800): LOCAL_ACONFIG_FILES for prebuilts
 			},
 		},
 	}}
@@ -717,6 +729,7 @@ func (r *RuntimeResourceOverlay) AndroidMkEntries() []android.AndroidMkEntries {
 				entries.SetString("LOCAL_CERTIFICATE", r.certificate.AndroidMkString())
 				entries.SetPath("LOCAL_MODULE_PATH", r.installDir)
 				entries.AddStrings("LOCAL_OVERRIDES_PACKAGES", r.properties.Overrides...)
+				// TODO: LOCAL_ACONFIG_FILES -- Might eventually need aconfig flags?
 			},
 		},
 	}}
@@ -734,6 +747,7 @@ func (apkSet *AndroidAppSet) AndroidMkEntries() []android.AndroidMkEntries {
 					entries.SetPath("LOCAL_APK_SET_INSTALL_FILE", apkSet.PackedAdditionalOutputs())
 					entries.SetPath("LOCAL_APKCERTS_FILE", apkSet.apkcertsFile)
 					entries.AddStrings("LOCAL_OVERRIDES_PACKAGES", apkSet.properties.Overrides...)
+					// TODO(b/289117800): LOCAL_ACONFIG_FILES for prebuilts -- Both declarations and values
 				},
 			},
 		},
