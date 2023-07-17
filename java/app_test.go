@@ -599,13 +599,19 @@ func TestLibraryAssets(t *testing.T) {
 			android_library {
 				name: "lib3",
 				sdk_version: "current",
-				static_libs: ["lib4"],
+				static_libs: ["lib4", "import"],
 			}
 
 			android_library {
 				name: "lib4",
 				sdk_version: "current",
 				asset_dirs: ["assets_b"],
+			}
+
+			android_library_import {
+				name: "import",
+				sdk_version: "current",
+				aars: ["import.aar"],
 			}
 		`
 
@@ -616,11 +622,12 @@ func TestLibraryAssets(t *testing.T) {
 	}{
 		{
 			name: "foo",
-			// lib1 has its own asset. lib3 doesn't have any, but provides lib4's transitively.
+			// lib1 has its own assets. lib3 doesn't have any, but lib4 and import have assets.
 			assetPackages: []string{
 				"out/soong/.intermediates/foo/android_common/aapt2/package-res.apk",
 				"out/soong/.intermediates/lib1/android_common/assets.zip",
-				"out/soong/.intermediates/lib3/android_common/assets.zip",
+				"out/soong/.intermediates/lib4/android_common/assets.zip",
+				"out/soong/.intermediates/import/android_common/assets.zip",
 			},
 		},
 		{
@@ -632,10 +639,6 @@ func TestLibraryAssets(t *testing.T) {
 		},
 		{
 			name: "lib3",
-			assetPackages: []string{
-				"out/soong/.intermediates/lib3/android_common/aapt2/package-res.apk",
-				"out/soong/.intermediates/lib4/android_common/assets.zip",
-			},
 		},
 		{
 			name:      "lib4",
@@ -761,11 +764,14 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			appResources: nil,
 			appOverlays: []string{
 				"out/soong/.intermediates/transitive/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive_import_dep/android_common/package-res.apk",
 				"out/soong/.intermediates/transitive_import/android_common/package-res.apk",
 				"out/soong/.intermediates/direct/android_common/package-res.apk",
+				"out/soong/.intermediates/direct_import_dep/android_common/package-res.apk",
 				"out/soong/.intermediates/direct_import/android_common/package-res.apk",
 				"out/soong/.intermediates/app/android_common/aapt2/app/res/values_strings.arsc.flat",
 			},
+
 			appImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
 			appSrcJars: []string{"out/soong/.intermediates/app/android_common/gen/android/R.srcjar"},
 			appClasspath: []string{
@@ -782,9 +788,11 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			directResources: nil,
 			directOverlays: []string{
 				"out/soong/.intermediates/transitive/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive_import_dep/android_common/package-res.apk",
 				"out/soong/.intermediates/transitive_import/android_common/package-res.apk",
 				"out/soong/.intermediates/direct/android_common/aapt2/direct/res/values_strings.arsc.flat",
 			},
+
 			directImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
 			directSrcJars: []string{"out/soong/.intermediates/direct/android_common/gen/android/R.srcjar"},
 			directClasspath: []string{
@@ -1198,7 +1206,7 @@ func TestAndroidResourceOverlays(t *testing.T) {
 					overlayFiles = resourceListToFiles(module, android.PathsRelativeToTop(overlayList.Inputs))
 				}
 
-				for _, d := range module.Module().(AndroidLibraryDependency).ExportedRRODirs() {
+				for _, d := range module.Module().(AndroidLibraryDependency).RRODirsDepSet().ToList() {
 					var prefix string
 					if d.overlayType == device {
 						prefix = "device:"
