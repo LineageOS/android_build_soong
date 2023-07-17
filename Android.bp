@@ -48,7 +48,7 @@ cc_defaults {
 
 kernel_headers {
     name: "device_kernel_headers",
-    vendor: true,
+    vendor_available: true,
     recovery_available: true,
     min_sdk_version: "apex_inherit",
 }
