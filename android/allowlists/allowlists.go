@@ -763,6 +763,7 @@ var (
 
 		// Mainline Module Apps
 		"CaptivePortalLogin",
+		"ModuleMetadata",
 
 		"libstagefright_headers",
 
