@@ -80,6 +80,7 @@ bootstrap_go_package {
     ],
     testSrcs: [
         "aar_test.go",
+        "android_manifest_test.go",
         "androidmk_test.go",
         "app_import_test.go",
         "app_set_test.go",
