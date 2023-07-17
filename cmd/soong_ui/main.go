@@ -218,6 +218,11 @@ func main() {
 
 	trace.SetOutput(filepath.Join(logsDir, c.logsPrefix+"build.trace"))
 
+	log.Verbose("Command Line: ")
+	for i, arg := range os.Args {
+		log.Verbosef("  [%d] %s", i, arg)
+	}
+
 	defer func() {
 		stat.Finish()
 		criticalPath.WriteToMetrics(met)
