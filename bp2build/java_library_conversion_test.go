@@ -183,8 +183,8 @@ func TestJavaLibraryJavaVersion(t *testing.T) {
 	})
 }
 
-func TestJavaLibraryErrorproneJavacflagsEnabledManually(t *testing.T) {
-	runJavaLibraryTestCase(t, Bp2buildTestCase{
+func TestJavaLibraryErrorproneEnabledManually(t *testing.T) {
+	runJavaLibraryTestCaseWithRegistrationCtxFunc(t, Bp2buildTestCase{
 		Blueprint: `java_library {
     name: "java-lib-1",
     srcs: ["a.java"],
@@ -192,7 +192,13 @@ func TestJavaLibraryErrorproneJavacflagsEnabledManually(t *testing.T) {
     errorprone: {
         enabled: true,
         javacflags: ["-Xep:SpeedLimit:OFF"],
+        extra_check_modules: ["plugin2"],
     },
+}
+java_plugin {
+    name: "plugin2",
+    srcs: ["a.java"],
+    bazel_module: { bp2build_available: false },
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
@@ -200,10 +206,14 @@ func TestJavaLibraryErrorproneJavacflagsEnabledManually(t *testing.T) {
         "-Xsuper-fast",
         "-Xep:SpeedLimit:OFF",
     ]`,
-				"srcs": `["a.java"]`,
+				"plugins":                 `[":plugin2"]`,
+				"srcs":                    `["a.java"]`,
+				"errorprone_force_enable": `True`,
 			}),
 			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
 		},
+	}, func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("java_plugin", java.PluginFactory)
 	})
 }
 
@@ -227,21 +237,23 @@ func TestJavaLibraryErrorproneJavacflagsErrorproneDisabledByDefault(t *testing.T
 	})
 }
 
-func TestJavaLibraryErrorproneJavacflagsErrorproneDisabledManually(t *testing.T) {
+func TestJavaLibraryErrorproneDisabledManually(t *testing.T) {
 	runJavaLibraryTestCase(t, Bp2buildTestCase{
 		Blueprint: `java_library {
     name: "java-lib-1",
     srcs: ["a.java"],
     javacflags: ["-Xsuper-fast"],
     errorprone: {
-		enabled: false,
-        javacflags: ["-Xep:SpeedLimit:OFF"],
+    enabled: false,
     },
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
-				"javacopts": `["-Xsuper-fast"]`,
-				"srcs":      `["a.java"]`,
+				"javacopts": `[
+        "-Xsuper-fast",
+        "-XepDisableAllChecks",
+    ]`,
+				"srcs": `["a.java"]`,
 			}),
 			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
 		},
