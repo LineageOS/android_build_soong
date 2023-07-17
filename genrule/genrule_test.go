@@ -790,6 +790,49 @@ func TestGenruleOutputFiles(t *testing.T) {
 		result.ModuleForTests("gen_all", "").Module().(*useSource).srcs)
 }
 
+func TestGenruleInterface(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForGenRuleTest,
+		android.FixtureMergeMockFs(android.MockFS{
+			"package-dir/Android.bp": []byte(`
+				genrule {
+					name: "module-name",
+					cmd: "mkdir -p $(genDir) && cat $(in) >> $(genDir)/$(out)",
+					srcs: [
+						"src/foo.proto",
+					],
+					out: ["proto.h", "bar/proto.h"],
+					export_include_dirs: [".", "bar"],
+				}
+			`),
+		}),
+	).RunTest(t)
+
+	exportedIncludeDirs := []string{
+		"out/soong/.intermediates/package-dir/module-name/gen/package-dir",
+		"out/soong/.intermediates/package-dir/module-name/gen",
+		"out/soong/.intermediates/package-dir/module-name/gen/package-dir/bar",
+		"out/soong/.intermediates/package-dir/module-name/gen/bar",
+	}
+	gen := result.Module("module-name", "").(*Module)
+
+	android.AssertPathsRelativeToTopEquals(
+		t,
+		"include path",
+		exportedIncludeDirs,
+		gen.GeneratedHeaderDirs(),
+	)
+	android.AssertPathsRelativeToTopEquals(
+		t,
+		"files",
+		[]string{
+			"out/soong/.intermediates/package-dir/module-name/gen/proto.h",
+			"out/soong/.intermediates/package-dir/module-name/gen/bar/proto.h",
+		},
+		gen.GeneratedSourceFiles(),
+	)
+}
+
 func TestGenSrcsWithNonRootAndroidBpOutputFiles(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForGenRuleTest,
