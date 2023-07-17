@@ -17,7 +17,7 @@ set -eu
 # limitations under the License.
 
 # Tool to unpack an apex file and verify that the required files were extracted.
-if [ $# -lt 7 ]; then
+if [ $# -lt 6 ]; then
   echo "usage: $0 <deapaxer_path> <debugfs_path> <fsck.erofs_path> <apex file> <output_dir> <required_files>+" >&2
   exit 1
 fi
