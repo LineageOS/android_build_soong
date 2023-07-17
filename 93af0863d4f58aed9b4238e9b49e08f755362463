@@ -1,0 +1,44 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "ede49388_ba2f3db6",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 1
+      },
+      "lineNbr": 7,
+      "author": {
+        "id": 25732
+      },
+      "writtenOn": "2023-07-17T14:51:57Z",
+      "side": 1,
+      "message": "system",
+      "range": {
+        "startLine": 7,
+        "startChar": 40,
+        "endLine": 7,
+        "endChar": 46
+      },
+      "revId": "93af0863d4f58aed9b4238e9b49e08f755362463",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "5c2da878_340af19d",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 25732
+      },
+      "writtenOn": "2023-07-17T14:51:57Z",
+      "side": 1,
+      "message": "*kernel* headers shouldn\u0027t really be used by *system* components, it breaks Treble isolation. What\u0027s the reason for this?",
+      "revId": "93af0863d4f58aed9b4238e9b49e08f755362463",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
