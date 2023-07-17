@@ -74,6 +74,8 @@ const (
 
 	InApex  = "in_apex"
 	NonApex = "non_apex"
+
+	ErrorproneDisabled = "errorprone_disabled"
 )
 
 func PowerSetWithoutEmptySet[T any](items []T) [][]T {
@@ -216,6 +218,11 @@ var (
 		NonApex:                    "//build/bazel/rules/apex:non_apex",
 		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey,
 	}
+
+	errorProneMap = map[string]string{
+		ErrorproneDisabled:         "//build/bazel/rules/java/errorprone:errorprone_globally_disabled",
+		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey,
+	}
 )
 
 // basic configuration types
@@ -229,6 +236,7 @@ const (
 	productVariables
 	osAndInApex
 	inApex
+	errorProneDisabled
 )
 
 func osArchString(os string, arch string) string {
@@ -237,13 +245,14 @@ func osArchString(os string, arch string) string {
 
 func (ct configurationType) String() string {
 	return map[configurationType]string{
-		noConfig:         "no_config",
-		arch:             "arch",
-		os:               "os",
-		osArch:           "arch_os",
-		productVariables: "product_variables",
-		osAndInApex:      "os_in_apex",
-		inApex:           "in_apex",
+		noConfig:           "no_config",
+		arch:               "arch",
+		os:                 "os",
+		osArch:             "arch_os",
+		productVariables:   "product_variables",
+		osAndInApex:        "os_in_apex",
+		inApex:             "in_apex",
+		errorProneDisabled: "errorprone_disabled",
 	}[ct]
 }
 
@@ -274,6 +283,10 @@ func (ct configurationType) validateConfig(config string) {
 		if _, ok := inApexMap[config]; !ok {
 			panic(fmt.Errorf("Unknown in_apex config: %s", config))
 		}
+	case errorProneDisabled:
+		if _, ok := errorProneMap[config]; !ok {
+			panic(fmt.Errorf("Unknown errorprone config: %s", config))
+		}
 	default:
 		panic(fmt.Errorf("Unrecognized ConfigurationType %d", ct))
 	}
@@ -303,6 +316,8 @@ func (ca ConfigurationAxis) SelectKey(config string) string {
 		return config
 	case inApex:
 		return inApexMap[config]
+	case errorProneDisabled:
+		return errorProneMap[config]
 	default:
 		panic(fmt.Errorf("Unrecognized ConfigurationType %d", ca.configurationType))
 	}
@@ -321,6 +336,8 @@ var (
 	OsAndInApexAxis = ConfigurationAxis{configurationType: osAndInApex}
 	// An axis for in_apex-specific configurations
 	InApexAxis = ConfigurationAxis{configurationType: inApex}
+
+	ErrorProneAxis = ConfigurationAxis{configurationType: errorProneDisabled}
 )
 
 // ProductVariableConfigurationAxis returns an axis for the given product variable
