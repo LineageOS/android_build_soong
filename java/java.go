@@ -2819,12 +2819,8 @@ type bp2BuildJavaInfo struct {
 	hasKotlin bool
 }
 
-// Replaces //a/b/my_xsd_config with //a/b/my_xsd_config-java
-func xsdConfigJavaTarget(ctx android.BazelConversionPathContext, mod blueprint.Module) string {
-	callback := func(xsd android.XsdConfigBp2buildTargets) string {
-		return xsd.JavaBp2buildTargetName()
-	}
-	return android.XsdConfigBp2buildTarget(ctx, mod, callback)
+func javaXsdTargetName(xsd android.XsdConfigBp2buildTargets) string {
+	return xsd.JavaBp2buildTargetName()
 }
 
 // convertLibraryAttrsBp2Build returns a javaCommonAttributes struct with
@@ -2835,21 +2831,14 @@ func xsdConfigJavaTarget(ctx android.BazelConversionPathContext, mod blueprint.M
 func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext) (*javaCommonAttributes, *bp2BuildJavaInfo) {
 	var srcs bazel.LabelListAttribute
 	var deps bazel.LabelListAttribute
-	var staticDeps bazel.LabelList
+	var staticDeps bazel.LabelListAttribute
 
 	archVariantProps := m.GetArchVariantProperties(ctx, &CommonProperties{})
 	for axis, configToProps := range archVariantProps {
 		for config, _props := range configToProps {
 			if archProps, ok := _props.(*CommonProperties); ok {
-				srcsNonXsd, srcsXsd := android.PartitionXsdSrcs(ctx, archProps.Srcs)
-				excludeSrcsNonXsd, _ := android.PartitionXsdSrcs(ctx, archProps.Exclude_srcs)
-				archSrcs := android.BazelLabelForModuleSrcExcludes(ctx, srcsNonXsd, excludeSrcsNonXsd)
+				archSrcs := android.BazelLabelForModuleSrcExcludes(ctx, archProps.Srcs, archProps.Exclude_srcs)
 				srcs.SetSelectValue(axis, config, archSrcs)
-
-				// Add to static deps
-				xsdJavaConfigLibraryLabels := android.BazelLabelForModuleDepsWithFn(ctx, srcsXsd, xsdConfigJavaTarget)
-				staticDeps.Append(xsdJavaConfigLibraryLabels)
-
 			}
 		}
 	}
@@ -2857,6 +2846,7 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 
 	javaSrcPartition := "java"
 	protoSrcPartition := "proto"
+	xsdSrcPartition := "xsd"
 	logtagSrcPartition := "logtag"
 	aidlSrcPartition := "aidl"
 	kotlinPartition := "kotlin"
@@ -2865,12 +2855,15 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 		logtagSrcPartition: bazel.LabelPartition{Extensions: []string{".logtags", ".logtag"}},
 		protoSrcPartition:  android.ProtoSrcLabelPartition,
 		aidlSrcPartition:   android.AidlSrcLabelPartition,
+		xsdSrcPartition:    bazel.LabelPartition{LabelMapper: android.XsdLabelMapper(javaXsdTargetName)},
 		kotlinPartition:    bazel.LabelPartition{Extensions: []string{".kt"}},
 	})
 
 	javaSrcs := srcPartitions[javaSrcPartition]
 	kotlinSrcs := srcPartitions[kotlinPartition]
 	javaSrcs.Append(kotlinSrcs)
+
+	staticDeps.Append(srcPartitions[xsdSrcPartition])
 
 	if !srcPartitions[logtagSrcPartition].IsEmpty() {
 		logtagsLibName := m.Name() + "_logtags"
@@ -2925,7 +2918,7 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 			},
 		)
 
-		staticDeps.Add(&bazel.Label{Label: ":" + javaAidlLibName})
+		staticDeps.Append(bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + javaAidlLibName}))
 	}
 
 	var javacopts bazel.StringListAttribute //[]string
@@ -2980,7 +2973,9 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 	// by protoc are included directly in the resulting JAR. Thus upstream dependencies
 	// that depend on a java_library with proto sources can link directly to the protobuf API,
 	// and so this should be a static dependency.
-	staticDeps.Add(protoDepLabel)
+	if protoDepLabel != nil {
+		staticDeps.Append(bazel.MakeSingleLabelListAttribute(*protoDepLabel))
+	}
 
 	depLabels := &javaDependencyLabels{}
 	depLabels.Deps = deps
@@ -2995,7 +2990,7 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 			}
 		}
 	}
-	depLabels.StaticDeps.Value.Append(staticDeps)
+	depLabels.StaticDeps.Append(staticDeps)
 
 	hasKotlin := !kotlinSrcs.IsEmpty()
 	commonAttrs.kotlinAttributes = &kotlinAttributes{
