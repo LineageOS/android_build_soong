@@ -39,6 +39,24 @@
       "message": "*kernel* headers shouldn\u0027t really be used by *system* components, it breaks Treble isolation. What\u0027s the reason for this?",
       "revId": "93af0863d4f58aed9b4238e9b49e08f755362463",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "a3e422a1_3053e677",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 27025
+      },
+      "writtenOn": "2023-07-17T15:48:06Z",
+      "side": 1,
+      "message": "probably for getting FOD_PRESSED_LAYER_ZORDER from kernel headers",
+      "parentUuid": "5c2da878_340af19d",
+      "revId": "93af0863d4f58aed9b4238e9b49e08f755362463",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
