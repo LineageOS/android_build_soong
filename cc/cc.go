@@ -1079,6 +1079,10 @@ func (c *Module) CcLibraryInterface() bool {
 	return false
 }
 
+func (c *Module) RlibStd() bool {
+	panic(fmt.Errorf("RlibStd called on non-Rust module: %q", c.BaseModuleName()))
+}
+
 func (c *Module) RustLibraryInterface() bool {
 	return false
 }
