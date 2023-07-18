@@ -1963,6 +1963,10 @@ func (library *libraryDecorator) optInAbiDiff(ctx android.ModuleContext, referen
 
 	libName := strings.TrimSuffix(baseName, filepath.Ext(baseName))
 	errorMessage := "error: Please update ABI references with: $$ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py -l " + libName + " -ref-dump-dir $$ANDROID_BUILD_TOP/" + refDumpDir
+	// Most opt-in libraries do not have dumps for all default architectures.
+	if ctx.Config().HasDeviceProduct() {
+		errorMessage += " -products " + ctx.Config().DeviceProduct()
+	}
 
 	library.sourceAbiDiff(ctx, referenceDump, baseName, nameExt,
 		isLlndkOrNdk, false /* allowExtensions */, "current", errorMessage)
