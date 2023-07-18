@@ -100,6 +100,7 @@ const (
 	snapshotBinarySuffix = "_binary."
 	snapshotObjectSuffix = "_object."
 	SnapshotRlibSuffix   = "_rlib."
+	SnapshotDylibSuffix  = "_dylib."
 )
 
 type SnapshotProperties struct {
@@ -107,6 +108,7 @@ type SnapshotProperties struct {
 	Static_libs []string `android:"arch_variant"`
 	Shared_libs []string `android:"arch_variant"`
 	Rlibs       []string `android:"arch_variant"`
+	Dylibs      []string `android:"arch_variant"`
 	Vndk_libs   []string `android:"arch_variant"`
 	Binaries    []string `android:"arch_variant"`
 	Objects     []string `android:"arch_variant"`
@@ -186,6 +188,7 @@ func (s *snapshotModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 	staticLibs := collectSnapshotMap(s.properties.Static_libs, snapshotSuffix, SnapshotStaticSuffix)
 	sharedLibs := collectSnapshotMap(s.properties.Shared_libs, snapshotSuffix, SnapshotSharedSuffix)
 	rlibs := collectSnapshotMap(s.properties.Rlibs, snapshotSuffix, SnapshotRlibSuffix)
+	dylibs := collectSnapshotMap(s.properties.Dylibs, snapshotSuffix, SnapshotDylibSuffix)
 	vndkLibs := collectSnapshotMap(s.properties.Vndk_libs, "", vndkSuffix)
 	for k, v := range vndkLibs {
 		sharedLibs[k] = v
@@ -198,11 +201,12 @@ func (s *snapshotModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 		StaticLibs: staticLibs,
 		SharedLibs: sharedLibs,
 		Rlibs:      rlibs,
+		Dylibs:     dylibs,
 	})
 }
 
 type SnapshotInfo struct {
-	HeaderLibs, Binaries, Objects, StaticLibs, SharedLibs, Rlibs map[string]string
+	HeaderLibs, Binaries, Objects, StaticLibs, SharedLibs, Rlibs, Dylibs map[string]string
 }
 
 var SnapshotInfoProvider = blueprint.NewMutatorProvider(SnapshotInfo{}, "deps")
