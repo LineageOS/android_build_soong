@@ -202,10 +202,10 @@ type VendorConfig soongconfig.SoongConfig
 // product configuration values are read from Kati-generated soong.variables.
 type config struct {
 	// Options configurable with soong.variables
-	productVariables productVariables
+	productVariables ProductVariables
 
 	// Only available on configs created by TestConfig
-	TestProductVariables *productVariables
+	TestProductVariables *ProductVariables
 
 	// A specialized context object for Bazel/Soong mixed builds and migration
 	// purposes.
@@ -321,7 +321,7 @@ func loadConfig(config *config) error {
 
 // loadFromConfigFile loads and decodes configuration options from a JSON file
 // in the current working directory.
-func loadFromConfigFile(configurable *productVariables, filename string) error {
+func loadFromConfigFile(configurable *ProductVariables, filename string) error {
 	// Try to open the file
 	configFileReader, err := os.Open(filename)
 	defer configFileReader.Close()
@@ -373,7 +373,7 @@ func loadFromConfigFile(configurable *productVariables, filename string) error {
 
 // atomically writes the config file in case two copies of soong_build are running simultaneously
 // (for example, docs generation and ninja manifest generation)
-func saveToConfigFile(config *productVariables, filename string) error {
+func saveToConfigFile(config *ProductVariables, filename string) error {
 	data, err := json.MarshalIndent(&config, "", "    ")
 	if err != nil {
 		return fmt.Errorf("cannot marshal config data: %s", err.Error())
@@ -402,7 +402,7 @@ func saveToConfigFile(config *productVariables, filename string) error {
 	return nil
 }
 
-func saveToBazelConfigFile(config *productVariables, outDir string) error {
+func saveToBazelConfigFile(config *ProductVariables, outDir string) error {
 	dir := filepath.Join(outDir, bazel.SoongInjectionDirName, "product_config")
 	err := createDirIfNonexistent(dir, os.ModePerm)
 	if err != nil {

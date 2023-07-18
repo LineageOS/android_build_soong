@@ -225,7 +225,7 @@ func runApiBp2build(ctx *android.Context, extraNinjaDeps []string) string {
 	ninjaDeps = append(ninjaDeps, codegenContext.AdditionalNinjaDeps()...)
 
 	// Create soong_injection repository
-	soongInjectionFiles, err := bp2build.CreateSoongInjectionDirFiles(codegenContext, bp2build.CreateCodegenMetrics())
+	soongInjectionFiles, workspaceFiles, err := bp2build.CreateSoongInjectionDirFiles(codegenContext, bp2build.CreateCodegenMetrics())
 	maybeQuit(err, "")
 	absoluteSoongInjectionDir := shared.JoinPath(topDir, ctx.Config().SoongOutDir(), bazel.SoongInjectionDirName)
 	for _, file := range soongInjectionFiles {
@@ -235,6 +235,9 @@ func runApiBp2build(ctx *android.Context, extraNinjaDeps []string) string {
 		// This is because the subsequent step (bp2build in api domain analysis) creates them in Read-Write mode
 		// to allow users to edit/experiment in the synthetic workspace.
 		writeReadWriteFile(absoluteSoongInjectionDir, file)
+	}
+	for _, file := range workspaceFiles {
+		writeReadWriteFile(absoluteApiBp2buildDir, file)
 	}
 
 	workspace := shared.JoinPath(ctx.Config().SoongOutDir(), "api_bp2build")
