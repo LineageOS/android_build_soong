@@ -122,7 +122,7 @@ func (be ZipEntryFromBuffer) Size() uint64 {
 }
 
 func (be ZipEntryFromBuffer) WriteToZip(dest string, zw *zip.Writer) error {
-	w, err := zw.CreateHeader(be.fh)
+	w, err := zw.CreateHeaderAndroid(be.fh)
 	if err != nil {
 		return err
 	}
@@ -562,6 +562,8 @@ func mergeZips(inputZips []InputZip, writer *zip.Writer, manifest, pyMain string
 		}
 	}
 
+	var jarServices jar.Services
+
 	// Finally, add entries from all the input zips.
 	for _, inputZip := range inputZips {
 		_, copyFully := zipsToNotStrip[inputZip.Name()]
@@ -570,6 +572,14 @@ func mergeZips(inputZips []InputZip, writer *zip.Writer, manifest, pyMain string
 		}
 
 		for i, entry := range inputZip.Entries() {
+			if emulateJar && jarServices.IsServiceFile(entry) {
+				// If this is a jar, collect service files to combine  instead of adding them to the zip.
+				err := jarServices.AddServiceFile(entry)
+				if err != nil {
+					return err
+				}
+				continue
+			}
 			if copyFully || !out.isEntryExcluded(entry.Name) {
 				if err := out.copyEntry(inputZip, i); err != nil {
 					return err
@@ -585,6 +595,16 @@ func mergeZips(inputZips []InputZip, writer *zip.Writer, manifest, pyMain string
 	}
 
 	if emulateJar {
+		// Combine all the service files into a single list of combined service files and add them to the zip.
+		for _, serviceFile := range jarServices.ServiceFiles() {
+			_, err := out.addZipEntry(serviceFile.Name, ZipEntryFromBuffer{
+				fh:      serviceFile.FileHeader,
+				content: serviceFile.Contents,
+			})
+			if err != nil {
+				return err
+			}
+		}
 		return out.writeEntries(out.jarSorted())
 	} else if sortEntries {
 		return out.writeEntries(out.alphanumericSorted())
