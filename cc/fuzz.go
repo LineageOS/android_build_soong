@@ -258,25 +258,29 @@ func (fuzzBin *fuzzBinary) install(ctx ModuleContext, file android.Path) {
 
 func PackageFuzzModule(ctx android.ModuleContext, fuzzPackagedModule fuzz.FuzzPackagedModule, pctx android.PackageContext) fuzz.FuzzPackagedModule {
 	fuzzPackagedModule.Corpus = android.PathsForModuleSrc(ctx, fuzzPackagedModule.FuzzProperties.Corpus)
-	builder := android.NewRuleBuilder(pctx, ctx)
 	intermediateDir := android.PathForModuleOut(ctx, "corpus")
+
+	// Create one rule per file to avoid MAX_ARG_STRLEN hardlimit.
 	for _, entry := range fuzzPackagedModule.Corpus {
-		builder.Command().Text("cp").
-			Input(entry).
-			Output(intermediateDir.Join(ctx, entry.Base()))
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.Cp,
+			Output: intermediateDir.Join(ctx, entry.Base()),
+			Input:  entry,
+		})
 	}
-	builder.Build("copy_corpus", "copy corpus")
 	fuzzPackagedModule.CorpusIntermediateDir = intermediateDir
 
 	fuzzPackagedModule.Data = android.PathsForModuleSrc(ctx, fuzzPackagedModule.FuzzProperties.Data)
-	builder = android.NewRuleBuilder(pctx, ctx)
 	intermediateDir = android.PathForModuleOut(ctx, "data")
+
+	// Create one rule per file to avoid MAX_ARG_STRLEN hardlimit.
 	for _, entry := range fuzzPackagedModule.Data {
-		builder.Command().Text("cp").
-			Input(entry).
-			Output(intermediateDir.Join(ctx, entry.Rel()))
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.Cp,
+			Output: intermediateDir.Join(ctx, entry.Rel()),
+			Input:  entry,
+		})
 	}
-	builder.Build("copy_data", "copy data")
 	fuzzPackagedModule.DataIntermediateDir = intermediateDir
 
 	if fuzzPackagedModule.FuzzProperties.Dictionary != nil {
