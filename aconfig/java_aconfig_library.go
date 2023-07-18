@@ -61,7 +61,7 @@ func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) GenerateSourceJarBuild
 
 	srcJarPath := android.PathForModuleGen(ctx, ctx.ModuleName()+".srcjar")
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        srcJarRule,
+		Rule:        javaRule,
 		Input:       declarations.IntermediatePath,
 		Output:      srcJarPath,
 		Description: "aconfig.srcjar",
