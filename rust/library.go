@@ -21,7 +21,6 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
-	"android/soong/snapshot"
 )
 
 var (
@@ -236,10 +235,7 @@ func (library *libraryDecorator) setSource() {
 }
 
 func (library *libraryDecorator) autoDep(ctx android.BottomUpMutatorContext) autoDep {
-	if ctx.Module().(*Module).InVendor() {
-		// Vendor modules should statically link libstd.
-		return rlibAutoDep
-	} else if library.preferRlib() {
+	if library.preferRlib() {
 		return rlibAutoDep
 	} else if library.rlib() || library.static() {
 		return rlibAutoDep
@@ -251,10 +247,7 @@ func (library *libraryDecorator) autoDep(ctx android.BottomUpMutatorContext) aut
 }
 
 func (library *libraryDecorator) stdLinkage(ctx *depsContext) RustLinkage {
-	if ctx.RustModule().InVendor() {
-		// Vendor modules should statically link libstd.
-		return RlibLinkage
-	} else if library.static() || library.MutatedProperties.VariantIsStaticStd {
+	if library.static() || library.MutatedProperties.VariantIsStaticStd {
 		return RlibLinkage
 	} else if library.baseCompiler.preferRlib() {
 		return RlibLinkage
@@ -693,24 +686,6 @@ func LibraryMutator(mctx android.BottomUpMutatorContext) {
 				v.(*Module).Disable()
 			}
 
-			variation := v.(*Module).ModuleBase.ImageVariation().Variation
-			if strings.HasPrefix(variation, cc.VendorVariationPrefix) {
-				// TODO(b/204303985)
-				// Disable vendor dylibs until they are supported
-				v.(*Module).Disable()
-			}
-
-			if strings.HasPrefix(variation, cc.VendorVariationPrefix) &&
-				m.HasVendorVariant() &&
-				!snapshot.IsVendorProprietaryModule(mctx) &&
-				strings.TrimPrefix(variation, cc.VendorVariationPrefix) == mctx.DeviceConfig().VndkVersion() {
-
-				// cc.MutateImage runs before LibraryMutator, so vendor variations which are meant for rlibs only are
-				// produced for Dylibs; however, dylibs should not be enabled for boardVndkVersion for
-				// non-vendor proprietary modules.
-				v.(*Module).Disable()
-			}
-
 		case "source":
 			v.(*Module).compiler.(libraryInterface).setSource()
 			// The source variant does not produce any library.
@@ -747,10 +722,9 @@ func LibstdMutator(mctx android.BottomUpMutatorContext) {
 				dylib := modules[1].(*Module)
 				rlib.compiler.(libraryInterface).setRlibStd()
 				dylib.compiler.(libraryInterface).setDylibStd()
-				if dylib.ModuleBase.ImageVariation().Variation == android.VendorRamdiskVariation ||
-					strings.HasPrefix(dylib.ModuleBase.ImageVariation().Variation, cc.VendorVariationPrefix) {
+				if dylib.ModuleBase.ImageVariation().Variation == android.VendorRamdiskVariation {
 					// TODO(b/165791368)
-					// Disable rlibs that link against dylib-std on vendor and vendor ramdisk variations until those dylib
+					// Disable rlibs that link against dylib-std on vendor ramdisk variations until those dylib
 					// variants are properly supported.
 					dylib.Disable()
 				}
