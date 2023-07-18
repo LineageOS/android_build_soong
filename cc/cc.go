@@ -42,6 +42,7 @@ import (
 func init() {
 	RegisterCCBuildComponents(android.InitRegistrationContext)
 
+	pctx.Import("android/soong/android")
 	pctx.Import("android/soong/cc/config")
 }
 
