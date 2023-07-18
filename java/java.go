@@ -2664,7 +2664,7 @@ func (ks *kytheExtractJavaSingleton) GenerateBuildActions(ctx android.SingletonC
 var Bool = proptools.Bool
 var BoolDefault = proptools.BoolDefault
 var String = proptools.String
-var inList = android.InList
+var inList = android.InList[string]
 
 // Add class loader context (CLC) of a given dependency to the current CLC.
 func addCLCFromDep(ctx android.ModuleContext, depModule android.Module,
