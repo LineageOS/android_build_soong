@@ -25,12 +25,14 @@ import (
 )
 
 func Unmarshal[T any](value starlark.Value) (T, error) {
-	var zero T
-	x, err := UnmarshalReflect(value, reflect.TypeOf(zero))
+	x, err := UnmarshalReflect(value, reflect.TypeOf((*T)(nil)).Elem())
 	return x.Interface().(T), err
 }
 
 func UnmarshalReflect(value starlark.Value, ty reflect.Type) (reflect.Value, error) {
+	if ty == reflect.TypeOf((*starlark.Value)(nil)).Elem() {
+		return reflect.ValueOf(value), nil
+	}
 	zero := reflect.Zero(ty)
 	var result reflect.Value
 	if ty.Kind() == reflect.Interface {
@@ -284,5 +286,19 @@ func typeOfStarlarkValue(value starlark.Value) (reflect.Type, error) {
 		return reflect.TypeOf(true), nil
 	default:
 		return nil, fmt.Errorf("unimplemented starlark type: %s", value.Type())
+	}
+}
+
+// NoneableString converts a starlark.Value to a string pointer. If the starlark.Value is NoneType,
+// a nil pointer will be returned instead. All other types of starlark values are errors.
+func NoneableString(value starlark.Value) (*string, error) {
+	switch v := value.(type) {
+	case starlark.String:
+		result := v.GoString()
+		return &result, nil
+	case starlark.NoneType:
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("expected string or none, got %q", value.Type())
 	}
 }

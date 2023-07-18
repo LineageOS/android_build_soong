@@ -30,7 +30,7 @@ func createStarlarkValue(t *testing.T, code string) starlark.Value {
 	return result["x"]
 }
 
-func TestUnmarshallConcreteType(t *testing.T) {
+func TestUnmarshalConcreteType(t *testing.T) {
 	x, err := Unmarshal[string](createStarlarkValue(t, `"foo"`))
 	if err != nil {
 		t.Error(err)
@@ -41,7 +41,7 @@ func TestUnmarshallConcreteType(t *testing.T) {
 	}
 }
 
-func TestUnmarshallConcreteTypeWithInterfaces(t *testing.T) {
+func TestUnmarshalConcreteTypeWithInterfaces(t *testing.T) {
 	x, err := Unmarshal[map[string]map[string]interface{}](createStarlarkValue(t,
 		`{"foo": {"foo2": "foo3"}, "bar": {"bar2": ["bar3"]}}`))
 	if err != nil {
@@ -57,7 +57,22 @@ func TestUnmarshallConcreteTypeWithInterfaces(t *testing.T) {
 	}
 }
 
-func TestUnmarshall(t *testing.T) {
+func TestUnmarshalToStarlarkValue(t *testing.T) {
+	x, err := Unmarshal[map[string]starlark.Value](createStarlarkValue(t,
+		`{"foo": "Hi", "bar": None}`))
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if x["foo"].(starlark.String).GoString() != "Hi" {
+		t.Errorf("Expected \"Hi\", got: %q", x["foo"].(starlark.String).GoString())
+	}
+	if x["bar"].Type() != "NoneType" {
+		t.Errorf("Expected \"NoneType\", got: %q", x["bar"].Type())
+	}
+}
+
+func TestUnmarshal(t *testing.T) {
 	testCases := []struct {
 		input    string
 		expected interface{}
