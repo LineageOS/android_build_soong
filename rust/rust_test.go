@@ -79,14 +79,18 @@ func testRustVndk(t *testing.T, bp string) *android.TestContext {
 }
 
 const (
-	sharedVendorVariant   = "android_vendor.29_arm64_armv8-a_shared"
-	rlibVendorVariant     = "android_vendor.29_arm64_armv8-a_rlib_rlib-std"
-	sharedRecoveryVariant = "android_recovery_arm64_armv8-a_shared"
-	rlibRecoveryVariant   = "android_recovery_arm64_armv8-a_rlib_rlib-std"
-	binaryCoreVariant     = "android_arm64_armv8-a"
-	binaryVendorVariant   = "android_vendor.29_arm64_armv8-a"
-	binaryProductVariant  = "android_product.29_arm64_armv8-a"
-	binaryRecoveryVariant = "android_recovery_arm64_armv8-a"
+	sharedVendorVariant        = "android_vendor.29_arm64_armv8-a_shared"
+	rlibVendorVariant          = "android_vendor.29_arm64_armv8-a_rlib_rlib-std"
+	rlibDylibStdVendorVariant  = "android_vendor.29_arm64_armv8-a_rlib_rlib-std"
+	dylibVendorVariant         = "android_vendor.29_arm64_armv8-a_dylib"
+	sharedRecoveryVariant      = "android_recovery_arm64_armv8-a_shared"
+	rlibRecoveryVariant        = "android_recovery_arm64_armv8-a_rlib_dylib-std"
+	rlibRlibStdRecoveryVariant = "android_recovery_arm64_armv8-a_rlib_rlib-std"
+	dylibRecoveryVariant       = "android_recovery_arm64_armv8-a_dylib"
+	binaryCoreVariant          = "android_arm64_armv8-a"
+	binaryVendorVariant        = "android_vendor.29_arm64_armv8-a"
+	binaryProductVariant       = "android_product.29_arm64_armv8-a"
+	binaryRecoveryVariant      = "android_recovery_arm64_armv8-a"
 )
 
 func testRustVndkFs(t *testing.T, bp string, fs android.MockFS) *android.TestContext {
