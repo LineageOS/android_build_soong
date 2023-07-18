@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"android/soong/ui/metrics/bp2build_metrics_proto"
+
 	"github.com/google/blueprint/pathtools"
 	"github.com/google/blueprint/proptools"
 
@@ -502,6 +503,11 @@ type Module struct {
 	sourceExtensions []string
 
 	annoSrcJars android.Paths
+
+	// output file name based on Stem property.
+	// This should be set in every ModuleWithStem's GenerateAndroidBuildActions
+	// or the module should override Stem().
+	stem string
 }
 
 func (j *Module) CheckStableSdkVersion(ctx android.BaseModuleContext) error {
@@ -1099,7 +1105,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		j.expandJarjarRules = android.PathForModuleSrc(ctx, *j.properties.Jarjar_rules)
 	}
 
-	jarName := ctx.ModuleName() + ".jar"
+	jarName := j.Stem() + ".jar"
 
 	var uniqueJavaFiles android.Paths
 	set := make(map[string]bool)
@@ -1897,7 +1903,10 @@ func (j *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersi
 }
 
 func (j *Module) Stem() string {
-	return proptools.StringDefault(j.overridableDeviceProperties.Stem, j.Name())
+	if j.stem == "" {
+		panic("Stem() called before stem property was set")
+	}
+	return j.stem
 }
 
 func (j *Module) JacocoReportClassesFile() android.Path {

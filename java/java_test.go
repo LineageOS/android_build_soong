@@ -2351,3 +2351,22 @@ func TestJavaExcludeStaticLib(t *testing.T) {
 		`stable.core.platform.api.stubs`,
 	})
 }
+
+func TestJavaLibraryWithResourcesStem(t *testing.T) {
+	ctx, _ := testJavaWithFS(t, `
+    java_library {
+        name: "foo",
+        java_resource_dirs: ["test-jar"],
+        stem: "test",
+    }
+    `,
+		map[string][]byte{
+			"test-jar/test/resource.txt": nil,
+		})
+
+	m := ctx.ModuleForTests("foo", "android_common")
+	outputs := fmt.Sprint(m.AllOutputs())
+	if !strings.Contains(outputs, "test.jar") {
+		t.Errorf("Module output does not contain expected jar %s", "test.jar")
+	}
+}
