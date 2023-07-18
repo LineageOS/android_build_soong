@@ -21,7 +21,7 @@ import (
 func TestOverrideConfiguredJarLocationFor(t *testing.T) {
 	cfg := NullConfig("", "")
 
-	cfg.productVariables = productVariables{
+	cfg.productVariables = ProductVariables{
 		ConfiguredJarLocationOverrides: []string{
 			"platform:libfoo-old:com.android.foo:libfoo-new",
 			"com.android.bar:libbar-old:platform:libbar-new",

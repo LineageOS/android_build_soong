@@ -35,7 +35,7 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 	envCopy["PATH"] = os.Getenv("PATH")
 
 	config := &config{
-		productVariables: productVariables{
+		productVariables: ProductVariables{
 			DeviceName:                          stringPtr("test_device"),
 			DeviceProduct:                       stringPtr("test_product"),
 			Platform_sdk_version:                intPtr(30),
