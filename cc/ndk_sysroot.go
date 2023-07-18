@@ -58,7 +58,6 @@ import (
 
 func init() {
 	RegisterNdkModuleTypes(android.InitRegistrationContext)
-	pctx.Import("android/soong/android")
 }
 
 func RegisterNdkModuleTypes(ctx android.RegistrationContext) {
