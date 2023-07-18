@@ -22,6 +22,7 @@ import (
 	"android/soong/android"
 	"android/soong/bazel"
 	"android/soong/cc/config"
+	"android/soong/genrule"
 
 	"github.com/google/blueprint"
 
@@ -44,6 +45,8 @@ const (
 	rScriptSrcPartition = "renderScript"
 
 	xsdSrcPartition = "xsd"
+
+	genrulePartition = "genrule"
 
 	hdrPartition = "hdr"
 
@@ -172,8 +175,9 @@ func groupSrcsByExtension(ctx android.BazelConversionPathContext, srcs bazel.Lab
 
 func partitionHeaders(ctx android.BazelConversionPathContext, hdrs bazel.LabelListAttribute) bazel.PartitionToLabelListAttribute {
 	labels := bazel.LabelPartitions{
-		xsdSrcPartition: bazel.LabelPartition{LabelMapper: android.XsdLabelMapper(xsdConfigCppTarget)},
-		hdrPartition:    bazel.LabelPartition{Keep_remainder: true},
+		xsdSrcPartition:  bazel.LabelPartition{LabelMapper: android.XsdLabelMapper(xsdConfigCppTarget)},
+		genrulePartition: bazel.LabelPartition{LabelMapper: genrule.GenruleCcHeaderLabelMapper},
+		hdrPartition:     bazel.LabelPartition{Keep_remainder: true},
 	}
 	return bazel.PartitionLabelListAttribute(ctx, &hdrs, labels)
 }
@@ -419,6 +423,10 @@ type compilerAttributes struct {
 	xsdSrcs       bazel.LabelListAttribute
 	exportXsdSrcs bazel.LabelListAttribute
 
+	// genrule headers
+	genruleHeaders       bazel.LabelListAttribute
+	exportGenruleHeaders bazel.LabelListAttribute
+
 	// Lex sources and options
 	lSrcs   bazel.LabelListAttribute
 	llSrcs  bazel.LabelListAttribute
@@ -605,6 +613,9 @@ func (ca *compilerAttributes) finalize(ctx android.BazelConversionPathContext, i
 	xsdSrcs.Append(partitionedImplHdrs[xsdSrcPartition])
 	ca.exportXsdSrcs = partitionedHdrs[xsdSrcPartition]
 	ca.xsdSrcs = bazel.FirstUniqueBazelLabelListAttribute(xsdSrcs)
+
+	ca.genruleHeaders = partitionedImplHdrs[genrulePartition]
+	ca.exportGenruleHeaders = partitionedHdrs[genrulePartition]
 
 	ca.srcs = partitionedSrcs[cppSrcPartition]
 	ca.cSrcs = partitionedSrcs[cSrcPartition]
@@ -899,6 +910,9 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 	(&linkerAttrs).finalize(ctx)
 
 	(&compilerAttrs.srcs).Add(bp2BuildYasm(ctx, module, compilerAttrs))
+
+	(&linkerAttrs).deps.Append(compilerAttrs.exportGenruleHeaders)
+	(&linkerAttrs).implementationDeps.Append(compilerAttrs.genruleHeaders)
 
 	(&linkerAttrs).wholeArchiveDeps.Append(compilerAttrs.exportXsdSrcs)
 	(&linkerAttrs).implementationWholeArchiveDeps.Append(compilerAttrs.xsdSrcs)
