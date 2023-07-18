@@ -151,6 +151,9 @@ type generatorProperties struct {
 
 	// input files to exclude
 	Exclude_srcs []string `android:"path,arch_variant"`
+
+	// Enable restat to update the output only if the output is changed
+	Write_if_changed *bool
 }
 
 type Module struct {
@@ -467,6 +470,9 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 
 		// Use a RuleBuilder to create a rule that runs the command inside an sbox sandbox.
 		rule := getSandboxedRuleBuilder(ctx, android.NewRuleBuilder(pctx, ctx).Sbox(task.genDir, manifestPath))
+		if Bool(g.properties.Write_if_changed) {
+			rule.Restat()
+		}
 		cmd := rule.Command()
 
 		for _, out := range task.out {
