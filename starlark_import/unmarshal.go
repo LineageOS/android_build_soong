@@ -289,16 +289,13 @@ func typeOfStarlarkValue(value starlark.Value) (reflect.Type, error) {
 	}
 }
 
-// NoneableString converts a starlark.Value to a string pointer. If the starlark.Value is NoneType,
-// a nil pointer will be returned instead. All other types of starlark values are errors.
-func NoneableString(value starlark.Value) (*string, error) {
-	switch v := value.(type) {
-	case starlark.String:
-		result := v.GoString()
-		return &result, nil
-	case starlark.NoneType:
+// UnmarshalNoneable is like Unmarshal, but it will accept None as the top level (but not nested)
+// starlark value. If the value is None, a nil pointer will be returned, otherwise a pointer
+// to the result of Unmarshal will be returned.
+func UnmarshalNoneable[T any](value starlark.Value) (*T, error) {
+	if _, ok := value.(starlark.NoneType); ok {
 		return nil, nil
-	default:
-		return nil, fmt.Errorf("expected string or none, got %q", value.Type())
 	}
+	ret, err := Unmarshal[T](value)
+	return &ret, err
 }
