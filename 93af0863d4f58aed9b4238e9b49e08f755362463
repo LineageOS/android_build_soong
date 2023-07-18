@@ -57,6 +57,23 @@
       "parentUuid": "5c2da878_340af19d",
       "revId": "93af0863d4f58aed9b4238e9b49e08f755362463",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "a2e7a3d5_ddf0f2dc",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 18590
+      },
+      "writtenOn": "2023-07-18T02:25:16Z",
+      "side": 1,
+      "message": "rather than hacking around in soong: https://github.com/StatiXOS/android_vendor_statix/blob/tm-qpr3/build/soong/Android.bp#L1-L3",
+      "revId": "93af0863d4f58aed9b4238e9b49e08f755362463",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
