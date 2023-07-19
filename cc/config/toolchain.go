@@ -261,5 +261,3 @@ func LibFuzzerRuntimeLibrary(t Toolchain) string {
 func LibFuzzerRuntimeInterceptors(t Toolchain) string {
 	return LibclangRuntimeLibrary(t, "fuzzer_interceptors")
 }
-
-var inList = android.InList
