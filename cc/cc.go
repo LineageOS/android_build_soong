@@ -1372,7 +1372,7 @@ func (c *Module) isPgoCompile() bool {
 
 func (c *Module) isCfi() bool {
 	if sanitize := c.sanitize; sanitize != nil {
-		return Bool(sanitize.Properties.Sanitize.Cfi)
+		return Bool(sanitize.Properties.SanitizeMutated.Cfi)
 	}
 	return false
 }
