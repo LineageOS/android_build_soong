@@ -117,6 +117,9 @@ type BuildStatement struct {
 	InputPaths        []string
 	OrderOnlyInputs   []string
 	FileContents      string
+	// If ShouldRunInSbox is true, Soong will use sbox to created an isolated environment
+	// and run the mixed build action there
+	ShouldRunInSbox bool
 }
 
 // A helper type for aquery processing which facilitates retrieval of path IDs from their
@@ -516,6 +519,12 @@ func (a *aqueryArtifactHandler) normalActionBuildStatement(actionEntry *analysis
 		InputDepsetHashes: inputDepsetHashes,
 		Env:               actionEntry.EnvironmentVariables,
 		Mnemonic:          actionEntry.Mnemonic,
+	}
+	if buildStatement.Mnemonic == "GoToolchainBinaryBuild" {
+		// Unlike b's execution root, mixed build execution root contains a symlink to prebuilts/go
+		// This causes issues for `GOCACHE=$(mktemp -d) go build ...`
+		// To prevent this, sandbox this action in mixed builds as well
+		buildStatement.ShouldRunInSbox = true
 	}
 	return buildStatement, nil
 }
