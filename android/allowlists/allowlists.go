@@ -1013,6 +1013,7 @@ var (
 		"bionic-unit-tests-static",
 		"boringssl_crypto_test",
 		"boringssl_ssl_test",
+		"boringssl_test_support", //b/244431896
 		"cfi_test_helper",
 		"cfi_test_helper2",
 		"cintltst32",
