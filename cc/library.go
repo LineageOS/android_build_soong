@@ -2275,7 +2275,7 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 
 			// do not install vndk libs
 			// vndk libs are packaged into VNDK APEX
-			if ctx.isVndk() && !ctx.IsVndkExt() {
+			if ctx.isVndk() && !ctx.IsVndkExt() && !ctx.Config().IsVndkDeprecated() {
 				return
 			}
 		} else if library.hasStubsVariants() && !ctx.Host() && ctx.directlyInAnyApex() {
