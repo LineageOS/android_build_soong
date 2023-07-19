@@ -53,6 +53,7 @@ type RuleBuilder struct {
 	remoteable       RemoteRuleSupports
 	rbeParams        *remoteexec.REParams
 	outDir           WritablePath
+	sboxOutSubDir    string
 	sboxTools        bool
 	sboxInputs       bool
 	sboxManifestPath WritablePath
@@ -65,7 +66,16 @@ func NewRuleBuilder(pctx PackageContext, ctx BuilderContext) *RuleBuilder {
 		pctx:           pctx,
 		ctx:            ctx,
 		temporariesSet: make(map[WritablePath]bool),
+		sboxOutSubDir:  sboxOutSubDir,
 	}
+}
+
+// SetSboxOutDirDirAsEmpty sets the out subdirectory to an empty string
+// This is useful for sandboxing actions that change the execution root to a path in out/ (e.g mixed builds)
+// For such actions, SetSboxOutDirDirAsEmpty ensures that the path does not become $SBOX_SANDBOX_DIR/out/out/bazel/output/execroot/__main__/...
+func (rb *RuleBuilder) SetSboxOutDirDirAsEmpty() *RuleBuilder {
+	rb.sboxOutSubDir = ""
+	return rb
 }
 
 // RuleBuilderInstall is a tuple of install from and to locations.
@@ -585,7 +595,7 @@ func (r *RuleBuilder) Build(name string, desc string) {
 		for _, output := range outputs {
 			rel := Rel(r.ctx, r.outDir.String(), output.String())
 			command.CopyAfter = append(command.CopyAfter, &sbox_proto.Copy{
-				From: proto.String(filepath.Join(sboxOutSubDir, rel)),
+				From: proto.String(filepath.Join(r.sboxOutSubDir, rel)),
 				To:   proto.String(output.String()),
 			})
 		}
