@@ -137,19 +137,17 @@ func SortedUniqueStringValues(m interface{}) []string {
 }
 
 // IndexList returns the index of the first occurrence of the given string in the list or -1
-func IndexList(s string, list []string) int {
+func IndexList[T comparable](t T, list []T) int {
 	for i, l := range list {
-		if l == s {
+		if l == t {
 			return i
 		}
 	}
-
 	return -1
 }
 
-// InList checks if the string belongs to the list
-func InList(s string, list []string) bool {
-	return IndexList(s, list) != -1
+func InList[T comparable](t T, list []T) bool {
+	return IndexList(t, list) != -1
 }
 
 func setFromList[T comparable](l []T) map[T]bool {
