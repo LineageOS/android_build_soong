@@ -371,6 +371,8 @@ type FuzzConfig struct {
 	// Specifies whether fuzz target should check presubmitted code changes for crashes.
 	// Defaults to false.
 	Use_for_presubmit *bool `json:"use_for_presubmit,omitempty"`
+	// Specify which paths to exclude from fuzzing coverage reports
+	Exclude_paths_from_reports []string `json:"exclude_paths_from_reports,omitempty"`
 }
 
 type FuzzFrameworks struct {
