@@ -28,8 +28,8 @@ func includeDirsToFlags(dirs android.Paths) string {
 	return android.JoinWithPrefix(dirs.Strings(), "-I")
 }
 
-var indexList = android.IndexList
-var inList = android.InList
+var indexList = android.IndexList[string]
+var inList = android.InList[string]
 var filterList = android.FilterList
 var removeListFromList = android.RemoveListFromList
 var removeFromList = android.RemoveFromList
