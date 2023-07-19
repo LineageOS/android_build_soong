@@ -931,9 +931,6 @@ var (
 		"test_fips",                     // depends on unconverted modules: adb
 		"timezone-host",                 // depends on unconverted modules: art.module.api.annotations
 
-		// '//bionic/libc:libc_bp2build_cc_library_static' is duplicated in the 'deps' attribute of rule
-		"toybox-static",
-
 		// aidl files not created
 		"overlayable_policy_aidl_interface",
 
