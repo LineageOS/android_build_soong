@@ -1358,6 +1358,10 @@ func (c *config) BazelModulesForceEnabledByFlag() map[string]struct{} {
 	return c.bazelForceEnabledModules
 }
 
+func (c *config) IsVndkDeprecated() bool {
+	return !Bool(c.productVariables.KeepVndk)
+}
+
 func (c *deviceConfig) Arches() []Arch {
 	var arches []Arch
 	for _, target := range c.config.Targets[Android] {
