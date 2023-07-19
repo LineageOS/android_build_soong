@@ -26,7 +26,10 @@ func TestAconfigDeclarations(t *testing.T) {
 		aconfig_declarations {
 			name: "module_name",
 			package: "com.example.package",
-			srcs: ["foo.aconfig"],
+			srcs: [
+				"foo.aconfig",
+				"bar.aconfig",
+			],
 		}
 	`
 	result := runTest(t, android.FixtureExpectsNoErrors, bp)
