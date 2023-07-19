@@ -115,6 +115,7 @@ type BuildStatement struct {
 	// input path string, but not both.
 	InputDepsetHashes []string
 	InputPaths        []string
+	OrderOnlyInputs   []string
 	FileContents      string
 }
 
@@ -134,6 +135,8 @@ type aqueryArtifactHandler struct {
 	depsetHashToArtifactPathsCache sync.Map
 	// Maps artifact ids to fully expanded paths.
 	artifactIdToPath map[artifactId]string
+
+	extraBuildStatements []*BuildStatement
 }
 
 // The tokens should be substituted with the value specified here, instead of the
@@ -163,13 +166,29 @@ func newAqueryHandler(aqueryResult *analysis_v2_proto.ActionGraphContainer) (*aq
 		return pathFragmentId(pf.Id)
 	})
 
+	var extraBuildStatements []*BuildStatement
 	artifactIdToPath := make(map[artifactId]string, len(aqueryResult.Artifacts))
 	for _, artifact := range aqueryResult.Artifacts {
 		artifactPath, err := expandPathFragment(pathFragmentId(artifact.PathFragmentId), pathFragments)
 		if err != nil {
 			return nil, err
 		}
-		artifactIdToPath[artifactId(artifact.Id)] = artifactPath
+		if strings.HasSuffix(artifactPath, "DumpPlatformClassPath.java") {
+			// TODO(b/291828210): This is a workaround for the fact that DumpPlatformClassPath.java
+			// has a timestamp in 2033. We'll copy it to a new file using a order-only dep, so that
+			// the file is not recopied every build. Technically the order-only dep would produce
+			// incremental build issues if this was a regular file produced as part of the build,
+			// but this file is actually created by bazel during analysis, so it's not an issue.
+			outputPath := "hack_for_b291828210/DumpPlatformClassPath.java"
+			extraBuildStatements = append(extraBuildStatements, &BuildStatement{
+				Command:         fmt.Sprintf("cp %s %s", artifactPath, outputPath),
+				OutputPaths:     []string{outputPath},
+				OrderOnlyInputs: []string{artifactPath},
+			})
+			artifactIdToPath[artifactId(artifact.Id)] = outputPath
+		} else {
+			artifactIdToPath[artifactId(artifact.Id)] = artifactPath
+		}
 	}
 
 	// Map middleman artifact ContentHash to input artifact depset ID.
@@ -196,6 +215,7 @@ func newAqueryHandler(aqueryResult *analysis_v2_proto.ActionGraphContainer) (*aq
 		depsetHashToArtifactPathsCache: sync.Map{},
 		emptyDepsetIds:                 make(map[depsetId]struct{}, 0),
 		artifactIdToPath:               artifactIdToPath,
+		extraBuildStatements:           extraBuildStatements,
 	}
 
 	// Validate and adjust aqueryResult.DepSetOfFiles values.
@@ -369,6 +389,7 @@ func AqueryBuildStatements(aqueryJsonProto []byte, eventHandler *metrics.EventHa
 	if err != nil {
 		return nil, nil, err
 	}
+	buildStatements = append(buildStatements, aqueryHandler.extraBuildStatements...)
 
 	depsetsByHash := map[string]AqueryDepset{}
 	depsets := make([]AqueryDepset, 0, len(aqueryHandler.depsetIdToAqueryDepset))
