@@ -2950,20 +2950,20 @@ func checkLinkType(ctx android.BaseModuleContext, from LinkableInterface, to Lin
 			ctx.ModuleErrorf("links %q built against newer API version %q",
 				ctx.OtherModuleName(to.Module()), "current")
 		} else {
-			fromApi, err := strconv.Atoi(from.SdkVersion())
+			fromApi, err := android.ApiLevelFromUserWithConfig(ctx.Config(), from.SdkVersion())
 			if err != nil {
 				ctx.PropertyErrorf("sdk_version",
-					"Invalid sdk_version value (must be int or current): %q",
+					"Invalid sdk_version value (must be int, preview or current): %q",
 					from.SdkVersion())
 			}
-			toApi, err := strconv.Atoi(to.SdkVersion())
+			toApi, err := android.ApiLevelFromUserWithConfig(ctx.Config(), to.SdkVersion())
 			if err != nil {
 				ctx.PropertyErrorf("sdk_version",
-					"Invalid sdk_version value (must be int or current): %q",
+					"Invalid sdk_version value (must be int, preview or current): %q",
 					to.SdkVersion())
 			}
 
-			if toApi > fromApi {
+			if toApi.GreaterThan(fromApi) {
 				ctx.ModuleErrorf("links %q built against newer API version %q",
 					ctx.OtherModuleName(to.Module()), to.SdkVersion())
 			}
