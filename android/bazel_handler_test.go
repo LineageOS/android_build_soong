@@ -181,10 +181,59 @@ func TestInvokeBazelPopulatesBuildStatements(t *testing.T) {
 
 		cmd := RuleBuilderCommand{}
 		ctx := builderContextForTests{PathContextForTesting(TestConfig("out", nil, "", nil))}
-		createCommand(&cmd, got[0], "test/exec_root", "test/bazel_out", ctx)
+		createCommand(&cmd, got[0], "test/exec_root", "test/bazel_out", ctx, map[string]bazel.AqueryDepset{})
 		if actual, expected := cmd.buf.String(), testCase.command; expected != actual {
 			t.Errorf("expected: [%s], actual: [%s]", expected, actual)
 		}
+	}
+}
+
+func TestMixedBuildSandboxedAction(t *testing.T) {
+	input := `{
+ "artifacts": [
+   { "id": 1, "path_fragment_id": 1 },
+   { "id": 2, "path_fragment_id": 2 }],
+ "actions": [{
+   "target_Id": 1,
+   "action_Key": "x",
+   "mnemonic": "x",
+   "arguments": ["touch", "foo"],
+   "input_dep_set_ids": [1],
+   "output_Ids": [1],
+   "primary_output_id": 1
+ }],
+ "dep_set_of_files": [
+   { "id": 1, "direct_artifact_ids": [1, 2] }],
+ "path_fragments": [
+   { "id": 1, "label": "one" },
+   { "id": 2, "label": "two" }]
+}`
+	data, err := JsonToActionGraphContainer(input)
+	if err != nil {
+		t.Error(err)
+	}
+	bazelContext, _ := testBazelContext(t, map[bazelCommand]string{aqueryCmd: string(data)})
+
+	err = bazelContext.InvokeBazel(testConfig, &testInvokeBazelContext{})
+	if err != nil {
+		t.Fatalf("TestMixedBuildSandboxedAction did not expect error invoking Bazel, but got %s", err)
+	}
+
+	statement := bazelContext.BuildStatementsToRegister()[0]
+	statement.ShouldRunInSbox = true
+
+	cmd := RuleBuilderCommand{}
+	ctx := builderContextForTests{PathContextForTesting(TestConfig("out", nil, "", nil))}
+	createCommand(&cmd, statement, "test/exec_root", "test/bazel_out", ctx, map[string]bazel.AqueryDepset{})
+	// Assert that the output is generated in an intermediate directory
+	// fe05bcdcdc4928012781a5f1a2a77cbb5398e106 is the sha1 checksum of "one"
+	if actual, expected := cmd.outputs[0].String(), "out/soong/mixed_build_sbox_intermediates/fe05bcdcdc4928012781a5f1a2a77cbb5398e106/test/exec_root/one"; expected != actual {
+		t.Errorf("expected: [%s], actual: [%s]", expected, actual)
+	}
+
+	// Assert the actual command remains unchanged inside the sandbox
+	if actual, expected := cmd.buf.String(), "mkdir -p 'test/exec_root' && cd 'test/exec_root' && rm -rf 'one' && touch foo"; expected != actual {
+		t.Errorf("expected: [%s], actual: [%s]", expected, actual)
 	}
 }
 
