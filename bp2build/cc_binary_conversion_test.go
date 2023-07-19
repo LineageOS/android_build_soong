@@ -1214,3 +1214,82 @@ func TestCCBinaryRscriptSrc(t *testing.T) {
 		},
 	})
 }
+
+func TestCcBinaryStatic_SystemSharedLibUsedAsDep(t *testing.T) {
+	runCcBinaryTestCase(t, ccBinaryBp2buildTestCase{
+		description: "cc_library_static system_shared_lib empty for linux_bionic variant",
+		blueprint: soongCcLibraryStaticPreamble +
+			simpleModuleDoNotConvertBp2build("cc_library", "libc") + `
+
+cc_library {
+    name: "libm",
+    bazel_module: { bp2build_available: false },
+}
+
+cc_binary {
+    name: "used_in_bionic_oses",
+    target: {
+        android: {
+            static_libs: ["libc"],
+        },
+        linux_bionic: {
+            static_libs: ["libc"],
+        },
+    },
+    include_build_directory: false,
+    static_executable: true,
+}
+
+cc_binary {
+    name: "all",
+    static_libs: ["libc"],
+    include_build_directory: false,
+    static_executable: true,
+}
+
+cc_binary {
+    name: "keep_for_empty_system_shared_libs",
+    static_libs: ["libc"],
+    system_shared_libs: [],
+    include_build_directory: false,
+    static_executable: true,
+}
+
+cc_binary {
+    name: "used_with_stubs",
+    static_libs: ["libm"],
+    include_build_directory: false,
+    static_executable: true,
+}
+
+cc_binary {
+    name: "keep_with_stubs",
+    static_libs: ["libm"],
+    system_shared_libs: [],
+    include_build_directory: false,
+    static_executable: true,
+}
+`,
+		targets: []testBazelTarget{
+			{"cc_binary", "all", AttrNameToString{
+				"linkshared": "False",
+			}},
+			{"cc_binary", "keep_for_empty_system_shared_libs", AttrNameToString{
+				"deps":        `[":libc_bp2build_cc_library_static"]`,
+				"system_deps": `[]`,
+				"linkshared":  "False",
+			}},
+			{"cc_binary", "keep_with_stubs", AttrNameToString{
+				"linkshared":  "False",
+				"deps":        `[":libm_bp2build_cc_library_static"]`,
+				"system_deps": `[]`,
+			}},
+			{"cc_binary", "used_in_bionic_oses", AttrNameToString{
+				"linkshared": "False",
+			}},
+			{"cc_binary", "used_with_stubs", AttrNameToString{
+				"linkshared": "False",
+			}},
+		},
+	})
+}
