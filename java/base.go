@@ -1446,7 +1446,13 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 	j.implementationJarFile = outputFile
 	if j.headerJarFile == nil {
-		j.headerJarFile = j.implementationJarFile
+		// If this module couldn't generate a header jar (for example due to api generating annotation processors)
+		// then use the implementation jar.  Run it through zip2zip first to remove any files in META-INF/services
+		// so that javac on modules that depend on this module don't pick up annotation processors (which may be
+		// missing their implementations) from META-INF/services/javax.annotation.processing.Processor.
+		headerJarFile := android.PathForModuleOut(ctx, "javac-header", jarName)
+		convertImplementationJarToHeaderJar(ctx, j.implementationJarFile, headerJarFile)
+		j.headerJarFile = headerJarFile
 	}
 
 	// enforce syntax check to jacoco filters for any build (http://b/183622051)
