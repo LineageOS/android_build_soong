@@ -396,7 +396,7 @@ func ExistentPathsForSources(ctx PathGlobContext, paths []string) Paths {
 //
 // Properties passed as the paths argument must have been annotated with struct tag
 // `android:"path"` so that dependencies on SourceFileProducer modules will have already been handled by the
-// path_deps mutator.
+// pathdeps mutator.
 // If a requested module is not found as a dependency:
 //   - if ctx.Config().AllowMissingDependencies() is true, this module to be marked as having
 //     missing dependencies
@@ -425,7 +425,7 @@ type SourceInput struct {
 // excluding the items (similarly resolved
 // Properties passed as the paths argument must have been annotated with struct tag
 // `android:"path"` so that dependencies on SourceFileProducer modules will have already been handled by the
-// path_deps mutator.
+// pathdeps mutator.
 // If a requested module is not found as a dependency:
 //   - if ctx.Config().AllowMissingDependencies() is true, this module to be marked as having
 //     missing dependencies
@@ -560,7 +560,7 @@ func GetModuleFromPathDep(ctx ModuleWithDepsPathContext, moduleName, tag string)
 // and a list of the module names of missing module dependencies are returned as the second return.
 // Properties passed as the paths argument must have been annotated with struct tag
 // `android:"path"` so that dependencies on SourceFileProducer modules will have already been handled by the
-// path_deps mutator.
+// pathdeps mutator.
 func PathsAndMissingDepsForModuleSrcExcludes(ctx ModuleMissingDepsPathContext, paths, excludes []string) (Paths, []string) {
 	return PathsAndMissingDepsRelativeToModuleSourceDir(SourceInput{
 		Context:      ctx,
