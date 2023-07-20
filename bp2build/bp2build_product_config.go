@@ -163,12 +163,29 @@ func platformMappingContent(mainProductLabel string, mainProductVariables *andro
 	return result, nil
 }
 
+var bazelPlatformSuffixes = []string{
+	"",
+	"_darwin_arm64",
+	"_darwin_x86_64",
+	"_linux_bionic_arm64",
+	"_linux_bionic_x86_64",
+	"_linux_musl_x86",
+	"_linux_musl_x86_64",
+	"_linux_x86",
+	"_linux_x86_64",
+	"_windows_x86",
+	"_windows_x86_64",
+}
+
 func platformMappingSingleProduct(label string, productVariables *android.ProductVariables) string {
 	buildSettings := ""
 	buildSettings += fmt.Sprintf("    --//build/bazel/product_config:apex_global_min_sdk_version_override=%s\n", proptools.String(productVariables.ApexGlobalMinSdkVersionOverride))
+	buildSettings += fmt.Sprintf("    --//build/bazel/product_config:cfi_include_paths=%s\n", strings.Join(productVariables.CFIIncludePaths, ","))
+	buildSettings += fmt.Sprintf("    --//build/bazel/product_config:cfi_exclude_paths=%s\n", strings.Join(productVariables.CFIExcludePaths, ","))
+	buildSettings += fmt.Sprintf("    --//build/bazel/product_config:enable_cfi=%t\n", proptools.BoolDefault(productVariables.EnableCFI, true))
 	result := ""
-	for _, extension := range []string{"", "_linux_x86_64", "_linux_bionic_x86_64", "_linux_musl_x86", "_linux_musl_x86_64"} {
-		result += "  " + label + extension + "\n" + buildSettings
+	for _, suffix := range bazelPlatformSuffixes {
+		result += "  " + label + suffix + "\n" + buildSettings
 	}
 	return result
 }
@@ -176,7 +193,19 @@ func platformMappingSingleProduct(label string, productVariables *android.Produc
 func starlarkMapToProductVariables(in map[string]starlark.Value) (android.ProductVariables, error) {
 	var err error
 	result := android.ProductVariables{}
-	result.ApexGlobalMinSdkVersionOverride, err = starlark_import.NoneableString(in["ApexGlobalMinSdkVersionOverride"])
+	result.ApexGlobalMinSdkVersionOverride, err = starlark_import.UnmarshalNoneable[string](in["ApexGlobalMinSdkVersionOverride"])
+	if err != nil {
+		return result, err
+	}
+	result.CFIIncludePaths, err = starlark_import.Unmarshal[[]string](in["CFIIncludePaths"])
+	if err != nil {
+		return result, err
+	}
+	result.CFIExcludePaths, err = starlark_import.Unmarshal[[]string](in["CFIExcludePaths"])
+	if err != nil {
+		return result, err
+	}
+	result.EnableCFI, err = starlark_import.UnmarshalNoneable[bool](in["EnableCFI"])
 	if err != nil {
 		return result, err
 	}
