@@ -125,12 +125,12 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 	intermediatePath := android.PathForModuleOut(ctx, "intermediate.pb")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        aconfigRule,
-		Inputs:      inputFiles,
 		Output:      intermediatePath,
 		Description: "aconfig_declarations",
 		Args: map[string]string{
 			"release_version": ctx.Config().ReleaseVersion(),
 			"package":         module.properties.Package,
+			"declarations":    android.JoinPathsWithPrefix(inputFiles, "--declarations "),
 			"values":          joinAndPrefix(" --values ", module.properties.Values),
 		},
 	})
