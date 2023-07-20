@@ -179,7 +179,7 @@ func BazelLabelForModuleDepSingle(ctx BazelConversionPathContext, path string) b
 // paths, relative to the local module, or Bazel-labels (absolute if in a different package or
 // relative if within the same package).
 // Properties must have been annotated with struct tag `android:"path"` so that dependencies modules
-// will have already been handled by the path_deps mutator.
+// will have already been handled by the pathdeps mutator.
 func BazelLabelForModuleSrc(ctx BazelConversionPathContext, paths []string) bazel.LabelList {
 	return BazelLabelForModuleSrcExcludes(ctx, paths, []string(nil))
 }
@@ -189,7 +189,7 @@ func BazelLabelForModuleSrc(ctx BazelConversionPathContext, paths []string) baze
 // references in paths, minus those in excludes, relative to the local module, or Bazel-labels
 // (absolute if in a different package or relative if within the same package).
 // Properties must have been annotated with struct tag `android:"path"` so that dependencies modules
-// will have already been handled by the path_deps mutator.
+// will have already been handled by the pathdeps mutator.
 func BazelLabelForModuleSrcExcludes(ctx BazelConversionPathContext, paths, excludes []string) bazel.LabelList {
 	excludeLabels := expandSrcsForBazel(ctx, excludes, []string(nil))
 	excluded := make([]string, 0, len(excludeLabels.Includes))
@@ -355,7 +355,7 @@ func RootToModuleRelativePaths(ctx BazelConversionPathContext, paths Paths) []ba
 //
 // Properties passed as the paths or excludes argument must have been annotated with struct tag
 // `android:"path"` so that dependencies on other modules will have already been handled by the
-// path_deps mutator.
+// pathdeps mutator.
 func expandSrcsForBazel(ctx BazelConversionPathContext, paths, expandedExcludes []string) bazel.LabelList {
 	if paths == nil {
 		return bazel.LabelList{}
