@@ -147,6 +147,7 @@ function create_mock_bazel {
   symlink_directory external/bazelbuild-rules_go
   symlink_directory external/bazelbuild-rules_license
   symlink_directory external/bazelbuild-kotlin-rules
+  symlink_directory external/bazelbuild-rules_java
 
   symlink_file WORKSPACE
   symlink_file BUILD
