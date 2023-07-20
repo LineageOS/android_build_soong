@@ -18,7 +18,6 @@ package android
 // product variables necessary for soong_build's operation.
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -431,32 +430,6 @@ func saveToBazelConfigFile(config *ProductVariables, outDir string) error {
 		return fmt.Errorf("cannot marshal arch variant product variable data: %s", err.Error())
 	}
 
-	configJson, err := json.MarshalIndent(&config, "", "    ")
-	if err != nil {
-		return fmt.Errorf("cannot marshal config data: %s", err.Error())
-	}
-	// The backslashes need to be escaped because this text is going to be put
-	// inside a Starlark string literal.
-	configJson = bytes.ReplaceAll(configJson, []byte("\\"), []byte("\\\\"))
-
-	bzl := []string{
-		bazel.GeneratedBazelFileWarning,
-		fmt.Sprintf(`_product_vars = json.decode("""%s""")`, configJson),
-		fmt.Sprintf(`_product_var_constraints = %s`, nonArchVariantProductVariablesJson),
-		fmt.Sprintf(`_arch_variant_product_var_constraints = %s`, archVariantProductVariablesJson),
-		"\n", `
-product_vars = _product_vars
-
-# TODO(b/269577299) Remove these when everything switches over to loading them from product_variable_constants.bzl
-product_var_constraints = _product_var_constraints
-arch_variant_product_var_constraints = _arch_variant_product_var_constraints
-`,
-	}
-	err = pathtools.WriteFileIfChanged(filepath.Join(dir, "product_variables.bzl"),
-		[]byte(strings.Join(bzl, "\n")), 0644)
-	if err != nil {
-		return fmt.Errorf("Could not write .bzl config file %s", err)
-	}
 	err = pathtools.WriteFileIfChanged(filepath.Join(dir, "product_variable_constants.bzl"), []byte(fmt.Sprintf(`
 product_var_constraints = %s
 arch_variant_product_var_constraints = %s
