@@ -716,6 +716,8 @@ func testBinaryBp2build(ctx android.TopDownMutatorContext, m *Module) {
 		}
 	}
 
+	addImplicitGtestDeps(ctx, &testBinaryAttrs)
+
 	for _, testProps := range m.GetProperties() {
 		if p, ok := testProps.(*TestBinaryProperties); ok {
 			useVendor := false // TODO Bug: 262914724
@@ -746,4 +748,22 @@ func testBinaryBp2build(ctx android.TopDownMutatorContext, m *Module) {
 			Tags: tags,
 		},
 		&testBinaryAttrs)
+}
+
+// cc_test that builds using gtest needs some additional deps
+// addImplicitGtestDeps makes these deps explicit in the generated BUILD files
+func addImplicitGtestDeps(ctx android.BazelConversionPathContext, attrs *testBinaryAttributes) {
+	if attrs.Gtest {
+		gtestDeps := android.BazelLabelForModuleDeps(
+			ctx,
+			[]string{
+				"libgtest_main",
+				"libgtest",
+			},
+		)
+		attrs.Deps.Value.Append(gtestDeps)
+		// Dedupe
+		attrs.Deps.Value = bazel.FirstUniqueBazelLabelList(attrs.Deps.Value)
+	}
+	// TODO(b/244432609): handle `isolated` property.
 }
