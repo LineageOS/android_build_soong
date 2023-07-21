@@ -141,11 +141,12 @@ var (
 		"external/expat":                         Bp2BuildDefaultTrueRecursively,
 		"external/f2fs-tools":                    Bp2BuildDefaultTrue,
 		"external/flac":                          Bp2BuildDefaultTrueRecursively,
+		"external/flatbuffers":                   Bp2BuildDefaultTrueRecursively,
 		"external/fmtlib":                        Bp2BuildDefaultTrueRecursively,
 		"external/fsverity-utils":                Bp2BuildDefaultTrueRecursively,
-		"external/guava":                         Bp2BuildDefaultTrueRecursively,
 		"external/google-benchmark":              Bp2BuildDefaultTrueRecursively,
 		"external/googletest":                    Bp2BuildDefaultTrueRecursively,
+		"external/guava":                         Bp2BuildDefaultTrueRecursively,
 		"external/gwp_asan":                      Bp2BuildDefaultTrueRecursively,
 		"external/hamcrest":                      Bp2BuildDefaultTrueRecursively,
 		"external/icu":                           Bp2BuildDefaultTrueRecursively,
@@ -227,6 +228,7 @@ var (
 		"frameworks/hardware/interfaces/stats/aidl":          Bp2BuildDefaultTrue,
 		"frameworks/libs/modules-utils/build":                Bp2BuildDefaultTrueRecursively,
 		"frameworks/libs/net/common/native":                  Bp2BuildDefaultTrueRecursively,
+		"frameworks/native":                                  Bp2BuildDefaultTrue,
 		"frameworks/native/libs/adbd_auth":                   Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/arect":                       Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/gui":                         Bp2BuildDefaultTrue,
@@ -474,6 +476,8 @@ var (
 	Bp2buildModuleAlwaysConvertList = []string{
 		"libidmap2_policies",
 		"libSurfaceFlingerProp",
+		"toolbox_input_labels",
+
 		// cc mainline modules
 
 		// com.android.media.swcodec
@@ -491,7 +495,6 @@ var (
 		"code_coverage.policy.other",
 		"codec2_soft_exports",
 		"compatibility_matrix_schema",
-		"flatbuffer_headers",
 		"framework-connectivity-protos",
 		"gemmlowp_headers",
 		"gl_headers",
@@ -613,10 +616,6 @@ var (
 		//system/libhidl
 		"libhidlbase", // needed by cc_hidl_library
 		"libhidl_gtest_helper",
-
-		//frameworks/native
-		"framework_native_aidl_binder",
-		"framework_native_aidl_gui",
 
 		//frameworks/native/libs/input
 		"inputconstants_aidl",
