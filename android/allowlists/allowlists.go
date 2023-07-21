@@ -806,6 +806,12 @@ var (
 		"rs-headers",
 		"rs_script_api",
 		"libRSDispatch",
+
+		// hal_unit_tests and deps
+		"android.hardware.contexthub_interface", // created implicitly by android.hardware.contexthub
+		"chre_flatbuffers",
+		"event_logger",
+		"hal_unit_tests",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
