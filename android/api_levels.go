@@ -275,10 +275,6 @@ var FirstAndroidRelrVersion = uncheckedFinalApiLevel(28)
 // relocations itself.
 var FirstPackedRelocationsVersion = uncheckedFinalApiLevel(23)
 
-// The first API level that does not require NDK code to link
-// libandroid_support.
-var FirstNonLibAndroidSupportVersion = uncheckedFinalApiLevel(21)
-
 // LastWithoutModuleLibCoreSystemModules is the last API level where prebuilts/sdk does not contain
 // a core-for-system-modules.jar for the module-lib API scope.
 var LastWithoutModuleLibCoreSystemModules = uncheckedFinalApiLevel(31)
