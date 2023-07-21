@@ -229,11 +229,6 @@ func (mod *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 			mctx.PropertyErrorf("vendor_ramdisk_available", "cannot be set for rust_ffi or rust_ffi_shared modules.")
 		}
 	}
-	if mctx.ProductSpecific() {
-		if lib, ok := mod.compiler.(libraryInterface); ok && lib.buildDylib() {
-			mctx.PropertyErrorf("product", "Product-only dylibs are not yet supported, use rust_library_rlib.")
-		}
-	}
 
 	cc.MutateImage(mctx, mod)
 
