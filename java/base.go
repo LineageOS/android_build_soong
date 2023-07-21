@@ -508,6 +508,14 @@ type Module struct {
 	// This should be set in every ModuleWithStem's GenerateAndroidBuildActions
 	// or the module should override Stem().
 	stem string
+
+	// Aconfig "cache files" that went directly into this module.  Transitive ones are
+	// tracked via JavaInfo.TransitiveAconfigFiles
+	// TODO: Extract to something standalone to propagate tags via GeneratedJavaLibraryModule
+	aconfigIntermediates android.Paths
+
+	// Aconfig files for all transitive deps.  Also exposed via JavaInfo
+	transitiveAconfigFiles *android.DepSet[android.Path]
 }
 
 func (j *Module) CheckStableSdkVersion(ctx android.BaseModuleContext) error {
@@ -1623,6 +1631,8 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 	ctx.CheckbuildFile(outputFile)
 
+	j.collectTransitiveAconfigFiles(ctx)
+
 	ctx.SetProvider(JavaInfoProvider, JavaInfo{
 		HeaderJars:                     android.PathsIfNonNil(j.headerJarFile),
 		TransitiveLibsHeaderJars:       j.transitiveLibsHeaderJars,
@@ -1637,6 +1647,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		ExportedPluginClasses:          j.exportedPluginClasses,
 		ExportedPluginDisableTurbine:   j.exportedDisableTurbine,
 		JacocoReportClassesFile:        j.jacocoReportClassesFile,
+		TransitiveAconfigFiles:         j.transitiveAconfigFiles,
 	})
 
 	// Save the output file with no relative path so that it doesn't end up in a subdirectory when used as a resource
@@ -1915,6 +1926,34 @@ func (j *Module) JacocoReportClassesFile() android.Path {
 
 func (j *Module) IsInstallable() bool {
 	return Bool(j.properties.Installable)
+}
+
+func (j *Module) collectTransitiveAconfigFiles(ctx android.ModuleContext) {
+	// Aconfig files from this module
+	mine := j.aconfigIntermediates
+
+	// Aconfig files from transitive dependencies
+	fromDeps := []*android.DepSet[android.Path]{}
+	ctx.VisitDirectDeps(func(module android.Module) {
+		dep := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
+		if dep.TransitiveAconfigFiles != nil {
+			fromDeps = append(fromDeps, dep.TransitiveAconfigFiles)
+		}
+	})
+
+	// DepSet containing aconfig files myself and from dependencies
+	j.transitiveAconfigFiles = android.NewDepSet(android.POSTORDER, mine, fromDeps)
+}
+
+func (j *Module) AddAconfigIntermediate(path android.Path) {
+	j.aconfigIntermediates = append(j.aconfigIntermediates, path)
+}
+
+func (j *Module) getTransitiveAconfigFiles() *android.DepSet[android.Path] {
+	if j.transitiveAconfigFiles == nil {
+		panic(fmt.Errorf("java.Moduile: getTransitiveAconfigFiles called before collectTransitiveAconfigFiles module=%s", j.Name()))
+	}
+	return j.transitiveAconfigFiles
 }
 
 type sdkLinkType int
