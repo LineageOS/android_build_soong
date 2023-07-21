@@ -39,7 +39,7 @@ var (
 		}, "release_version", "package", "declarations", "values")
 
 	// For java_aconfig_library: Generate java file
-	srcJarRule = pctx.AndroidStaticRule("aconfig_srcjar",
+	javaRule = pctx.AndroidStaticRule("java_aconfig_library",
 		blueprint.RuleParams{
 			Command: `rm -rf ${out}.tmp` +
 				` && mkdir -p ${out}.tmp` +
@@ -54,6 +54,20 @@ var (
 			},
 			Restat: true,
 		})
+
+	// For java_aconfig_library: Generate java file
+	cppRule = pctx.AndroidStaticRule("cc_aconfig_library",
+		blueprint.RuleParams{
+			Command: `rm -rf ${gendir}` +
+				` && mkdir -p ${gendir}` +
+				` && ${aconfig} create-cpp-lib` +
+				`    --cache ${in}` +
+				`    --out ${gendir}`,
+			CommandDeps: []string{
+				"$aconfig",
+				"$soong_zip",
+			},
+		}, "gendir")
 
 	// For all_aconfig_declarations
 	allDeclarationsRule = pctx.AndroidStaticRule("all_aconfig_declarations_dump",
@@ -75,6 +89,7 @@ func registerBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("aconfig_declarations", DeclarationsFactory)
 	ctx.RegisterModuleType("aconfig_values", ValuesFactory)
 	ctx.RegisterModuleType("aconfig_value_set", ValueSetFactory)
+	ctx.RegisterModuleType("cc_aconfig_library", CcAconfigLibraryFactory)
 	ctx.RegisterModuleType("java_aconfig_library", JavaDeclarationsLibraryFactory)
 	ctx.RegisterParallelSingletonType("all_aconfig_declarations", AllAconfigDeclarationsFactory)
 }
