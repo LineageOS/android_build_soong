@@ -183,6 +183,7 @@ func platformMappingSingleProduct(label string, productVariables *android.Produc
 	buildSettings += fmt.Sprintf("    --//build/bazel/product_config:cfi_include_paths=%s\n", strings.Join(productVariables.CFIIncludePaths, ","))
 	buildSettings += fmt.Sprintf("    --//build/bazel/product_config:cfi_exclude_paths=%s\n", strings.Join(productVariables.CFIExcludePaths, ","))
 	buildSettings += fmt.Sprintf("    --//build/bazel/product_config:enable_cfi=%t\n", proptools.BoolDefault(productVariables.EnableCFI, true))
+	buildSettings += fmt.Sprintf("    --//build/bazel/product_config:device_abi=%s\n", strings.Join(productVariables.DeviceAbi, ","))
 	result := ""
 	for _, suffix := range bazelPlatformSuffixes {
 		result += "  " + label + suffix + "\n" + buildSettings
@@ -206,6 +207,10 @@ func starlarkMapToProductVariables(in map[string]starlark.Value) (android.Produc
 		return result, err
 	}
 	result.EnableCFI, err = starlark_import.UnmarshalNoneable[bool](in["EnableCFI"])
+	if err != nil {
+		return result, err
+	}
+	result.DeviceAbi, err = starlark_import.Unmarshal[[]string](in["DeviceAbi"])
 	if err != nil {
 		return result, err
 	}
