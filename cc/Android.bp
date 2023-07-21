@@ -32,6 +32,7 @@ bootstrap_go_package {
         "check.go",
         "coverage.go",
         "gen.go",
+        "generated_cc_library.go",
         "image.go",
         "linkable.go",
         "lto.go",
