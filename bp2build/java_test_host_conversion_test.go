@@ -71,6 +71,11 @@ java_library {
 			}),
 			MakeBazelTarget("java_test", "java_test_host-1", AttrNameToString{
 				"runtime_deps": `[":java_test_host-1_lib"]`,
+				"deps": `[
+        ":lib_a-neverlink",
+        ":static_libs_a",
+    ]`,
+				"srcs": `["a.java"]`,
 				"target_compatible_with": `select({
         "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
@@ -128,6 +133,10 @@ java_test_host {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("java_test", "java_test_host-1", AttrNameToString{
+				"srcs": `[
+        "a.java",
+        "b.kt",
+    ]`,
 				"runtime_deps": `[":java_test_host-1_lib"]`,
 				"target_compatible_with": `select({
         "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
