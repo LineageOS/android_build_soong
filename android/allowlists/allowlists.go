@@ -1492,8 +1492,6 @@ var (
 		"ICU4CTestRunner",
 		"DeviceLongPollingStubTest",
 
-		"HelloWorldHostTest", // TODO(b/280452825): Convert HelloWorldHostTest to b test
-
 		"libprotobuf-full-test", // TODO(b/246997908): cannot convert proto_libraries which implicitly include other srcs in the same directory
 		"libprotobuf-lite-test", // TODO(b/246997908): cannot convert proto_libraries which implicitly include other srcs in the same directory
 
