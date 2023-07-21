@@ -51,10 +51,21 @@ var (
 		Description: "Uncompress dex files",
 	})
 
-	checkJniAndDexLibsAreUncompressedRule = pctx.AndroidStaticRule("check-jni-and-dex-libs-are-uncompressed", blueprint.RuleParams{
+	checkDexLibsAreUncompressedRule = pctx.AndroidStaticRule("check-dex-libs-are-uncompressed", blueprint.RuleParams{
 		// grep -v ' stor ' will search for lines that don't have ' stor '. stor means the file is stored uncompressed
-		Command: "if (zipinfo $in 'lib/*.so' '*.dex' 2>/dev/null | grep -v ' stor ' >/dev/null) ; then " +
+		Command: "if (zipinfo $in '*.dex' 2>/dev/null | grep -v ' stor ' >/dev/null) ; then " +
 			"echo $in: Contains compressed JNI libraries and/or dex files >&2;" +
+			"exit 1; " +
+			"else " +
+			"touch $out; " +
+			"fi",
+		Description: "Check for compressed JNI libs or dex files",
+	})
+
+	checkJniLibsAreUncompressedRule = pctx.AndroidStaticRule("check-jni-libs-are-uncompressed", blueprint.RuleParams{
+		// grep -v ' stor ' will search for lines that don't have ' stor '. stor means the file is stored uncompressed
+		Command: "if (zipinfo $in 'lib/*.so' 2>/dev/null | grep -v ' stor ' >/dev/null) ; then " +
+			"echo $in: Contains compressed JNI libraries >&2;" +
 			"exit 1; " +
 			"else " +
 			"touch $out; " +
@@ -384,26 +395,40 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 }
 
 func (a *AndroidAppImport) validatePreprocessedApk(ctx android.ModuleContext, srcApk android.Path, dstApk android.WritablePath) {
+	var validations android.Paths
+
 	alignmentStamp := android.PathForModuleOut(ctx, "validated-prebuilt", "alignment.stamp")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   checkZipAlignment,
 		Input:  srcApk,
 		Output: alignmentStamp,
 	})
-	compressionStamp := android.PathForModuleOut(ctx, "validated-prebuilt", "compression.stamp")
+
+	validations = append(validations, alignmentStamp)
+	jniCompressionStamp := android.PathForModuleOut(ctx, "validated-prebuilt", "jni_compression.stamp")
 	ctx.Build(pctx, android.BuildParams{
-		Rule:   checkJniAndDexLibsAreUncompressedRule,
+		Rule:   checkJniLibsAreUncompressedRule,
 		Input:  srcApk,
-		Output: compressionStamp,
+		Output: jniCompressionStamp,
 	})
+	validations = append(validations, jniCompressionStamp)
+
+	if a.Privileged() {
+		// It's ok for non-privileged apps to have compressed dex files, see go/gms-uncompressed-jni-slides
+		dexCompressionStamp := android.PathForModuleOut(ctx, "validated-prebuilt", "dex_compression.stamp")
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   checkDexLibsAreUncompressedRule,
+			Input:  srcApk,
+			Output: dexCompressionStamp,
+		})
+		validations = append(validations, dexCompressionStamp)
+	}
+
 	ctx.Build(pctx, android.BuildParams{
-		Rule:   android.Cp,
-		Input:  srcApk,
-		Output: dstApk,
-		Validations: []android.Path{
-			alignmentStamp,
-			compressionStamp,
-		},
+		Rule:        android.Cp,
+		Input:       srcApk,
+		Output:      dstApk,
+		Validations: validations,
 	})
 }
 
