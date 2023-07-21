@@ -989,6 +989,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		TransitiveStaticLibsHeaderJars: a.transitiveStaticLibsHeaderJars,
 		ImplementationAndResourcesJars: android.PathsIfNonNil(a.classpathFile),
 		ImplementationJars:             android.PathsIfNonNil(a.classpathFile),
+		// TransitiveAconfigFiles: // TODO(b/289117800): LOCAL_ACONFIG_FILES for prebuilts
 	})
 
 	if proptools.Bool(a.properties.Extract_jni) {
