@@ -143,6 +143,8 @@ func (d *DeviceHostConverter) GenerateAndroidBuildActions(ctx android.ModuleCont
 		ResourceJars:                   d.resourceJars,
 		SrcJarArgs:                     d.srcJarArgs,
 		SrcJarDeps:                     d.srcJarDeps,
+		// TODO: Not sure if aconfig flags that have been moved between device and host variants
+		// make sense.
 	})
 
 }
