@@ -1389,9 +1389,6 @@ func createCommand(cmd *RuleBuilderCommand, buildStatement *bazel.BuildStatement
 			cmd.ImplicitOutput(PathForBazelOut(ctx, outputPath))
 		}
 	}
-	for _, inputPath := range buildStatement.OrderOnlyInputs {
-		cmd.OrderOnly(PathForBazelOut(ctx, inputPath))
-	}
 	for _, inputPath := range buildStatement.InputPaths {
 		cmd.Implicit(PathForBazelOut(ctx, inputPath))
 	}
