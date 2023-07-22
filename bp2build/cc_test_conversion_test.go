@@ -121,7 +121,7 @@ cc_test_library {
         "//conditions:default": [],
     })`,
 				"gtest":          "True",
-				"isolated":       "True",
+				"isolated":       "False",
 				"local_includes": `["."]`,
 				"dynamic_deps": `[":cc_test_lib2"] + select({
         "//build/bazel/platforms/os:android": [":foolib"],
@@ -185,7 +185,7 @@ cc_test {
 				"local_includes": `["."]`,
 				"srcs":           `["test.cpp"]`,
 				"gtest":          "True",
-				"isolated":       "True",
+				"isolated":       "False",
 				"deps": `[
         ":libgtest_main",
         ":libgtest",
@@ -213,7 +213,7 @@ cc_test {
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"gtest":                  "True",
-				"isolated":               "True",
+				"isolated":               "False",
 				"local_includes":         `["."]`,
 				"srcs":                   `["test.cpp"]`,
 				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
@@ -244,7 +244,7 @@ cc_test {
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"gtest":                  "True",
-				"isolated":               "True",
+				"isolated":               "False",
 				"local_includes":         `["."]`,
 				"srcs":                   `["test.cpp"]`,
 				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
@@ -271,6 +271,7 @@ cc_test {
 	srcs: ["test.cpp"],
 	test_config_template: "test_config_template.xml",
 	auto_gen_config: true,
+	isolated: true,
 }
 ` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
 			simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
@@ -312,7 +313,7 @@ cc_test {
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"gtest":                  "True",
-				"isolated":               "True",
+				"isolated":               "False",
 				"local_includes":         `["."]`,
 				"srcs":                   `["test.cpp"]`,
 				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,

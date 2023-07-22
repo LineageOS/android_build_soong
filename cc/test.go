@@ -267,7 +267,7 @@ func (test *testDecorator) gtest() bool {
 	return BoolDefault(test.LinkerProperties.Gtest, true)
 }
 
-func (test *testDecorator) isolated(ctx BaseModuleContext) bool {
+func (test *testDecorator) isolated(ctx android.EarlyModuleContext) bool {
 	return BoolDefault(test.LinkerProperties.Isolated, false)
 }
 
@@ -721,10 +721,11 @@ func testBinaryBp2build(ctx android.TopDownMutatorContext, m *Module) {
 
 	m.convertTidyAttributes(ctx, &testBinaryAttrs.tidyAttributes)
 
+	gtestIsolated := m.linker.(*testBinary).isolated(ctx)
 	for _, propIntf := range m.GetProperties() {
 		if testLinkerProps, ok := propIntf.(*TestLinkerProperties); ok {
 			testBinaryAttrs.Gtest = proptools.BoolDefault(testLinkerProps.Gtest, true)
-			testBinaryAttrs.Isolated = proptools.BoolDefault(testLinkerProps.Isolated, true)
+			testBinaryAttrs.Isolated = gtestIsolated
 			break
 		}
 	}
@@ -742,7 +743,7 @@ func testBinaryBp2build(ctx android.TopDownMutatorContext, m *Module) {
 				p.Auto_gen_config,
 				p.Test_options.Test_suite_tag,
 				p.Test_config_template,
-				getTradefedConfigOptions(ctx, p, testBinaryAttrs.Isolated),
+				getTradefedConfigOptions(ctx, p, gtestIsolated),
 				&testInstallBase,
 			)
 			testBinaryAttrs.TestConfigAttributes = testConfigAttributes
