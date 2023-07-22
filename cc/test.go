@@ -682,8 +682,7 @@ func (handler *ccTestBazelHandler) ProcessBazelQueryResponse(ctx android.ModuleC
 type testBinaryAttributes struct {
 	binaryAttributes
 
-	Gtest    bool
-	Isolated bool
+	Gtest bool
 
 	tidyAttributes
 	tradefed.TestConfigAttributes
@@ -725,12 +724,11 @@ func testBinaryBp2build(ctx android.TopDownMutatorContext, m *Module) {
 	for _, propIntf := range m.GetProperties() {
 		if testLinkerProps, ok := propIntf.(*TestLinkerProperties); ok {
 			testBinaryAttrs.Gtest = proptools.BoolDefault(testLinkerProps.Gtest, true)
-			testBinaryAttrs.Isolated = gtestIsolated
 			break
 		}
 	}
 
-	addImplicitGtestDeps(ctx, &testBinaryAttrs)
+	addImplicitGtestDeps(ctx, &testBinaryAttrs, gtestIsolated)
 
 	for _, testProps := range m.GetProperties() {
 		if p, ok := testProps.(*TestBinaryProperties); ok {
@@ -766,18 +764,25 @@ func testBinaryBp2build(ctx android.TopDownMutatorContext, m *Module) {
 
 // cc_test that builds using gtest needs some additional deps
 // addImplicitGtestDeps makes these deps explicit in the generated BUILD files
-func addImplicitGtestDeps(ctx android.BazelConversionPathContext, attrs *testBinaryAttributes) {
+func addImplicitGtestDeps(ctx android.BazelConversionPathContext, attrs *testBinaryAttributes, gtestIsolated bool) {
+	addDepsAndDedupe := func(lla *bazel.LabelListAttribute, modules []string) {
+		moduleLabels := android.BazelLabelForModuleDeps(ctx, modules)
+		lla.Value.Append(moduleLabels)
+		// Dedupe
+		lla.Value = bazel.FirstUniqueBazelLabelList(lla.Value)
+	}
+	// this must be kept in sync with Soong's implementation in:
+	// https://cs.android.com/android/_/android/platform/build/soong/+/460fb2d6d546b5ab493a7e5479998c4933a80f73:cc/test.go;l=300-313;drc=ec7314336a2b35ea30ce5438b83949c28e3ac429;bpv=1;bpt=0
 	if attrs.Gtest {
-		gtestDeps := android.BazelLabelForModuleDeps(
-			ctx,
-			[]string{
+		// TODO - b/244433197: Handle canUseSdk
+		if gtestIsolated {
+			addDepsAndDedupe(&attrs.Deps, []string{"libgtest_isolated_main"})
+			addDepsAndDedupe(&attrs.Dynamic_deps, []string{"liblog"})
+		} else {
+			addDepsAndDedupe(&attrs.Deps, []string{
 				"libgtest_main",
 				"libgtest",
-			},
-		)
-		attrs.Deps.Value.Append(gtestDeps)
-		// Dedupe
-		attrs.Deps.Value = bazel.FirstUniqueBazelLabelList(attrs.Deps.Value)
+			})
+		}
 	}
-	// TODO(b/244432609): handle `isolated` property.
 }
