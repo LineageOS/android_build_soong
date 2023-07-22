@@ -423,11 +423,6 @@ func commonDefaultModules() string {
 			export_include_dirs: ["ndk_libc++_shared"],
 		}
 
-		ndk_prebuilt_static_stl {
-			name: "ndk_libandroid_support",
-			export_include_dirs: ["ndk_libandroid_support"],
-		}
-
 		cc_library_static {
 			name: "libgoogle-benchmark",
 			sdk_version: "current",
@@ -573,16 +568,15 @@ var PrepareForTestWithCcDefaultModules = android.GroupFixturePreparers(
 
 	// Additional files needed in tests that disallow non-existent source.
 	android.MockFS{
-		"defaults/cc/common/libc.map.txt":           nil,
-		"defaults/cc/common/libdl.map.txt":          nil,
-		"defaults/cc/common/libm.map.txt":           nil,
-		"defaults/cc/common/ndk_libandroid_support": nil,
-		"defaults/cc/common/ndk_libc++_shared":      nil,
-		"defaults/cc/common/crtbegin_so.c":          nil,
-		"defaults/cc/common/crtbegin.c":             nil,
-		"defaults/cc/common/crtend_so.c":            nil,
-		"defaults/cc/common/crtend.c":               nil,
-		"defaults/cc/common/crtbrand.c":             nil,
+		"defaults/cc/common/libc.map.txt":      nil,
+		"defaults/cc/common/libdl.map.txt":     nil,
+		"defaults/cc/common/libm.map.txt":      nil,
+		"defaults/cc/common/ndk_libc++_shared": nil,
+		"defaults/cc/common/crtbegin_so.c":     nil,
+		"defaults/cc/common/crtbegin.c":        nil,
+		"defaults/cc/common/crtend_so.c":       nil,
+		"defaults/cc/common/crtend.c":          nil,
+		"defaults/cc/common/crtbrand.c":        nil,
 
 		"defaults/cc/common/libclang_rt.ubsan_minimal.android_arm64.a": nil,
 		"defaults/cc/common/libclang_rt.ubsan_minimal.android_arm.a":   nil,
