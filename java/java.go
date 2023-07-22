@@ -3165,6 +3165,7 @@ func javaBinaryHostBp2Build(ctx android.TopDownMutatorContext, m *Binary) {
 
 type javaTestHostAttributes struct {
 	*javaCommonAttributes
+	Srcs         bazel.LabelListAttribute
 	Deps         bazel.LabelListAttribute
 	Runtime_deps bazel.LabelListAttribute
 }
@@ -3201,8 +3202,10 @@ func javaTestHostBp2Build(ctx android.TopDownMutatorContext, m *TestHost) {
 		hasKotlin: bp2BuildInfo.hasKotlin,
 	}
 	libName := createLibraryTarget(ctx, libInfo)
-	attrs.Runtime_deps.Add(&bazel.LabelAttribute{Value: &bazel.Label{Label: ":" + libName}})
 
+	attrs.Srcs = commonAttrs.Srcs
+	attrs.Deps = deps
+	attrs.Runtime_deps.Add(&bazel.LabelAttribute{Value: &bazel.Label{Label: ":" + libName}})
 	// Create the BazelTargetModule.
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
 }
