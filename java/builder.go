@@ -271,6 +271,12 @@ var (
 			Description: "Check zip alignment",
 		},
 	)
+
+	convertImplementationJarToHeaderJarRule = pctx.AndroidStaticRule("convertImplementationJarToHeaderJar",
+		blueprint.RuleParams{
+			Command:     `${config.Zip2ZipCmd} -i ${in} -o ${out} -x 'META-INF/services/**/*'`,
+			CommandDeps: []string{"${config.Zip2ZipCmd}"},
+		})
 )
 
 func init() {
@@ -630,6 +636,15 @@ func TransformJarsToJar(ctx android.ModuleContext, outputFile android.WritablePa
 		Args: map[string]string{
 			"jarArgs": strings.Join(jarArgs, " "),
 		},
+	})
+}
+
+func convertImplementationJarToHeaderJar(ctx android.ModuleContext, implementationJarFile android.Path,
+	headerJarFile android.WritablePath) {
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   convertImplementationJarToHeaderJarRule,
+		Input:  implementationJarFile,
+		Output: headerJarFile,
 	})
 }
 
