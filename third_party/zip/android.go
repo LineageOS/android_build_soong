@@ -170,7 +170,7 @@ func (w *Writer) CreateCompressedHeader(fh *FileHeader) (io.WriteCloser, error) 
 func (w *Writer) CreateHeaderAndroid(fh *FileHeader) (io.Writer, error) {
 	writeDataDescriptor := fh.Method != Store
 	if writeDataDescriptor {
-		fh.Flags &= DataDescriptorFlag
+		fh.Flags |= DataDescriptorFlag
 	} else {
 		fh.Flags &= ^uint16(DataDescriptorFlag)
 	}
