@@ -3261,7 +3261,7 @@ func TestLibDepAndroidMkExportInMixedBuilds(t *testing.T) {
 							},
 						},
 						LabelToCcBinary: map[string]cquery.CcUnstrippedInfo{
-							"//:test": cquery.CcUnstrippedInfo{
+							"//:test__tf_internal": cquery.CcUnstrippedInfo{
 								CcAndroidMkInfo: tc.androidMkInfo,
 							},
 							"//:binary": cquery.CcUnstrippedInfo{

@@ -641,14 +641,27 @@ type ccTestBazelHandler struct {
 
 var _ BazelHandler = (*ccTestBazelHandler)(nil)
 
+// The top level target named $label is a test_suite target,
+// not the internal cc_test executable target.
+//
+// This is to ensure `b test //$label` runs the test_suite target directly,
+// which depends on tradefed_test targets, instead of the internal cc_test
+// target, which doesn't have tradefed integrations.
+//
+// However, for cquery, we want the internal cc_test executable target, which
+// has the suffix "__tf_internal".
+func mixedBuildsTestLabel(label string) string {
+	return label + "__tf_internal"
+}
+
 func (handler *ccTestBazelHandler) QueueBazelCall(ctx android.BaseModuleContext, label string) {
 	bazelCtx := ctx.Config().BazelContext
-	bazelCtx.QueueBazelRequest(label, cquery.GetCcUnstrippedInfo, android.GetConfigKey(ctx))
+	bazelCtx.QueueBazelRequest(mixedBuildsTestLabel(label), cquery.GetCcUnstrippedInfo, android.GetConfigKey(ctx))
 }
 
 func (handler *ccTestBazelHandler) ProcessBazelQueryResponse(ctx android.ModuleContext, label string) {
 	bazelCtx := ctx.Config().BazelContext
-	info, err := bazelCtx.GetCcUnstrippedInfo(label, android.GetConfigKey(ctx))
+	info, err := bazelCtx.GetCcUnstrippedInfo(mixedBuildsTestLabel(label), android.GetConfigKey(ctx))
 	if err != nil {
 		ctx.ModuleErrorf(err.Error())
 		return
