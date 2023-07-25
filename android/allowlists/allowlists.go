@@ -674,6 +674,7 @@ var (
 		"libcodec2_hidl@1.2",
 		"libcodec2_hidl_plugin_stub",
 		"libcodec2_hidl_plugin",
+		"libcodec2_hal_common",
 		"libstagefright_bufferqueue_helper_novndk",
 		"libGLESv2",
 		"libEGL",
