@@ -722,7 +722,10 @@ func TestAppJavaResources(t *testing.T) {
 
 func TestAndroidResourceProcessor(t *testing.T) {
 	testCases := []struct {
-		name string
+		name                string
+		appUsesRP           bool
+		directLibUsesRP     bool
+		transitiveLibUsesRP bool
 
 		dontVerifyApp bool
 		appResources  []string
@@ -759,7 +762,12 @@ func TestAndroidResourceProcessor(t *testing.T) {
 		transitiveImportImports    []string
 	}{
 		{
-			name: "legacy",
+			// Test with all modules set to use_resource_processor: false (except android_library_import modules,
+			// which always use resource processor).
+			name:                "legacy",
+			appUsesRP:           false,
+			directLibUsesRP:     false,
+			transitiveLibUsesRP: false,
 
 			appResources: nil,
 			appOverlays: []string{
@@ -771,7 +779,6 @@ func TestAndroidResourceProcessor(t *testing.T) {
 				"out/soong/.intermediates/direct_import/android_common/package-res.apk",
 				"out/soong/.intermediates/app/android_common/aapt2/app/res/values_strings.arsc.flat",
 			},
-
 			appImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
 			appSrcJars: []string{"out/soong/.intermediates/app/android_common/gen/android/R.srcjar"},
 			appClasspath: []string{
@@ -792,7 +799,6 @@ func TestAndroidResourceProcessor(t *testing.T) {
 				"out/soong/.intermediates/transitive_import/android_common/package-res.apk",
 				"out/soong/.intermediates/direct/android_common/aapt2/direct/res/values_strings.arsc.flat",
 			},
-
 			directImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
 			directSrcJars: []string{"out/soong/.intermediates/direct/android_common/gen/android/R.srcjar"},
 			directClasspath: []string{
@@ -814,18 +820,256 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			transitiveCombined:  nil,
 
 			directImportResources: nil,
-			directImportOverlays: []string{
-				"out/soong/.intermediates/direct_import/android_common/flat-res/gen_res.flata",
+			directImportOverlays:  []string{"out/soong/.intermediates/direct_import/android_common/flat-res/gen_res.flata"},
+			directImportImports: []string{
+				"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk",
 				"out/soong/.intermediates/direct_import_dep/android_common/package-res.apk",
 			},
-			directImportImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
 
 			transitiveImportResources: nil,
-			transitiveImportOverlays: []string{
-				"out/soong/.intermediates/transitive_import/android_common/flat-res/gen_res.flata",
+			transitiveImportOverlays:  []string{"out/soong/.intermediates/transitive_import/android_common/flat-res/gen_res.flata"},
+			transitiveImportImports: []string{
+				"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk",
 				"out/soong/.intermediates/transitive_import_dep/android_common/package-res.apk",
 			},
-			transitiveImportImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
+		},
+		{
+			// Test with all modules set to use_resource_processor: true.
+			name:                "resource_processor",
+			appUsesRP:           true,
+			directLibUsesRP:     true,
+			transitiveLibUsesRP: true,
+
+			appResources: nil,
+			appOverlays: []string{
+				"out/soong/.intermediates/transitive/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive_import_dep/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive_import/android_common/package-res.apk",
+				"out/soong/.intermediates/direct/android_common/package-res.apk",
+				"out/soong/.intermediates/direct_import_dep/android_common/package-res.apk",
+				"out/soong/.intermediates/direct_import/android_common/package-res.apk",
+				"out/soong/.intermediates/app/android_common/aapt2/app/res/values_strings.arsc.flat",
+			},
+			appImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
+			appSrcJars: nil,
+			appClasspath: []string{
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/app/android_common/busybox/R.jar",
+				"out/soong/.intermediates/direct/android_common/turbine-combined/direct.jar",
+				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
+			},
+			appCombined: []string{
+				"out/soong/.intermediates/app/android_common/busybox/R.jar",
+				"out/soong/.intermediates/app/android_common/javac/app.jar",
+				"out/soong/.intermediates/direct/android_common/combined/direct.jar",
+				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
+			},
+
+			directResources: nil,
+			directOverlays:  []string{"out/soong/.intermediates/direct/android_common/aapt2/direct/res/values_strings.arsc.flat"},
+			directImports: []string{
+				"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive_import/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive_import_dep/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive/android_common/package-res.apk",
+			},
+			directSrcJars: nil,
+			directClasspath: []string{
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/transitive_import/android_common/busybox/R.jar",
+				"out/soong/.intermediates/transitive_import_dep/android_common/busybox/R.jar",
+				"out/soong/.intermediates/transitive/android_common/busybox/R.jar",
+				"out/soong/.intermediates/direct/android_common/busybox/R.jar",
+				"out/soong/.intermediates/transitive/android_common/turbine-combined/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/classes-combined.jar",
+			},
+			directCombined: []string{
+				"out/soong/.intermediates/direct/android_common/javac/direct.jar",
+				"out/soong/.intermediates/transitive/android_common/javac/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/classes-combined.jar",
+			},
+
+			transitiveResources: []string{"out/soong/.intermediates/transitive/android_common/aapt2/transitive/res/values_strings.arsc.flat"},
+			transitiveOverlays:  nil,
+			transitiveImports:   []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
+			transitiveSrcJars:   nil,
+			transitiveClasspath: []string{
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/transitive/android_common/busybox/R.jar",
+			},
+			transitiveCombined: nil,
+
+			directImportResources: nil,
+			directImportOverlays:  []string{"out/soong/.intermediates/direct_import/android_common/flat-res/gen_res.flata"},
+			directImportImports: []string{
+				"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk",
+				"out/soong/.intermediates/direct_import_dep/android_common/package-res.apk",
+			},
+
+			transitiveImportResources: nil,
+			transitiveImportOverlays:  []string{"out/soong/.intermediates/transitive_import/android_common/flat-res/gen_res.flata"},
+			transitiveImportImports: []string{
+				"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive_import_dep/android_common/package-res.apk",
+			},
+		}, {
+			// Test an app building with resource processor enabled but with dependencies built without
+			// resource processor.
+			name:                "app_resource_processor",
+			appUsesRP:           true,
+			directLibUsesRP:     false,
+			transitiveLibUsesRP: false,
+
+			appResources: nil,
+			appOverlays: []string{
+				"out/soong/.intermediates/transitive/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive_import_dep/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive_import/android_common/package-res.apk",
+				"out/soong/.intermediates/direct/android_common/package-res.apk",
+				"out/soong/.intermediates/direct_import_dep/android_common/package-res.apk",
+				"out/soong/.intermediates/direct_import/android_common/package-res.apk",
+				"out/soong/.intermediates/app/android_common/aapt2/app/res/values_strings.arsc.flat",
+			},
+			appImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
+			appSrcJars: nil,
+			appClasspath: []string{
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				// R.jar has to come before direct.jar
+				"out/soong/.intermediates/app/android_common/busybox/R.jar",
+				"out/soong/.intermediates/direct/android_common/turbine-combined/direct.jar",
+				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
+			},
+			appCombined: []string{
+				"out/soong/.intermediates/app/android_common/busybox/R.jar",
+				"out/soong/.intermediates/app/android_common/javac/app.jar",
+				"out/soong/.intermediates/direct/android_common/combined/direct.jar",
+				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
+			},
+
+			dontVerifyDirect:           true,
+			dontVerifyTransitive:       true,
+			dontVerifyDirectImport:     true,
+			dontVerifyTransitiveImport: true,
+		},
+		{
+			// Test an app building without resource processor enabled but with a dependency built with
+			// resource processor.
+			name:                "app_dependency_lib_resource_processor",
+			appUsesRP:           false,
+			directLibUsesRP:     true,
+			transitiveLibUsesRP: false,
+
+			appOverlays: []string{
+				"out/soong/.intermediates/transitive/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive_import_dep/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive_import/android_common/package-res.apk",
+				"out/soong/.intermediates/direct/android_common/package-res.apk",
+				"out/soong/.intermediates/direct_import_dep/android_common/package-res.apk",
+				"out/soong/.intermediates/direct_import/android_common/package-res.apk",
+				"out/soong/.intermediates/app/android_common/aapt2/app/res/values_strings.arsc.flat",
+			},
+			appImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
+			appSrcJars: []string{"out/soong/.intermediates/app/android_common/gen/android/R.srcjar"},
+			appClasspath: []string{
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/direct/android_common/turbine-combined/direct.jar",
+				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
+			},
+			appCombined: []string{
+				"out/soong/.intermediates/app/android_common/javac/app.jar",
+				"out/soong/.intermediates/direct/android_common/combined/direct.jar",
+				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
+			},
+
+			directResources: nil,
+			directOverlays:  []string{"out/soong/.intermediates/direct/android_common/aapt2/direct/res/values_strings.arsc.flat"},
+			directImports: []string{
+				"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive_import/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive_import_dep/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive/android_common/package-res.apk",
+			},
+			directSrcJars: nil,
+			directClasspath: []string{
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/transitive_import/android_common/busybox/R.jar",
+				"out/soong/.intermediates/transitive_import_dep/android_common/busybox/R.jar",
+				"out/soong/.intermediates/direct/android_common/busybox/R.jar",
+				"out/soong/.intermediates/transitive/android_common/turbine-combined/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/classes-combined.jar",
+			},
+			directCombined: []string{
+				"out/soong/.intermediates/direct/android_common/javac/direct.jar",
+				"out/soong/.intermediates/transitive/android_common/javac/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/classes-combined.jar",
+			},
+
+			dontVerifyTransitive:       true,
+			dontVerifyDirectImport:     true,
+			dontVerifyTransitiveImport: true,
+		},
+		{
+			// Test a library building without resource processor enabled but with a dependency built with
+			// resource processor.
+			name:                "lib_dependency_lib_resource_processor",
+			appUsesRP:           false,
+			directLibUsesRP:     false,
+			transitiveLibUsesRP: true,
+
+			appOverlays: []string{
+				"out/soong/.intermediates/transitive/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive_import_dep/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive_import/android_common/package-res.apk",
+				"out/soong/.intermediates/direct/android_common/package-res.apk",
+				"out/soong/.intermediates/direct_import_dep/android_common/package-res.apk",
+				"out/soong/.intermediates/direct_import/android_common/package-res.apk",
+				"out/soong/.intermediates/app/android_common/aapt2/app/res/values_strings.arsc.flat",
+			},
+			appImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
+			appSrcJars: []string{"out/soong/.intermediates/app/android_common/gen/android/R.srcjar"},
+			appClasspath: []string{
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/direct/android_common/turbine-combined/direct.jar",
+				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
+			},
+			appCombined: []string{
+				"out/soong/.intermediates/app/android_common/javac/app.jar",
+				"out/soong/.intermediates/direct/android_common/combined/direct.jar",
+				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
+			},
+
+			directResources: nil,
+			directOverlays: []string{
+				"out/soong/.intermediates/transitive/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive_import_dep/android_common/package-res.apk",
+				"out/soong/.intermediates/transitive_import/android_common/package-res.apk",
+				"out/soong/.intermediates/direct/android_common/aapt2/direct/res/values_strings.arsc.flat",
+			},
+			directImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
+			directSrcJars: []string{"out/soong/.intermediates/direct/android_common/gen/android/R.srcjar"},
+			directClasspath: []string{
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/transitive/android_common/turbine-combined/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/classes-combined.jar",
+			},
+			directCombined: []string{
+				"out/soong/.intermediates/direct/android_common/javac/direct.jar",
+				"out/soong/.intermediates/transitive/android_common/javac/transitive.jar",
+				"out/soong/.intermediates/transitive_import/android_common/aar/classes-combined.jar",
+			},
+
+			transitiveResources: []string{"out/soong/.intermediates/transitive/android_common/aapt2/transitive/res/values_strings.arsc.flat"},
+			transitiveOverlays:  nil,
+			transitiveImports:   []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
+			transitiveSrcJars:   nil,
+			transitiveClasspath: []string{
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/transitive/android_common/busybox/R.jar",
+			},
+			transitiveCombined: nil,
+
+			dontVerifyDirectImport:     true,
+			dontVerifyTransitiveImport: true,
 		},
 	}
 
@@ -839,6 +1083,7 @@ func TestAndroidResourceProcessor(t *testing.T) {
 					resource_dirs: ["app/res"],
 					manifest: "app/AndroidManifest.xml",
 					static_libs: ["direct", "direct_import"],
+					use_resource_processor: %v,
 				}
 
 				android_library {
@@ -848,6 +1093,7 @@ func TestAndroidResourceProcessor(t *testing.T) {
 					resource_dirs: ["direct/res"],
 					manifest: "direct/AndroidManifest.xml",
 					static_libs: ["transitive", "transitive_import"],
+					use_resource_processor: %v,
 				}
 
 				android_library {
@@ -856,6 +1102,7 @@ func TestAndroidResourceProcessor(t *testing.T) {
 					srcs: ["transitive/transitive.java"],
 					resource_dirs: ["transitive/res"],
 					manifest: "transitive/AndroidManifest.xml",
+					use_resource_processor: %v,
 				}
 
 				android_library_import {
@@ -883,7 +1130,7 @@ func TestAndroidResourceProcessor(t *testing.T) {
 					sdk_version: "current",
 					aars: ["transitive_import_dep.aar"],
 				}
-			`)
+			`, testCase.appUsesRP, testCase.directLibUsesRP, testCase.transitiveLibUsesRP)
 
 			fs := android.MockFS{
 				"app/res/values/strings.xml":        nil,
