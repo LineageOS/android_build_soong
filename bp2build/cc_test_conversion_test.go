@@ -94,7 +94,9 @@ cc_test_library {
 			simpleModuleDoNotConvertBp2build("genrule", "data_mod") +
 			simpleModuleDoNotConvertBp2build("cc_binary", "cc_bin") +
 			simpleModuleDoNotConvertBp2build("cc_library", "cc_lib") +
-			simpleModuleDoNotConvertBp2build("cc_test_library", "cc_test_lib2"),
+			simpleModuleDoNotConvertBp2build("cc_test_library", "cc_test_lib2") +
+			simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
+			simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
 		targets: []testBazelTarget{
 			{"cc_library_shared", "cc_test_lib1", AttrNameToString{}},
 			{"cc_library_static", "cc_test_lib1_bp2build_cc_library_static", AttrNameToString{}},
@@ -106,7 +108,11 @@ cc_test_library {
         ":cc_bin",
         ":cc_lib",
     ]`,
-				"deps": `[":cc_test_lib1_bp2build_cc_library_static"] + select({
+				"deps": `[
+        ":cc_test_lib1_bp2build_cc_library_static",
+        ":libgtest_main",
+        ":libgtest",
+    ] + select({
         "//build/bazel/platforms/os:darwin": [":hostlib"],
         "//build/bazel/platforms/os:linux_bionic": [":hostlib"],
         "//build/bazel/platforms/os:linux_glibc": [":hostlib"],
@@ -171,7 +177,8 @@ cc_test {
     srcs: ["test.cpp"],
     test_options: { tags: ["no-remote"] },
 }
-`,
+` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
+			simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"tags":           `["no-remote"]`,
@@ -179,6 +186,10 @@ cc_test {
 				"srcs":           `["test.cpp"]`,
 				"gtest":          "True",
 				"isolated":       "True",
+				"deps": `[
+        ":libgtest_main",
+        ":libgtest",
+    ]`,
 			},
 			},
 		},
@@ -197,7 +208,8 @@ cc_test {
 	srcs: ["test.cpp"],
 	test_config: "test_config.xml",
 }
-`,
+` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
+			simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"gtest":                  "True",
@@ -206,6 +218,10 @@ cc_test {
 				"srcs":                   `["test.cpp"]`,
 				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
 				"test_config":            `"test_config.xml"`,
+				"deps": `[
+        ":libgtest_main",
+        ":libgtest",
+    ]`,
 			},
 			},
 		},
@@ -223,7 +239,8 @@ cc_test {
 	name: "mytest",
 	srcs: ["test.cpp"],
 }
-`,
+` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
+			simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"gtest":                  "True",
@@ -232,6 +249,10 @@ cc_test {
 				"srcs":                   `["test.cpp"]`,
 				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
 				"test_config":            `"AndroidTest.xml"`,
+				"deps": `[
+        ":libgtest_main",
+        ":libgtest",
+    ]`,
 			},
 			},
 		},
@@ -251,7 +272,8 @@ cc_test {
 	test_config_template: "test_config_template.xml",
 	auto_gen_config: true,
 }
-`,
+` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
+			simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"auto_generate_test_config": "True",
@@ -266,8 +288,41 @@ cc_test {
     ]`,
 				"template_install_base": `"/data/local/tmp"`,
 				"template_test_config":  `"test_config_template.xml"`,
+				"deps": `[
+        ":libgtest_main",
+        ":libgtest",
+    ]`,
 			},
 			},
 		},
 	})
+}
+
+func TestCcTest_WithExplicitGTestDepInAndroidBp(t *testing.T) {
+	runCcTestTestCase(t, ccTestBp2buildTestCase{
+		description: "cc test that lists libgtest in Android.bp should not have dups of libgtest in BUILD file",
+		blueprint: `
+cc_test {
+	name: "mytest",
+	srcs: ["test.cpp"],
+	static_libs: ["libgtest"],
+}
+` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
+			simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
+		targets: []testBazelTarget{
+			{"cc_test", "mytest", AttrNameToString{
+				"gtest":                  "True",
+				"isolated":               "True",
+				"local_includes":         `["."]`,
+				"srcs":                   `["test.cpp"]`,
+				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"deps": `[
+        ":libgtest",
+        ":libgtest_main",
+    ]`,
+			},
+			},
+		},
+	})
+
 }
