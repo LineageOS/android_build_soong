@@ -46,6 +46,7 @@ bootstrap_go_package {
         "apex_conversion_test.go",
         "apex_key_conversion_test.go",
         "build_conversion_test.go",
+        "bp2build_product_config_test.go",
         "bzl_conversion_test.go",
         "cc_binary_conversion_test.go",
         "cc_library_conversion_test.go",
