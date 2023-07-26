@@ -699,7 +699,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		j.dexpreopter.uncompressedDex = *j.dexProperties.Uncompress_dex
 		j.classLoaderContexts = j.usesLibrary.classLoaderContextForUsesLibDeps(ctx)
 	}
-	j.compile(ctx, nil)
+	j.compile(ctx, nil, nil, nil)
 
 	// Collect the module directory for IDE info in java/jdeps.go.
 	j.modulePaths = append(j.modulePaths, ctx.ModuleDir())

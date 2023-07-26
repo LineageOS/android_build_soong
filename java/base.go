@@ -1065,7 +1065,7 @@ func (module *Module) addGeneratedSrcJars(path android.Path) {
 	module.properties.Generated_srcjars = append(module.properties.Generated_srcjars, path)
 }
 
-func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
+func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspathJars, extraCombinedJars android.Paths) {
 	j.exportAidlIncludeDirs = android.PathsForModuleSrc(ctx, j.deviceProperties.Aidl.Export_include_dirs)
 
 	deps := j.collectDeps(ctx)
@@ -1103,9 +1103,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 	srcJars := srcFiles.FilterByExt(".srcjar")
 	srcJars = append(srcJars, deps.srcJars...)
-	if aaptSrcJar != nil {
-		srcJars = append(srcJars, aaptSrcJar)
-	}
+	srcJars = append(srcJars, extraSrcJars...)
 	srcJars = append(srcJars, j.properties.Generated_srcjars...)
 	srcFiles = srcFiles.FilterOutByExt(".srcjar")
 
@@ -1147,6 +1145,11 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 	var kotlinJars android.Paths
 	var kotlinHeaderJars android.Paths
+
+	// Prepend extraClasspathJars to classpath so that the resource processor R.jar comes before
+	// any dependencies so that it can override any non-final R classes from dependencies with the
+	// final R classes from the app.
+	flags.classpath = append(android.CopyOf(extraClasspathJars), flags.classpath...)
 
 	if srcFiles.HasExt(".kt") {
 		// When using kotlin sources turbine is used to generate annotation processor sources,
@@ -1241,8 +1244,9 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			// allow for the use of annotation processors that do function correctly
 			// with sharding enabled. See: b/77284273.
 		}
+		extraJars := append(android.CopyOf(extraCombinedJars), kotlinHeaderJars...)
 		headerJarFileWithoutDepsOrJarjar, j.headerJarFile =
-			j.compileJavaHeader(ctx, uniqueJavaFiles, srcJars, deps, flags, jarName, kotlinHeaderJars)
+			j.compileJavaHeader(ctx, uniqueJavaFiles, srcJars, deps, flags, jarName, extraJars)
 		if ctx.Failed() {
 			return
 		}
@@ -1392,6 +1396,8 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		})
 		jars = append(jars, servicesJar)
 	}
+
+	jars = append(android.CopyOf(extraCombinedJars), jars...)
 
 	// Combine the classes built from sources, any manifests, and any static libraries into
 	// classes.jar. If there is only one input jar this step will be skipped.
