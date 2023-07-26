@@ -32,6 +32,7 @@ type SanitizeProperties struct {
 	Sanitize struct {
 		Address   *bool `android:"arch_variant"`
 		Hwaddress *bool `android:"arch_variant"`
+		Scs       *bool `android:"arch_variant"`
 
 		// Memory-tagging, only available on arm64
 		// if diag.memtag unset or false, enables async memory tagging
@@ -74,6 +75,9 @@ var fuzzerFlags = []string{
 
 var asanFlags = []string{
 	"-Z sanitizer=address",
+}
+var scsFlags = []string{
+	"-Z sanitizer=shadow-call-stack",
 }
 
 // See cc/sanitize.go's hwasanGlobalOptions for global hwasan options.
@@ -208,9 +212,15 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Memtag_heap = nil
 	}
 
+	// SCS is only supported on AArch64 in Rust.
+	// TODO: Add riscv when riscv supported.
+	if (ctx.Arch().ArchType != android.Arm64) || !ctx.toolchain().Bionic() {
+		s.Scs = nil
+	}
+
 	// TODO:(b/178369775)
 	// For now sanitizing is only supported on devices
-	if ctx.Os() == android.Android && (Bool(s.Hwaddress) || Bool(s.Address) || Bool(s.Memtag_heap) || Bool(s.Fuzzer)) {
+	if ctx.Os() == android.Android && (Bool(s.Hwaddress) || Bool(s.Address) || Bool(s.Memtag_heap) || Bool(s.Fuzzer) || Bool(s.Scs)) {
 		sanitize.Properties.SanitizerEnabled = true
 	}
 }
@@ -229,7 +239,10 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags, deps PathDeps) (
 		flags.RustFlags = append(flags.RustFlags, hwasanFlags...)
 	} else if Bool(sanitize.Properties.Sanitize.Address) {
 		flags.RustFlags = append(flags.RustFlags, asanFlags...)
+	} else if Bool(sanitize.Properties.Sanitize.Scs) {
+		flags.RustFlags = append(flags.RustFlags, scsFlags...)
 	}
+
 	return flags, deps
 }
 
@@ -311,6 +324,9 @@ func (sanitize *sanitize) SetSanitizer(t cc.SanitizerType, b bool) {
 	case cc.Memtag_heap:
 		sanitize.Properties.Sanitize.Memtag_heap = boolPtr(b)
 		sanitizerSet = true
+	case cc.Scs:
+		sanitize.Properties.Sanitize.Scs = boolPtr(b)
+		sanitizerSet = true
 	default:
 		panic(fmt.Errorf("setting unsupported sanitizerType %d", t))
 	}
@@ -372,6 +388,8 @@ func (sanitize *sanitize) getSanitizerBoolPtr(t cc.SanitizerType) *bool {
 		return sanitize.Properties.Sanitize.Hwaddress
 	case cc.Memtag_heap:
 		return sanitize.Properties.Sanitize.Memtag_heap
+	case cc.Scs:
+		return sanitize.Properties.Sanitize.Scs
 	default:
 		return nil
 	}
@@ -384,6 +402,10 @@ func (sanitize *sanitize) AndroidMk(ctx AndroidMkContext, entries *android.Andro
 		if sanitize.isSanitizerEnabled(cc.Hwasan) {
 			entries.SubName += ".hwasan"
 		}
+		if sanitize.isSanitizerEnabled(cc.Scs) {
+			entries.SubName += ".scs"
+		}
+
 	}
 }
 
@@ -404,6 +426,13 @@ func (mod *Module) SanitizerSupported(t cc.SanitizerType) bool {
 		return true
 	case cc.Memtag_heap:
 		return true
+	case cc.Scs:
+		// SCS is only supported on AArch64 in Rust.
+		// TODO: Add riscv when riscv supported.
+		if mod.Target().Arch.ArchType == android.Arm64 {
+			return true
+		}
+		return false
 	default:
 		return false
 	}
