@@ -31,11 +31,7 @@ func MinApiForArch(ctx android.EarlyModuleContext,
 	case android.Arm64, android.X86_64:
 		return android.FirstLp64Version
 	case android.Riscv64:
-		apiLevel, err := android.ApiLevelFromUser(ctx, "VanillaIceCream")
-		if err != nil {
-			panic(err)
-		}
-		return apiLevel
+		return android.FutureApiLevel
 	default:
 		panic(fmt.Errorf("Unknown arch %q", arch))
 	}
