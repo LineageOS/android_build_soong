@@ -374,6 +374,11 @@ func NewConfig(ctx Context, args ...string) Config {
 		if err := loadEnvConfig(ctx, ret, bc); err != nil {
 			ctx.Fatalln("Failed to parse env config files: %v", err)
 		}
+		if !ret.canSupportRBE() {
+			// Explicitly set USE_RBE env variable to false when we cannot run
+			// an RBE build to avoid ninja local execution pool issues.
+			ret.environ.Set("USE_RBE", "false")
+		}
 	}
 
 	if distDir, ok := ret.environ.Get("DIST_DIR"); ok {
@@ -1374,18 +1379,26 @@ func (c *configImpl) StartGoma() bool {
 	return true
 }
 
+func (c *configImpl) canSupportRBE() bool {
+	// Do not use RBE with prod credentials in scenarios when stubby doesn't exist, since
+	// its unlikely that we will be able to obtain necessary creds without stubby.
+	authType, _ := c.rbeAuth()
+	if !c.StubbyExists() && strings.Contains(authType, "use_google_prod_creds") {
+		return false
+	}
+	return true
+}
+
 func (c *configImpl) UseRBE() bool {
 	// These alternate modes of running Soong do not use RBE / reclient.
 	if c.Bp2Build() || c.Queryview() || c.ApiBp2build() || c.JsonModuleGraph() {
 		return false
 	}
 
-	authType, _ := c.rbeAuth()
-	// Do not use RBE with prod credentials in scenarios when stubby doesn't exist, since
-	// its unlikely that we will be able to obtain necessary creds without stubby.
-	if !c.StubbyExists() && strings.Contains(authType, "use_google_prod_creds") {
+	if !c.canSupportRBE() {
 		return false
 	}
+
 	if v, ok := c.Environment().Get("USE_RBE"); ok {
 		v = strings.TrimSpace(v)
 		if v != "" && v != "false" {
