@@ -34,6 +34,9 @@ func UnmarshalReflect(value starlark.Value, ty reflect.Type) (reflect.Value, err
 		return reflect.ValueOf(value), nil
 	}
 	zero := reflect.Zero(ty)
+	if value == nil {
+		panic("nil value")
+	}
 	var result reflect.Value
 	if ty.Kind() == reflect.Interface {
 		var err error
