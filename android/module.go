@@ -4029,43 +4029,26 @@ type XsdConfigBp2buildTargets interface {
 	JavaBp2buildTargetName() string
 }
 
-// PartitionXsdSrcs partitions srcs into xsd_config modules and others
-// Since xsd_config are soong modules, we cannot use file extension for partitioning
-func PartitionXsdSrcs(ctx BazelConversionPathContext, srcs []string) ([]string, []string) {
-	//isXsd returns true if src is a soong module of type xsd_config
-	isXsd := func(src string) bool {
-		mod, exists := ctx.ModuleFromName(src)
+// XsdModuleToTargetName is a function that takes an XsdConfigBp2buildTarget
+type XsdModuleToTargetName func(xsd XsdConfigBp2buildTargets) string
+
+// XsdLabelMapper returns a bazel.LabelMapper for partitioning XSD sources/headers given an
+// XsdModuleToTargetName function.
+func XsdLabelMapper(targetName XsdModuleToTargetName) bazel.LabelMapper {
+	return func(ctx bazel.OtherModuleContext, label bazel.Label) (string, bool) {
+		mod, exists := ctx.ModuleFromName(label.OriginalModuleName)
 		if !exists {
-			return false
+			return label.Label, false
 		}
-		_, _isXsd := mod.(XsdConfigBp2buildTargets)
-		return _isXsd
-	}
-	nonXsd := []string{}
-	xsd := []string{}
-
-	for _, src := range srcs {
-		if isXsd(src) {
-			xsd = append(xsd, src)
-		} else {
-			nonXsd = append(nonXsd, src)
+		xsdMod, isXsd := mod.(XsdConfigBp2buildTargets)
+		if !isXsd {
+			return label.Label, false
 		}
-	}
 
-	return nonXsd, xsd
-}
-
-// Replaces //a/b/my_xsd_config with //a/b/my_xsd_config-{cpp|java}
-// The new target name is provided by the `targetName` callback function
-func XsdConfigBp2buildTarget(ctx BazelConversionPathContext, mod blueprint.Module, targetName func(xsd XsdConfigBp2buildTargets) string) string {
-	xsd, isXsd := mod.(XsdConfigBp2buildTargets)
-	if !isXsd {
-		ctx.ModuleErrorf("xsdConfigJavaTarget called on %v, which is not an xsd_config", mod)
+		// Remove the base module name
+		ret := strings.TrimSuffix(label.Label, mod.Name())
+		// Append the language specific target name
+		ret += targetName(xsdMod)
+		return ret, true
 	}
-	ret := BazelModuleLabel(ctx, mod)
-	// Remove the base module name
-	ret = strings.TrimSuffix(ret, mod.Name())
-	// Append the language specific target name
-	ret += targetName(xsd)
-	return ret
 }
