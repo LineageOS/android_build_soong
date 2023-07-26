@@ -80,8 +80,7 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 			return ""
 		}
 		s = deduplicateStlInput(s)
-		archHasNDKStl := ctx.Arch().ArchType != android.Riscv64
-		if ctx.useSdk() && ctx.Device() && archHasNDKStl {
+		if ctx.useSdk() && ctx.Device() {
 			switch s {
 			case "", "system":
 				return "ndk_system"
