@@ -184,6 +184,13 @@ type variableProperties struct {
 			Srcs         []string `android:"arch_variant"`
 			Exclude_srcs []string `android:"arch_variant"`
 		} `android:"arch_variant"`
+
+		// release_aidl_use_unfrozen is "true" when a device can
+		// use the unfrozen versions of AIDL interfaces.
+		Release_aidl_use_unfrozen struct {
+			Cflags []string
+			Cmd    *string
+		}
 	} `android:"arch_variant"`
 }
 
@@ -461,6 +468,8 @@ type ProductVariables struct {
 	RequiresInsecureExecmemForSwiftshader bool `json:",omitempty"`
 
 	SelinuxIgnoreNeverallows bool `json:",omitempty"`
+
+	Release_aidl_use_unfrozen *bool `json:",omitempty"`
 
 	SepolicyFreezeTestExtraDirs         []string `json:",omitempty"`
 	SepolicyFreezeTestExtraPrebuiltDirs []string `json:",omitempty"`
