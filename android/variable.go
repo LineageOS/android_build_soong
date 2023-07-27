@@ -947,7 +947,7 @@ func (productConfigProperties *ProductConfigProperties) AddSoongConfigProperties
 						productConfigProperties.AddSoongConfigProperty(propertyName, namespace, soongConfigVariableName, soongConfigVariableValue, os.Name, property.Interface())
 					}
 				}
-			} else {
+			} else if !archOrOsSpecificStruct.IsZero() {
 				// One problem with supporting additional fields is that if multiple branches of
 				// "target" overlap, we don't want them to be in the same select statement (aka
 				// configuration axis). "android" and "host" are disjoint, so it's ok that we only
