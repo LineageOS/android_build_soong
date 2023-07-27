@@ -3029,7 +3029,11 @@ func TestVendorApex_use_vndk_as_stable(t *testing.T) {
 			vendor: true,
 			shared_libs: ["libvndk", "libvendor"],
 		}
-	`)
+	`,
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.TestProductVariables.KeepVndk = proptools.BoolPtr(true)
+		}),
+	)
 
 	vendorVariant := "android_vendor.29_arm64_armv8-a"
 

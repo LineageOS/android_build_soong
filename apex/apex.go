@@ -993,7 +993,7 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 	// the non-system APEXes because the VNDK libraries won't be included (and duped) in the
 	// APEX, but shared across APEXes via the VNDK APEX.
 	useVndk := a.SocSpecific() || a.DeviceSpecific() || (a.ProductSpecific() && mctx.Config().EnforceProductPartitionInterface())
-	excludeVndkLibs := useVndk && proptools.Bool(a.properties.Use_vndk_as_stable)
+	excludeVndkLibs := useVndk && a.useVndkAsStable(mctx)
 	if proptools.Bool(a.properties.Use_vndk_as_stable) {
 		if !useVndk {
 			mctx.PropertyErrorf("use_vndk_as_stable", "not supported for system/system_ext APEXes")
@@ -2394,7 +2394,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 	// tags used below are private (e.g. `cc.sharedDepTag`).
 	if cc.IsSharedDepTag(depTag) || cc.IsRuntimeDepTag(depTag) {
 		if ch, ok := child.(*cc.Module); ok {
-			if ch.UseVndk() && proptools.Bool(a.properties.Use_vndk_as_stable) && ch.IsVndk() {
+			if ch.UseVndk() && a.useVndkAsStable(ctx) && ch.IsVndk() {
 				vctx.requireNativeLibs = append(vctx.requireNativeLibs, ":vndk")
 				return false
 			}
@@ -3715,4 +3715,13 @@ func invalidCompileMultilib(ctx android.TopDownMutatorContext, value string) {
 
 func (a *apexBundle) IsTestApex() bool {
 	return a.testApex
+}
+
+func (a *apexBundle) useVndkAsStable(ctx android.BaseModuleContext) bool {
+	// VNDK cannot be linked if it is deprecated
+	if ctx.Config().IsVndkDeprecated() {
+		return false
+	}
+
+	return proptools.Bool(a.properties.Use_vndk_as_stable)
 }
