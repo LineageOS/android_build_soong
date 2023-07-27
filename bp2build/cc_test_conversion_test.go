@@ -120,7 +120,6 @@ cc_test_library {
         "//build/bazel/platforms/os:windows": [":hostlib"],
         "//conditions:default": [],
     })`,
-				"gtest":          "True",
 				"local_includes": `["."]`,
 				"dynamic_deps": `[":cc_test_lib2"] + select({
         "//build/bazel/platforms/os:android": [":foolib"],
@@ -182,7 +181,6 @@ cc_test {
 				"tags":           `["no-remote"]`,
 				"local_includes": `["."]`,
 				"srcs":           `["test.cpp"]`,
-				"gtest":          "True",
 				"deps": `[
         ":libgtest_main",
         ":libgtest",
@@ -209,7 +207,6 @@ cc_test {
 			simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
-				"gtest":                  "True",
 				"local_includes":         `["."]`,
 				"srcs":                   `["test.cpp"]`,
 				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
@@ -239,7 +236,6 @@ cc_test {
 			simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
-				"gtest":                  "True",
 				"local_includes":         `["."]`,
 				"srcs":                   `["test.cpp"]`,
 				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
@@ -273,7 +269,6 @@ cc_test {
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"auto_generate_test_config": "True",
-				"gtest":                     "True",
 				"local_includes":            `["."]`,
 				"srcs":                      `["test.cpp"]`,
 				"target_compatible_with":    `["//build/bazel/platforms/os:android"]`,
@@ -304,7 +299,6 @@ cc_test {
 			simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
-				"gtest":                  "True",
 				"local_includes":         `["."]`,
 				"srcs":                   `["test.cpp"]`,
 				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
@@ -332,7 +326,6 @@ cc_test {
 			simpleModuleDoNotConvertBp2build("cc_library", "liblog"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
-				"gtest":                  "True",
 				"local_includes":         `["."]`,
 				"srcs":                   `["test.cpp"]`,
 				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
@@ -343,4 +336,39 @@ cc_test {
 		},
 	})
 
+}
+
+func TestCcTest_GtestExplicitlySpecifiedInAndroidBp(t *testing.T) {
+	runCcTestTestCase(t, ccTestBp2buildTestCase{
+		description: "If `gtest` is explicit in Android.bp, it should be explicit in BUILD files as well",
+		blueprint: `
+cc_test {
+	name: "mytest_with_gtest",
+	gtest: true,
+}
+cc_test {
+	name: "mytest_with_no_gtest",
+	gtest: false,
+}
+` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
+			simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
+		targets: []testBazelTarget{
+			{"cc_test", "mytest_with_gtest", AttrNameToString{
+				"local_includes": `["."]`,
+				"deps": `[
+        ":libgtest_main",
+        ":libgtest",
+    ]`,
+				"gtest":                  "True",
+				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+			},
+			},
+			{"cc_test", "mytest_with_no_gtest", AttrNameToString{
+				"local_includes":         `["."]`,
+				"gtest":                  "False",
+				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+			},
+			},
+		},
+	})
 }
