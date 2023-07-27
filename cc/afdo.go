@@ -131,6 +131,10 @@ func (c *Module) fdoProfileMutator(ctx android.BottomUpMutatorContext) {
 		return
 	}
 
+	if !c.afdo.afdoEnabled() {
+		return
+	}
+
 	ctx.VisitDirectDepsWithTag(FdoProfileTag, func(m android.Module) {
 		if ctx.OtherModuleHasProvider(m, FdoProfileProvider) {
 			info := ctx.OtherModuleProvider(m, FdoProfileProvider).(FdoProfileInfo)
