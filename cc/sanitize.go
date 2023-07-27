@@ -100,7 +100,7 @@ const (
 	Hwasan
 	tsan
 	intOverflow
-	scs
+	Scs
 	Fuzzer
 	Memtag_heap
 	Memtag_stack
@@ -113,7 +113,7 @@ var Sanitizers = []SanitizerType{
 	Hwasan,
 	tsan,
 	intOverflow,
-	scs,
+	Scs,
 	Fuzzer,
 	Memtag_heap,
 	Memtag_stack,
@@ -134,7 +134,7 @@ func (t SanitizerType) variationName() string {
 		return "intOverflow"
 	case cfi:
 		return "cfi"
-	case scs:
+	case Scs:
 		return "scs"
 	case Memtag_heap:
 		return "memtag_heap"
@@ -168,7 +168,7 @@ func (t SanitizerType) name() string {
 		return "integer_overflow"
 	case cfi:
 		return "cfi"
-	case scs:
+	case Scs:
 		return "shadow-call-stack"
 	case Fuzzer:
 		return "fuzzer"
@@ -179,7 +179,7 @@ func (t SanitizerType) name() string {
 
 func (t SanitizerType) registerMutators(ctx android.RegisterMutatorsContext) {
 	switch t {
-	case cfi, Hwasan, Asan, tsan, Fuzzer, scs:
+	case cfi, Hwasan, Asan, tsan, Fuzzer, Scs:
 		sanitizer := &sanitizerSplitMutator{t}
 		ctx.TopDown(t.variationName()+"_markapexes", sanitizer.markSanitizableApexesMutator)
 		ctx.Transition(t.variationName(), sanitizer)
@@ -216,7 +216,7 @@ func (*Module) SanitizerSupported(t SanitizerType) bool {
 		return true
 	case cfi:
 		return true
-	case scs:
+	case Scs:
 		return true
 	case Fuzzer:
 		return true
@@ -1022,7 +1022,7 @@ func (s *sanitize) getSanitizerBoolPtr(t SanitizerType) *bool {
 		return s.Properties.SanitizeMutated.Integer_overflow
 	case cfi:
 		return s.Properties.SanitizeMutated.Cfi
-	case scs:
+	case Scs:
 		return s.Properties.SanitizeMutated.Scs
 	case Memtag_heap:
 		return s.Properties.SanitizeMutated.Memtag_heap
@@ -1043,7 +1043,7 @@ func (sanitize *sanitize) isUnsanitizedVariant() bool {
 		!sanitize.isSanitizerEnabled(Hwasan) &&
 		!sanitize.isSanitizerEnabled(tsan) &&
 		!sanitize.isSanitizerEnabled(cfi) &&
-		!sanitize.isSanitizerEnabled(scs) &&
+		!sanitize.isSanitizerEnabled(Scs) &&
 		!sanitize.isSanitizerEnabled(Memtag_heap) &&
 		!sanitize.isSanitizerEnabled(Memtag_stack) &&
 		!sanitize.isSanitizerEnabled(Memtag_globals) &&
@@ -1080,7 +1080,7 @@ func (sanitize *sanitize) SetSanitizer(t SanitizerType, b bool) {
 		sanitize.Properties.SanitizeMutated.Integer_overflow = bPtr
 	case cfi:
 		sanitize.Properties.SanitizeMutated.Cfi = bPtr
-	case scs:
+	case Scs:
 		sanitize.Properties.SanitizeMutated.Scs = bPtr
 	case Memtag_heap:
 		sanitize.Properties.SanitizeMutated.Memtag_heap = bPtr
@@ -1340,7 +1340,7 @@ func (s *sanitizerSplitMutator) Mutate(mctx android.BottomUpMutatorContext, vari
 
 		oneMakeVariation := false
 		if c.StaticallyLinked() || c.Header() {
-			if s.sanitizer != cfi && s.sanitizer != scs && s.sanitizer != Hwasan {
+			if s.sanitizer != cfi && s.sanitizer != Scs && s.sanitizer != Hwasan {
 				// These sanitizers export only one variation to Make. For the rest,
 				// Make targets can depend on both the sanitized and non-sanitized
 				// versions.
@@ -1350,7 +1350,7 @@ func (s *sanitizerSplitMutator) Mutate(mctx android.BottomUpMutatorContext, vari
 			// Shared library. These are the sanitizers that do propagate through shared
 			// library dependencies and therefore can cause multiple variations of a
 			// shared library to be built.
-			if s.sanitizer != cfi && s.sanitizer != Hwasan && s.sanitizer != scs && s.sanitizer != Asan {
+			if s.sanitizer != cfi && s.sanitizer != Hwasan && s.sanitizer != Scs && s.sanitizer != Asan {
 				oneMakeVariation = true
 			}
 		}
