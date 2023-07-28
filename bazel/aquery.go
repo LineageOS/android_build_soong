@@ -459,7 +459,7 @@ func (a *aqueryArtifactHandler) depsetContentHashes(inputDepsetIds []uint32) ([]
 // escapes the args received from aquery and creates a command string
 func commandString(actionEntry *analysis_v2_proto.Action) string {
 	switch actionEntry.Mnemonic {
-	case "GoCompilePkg":
+	case "GoCompilePkg", "GoStdlib":
 		argsEscaped := []string{}
 		for _, arg := range actionEntry.Arguments {
 			if arg == "" {
