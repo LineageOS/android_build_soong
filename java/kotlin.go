@@ -42,7 +42,7 @@ var kotlinc = pctx.AndroidRemoteStaticRule("kotlinc", android.RemoteRuleSupports
 			` -P plugin:org.jetbrains.kotlin.jvm.abi:outputDir=$headerClassesDir && ` +
 			`${config.SoongZipCmd} -jar -o $out -C $classesDir -D $classesDir -write_if_changed && ` +
 			`${config.SoongZipCmd} -jar -o $headerJar -C $headerClassesDir -D $headerClassesDir -write_if_changed && ` +
-			`rm -rf "$srcJarDir"`,
+			`rm -rf "$srcJarDir" "$classesDir" "$headerClassesDir"`,
 		CommandDeps: []string{
 			"${config.KotlincCmd}",
 			"${config.KotlinCompilerJar}",
