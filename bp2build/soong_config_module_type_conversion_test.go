@@ -1406,3 +1406,111 @@ cc_binary {
     target_compatible_with = ["//build/bazel/platforms/os:android"],
 )`}})
 }
+
+// If we have
+// A. a soong_config_module_type with target.android_<arch>.* in properties
+// B. a module that uses this module type but does not set target.android_<arch>.* via soong config vars
+// Then we should not panic
+func TestPanicsIfSoongConfigModuleTypeHasArchSpecificProperties(t *testing.T) {
+	commonBp := `
+soong_config_bool_variable {
+	name: "my_bool_variable",
+}
+soong_config_module_type {
+	name: "special_cc_defaults",
+	module_type: "cc_defaults",
+	config_namespace: "my_namespace",
+	bool_variables: ["my_bool_variable"],
+	properties: [
+		"cflags",
+		"target.android_arm64.shared_libs",
+	],
+}
+cc_binary {
+	name: "my_binary",
+	defaults: ["my_special_cc_defaults"],
+}
+`
+	testCases := []struct {
+		desc            string
+		additionalBp    string
+		isPanicExpected bool
+	}{
+		{
+			desc: "target.android_arm64 is not set, bp2build should not panic",
+			additionalBp: `
+special_cc_defaults {
+	name: "my_special_cc_defaults",
+	soong_config_variables: {
+		my_bool_variable: {
+			cflags: ["-DFOO"],
+			conditions_default: {
+				cflags: ["-DBAR"],
+			}
+		}
+	},
+}
+			`,
+			isPanicExpected: false,
+		},
+		{
+			desc: "target.android_arm64 is set using the bool soong config var, bp2build should panic",
+			additionalBp: `
+special_cc_defaults {
+	name: "my_special_cc_defaults",
+	soong_config_variables: {
+		my_bool_variable: {
+			cflags: ["-DFOO"],
+			target: {
+				android_arm64: {
+					shared_libs: ["liblog"],
+				},
+			},
+			conditions_default: {
+				cflags: ["-DBAR"],
+			}
+		}
+	},
+}
+			`,
+			isPanicExpected: true,
+		},
+		{
+			desc: "target.android_arm64 is set using conditions_default for the bool soong config var, bp2build should panic",
+			additionalBp: `
+special_cc_defaults {
+	name: "my_special_cc_defaults",
+	soong_config_variables: {
+		my_bool_variable: {
+			cflags: ["-DFOO"],
+			conditions_default: {
+				cflags: ["-DBAR"],
+				target: {
+					android_arm64: {
+						shared_libs: ["liblog"],
+					},
+				},
+			}
+		}
+	},
+}
+			`,
+			isPanicExpected: true,
+		},
+	}
+	for _, tc := range testCases {
+		bp2buildTestCase := Bp2buildTestCase{
+			Description:                tc.desc,
+			ModuleTypeUnderTest:        "cc_binary",
+			ModuleTypeUnderTestFactory: cc.BinaryFactory,
+			Blueprint:                  commonBp + tc.additionalBp,
+			// Check in `foo` dir so that we can check whether it panics or not and not trip over an empty `ExpectedBazelTargets`
+			Dir:                  "foo",
+			ExpectedBazelTargets: []string{},
+		}
+		if tc.isPanicExpected {
+			bp2buildTestCase.ExpectedErr = fmt.Errorf("TODO: support other target types in soong config variable structs: Android_arm64")
+		}
+		runSoongConfigModuleTypeTest(t, bp2buildTestCase)
+	}
+}
