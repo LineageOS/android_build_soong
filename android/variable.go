@@ -743,7 +743,9 @@ func (p *ProductConfigProperties) AddEitherProperty(
 			dst = append(dst, src...)
 			(*p)[propertyName][key] = dst
 		default:
-			panic(fmt.Errorf("TODO: handle merging value %#v", existing))
+			if existing != propertyValue {
+				panic(fmt.Errorf("TODO: handle merging value %#v", existing))
+			}
 		}
 	} else {
 		(*p)[propertyName][key] = propertyValue
@@ -956,7 +958,7 @@ func (productConfigProperties *ProductConfigProperties) AddSoongConfigProperties
 						productConfigProperties.AddSoongConfigProperty(propertyName, namespace, soongConfigVariableName, soongConfigVariableValue, os.Name, property.Interface())
 					}
 				}
-			} else {
+			} else if !archOrOsSpecificStruct.IsZero() {
 				// One problem with supporting additional fields is that if multiple branches of
 				// "target" overlap, we don't want them to be in the same select statement (aka
 				// configuration axis). "android" and "host" are disjoint, so it's ok that we only
