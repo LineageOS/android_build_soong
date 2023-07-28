@@ -189,13 +189,13 @@ type BaseCompilerProperties struct {
 			// build the recovery variant of the C/C++ module.
 			Exclude_generated_sources []string
 		}
-		Vendor_ramdisk struct {
+		Ramdisk, Vendor_ramdisk struct {
 			// list of source files that should not be used to
-			// build the vendor ramdisk variant of the C/C++ module.
+			// build the ramdisk variants of the C/C++ module.
 			Exclude_srcs []string `android:"path"`
 
-			// List of additional cflags that should be used to build the vendor ramdisk
-			// variant of the C/C++ module.
+			// List of additional cflags that should be used to build the ramdisk
+			// variants of the C/C++ module.
 			Cflags []string
 		}
 		Platform struct {
@@ -351,6 +351,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	CheckBadCompilerFlags(ctx, "vendor.cflags", compiler.Properties.Target.Vendor.Cflags)
 	CheckBadCompilerFlags(ctx, "product.cflags", compiler.Properties.Target.Product.Cflags)
 	CheckBadCompilerFlags(ctx, "recovery.cflags", compiler.Properties.Target.Recovery.Cflags)
+	CheckBadCompilerFlags(ctx, "ramdisk.cflags", compiler.Properties.Target.Ramdisk.Cflags)
 	CheckBadCompilerFlags(ctx, "vendor_ramdisk.cflags", compiler.Properties.Target.Vendor_ramdisk.Cflags)
 	CheckBadCompilerFlags(ctx, "platform.cflags", compiler.Properties.Target.Platform.Cflags)
 
@@ -535,6 +536,9 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 
 	if ctx.inVendorRamdisk() {
 		flags.Local.CFlags = append(flags.Local.CFlags, esc(compiler.Properties.Target.Vendor_ramdisk.Cflags)...)
+	}
+	if ctx.inRamdisk() {
+		flags.Local.CFlags = append(flags.Local.CFlags, esc(compiler.Properties.Target.Ramdisk.Cflags)...)
 	}
 	if !ctx.useSdk() {
 		flags.Local.CFlags = append(flags.Local.CFlags, esc(compiler.Properties.Target.Platform.Cflags)...)
