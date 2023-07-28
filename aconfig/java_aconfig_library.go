@@ -30,6 +30,9 @@ var declarationsTag = declarationsTagType{}
 type JavaAconfigDeclarationsLibraryProperties struct {
 	// name of the aconfig_declarations module to generate a library for
 	Aconfig_declarations string
+
+	// whether to generate test mode version of the library
+	Test bool
 }
 
 type JavaAconfigDeclarationsLibraryCallbacks struct {
@@ -61,11 +64,20 @@ func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) GenerateSourceJarBuild
 
 	// Generate the action to build the srcjar
 	srcJarPath := android.PathForModuleGen(ctx, ctx.ModuleName()+".srcjar")
+	var mode string
+	if callbacks.properties.Test {
+		mode = "test"
+	} else {
+		mode = "production"
+	}
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        javaRule,
 		Input:       declarations.IntermediatePath,
 		Output:      srcJarPath,
 		Description: "aconfig.srcjar",
+		Args: map[string]string{
+			"mode": mode,
+		},
 	})
 
 	// Tell the java module about the .aconfig files, so they can be propagated up the dependency chain.
