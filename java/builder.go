@@ -55,7 +55,7 @@ var (
 				`$zipTemplate${config.SoongZipCmd} -jar -o $out.tmp -C $outDir -D $outDir && ` +
 				`if ! cmp -s "$out.tmp" "$out"; then mv "$out.tmp" "$out"; fi && ` +
 				`if ! cmp -s "$annoSrcJar.tmp" "$annoSrcJar"; then mv "$annoSrcJar.tmp" "$annoSrcJar"; fi && ` +
-				`rm -rf "$srcJarDir"`,
+				`rm -rf "$srcJarDir" "$outDir"`,
 			CommandDeps: []string{
 				"${config.JavacCmd}",
 				"${config.SoongZipCmd}",
