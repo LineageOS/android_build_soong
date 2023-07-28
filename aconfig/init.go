@@ -44,6 +44,7 @@ var (
 			Command: `rm -rf ${out}.tmp` +
 				` && mkdir -p ${out}.tmp` +
 				` && ${aconfig} create-java-lib` +
+				`    --mode ${mode}` +
 				`    --cache ${in}` +
 				`    --out ${out}.tmp` +
 				` && $soong_zip -write_if_changed -jar -o ${out} -C ${out}.tmp -D ${out}.tmp` +
@@ -53,7 +54,7 @@ var (
 				"$soong_zip",
 			},
 			Restat: true,
-		})
+		}, "mode")
 
 	// For java_aconfig_library: Generate java file
 	cppRule = pctx.AndroidStaticRule("cc_aconfig_library",

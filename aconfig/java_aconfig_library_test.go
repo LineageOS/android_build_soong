@@ -15,6 +15,7 @@
 package aconfig
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -151,4 +152,40 @@ func TestAndroidMkBinaryThatLinksAgainstAar(t *testing.T) {
 	`
 
 	runJavaAndroidMkTest(t, bp)
+}
+
+func testCodegenMode(t *testing.T, bpMode string, ruleMode string) {
+	result := android.GroupFixturePreparers(
+		PrepareForTestWithAconfigBuildComponents,
+		java.PrepareForTestWithJavaDefaultModules).
+		ExtendWithErrorHandler(android.FixtureExpectsNoErrors).
+		RunTestWithBp(t, fmt.Sprintf(`
+			aconfig_declarations {
+				name: "my_aconfig_declarations",
+				package: "com.example.package",
+				srcs: ["foo.aconfig"],
+			}
+
+			java_aconfig_library {
+				name: "my_java_aconfig_library",
+				aconfig_declarations: "my_aconfig_declarations",
+				%s
+			}
+		`, bpMode))
+
+	module := result.ModuleForTests("my_java_aconfig_library", "android_common")
+	rule := module.Rule("java_aconfig_library")
+	android.AssertStringEquals(t, "rule must contain test mode", rule.Args["mode"], ruleMode)
+}
+
+func TestDefaultProdMode(t *testing.T) {
+	testCodegenMode(t, "", "production")
+}
+
+func TestProdMode(t *testing.T) {
+	testCodegenMode(t, "test: false,", "production")
+}
+
+func TestTestMode(t *testing.T) {
+	testCodegenMode(t, "test: true,", "test")
 }
