@@ -45,10 +45,16 @@ bootstrap_go_package {
 		srcs: [
 			"foo_linux.go",
 		],
+		testSrcs: [
+			"foo_linux_test.go",
+		],
 	},
 	darwin: {
 		srcs: [
 			"foo_darwin.go",
+		],
+		testSrcs: [
+			"foo_darwin_test.go",
 		],
 	},
 	testSrcs: [
@@ -84,7 +90,21 @@ bootstrap_go_package {
     })`,
 			},
 			android.HostSupported,
-		)},
+		),
+			makeBazelTargetHostOrDevice("go_test", "foo-test",
+				AttrNameToString{
+					"embed": `[":foo"]`,
+					"srcs": `[
+        "foo1_test.go",
+        "foo2_test.go",
+    ] + select({
+        "//build/bazel/platforms/os:darwin": ["foo_darwin_test.go"],
+        "//build/bazel/platforms/os:linux_glibc": ["foo_linux_test.go"],
+        "//conditions:default": [],
+    })`,
+				},
+				android.HostSupported,
+			)},
 	})
 }
 
@@ -122,6 +142,44 @@ bootstrap_go_package {
 			},
 			android.HostSupported,
 		)},
+	})
+}
+
+func TestConvertGoBinaryWithTestSrcs(t *testing.T) {
+	bp := `
+blueprint_go_binary {
+	name: "foo",
+	srcs: ["main.go"],
+	testSrcs: ["main_test.go"],
+}
+`
+	t.Parallel()
+	runGoTests(t, Bp2buildTestCase{
+		Description: "Convert blueprint_go_binary with testSrcs",
+		Blueprint:   bp,
+		ExpectedBazelTargets: []string{
+			makeBazelTargetHostOrDevice("go_binary", "foo",
+				AttrNameToString{
+					"deps":  `[]`,
+					"embed": `[":foo-source"]`,
+				},
+				android.HostSupported,
+			),
+			makeBazelTargetHostOrDevice("go_source", "foo-source",
+				AttrNameToString{
+					"deps": `[]`,
+					"srcs": `["main.go"]`,
+				},
+				android.HostSupported,
+			),
+			makeBazelTargetHostOrDevice("go_test", "foo-test",
+				AttrNameToString{
+					"embed": `[":foo-source"]`,
+					"srcs":  `["main_test.go"]`,
+				},
+				android.HostSupported,
+			),
+		},
 	})
 }
 

@@ -353,7 +353,104 @@ type goAttributes struct {
 	Importpath             bazel.StringAttribute
 	Srcs                   bazel.LabelListAttribute
 	Deps                   bazel.LabelListAttribute
+	Data                   bazel.LabelListAttribute
 	Target_compatible_with bazel.LabelListAttribute
+
+	// attributes for the dynamically generated go_test target
+	Embed bazel.LabelListAttribute
+}
+
+type goTestProperties struct {
+	name           string
+	dir            string
+	testSrcs       []string
+	linuxTestSrcs  []string
+	darwinTestSrcs []string
+	testData       []string
+	// Name of the target that should be compiled together with the test
+	embedName string
+}
+
+// Creates a go_test target for bootstrap_go_package / blueprint_go_binary
+func generateBazelTargetsGoTest(ctx *android.Context, goModulesMap nameToGoLibraryModule, gp goTestProperties) (BazelTarget, error) {
+	ca := android.CommonAttributes{
+		Name: gp.name,
+	}
+	ga := goAttributes{
+		Srcs: goSrcLabels(ctx.Config(), gp.dir, gp.testSrcs, gp.linuxTestSrcs, gp.darwinTestSrcs),
+		Data: goSrcLabels(ctx.Config(), gp.dir, gp.testData, []string{}, []string{}),
+		Embed: bazel.MakeLabelListAttribute(
+			bazel.MakeLabelList(
+				[]bazel.Label{bazel.Label{Label: ":" + gp.embedName}},
+			),
+		),
+		Target_compatible_with: targetNotCompatibleWithAndroid(),
+	}
+
+	libTest := goBazelTarget{
+		targetName:            gp.name,
+		targetPackage:         gp.dir,
+		bazelRuleClass:        "go_test",
+		bazelRuleLoadLocation: "@io_bazel_rules_go//go:def.bzl",
+		bazelAttributes:       []interface{}{&ca, &ga},
+	}
+	return generateBazelTarget(ctx, libTest)
+}
+
+// TODO - b/288491147: testSrcs of certain bootstrap_go_package/blueprint_go_binary are not hermetic and depend on
+// testdata checked into the filesystem.
+// Denylist the generation of go_test targets for these Soong modules.
+// The go_library/go_binary will still be generated, since those are hermitic.
+var (
+	goTestsDenylist = []string{
+		"android-archive-zip",
+		"bazel_notice_gen",
+		"blueprint-bootstrap-bpdoc",
+		"blueprint-microfactory",
+		"blueprint-pathtools",
+		"bssl_ar",
+		"compliance_checkmetadata",
+		"compliance_checkshare",
+		"compliance_dumpgraph",
+		"compliance_dumpresolutions",
+		"compliance_listshare",
+		"compliance-module",
+		"compliancenotice_bom",
+		"compliancenotice_shippedlibs",
+		"compliance_rtrace",
+		"compliance_sbom",
+		"golang-protobuf-internal-fuzz-jsonfuzz",
+		"golang-protobuf-internal-fuzz-textfuzz",
+		"golang-protobuf-internal-fuzz-wirefuzz",
+		"htmlnotice",
+		"protoc-gen-go",
+		"rbcrun-module",
+		"spdx-tools-builder",
+		"spdx-tools-builder2v1",
+		"spdx-tools-builder2v2",
+		"spdx-tools-builder2v3",
+		"spdx-tools-idsearcher",
+		"spdx-tools-spdx-json",
+		"spdx-tools-utils",
+		"soong-ui-build",
+		"textnotice",
+		"xmlnotice",
+	}
+)
+
+func testOfGoPackageIsIncompatible(g *bootstrap.GoPackage) bool {
+	return android.InList(g.Name(), goTestsDenylist) ||
+		// Denylist tests of soong_build
+		// Theses tests have a guard that prevent usage outside a test environment
+		// The guard (`ensureTestOnly`) looks for a `-test` in os.Args, which is present in soong's gotestrunner, but missing in `b test`
+		g.IsPluginFor("soong_build") ||
+		// soong-android is a dep of soong_build
+		// This dependency is created by soong_build by listing it in its deps explicitly in Android.bp, and not via `plugin_for` in `soong-android`
+		g.Name() == "soong-android"
+}
+
+func testOfGoBinaryIsIncompatible(g *bootstrap.GoBinary) bool {
+	return android.InList(g.Name(), goTestsDenylist)
 }
 
 func generateBazelTargetsGoPackage(ctx *android.Context, g *bootstrap.GoPackage, goModulesMap nameToGoLibraryModule) ([]BazelTarget, []error) {
@@ -390,12 +487,33 @@ func generateBazelTargetsGoPackage(ctx *android.Context, g *bootstrap.GoPackage,
 		bazelRuleLoadLocation: "@io_bazel_rules_go//go:def.bzl",
 		bazelAttributes:       []interface{}{&ca, &ga},
 	}
-	// TODO - b/284483729: Create go_test target from testSrcs
-	libTarget, err := generateBazelTarget(ctx, lib)
-	if err != nil {
-		return []BazelTarget{}, []error{err}
+	retTargets := []BazelTarget{}
+	var retErrs []error
+	if libTarget, err := generateBazelTarget(ctx, lib); err == nil {
+		retTargets = append(retTargets, libTarget)
+	} else {
+		retErrs = []error{err}
 	}
-	return []BazelTarget{libTarget}, nil
+
+	// If the library contains test srcs, create an additional go_test target
+	if !testOfGoPackageIsIncompatible(g) && (len(g.TestSrcs()) > 0 || len(g.LinuxTestSrcs()) > 0 || len(g.DarwinTestSrcs()) > 0) {
+		gp := goTestProperties{
+			name:           g.Name() + "-test",
+			dir:            ctx.ModuleDir(g),
+			testSrcs:       g.TestSrcs(),
+			linuxTestSrcs:  g.LinuxTestSrcs(),
+			darwinTestSrcs: g.DarwinTestSrcs(),
+			testData:       g.TestData(),
+			embedName:      g.Name(), // embed the source go_library in the test so that its .go files are included in the compilation unit
+		}
+		if libTestTarget, err := generateBazelTargetsGoTest(ctx, goModulesMap, gp); err == nil {
+			retTargets = append(retTargets, libTestTarget)
+		} else {
+			retErrs = append(retErrs, err)
+		}
+	}
+
+	return retTargets, retErrs
 }
 
 type goLibraryModule struct {
@@ -440,6 +558,9 @@ func generateBazelTargetsGoBinary(ctx *android.Context, g *bootstrap.GoBinary, g
 		Name: g.Name(),
 	}
 
+	retTargets := []BazelTarget{}
+	var retErrs []error
+
 	// For this bootstrap_go_package dep chain,
 	// A --> B --> C ( ---> depends on)
 	// Soong provides the convenience of only listing B as deps of A even if a src file of A imports C
@@ -450,10 +571,68 @@ func generateBazelTargetsGoBinary(ctx *android.Context, g *bootstrap.GoBinary, g
 	// bp2build does not have sufficient info on whether C is a direct dep of A or not, so for now collect all transitive deps and add them to deps
 	transitiveDeps := transitiveGoDeps(g.Deps(), goModulesMap)
 
+	goSource := ""
+	// If the library contains test srcs, create an additional go_test target
+	// The go_test target will embed a go_source containining the source .go files it tests
+	if !testOfGoBinaryIsIncompatible(g) && (len(g.TestSrcs()) > 0 || len(g.LinuxTestSrcs()) > 0 || len(g.DarwinTestSrcs()) > 0) {
+		// Create a go_source containing the source .go files of go_library
+		// This target will be an `embed` of the go_binary and go_test
+		goSource = g.Name() + "-source"
+		ca := android.CommonAttributes{
+			Name: goSource,
+		}
+		ga := goAttributes{
+			Srcs:                   goSrcLabels(ctx.Config(), ctx.ModuleDir(g), g.Srcs(), g.LinuxSrcs(), g.DarwinSrcs()),
+			Deps:                   goDepLabels(transitiveDeps, goModulesMap),
+			Target_compatible_with: targetNotCompatibleWithAndroid(),
+		}
+		libTestSource := goBazelTarget{
+			targetName:            goSource,
+			targetPackage:         ctx.ModuleDir(g),
+			bazelRuleClass:        "go_source",
+			bazelRuleLoadLocation: "@io_bazel_rules_go//go:def.bzl",
+			bazelAttributes:       []interface{}{&ca, &ga},
+		}
+		if libSourceTarget, err := generateBazelTarget(ctx, libTestSource); err == nil {
+			retTargets = append(retTargets, libSourceTarget)
+		} else {
+			retErrs = append(retErrs, err)
+		}
+
+		// Create a go_test target
+		gp := goTestProperties{
+			name:           g.Name() + "-test",
+			dir:            ctx.ModuleDir(g),
+			testSrcs:       g.TestSrcs(),
+			linuxTestSrcs:  g.LinuxTestSrcs(),
+			darwinTestSrcs: g.DarwinTestSrcs(),
+			testData:       g.TestData(),
+			// embed the go_source in the test
+			embedName: g.Name() + "-source",
+		}
+		if libTestTarget, err := generateBazelTargetsGoTest(ctx, goModulesMap, gp); err == nil {
+			retTargets = append(retTargets, libTestTarget)
+		} else {
+			retErrs = append(retErrs, err)
+		}
+
+	}
+
+	// Create a go_binary target
 	ga := goAttributes{
-		Srcs:                   goSrcLabels(ctx.Config(), ctx.ModuleDir(g), g.Srcs(), g.LinuxSrcs(), g.DarwinSrcs()),
 		Deps:                   goDepLabels(transitiveDeps, goModulesMap),
 		Target_compatible_with: targetNotCompatibleWithAndroid(),
+	}
+
+	// If the binary has testSrcs, embed the common `go_source`
+	if goSource != "" {
+		ga.Embed = bazel.MakeLabelListAttribute(
+			bazel.MakeLabelList(
+				[]bazel.Label{bazel.Label{Label: ":" + goSource}},
+			),
+		)
+	} else {
+		ga.Srcs = goSrcLabels(ctx.Config(), ctx.ModuleDir(g), g.Srcs(), g.LinuxSrcs(), g.DarwinSrcs())
 	}
 
 	bin := goBazelTarget{
@@ -463,12 +642,14 @@ func generateBazelTargetsGoBinary(ctx *android.Context, g *bootstrap.GoBinary, g
 		bazelRuleLoadLocation: "@io_bazel_rules_go//go:def.bzl",
 		bazelAttributes:       []interface{}{&ca, &ga},
 	}
-	// TODO - b/284483729: Create go_test target from testSrcs
-	binTarget, err := generateBazelTarget(ctx, bin)
-	if err != nil {
-		return []BazelTarget{}, []error{err}
+
+	if binTarget, err := generateBazelTarget(ctx, bin); err == nil {
+		retTargets = append(retTargets, binTarget)
+	} else {
+		retErrs = []error{err}
 	}
-	return []BazelTarget{binTarget}, nil
+
+	return retTargets, retErrs
 }
 
 func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (conversionResults, []error) {
