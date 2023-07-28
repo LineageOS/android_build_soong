@@ -678,10 +678,17 @@ func squashVendorRamdiskSrcs(m *Module) {
 	}
 }
 
+func squashRamdiskSrcs(m *Module) {
+	if lib, ok := m.compiler.(*libraryDecorator); ok {
+		lib.baseCompiler.Properties.Exclude_srcs = append(lib.baseCompiler.Properties.Exclude_srcs, lib.baseCompiler.Properties.Target.Ramdisk.Exclude_srcs...)
+	}
+}
+
 func (c *Module) SetImageVariation(ctx android.BaseModuleContext, variant string, module android.Module) {
 	m := module.(*Module)
 	if variant == android.RamdiskVariation {
 		m.MakeAsPlatform()
+		squashRamdiskSrcs(m)
 	} else if variant == android.VendorRamdiskVariation {
 		m.MakeAsPlatform()
 		squashVendorRamdiskSrcs(m)
