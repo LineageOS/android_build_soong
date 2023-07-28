@@ -734,7 +734,9 @@ func (p *ProductConfigProperties) AddEitherProperty(
 			dst = append(dst, src...)
 			(*p)[propertyName][key] = dst
 		default:
-			panic(fmt.Errorf("TODO: handle merging value %#v", existing))
+			if existing != propertyValue {
+				panic(fmt.Errorf("TODO: handle merging value %#v", existing))
+			}
 		}
 	} else {
 		(*p)[propertyName][key] = propertyValue
