@@ -170,6 +170,19 @@ func (c Config) RunningInsideUnitTest() bool {
 	return c.config.TestProductVariables != nil
 }
 
+// DisableHiddenApiChecks returns true if hiddenapi checks have been disabled.
+// For 'eng' target variant hiddenapi checks are disabled by default for performance optimisation,
+// but can be enabled by setting environment variable ENABLE_HIDDENAPI_FLAGS=true.
+// For other target variants hiddenapi check are enabled by default but can be disabled by
+// setting environment variable UNSAFE_DISABLE_HIDDENAPI_FLAGS=true.
+// If both ENABLE_HIDDENAPI_FLAGS=true and UNSAFE_DISABLE_HIDDENAPI_FLAGS=true, then
+// ENABLE_HIDDENAPI_FLAGS=true will be triggered and hiddenapi checks will be considered enabled.
+func (c Config) DisableHiddenApiChecks() bool {
+	return !c.IsEnvTrue("ENABLE_HIDDENAPI_FLAGS") &&
+		(c.IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") ||
+			Bool(c.productVariables.Eng))
+}
+
 // MaxPageSizeSupported returns the max page size supported by the device. This
 // value will define the ELF segment alignment for binaries (executables and
 // shared libraries).
