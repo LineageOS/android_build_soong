@@ -106,7 +106,7 @@ func (h *hiddenAPI) initHiddenAPI(ctx android.ModuleContext, dexJar OptionalDexJ
 	h.uncompressDexState = uncompressedDexState
 
 	// If hiddenapi processing is disabled treat this as inactive.
-	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
+	if ctx.Config().DisableHiddenApiChecks() {
 		return
 	}
 
