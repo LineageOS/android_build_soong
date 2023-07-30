@@ -121,8 +121,8 @@ type hiddenAPISingleton struct {
 
 // hiddenAPI singleton rules
 func (h *hiddenAPISingleton) GenerateBuildActions(ctx android.SingletonContext) {
-	// Don't run any hiddenapi rules if UNSAFE_DISABLE_HIDDENAPI_FLAGS=true
-	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
+	// Don't run any hiddenapi rules if hiddenapi checks are disabled
+	if ctx.Config().DisableHiddenApiChecks() {
 		return
 	}
 
