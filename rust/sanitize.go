@@ -223,11 +223,16 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags, deps PathDeps) (
 	if !sanitize.Properties.SanitizerEnabled {
 		return flags, deps
 	}
+
 	if Bool(sanitize.Properties.Sanitize.Fuzzer) {
 		flags.RustFlags = append(flags.RustFlags, fuzzerFlags...)
-	} else if Bool(sanitize.Properties.Sanitize.Hwaddress) {
+	}
+
+	if Bool(sanitize.Properties.Sanitize.Hwaddress) {
 		flags.RustFlags = append(flags.RustFlags, hwasanFlags...)
-	} else if Bool(sanitize.Properties.Sanitize.Address) {
+	}
+
+	if Bool(sanitize.Properties.Sanitize.Address) {
 		flags.RustFlags = append(flags.RustFlags, asanFlags...)
 	}
 	return flags, deps
@@ -267,14 +272,12 @@ func rustSanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 		var depTag blueprint.DependencyTag
 		var deps []string
 
-		if mod.IsSanitizerEnabled(cc.Asan) ||
-			(mod.IsSanitizerEnabled(cc.Fuzzer) && (mctx.Arch().ArchType != android.Arm64 || !mctx.Os().Bionic())) {
+		if mod.IsSanitizerEnabled(cc.Asan) {
 			variations = append(variations,
 				blueprint.Variation{Mutator: "link", Variation: "shared"})
 			depTag = cc.SharedDepTag()
 			deps = []string{config.LibclangRuntimeLibrary(mod.toolchain(mctx), "asan")}
-		} else if mod.IsSanitizerEnabled(cc.Hwasan) ||
-			(mod.IsSanitizerEnabled(cc.Fuzzer) && mctx.Arch().ArchType == android.Arm64 && mctx.Os().Bionic()) {
+		} else if mod.IsSanitizerEnabled(cc.Hwasan) {
 			// TODO(b/204776996): HWASan for static Rust binaries isn't supported yet.
 			if binary, ok := mod.compiler.(binaryInterface); ok {
 				if binary.staticallyLinked() {
