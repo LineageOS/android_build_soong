@@ -228,6 +228,17 @@ func rustEnvVars(ctx ModuleContext, deps PathDeps) []string {
 		pkgVersion := ctx.RustModule().compiler.CargoPkgVersion()
 		if pkgVersion != "" {
 			envVars = append(envVars, "CARGO_PKG_VERSION="+pkgVersion)
+
+			// Ensure the version is in the form of "x.y.z" (approximately semver compliant).
+			//
+			// For our purposes, we don't care to enforce that these are integers since they may
+			// include other characters at times (e.g. sometimes the patch version is more than an integer).
+			if strings.Count(pkgVersion, ".") == 2 {
+				var semver_parts = strings.Split(pkgVersion, ".")
+				envVars = append(envVars, "CARGO_PKG_VERSION_MAJOR="+semver_parts[0])
+				envVars = append(envVars, "CARGO_PKG_VERSION_MINOR="+semver_parts[1])
+				envVars = append(envVars, "CARGO_PKG_VERSION_PATCH="+semver_parts[2])
+			}
 		}
 	}
 
