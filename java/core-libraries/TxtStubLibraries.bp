@@ -57,19 +57,23 @@ java_library {
     ],
 }
 
-java_library {
+java_api_library {
     name: "core.module_lib.stubs.from-text",
-    static_libs: [
-        "art.module.public.api.stubs.module_lib.from-text",
+    api_surface: "module-lib",
+    api_contributions: [
+        "art.module.public.api.stubs.source.api.contribution",
+        "art.module.public.api.stubs.source.system.api.contribution",
+        "art.module.public.api.stubs.source.module_lib.api.contribution",
 
-        // Replace the following with the module-lib correspondence when Conscrypt or i18N module
+        // Add the module-lib correspondence when Conscrypt or i18N module
         // provides @SystemApi(MODULE_LIBRARIES). Currently, assume that only ART module provides
         // @SystemApi(MODULE_LIBRARIES).
-        "conscrypt.module.public.api.stubs.from-text",
-        "i18n.module.public.api.stubs.from-text",
+        "conscrypt.module.public.api.stubs.source.api.contribution",
+        "i18n.module.public.api.stubs.source.api.contribution",
     ],
-    sdk_version: "none",
-    system_modules: "none",
+    libs: [
+        "stub-annotations",
+    ],
     visibility: ["//visibility:private"],
 }
 
