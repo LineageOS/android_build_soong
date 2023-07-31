@@ -6794,6 +6794,10 @@ func TestApexAvailable_ApexAvailableNameWithVersionCode(t *testing.T) {
 			public_key: "testkey.avbpubkey",
 			private_key: "testkey.pem",
 		}
+		override_apex {
+			name: "myoverrideapex",
+			base: "bar",
+		}
 	`)
 
 	fooManifestRule := result.ModuleForTests("foo", "android_common_foo_image").Rule("apexManifestRule")
@@ -6808,6 +6812,12 @@ func TestApexAvailable_ApexAvailableNameWithVersionCode(t *testing.T) {
 	barExpectedDefaultVersion := fmt.Sprint(defaultVersionInt + 3)
 	barActualDefaultVersion := barManifestRule.Args["default_version"]
 	if barActualDefaultVersion != barExpectedDefaultVersion {
+		t.Errorf("expected to find defaultVersion %q; got %q", barExpectedDefaultVersion, barActualDefaultVersion)
+	}
+
+	overrideBarManifestRule := result.ModuleForTests("bar", "android_common_myoverrideapex_bar_image").Rule("apexManifestRule")
+	overrideBarActualDefaultVersion := overrideBarManifestRule.Args["default_version"]
+	if overrideBarActualDefaultVersion != barExpectedDefaultVersion {
 		t.Errorf("expected to find defaultVersion %q; got %q", barExpectedDefaultVersion, barActualDefaultVersion)
 	}
 }
