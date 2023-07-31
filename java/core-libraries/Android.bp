@@ -146,12 +146,43 @@ java_system_modules {
     ],
 }
 
+java_defaults {
+    name: "core.module_lib.stubs.defaults",
+    visibility: ["//visibility:private"],
+    sdk_version: "none",
+    system_modules: "none",
+}
+
+
 // A stubs target containing the parts of the public SDK & @SystemApi(MODULE_LIBRARIES) API
 // provided by the core libraries.
 //
 // Don't use this directly, use "sdk_version: module_current".
 java_library {
     name: "core.module_lib.stubs",
+    defaults: [
+        "core.module_lib.stubs.defaults",
+    ],
+    static_libs: [
+        "core.module_lib.stubs.from-source",
+    ],
+    product_variables: {
+        build_from_text_stub: {
+            static_libs: [
+                "core.module_lib.stubs.from-text",
+            ],
+            exclude_static_libs: [
+                "core.module_lib.stubs.from-source",
+            ],
+        },
+    },
+}
+
+java_library {
+    name: "core.module_lib.stubs.from-source",
+    defaults: [
+        "core.module_lib.stubs.defaults",
+    ],
     static_libs: [
         "art.module.public.api.stubs.module_lib",
 
@@ -161,9 +192,6 @@ java_library {
         "conscrypt.module.public.api.stubs",
         "i18n.module.public.api.stubs",
     ],
-    sdk_version: "none",
-    system_modules: "none",
-    visibility: ["//visibility:private"],
 }
 
 // Produces a dist file that is used by the
@@ -249,10 +277,10 @@ java_library {
     product_variables: {
         build_from_text_stub: {
             static_libs: [
-                "stable.core.platform.api.stubs.from-text",
+                "legacy.core.platform.api.stubs.from-text",
             ],
             exclude_static_libs: [
-                "stable.core.platform.api.stubs.from-source",
+                "legacy.core.platform.api.stubs.from-source",
             ],
         },
     },
