@@ -95,7 +95,7 @@ func isSnapshotAware(cfg android.DeviceConfig, m LinkableInterface, inProprietar
 		if sanitizable.SanitizePropDefined() {
 			// scs exports both sanitized and unsanitized variants for static and header
 			// Always use unsanitized variant of it.
-			if !sanitizable.Shared() && sanitizable.IsSanitizerEnabled(scs) {
+			if !sanitizable.Shared() && sanitizable.IsSanitizerEnabled(Scs) {
 				return false
 			}
 			// cfi and hwasan also export both variants. But for static, we capture both.
