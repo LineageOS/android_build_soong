@@ -160,6 +160,7 @@ type variableProperties struct {
 			}
 		}
 
+		// Deprecated, has no effect as of aosp/1319667
 		Pdk struct {
 			Enabled *bool `android:"arch_variant"`
 		} `android:"arch_variant"`
