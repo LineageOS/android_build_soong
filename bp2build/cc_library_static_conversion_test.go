@@ -1003,6 +1003,38 @@ cc_library_static {
 	})
 }
 
+func TestCcLibraryStaticGeneratedHeadersMultipleExports(t *testing.T) {
+	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
+		Blueprint: soongCcLibraryStaticPreamble + `
+genrule {
+    name: "generated_hdr",
+    cmd: "nothing to see here",
+    export_include_dirs: ["foo", "bar"],
+    bazel_module: { bp2build_available: false },
+}
+
+genrule {
+    name: "export_generated_hdr",
+    cmd: "nothing to see here",
+    export_include_dirs: ["a", "b"],
+    bazel_module: { bp2build_available: false },
+}
+
+cc_library_static {
+    name: "foo_static",
+    generated_headers: ["generated_hdr", "export_generated_hdr"],
+    export_generated_headers: ["export_generated_hdr"],
+    include_build_directory: false,
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo_static", AttrNameToString{
+				"deps":                `[":export_generated_hdr__header_library"]`,
+				"implementation_deps": `[":generated_hdr__header_library"]`,
+			}),
+		},
+	})
+}
+
 // generated_headers has "variant_prepend" tag. In bp2build output,
 // variant info(select) should go before general info.
 func TestCcLibraryStaticArchSrcsExcludeSrcsGeneratedFiles(t *testing.T) {
