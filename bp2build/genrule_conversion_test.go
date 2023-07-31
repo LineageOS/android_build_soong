@@ -16,6 +16,7 @@ package bp2build
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 
 	"android/soong/android"
@@ -694,4 +695,80 @@ func TestCcGenruleArchAndExcludeSrcs(t *testing.T) {
 				ExpectedBazelTargets:       expectedBazelTargets,
 			})
 	})
+}
+
+func TestGenruleWithExportIncludeDirs(t *testing.T) {
+	testCases := []struct {
+		moduleType string
+		factory    android.ModuleFactory
+		hod        android.HostOrDeviceSupported
+	}{
+		{
+			moduleType: "genrule",
+			factory:    genrule.GenRuleFactory,
+		},
+		{
+			moduleType: "cc_genrule",
+			factory:    cc.GenRuleFactory,
+			hod:        android.DeviceSupported,
+		},
+		{
+			moduleType: "java_genrule",
+			factory:    java.GenRuleFactory,
+			hod:        android.DeviceSupported,
+		},
+		{
+			moduleType: "java_genrule_host",
+			factory:    java.GenRuleFactoryHost,
+			hod:        android.HostSupported,
+		},
+	}
+
+	dir := "baz"
+
+	bp := `%s {
+    name: "foo",
+    out: ["foo.out.h"],
+    srcs: ["foo.in"],
+    cmd: "cp $(in) $(out)",
+    export_include_dirs: ["foo", "bar", "."],
+    bazel_module: { bp2build_available: true },
+}`
+
+	for _, tc := range testCases {
+		moduleAttrs := AttrNameToString{
+			"cmd":  `"cp $(SRCS) $(OUTS)"`,
+			"outs": `["foo.out.h"]`,
+			"srcs": `["foo.in"]`,
+		}
+
+		expectedBazelTargets := []string{
+			makeBazelTargetHostOrDevice("genrule", "foo", moduleAttrs, tc.hod),
+			makeBazelTargetHostOrDevice("cc_library_headers", "foo__header_library", AttrNameToString{
+				"hdrs": `[":foo"]`,
+				"export_includes": `[
+        "foo",
+        "baz/foo",
+        "bar",
+        "baz/bar",
+        ".",
+        "baz",
+    ]`,
+			},
+				tc.hod),
+		}
+
+		t.Run(tc.moduleType, func(t *testing.T) {
+			RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
+				Bp2buildTestCase{
+					ModuleTypeUnderTest:        tc.moduleType,
+					ModuleTypeUnderTestFactory: tc.factory,
+					Filesystem: map[string]string{
+						filepath.Join(dir, "Android.bp"): fmt.Sprintf(bp, tc.moduleType),
+					},
+					Dir:                  dir,
+					ExpectedBazelTargets: expectedBazelTargets,
+				})
+		})
+	}
 }
