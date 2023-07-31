@@ -181,7 +181,7 @@ func TestInvokeBazelPopulatesBuildStatements(t *testing.T) {
 
 		cmd := RuleBuilderCommand{}
 		ctx := builderContextForTests{PathContextForTesting(TestConfig("out", nil, "", nil))}
-		createCommand(&cmd, got[0], "test/exec_root", "test/bazel_out", ctx, map[string]bazel.AqueryDepset{})
+		createCommand(&cmd, got[0], "test/exec_root", "test/bazel_out", ctx, map[string]bazel.AqueryDepset{}, "")
 		if actual, expected := cmd.buf.String(), testCase.command; expected != actual {
 			t.Errorf("expected: [%s], actual: [%s]", expected, actual)
 		}
@@ -224,7 +224,7 @@ func TestMixedBuildSandboxedAction(t *testing.T) {
 
 	cmd := RuleBuilderCommand{}
 	ctx := builderContextForTests{PathContextForTesting(TestConfig("out", nil, "", nil))}
-	createCommand(&cmd, statement, "test/exec_root", "test/bazel_out", ctx, map[string]bazel.AqueryDepset{})
+	createCommand(&cmd, statement, "test/exec_root", "test/bazel_out", ctx, map[string]bazel.AqueryDepset{}, "")
 	// Assert that the output is generated in an intermediate directory
 	// fe05bcdcdc4928012781a5f1a2a77cbb5398e106 is the sha1 checksum of "one"
 	if actual, expected := cmd.outputs[0].String(), "out/soong/mixed_build_sbox_intermediates/fe05bcdcdc4928012781a5f1a2a77cbb5398e106/test/exec_root/one"; expected != actual {
