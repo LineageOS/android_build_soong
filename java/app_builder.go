@@ -268,12 +268,24 @@ func TransformJniLibsToJar(
 		Args:        args,
 	})
 	if len(prebuiltJniPackages) > 0 {
+		var mergeJniJarPath android.WritablePath = android.PathForModuleOut(ctx, "mergeJniJarOutput.zip")
+		if !uncompressJNI {
+			mergeJniJarPath = outputFile
+		}
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        mergeAssetsRule,
 			Description: "merge prebuilt JNI packages",
 			Inputs:      append(prebuiltJniPackages, jniJarPath),
-			Output:      outputFile,
+			Output:      mergeJniJarPath,
 		})
+
+		if uncompressJNI {
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   uncompressEmbeddedJniLibsRule,
+				Input:  mergeJniJarPath,
+				Output: outputFile,
+			})
+		}
 	}
 }
 
