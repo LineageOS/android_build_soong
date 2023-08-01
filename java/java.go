@@ -1683,6 +1683,9 @@ type JavaApiLibraryProperties struct {
 	// extracting the compiled class files provided by the
 	// full_api_surface_stub module.
 	Full_api_surface_stub *string
+
+	// Version of previously released API file for compatibility check.
+	Previous_api *string `android:"path"`
 }
 
 func ApiLibraryFactory() android.Module {
@@ -1889,6 +1892,12 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	cmd := metalavaStubCmd(ctx, rule, srcFiles, homeDir)
 
 	al.stubsFlags(ctx, cmd, stubsDir)
+
+	migratingNullability := String(al.properties.Previous_api) != ""
+	if migratingNullability {
+		previousApi := android.PathForModuleSrc(ctx, String(al.properties.Previous_api))
+		cmd.FlagWithInput("--migrate-nullness ", previousApi)
+	}
 
 	al.stubsSrcJar = android.PathForModuleOut(ctx, "metalava", ctx.ModuleName()+"-"+"stubs.srcjar")
 	al.stubsJarWithoutStaticLibs = android.PathForModuleOut(ctx, "metalava", "stubs.jar")
