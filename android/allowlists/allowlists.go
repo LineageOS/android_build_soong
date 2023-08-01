@@ -121,6 +121,7 @@ var (
 		"development/sdk":                             Bp2BuildDefaultTrueRecursively,
 
 		"external/aac":                           Bp2BuildDefaultTrueRecursively,
+		"external/abseil-cpp":                    Bp2BuildDefaultTrueRecursively,
 		"external/arm-optimized-routines":        Bp2BuildDefaultTrueRecursively,
 		"external/auto":                          Bp2BuildDefaultTrue,
 		"external/auto/android-annotation-stubs": Bp2BuildDefaultTrueRecursively,
@@ -188,6 +189,7 @@ var (
 		"external/ow2-asm":                       Bp2BuildDefaultTrueRecursively,
 		"external/pcre":                          Bp2BuildDefaultTrueRecursively,
 		"external/protobuf":                      Bp2BuildDefaultTrueRecursively,
+		"external/python/pyyaml/lib/yaml":        Bp2BuildDefaultTrueRecursively,
 		"external/python/six":                    Bp2BuildDefaultTrueRecursively,
 		"external/rappor":                        Bp2BuildDefaultTrueRecursively,
 		"external/scudo":                         Bp2BuildDefaultTrueRecursively,
