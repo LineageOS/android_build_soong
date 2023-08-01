@@ -186,8 +186,6 @@ type BazelContext interface {
 
 	// Returns the depsets defined in Bazel's aquery response.
 	AqueryDepsets() []bazel.AqueryDepset
-
-	QueueBazelSandwichCqueryRequests(config Config) error
 }
 
 type bazelRunner interface {
@@ -264,10 +262,6 @@ func (m MockBazelContext) QueueBazelRequest(label string, requestType cqueryRequ
 		m.BazelRequests = make(map[string]bool)
 	}
 	m.BazelRequests[key] = true
-}
-
-func (m MockBazelContext) QueueBazelSandwichCqueryRequests(config Config) error {
-	panic("unimplemented")
 }
 
 func (m MockBazelContext) GetOutputFiles(label string, _ configKey) ([]string, error) {
@@ -427,10 +421,6 @@ func (bazelCtx *mixedBuildBazelContext) GetPrebuiltFileInfo(label string, cfgKey
 }
 
 func (n noopBazelContext) QueueBazelRequest(_ string, _ cqueryRequest, _ configKey) {
-	panic("unimplemented")
-}
-
-func (n noopBazelContext) QueueBazelSandwichCqueryRequests(config Config) error {
 	panic("unimplemented")
 }
 
@@ -1052,45 +1042,6 @@ var (
 	allBazelCommands = []bazelCommand{aqueryCmd, cqueryCmd, buildCmd}
 )
 
-func GetBazelSandwichCqueryRequests(config Config) ([]cqueryKey, error) {
-	result := make([]cqueryKey, 0, len(allowlists.BazelSandwichTargets))
-	// Note that bazel "targets" are different from soong "targets", the bazel targets are
-	// synonymous with soong modules, and soong targets are a configuration a module is built in.
-	for _, target := range allowlists.BazelSandwichTargets {
-		var soongTarget Target
-		if target.Host {
-			soongTarget = config.BuildOSTarget
-		} else {
-			soongTarget = config.AndroidCommonTarget
-		}
-
-		result = append(result, cqueryKey{
-			label:       target.Label,
-			requestType: cquery.GetOutputFiles,
-			configKey: configKey{
-				arch:   soongTarget.Arch.String(),
-				osType: soongTarget.Os,
-			},
-		})
-	}
-	return result, nil
-}
-
-// QueueBazelSandwichCqueryRequests queues cquery requests for all the bazel labels in
-// bazel_sandwich_targets. These will later be given phony targets so that they can be built on the
-// command line.
-func (context *mixedBuildBazelContext) QueueBazelSandwichCqueryRequests(config Config) error {
-	requests, err := GetBazelSandwichCqueryRequests(config)
-	if err != nil {
-		return err
-	}
-	for _, request := range requests {
-		context.QueueBazelRequest(request.label, request.requestType, request.configKey)
-	}
-
-	return nil
-}
-
 // Issues commands to Bazel to receive results for all cquery requests
 // queued in the BazelContext.
 func (context *mixedBuildBazelContext) InvokeBazel(config Config, ctx invokeBazelContext) error {
@@ -1304,11 +1255,6 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 
 	executionRoot := path.Join(ctx.Config().BazelContext.OutputBase(), "execroot", "__main__")
 	bazelOutDir := path.Join(executionRoot, "bazel-out")
-	rel, err := filepath.Rel(ctx.Config().OutDir(), executionRoot)
-	if err != nil {
-		ctx.Errorf("%s", err.Error())
-	}
-	dotdotsToOutRoot := strings.Repeat("../", strings.Count(rel, "/")+1)
 	for index, buildStatement := range ctx.Config().BazelContext.BuildStatementsToRegister() {
 		// nil build statements are a valid case where we do not create an action because it is
 		// unnecessary or handled by other processing
@@ -1340,8 +1286,7 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 					})
 				}
 			}
-			createCommand(rule.Command(), buildStatement, executionRoot, bazelOutDir, ctx, depsetHashToDepset, dotdotsToOutRoot)
-
+			createCommand(rule.Command(), buildStatement, executionRoot, bazelOutDir, ctx, depsetHashToDepset)
 			desc := fmt.Sprintf("%s: %s", buildStatement.Mnemonic, buildStatement.OutputPaths)
 			rule.Build(fmt.Sprintf("bazel %d", index), desc)
 			continue
@@ -1386,24 +1331,6 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 			panic(fmt.Sprintf("unhandled build statement: %v", buildStatement))
 		}
 	}
-
-	// Create phony targets for all the bazel sandwich output files
-	requests, err := GetBazelSandwichCqueryRequests(ctx.Config())
-	if err != nil {
-		ctx.Errorf(err.Error())
-	}
-	for _, request := range requests {
-		files, err := ctx.Config().BazelContext.GetOutputFiles(request.label, request.configKey)
-		if err != nil {
-			ctx.Errorf(err.Error())
-		}
-		filesAsPaths := make([]Path, 0, len(files))
-		for _, file := range files {
-			filesAsPaths = append(filesAsPaths, PathForBazelOut(ctx, file))
-		}
-		ctx.Phony("bazel_sandwich", filesAsPaths...)
-	}
-	ctx.Phony("checkbuild", PathForPhony(ctx, "bazel_sandwich"))
 }
 
 // Returns a out dir path for a sandboxed mixed build action
@@ -1417,7 +1344,7 @@ func intermediatePathForSboxMixedBuildAction(ctx PathContext, statement *bazel.B
 }
 
 // Register bazel-owned build statements (obtained from the aquery invocation).
-func createCommand(cmd *RuleBuilderCommand, buildStatement *bazel.BuildStatement, executionRoot string, bazelOutDir string, ctx BuilderContext, depsetHashToDepset map[string]bazel.AqueryDepset, dotdotsToOutRoot string) {
+func createCommand(cmd *RuleBuilderCommand, buildStatement *bazel.BuildStatement, executionRoot string, bazelOutDir string, ctx BuilderContext, depsetHashToDepset map[string]bazel.AqueryDepset) {
 	// executionRoot is the action cwd.
 	if buildStatement.ShouldRunInSbox {
 		// mkdir -p ensures that the directory exists when run via sbox
@@ -1440,17 +1367,14 @@ func createCommand(cmd *RuleBuilderCommand, buildStatement *bazel.BuildStatement
 		cmd.Flag(pair.Key + "=" + pair.Value)
 	}
 
-	command := buildStatement.Command
-	command = strings.ReplaceAll(command, "{DOTDOTS_TO_OUTPUT_ROOT}", dotdotsToOutRoot)
-
 	// The actual Bazel action.
-	if len(command) > 16*1024 {
+	if len(buildStatement.Command) > 16*1024 {
 		commandFile := PathForBazelOut(ctx, buildStatement.OutputPaths[0]+".sh")
-		WriteFileRule(ctx, commandFile, command)
+		WriteFileRule(ctx, commandFile, buildStatement.Command)
 
 		cmd.Text("bash").Text(buildStatement.OutputPaths[0] + ".sh").Implicit(commandFile)
 	} else {
-		cmd.Text(command)
+		cmd.Text(buildStatement.Command)
 	}
 
 	for _, outputPath := range buildStatement.OutputPaths {
@@ -1478,9 +1402,6 @@ func createCommand(cmd *RuleBuilderCommand, buildStatement *bazel.BuildStatement
 			otherDepsetName := bazelDepsetName(inputDepsetHash)
 			cmd.Implicit(PathForPhony(ctx, otherDepsetName))
 		}
-	}
-	for _, implicitPath := range buildStatement.ImplicitDeps {
-		cmd.Implicit(PathForArbitraryOutput(ctx, implicitPath))
 	}
 
 	if depfile := buildStatement.Depfile; depfile != nil {
