@@ -124,6 +124,7 @@ func BazelLabelForModuleDepsWithFn(ctx BazelConversionPathContext, modules []str
 		labels.Includes = []bazel.Label{}
 		return labels
 	}
+	modules = FirstUniqueStrings(modules)
 	for _, module := range modules {
 		bpText := module
 		if m := SrcIsModule(module); m == "" {
