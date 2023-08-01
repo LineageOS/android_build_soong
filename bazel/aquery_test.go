@@ -357,11 +357,9 @@ func TestDepfiles(t *testing.T) {
 	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
-		return
 	}
 	if expected := 1; len(actual) != expected {
 		t.Fatalf("Expected %d build statements, got %d", expected, len(actual))
-		return
 	}
 
 	bs := actual[0]
@@ -546,7 +544,6 @@ func TestSymlinkTree(t *testing.T) {
 	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
-		return
 	}
 	assertBuildStatements(t, []*BuildStatement{
 		&BuildStatement{
@@ -759,11 +756,9 @@ func TestMiddlemenAction(t *testing.T) {
 	actualBuildStatements, actualDepsets, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
-		return
 	}
 	if expected := 2; len(actualBuildStatements) != expected {
 		t.Fatalf("Expected %d build statements, got %d %#v", expected, len(actualBuildStatements), actualBuildStatements)
-		return
 	}
 
 	expectedDepsetFiles := [][]string{
@@ -864,7 +859,6 @@ func TestSimpleSymlink(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
-		return
 	}
 
 	expectedBuildStatements := []*BuildStatement{
@@ -913,7 +907,6 @@ func TestSymlinkQuotesPaths(t *testing.T) {
 	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
-		return
 	}
 
 	expectedBuildStatements := []*BuildStatement{
@@ -1024,7 +1017,6 @@ func TestTemplateExpandActionSubstitutions(t *testing.T) {
 	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
-		return
 	}
 
 	expectedBuildStatements := []*BuildStatement{
@@ -1096,7 +1088,6 @@ func TestFileWrite(t *testing.T) {
 	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
-		return
 	}
 	assertBuildStatements(t, []*BuildStatement{
 		&BuildStatement{
@@ -1135,7 +1126,6 @@ func TestSourceSymlinkManifest(t *testing.T) {
 	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
-		return
 	}
 	assertBuildStatements(t, []*BuildStatement{
 		&BuildStatement{
@@ -1144,126 +1134,6 @@ func TestSourceSymlinkManifest(t *testing.T) {
 			SymlinkPaths: []string{},
 		},
 	}, actual)
-}
-
-func TestUnresolvedSymlink(t *testing.T) {
-	const inputString = `
-{
- "artifacts": [
-   { "id": 1, "path_fragment_id": 1 }
- ],
- "actions": [{
-   "target_id": 1,
-   "action_key": "x",
-   "mnemonic": "UnresolvedSymlink",
-   "configuration_id": 1,
-   "output_ids": [1],
-   "primary_output_id": 1,
-   "execution_platform": "//build/bazel/platforms:linux_x86_64",
-   "unresolved_symlink_target": "symlink/target"
- }],
- "path_fragments": [
-   { "id": 1, "label": "path/to/symlink" }
- ]
-}
-`
-	data, err := JsonToActionGraphContainer(inputString)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
-	if err != nil {
-		t.Errorf("Unexpected error %q", err)
-		return
-	}
-	assertBuildStatements(t, []*BuildStatement{{
-		Command:      "mkdir -p path/to && rm -f path/to/symlink && ln -sf symlink/target path/to/symlink",
-		OutputPaths:  []string{"path/to/symlink"},
-		Mnemonic:     "UnresolvedSymlink",
-		SymlinkPaths: []string{"path/to/symlink"},
-	}}, actual)
-}
-
-func TestUnresolvedSymlinkBazelSandwich(t *testing.T) {
-	const inputString = `
-{
- "artifacts": [
-   { "id": 1, "path_fragment_id": 1 }
- ],
- "actions": [{
-   "target_id": 1,
-   "action_key": "x",
-   "mnemonic": "UnresolvedSymlink",
-   "configuration_id": 1,
-   "output_ids": [1],
-   "primary_output_id": 1,
-   "execution_platform": "//build/bazel/platforms:linux_x86_64",
-   "unresolved_symlink_target": "bazel_sandwich:{\"target\":\"target/product/emulator_x86_64/system\"}"
- }],
- "path_fragments": [
-   { "id": 1, "label": "path/to/symlink" }
- ]
-}
-`
-	data, err := JsonToActionGraphContainer(inputString)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
-	if err != nil {
-		t.Errorf("Unexpected error %q", err)
-		return
-	}
-	assertBuildStatements(t, []*BuildStatement{{
-		Command:      "mkdir -p path/to && rm -f path/to/symlink && ln -sf {DOTDOTS_TO_OUTPUT_ROOT}../../target/product/emulator_x86_64/system path/to/symlink",
-		OutputPaths:  []string{"path/to/symlink"},
-		Mnemonic:     "UnresolvedSymlink",
-		SymlinkPaths: []string{"path/to/symlink"},
-		ImplicitDeps: []string{"target/product/emulator_x86_64/system"},
-	}}, actual)
-}
-
-func TestUnresolvedSymlinkBazelSandwichWithAlternativeDeps(t *testing.T) {
-	const inputString = `
-{
- "artifacts": [
-   { "id": 1, "path_fragment_id": 1 }
- ],
- "actions": [{
-   "target_id": 1,
-   "action_key": "x",
-   "mnemonic": "UnresolvedSymlink",
-   "configuration_id": 1,
-   "output_ids": [1],
-   "primary_output_id": 1,
-   "execution_platform": "//build/bazel/platforms:linux_x86_64",
-   "unresolved_symlink_target": "bazel_sandwich:{\"depend_on_target\":false,\"implicit_deps\":[\"target/product/emulator_x86_64/obj/PACKAGING/systemimage_intermediates/staging_dir.stamp\"],\"target\":\"target/product/emulator_x86_64/system\"}"
- }],
- "path_fragments": [
-   { "id": 1, "label": "path/to/symlink" }
- ]
-}
-`
-	data, err := JsonToActionGraphContainer(inputString)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
-	if err != nil {
-		t.Errorf("Unexpected error %q", err)
-		return
-	}
-	assertBuildStatements(t, []*BuildStatement{{
-		Command:      "mkdir -p path/to && rm -f path/to/symlink && ln -sf {DOTDOTS_TO_OUTPUT_ROOT}../../target/product/emulator_x86_64/system path/to/symlink",
-		OutputPaths:  []string{"path/to/symlink"},
-		Mnemonic:     "UnresolvedSymlink",
-		SymlinkPaths: []string{"path/to/symlink"},
-		// Note that the target of the symlink, target/product/emulator_x86_64/system, is not listed here
-		ImplicitDeps: []string{"target/product/emulator_x86_64/obj/PACKAGING/systemimage_intermediates/staging_dir.stamp"},
-	}}, actual)
 }
 
 func assertError(t *testing.T, err error, expected string) {
@@ -1330,9 +1200,6 @@ func buildStatementEquals(first *BuildStatement, second *BuildStatement) string 
 	}
 	if !reflect.DeepEqual(sortedStrings(first.SymlinkPaths), sortedStrings(second.SymlinkPaths)) {
 		return "SymlinkPaths"
-	}
-	if !reflect.DeepEqual(sortedStrings(first.ImplicitDeps), sortedStrings(second.ImplicitDeps)) {
-		return "ImplicitDeps"
 	}
 	if first.Depfile != second.Depfile {
 		return "Depfile"
