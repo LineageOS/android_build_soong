@@ -61,15 +61,18 @@ var (
 		"${cc_config.ClangBase}/${bindgenHostPrebuiltTag}/${bindgenClangVersion}/${bindgenClangLibdir}")
 
 	//TODO(ivanlozano) Switch this to RuleBuilder
+	//
+	//TODO Pass the flag files directly to bindgen e.g. with @file when it supports that.
+	//See https://github.com/rust-lang/rust-bindgen/issues/2508.
 	bindgen = pctx.AndroidStaticRule("bindgen",
 		blueprint.RuleParams{
 			Command: "CLANG_PATH=$bindgenClang LIBCLANG_PATH=$bindgenLibClang RUSTFMT=${config.RustBin}/rustfmt " +
-				"$cmd $flags $in -o $out -- -MD -MF $out.d $cflags",
+				"$cmd $flags $$(cat $flagfiles) $in -o $out -- -MD -MF $out.d $cflags",
 			CommandDeps: []string{"$cmd"},
 			Deps:        blueprint.DepsGCC,
 			Depfile:     "$out.d",
 		},
-		"cmd", "flags", "cflags")
+		"cmd", "flags", "flagfiles", "cflags")
 )
 
 func init() {
@@ -89,6 +92,9 @@ type BindgenProperties struct {
 
 	// list of bindgen-specific flags and options
 	Bindgen_flags []string `android:"arch_variant"`
+
+	// list of files containing extra bindgen flags
+	Bindgen_flag_files []string `android:"arch_variant"`
 
 	// module name of a custom binary/script which should be used instead of the 'bindgen' binary. This custom
 	// binary must expect arguments in a similar fashion to bindgen, e.g.
@@ -216,6 +222,14 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	bindgenFlags := defaultBindgenFlags
 	bindgenFlags = append(bindgenFlags, esc(b.Properties.Bindgen_flags)...)
 
+	// cat reads from stdin if its command line is empty,
+	// so we pass in /dev/null if there are no other flag files
+	bindgenFlagFiles := []string{"/dev/null"}
+	for _, flagFile := range b.Properties.Bindgen_flag_files {
+		bindgenFlagFiles = append(bindgenFlagFiles, android.PathForModuleSrc(ctx, flagFile).String())
+		implicits = append(implicits, android.PathForModuleSrc(ctx, flagFile))
+	}
+
 	wrapperFile := android.OptionalPathForModuleSrc(ctx, b.Properties.Wrapper_src)
 	if !wrapperFile.Valid() {
 		ctx.PropertyErrorf("wrapper_src", "invalid path to wrapper source")
@@ -261,9 +275,10 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 		Input:       wrapperFile.Path(),
 		Implicits:   implicits,
 		Args: map[string]string{
-			"cmd":    cmd,
-			"flags":  strings.Join(bindgenFlags, " "),
-			"cflags": strings.Join(cflags, " "),
+			"cmd":       cmd,
+			"flags":     strings.Join(bindgenFlags, " "),
+			"flagfiles": strings.Join(bindgenFlagFiles, " "),
+			"cflags":    strings.Join(cflags, " "),
 		},
 	})
 
