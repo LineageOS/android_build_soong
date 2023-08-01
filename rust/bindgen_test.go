@@ -168,3 +168,28 @@ func TestBindgenDisallowedFlags(t *testing.T) {
 		}
 	`)
 }
+
+func TestBindgenFlagFile(t *testing.T) {
+	ctx := testRust(t, `
+		rust_bindgen {
+			name: "libbindgen",
+			wrapper_src: "src/any.h",
+			crate_name: "bindgen",
+			stem: "libbindgen",
+			source_stem: "bindings",
+			bindgen_flag_files: [
+				"flag_file.txt",
+			],
+		}
+	`)
+	libbindgen := ctx.ModuleForTests("libbindgen", "android_arm64_armv8-a_source").Output("bindings.rs")
+
+	if !strings.Contains(libbindgen.Args["flagfiles"], "/dev/null") {
+		t.Errorf("missing /dev/null in rust_bindgen rule: flags %#v", libbindgen.Args["flagfiles"])
+	}
+	if !strings.Contains(libbindgen.Args["flagfiles"], "flag_file.txt") {
+		t.Errorf("missing bindgen flags file in rust_bindgen rule: flags %#v", libbindgen.Args["flagfiles"])
+	}
+	// TODO: The best we can do right now is check $flagfiles. Once bindgen.go switches to RuleBuilder,
+	// we may be able to check libbinder.RuleParams.Command to see if it contains $(cat /dev/null flag_file.txt)
+}
