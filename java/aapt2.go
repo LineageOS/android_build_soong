@@ -256,7 +256,8 @@ func aapt2Link(ctx android.ModuleContext,
 
 var aapt2ConvertRule = pctx.AndroidStaticRule("aapt2Convert",
 	blueprint.RuleParams{
-		Command:     `${config.Aapt2Cmd} convert --output-format $format $in -o $out`,
+		Command: `${config.Aapt2Cmd} convert --enable-compact-entries ` +
+			`--output-format $format $in -o $out`,
 		CommandDeps: []string{"${config.Aapt2Cmd}"},
 	}, "format",
 )
