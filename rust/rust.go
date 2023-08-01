@@ -1306,11 +1306,16 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				}
 			}
 			linkObject := ccDep.OutputFile()
-			linkPath := linkPathFromFilePath(linkObject.Path())
-
 			if !linkObject.Valid() {
-				ctx.ModuleErrorf("Invalid output file when adding dep %q to %q", depName, ctx.ModuleName())
+				if !ctx.Config().AllowMissingDependencies() {
+					ctx.ModuleErrorf("Invalid output file when adding dep %q to %q", depName, ctx.ModuleName())
+				} else {
+					ctx.AddMissingDependencies([]string{depName})
+				}
+				return
 			}
+
+			linkPath := linkPathFromFilePath(linkObject.Path())
 
 			exportDep := false
 			switch {
@@ -1356,6 +1361,14 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				// Re-get linkObject as ChooseStubOrImpl actually tells us which
 				// object (either from stub or non-stub) to use.
 				linkObject = android.OptionalPathForPath(sharedLibraryInfo.SharedLibrary)
+				if !linkObject.Valid() {
+					if !ctx.Config().AllowMissingDependencies() {
+						ctx.ModuleErrorf("Invalid output file when adding dep %q to %q", depName, ctx.ModuleName())
+					} else {
+						ctx.AddMissingDependencies([]string{depName})
+					}
+					return
+				}
 				linkPath = linkPathFromFilePath(linkObject.Path())
 
 				depPaths.linkDirs = append(depPaths.linkDirs, linkPath)
