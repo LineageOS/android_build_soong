@@ -223,7 +223,8 @@ func (p *PythonTestModule) ConvertWithBp2build(ctx android.TopDownMutatorContext
 
 	props := bazel.BazelTargetModuleProperties{
 		// Use the native py_binary rule.
-		Rule_class: "py_test",
+		Rule_class:        "py_test",
+		Bzl_load_location: "//build/bazel/rules/python:py_test.bzl",
 	}
 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{
