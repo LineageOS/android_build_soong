@@ -815,6 +815,8 @@ var (
 		"chre_flatbuffers",
 		"event_logger",
 		"hal_unit_tests",
+
+		"merge_annotation_zips_test",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
@@ -838,6 +840,10 @@ var (
 	// the "prebuilt_" prefix to the name, so that it's differentiable from
 	// the source versions within Soong's module graph.
 	Bp2buildModuleDoNotConvertList = []string{
+		// TODO(b/263326760): Failed already.
+		"minijail_compiler_unittest",
+		"minijail_parser_unittest",
+
 		// Depends on unconverted libandroid, libgui
 		"dvr_buffer_queue-test",
 		"dvr_display-test",
