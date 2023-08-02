@@ -1022,7 +1022,13 @@ func (a *AndroidApp) OutputFiles(tag string) (android.Paths, error) {
 	case ".aapt.proguardOptionsFile":
 		return []android.Path{a.proguardOptionsFile}, nil
 	case ".aapt.srcjar":
-		return []android.Path{a.aaptSrcJar}, nil
+		if a.aaptSrcJar != nil {
+			return []android.Path{a.aaptSrcJar}, nil
+		}
+	case ".aapt.jar":
+		if a.rJar != nil {
+			return []android.Path{a.rJar}, nil
+		}
 	case ".export-package.apk":
 		return []android.Path{a.exportPackage}, nil
 	}
