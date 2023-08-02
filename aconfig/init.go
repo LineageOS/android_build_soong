@@ -30,7 +30,7 @@ var (
 				` ${declarations}` +
 				` ${values}` +
 				` --cache ${out}.tmp` +
-				` && ( if cmp -s ${out}.tmp ; then rm ${out}.tmp ; else mv ${out}.tmp ${out} ; fi )`,
+				` && ( if cmp -s ${out}.tmp ${out} ; then rm ${out}.tmp ; else mv ${out}.tmp ${out} ; fi )`,
 			//				` --build-id ${release_version}` +
 			CommandDeps: []string{
 				"${aconfig}",
