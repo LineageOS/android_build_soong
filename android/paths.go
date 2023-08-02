@@ -1029,14 +1029,14 @@ func (p basePath) withRel(rel string) basePath {
 	return p
 }
 
+func (p basePath) RelativeToTop() Path {
+	ensureTestOnly()
+	return p
+}
+
 // SourcePath is a Path representing a file path rooted from SrcDir
 type SourcePath struct {
 	basePath
-}
-
-func (p SourcePath) RelativeToTop() Path {
-	ensureTestOnly()
-	return p
 }
 
 var _ Path = SourcePath{}
@@ -1124,6 +1124,16 @@ func PathForSource(ctx PathContext, pathComponents ...string) SourcePath {
 		ReportPathErrorf(ctx, "source path %q does not exist", path)
 	}
 	return path
+}
+
+// PathForArbitraryOutput creates a path for the given components. Unlike PathForOutput,
+// the path is relative to the root of the output folder, not the out/soong folder.
+func PathForArbitraryOutput(ctx PathContext, pathComponents ...string) Path {
+	p, err := validatePath(pathComponents...)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
+	return basePath{path: filepath.Join(ctx.Config().OutDir(), p)}
 }
 
 // MaybeExistentPathForSource joins the provided path components and validates that the result
