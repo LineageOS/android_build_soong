@@ -17,14 +17,14 @@ package bazel
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
+	analysis_v2_proto "prebuilts/bazel/common/proto/analysis_v2"
 	"reflect"
 	"sort"
 	"strings"
 	"sync"
-
-	analysis_v2_proto "prebuilts/bazel/common/proto/analysis_v2"
 
 	"github.com/google/blueprint/metrics"
 	"github.com/google/blueprint/proptools"
@@ -119,6 +119,10 @@ type BuildStatement struct {
 	// If ShouldRunInSbox is true, Soong will use sbox to created an isolated environment
 	// and run the mixed build action there
 	ShouldRunInSbox bool
+	// A list of files to add as implicit deps to the outputs of this BuildStatement.
+	// Unlike most properties in BuildStatement, these paths must be relative to the root of
+	// the whole out/ folder, instead of relative to ctx.Config().BazelContext.OutputBase()
+	ImplicitDeps []string
 }
 
 // A helper type for aquery processing which facilitates retrieval of path IDs from their
@@ -581,6 +585,72 @@ func (a *aqueryArtifactHandler) symlinkTreeActionBuildStatement(actionEntry *ana
 	}, nil
 }
 
+type bazelSandwichJson struct {
+	Target         string   `json:"target"`
+	DependOnTarget *bool    `json:"depend_on_target,omitempty"`
+	ImplicitDeps   []string `json:"implicit_deps"`
+}
+
+func (a *aqueryArtifactHandler) unresolvedSymlinkActionBuildStatement(actionEntry *analysis_v2_proto.Action) (*BuildStatement, error) {
+	outputPaths, depfile, err := a.getOutputPaths(actionEntry)
+	if err != nil {
+		return nil, err
+	}
+	if len(actionEntry.InputDepSetIds) != 0 || len(outputPaths) != 1 {
+		return nil, fmt.Errorf("expected 0 inputs and 1 output to symlink action, got: input %q, output %q", actionEntry.InputDepSetIds, outputPaths)
+	}
+	target := actionEntry.UnresolvedSymlinkTarget
+	if target == "" {
+		return nil, fmt.Errorf("expected an unresolved_symlink_target, but didn't get one")
+	}
+	if filepath.Clean(target) != target {
+		return nil, fmt.Errorf("expected %q, got %q", filepath.Clean(target), target)
+	}
+	if strings.HasPrefix(target, "/") {
+		return nil, fmt.Errorf("no absolute symlinks allowed: %s", target)
+	}
+
+	out := outputPaths[0]
+	outDir := filepath.Dir(out)
+	var implicitDeps []string
+	if strings.HasPrefix(target, "bazel_sandwich:") {
+		j := bazelSandwichJson{}
+		err := json.Unmarshal([]byte(target[len("bazel_sandwich:"):]), &j)
+		if err != nil {
+			return nil, err
+		}
+		if proptools.BoolDefault(j.DependOnTarget, true) {
+			implicitDeps = append(implicitDeps, j.Target)
+		}
+		implicitDeps = append(implicitDeps, j.ImplicitDeps...)
+		dotDotsToReachCwd := ""
+		if outDir != "." {
+			dotDotsToReachCwd = strings.Repeat("../", strings.Count(outDir, "/")+1)
+		}
+		target = proptools.ShellEscapeIncludingSpaces(j.Target)
+		target = "{DOTDOTS_TO_OUTPUT_ROOT}" + dotDotsToReachCwd + target
+	} else {
+		target = proptools.ShellEscapeIncludingSpaces(target)
+	}
+
+	outDir = proptools.ShellEscapeIncludingSpaces(outDir)
+	out = proptools.ShellEscapeIncludingSpaces(out)
+	// Use absolute paths, because some soong actions don't play well with relative paths (for example, `cp -d`).
+	command := fmt.Sprintf("mkdir -p %[1]s && rm -f %[2]s && ln -sf %[3]s %[2]s", outDir, out, target)
+	symlinkPaths := outputPaths[:]
+
+	buildStatement := &BuildStatement{
+		Command:      command,
+		Depfile:      depfile,
+		OutputPaths:  outputPaths,
+		Env:          actionEntry.EnvironmentVariables,
+		Mnemonic:     actionEntry.Mnemonic,
+		SymlinkPaths: symlinkPaths,
+		ImplicitDeps: implicitDeps,
+	}
+	return buildStatement, nil
+}
+
 func (a *aqueryArtifactHandler) symlinkActionBuildStatement(actionEntry *analysis_v2_proto.Action) (*BuildStatement, error) {
 	outputPaths, depfile, err := a.getOutputPaths(actionEntry)
 	if err != nil {
@@ -690,6 +760,8 @@ func (a *aqueryArtifactHandler) actionToBuildStatement(actionEntry *analysis_v2_
 		return a.fileWriteActionBuildStatement(actionEntry)
 	case "SymlinkTree":
 		return a.symlinkTreeActionBuildStatement(actionEntry)
+	case "UnresolvedSymlink":
+		return a.unresolvedSymlinkActionBuildStatement(actionEntry)
 	}
 
 	if len(actionEntry.Arguments) < 1 {
