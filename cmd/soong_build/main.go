@@ -121,6 +121,10 @@ func runMixedModeBuild(ctx *android.Context, extraNinjaDeps []string) string {
 	defer ctx.EventHandler.End("mixed_build")
 
 	bazelHook := func() error {
+		err := ctx.Config().BazelContext.QueueBazelSandwichCqueryRequests(ctx.Config())
+		if err != nil {
+			return err
+		}
 		return ctx.Config().BazelContext.InvokeBazel(ctx.Config(), ctx)
 	}
 	ctx.SetBeforePrepareBuildActionsHook(bazelHook)
