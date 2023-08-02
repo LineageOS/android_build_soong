@@ -31,9 +31,9 @@ import (
 
 func init() {
 	pctx.HostBinToolVariable("ndkStubGenerator", "ndkstubgen")
-	pctx.HostBinToolVariable("abidiff", "abidiff")
 	pctx.HostBinToolVariable("abidw", "abidw")
 	pctx.HostBinToolVariable("stg", "stg")
+	pctx.HostBinToolVariable("stgdiff", "stgdiff")
 }
 
 var (
@@ -44,6 +44,7 @@ var (
 			CommandDeps: []string{"$ndkStubGenerator"},
 		}, "arch", "apiLevel", "apiMap", "flags")
 
+	// TODO(b/156513478): remove once migration to STG is complete
 	abidw = pctx.AndroidStaticRule("abidw",
 		blueprint.RuleParams{
 			Command: "$abidw --type-id-style hash --no-corpus-path " +
@@ -52,20 +53,27 @@ var (
 			CommandDeps: []string{"$abidw"},
 		}, "symbolList")
 
+	stg = pctx.AndroidStaticRule("stg",
+		blueprint.RuleParams{
+			Command:     "$stg -S :$symbolList --elf $in -o $out",
+			CommandDeps: []string{"$stg"},
+		}, "symbolList")
+
+	// TODO(b/156513478): remove once migration to STG is complete
 	xml2stg = pctx.AndroidStaticRule("xml2stg",
 		blueprint.RuleParams{
 			Command:     "$stg --abi -i $in -o $out",
 			CommandDeps: []string{"$stg"},
 		})
 
-	abidiff = pctx.AndroidStaticRule("abidiff",
+	stgdiff = pctx.AndroidStaticRule("stgdiff",
 		blueprint.RuleParams{
 			// Need to create *some* output for ninja. We don't want to use tee
 			// because we don't want to spam the build output with "nothing
 			// changed" messages, so redirect output message to $out, and if
 			// changes were detected print the output and fail.
-			Command:     "$abidiff $args $in > $out || (cat $out && false)",
-			CommandDeps: []string{"$abidiff"},
+			Command:     "$stgdiff $args --stg $in -o $out || (cat $out && false)",
+			CommandDeps: []string{"$stgdiff"},
 		}, "args")
 
 	ndkLibrarySuffix = ".ndk"
@@ -109,6 +117,10 @@ type libraryProperties struct {
 
 	// Headers presented by this library to the Public API Surface
 	Export_header_libs []string
+
+	// TODO(b/156513478): remove once migration to STG is complete
+	// Fall back to the legacy abidw ABI extraction pipeline
+	Legacy_use_abidw *bool
 }
 
 type stubDecorator struct {
@@ -351,7 +363,8 @@ func canDiffAbi() bool {
 	return false
 }
 
-func (this *stubDecorator) dumpAbi(ctx ModuleContext, symbolList android.Path) {
+// TODO(b/156513478): remove once migration to STG is complete
+func (this *stubDecorator) dumpAbiLegacy(ctx ModuleContext, symbolList android.Path) {
 	implementationLibrary := this.findImplementationLibrary(ctx)
 	abiRawPath := getNdkAbiDumpInstallBase(ctx).Join(ctx,
 		this.apiLevel.String(), ctx.Arch().ArchType.String(),
@@ -378,6 +391,23 @@ func (this *stubDecorator) dumpAbi(ctx ModuleContext, symbolList android.Path) {
 	})
 }
 
+func (this *stubDecorator) dumpAbi(ctx ModuleContext, symbolList android.Path) {
+	implementationLibrary := this.findImplementationLibrary(ctx)
+	this.abiDumpPath = getNdkAbiDumpInstallBase(ctx).Join(ctx,
+		this.apiLevel.String(), ctx.Arch().ArchType.String(),
+		this.libraryName(ctx), "abi.stg")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        stg,
+		Description: fmt.Sprintf("stg %s", implementationLibrary),
+		Input:       implementationLibrary,
+		Implicit:    symbolList,
+		Output:      this.abiDumpPath,
+		Args: map[string]string{
+			"symbolList": symbolList.String(),
+		},
+	})
+}
+
 func findNextApiLevel(ctx ModuleContext, apiLevel android.ApiLevel) *android.ApiLevel {
 	apiLevels := append(ctx.Config().AllSupportedApiLevels(),
 		android.FutureApiLevel)
@@ -392,7 +422,7 @@ func findNextApiLevel(ctx ModuleContext, apiLevel android.ApiLevel) *android.Api
 func (this *stubDecorator) diffAbi(ctx ModuleContext) {
 	// Catch any ABI changes compared to the checked-in definition of this API
 	// level.
-	abiDiffPath := android.PathForModuleOut(ctx, "abidiff.timestamp")
+	abiDiffPath := android.PathForModuleOut(ctx, "stgdiff.timestamp")
 	prebuiltAbiDump := this.findPrebuiltAbiDump(ctx, this.apiLevel)
 	missingPrebuiltError := fmt.Sprintf(
 		"Did not find prebuilt ABI dump for %q (%q). Generate with "+
@@ -408,11 +438,14 @@ func (this *stubDecorator) diffAbi(ctx ModuleContext) {
 		})
 	} else {
 		ctx.Build(pctx, android.BuildParams{
-			Rule: abidiff,
-			Description: fmt.Sprintf("abidiff %s %s", prebuiltAbiDump,
+			Rule: stgdiff,
+			Description: fmt.Sprintf("Comparing ABI %s %s", prebuiltAbiDump,
 				this.abiDumpPath),
 			Output: abiDiffPath,
 			Inputs: android.Paths{prebuiltAbiDump.Path(), this.abiDumpPath},
+			Args: map[string]string{
+				"args": "--format=small",
+			},
 		})
 	}
 	this.abiDiffPaths = append(this.abiDiffPaths, abiDiffPath)
@@ -439,13 +472,13 @@ func (this *stubDecorator) diffAbi(ctx ModuleContext) {
 			})
 		} else {
 			ctx.Build(pctx, android.BuildParams{
-				Rule: abidiff,
+				Rule: stgdiff,
 				Description: fmt.Sprintf("abidiff %s %s", this.abiDumpPath,
 					nextAbiDump),
 				Output: nextAbiDiffPath,
 				Inputs: android.Paths{this.abiDumpPath, nextAbiDump.Path()},
 				Args: map[string]string{
-					"args": "--no-added-syms",
+					"args": "--format=small --ignore=interface_addition",
 				},
 			})
 		}
@@ -473,7 +506,11 @@ func (c *stubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) O
 	objs := compileStubLibrary(ctx, flags, nativeAbiResult.stubSrc)
 	c.versionScriptPath = nativeAbiResult.versionScript
 	if canDumpAbi(ctx.Config()) {
-		c.dumpAbi(ctx, nativeAbiResult.symbolList)
+		if proptools.BoolDefault(c.properties.Legacy_use_abidw, false) {
+			c.dumpAbiLegacy(ctx, nativeAbiResult.symbolList)
+		} else {
+			c.dumpAbi(ctx, nativeAbiResult.symbolList)
+		}
 		if canDiffAbi() {
 			c.diffAbi(ctx)
 		}
