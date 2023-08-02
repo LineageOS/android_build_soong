@@ -238,8 +238,43 @@ function test_sbom_aosp_cf_x86_64_phone {
     diff_files "$file_list_file" "$files_in_spdx_file" "$partition_name"
   done
 
+  verify_package_verification_code "$product_out/sbom.spdx"
+
   # Teardown
   cleanup "${out_dir}"
+}
+
+function verify_package_verification_code {
+  local sbom_file="$1"; shift
+
+  local -a file_checksums
+  local package_product_found=
+  while read -r line;
+  do
+    if grep -q 'PackageVerificationCode' <<<"$line"
+    then
+      package_product_found=true
+    fi
+    if [ -n "$package_product_found" ]
+    then
+      if grep -q 'FileChecksum' <<< "$line"
+      then
+        checksum=$(echo $line | sed 's/^.*: //')
+        file_checksums+=("$checksum")
+      fi
+    fi
+  done <<< "$(grep -E 'PackageVerificationCode|FileChecksum' $sbom_file)"
+  IFS=$'\n' file_checksums=($(sort <<<"${file_checksums[*]}")); unset IFS
+  IFS= expected_package_verification_code=$(printf "${file_checksums[*]}" | sha1sum | sed 's/[[:space:]]*-//'); unset IFS
+
+  actual_package_verification_code=$(grep PackageVerificationCode $sbom_file | sed 's/PackageVerificationCode: //g')
+  if [ $actual_package_verification_code = $expected_package_verification_code ]
+  then
+    echo "Package verification code is correct."
+  else
+    echo "Unexpected package verification code."
+    exit 1
+  fi
 }
 
 function test_sbom_unbundled_apex {
