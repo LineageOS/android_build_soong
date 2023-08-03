@@ -195,9 +195,13 @@ func (pb PrimaryBuilderFactory) primaryBuilderInvocation() bootstrap.PrimaryBuil
 
 	var allArgs []string
 	allArgs = append(allArgs, pb.specificArgs...)
+	globPathName, ok := pb.config.TargetProductOrErr()
+	if ok != nil {
+		globPathName = pb.name
+	}
 	allArgs = append(allArgs,
-		"--globListDir", pb.name,
-		"--globFile", pb.config.NamedGlobFile(pb.name))
+		"--globListDir", globPathName,
+		"--globFile", pb.config.NamedGlobFile(globPathName))
 
 	allArgs = append(allArgs, commonArgs...)
 	allArgs = append(allArgs, environmentArgs(pb.config, pb.name)...)
