@@ -189,6 +189,11 @@ func platformMappingSingleProduct(label string, productVariables *android.Produc
 		targetBuildVariant = "userdebug"
 	}
 
+	platform_sdk_version := -1
+	if productVariables.Platform_sdk_version != nil {
+		platform_sdk_version = *productVariables.Platform_sdk_version
+	}
+
 	for _, suffix := range bazelPlatformSuffixes {
 		result.WriteString("  ")
 		result.WriteString(label)
@@ -223,7 +228,7 @@ func platformMappingSingleProduct(label string, productVariables *android.Produc
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:platform_version_name=%s\n", proptools.String(productVariables.Platform_version_name)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:product_brand=%s\n", productVariables.ProductBrand))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:product_manufacturer=%s\n", productVariables.ProductManufacturer))
-		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:platform_sdk_version=%d\n", *productVariables.Platform_sdk_version))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:platform_sdk_version=%d\n", platform_sdk_version))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:safestack=%t\n", proptools.Bool(productVariables.Safestack)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:target_build_variant=%s\n", targetBuildVariant))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:treble_linker_namespaces=%t\n", proptools.Bool(productVariables.Treble_linker_namespaces)))
