@@ -200,7 +200,7 @@ func TestCcObjectProductVariable(t *testing.T) {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_object", "foo", AttrNameToString{
 				"asflags": `select({
-        "//build/bazel/product_variables:platform_sdk_version": ["-DPLATFORM_SDK_VERSION=$(Platform_sdk_version)"],
+        "//build/bazel/product_config/config_settings:platform_sdk_version": ["-DPLATFORM_SDK_VERSION=$(Platform_sdk_version)"],
         "//conditions:default": [],
     })`,
 				"copts":               `["-fno-addrsig"]`,

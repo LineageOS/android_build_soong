@@ -69,6 +69,7 @@ func TestStarlarkMapToProductVariables(t *testing.T) {
 			t.Error(err)
 			continue
 		}
+		testCase.result.Native_coverage = proptools.BoolPtr(false)
 		if !reflect.DeepEqual(testCase.result, productVariables) {
 			expected, err := json.Marshal(testCase.result)
 			if err != nil {

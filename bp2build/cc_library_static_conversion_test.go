@@ -1188,13 +1188,13 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo_static", AttrNameToString{
 				"copts": `select({
-        "//build/bazel/product_variables:binder32bit": ["-Wbinder32bit"],
+        "//build/bazel/product_config/config_settings:binder32bit": ["-Wbinder32bit"],
         "//conditions:default": [],
     }) + select({
-        "//build/bazel/product_variables:malloc_not_svelte": ["-Wmalloc_not_svelte"],
+        "//build/bazel/product_config/config_settings:malloc_not_svelte": ["-Wmalloc_not_svelte"],
         "//conditions:default": [],
     }) + select({
-        "//build/bazel/product_variables:malloc_zero_contents": ["-Wmalloc_zero_contents"],
+        "//build/bazel/product_config/config_settings:malloc_zero_contents": ["-Wmalloc_zero_contents"],
         "//conditions:default": [],
     })`,
 				"srcs_c": `["common.c"]`,
@@ -1248,19 +1248,19 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo_static", AttrNameToString{
 				"copts": `select({
-        "//build/bazel/product_variables:malloc_not_svelte": ["-Wmalloc_not_svelte"],
+        "//build/bazel/product_config/config_settings:malloc_not_svelte": ["-Wmalloc_not_svelte"],
         "//conditions:default": [],
     }) + select({
-        "//build/bazel/product_variables:malloc_not_svelte-android": ["-Wandroid_malloc_not_svelte"],
+        "//build/bazel/product_config/config_settings:malloc_not_svelte-android": ["-Wandroid_malloc_not_svelte"],
         "//conditions:default": [],
     }) + select({
-        "//build/bazel/product_variables:malloc_not_svelte-arm": ["-Wlib32_malloc_not_svelte"],
+        "//build/bazel/product_config/config_settings:malloc_not_svelte-arm": ["-Wlib32_malloc_not_svelte"],
         "//conditions:default": [],
     }) + select({
-        "//build/bazel/product_variables:malloc_not_svelte-arm64": ["-Warm64_malloc_not_svelte"],
+        "//build/bazel/product_config/config_settings:malloc_not_svelte-arm64": ["-Warm64_malloc_not_svelte"],
         "//conditions:default": [],
     }) + select({
-        "//build/bazel/product_variables:malloc_not_svelte-x86": ["-Wlib32_malloc_not_svelte"],
+        "//build/bazel/product_config/config_settings:malloc_not_svelte-x86": ["-Wlib32_malloc_not_svelte"],
         "//conditions:default": [],
     })`,
 				"srcs_c": `["common.c"]`,
@@ -1287,7 +1287,7 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo_static", AttrNameToString{
 				"asflags": `select({
-        "//build/bazel/product_variables:platform_sdk_version": ["-DPLATFORM_SDK_VERSION=$(Platform_sdk_version)"],
+        "//build/bazel/product_config/config_settings:platform_sdk_version": ["-DPLATFORM_SDK_VERSION=$(Platform_sdk_version)"],
         "//conditions:default": [],
     })`,
 				"srcs_as": `["common.S"]`,
