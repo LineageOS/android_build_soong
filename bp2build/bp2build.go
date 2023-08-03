@@ -111,7 +111,7 @@ func Codegen(ctx *CodegenContext) *CodegenMetrics {
 func CreateSoongInjectionDirFiles(ctx *CodegenContext, metrics CodegenMetrics) ([]BazelFile, []BazelFile, error) {
 	var ret []BazelFile
 
-	productConfigInjectionFiles, productConfigBp2BuildDirFiles, err := CreateProductConfigFiles(ctx)
+	productConfigInjectionFiles, productConfigBp2BuildDirFiles, err := CreateProductConfigFiles(ctx, metrics)
 	if err != nil {
 		return nil, nil, err
 	}

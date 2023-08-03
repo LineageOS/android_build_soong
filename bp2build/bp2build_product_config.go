@@ -16,7 +16,8 @@ import (
 )
 
 func CreateProductConfigFiles(
-	ctx *CodegenContext) ([]BazelFile, []BazelFile, error) {
+	ctx *CodegenContext,
+	metrics CodegenMetrics) ([]BazelFile, []BazelFile, error) {
 	cfg := &ctx.config
 	targetProduct := "unknown"
 	if cfg.HasDeviceProduct() {
@@ -52,9 +53,22 @@ func CreateProductConfigFiles(
 		"{VARIANT}", targetBuildVariant,
 		"{PRODUCT_FOLDER}", currentProductFolder)
 
-	platformMappingContent, err := platformMappingContent(productReplacer.Replace("@soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}"), &productVariables, ctx.Config().Bp2buildSoongConfigDefinitions)
+	platformMappingContent, err := platformMappingContent(
+		productReplacer.Replace("@soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}"),
+		&productVariables,
+		ctx.Config().Bp2buildSoongConfigDefinitions,
+		metrics.convertedModulePathMap)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	productsForTestingMap, err := starlark_import.GetStarlarkValue[map[string]map[string]starlark.Value]("products_for_testing")
+	if err != nil {
+		return nil, nil, err
+	}
+	productsForTesting := android.SortedKeys(productsForTestingMap)
+	for i := range productsForTesting {
+		productsForTesting[i] = fmt.Sprintf("  \"@//build/bazel/tests/products:%s\",", productsForTesting[i])
 	}
 
 	injectionDirFiles := []BazelFile{
@@ -111,9 +125,8 @@ android_product(
 # currently lunched product, they should all be listed here
 product_labels = [
   "@soong_injection//product_config_platforms:mixed_builds_product-{VARIANT}",
-  "@soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}"
-]
-`)),
+  "@soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}",
+`)+strings.Join(productsForTesting, "\n")+"\n]\n"),
 		newFile(
 			"product_config_platforms",
 			"common.bazelrc",
@@ -150,20 +163,37 @@ build --host_platform @soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_dar
 	return injectionDirFiles, bp2buildDirFiles, nil
 }
 
-func platformMappingContent(mainProductLabel string, mainProductVariables *android.ProductVariables, soongConfigDefinitions soongconfig.Bp2BuildSoongConfigDefinitions) (string, error) {
+func platformMappingContent(
+	mainProductLabel string,
+	mainProductVariables *android.ProductVariables,
+	soongConfigDefinitions soongconfig.Bp2BuildSoongConfigDefinitions,
+	convertedModulePathMap map[string]string) (string, error) {
 	productsForTesting, err := starlark_import.GetStarlarkValue[map[string]map[string]starlark.Value]("products_for_testing")
 	if err != nil {
 		return "", err
 	}
 	var result strings.Builder
+
+	mergedConvertedModulePathMap := make(map[string]string)
+	for k, v := range convertedModulePathMap {
+		mergedConvertedModulePathMap[k] = v
+	}
+	additionalModuleNamesToPackages, err := starlark_import.GetStarlarkValue[map[string]string]("additional_module_names_to_packages")
+	if err != nil {
+		return "", err
+	}
+	for k, v := range additionalModuleNamesToPackages {
+		mergedConvertedModulePathMap[k] = v
+	}
+
 	result.WriteString("platforms:\n")
-	platformMappingSingleProduct(mainProductLabel, mainProductVariables, soongConfigDefinitions, &result)
+	platformMappingSingleProduct(mainProductLabel, mainProductVariables, soongConfigDefinitions, mergedConvertedModulePathMap, &result)
 	for product, productVariablesStarlark := range productsForTesting {
 		productVariables, err := starlarkMapToProductVariables(productVariablesStarlark)
 		if err != nil {
 			return "", err
 		}
-		platformMappingSingleProduct("@//build/bazel/tests/products:"+product, &productVariables, soongConfigDefinitions, &result)
+		platformMappingSingleProduct("@//build/bazel/tests/products:"+product, &productVariables, soongConfigDefinitions, mergedConvertedModulePathMap, &result)
 	}
 	return result.String(), nil
 }
@@ -182,7 +212,12 @@ var bazelPlatformSuffixes = []string{
 	"_windows_x86_64",
 }
 
-func platformMappingSingleProduct(label string, productVariables *android.ProductVariables, soongConfigDefinitions soongconfig.Bp2BuildSoongConfigDefinitions, result *strings.Builder) {
+func platformMappingSingleProduct(
+	label string,
+	productVariables *android.ProductVariables,
+	soongConfigDefinitions soongconfig.Bp2BuildSoongConfigDefinitions,
+	convertedModulePathMap map[string]string,
+	result *strings.Builder) {
 	targetBuildVariant := "user"
 	if proptools.Bool(productVariables.Eng) {
 		targetBuildVariant = "eng"
@@ -193,6 +228,11 @@ func platformMappingSingleProduct(label string, productVariables *android.Produc
 	platform_sdk_version := -1
 	if productVariables.Platform_sdk_version != nil {
 		platform_sdk_version = *productVariables.Platform_sdk_version
+	}
+
+	defaultAppCertificateFilegroup := "//build/bazel/utils:empty_filegroup"
+	if proptools.String(productVariables.DefaultAppCertificate) != "" {
+		defaultAppCertificateFilegroup = "@//" + filepath.Dir(proptools.String(productVariables.DefaultAppCertificate)) + ":android_certificate_directory"
 	}
 
 	for _, suffix := range bazelPlatformSuffixes {
@@ -207,12 +247,12 @@ func platformMappingSingleProduct(label string, productVariables *android.Produc
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:build_from_text_stub=%t\n", proptools.Bool(productVariables.Build_from_text_stub)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:build_id=%s\n", proptools.String(productVariables.BuildId)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:build_version_tags=%s\n", strings.Join(productVariables.BuildVersionTags, ",")))
-		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:certificate_overrides=%s\n", strings.Join(productVariables.CertificateOverrides, ",")))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:cfi_exclude_paths=%s\n", strings.Join(productVariables.CFIExcludePaths, ",")))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:cfi_include_paths=%s\n", strings.Join(productVariables.CFIIncludePaths, ",")))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:compressed_apex=%t\n", proptools.Bool(productVariables.CompressedApex)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:debuggable=%t\n", proptools.Bool(productVariables.Debuggable)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:default_app_certificate=%s\n", proptools.String(productVariables.DefaultAppCertificate)))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:default_app_certificate_filegroup=%s\n", defaultAppCertificateFilegroup))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:device_abi=%s\n", strings.Join(productVariables.DeviceAbi, ",")))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:device_max_page_size_supported=%s\n", proptools.String(productVariables.DeviceMaxPageSizeSupported)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:device_name=%s\n", proptools.String(productVariables.DeviceName)))
@@ -237,6 +277,16 @@ func platformMappingSingleProduct(label string, productVariables *android.Produc
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:uml=%t\n", proptools.Bool(productVariables.Uml)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:unbundled_build=%t\n", proptools.Bool(productVariables.Unbundled_build)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:unbundled_build_apps=%s\n", strings.Join(productVariables.Unbundled_build_apps, ",")))
+
+		for _, override := range productVariables.CertificateOverrides {
+			parts := strings.SplitN(override, ":", 2)
+			if apexPath, ok := convertedModulePathMap[parts[0]]; ok {
+				if overrideCertPath, ok := convertedModulePathMap[parts[1]]; ok {
+					result.WriteString(fmt.Sprintf("    --%s:%s_certificate_override=%s:%s\n", apexPath, parts[0], overrideCertPath, parts[1]))
+				}
+			}
+		}
+
 		for namespace, namespaceContents := range productVariables.VendorVars {
 			for variable, value := range namespaceContents {
 				key := namespace + "__" + variable
