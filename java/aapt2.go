@@ -150,7 +150,8 @@ var aapt2LinkRule = pctx.AndroidStaticRule("aapt2Link",
 			`${config.Aapt2Cmd} link -o $out $flags --java $genDir --proguard $proguardOptions ` +
 			`--output-text-symbols ${rTxt} $inFlags && ` +
 			`${config.SoongZipCmd} -write_if_changed -jar -o $genJar -C $genDir -D $genDir &&` +
-			`${config.ExtractJarPackagesCmd} -i $genJar -o $extraPackages --prefix '--extra-packages '`,
+			`${config.ExtractJarPackagesCmd} -i $genJar -o $extraPackages --prefix '--extra-packages ' && ` +
+			`rm -rf $genDir`,
 
 		CommandDeps: []string{
 			"${config.Aapt2Cmd}",
