@@ -1260,14 +1260,14 @@ cc_library {
         "//build/bazel/platforms/arch:arm": [],
         "//conditions:default": [":arm_static_lib_excludes_bp2build_cc_library_static"],
     }) + select({
-        "//build/bazel/product_variables:malloc_not_svelte": [],
+        "//build/bazel/product_config/config_settings:malloc_not_svelte": [],
         "//conditions:default": [":malloc_not_svelte_static_lib_excludes_bp2build_cc_library_static"],
     })`,
 			"implementation_dynamic_deps": `select({
         "//build/bazel/platforms/arch:arm": [],
         "//conditions:default": [":arm_shared_lib_excludes"],
     }) + select({
-        "//build/bazel/product_variables:malloc_not_svelte": [":malloc_not_svelte_shared_lib"],
+        "//build/bazel/product_config/config_settings:malloc_not_svelte": [":malloc_not_svelte_shared_lib"],
         "//conditions:default": [],
     })`,
 			"srcs_c": `["common.c"]`,
@@ -1275,7 +1275,7 @@ cc_library {
         "//build/bazel/platforms/arch:arm": [],
         "//conditions:default": [":arm_whole_static_lib_excludes_bp2build_cc_library_static"],
     }) + select({
-        "//build/bazel/product_variables:malloc_not_svelte": [":malloc_not_svelte_whole_static_lib_bp2build_cc_library_static"],
+        "//build/bazel/product_config/config_settings:malloc_not_svelte": [":malloc_not_svelte_whole_static_lib_bp2build_cc_library_static"],
         "//conditions:default": [":malloc_not_svelte_whole_static_lib_excludes_bp2build_cc_library_static"],
     })`,
 		}),
@@ -1307,7 +1307,7 @@ cc_library {
 `,
 		ExpectedBazelTargets: makeCcLibraryTargets("foo_static", AttrNameToString{
 			"implementation_deps": `select({
-        "//build/bazel/product_variables:malloc_not_svelte": [":malloc_not_svelte_header_lib"],
+        "//build/bazel/product_config/config_settings:malloc_not_svelte": [":malloc_not_svelte_header_lib"],
         "//conditions:default": [],
     })`,
 			"srcs_c":                 `["common.c"]`,
@@ -4631,7 +4631,7 @@ func TestCcLibraryCppFlagsInProductVariables(t *testing.T) {
         "-Wextra",
         "-DDEBUG_ONLY_CODE=0",
     ] + select({
-        "//build/bazel/product_variables:eng": [
+        "//build/bazel/product_config/config_settings:eng": [
             "-UDEBUG_ONLY_CODE",
             "-DDEBUG_ONLY_CODE=1",
         ],

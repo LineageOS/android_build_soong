@@ -149,7 +149,7 @@ prebuilt_etc {
 			MakeBazelTarget("prebuilt_file", "apex_tz_version", AttrNameToString{
 				"filename": `"tz_version"`,
 				"src": `select({
-        "//build/bazel/product_variables:native_coverage": "src1",
+        "//build/bazel/product_config/config_settings:native_coverage": "src1",
         "//conditions:default": "version/tz_version",
     })`,
 				"dir": `"etc"`,
@@ -318,7 +318,7 @@ prebuilt_etc {
 				"dir":      `"etc"`,
 				"src": `select({
         "//build/bazel/platforms/arch:arm": "armSrc",
-        "//build/bazel/product_variables:native_coverage-arm": "nativeCoverageArmSrc",
+        "//build/bazel/product_config/config_settings:native_coverage-arm": "nativeCoverageArmSrc",
         "//conditions:default": None,
     })`,
 			})}})
