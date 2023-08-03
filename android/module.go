@@ -1021,6 +1021,11 @@ type CommonAttributes struct {
 	Applicable_licenses bazel.LabelListAttribute
 
 	Testonly *bool
+
+	// Dir is neither a Soong nor Bazel target attribute
+	// If set, the bazel target will be created in this directory
+	// If unset, the bazel target will default to be created in the directory of the visited soong module
+	Dir *string
 }
 
 // constraintAttributes represents Bazel attributes pertaining to build constraints,
