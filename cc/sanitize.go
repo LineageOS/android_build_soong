@@ -87,6 +87,8 @@ var (
 
 	hostOnlySanitizeFlags   = []string{"-fno-sanitize-recover=all"}
 	deviceOnlySanitizeFlags = []string{"-fsanitize-trap=all", "-ftrap-function=abort"}
+
+	noSanitizeLinkRuntimeFlag = "-fno-sanitize-link-runtime"
 )
 
 type SanitizerType int
@@ -423,6 +425,8 @@ func init() {
 	exportedVars.ExportString("CfiExportsMapPath", cfiExportsMapPath)
 	exportedVars.ExportString("CfiExportsMapFilename", cfiExportsMapFilename)
 	exportedVars.ExportString("CfiAssemblySupportFlag", cfiAssemblySupportFlag)
+
+	exportedVars.ExportString("NoSanitizeLinkRuntimeFlag", noSanitizeLinkRuntimeFlag)
 
 	android.RegisterMakeVarsProvider(pctx, cfiMakeVarsProvider)
 	android.RegisterMakeVarsProvider(pctx, hwasanMakeVarsProvider)
@@ -925,7 +929,7 @@ func (s *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			// Bionic and musl sanitizer runtimes have already been added as dependencies so that
 			// the right variant of the runtime will be used (with the "-android" or "-musl"
 			// suffixes), so don't let clang the runtime library.
-			flags.Local.LdFlags = append(flags.Local.LdFlags, "-fno-sanitize-link-runtime")
+			flags.Local.LdFlags = append(flags.Local.LdFlags, noSanitizeLinkRuntimeFlag)
 		} else {
 			// Host sanitizers only link symbols in the final executable, so
 			// there will always be undefined symbols in intermediate libraries.
