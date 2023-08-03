@@ -2247,3 +2247,38 @@ cc_library_static{
     ]`,
 			})}})
 }
+
+func TestCcLibraryWithProtoInGeneratedSrcs(t *testing.T) {
+	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library with a .proto file generated from a genrule",
+		ModuleTypeUnderTest:        "cc_library_static",
+		ModuleTypeUnderTestFactory: cc.LibraryStaticFactory,
+		Blueprint: soongCcLibraryPreamble + `
+cc_library_static {
+	name: "mylib",
+	generated_sources: ["myprotogen"],
+}
+genrule {
+	name: "myprotogen",
+	out: ["myproto.proto"],
+}
+` + simpleModuleDoNotConvertBp2build("cc_library", "libprotobuf-cpp-lite"),
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "mylib", AttrNameToString{
+				"local_includes":                    `["."]`,
+				"deps":                              `[":libprotobuf-cpp-lite"]`,
+				"implementation_whole_archive_deps": `[":mylib_cc_proto_lite"]`,
+			}),
+			MakeBazelTarget("cc_lite_proto_library", "mylib_cc_proto_lite", AttrNameToString{
+				"deps": `[":mylib_proto"]`,
+			}),
+			MakeBazelTarget("proto_library", "mylib_proto", AttrNameToString{
+				"srcs": `[":myprotogen"]`,
+			}),
+			MakeBazelTargetNoRestrictions("genrule", "myprotogen", AttrNameToString{
+				"cmd":  `""`,
+				"outs": `["myproto.proto"]`,
+			}),
+		},
+	})
+}
