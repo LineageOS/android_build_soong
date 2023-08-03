@@ -52,6 +52,10 @@ function copy_directory {
   cp -R "$REAL_TOP/$dir" "$MOCK_TOP/$parent"
 }
 
+function delete_directory {
+  rm -rf "$MOCK_TOP/$1"
+}
+
 function symlink_file {
   local file="$1"
 
@@ -137,6 +141,9 @@ function run_soong {
 function create_mock_bazel {
   copy_directory build/bazel
   copy_directory build/bazel_common_rules
+
+  # This requires pulling more tools into the mock top to build partitions
+  delete_directory build/bazel/examples/partitions
 
   symlink_directory packages/modules/common/build
   symlink_directory prebuilts/bazel
