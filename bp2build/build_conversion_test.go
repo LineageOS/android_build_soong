@@ -640,7 +640,10 @@ func TestBp2buildHostAndDevice(t *testing.T) {
 }`,
 			ExpectedBazelTargets: []string{
 				MakeBazelTargetNoRestrictions("custom", "foo", AttrNameToString{
-					"target_compatible_with": `["//build/bazel/product_variables:unbundled_build"]`,
+					"target_compatible_with": `select({
+        "//build/bazel/product_config/config_settings:unbundled_build": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    })`,
 				}),
 			},
 		},

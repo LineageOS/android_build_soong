@@ -67,7 +67,7 @@ const (
 
 	ConditionsDefaultSelectKey = "//conditions:default"
 
-	productVariableBazelPackage = "//build/bazel/product_variables"
+	productVariableBazelPackage = "//build/bazel/product_config/config_settings"
 
 	AndroidAndInApex = "android-in_apex"
 	AndroidPlatform  = "system"

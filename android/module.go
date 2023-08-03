@@ -1373,25 +1373,21 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 		}
 	}
 
-	productConfigEnabledLabels := []bazel.Label{}
+	productConfigEnabledAttribute := bazel.LabelListAttribute{}
 	// TODO(b/234497586): Soong config variables and product variables have different overriding behavior, we
 	// should handle it correctly
 	if !proptools.BoolDefault(enabledProperty.Value, true) && !neitherHostNorDevice {
 		// If the module is not enabled by default, then we can check if a
 		// product variable enables it
-		productConfigEnabledLabels = productVariableConfigEnableLabels(ctx)
+		productConfigEnabledAttribute = productVariableConfigEnableAttribute(ctx)
 
-		if len(productConfigEnabledLabels) > 0 {
+		if len(productConfigEnabledAttribute.ConfigurableValues) > 0 {
 			// In this case, an existing product variable configuration overrides any
 			// module-level `enable: false` definition
 			newValue := true
 			enabledProperty.Value = &newValue
 		}
 	}
-
-	productConfigEnabledAttribute := bazel.MakeLabelListAttribute(bazel.LabelList{
-		productConfigEnabledLabels, nil,
-	})
 
 	platformEnabledAttribute, err := enabledProperty.ToLabelListAttribute(
 		bazel.LabelList{[]bazel.Label{{Label: "@platforms//:incompatible"}}, nil},
@@ -1423,31 +1419,28 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 
 // Check product variables for `enabled: true` flag override.
 // Returns a list of the constraint_value targets who enable this override.
-func productVariableConfigEnableLabels(ctx *topDownMutatorContext) []bazel.Label {
+func productVariableConfigEnableAttribute(ctx *topDownMutatorContext) bazel.LabelListAttribute {
+	result := bazel.LabelListAttribute{}
 	productVariableProps := ProductVariableProperties(ctx, ctx.Module())
-	productConfigEnablingTargets := []bazel.Label{}
-	const propName = "Enabled"
-	if productConfigProps, exists := productVariableProps[propName]; exists {
+	if productConfigProps, exists := productVariableProps["Enabled"]; exists {
 		for productConfigProp, prop := range productConfigProps {
 			flag, ok := prop.(*bool)
 			if !ok {
-				ctx.ModuleErrorf("Could not convert product variable %s property", proptools.PropertyNameForField(propName))
+				ctx.ModuleErrorf("Could not convert product variable enabled property")
 			}
 
 			if *flag {
 				axis := productConfigProp.ConfigurationAxis()
-				targetLabel := axis.SelectKey(productConfigProp.SelectKey())
-				productConfigEnablingTargets = append(productConfigEnablingTargets, bazel.Label{
-					Label: targetLabel,
-				})
+				result.SetSelectValue(axis, bazel.ConditionsDefaultConfigKey, bazel.MakeLabelList([]bazel.Label{{Label: "@platforms//:incompatible"}}))
+				result.SetSelectValue(axis, productConfigProp.SelectKey(), bazel.LabelList{Includes: []bazel.Label{}})
 			} else {
 				// TODO(b/210546943): handle negative case where `enabled: false`
-				ctx.ModuleErrorf("`enabled: false` is not currently supported for configuration variables. See b/210546943", proptools.PropertyNameForField(propName))
+				ctx.ModuleErrorf("`enabled: false` is not currently supported for configuration variables. See b/210546943")
 			}
 		}
 	}
 
-	return productConfigEnablingTargets
+	return result
 }
 
 // A ModuleBase object contains the properties that are common to all Android

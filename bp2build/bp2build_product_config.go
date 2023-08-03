@@ -2,6 +2,7 @@ package bp2build
 
 import (
 	"android/soong/android"
+	"android/soong/android/soongconfig"
 	"android/soong/starlark_import"
 	"encoding/json"
 	"fmt"
@@ -51,7 +52,7 @@ func CreateProductConfigFiles(
 		"{VARIANT}", targetBuildVariant,
 		"{PRODUCT_FOLDER}", currentProductFolder)
 
-	platformMappingContent, err := platformMappingContent(productReplacer.Replace("@soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}"), &productVariables)
+	platformMappingContent, err := platformMappingContent(productReplacer.Replace("@soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}"), &productVariables, ctx.Config().Bp2buildSoongConfigDefinitions)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -148,20 +149,20 @@ build --host_platform @soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_dar
 	return injectionDirFiles, bp2buildDirFiles, nil
 }
 
-func platformMappingContent(mainProductLabel string, mainProductVariables *android.ProductVariables) (string, error) {
+func platformMappingContent(mainProductLabel string, mainProductVariables *android.ProductVariables, soongConfigDefinitions soongconfig.Bp2BuildSoongConfigDefinitions) (string, error) {
 	productsForTesting, err := starlark_import.GetStarlarkValue[map[string]map[string]starlark.Value]("products_for_testing")
 	if err != nil {
 		return "", err
 	}
 	var result strings.Builder
 	result.WriteString("platforms:\n")
-	platformMappingSingleProduct(mainProductLabel, mainProductVariables, &result)
+	platformMappingSingleProduct(mainProductLabel, mainProductVariables, soongConfigDefinitions, &result)
 	for product, productVariablesStarlark := range productsForTesting {
 		productVariables, err := starlarkMapToProductVariables(productVariablesStarlark)
 		if err != nil {
 			return "", err
 		}
-		platformMappingSingleProduct("@//build/bazel/tests/products:"+product, &productVariables, &result)
+		platformMappingSingleProduct("@//build/bazel/tests/products:"+product, &productVariables, soongConfigDefinitions, &result)
 	}
 	return result.String(), nil
 }
@@ -180,7 +181,7 @@ var bazelPlatformSuffixes = []string{
 	"_windows_x86_64",
 }
 
-func platformMappingSingleProduct(label string, productVariables *android.ProductVariables, result *strings.Builder) {
+func platformMappingSingleProduct(label string, productVariables *android.ProductVariables, soongConfigDefinitions soongconfig.Bp2BuildSoongConfigDefinitions, result *strings.Builder) {
 	targetBuildVariant := "user"
 	if proptools.Bool(productVariables.Eng) {
 		targetBuildVariant = "eng"
@@ -194,27 +195,72 @@ func platformMappingSingleProduct(label string, productVariables *android.Produc
 		result.WriteString(suffix)
 		result.WriteString("\n")
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:always_use_prebuilt_sdks=%t\n", proptools.Bool(productVariables.Always_use_prebuilt_sdks)))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:arc=%t\n", proptools.Bool(productVariables.Arc)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:apex_global_min_sdk_version_override=%s\n", proptools.String(productVariables.ApexGlobalMinSdkVersionOverride)))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:binder32bit=%t\n", proptools.Bool(productVariables.Binder32bit)))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:build_from_text_stub=%t\n", proptools.Bool(productVariables.Build_from_text_stub)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:build_id=%s\n", proptools.String(productVariables.BuildId)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:build_version_tags=%s\n", strings.Join(productVariables.BuildVersionTags, ",")))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:certificate_overrides=%s\n", strings.Join(productVariables.CertificateOverrides, ",")))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:cfi_exclude_paths=%s\n", strings.Join(productVariables.CFIExcludePaths, ",")))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:cfi_include_paths=%s\n", strings.Join(productVariables.CFIIncludePaths, ",")))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:compressed_apex=%t\n", proptools.Bool(productVariables.CompressedApex)))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:debuggable=%t\n", proptools.Bool(productVariables.Debuggable)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:default_app_certificate=%s\n", proptools.String(productVariables.DefaultAppCertificate)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:device_abi=%s\n", strings.Join(productVariables.DeviceAbi, ",")))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:device_max_page_size_supported=%s\n", proptools.String(productVariables.DeviceMaxPageSizeSupported)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:device_name=%s\n", proptools.String(productVariables.DeviceName)))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:device_page_size_agnostic=%t\n", proptools.Bool(productVariables.Device_page_size_agnostic)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:device_product=%s\n", proptools.String(productVariables.DeviceProduct)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:enable_cfi=%t\n", proptools.BoolDefault(productVariables.EnableCFI, true)))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:enforce_vintf_manifest=%t\n", proptools.Bool(productVariables.Enforce_vintf_manifest)))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:eng=%t\n", proptools.Bool(productVariables.Eng)))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:malloc_not_svelte=%t\n", proptools.Bool(productVariables.Malloc_not_svelte)))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:malloc_pattern_fill_contents=%t\n", proptools.Bool(productVariables.Malloc_pattern_fill_contents)))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:malloc_zero_contents=%t\n", proptools.Bool(productVariables.Malloc_zero_contents)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:manifest_package_name_overrides=%s\n", strings.Join(productVariables.ManifestPackageNameOverrides, ",")))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:native_coverage=%t\n", proptools.Bool(productVariables.Native_coverage)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:platform_version_name=%s\n", proptools.String(productVariables.Platform_version_name)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:product_brand=%s\n", productVariables.ProductBrand))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:product_manufacturer=%s\n", productVariables.ProductManufacturer))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:platform_sdk_version=%d\n", *productVariables.Platform_sdk_version))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:safestack=%t\n", proptools.Bool(productVariables.Safestack)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:target_build_variant=%s\n", targetBuildVariant))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:treble_linker_namespaces=%t\n", proptools.Bool(productVariables.Treble_linker_namespaces)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:tidy_checks=%s\n", proptools.String(productVariables.TidyChecks)))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:uml=%t\n", proptools.Bool(productVariables.Uml)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:unbundled_build=%t\n", proptools.Bool(productVariables.Unbundled_build)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:unbundled_build_apps=%s\n", strings.Join(productVariables.Unbundled_build_apps, ",")))
+		for namespace, namespaceContents := range productVariables.VendorVars {
+			for variable, value := range namespaceContents {
+				key := namespace + "__" + variable
+				_, hasBool := soongConfigDefinitions.BoolVars[key]
+				_, hasString := soongConfigDefinitions.StringVars[key]
+				_, hasValue := soongConfigDefinitions.ValueVars[key]
+				if !hasBool && !hasString && !hasValue {
+					// Not all soong config variables are defined in Android.bp files. For example,
+					// prebuilt_bootclasspath_fragment uses soong config variables in a nonstandard
+					// way, that causes them to be present in the soong.variables file but not
+					// defined in an Android.bp file. There's also nothing stopping you from setting
+					// a variable in make that doesn't exist in soong. We only generate build
+					// settings for the ones that exist in soong, so skip all others.
+					continue
+				}
+				if hasBool && hasString || hasBool && hasValue || hasString && hasValue {
+					panic(fmt.Sprintf("Soong config variable %s:%s appears to be of multiple types. bool? %t, string? %t, value? %t", namespace, variable, hasBool, hasString, hasValue))
+				}
+				if hasBool {
+					// Logic copied from soongConfig.Bool()
+					value = strings.ToLower(value)
+					if value == "1" || value == "y" || value == "yes" || value == "on" || value == "true" {
+						value = "true"
+					} else {
+						value = "false"
+					}
+				}
+				result.WriteString(fmt.Sprintf("    --//build/bazel/product_config/soong_config_variables:%s=%s\n", strings.ToLower(key), value))
+			}
+		}
 	}
 }
 
@@ -225,12 +271,20 @@ func starlarkMapToProductVariables(in map[string]starlark.Value) (android.Produc
 		field := productVarsReflect.Field(i)
 		fieldType := productVarsReflect.Type().Field(i)
 		name := fieldType.Name
-		if name == "BootJars" || name == "ApexBootJars" || name == "VendorVars" ||
-			name == "VendorSnapshotModules" || name == "RecoverySnapshotModules" {
+		if name == "BootJars" || name == "ApexBootJars" || name == "VendorSnapshotModules" ||
+			name == "RecoverySnapshotModules" {
 			// These variables have more complicated types, and we don't need them right now
 			continue
 		}
 		if _, ok := in[name]; ok {
+			if name == "VendorVars" {
+				vendorVars, err := starlark_import.Unmarshal[map[string]map[string]string](in[name])
+				if err != nil {
+					return result, err
+				}
+				field.Set(reflect.ValueOf(vendorVars))
+				continue
+			}
 			switch field.Type().Kind() {
 			case reflect.Bool:
 				val, err := starlark_import.Unmarshal[bool](in[name])
@@ -281,6 +335,10 @@ func starlarkMapToProductVariables(in map[string]starlark.Value) (android.Produc
 			}
 		}
 	}
+
+	result.Native_coverage = proptools.BoolPtr(
+		proptools.Bool(result.GcovCoverage) ||
+			proptools.Bool(result.ClangCoverage))
 
 	return result, nil
 }
