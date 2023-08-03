@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -1054,9 +1055,23 @@ var (
 
 func GetBazelSandwichCqueryRequests(config Config) ([]cqueryKey, error) {
 	result := make([]cqueryKey, 0, len(allowlists.BazelSandwichTargets))
+	labelRegex := regexp.MustCompile("^@?//([a-zA-Z0-9/_-]+):[a-zA-Z0-9_-]+$")
 	// Note that bazel "targets" are different from soong "targets", the bazel targets are
 	// synonymous with soong modules, and soong targets are a configuration a module is built in.
 	for _, target := range allowlists.BazelSandwichTargets {
+		match := labelRegex.FindStringSubmatch(target.Label)
+		if match == nil {
+			return nil, fmt.Errorf("invalid label, must match `^@?//([a-zA-Z0-9/_-]+):[a-zA-Z0-9_-]+$`: %s", target.Label)
+		}
+		if _, err := os.Stat(absolutePath(match[1])); err != nil {
+			if os.IsNotExist(err) {
+				// Ignore bazel sandwich targets that don't exist.
+				continue
+			} else {
+				return nil, err
+			}
+		}
+
 		var soongTarget Target
 		if target.Host {
 			soongTarget = config.BuildOSTarget
