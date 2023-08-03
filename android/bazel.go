@@ -22,6 +22,7 @@ import (
 
 	"android/soong/ui/metrics/bp2build_metrics_proto"
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android/allowlists"
@@ -426,8 +427,23 @@ func MixedBuildsEnabled(ctx BaseModuleContext) MixedBuildEnabledStatus {
 	return ModuleIncompatibility
 }
 
+func isGoModule(module blueprint.Module) bool {
+	if _, ok := module.(*bootstrap.GoPackage); ok {
+		return true
+	}
+	if _, ok := module.(*bootstrap.GoBinary); ok {
+		return true
+	}
+	return false
+}
+
 // ConvertedToBazel returns whether this module has been converted (with bp2build or manually) to Bazel.
 func convertedToBazel(ctx BazelConversionContext, module blueprint.Module) bool {
+	// Special-case bootstrap_go_package and bootstrap_go_binary
+	// These do not implement Bazelable, but have been converted
+	if isGoModule(module) {
+		return true
+	}
 	b, ok := module.(Bazelable)
 	if !ok {
 		return false
