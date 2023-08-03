@@ -1555,7 +1555,7 @@ override_apex {
 				"file_contexts": `":foo-file_contexts"`,
 				"manifest":      `"apex_manifest.json"`,
 				"min_sdk_version": `select({
-        "//build/bazel/product_variables:android__library_linking_strategy__prefer_static": "30",
+        "//build/bazel/product_config/config_settings:android__library_linking_strategy__prefer_static": "30",
         "//conditions:default": "31",
     })`,
 				"package_name": `"pkg_name"`,
@@ -1564,7 +1564,7 @@ override_apex {
 				"file_contexts":  `":foo-file_contexts"`,
 				"manifest":       `"apex_manifest.json"`,
 				"min_sdk_version": `select({
-        "//build/bazel/product_variables:android__library_linking_strategy__prefer_static": "30",
+        "//build/bazel/product_config/config_settings:android__library_linking_strategy__prefer_static": "30",
         "//conditions:default": "31",
     })`,
 				"package_name": `"override_pkg_name"`,

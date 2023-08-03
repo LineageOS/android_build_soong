@@ -91,7 +91,7 @@ custom_cc_library_static {
 		ExpectedBazelTargets: []string{`cc_library_static(
     name = "foo",
     copts = select({
-        "//build/bazel/product_variables:acme__feature1": ["-DFEATURE1"],
+        "//build/bazel/product_config/config_settings:acme__feature1": ["-DFEATURE1"],
         "//conditions:default": ["-DDEFAULT1"],
     }),
     local_includes = ["."],
@@ -140,7 +140,7 @@ custom_cc_library_static {
 		ExpectedBazelTargets: []string{`cc_library_static(
     name = "foo",
     copts = select({
-        "//build/bazel/product_variables:acme__feature1": ["-DFEATURE1"],
+        "//build/bazel/product_config/config_settings:acme__feature1": ["-DFEATURE1"],
         "//conditions:default": ["-DDEFAULT1"],
     }),
     local_includes = ["."],
@@ -191,9 +191,9 @@ custom_cc_library_static {
 		ExpectedBazelTargets: []string{`cc_library_static(
     name = "foo",
     copts = select({
-        "//build/bazel/product_variables:acme__board__soc_a": ["-DSOC_A"],
-        "//build/bazel/product_variables:acme__board__soc_b": ["-DSOC_B"],
-        "//build/bazel/product_variables:acme__board__soc_c": [],
+        "//build/bazel/product_config/config_settings:acme__board__soc_a": ["-DSOC_A"],
+        "//build/bazel/product_config/config_settings:acme__board__soc_b": ["-DSOC_B"],
+        "//build/bazel/product_config/config_settings:acme__board__soc_c": [],
         "//conditions:default": ["-DSOC_DEFAULT"],
     }),
     local_includes = ["."],
@@ -240,7 +240,7 @@ custom_cc_library_static {
 		ExpectedBazelTargets: []string{`cc_library_static(
     name = "foo",
     copts = select({
-        "//build/bazel/product_variables:acme__feature1": ["-DFEATURE1"],
+        "//build/bazel/product_config/config_settings:acme__feature1": ["-DFEATURE1"],
         "//conditions:default": ["-DDEFAULT1"],
     }),
     local_includes = ["."],
@@ -310,15 +310,15 @@ custom_cc_library_static {
 		ExpectedBazelTargets: []string{`cc_library_static(
     name = "foo",
     copts = select({
-        "//build/bazel/product_variables:acme__board__soc_a": ["-DSOC_A"],
-        "//build/bazel/product_variables:acme__board__soc_b": ["-DSOC_B"],
-        "//build/bazel/product_variables:acme__board__soc_c": [],
+        "//build/bazel/product_config/config_settings:acme__board__soc_a": ["-DSOC_A"],
+        "//build/bazel/product_config/config_settings:acme__board__soc_b": ["-DSOC_B"],
+        "//build/bazel/product_config/config_settings:acme__board__soc_c": [],
         "//conditions:default": ["-DSOC_DEFAULT"],
     }) + select({
-        "//build/bazel/product_variables:acme__feature1": ["-DFEATURE1"],
+        "//build/bazel/product_config/config_settings:acme__feature1": ["-DFEATURE1"],
         "//conditions:default": ["-DDEFAULT1"],
     }) + select({
-        "//build/bazel/product_variables:acme__feature2": ["-DFEATURE2"],
+        "//build/bazel/product_config/config_settings:acme__feature2": ["-DFEATURE2"],
         "//conditions:default": ["-DDEFAULT2"],
     }),
     local_includes = ["."],
@@ -380,15 +380,15 @@ cc_library_static { name: "soc_default_static_dep", bazel_module: { bp2build_ava
 		ExpectedBazelTargets: []string{`cc_library_static(
     name = "foo",
     copts = select({
-        "//build/bazel/product_variables:acme__board__soc_a": ["-DSOC_A"],
-        "//build/bazel/product_variables:acme__board__soc_b": ["-DSOC_B"],
-        "//build/bazel/product_variables:acme__board__soc_c": [],
+        "//build/bazel/product_config/config_settings:acme__board__soc_a": ["-DSOC_A"],
+        "//build/bazel/product_config/config_settings:acme__board__soc_b": ["-DSOC_B"],
+        "//build/bazel/product_config/config_settings:acme__board__soc_c": [],
         "//conditions:default": ["-DSOC_DEFAULT"],
     }),
     implementation_deps = select({
-        "//build/bazel/product_variables:acme__board__soc_a": ["//foo/bar:soc_a_dep"],
-        "//build/bazel/product_variables:acme__board__soc_b": ["//foo/bar:soc_b_dep"],
-        "//build/bazel/product_variables:acme__board__soc_c": [],
+        "//build/bazel/product_config/config_settings:acme__board__soc_a": ["//foo/bar:soc_a_dep"],
+        "//build/bazel/product_config/config_settings:acme__board__soc_b": ["//foo/bar:soc_b_dep"],
+        "//build/bazel/product_config/config_settings:acme__board__soc_c": [],
         "//conditions:default": ["//foo/bar:soc_default_static_dep"],
     }),
     local_includes = ["."],
@@ -446,7 +446,7 @@ cc_library_static {
 		ExpectedBazelTargets: []string{`cc_library_static(
     name = "lib",
     copts = select({
-        "//build/bazel/product_variables:vendor_foo__feature": [
+        "//build/bazel/product_config/config_settings:vendor_foo__feature": [
             "-cflag_feature_2",
             "-cflag_feature_1",
         ],
@@ -527,11 +527,11 @@ cc_library_static {
 		ExpectedBazelTargets: []string{`cc_library_static(
     name = "lib",
     asflags = select({
-        "//build/bazel/product_variables:acme__feature": ["-asflag_bar"],
+        "//build/bazel/product_config/config_settings:acme__feature": ["-asflag_bar"],
         "//conditions:default": ["-asflag_default_bar"],
     }),
     copts = select({
-        "//build/bazel/product_variables:acme__feature": [
+        "//build/bazel/product_config/config_settings:acme__feature": [
             "-cflag_foo",
             "-cflag_bar",
         ],
@@ -546,11 +546,11 @@ cc_library_static {
 			`cc_library_static(
     name = "lib2",
     asflags = select({
-        "//build/bazel/product_variables:acme__feature": ["-asflag_bar"],
+        "//build/bazel/product_config/config_settings:acme__feature": ["-asflag_bar"],
         "//conditions:default": ["-asflag_default_bar"],
     }),
     copts = select({
-        "//build/bazel/product_variables:acme__feature": [
+        "//build/bazel/product_config/config_settings:acme__feature": [
             "-cflag_bar",
             "-cflag_foo",
         ],
@@ -643,13 +643,13 @@ cc_library_static {
 		ExpectedBazelTargets: []string{`cc_library_static(
     name = "lib",
     copts = select({
-        "//build/bazel/product_variables:vendor_bar__feature": ["-DVENDOR_BAR_FEATURE"],
+        "//build/bazel/product_config/config_settings:vendor_bar__feature": ["-DVENDOR_BAR_FEATURE"],
         "//conditions:default": ["-DVENDOR_BAR_DEFAULT"],
     }) + select({
-        "//build/bazel/product_variables:vendor_foo__feature": ["-DVENDOR_FOO_FEATURE"],
+        "//build/bazel/product_config/config_settings:vendor_foo__feature": ["-DVENDOR_FOO_FEATURE"],
         "//conditions:default": ["-DVENDOR_FOO_DEFAULT"],
     }) + select({
-        "//build/bazel/product_variables:vendor_qux__feature": ["-DVENDOR_QUX_FEATURE"],
+        "//build/bazel/product_config/config_settings:vendor_qux__feature": ["-DVENDOR_QUX_FEATURE"],
         "//conditions:default": ["-DVENDOR_QUX_DEFAULT"],
     }),
     local_includes = ["."],
@@ -697,7 +697,7 @@ library_linking_strategy_custom {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("custom", "foo", AttrNameToString{
 				"string_literal_prop": `select({
-        "//build/bazel/product_variables:android__library_linking_strategy__prefer_static": "29",
+        "//build/bazel/product_config/config_settings:android__library_linking_strategy__prefer_static": "29",
         "//conditions:default": "30",
     })`,
 			}),
@@ -779,7 +779,7 @@ cc_library { name: "lib_default", bazel_module: { bp2build_available: false } }
 		ExpectedBazelTargets: []string{`cc_binary(
     name = "library_linking_strategy_sample_binary",
     dynamic_deps = select({
-        "//build/bazel/product_variables:android__library_linking_strategy__prefer_static": [],
+        "//build/bazel/product_config/config_settings:android__library_linking_strategy__prefer_static": [],
         "//conditions:default": [
             "//foo/bar:lib_b",
             "//foo/bar:lib_a",
@@ -868,7 +868,7 @@ cc_library { name: "lib_c", bazel_module: { bp2build_available: false } }
 		ExpectedBazelTargets: []string{
 			MakeBazelTargetNoRestrictions("cc_binary", "library_linking_strategy_sample_binary", AttrNameToString{
 				"dynamic_deps": `select({
-        "//build/bazel/product_variables:android__library_linking_strategy__prefer_static": [],
+        "//build/bazel/product_config/config_settings:android__library_linking_strategy__prefer_static": [],
         "//conditions:default": [
             "//foo/bar:lib_b",
             "//foo/bar:lib_c",
@@ -877,7 +877,7 @@ cc_library { name: "lib_c", bazel_module: { bp2build_available: false } }
 			}),
 			MakeBazelTargetNoRestrictions("cc_binary", "library_linking_strategy_sample_binary_with_excludes", AttrNameToString{
 				"dynamic_deps": `select({
-        "//build/bazel/product_variables:android__library_linking_strategy__prefer_static": [],
+        "//build/bazel/product_config/config_settings:android__library_linking_strategy__prefer_static": [],
         "//conditions:default": ["//foo/bar:lib_b"],
     })`,
 			}),
@@ -965,14 +965,14 @@ cc_library { name: "lib_default", bazel_module: { bp2build_available: false } }
 		ExpectedBazelTargets: []string{`cc_binary(
     name = "library_linking_strategy_sample_binary",
     deps = select({
-        "//build/bazel/product_variables:android__library_linking_strategy__prefer_static": [
+        "//build/bazel/product_config/config_settings:android__library_linking_strategy__prefer_static": [
             "//foo/bar:lib_b_bp2build_cc_library_static",
             "//foo/bar:lib_a_bp2build_cc_library_static",
         ],
         "//conditions:default": [],
     }),
     dynamic_deps = select({
-        "//build/bazel/product_variables:android__library_linking_strategy__prefer_static": [],
+        "//build/bazel/product_config/config_settings:android__library_linking_strategy__prefer_static": [],
         "//conditions:default": [
             "//foo/bar:lib_b",
             "//foo/bar:lib_a",
@@ -1046,14 +1046,14 @@ cc_library { name: "lib_b", bazel_module: { bp2build_available: false } }
 		ExpectedBazelTargets: []string{`cc_binary(
     name = "library_linking_strategy_sample_binary",
     deps = select({
-        "//build/bazel/product_variables:android__library_linking_strategy__prefer_static": [
+        "//build/bazel/product_config/config_settings:android__library_linking_strategy__prefer_static": [
             "//foo/bar:lib_a_bp2build_cc_library_static",
             "//foo/bar:lib_b_bp2build_cc_library_static",
         ],
         "//conditions:default": [],
     }),
     dynamic_deps = select({
-        "//build/bazel/product_variables:android__library_linking_strategy__prefer_static": [],
+        "//build/bazel/product_config/config_settings:android__library_linking_strategy__prefer_static": [],
         "//conditions:default": [
             "//foo/bar:lib_a",
             "//foo/bar:lib_b",
@@ -1134,13 +1134,13 @@ cc_library { name: "lib_default", bazel_module: { bp2build_available: false } }
 		ExpectedBazelTargets: []string{`cc_binary(
     name = "alphabet_binary",
     deps = select({
-        "//build/bazel/product_variables:android__alphabet__a": [],
-        "//build/bazel/product_variables:android__alphabet__b": [],
+        "//build/bazel/product_config/config_settings:android__alphabet__a": [],
+        "//build/bazel/product_config/config_settings:android__alphabet__b": [],
         "//conditions:default": ["//foo/bar:lib_default_bp2build_cc_library_static"],
     }),
     dynamic_deps = select({
-        "//build/bazel/product_variables:android__alphabet__a": ["//foo/bar:lib_a"],
-        "//build/bazel/product_variables:android__alphabet__b": ["//foo/bar:lib_b"],
+        "//build/bazel/product_config/config_settings:android__alphabet__a": ["//foo/bar:lib_a"],
+        "//build/bazel/product_config/config_settings:android__alphabet__b": ["//foo/bar:lib_b"],
         "//conditions:default": [],
     }),
     local_includes = ["."],
@@ -1199,7 +1199,7 @@ cc_binary {
     name = "alphabet_binary",
     local_includes = ["."],
     srcs = ["main.cc"],
-    target_compatible_with = ["//build/bazel/product_variables:alphabet_module__special_build"] + select({
+    target_compatible_with = select({
         "//build/bazel/platforms/os_arch:android_x86_64": ["@platforms//:incompatible"],
         "//build/bazel/platforms/os_arch:darwin_arm64": ["@platforms//:incompatible"],
         "//build/bazel/platforms/os_arch:darwin_x86_64": ["@platforms//:incompatible"],
@@ -1208,6 +1208,9 @@ cc_binary {
         "//build/bazel/platforms/os_arch:linux_musl_x86_64": ["@platforms//:incompatible"],
         "//build/bazel/platforms/os_arch:windows_x86_64": ["@platforms//:incompatible"],
         "//conditions:default": [],
+    }) + select({
+        "//build/bazel/product_config/config_settings:alphabet_module__special_build": [],
+        "//conditions:default": ["@platforms//:incompatible"],
     }),
 )`}})
 }
@@ -1252,7 +1255,10 @@ cc_binary {
     name = "alphabet_binary",
     local_includes = ["."],
     srcs = ["main.cc"],
-    target_compatible_with = ["//build/bazel/product_variables:alphabet_module__special_build"],
+    target_compatible_with = select({
+        "//build/bazel/product_config/config_settings:alphabet_module__special_build": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
 )`}})
 }
 
@@ -1389,16 +1395,16 @@ cc_binary {
         "//build/bazel/platforms/os:android": ["-DFOO"],
         "//conditions:default": [],
     }) + select({
-        "//build/bazel/product_variables:my_namespace__my_bool_variable__android": ["-DBAR"],
-        "//build/bazel/product_variables:my_namespace__my_bool_variable__conditions_default__android": ["-DBAZ"],
+        "//build/bazel/product_config/config_settings:my_namespace__my_bool_variable__android": ["-DBAR"],
+        "//build/bazel/product_config/config_settings:my_namespace__my_bool_variable__conditions_default__android": ["-DBAZ"],
         "//conditions:default": [],
     }) + select({
-        "//build/bazel/product_variables:my_namespace__my_string_variable__value1": ["-DVALUE1_NOT_ANDROID"],
+        "//build/bazel/product_config/config_settings:my_namespace__my_string_variable__value1": ["-DVALUE1_NOT_ANDROID"],
         "//conditions:default": [],
     }) + select({
-        "//build/bazel/product_variables:my_namespace__my_string_variable__conditions_default__android": ["-DSTRING_VAR_CONDITIONS_DEFAULT"],
-        "//build/bazel/product_variables:my_namespace__my_string_variable__value1__android": ["-DVALUE1"],
-        "//build/bazel/product_variables:my_namespace__my_string_variable__value2__android": ["-DVALUE2"],
+        "//build/bazel/product_config/config_settings:my_namespace__my_string_variable__conditions_default__android": ["-DSTRING_VAR_CONDITIONS_DEFAULT"],
+        "//build/bazel/product_config/config_settings:my_namespace__my_string_variable__value1__android": ["-DVALUE1"],
+        "//build/bazel/product_config/config_settings:my_namespace__my_string_variable__value2__android": ["-DVALUE2"],
         "//conditions:default": [],
     }),
     local_includes = ["."],
