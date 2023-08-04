@@ -480,6 +480,32 @@ var (
 	}
 
 	Bp2buildModuleAlwaysConvertList = []string{
+		// ext
+		"tagsoup",
+
+		// framework-res
+		"remote-color-resources-compile-public",
+		"remote-color-resources-compile-colors",
+
+		// framework-minus-apex
+		"android.mime.types.minimized",
+		"debian.mime.types.minimized",
+		"framework-javastream-protos",
+		"libview-inspector-annotation-processor",
+
+		// services
+		"apache-commons-math",
+		"cbor-java",
+		"icu4j_calendar_astronomer",
+		"json",
+		"remote-color-resources-compile-public",
+		"statslog-art-java-gen",
+		"statslog-framework-java-gen",
+
+		"AndroidCommonLint",
+		"ImmutabilityAnnotation",
+		"ImmutabilityAnnotationProcessorHostLibrary",
+
 		"libidmap2_policies",
 		"libSurfaceFlingerProp",
 		"toolbox_input_labels",
