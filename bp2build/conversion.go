@@ -1,7 +1,6 @@
 package bp2build
 
 import (
-	"android/soong/starlark_fmt"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -9,11 +8,11 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/apex"
 	"android/soong/cc"
 	cc_config "android/soong/cc/config"
 	java_config "android/soong/java/config"
-
-	"android/soong/apex"
+	"android/soong/starlark_fmt"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -105,12 +104,7 @@ platform_versions = struct(
 `, starlark_fmt.PrintBool(cfg.PlatformSdkFinal()), platformSdkVersion, cfg.PlatformSdkCodename(), strings.Join(platformVersionActiveCodenames, ", "))
 }
 
-func CreateBazelFiles(
-	cfg android.Config,
-	ruleShims map[string]RuleShim,
-	buildToTargets map[string]BazelTargets,
-	mode CodegenMode) []BazelFile {
-
+func CreateBazelFiles(ruleShims map[string]RuleShim, buildToTargets map[string]BazelTargets, mode CodegenMode) []BazelFile {
 	var files []BazelFile
 
 	if mode == QueryView {
