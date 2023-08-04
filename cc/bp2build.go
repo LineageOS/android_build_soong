@@ -48,6 +48,8 @@ const (
 
 	genrulePartition = "genrule"
 
+	protoFromGenPartition = "proto_gen"
+
 	hdrPartition = "hdr"
 
 	stubsSuffix = "_stub_libs_current"
@@ -126,6 +128,41 @@ func (m *Module) convertTidyAttributes(ctx android.BaseMutatorContext, moduleAtt
 	}
 }
 
+// Returns an unchanged label and a bool indicating whether the dep is a genrule that produces .proto files
+func protoFromGenPartitionMapper(pathCtx android.BazelConversionContext) bazel.LabelMapper {
+	return func(ctx bazel.OtherModuleContext, label bazel.Label) (string, bool) {
+		mod, exists := ctx.ModuleFromName(label.OriginalModuleName)
+		if !exists {
+			return label.Label, false
+		}
+		gen, isGen := mod.(*genrule.Module)
+		if !isGen {
+			return label.Label, false
+		}
+		if containsProto(ctx, gen.RawOutputFiles(pathCtx)) {
+			// Return unmodified label + true
+			// True will ensure that this module gets dropped from `srcs` of the generated cc_* target. `srcs` is reserved for .cpp files
+			return label.Label, true
+		}
+		return label.Label, false
+	}
+}
+
+// Returns true if srcs contains only .proto files
+// Raises an exception if there is a combination of .proto and non .proto srcs
+func containsProto(ctx bazel.OtherModuleContext, srcs []string) bool {
+	onlyProtos := false
+	for _, src := range srcs {
+		if strings.HasSuffix(src, ".proto") {
+			onlyProtos = true
+		} else if onlyProtos {
+			// This is not a proto file, and we have encountered a .proto file previously
+			ctx.ModuleErrorf("TOOD: Add bp2build support combination of .proto and non .proto files in outs of genrule")
+		}
+	}
+	return onlyProtos
+}
+
 // groupSrcsByExtension partitions `srcs` into groups based on file extension.
 func groupSrcsByExtension(ctx android.BazelConversionPathContext, srcs bazel.LabelListAttribute) bazel.PartitionToLabelListAttribute {
 	// Convert filegroup dependencies into extension-specific filegroups filtered in the filegroup.bzl
@@ -159,10 +196,11 @@ func groupSrcsByExtension(ctx android.BazelConversionPathContext, srcs bazel.Lab
 		// 		contains .l or .ll files we will need to find a way to add a
 		// 		LabelMapper for these that identifies these filegroups and
 		//		converts them appropriately
-		lSrcPartition:       bazel.LabelPartition{Extensions: []string{".l"}},
-		llSrcPartition:      bazel.LabelPartition{Extensions: []string{".ll"}},
-		rScriptSrcPartition: bazel.LabelPartition{Extensions: []string{".fs", ".rscript"}},
-		xsdSrcPartition:     bazel.LabelPartition{LabelMapper: android.XsdLabelMapper(xsdConfigCppTarget)},
+		lSrcPartition:         bazel.LabelPartition{Extensions: []string{".l"}},
+		llSrcPartition:        bazel.LabelPartition{Extensions: []string{".ll"}},
+		rScriptSrcPartition:   bazel.LabelPartition{Extensions: []string{".fs", ".rscript"}},
+		xsdSrcPartition:       bazel.LabelPartition{LabelMapper: android.XsdLabelMapper(xsdConfigCppTarget)},
+		protoFromGenPartition: bazel.LabelPartition{LabelMapper: protoFromGenPartitionMapper(ctx)},
 		// C++ is the "catch-all" group, and comprises generated sources because we don't
 		// know the language of these sources until the genrule is executed.
 		cppSrcPartition:     bazel.LabelPartition{Extensions: []string{".cpp", ".cc", ".cxx", ".mm"}, LabelMapper: addSuffixForFilegroup("_cpp_srcs"), Keep_remainder: true},
@@ -594,6 +632,7 @@ func (ca *compilerAttributes) finalize(ctx android.BazelConversionPathContext, i
 	partitionedHdrs := partitionHeaders(ctx, exportHdrs)
 
 	ca.protoSrcs = partitionedSrcs[protoSrcPartition]
+	ca.protoSrcs.Append(partitionedSrcs[protoFromGenPartition])
 	ca.aidlSrcs = partitionedSrcs[aidlSrcPartition]
 
 	for p, lla := range partitionedSrcs {
