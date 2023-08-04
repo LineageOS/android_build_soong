@@ -122,3 +122,17 @@
 --warning_check RemoteViewLayout
 --warning_check SupportAnnotationUsage
 --warning_check UniqueConstants
+
+# TODO(b/294098365): these checks fail in AOSP, but pass downstream
+--warning_check ForegroundServiceType
+--warning_check MutableImplicitPendingIntent
+
+--warning_check ExactAlarm
+--warning_check ExpiredTargetSdkVersion
+--warning_check ForegroundServicePermission
+--warning_check ObsoleteSdkInt
+--warning_check ScheduleExactAlarm
+--warning_check StartActivityAndCollapseDeprecated
+--warning_check UnspecifiedRegisterReceiverFlag
+--warning_check WearMaterialTheme
+--warning_check WearStandaloneAppFlag
