@@ -74,6 +74,9 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 		ctx.TopDown("afdo_deps", afdoDepsMutator)
 		ctx.BottomUp("afdo", afdoMutator).Parallel()
 
+		ctx.TopDown("orderfile_deps", orderfileDepsMutator)
+		ctx.BottomUp("orderfile", orderfileMutator).Parallel()
+
 		ctx.TopDown("lto_deps", ltoDepsMutator)
 		ctx.BottomUp("lto", ltoMutator).Parallel()
 
@@ -526,6 +529,7 @@ type ModuleContextIntf interface {
 	getVndkExtendsModuleName() string
 	isAfdoCompile() bool
 	isPgoCompile() bool
+	isOrderfileCompile() bool
 	isCfi() bool
 	isFuzzer() bool
 	isNDKStubLibrary() bool
@@ -885,6 +889,7 @@ type Module struct {
 	lto      *lto
 	afdo     *afdo
 	pgo      *pgo
+	orderfile *orderfile
 
 	library libraryInterface
 
@@ -1259,6 +1264,9 @@ func (c *Module) Init() android.Module {
 	if c.pgo != nil {
 		c.AddProperties(c.pgo.props()...)
 	}
+	if c.orderfile != nil {
+		c.AddProperties(c.orderfile.props()...)
+	}
 	for _, feature := range c.features {
 		c.AddProperties(feature.props()...)
 	}
@@ -1388,6 +1396,13 @@ func (c *Module) isAfdoCompile() bool {
 func (c *Module) isPgoCompile() bool {
 	if pgo := c.pgo; pgo != nil {
 		return pgo.Properties.PgoCompile
+	}
+	return false
+}
+
+func (c *Module) isOrderfileCompile() bool {
+	if orderfile := c.orderfile; orderfile != nil {
+		return orderfile.Properties.OrderfileLoad
 	}
 	return false
 }
@@ -1697,6 +1712,10 @@ func (ctx *moduleContextImpl) isPgoCompile() bool {
 	return ctx.mod.isPgoCompile()
 }
 
+func (ctx *moduleContextImpl) isOrderfileCompile() bool {
+	return ctx.mod.isOrderfileCompile()
+}
+
 func (ctx *moduleContextImpl) isCfi() bool {
 	return ctx.mod.isCfi()
 }
@@ -1806,6 +1825,7 @@ func newModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Mo
 	module.lto = &lto{}
 	module.afdo = &afdo{}
 	module.pgo = &pgo{}
+	module.orderfile = &orderfile{}
 	return module
 }
 
@@ -2234,6 +2254,9 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	if c.pgo != nil {
 		flags = c.pgo.flags(ctx, flags)
 	}
+	if c.orderfile != nil {
+		flags = c.orderfile.flags(ctx, flags)
+	}
 	for _, feature := range c.features {
 		flags = feature.flags(ctx, flags)
 	}
@@ -2375,6 +2398,9 @@ func (c *Module) begin(ctx BaseModuleContext) {
 	}
 	if c.lto != nil {
 		c.lto.begin(ctx)
+	}
+	if c.orderfile != nil {
+		c.orderfile.begin(ctx)
 	}
 	if c.pgo != nil {
 		c.pgo.begin(ctx)
@@ -4284,6 +4310,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&LTOProperties{},
 		&AfdoProperties{},
 		&PgoProperties{},
+		&OrderfileProperties{},
 		&android.ProtoProperties{},
 		// RustBindgenProperties is included here so that cc_defaults can be used for rust_bindgen modules.
 		&RustBindgenClangProperties{},
