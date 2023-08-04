@@ -2434,8 +2434,14 @@ cc_library {
 			}), MakeBazelTarget("cc_library_shared", "a", AttrNameToString{
 				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
 				"whole_archive_deps": `[":a_cc_proto_lite"]`,
-			}), MakeBazelTargetNoRestrictions("proto_library", "a_fg_proto_bp2build_converted", AttrNameToString{
+			}), MakeBazelTargetNoRestrictions("proto_library", "a_fg_proto_proto", AttrNameToString{
 				"srcs": `["a_fg.proto"]`,
+				"tags": `[
+        "apex_available=//apex_available:anyapex",
+        "manual",
+    ]`,
+			}), MakeBazelTargetNoRestrictions("alias", "a_fg_proto_bp2build_converted", AttrNameToString{
+				"actual": `"//.:a_fg_proto_proto"`,
 				"tags": `[
         "apex_available=//apex_available:anyapex",
         "manual",
@@ -2476,8 +2482,14 @@ cc_library {
 			}), MakeBazelTarget("cc_library_shared", "a", AttrNameToString{
 				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
 				"whole_archive_deps": `[":a_cc_proto_lite"]`,
-			}), MakeBazelTargetNoRestrictions("proto_library", "a_fg_proto_bp2build_converted", AttrNameToString{
+			}), MakeBazelTargetNoRestrictions("proto_library", "a_fg_proto_proto", AttrNameToString{
 				"srcs": `["a_fg.proto"]`,
+				"tags": `[
+        "apex_available=//apex_available:anyapex",
+        "manual",
+    ]`,
+			}), MakeBazelTargetNoRestrictions("alias", "a_fg_proto_bp2build_converted", AttrNameToString{
+				"actual": `"//.:a_fg_proto_proto"`,
 				"tags": `[
         "apex_available=//apex_available:anyapex",
         "manual",
