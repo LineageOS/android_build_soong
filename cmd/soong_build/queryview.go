@@ -15,7 +15,6 @@
 package main
 
 import (
-	"android/soong/starlark_import"
 	"io/fs"
 	"io/ioutil"
 	"os"
@@ -23,6 +22,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/bp2build"
+	"android/soong/starlark_import"
 )
 
 // A helper function to generate a Read-only Bazel workspace in outDir
@@ -35,8 +35,7 @@ func createBazelWorkspace(ctx *bp2build.CodegenContext, outDir string, generateF
 		panic(err)
 	}
 
-	filesToWrite := bp2build.CreateBazelFiles(ctx.Config(), ruleShims, res.BuildDirToTargets(),
-		ctx.Mode())
+	filesToWrite := bp2build.CreateBazelFiles(ruleShims, res.BuildDirToTargets(), ctx.Mode())
 	bazelRcFiles, err2 := CopyBazelRcFiles()
 	if err2 != nil {
 		return err2

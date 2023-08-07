@@ -199,7 +199,7 @@ func TestGenerateSoongModuleBzl(t *testing.T) {
 			content: "irrelevant",
 		},
 	}
-	files := CreateBazelFiles(android.NullConfig("out", "out/soong"), ruleShims, make(map[string]BazelTargets), QueryView)
+	files := CreateBazelFiles(ruleShims, make(map[string]BazelTargets), QueryView)
 
 	var actualSoongModuleBzl BazelFile
 	for _, f := range files {
