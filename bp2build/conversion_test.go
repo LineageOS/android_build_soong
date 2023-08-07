@@ -27,8 +27,7 @@ type bazelFilepath struct {
 }
 
 func TestCreateBazelFiles_QueryView_AddsTopLevelFiles(t *testing.T) {
-	files := CreateBazelFiles(android.NullConfig("out", "out/soong"),
-		map[string]RuleShim{}, map[string]BazelTargets{}, QueryView)
+	files := CreateBazelFiles(map[string]RuleShim{}, map[string]BazelTargets{}, QueryView)
 	expectedFilePaths := []bazelFilepath{
 		{
 			dir:      "",
