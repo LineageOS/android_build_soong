@@ -1520,3 +1520,58 @@ special_cc_defaults {
 		runSoongConfigModuleTypeTest(t, bp2buildTestCase)
 	}
 }
+
+func TestNoPanicIfEnabledIsNotUsed(t *testing.T) {
+	bp := `
+soong_config_string_variable {
+	name: "my_string_variable",
+	values: ["val1", "val2"],
+}
+soong_config_module_type {
+	name: "special_cc_defaults",
+	module_type: "cc_defaults",
+	config_namespace: "my_namespace",
+	variables: ["my_string_variable"],
+	properties: [
+		"cflags",
+		"enabled",
+	],
+}
+special_cc_defaults {
+	name: "my_special_cc_defaults",
+	soong_config_variables: {
+		my_string_variable: {
+			val1: {
+				cflags: ["-DFOO"],
+			},
+			val2: {
+				cflags: ["-DBAR"],
+			},
+		},
+	},
+}
+cc_binary {
+	name: "my_binary",
+	enabled: false,
+	defaults: ["my_special_cc_defaults"],
+}
+`
+	tc := Bp2buildTestCase{
+		Description:                "Soong config vars is not used to set `enabled` property",
+		ModuleTypeUnderTest:        "cc_binary",
+		ModuleTypeUnderTestFactory: cc.BinaryFactory,
+		Blueprint:                  bp,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_binary", "my_binary", AttrNameToString{
+				"copts": `select({
+        "//build/bazel/product_config/config_settings:my_namespace__my_string_variable__val1": ["-DFOO"],
+        "//build/bazel/product_config/config_settings:my_namespace__my_string_variable__val2": ["-DBAR"],
+        "//conditions:default": [],
+    })`,
+				"local_includes":         `["."]`,
+				"target_compatible_with": `["@platforms//:incompatible"]`,
+			}),
+		},
+	}
+	runSoongConfigModuleTypeTest(t, tc)
+}

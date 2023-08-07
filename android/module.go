@@ -1434,7 +1434,10 @@ func productVariableConfigEnableAttribute(ctx *topDownMutatorContext) bazel.Labe
 				ctx.ModuleErrorf("Could not convert product variable enabled property")
 			}
 
-			if *flag {
+			if flag == nil {
+				// soong config var is not used to set `enabled`. nothing to do.
+				continue
+			} else if *flag {
 				axis := productConfigProp.ConfigurationAxis()
 				result.SetSelectValue(axis, bazel.ConditionsDefaultConfigKey, bazel.MakeLabelList([]bazel.Label{{Label: "@platforms//:incompatible"}}))
 				result.SetSelectValue(axis, productConfigProp.SelectKey(), bazel.LabelList{Includes: []bazel.Label{}})
