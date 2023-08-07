@@ -15,7 +15,6 @@
 package bp2build
 
 import (
-	"android/soong/starlark_import"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -24,6 +23,7 @@ import (
 	"android/soong/android"
 	"android/soong/bazel"
 	"android/soong/shared"
+	"android/soong/starlark_import"
 )
 
 func deleteFilesExcept(ctx *CodegenContext, rootOutputPath android.OutputPath, except []BazelFile) {
@@ -67,6 +67,8 @@ func deleteFilesExcept(ctx *CodegenContext, rootOutputPath android.OutputPath, e
 // writing .bzl files that are equivalent to Android.bp files that are capable
 // of being built with Bazel.
 func Codegen(ctx *CodegenContext) *CodegenMetrics {
+	ctx.Context().BeginEvent("Codegen")
+	defer ctx.Context().EndEvent("Codegen")
 	// This directory stores BUILD files that could be eventually checked-in.
 	bp2buildDir := android.PathForOutput(ctx, "bp2build")
 
@@ -79,7 +81,10 @@ func Codegen(ctx *CodegenContext) *CodegenMetrics {
 		fmt.Printf("ERROR: Encountered %d error(s): \nERROR: %s", len(errs), strings.Join(errMsgs, "\n"))
 		os.Exit(1)
 	}
-	bp2buildFiles := CreateBazelFiles(ctx.Config(), nil, res.buildFileToTargets, ctx.mode)
+	var bp2buildFiles []BazelFile
+	ctx.Context().EventHandler.Do("CreateBazelFile", func() {
+		bp2buildFiles = CreateBazelFiles(ctx.Config(), nil, res.buildFileToTargets, ctx.mode)
+	})
 	injectionFiles, additionalBp2buildFiles, err := CreateSoongInjectionDirFiles(ctx, res.metrics)
 	if err != nil {
 		fmt.Printf("%s\n", err.Error())

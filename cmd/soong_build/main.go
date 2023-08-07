@@ -814,9 +814,7 @@ func runBp2Build(ctx *android.Context, extraNinjaDeps []string, metricsDir strin
 		// Run the code-generation phase to convert BazelTargetModules to BUILD files
 		// and print conversion codegenMetrics to the user.
 		codegenContext := bp2build.NewCodegenContext(ctx.Config(), ctx, bp2build.Bp2Build, topDir)
-		ctx.EventHandler.Do("codegen", func() {
-			codegenMetrics = bp2build.Codegen(codegenContext)
-		})
+		codegenMetrics = bp2build.Codegen(codegenContext)
 
 		ninjaDeps = append(ninjaDeps, codegenContext.AdditionalNinjaDeps()...)
 
