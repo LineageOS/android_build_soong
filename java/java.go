@@ -2905,6 +2905,11 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 	var deps bazel.LabelListAttribute
 	var staticDeps bazel.LabelListAttribute
 
+	if proptools.String(m.deviceProperties.Sdk_version) == "" && m.DeviceSupported() {
+		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_PROPERTY_UNSUPPORTED, "sdk_version unset")
+		return &javaCommonAttributes{}, &bp2BuildJavaInfo{}, false
+	}
+
 	archVariantProps := m.GetArchVariantProperties(ctx, &CommonProperties{})
 	for axis, configToProps := range archVariantProps {
 		for config, _props := range configToProps {

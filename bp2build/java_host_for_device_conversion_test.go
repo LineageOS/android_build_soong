@@ -48,6 +48,7 @@ java_library {
     name: "java-lib-2",
     srcs: ["b.java"],
     bazel_module: { bp2build_available: true },
+    sdk_version: "current",
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("java_host_for_device", "java-lib-1", AttrNameToString{
@@ -57,7 +58,8 @@ java_library {
 				"sdk_version": `"none"`,
 			}),
 			MakeBazelTarget("java_library", "java-lib-2", AttrNameToString{
-				"srcs": `["b.java"]`,
+				"srcs":        `["b.java"]`,
+				"sdk_version": `"current"`,
 			}),
 			MakeNeverlinkDuplicateTarget("java_library", "java-lib-2"),
 		},

@@ -37,19 +37,19 @@ func TestConvertAndroidLibrary(t *testing.T) {
 		},
 		Blueprint: simpleModuleDoNotConvertBp2build("android_library", "static_lib_dep") + `
 android_library {
-        name: "TestLib",
-        srcs: ["lib.java"],
-        arch: {
-			arm: {
-				srcs: ["arm.java"],
-			},
-			x86: {
-				srcs: ["x86.java"],
-			}
+	name: "TestLib",
+	srcs: ["lib.java"],
+	arch: {
+		arm: {
+			srcs: ["arm.java"],
 		},
-        manifest: "manifest/AndroidManifest.xml",
-        static_libs: ["static_lib_dep"],
-        java_version: "7",
+		x86: {
+			srcs: ["x86.java"],
+		}
+	},
+	manifest: "manifest/AndroidManifest.xml",
+	static_libs: ["static_lib_dep"],
+	sdk_version: "current",
 }
 `,
 		ExpectedBazelTargets: []string{
@@ -66,12 +66,9 @@ android_library {
 					"resource_files": `["res/res.png"]`,
 					"deps":           `[":static_lib_dep"]`,
 					"exports":        `[":static_lib_dep"]`,
-					"java_version":   `"7"`,
+					"sdk_version":    `"current"`, // use as default
 				}),
-			MakeNeverlinkDuplicateTargetWithAttrs(
-				"android_library",
-				"TestLib",
-				AttrNameToString{"java_version": `"7"`}),
+			MakeNeverlinkDuplicateTarget("android_library", "TestLib"),
 		}})
 }
 
@@ -87,10 +84,11 @@ func TestConvertAndroidLibraryWithNoSources(t *testing.T) {
 		},
 		Blueprint: simpleModuleDoNotConvertBp2build("android_library", "lib_dep") + `
 android_library {
-        name: "TestLib",
-        srcs: [],
-        manifest: "AndroidManifest.xml",
-        libs: ["lib_dep"],
+	name: "TestLib",
+	srcs: [],
+	manifest: "AndroidManifest.xml",
+	libs: ["lib_dep"],
+	sdk_version: "current",
 }
 `,
 		ExpectedErr:          fmt.Errorf("Module has direct dependencies but no sources. Bazel will not allow this."),
@@ -121,6 +119,7 @@ android_library_import {
         name: "TestImport",
         aars: ["import.aar"],
         static_libs: ["static_lib_dep", "static_import_dep"],
+    sdk_version: "current",
 }
 `,
 			ExpectedBazelTargets: []string{
@@ -133,7 +132,8 @@ android_library_import {
         ":static_lib_dep",
         ":static_import_dep",
     ]`,
-						"exports": `[":static_import_dep"]`,
+						"exports":     `[":static_import_dep"]`,
+						"sdk_version": `"current"`, // use as default
 					},
 				),
 				MakeNeverlinkDuplicateTarget("android_library", "TestImport"),
@@ -153,9 +153,10 @@ func TestConvertAndroidLibraryKotlin(t *testing.T) {
 		},
 		Blueprint: `
 android_library {
-        name: "TestLib",
-        srcs: ["a.java", "b.kt"],
-        common_srcs: ["c.kt"],
+	name: "TestLib",
+	srcs: ["a.java", "b.kt"],
+	common_srcs: ["c.kt"],
+	sdk_version: "current",
 }
 `,
 		ExpectedBazelTargets: []string{
@@ -170,6 +171,7 @@ android_library {
 					"common_srcs":    `["c.kt"]`,
 					"manifest":       `"AndroidManifest.xml"`,
 					"resource_files": `[]`,
+					"sdk_version":    `"current"`, // use as default
 				}),
 			MakeNeverlinkDuplicateTarget("android_library", "TestLib"),
 		}})
@@ -186,9 +188,10 @@ func TestConvertAndroidLibraryKotlinCflags(t *testing.T) {
 		},
 		Blueprint: `
 android_library {
-        name: "TestLib",
-        srcs: ["a.java", "b.kt"],
-        kotlincflags: ["-flag1", "-flag2"],
+	name: "TestLib",
+	srcs: ["a.java", "b.kt"],
+	kotlincflags: ["-flag1", "-flag2"],
+	sdk_version: "current",
 }
 `,
 		ExpectedBazelTargets: []string{
@@ -206,6 +209,7 @@ android_library {
     ]`,
 					"manifest":       `"AndroidManifest.xml"`,
 					"resource_files": `[]`,
+					"sdk_version":    `"current"`, // use as default
 				}),
 			MakeNeverlinkDuplicateTarget("android_library", "TestLib"),
 		}})
