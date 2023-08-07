@@ -83,7 +83,7 @@ func Codegen(ctx *CodegenContext) *CodegenMetrics {
 	}
 	var bp2buildFiles []BazelFile
 	ctx.Context().EventHandler.Do("CreateBazelFile", func() {
-		bp2buildFiles = CreateBazelFiles(ctx.Config(), nil, res.buildFileToTargets, ctx.mode)
+		bp2buildFiles = CreateBazelFiles(nil, res.buildFileToTargets, ctx.mode)
 	})
 	injectionFiles, additionalBp2buildFiles, err := CreateSoongInjectionDirFiles(ctx, res.metrics)
 	if err != nil {
