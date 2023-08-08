@@ -336,6 +336,8 @@ type customProps struct {
 	Api *string // File describing the APIs of this module
 
 	Test_config_setting *bool // Used to test generation of config_setting targets
+
+	Dir *string // Dir in which the Bazel Target will be created
 }
 
 type customModule struct {
@@ -461,6 +463,10 @@ type customBazelModuleAttributes struct {
 	Api                 bazel.LabelAttribute
 }
 
+func (m *customModule) dir() *string {
+	return m.props.Dir
+}
+
 func (m *customModule) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	if p := m.props.One_to_many_prop; p != nil && *p {
 		customBp2buildOneToMany(ctx, m)
@@ -508,7 +514,7 @@ func (m *customModule) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		Rule_class: "custom",
 	}
 
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name(), Dir: m.dir()}, attrs)
 
 	if proptools.Bool(m.props.Test_config_setting) {
 		m.createConfigSetting(ctx)
