@@ -378,13 +378,12 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext android.SdkCon
 	}
 
 	packageRes := android.PathForModuleOut(ctx, "package-res.apk")
-	// the subdir "android" is required to be filtered by package names
-	srcJar := android.PathForModuleGen(ctx, "android", "R.srcjar")
 	proguardOptionsFile := android.PathForModuleGen(ctx, "proguard.options")
 	rTxt := android.PathForModuleOut(ctx, "R.txt")
 	// This file isn't used by Soong, but is generated for exporting
 	extraPackages := android.PathForModuleOut(ctx, "extra_packages")
 	var transitiveRJars android.Paths
+	var srcJar android.WritablePath
 
 	var compiledResDirs []android.Paths
 	for _, dir := range resDirs {
@@ -461,15 +460,19 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext android.SdkCon
 		})
 	}
 
+	if !a.useResourceProcessorBusyBox() {
+		// the subdir "android" is required to be filtered by package names
+		srcJar = android.PathForModuleGen(ctx, "android", "R.srcjar")
+	}
+
 	// No need to specify assets from dependencies to aapt2Link for libraries, all transitive assets will be
 	// provided to the final app aapt2Link step.
 	var transitiveAssets android.Paths
 	if !a.isLibrary {
 		transitiveAssets = android.ReverseSliceInPlace(staticDeps.assets())
 	}
-	aapt2Link(ctx, packageRes, srcJar, proguardOptionsFile, rTxt, extraPackages,
+	aapt2Link(ctx, packageRes, srcJar, proguardOptionsFile, rTxt,
 		linkFlags, linkDeps, compiledRes, compiledOverlay, transitiveAssets, splitPackages)
-
 	// Extract assets from the resource package output so that they can be used later in aapt2link
 	// for modules that depend on this one.
 	if android.PrefixInList(linkFlags, "-A ") {
@@ -486,8 +489,11 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext android.SdkCon
 	if a.useResourceProcessorBusyBox() {
 		rJar := android.PathForModuleOut(ctx, "busybox/R.jar")
 		resourceProcessorBusyBoxGenerateBinaryR(ctx, rTxt, a.mergedManifestFile, rJar, staticDeps, a.isLibrary)
+		aapt2ExtractExtraPackages(ctx, extraPackages, rJar)
 		transitiveRJars = append(transitiveRJars, rJar)
 		a.rJar = rJar
+	} else {
+		aapt2ExtractExtraPackages(ctx, extraPackages, srcJar)
 	}
 
 	a.aaptSrcJar = srcJar
@@ -733,9 +739,10 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 
 	ctx.CheckbuildFile(a.aapt.proguardOptionsFile)
 	ctx.CheckbuildFile(a.aapt.exportPackage)
-	ctx.CheckbuildFile(a.aapt.aaptSrcJar)
 	if a.useResourceProcessorBusyBox() {
 		ctx.CheckbuildFile(a.aapt.rJar)
+	} else {
+		ctx.CheckbuildFile(a.aapt.aaptSrcJar)
 	}
 
 	// apps manifests are handled by aapt, don't let Module see them
@@ -1065,8 +1072,6 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	aapt2CompileZip(ctx, flata, a.aarPath, "res", compileFlags)
 
 	a.exportPackage = android.PathForModuleOut(ctx, "package-res.apk")
-	// the subdir "android" is required to be filtered by package names
-	srcJar := android.PathForModuleGen(ctx, "android", "R.srcjar")
 	proguardOptionsFile := android.PathForModuleGen(ctx, "proguard.options")
 	a.rTxt = android.PathForModuleOut(ctx, "R.txt")
 	a.extraAaptPackagesFile = android.PathForModuleOut(ctx, "extra_packages")
@@ -1102,11 +1107,13 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	transitiveAssets := android.ReverseSliceInPlace(staticDeps.assets())
-	aapt2Link(ctx, a.exportPackage, srcJar, proguardOptionsFile, a.rTxt, a.extraAaptPackagesFile,
+	aapt2Link(ctx, a.exportPackage, nil, proguardOptionsFile, a.rTxt,
 		linkFlags, linkDeps, nil, overlayRes, transitiveAssets, nil)
 
 	a.rJar = android.PathForModuleOut(ctx, "busybox/R.jar")
 	resourceProcessorBusyBoxGenerateBinaryR(ctx, a.rTxt, a.manifest, a.rJar, nil, true)
+
+	aapt2ExtractExtraPackages(ctx, a.extraAaptPackagesFile, a.rJar)
 
 	resourcesNodesDepSetBuilder := android.NewDepSetBuilder[*resourcesNode](android.TOPOLOGICAL)
 	resourcesNodesDepSetBuilder.Direct(&resourcesNode{
