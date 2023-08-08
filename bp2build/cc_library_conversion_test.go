@@ -2434,8 +2434,14 @@ cc_library {
 			}), MakeBazelTarget("cc_library_shared", "a", AttrNameToString{
 				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
 				"whole_archive_deps": `[":a_cc_proto_lite"]`,
-			}), MakeBazelTargetNoRestrictions("proto_library", "a_fg_proto_bp2build_converted", AttrNameToString{
+			}), MakeBazelTargetNoRestrictions("proto_library", "a_fg_proto_proto", AttrNameToString{
 				"srcs": `["a_fg.proto"]`,
+				"tags": `[
+        "apex_available=//apex_available:anyapex",
+        "manual",
+    ]`,
+			}), MakeBazelTargetNoRestrictions("alias", "a_fg_proto_bp2build_converted", AttrNameToString{
+				"actual": `"//.:a_fg_proto_proto"`,
 				"tags": `[
         "apex_available=//apex_available:anyapex",
         "manual",
@@ -2476,8 +2482,14 @@ cc_library {
 			}), MakeBazelTarget("cc_library_shared", "a", AttrNameToString{
 				"dynamic_deps":       `[":libprotobuf-cpp-lite"]`,
 				"whole_archive_deps": `[":a_cc_proto_lite"]`,
-			}), MakeBazelTargetNoRestrictions("proto_library", "a_fg_proto_bp2build_converted", AttrNameToString{
+			}), MakeBazelTargetNoRestrictions("proto_library", "a_fg_proto_proto", AttrNameToString{
 				"srcs": `["a_fg.proto"]`,
+				"tags": `[
+        "apex_available=//apex_available:anyapex",
+        "manual",
+    ]`,
+			}), MakeBazelTargetNoRestrictions("alias", "a_fg_proto_bp2build_converted", AttrNameToString{
+				"actual": `"//.:a_fg_proto_proto"`,
 				"tags": `[
         "apex_available=//apex_available:anyapex",
         "manual",
@@ -4902,4 +4914,68 @@ cc_library_shared {
 			}),
 		},
 	})
+}
+
+// Bazel enforces that proto_library and the .proto file are in the same bazel package
+func TestGenerateProtoLibraryInSamePackage(t *testing.T) {
+	tc := Bp2buildTestCase{
+		Description:                "cc_library depends on .proto files from multiple packages",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+cc_library_static {
+	name: "foo",
+	srcs: [
+	   "foo.proto",
+	   "bar/bar.proto", // Different package because there is a bar/Android.bp
+	   "baz/subbaz/baz.proto", // Different package because there is baz/subbaz/Android.bp
+	],
+}
+` + simpleModuleDoNotConvertBp2build("cc_library", "libprotobuf-cpp-lite"),
+		Filesystem: map[string]string{
+			"bar/Android.bp":        "",
+			"baz/subbaz/Android.bp": "",
+		},
+	}
+
+	// We will run the test 3 times and check in the root, bar and baz/subbaz directories
+	// Root dir
+	tc.ExpectedBazelTargets = []string{
+		MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+			"local_includes":                    `["."]`,
+			"deps":                              `[":libprotobuf-cpp-lite"]`,
+			"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
+		}),
+		MakeBazelTarget("proto_library", "foo_proto", AttrNameToString{
+			"srcs": `["foo.proto"]`,
+		}),
+		MakeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", AttrNameToString{
+			"deps": `[
+        ":foo_proto",
+        "//bar:foo_proto",
+        "//baz/subbaz:foo_proto",
+    ]`,
+		}),
+	}
+	runCcLibraryTestCase(t, tc)
+
+	// bar dir
+	tc.Dir = "bar"
+	tc.ExpectedBazelTargets = []string{
+		MakeBazelTarget("proto_library", "foo_proto", AttrNameToString{
+			"srcs":          `["//bar:bar.proto"]`,
+			"import_prefix": `"bar"`,
+		}),
+	}
+	runCcLibraryTestCase(t, tc)
+
+	// baz/subbaz dir
+	tc.Dir = "baz/subbaz"
+	tc.ExpectedBazelTargets = []string{
+		MakeBazelTarget("proto_library", "foo_proto", AttrNameToString{
+			"srcs":          `["//baz/subbaz:baz.proto"]`,
+			"import_prefix": `"baz/subbaz"`,
+		}),
+	}
+	runCcLibraryTestCase(t, tc)
 }

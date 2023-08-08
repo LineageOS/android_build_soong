@@ -17,6 +17,7 @@ package android
 import (
 	"android/soong/bazel"
 	"android/soong/ui/metrics/bp2build_metrics_proto"
+	"path/filepath"
 
 	"github.com/google/blueprint"
 )
@@ -757,6 +758,27 @@ func (t *topDownMutatorContext) CreateBazelTargetAliasInDir(
 	mod.base().addBp2buildInfo(info)
 }
 
+// Returns the directory in which the bazel target will be generated
+// If ca.Dir is not nil, use that
+// Otherwise default to the directory of the soong module
+func dirForBazelTargetGeneration(t *topDownMutatorContext, ca *CommonAttributes) string {
+	dir := t.OtherModuleDir(t.Module())
+	if ca.Dir != nil {
+		dir = *ca.Dir
+		// Restrict its use to dirs that contain an Android.bp file.
+		// There are several places in bp2build where we use the existence of Android.bp/BUILD on the filesystem
+		// to curate a compatible label for src files (e.g. headers for cc).
+		// If we arbritrarily create BUILD files, then it might render those curated labels incompatible.
+		if exists, _, _ := t.Config().fs.Exists(filepath.Join(dir, "Android.bp")); !exists {
+			t.ModuleErrorf("Cannot use ca.Dir to create a BazelTarget in dir: %v since it does not contain an Android.bp file", dir)
+		}
+
+		// Set ca.Dir to nil so that it does not get emitted to the BUILD files
+		ca.Dir = nil
+	}
+	return dir
+}
+
 func (t *topDownMutatorContext) CreateBazelConfigSetting(
 	csa bazel.ConfigSettingAttributes,
 	ca CommonAttributes,
@@ -851,7 +873,7 @@ func (t *topDownMutatorContext) createBazelTargetModule(
 	constraintAttributes := commonAttrs.fillCommonBp2BuildModuleAttrs(t, enabledProperty)
 	mod := t.Module()
 	info := bp2buildInfo{
-		Dir:             t.OtherModuleDir(mod),
+		Dir:             dirForBazelTargetGeneration(t, &commonAttrs),
 		BazelProps:      bazelProps,
 		CommonAttrs:     commonAttrs,
 		ConstraintAttrs: constraintAttributes,
