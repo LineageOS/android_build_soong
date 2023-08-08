@@ -102,6 +102,10 @@ var _ HostToolProvider = &prebuiltBuildTool{}
 // prebuilt_build_tool is to declare prebuilts to be used during the build, particularly for use
 // in genrules with the "tools" property.
 func prebuiltBuildToolFactory() Module {
+	return NewPrebuiltBuildTool()
+}
+
+func NewPrebuiltBuildTool() Module {
 	module := &prebuiltBuildTool{}
 	module.AddProperties(&module.properties)
 	InitSingleSourcePrebuiltModule(module, &module.properties, "Src")
