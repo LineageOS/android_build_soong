@@ -1949,3 +1949,46 @@ func TestPrettyPrintSelectMapEqualValues(t *testing.T) {
 	actual, _ := prettyPrintAttribute(lla, 0)
 	android.AssertStringEquals(t, "Print the common value if all keys in an axis have the same value", `[":libfoo.impl"]`, actual)
 }
+
+// If CommonAttributes.Dir is set, the bazel target should be created in that dir
+func TestCreateBazelTargetInDifferentDir(t *testing.T) {
+	t.Parallel()
+	bp := `
+	custom {
+		name: "foo",
+		dir: "subdir",
+	}
+	`
+	registerCustomModule := func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("custom", customModuleFactoryHostAndDevice)
+	}
+	// Check that foo is not created in root dir
+	RunBp2BuildTestCase(t, registerCustomModule, Bp2buildTestCase{
+		Description: "foo is not created in root dir because it sets dir explicitly",
+		Blueprint:   bp,
+		Filesystem: map[string]string{
+			"subdir/Android.bp": "",
+		},
+		ExpectedBazelTargets: []string{},
+	})
+	// Check that foo is created in `subdir`
+	RunBp2BuildTestCase(t, registerCustomModule, Bp2buildTestCase{
+		Description: "foo is created in `subdir` because it sets dir explicitly",
+		Blueprint:   bp,
+		Filesystem: map[string]string{
+			"subdir/Android.bp": "",
+		},
+		Dir: "subdir",
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("custom", "foo", AttrNameToString{}),
+		},
+	})
+	// Check that we cannot create target in different dir if it is does not an Android.bp
+	RunBp2BuildTestCase(t, registerCustomModule, Bp2buildTestCase{
+		Description: "foo cannot be created in `subdir` because it does not contain an Android.bp file",
+		Blueprint:   bp,
+		Dir:         "subdir",
+		ExpectedErr: fmt.Errorf("Cannot use ca.Dir to create a BazelTarget in dir: subdir since it does not contain an Android.bp file"),
+	})
+
+}

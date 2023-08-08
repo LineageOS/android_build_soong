@@ -24,6 +24,7 @@ import (
 	"android/soong/ui/metrics/bp2build_metrics_proto"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -141,8 +142,14 @@ func (fg *fileGroup) ConvertWithBp2build(ctx TopDownMutatorContext) {
 			attrs)
 	} else {
 		if fg.ShouldConvertToProtoLibrary(ctx) {
+			pkgToSrcs := partitionSrcsByPackage(ctx.ModuleDir(), bazel.MakeLabelList(srcs.Value.Includes))
+			if len(pkgToSrcs) > 1 {
+				ctx.ModuleErrorf("TODO: Add bp2build support for multiple package .protosrcs in filegroup")
+				return
+			}
+			pkg := SortedKeys(pkgToSrcs)[0]
 			attrs := &ProtoAttrs{
-				Srcs:                srcs,
+				Srcs:                bazel.MakeLabelListAttribute(pkgToSrcs[pkg]),
 				Strip_import_prefix: fg.properties.Path,
 			}
 
@@ -151,13 +158,39 @@ func (fg *fileGroup) ConvertWithBp2build(ctx TopDownMutatorContext) {
 				// TODO(b/246997908): we can remove this tag if we could figure out a solution for this bug.
 				"manual",
 			}
+			if pkg != ctx.ModuleDir() {
+				// Since we are creating the proto_library in a subpackage, create an import_prefix relative to the current package
+				if rel, err := filepath.Rel(ctx.ModuleDir(), pkg); err != nil {
+					ctx.ModuleErrorf("Could not get relative path for %v %v", pkg, err)
+				} else if rel != "." {
+					attrs.Import_prefix = &rel
+					// Strip the package prefix
+					attrs.Strip_import_prefix = proptools.StringPtr("")
+				}
+			}
+
 			ctx.CreateBazelTargetModule(
 				bazel.BazelTargetModuleProperties{Rule_class: "proto_library"},
 				CommonAttributes{
-					Name: fg.Name() + convertedProtoLibrarySuffix,
+					Name: fg.Name() + "_proto",
+					Dir:  proptools.StringPtr(pkg),
 					Tags: bazel.MakeStringListAttribute(tags),
 				},
 				attrs)
+
+			// Create an alias in the current dir. The actual target might exist in a different package, but rdeps
+			// can reliabily use this alias
+			ctx.CreateBazelTargetModule(
+				bazel.BazelTargetModuleProperties{Rule_class: "alias"},
+				CommonAttributes{
+					Name: fg.Name() + convertedProtoLibrarySuffix,
+					// TODO(b/246997908): we can remove this tag if we could figure out a solution for this bug.
+					Tags: bazel.MakeStringListAttribute(tags),
+				},
+				&bazelAliasAttributes{
+					Actual: bazel.MakeLabelAttribute("//" + pkg + ":" + fg.Name() + "_proto"),
+				},
+			)
 		}
 
 		// TODO(b/242847534): Still convert to a filegroup because other unconverted
