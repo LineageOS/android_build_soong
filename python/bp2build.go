@@ -73,7 +73,6 @@ func (m *PythonLibraryModule) makeArchVariantBaseAttributes(ctx android.TopDownM
 
 	if !partitionedSrcs["proto"].IsEmpty() {
 		protoInfo, _ := android.Bp2buildProtoProperties(ctx, &m.ModuleBase, partitionedSrcs["proto"])
-		protoLabel := bazel.Label{Label: ":" + protoInfo.Name}
 
 		pyProtoLibraryName := m.Name() + "_py_proto"
 		ctx.CreateBazelTargetModule(bazel.BazelTargetModuleProperties{
@@ -82,7 +81,7 @@ func (m *PythonLibraryModule) makeArchVariantBaseAttributes(ctx android.TopDownM
 		}, android.CommonAttributes{
 			Name: pyProtoLibraryName,
 		}, &bazelPythonProtoLibraryAttributes{
-			Deps: bazel.MakeSingleLabelListAttribute(protoLabel),
+			Deps: bazel.MakeLabelListAttribute(protoInfo.Proto_libs),
 		})
 
 		attrs.Deps.Add(bazel.MakeLabelAttribute(":" + pyProtoLibraryName))
