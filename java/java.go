@@ -26,6 +26,7 @@ import (
 	"android/soong/bazel"
 	"android/soong/bazel/cquery"
 	"android/soong/remoteexec"
+	"android/soong/ui/metrics/bp2build_metrics_proto"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -2828,7 +2829,7 @@ func javaXsdTargetName(xsd android.XsdConfigBp2buildTargets) string {
 // which has other non-attribute information needed for bp2build conversion
 // that needs different handling depending on the module types, and thus needs
 // to be returned to the calling function.
-func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext) (*javaCommonAttributes, *bp2BuildJavaInfo) {
+func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext) (*javaCommonAttributes, *bp2BuildJavaInfo, bool) {
 	var srcs bazel.LabelListAttribute
 	var deps bazel.LabelListAttribute
 	var staticDeps bazel.LabelListAttribute
@@ -2839,6 +2840,10 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 			if archProps, ok := _props.(*CommonProperties); ok {
 				archSrcs := android.BazelLabelForModuleSrcExcludes(ctx, archProps.Srcs, archProps.Exclude_srcs)
 				srcs.SetSelectValue(axis, config, archSrcs)
+				if archProps.Jarjar_rules != nil {
+					ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_PROPERTY_UNSUPPORTED, "jarjar_rules")
+					return &javaCommonAttributes{}, &bp2BuildJavaInfo{}, false
+				}
 			}
 		}
 	}
@@ -3006,7 +3011,7 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 		hasKotlin: hasKotlin,
 	}
 
-	return commonAttrs, bp2BuildInfo
+	return commonAttrs, bp2BuildInfo, true
 }
 
 type javaLibraryAttributes struct {
@@ -3036,7 +3041,10 @@ func javaLibraryBazelTargetModuleProperties() bazel.BazelTargetModuleProperties 
 }
 
 func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
-	commonAttrs, bp2BuildInfo := m.convertLibraryAttrsBp2Build(ctx)
+	commonAttrs, bp2BuildInfo, supported := m.convertLibraryAttrsBp2Build(ctx)
+	if !supported {
+		return
+	}
 	depLabels := bp2BuildInfo.DepLabels
 
 	deps := depLabels.Deps
@@ -3083,7 +3091,10 @@ type javaBinaryHostAttributes struct {
 
 // JavaBinaryHostBp2Build is for java_binary_host bp2build.
 func javaBinaryHostBp2Build(ctx android.TopDownMutatorContext, m *Binary) {
-	commonAttrs, bp2BuildInfo := m.convertLibraryAttrsBp2Build(ctx)
+	commonAttrs, bp2BuildInfo, supported := m.convertLibraryAttrsBp2Build(ctx)
+	if !supported {
+		return
+	}
 	depLabels := bp2BuildInfo.DepLabels
 
 	deps := depLabels.Deps
@@ -3167,7 +3178,10 @@ type javaTestHostAttributes struct {
 
 // javaTestHostBp2Build is for java_test_host bp2build.
 func javaTestHostBp2Build(ctx android.TopDownMutatorContext, m *TestHost) {
-	commonAttrs, bp2BuildInfo := m.convertLibraryAttrsBp2Build(ctx)
+	commonAttrs, bp2BuildInfo, supported := m.convertLibraryAttrsBp2Build(ctx)
+	if !supported {
+		return
+	}
 	depLabels := bp2BuildInfo.DepLabels
 
 	deps := depLabels.Deps
