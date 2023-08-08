@@ -1307,7 +1307,11 @@ func AndroidLibraryBazelTargetModuleProperties() bazel.BazelTargetModuleProperti
 }
 
 func (a *AndroidLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
-	commonAttrs, bp2buildInfo := a.convertLibraryAttrsBp2Build(ctx)
+	commonAttrs, bp2buildInfo, supported := a.convertLibraryAttrsBp2Build(ctx)
+	if !supported {
+		return
+	}
+
 	depLabels := bp2buildInfo.DepLabels
 
 	deps := depLabels.Deps
