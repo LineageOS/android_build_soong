@@ -992,8 +992,6 @@ var (
 		"svcenc", "svcdec",
 
 		// Failing host cc_tests
-		"libprocinfo_test",
-		"ziparchive-tests",
 		"gtest_isolated_tests",
 		"libunwindstack_unit_test",
 		"power_tests", // failing test on server, but not on host
@@ -1012,7 +1010,7 @@ var (
 		"libnativebridge6-test-case",
 		"libnativebridge6prezygotefork",
 
-		"libandroidfw_tests", "aapt2_tests", // failing due to data path issues
+		"libandroidfw_tests", // failing due to data path issues
 
 		// error: overriding commands for target
 		// `out/host/linux-x86/nativetest64/gmock_tests/gmock_tests__cc_runner_test',
@@ -1099,7 +1097,6 @@ var (
 		"memunreachable_binder_test", // depends on unconverted modules: libbinder
 		"memunreachable_test",
 		"metadata_tests",
-		"minijail0_cli_unittest_gtest",
 		"mpeg2dec",
 		"mvcdec",
 		"ns_hidden_child_helper",
@@ -1111,14 +1108,12 @@ var (
 		"rappor-tests", // depends on unconverted modules: jsr305, guava
 		"scudo_unit_tests",
 		"stats-log-api-gen-test", // depends on unconverted modules: libstats_proto_host
-		"syscall_filter_unittest_gtest",
 		"thread_exit_cb_helper",
 		"tls_properties_helper",
 		"ulp",
 		"vec_test",
 		"yuvconstants",
 		"yuvconvert",
-		"zipalign_tests",
 
 		// cc_test_library
 		"clang_diagnostic_tests",
