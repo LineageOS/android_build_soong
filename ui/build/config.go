@@ -437,6 +437,11 @@ func NewConfig(ctx Context, args ...string) Config {
 	ret.environ.Set("ANDROID_JAVA11_HOME", java11Home)
 	ret.environ.Set("PATH", strings.Join(newPath, string(filepath.ListSeparator)))
 
+	// b/286885495, https://bugzilla.redhat.com/show_bug.cgi?id=2227130: some versions of Fedora include patches
+	// to unzip to enable zipbomb detection that incorrectly handle zip64 and data descriptors and fail on large
+	// zip files produced by soong_zip.  Disable zipbomb detection.
+	ret.environ.Set("UNZIP_DISABLE_ZIPBOMB_DETECTION", "TRUE")
+
 	if ret.MultitreeBuild() {
 		ret.environ.Set("MULTITREE_BUILD", "true")
 	}
