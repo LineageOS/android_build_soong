@@ -83,6 +83,7 @@ bootstrap_go_package {
         "python_library_conversion_test.go",
         "python_test_conversion_test.go",
         "sh_conversion_test.go",
+        "sh_test_conversion_test.go",
         "soong_config_module_type_conversion_test.go",
     ],
     pluginFor: [
