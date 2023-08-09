@@ -190,6 +190,12 @@ func (c Config) MaxPageSizeSupported() string {
 	return String(c.config.productVariables.DeviceMaxPageSizeSupported)
 }
 
+// PageSizeAgnostic returns true when AOSP is page size agnostic,
+// othersise it returns false.
+func (c Config) PageSizeAgnostic() bool {
+	return Bool(c.config.productVariables.DevicePageSizeAgnostic)
+}
+
 // The release version passed to aconfig, derived from RELEASE_VERSION
 func (c Config) ReleaseVersion() string {
 	return c.config.productVariables.ReleaseVersion

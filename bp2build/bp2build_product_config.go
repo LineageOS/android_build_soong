@@ -256,7 +256,7 @@ func platformMappingSingleProduct(
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:device_abi=%s\n", strings.Join(productVariables.DeviceAbi, ",")))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:device_max_page_size_supported=%s\n", proptools.String(productVariables.DeviceMaxPageSizeSupported)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:device_name=%s\n", proptools.String(productVariables.DeviceName)))
-		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:device_page_size_agnostic=%t\n", proptools.Bool(productVariables.Device_page_size_agnostic)))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:device_page_size_agnostic=%t\n", proptools.Bool(productVariables.DevicePageSizeAgnostic)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:device_product=%s\n", proptools.String(productVariables.DeviceProduct)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:enable_cfi=%t\n", proptools.BoolDefault(productVariables.EnableCFI, true)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:enforce_vintf_manifest=%t\n", proptools.Bool(productVariables.Enforce_vintf_manifest)))
