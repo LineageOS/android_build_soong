@@ -76,7 +76,8 @@ func systemModuleKind(sdkKind android.SdkKind, apiLevel android.ApiLevel) androi
 		// Core is by definition what is included in the system module for the public API so should
 		// just use its system modules.
 		systemModuleKind = android.SdkPublic
-	} else if systemModuleKind == android.SdkSystem || systemModuleKind == android.SdkTest {
+	} else if systemModuleKind == android.SdkSystem || systemModuleKind == android.SdkTest ||
+		systemModuleKind == android.SdkTestFrameworksCore {
 		// The core system and test APIs are currently the same as the public API so they should use
 		// its system modules.
 		systemModuleKind = android.SdkPublic
@@ -192,7 +193,7 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext)
 			bootclasspath:    corePlatformBootclasspathLibraries(ctx),
 			noFrameworksLibs: true,
 		}
-	case android.SdkPublic, android.SdkSystem, android.SdkTest:
+	case android.SdkPublic, android.SdkSystem, android.SdkTest, android.SdkTestFrameworksCore:
 		return toModule(sdkVersion.Kind.DefaultJavaLibraryName(), sdkFrameworkAidlPath(ctx))
 	case android.SdkCore:
 		return sdkDep{
