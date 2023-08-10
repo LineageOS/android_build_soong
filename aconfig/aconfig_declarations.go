@@ -17,8 +17,9 @@ package aconfig
 import (
 	"android/soong/android"
 	"fmt"
-	"github.com/google/blueprint"
 	"strings"
+
+	"github.com/google/blueprint"
 )
 
 type DeclarationsModule struct {
