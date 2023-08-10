@@ -1547,6 +1547,10 @@ var (
 		"libart_generated_headers",
 		"libart-runtime-gtest",
 		"libartd-runtime-gtest",
+		"libart-unstripped",
+
+		// depends on libart-unstripped and new module type llvm_prebuilt_build_tool
+		"check_cfi",
 	}
 
 	// Bazel prod-mode allowlist. Modules in this list are built by Bazel
