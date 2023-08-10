@@ -964,7 +964,6 @@ var (
 		"libdebuggerd_handler",                                       // depends on unconverted module libdebuggerd_handler_core
 		"libdebuggerd_handler_core", "libdebuggerd_handler_fallback", // depends on unconverted module libdebuggerd
 		"libdexfiled",                                             // depends on unconverted modules: dexfile_operator_srcs, libartbased, libartpalette
-		"libfastdeploy_host",                                      // depends on unconverted modules: libandroidfw, libusb, AdbWinApi
 		"libgmock_main_ndk",                                       // depends on unconverted modules: libgtest_ndk_c++
 		"libgmock_ndk",                                            // depends on unconverted modules: libgtest_ndk_c++
 		"libnativehelper_lazy_mts_jni", "libnativehelper_mts_jni", // depends on unconverted modules: libnativetesthelper_jni, libgmock_ndk
