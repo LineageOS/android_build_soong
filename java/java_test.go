@@ -2370,3 +2370,21 @@ func TestJavaLibraryWithResourcesStem(t *testing.T) {
 		t.Errorf("Module output does not contain expected jar %s", "test.jar")
 	}
 }
+
+func TestHeadersOnly(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_library {
+			name: "foo",
+			srcs: ["a.java"],
+			headers_only: true,
+		}
+	`)
+
+	turbine := ctx.ModuleForTests("foo", "android_common").Rule("turbine")
+	if len(turbine.Inputs) != 1 || turbine.Inputs[0].String() != "a.java" {
+		t.Errorf(`foo inputs %v != ["a.java"]`, turbine.Inputs)
+	}
+
+	javac := ctx.ModuleForTests("foo", "android_common").MaybeRule("javac")
+	android.AssertDeepEquals(t, "javac rule", nil, javac.Rule)
+}

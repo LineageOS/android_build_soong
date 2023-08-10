@@ -361,6 +361,21 @@ var neverallowTests = []struct {
 			`exclude_static_libs property is only allowed for java modules defined in build/soong, libcore, and frameworks/base/api`,
 		},
 	},
+	// Test for only allowing headers_only for framework-minus-apex-headers
+	{
+		name: `"headers_only" outside framework-minus-apex-headers modules`,
+		fs: map[string][]byte{
+			"a/b/Android.bp": []byte(`
+				java_library {
+					name: "baz",
+					headers_only: true,
+				}
+			`),
+		},
+		expectedErrors: []string{
+			`headers_only can only be used for generating framework-minus-apex headers for non-updatable modules`,
+		},
+	},
 }
 
 var prepareForNeverAllowTest = GroupFixturePreparers(
@@ -451,6 +466,7 @@ type mockJavaLibraryProperties struct {
 	Sdk_version         *string
 	Uncompress_dex      *bool
 	Exclude_static_libs []string
+	Headers_only        *bool
 }
 
 type mockJavaLibraryModule struct {
