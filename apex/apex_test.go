@@ -2794,7 +2794,7 @@ func TestFilesInSubDir(t *testing.T) {
 			name: "myapex",
 			key: "myapex.key",
 			native_shared_libs: ["mylib"],
-			binaries: ["mybin"],
+			binaries: ["mybin", "mybin.rust"],
 			prebuilts: ["myetc"],
 			compile_multilib: "both",
 			updatable: false,
@@ -2829,6 +2829,13 @@ func TestFilesInSubDir(t *testing.T) {
 			stl: "none",
 			apex_available: [ "myapex" ],
 		}
+
+		rust_binary {
+			name: "mybin.rust",
+			srcs: ["foo.rs"],
+			relative_install_path: "rust_subdir",
+			apex_available: [ "myapex" ],
+		}
 	`)
 
 	generateFsRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("generateFsConfig")
@@ -2847,6 +2854,7 @@ func TestFilesInSubDir(t *testing.T) {
 	ensureContains(t, cmd, "/bin ")
 	ensureContains(t, cmd, "/bin/foo ")
 	ensureContains(t, cmd, "/bin/foo/bar ")
+	ensureContains(t, cmd, "/bin/rust_subdir ")
 }
 
 func TestFilesInSubDirWhenNativeBridgeEnabled(t *testing.T) {
