@@ -68,6 +68,10 @@ var (
 		// not emit the table by default on Android since NDK still uses GNU binutils.
 		"-faddrsig",
 
+		// Turn on -fcommon explicitly, since Clang now defaults to -fno-common. The cleanup bug
+		// tracking this is http://b/151457797.
+		"-fcommon",
+
 		// Help catch common 32/64-bit errors.
 		"-Werror=int-conversion",
 
