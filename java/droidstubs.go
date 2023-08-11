@@ -694,6 +694,13 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		cmd.FlagWithArg("--error-message:compatibility:released ", msg)
 	}
 
+	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") {
+		// Pass the current API file into metalava so it can use it as the basis for determining how to
+		// generate the output signature files (both api and removed).
+		currentApiFile := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Current.Api_file))
+		cmd.FlagWithInput("--use-same-format-as ", currentApiFile)
+	}
+
 	if generateStubs {
 		rule.Command().
 			BuiltTool("soong_zip").
