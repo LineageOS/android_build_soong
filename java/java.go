@@ -1812,13 +1812,13 @@ func (al *ApiLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
+// API signature file names sorted from
+// the narrowest api scope to the widest api scope
+var scopeOrderedSourceFileNames = allApiScopes.Strings(
+	func(s *apiScope) string { return s.apiFilePrefix + "current.txt" })
+
 func (al *ApiLibrary) sortApiFilesByApiScope(ctx android.ModuleContext, srcFiles android.Paths) android.Paths {
 	sortedSrcFiles := android.Paths{}
-
-	// API signature file name sorted from
-	// the narrowest api scope to the widest api scope
-	scopeOrderedSourceFileNames := allApiScopes.Strings(
-		func(s *apiScope) string { return s.apiFilePrefix + "current.txt" })
 
 	for _, scopeSourceFileName := range scopeOrderedSourceFileNames {
 		for _, sourceFileName := range srcFiles {
