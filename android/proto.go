@@ -230,6 +230,7 @@ func Bp2buildProtoProperties(ctx Bp2buildMutatorContext, m *ModuleBase, srcs baz
 	name := m.Name() + "_proto"
 
 	depsFromFilegroup := protoLibraries
+	var canonicalPathFromRoot bool
 
 	if len(directProtoSrcs.Includes) > 0 {
 		pkgToSrcs := partitionSrcsByPackage(ctx.ModuleDir(), directProtoSrcs)
@@ -250,7 +251,8 @@ func Bp2buildProtoProperties(ctx Bp2buildMutatorContext, m *ModuleBase, srcs baz
 					if axis == bazel.NoConfigAxis {
 						info.Type = props.Proto.Type
 
-						if !proptools.BoolDefault(props.Proto.Canonical_path_from_root, canonicalPathFromRootDefault) {
+						canonicalPathFromRoot = proptools.BoolDefault(props.Proto.Canonical_path_from_root, canonicalPathFromRootDefault)
+						if !canonicalPathFromRoot {
 							// an empty string indicates to strips the package path
 							path := ""
 							attrs.Strip_import_prefix = &path
@@ -271,11 +273,14 @@ func Bp2buildProtoProperties(ctx Bp2buildMutatorContext, m *ModuleBase, srcs baz
 
 			tags := ApexAvailableTagsWithoutTestApexes(ctx.(TopDownMutatorContext), ctx.Module())
 
-			// Since we are creating the proto_library in a subpackage, create an import_prefix relative to the current package
-			if rel, err := filepath.Rel(ctx.ModuleDir(), pkg); err != nil {
-				ctx.ModuleErrorf("Could not get relative path for %v %v", pkg, err)
-			} else if rel != "." {
-				attrs.Import_prefix = &rel
+			moduleDir := ctx.ModuleDir()
+			if !canonicalPathFromRoot {
+				// Since we are creating the proto_library in a subpackage, set the import_prefix relative to the current package
+				if rel, err := filepath.Rel(moduleDir, pkg); err != nil {
+					ctx.ModuleErrorf("Could not get relative path for %v %v", pkg, err)
+				} else if rel != "." {
+					attrs.Import_prefix = &rel
+				}
 			}
 
 			ctx.CreateBazelTargetModule(
@@ -285,7 +290,7 @@ func Bp2buildProtoProperties(ctx Bp2buildMutatorContext, m *ModuleBase, srcs baz
 			)
 
 			l := ""
-			if pkg == ctx.ModuleDir() { // same package that the original module lives in
+			if pkg == moduleDir { // same package that the original module lives in
 				l = ":" + name
 			} else {
 				l = "//" + pkg + ":" + name
