@@ -45,9 +45,9 @@ var (
 		"rustcFlags", "libFlags", "envVars")
 	rustLink = pctx.AndroidStaticRule("rustLink",
 		blueprint.RuleParams{
-			Command: "${config.RustLinker} -o $out ${crtBegin} ${config.RustLinkerArgs} @$in ${linkFlags} ${crtEnd}",
+			Command: "${config.RustLinker} -o $out ${crtBegin} ${earlyLinkFlags} @$in ${linkFlags} ${crtEnd}",
 		},
-		"linkFlags", "crtBegin", "crtEnd")
+		"earlyLinkFlags", "linkFlags", "crtBegin", "crtEnd")
 
 	_       = pctx.SourcePathVariable("rustdocCmd", "${config.RustBin}/rustdoc")
 	rustdoc = pctx.AndroidStaticRule("rustdoc",
@@ -244,6 +244,10 @@ func rustEnvVars(ctx ModuleContext, deps PathDeps) []string {
 
 	envVars = append(envVars, "AR=${cc_config.ClangBin}/llvm-ar")
 
+	if ctx.Darwin() {
+		envVars = append(envVars, "ANDROID_RUST_DARWIN=true")
+	}
+
 	return envVars
 }
 
@@ -254,6 +258,7 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	var implicits, linkImplicits, linkOrderOnly android.Paths
 	var output buildOutput
 	var rustcFlags, linkFlags []string
+	var earlyLinkFlags string
 
 	output.outputFile = outputFile
 	crateName := ctx.RustModule().CrateName()
@@ -292,6 +297,10 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	}
 
 	// Collect linker flags
+	if !ctx.Darwin() {
+		earlyLinkFlags = "-Wl,--as-needed"
+	}
+
 	linkFlags = append(linkFlags, flags.GlobalLinkFlags...)
 	linkFlags = append(linkFlags, flags.LinkFlags...)
 
@@ -391,9 +400,10 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 			Implicits:   linkImplicits,
 			OrderOnly:   linkOrderOnly,
 			Args: map[string]string{
-				"linkFlags": strings.Join(linkFlags, " "),
-				"crtBegin":  strings.Join(deps.CrtBegin.Strings(), " "),
-				"crtEnd":    strings.Join(deps.CrtEnd.Strings(), " "),
+				"earlyLinkFlags": earlyLinkFlags,
+				"linkFlags":      strings.Join(linkFlags, " "),
+				"crtBegin":       strings.Join(deps.CrtBegin.Strings(), " "),
+				"crtEnd":         strings.Join(deps.CrtEnd.Strings(), " "),
 			},
 		})
 	}
