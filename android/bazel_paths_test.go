@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"android/soong/bazel"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
 )
@@ -155,6 +156,14 @@ func (ctx *TestBazelConversionPathContext) Config() Config {
 
 func (ctx *TestBazelConversionPathContext) ModuleDir() string {
 	return ctx.moduleDir
+}
+
+func (ctx *TestBazelConversionPathContext) ModuleName() string {
+	panic("Unimplemented")
+}
+
+func (ctx *TestBazelConversionPathContext) ModuleType() string {
+	panic("Unimplemented")
 }
 
 func TestTransformSubpackagePath(t *testing.T) {
