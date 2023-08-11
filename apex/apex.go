@@ -1685,6 +1685,7 @@ func apexFileForRustExecutable(ctx android.BaseModuleContext, rustm *rust.Module
 	if rustm.Target().NativeBridge == android.NativeBridgeEnabled {
 		dirInApex = filepath.Join(dirInApex, rustm.Target().NativeBridgeRelativePath)
 	}
+	dirInApex = filepath.Join(dirInApex, rustm.RelativeInstallPath())
 	fileToCopy := android.OutputFileForModule(ctx, rustm, "")
 	androidMkModuleName := rustm.BaseModuleName() + rustm.Properties.SubName
 	af := newApexFile(ctx, fileToCopy, androidMkModuleName, dirInApex, nativeExecutable, rustm)
@@ -1704,6 +1705,7 @@ func apexFileForRustLibrary(ctx android.BaseModuleContext, rustm *rust.Module) a
 	if rustm.Target().NativeBridge == android.NativeBridgeEnabled {
 		dirInApex = filepath.Join(dirInApex, rustm.Target().NativeBridgeRelativePath)
 	}
+	dirInApex = filepath.Join(dirInApex, rustm.RelativeInstallPath())
 	fileToCopy := android.OutputFileForModule(ctx, rustm, "")
 	androidMkModuleName := rustm.BaseModuleName() + rustm.Properties.SubName
 	return newApexFile(ctx, fileToCopy, androidMkModuleName, dirInApex, nativeSharedLib, rustm)
