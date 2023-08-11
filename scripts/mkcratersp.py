@@ -48,6 +48,8 @@ for i, arg in enumerate(sys.argv):
     linkdirs.append(sys.argv[i+1])
   if arg.startswith('-l') or arg == '-shared':
     libs.append(arg)
+  if os.getenv('ANDROID_RUST_DARWIN') and (arg == '-dylib' or arg == '-dynamiclib'):
+    libs.append(arg)
   if arg.startswith('-Wl,--version-script='):
     version_script = arg[21:]
   if arg[0] == '-':
@@ -64,9 +66,13 @@ create_archive(f'{out}.whole.a', objects, [])
 create_archive(f'{out}.a', [], temp_archives)
 
 with open(out, 'w') as f:
-  print(f'-Wl,--whole-archive', file=f)
-  print(f'{out}.whole.a', file=f)
-  print(f'-Wl,--no-whole-archive', file=f)
+  if os.getenv("ANDROID_RUST_DARWIN"):
+    print(f'-force_load', file=f)
+    print(f'{out}.whole.a', file=f)
+  else:
+    print(f'-Wl,--whole-archive', file=f)
+    print(f'{out}.whole.a', file=f)
+    print(f'-Wl,--no-whole-archive', file=f)
   print(f'{out}.a', file=f)
   for a in archives:
     print(a, file=f)
