@@ -433,10 +433,6 @@ func saveToBazelConfigFile(config *ProductVariables, outDir string) error {
 	t := reflect.TypeOf(p.Product_variables)
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
-		if f.Name == "Pdk" {
-			// Pdk is deprecated and has no effect as of aosp/1319667
-			continue
-		}
 		archVariant := proptools.HasTag(f, "android", "arch_variant")
 		if mainProductVariablesStructField, ok := allProductVariablesType.FieldByName(f.Name); ok {
 			productVariablesInfo[f.Name] = productVariableStarlarkRepresentation{
