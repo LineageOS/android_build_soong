@@ -95,10 +95,6 @@ type variableProperties struct {
 			Cflags []string
 		}
 
-		Device_page_size_agnostic struct {
-			Cflags []string `android:"arch_variant"`
-		} `android:"arch_variant"`
-
 		Override_rs_driver struct {
 			Cflags []string
 		}
@@ -227,6 +223,7 @@ type ProductVariables struct {
 	DeviceCurrentApiLevelForVendorModules *string  `json:",omitempty"`
 	DeviceSystemSdkVersions               []string `json:",omitempty"`
 	DeviceMaxPageSizeSupported            *string  `json:",omitempty"`
+	DevicePageSizeAgnostic                *bool    `json:",omitempty"`
 
 	RecoverySnapshotVersion *string `json:",omitempty"`
 
@@ -282,7 +279,6 @@ type ProductVariables struct {
 	Safestack                    *bool    `json:",omitempty"`
 	HostStaticBinaries           *bool    `json:",omitempty"`
 	Binder32bit                  *bool    `json:",omitempty"`
-	Device_page_size_agnostic    *bool    `json:",omitempty"`
 	UseGoma                      *bool    `json:",omitempty"`
 	UseRBE                       *bool    `json:",omitempty"`
 	UseRBEJAVAC                  *bool    `json:",omitempty"`
@@ -527,6 +523,7 @@ func (v *ProductVariables) SetDefaultConfig() {
 		DeviceSecondaryCpuVariant:  stringPtr("generic"),
 		DeviceSecondaryAbi:         []string{"armeabi-v7a", "armeabi"},
 		DeviceMaxPageSizeSupported: stringPtr("4096"),
+		DevicePageSizeAgnostic:     boolPtr(false),
 
 		AAPTConfig:          []string{"normal", "large", "xlarge", "hdpi", "xhdpi", "xxhdpi"},
 		AAPTPreferredConfig: stringPtr("xhdpi"),
@@ -539,7 +536,6 @@ func (v *ProductVariables) SetDefaultConfig() {
 		Safestack:                    boolPtr(false),
 		TrimmedApex:                  boolPtr(false),
 		Build_from_text_stub:         boolPtr(false),
-		Device_page_size_agnostic:    boolPtr(false),
 
 		BootJars:     ConfiguredJarList{apexes: []string{}, jars: []string{}},
 		ApexBootJars: ConfiguredJarList{apexes: []string{}, jars: []string{}},
