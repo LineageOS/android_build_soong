@@ -103,7 +103,7 @@ func apexVndkDepsMutator(mctx android.BottomUpMutatorContext) {
 		}
 	} else if a, ok := mctx.Module().(*apexBundle); ok && a.vndkApex {
 		vndkVersion := proptools.StringDefault(a.vndkProperties.Vndk_version, "current")
-		mctx.AddDependency(mctx.Module(), prebuiltTag, cc.VndkLibrariesTxtModules(vndkVersion)...)
+		mctx.AddDependency(mctx.Module(), prebuiltTag, cc.VndkLibrariesTxtModules(vndkVersion, mctx)...)
 	}
 }
 

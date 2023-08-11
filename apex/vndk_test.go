@@ -51,6 +51,7 @@ func TestVndkApexForVndkLite(t *testing.T) {
 	`+vndkLibrariesTxtFiles("current"),
 		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 			variables.DeviceVndkVersion = proptools.StringPtr("")
+			variables.KeepVndk = proptools.BoolPtr(true)
 		}),
 	)
 	// VNDK-Lite contains only core variants of VNDK-Sp libraries

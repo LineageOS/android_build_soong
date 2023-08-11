@@ -654,6 +654,7 @@ func TestVndkLibrariesTxtAndroidMk(t *testing.T) {
 	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
+	config.TestProductVariables.KeepVndk = BoolPtr(true)
 	ctx := testCcWithConfig(t, config)
 
 	module := ctx.ModuleForTests("llndk.libraries.txt", "android_common")
