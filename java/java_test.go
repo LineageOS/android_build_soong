@@ -1864,12 +1864,12 @@ func TestJavaApiLibraryAndProviderLink(t *testing.T) {
 	provider_bp_a := `
 	java_api_contribution {
 		name: "foo1",
-		api_file: "foo1.txt",
+		api_file: "current.txt",
 	}
 	`
 	provider_bp_b := `java_api_contribution {
 		name: "foo2",
-		api_file: "foo2.txt",
+		api_file: "current.txt",
 	}
 	`
 	ctx, _ := testJavaWithFS(t, `
@@ -1897,11 +1897,11 @@ func TestJavaApiLibraryAndProviderLink(t *testing.T) {
 	}{
 		{
 			moduleName:         "bar1",
-			sourceTextFileDirs: []string{"a/foo1.txt"},
+			sourceTextFileDirs: []string{"a/current.txt"},
 		},
 		{
 			moduleName:         "bar2",
-			sourceTextFileDirs: []string{"a/foo1.txt", "b/foo2.txt", "api1/current.txt", "api2/current.txt"},
+			sourceTextFileDirs: []string{"a/current.txt", "b/current.txt", "api1/current.txt", "api2/current.txt"},
 		},
 	}
 	for _, c := range testcases {
@@ -1918,25 +1918,25 @@ func TestJavaApiLibraryAndDefaultsLink(t *testing.T) {
 	provider_bp_a := `
 	java_api_contribution {
 		name: "foo1",
-		api_file: "foo1.txt",
+		api_file: "current.txt",
 	}
 	`
 	provider_bp_b := `
 	java_api_contribution {
 		name: "foo2",
-		api_file: "foo2.txt",
+		api_file: "current.txt",
 	}
 	`
 	provider_bp_c := `
 	java_api_contribution {
 		name: "foo3",
-		api_file: "foo3.txt",
+		api_file: "current.txt",
 	}
 	`
 	provider_bp_d := `
 	java_api_contribution {
 		name: "foo4",
-		api_file: "foo4.txt",
+		api_file: "current.txt",
 	}
 	`
 	ctx, _ := testJavaWithFS(t, `
@@ -1985,15 +1985,15 @@ func TestJavaApiLibraryAndDefaultsLink(t *testing.T) {
 	}{
 		{
 			moduleName:         "bar1",
-			sourceTextFileDirs: []string{"a/foo1.txt"},
+			sourceTextFileDirs: []string{"a/current.txt"},
 		},
 		{
 			moduleName:         "bar2",
-			sourceTextFileDirs: []string{"a/foo1.txt", "b/foo2.txt"},
+			sourceTextFileDirs: []string{"a/current.txt", "b/current.txt"},
 		},
 		{
 			moduleName:         "bar3",
-			sourceTextFileDirs: []string{"c/foo3.txt", "a/foo1.txt", "b/foo2.txt", "d/foo4.txt", "api1/current.txt", "api2/current.txt"},
+			sourceTextFileDirs: []string{"c/current.txt", "a/current.txt", "b/current.txt", "d/current.txt", "api1/current.txt", "api2/current.txt"},
 		},
 	}
 	for _, c := range testcases {
@@ -2010,13 +2010,13 @@ func TestJavaApiLibraryJarGeneration(t *testing.T) {
 	provider_bp_a := `
 	java_api_contribution {
 		name: "foo1",
-		api_file: "foo1.txt",
+		api_file: "current.txt",
 	}
 	`
 	provider_bp_b := `
 	java_api_contribution {
 		name: "foo2",
-		api_file: "foo2.txt",
+		api_file: "current.txt",
 	}
 	`
 	ctx, _ := testJavaWithFS(t, `
@@ -2063,13 +2063,13 @@ func TestJavaApiLibraryLibsLink(t *testing.T) {
 	provider_bp_a := `
 	java_api_contribution {
 		name: "foo1",
-		api_file: "foo1.txt",
+		api_file: "current.txt",
 	}
 	`
 	provider_bp_b := `
 	java_api_contribution {
 		name: "foo2",
-		api_file: "foo2.txt",
+		api_file: "current.txt",
 	}
 	`
 	lib_bp_a := `
@@ -2138,13 +2138,13 @@ func TestJavaApiLibraryStaticLibsLink(t *testing.T) {
 	provider_bp_a := `
 	java_api_contribution {
 		name: "foo1",
-		api_file: "foo1.txt",
+		api_file: "current.txt",
 	}
 	`
 	provider_bp_b := `
 	java_api_contribution {
 		name: "foo2",
-		api_file: "foo2.txt",
+		api_file: "current.txt",
 	}
 	`
 	lib_bp_a := `
@@ -2212,13 +2212,13 @@ func TestJavaApiLibraryFullApiSurfaceStub(t *testing.T) {
 	provider_bp_a := `
 	java_api_contribution {
 		name: "foo1",
-		api_file: "foo1.txt",
+		api_file: "current.txt",
 	}
 	`
 	provider_bp_b := `
 	java_api_contribution {
 		name: "foo2",
-		api_file: "foo2.txt",
+		api_file: "current.txt",
 	}
 	`
 	lib_bp_a := `
