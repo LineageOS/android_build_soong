@@ -1812,6 +1812,28 @@ func (al *ApiLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
+// API signature file names sorted from
+// the narrowest api scope to the widest api scope
+var scopeOrderedSourceFileNames = allApiScopes.Strings(
+	func(s *apiScope) string { return s.apiFilePrefix + "current.txt" })
+
+func (al *ApiLibrary) sortApiFilesByApiScope(ctx android.ModuleContext, srcFiles android.Paths) android.Paths {
+	sortedSrcFiles := android.Paths{}
+
+	for _, scopeSourceFileName := range scopeOrderedSourceFileNames {
+		for _, sourceFileName := range srcFiles {
+			if sourceFileName.Base() == scopeSourceFileName {
+				sortedSrcFiles = append(sortedSrcFiles, sourceFileName)
+			}
+		}
+	}
+	if len(srcFiles) != len(sortedSrcFiles) {
+		ctx.ModuleErrorf("Unrecognizable source file found within %s", srcFiles)
+	}
+
+	return sortedSrcFiles
+}
+
 func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	rule := android.NewRuleBuilder(pctx, ctx)
@@ -1861,6 +1883,8 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if srcFiles == nil && !ctx.Config().AllowMissingDependencies() {
 		ctx.ModuleErrorf("Error: %s has an empty api file.", ctx.ModuleName())
 	}
+
+	srcFiles = al.sortApiFilesByApiScope(ctx, srcFiles)
 
 	cmd := metalavaStubCmd(ctx, rule, srcFiles, homeDir)
 
