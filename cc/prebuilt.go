@@ -178,7 +178,7 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 				implicits = append(implicits, importLibOutputFile)
 
 				ctx.Build(pctx, android.BuildParams{
-					Rule:        android.Cp,
+					Rule:        android.CpExecutable,
 					Description: "prebuilt import library",
 					Input:       importLibSrc,
 					Output:      importLibOutputFile,
@@ -189,7 +189,7 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 			}
 
 			ctx.Build(pctx, android.BuildParams{
-				Rule:        android.Cp,
+				Rule:        android.CpExecutable,
 				Description: "prebuilt shared library",
 				Implicits:   implicits,
 				Input:       in,
