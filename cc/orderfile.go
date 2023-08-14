@@ -121,9 +121,9 @@ func (props *OrderfileProperties) getOrderfile(ctx BaseModuleContext) android.Op
 }
 
 func (props *OrderfileProperties) addInstrumentationProfileGatherFlags(ctx ModuleContext, flags Flags) Flags {
-	flags.Local.CFlags = append(flags.Local.CFlags, props.Orderfile.Cflags...)
 	flags.Local.CFlags = append(flags.Local.CFlags, orderfileProfileFlag)
 	flags.Local.CFlags = append(flags.Local.CFlags, "-mllvm -enable-order-file-instrumentation")
+	flags.Local.CFlags = append(flags.Local.CFlags, props.Orderfile.Cflags...)
 	flags.Local.LdFlags = append(flags.Local.LdFlags, orderfileProfileFlag)
 	return flags
 }
@@ -140,7 +140,6 @@ func (props *OrderfileProperties) addLoadFlags(ctx ModuleContext, flags Flags) F
 	orderFilePath := orderFile.Path()
 	loadFlags := props.loadOrderfileFlags(ctx, orderFilePath.String())
 
-	flags.Local.CFlags = append(flags.Local.CFlags, loadFlags...)
 	flags.Local.LdFlags = append(flags.Local.LdFlags, loadFlags...)
 
 	// Update CFlagsDeps and LdFlagsDeps so the module is rebuilt
