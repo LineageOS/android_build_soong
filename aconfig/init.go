@@ -30,6 +30,7 @@ var (
 				` --package ${package}` +
 				` ${declarations}` +
 				` ${values}` +
+				` ${default-permission}` +
 				` --cache ${out}.tmp` +
 				` && ( if cmp -s ${out}.tmp ${out} ; then rm ${out}.tmp ; else mv ${out}.tmp ${out} ; fi )`,
 			//				` --build-id ${release_version}` +
@@ -37,7 +38,7 @@ var (
 				"${aconfig}",
 			},
 			Restat: true,
-		}, "release_version", "package", "declarations", "values")
+		}, "release_version", "package", "declarations", "values", "default-permission")
 
 	// For java_aconfig_library: Generate java file
 	javaRule = pctx.AndroidStaticRule("java_aconfig_library",

@@ -206,6 +206,12 @@ func (c Config) ReleaseAconfigValueSets() []string {
 	return c.config.productVariables.ReleaseAconfigValueSets
 }
 
+// The flag default permission value passed to aconfig
+// derived from RELEASE_ACONFIG_FLAG_DEFAULT_PERMISSION
+func (c Config) ReleaseAconfigFlagDefaultPermission() string {
+	return c.config.productVariables.ReleaseAconfigFlagDefaultPermission
+}
+
 // A DeviceConfig object represents the configuration for a particular device
 // being built. For now there will only be one of these, but in the future there
 // may be multiple devices being built.
