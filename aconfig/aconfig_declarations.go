@@ -97,6 +97,15 @@ func joinAndPrefix(prefix string, values []string) string {
 	return sb.String()
 }
 
+func optionalVariable(prefix string, value string) string {
+	var sb strings.Builder
+	if value != "" {
+		sb.WriteString(prefix)
+		sb.WriteString(value)
+	}
+	return sb.String()
+}
+
 // Provider published by aconfig_value_set
 type declarationsProviderData struct {
 	Package          string
@@ -124,15 +133,17 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 	// Intermediate format
 	inputFiles := android.PathsForModuleSrc(ctx, module.properties.Srcs)
 	intermediatePath := android.PathForModuleOut(ctx, "intermediate.pb")
+	defaultPermission := ctx.Config().ReleaseAconfigFlagDefaultPermission()
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        aconfigRule,
 		Output:      intermediatePath,
 		Description: "aconfig_declarations",
 		Args: map[string]string{
-			"release_version": ctx.Config().ReleaseVersion(),
-			"package":         module.properties.Package,
-			"declarations":    android.JoinPathsWithPrefix(inputFiles, "--declarations "),
-			"values":          joinAndPrefix(" --values ", module.properties.Values),
+			"release_version":    ctx.Config().ReleaseVersion(),
+			"package":            module.properties.Package,
+			"declarations":       android.JoinPathsWithPrefix(inputFiles, "--declarations "),
+			"values":             joinAndPrefix(" --values ", module.properties.Values),
+			"default-permission": optionalVariable(" --default-permission ", defaultPermission),
 		},
 	})
 
