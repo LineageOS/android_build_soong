@@ -79,12 +79,6 @@ func TestOrderfileLoadSharedLibrary(t *testing.T) {
 
 	libTest := result.ModuleForTests("libTest", "android_arm64_armv8-a_shared")
 
-	// Check cFlags of orderfile-enabled module
-	cFlags := libTest.Rule("cc").Args["cFlags"]
-	if !strings.Contains(cFlags, expectedCFlag) {
-		t.Errorf("Expected 'libTest' to load orderfile, but did not find %q in cflags %q", expectedCFlag, cFlags)
-	}
-
 	// Check ldFlags of orderfile-enabled module
 	ldFlags := libTest.Rule("ld").Args["ldFlags"]
 	if !strings.Contains(ldFlags, expectedCFlag) {
@@ -149,12 +143,6 @@ func TestOrderfileLoadBinary(t *testing.T) {
 	expectedCFlag := "-Wl,--symbol-ordering-file=toolchain/pgo-profiles/orderfiles/test.orderfile"
 
 	test := result.ModuleForTests("test", "android_arm64_armv8-a")
-
-	// Check cFlags of orderfile-enabled module
-	cFlags := test.Rule("cc").Args["cFlags"]
-	if !strings.Contains(cFlags, expectedCFlag) {
-		t.Errorf("Expected 'test' to load orderfile, but did not find %q in cflags %q", expectedCFlag, cFlags)
-	}
 
 	// Check ldFlags of orderfile-enabled module
 	ldFlags := test.Rule("ld").Args["ldFlags"]
@@ -285,27 +273,16 @@ func TestOrderfileLoadPropagateStaticDeps(t *testing.T) {
 
 	expectedCFlag := "-Wl,--symbol-ordering-file=toolchain/pgo-profiles/orderfiles/test.orderfile"
 
-	// Check cFlags of orderfile-enabled module
+	// Check ldFlags of orderfile-enabled module
 	libTest := result.ModuleForTests("libTest", "android_arm64_armv8-a_shared")
 
-	cFlags := libTest.Rule("cc").Args["cFlags"]
-	if !strings.Contains(cFlags, expectedCFlag) {
-		t.Errorf("Expected 'libTest' to load orderfile, but did not find %q in cflags %q", expectedCFlag, cFlags)
+	ldFlags := libTest.Rule("ld").Args["ldFlags"]
+	if !strings.Contains(ldFlags, expectedCFlag) {
+		t.Errorf("Expected 'libTest' to load orderfile, but did not find %q in ldFlags %q", expectedCFlag, ldFlags)
 	}
 
-	// Check cFlags of the non-orderfile variant static libraries
 	libFoo  := result.ModuleForTests("libFoo", "android_arm64_armv8-a_static")
 	libBar  := result.ModuleForTests("libBar", "android_arm64_armv8-a_static")
-
-	cFlags = libFoo.Rule("cc").Args["cFlags"]
-	if strings.Contains(cFlags, expectedCFlag) {
-		t.Errorf("Expected 'libFoo' not load orderfile, but did find %q in cflags %q", expectedCFlag, cFlags)
-	}
-
-	cFlags = libBar.Rule("cc").Args["cFlags"]
-	if strings.Contains(cFlags, expectedCFlag) {
-		t.Errorf("Expected 'libBar' not load orderfile, but did find %q in cflags %q", expectedCFlag, cFlags)
-	}
 
 	// Check dependency edge from orderfile-enabled module to non-orderfile variant static libraries
 	if !hasDirectDep(result, libTest.Module(), libFoo.Module()) {
