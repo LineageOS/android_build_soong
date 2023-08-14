@@ -869,7 +869,7 @@ type bazelGensrcsAttributes struct {
 	Srcs             bazel.LabelListAttribute
 	Output_extension *string
 	Tools            bazel.LabelListAttribute
-	Cmd              string
+	Cmd              bazel.StringAttribute
 	Data             bazel.LabelListAttribute
 }
 
@@ -917,7 +917,7 @@ type bazelGenruleAttributes struct {
 	Srcs  bazel.LabelListAttribute
 	Outs  []string
 	Tools bazel.LabelListAttribute
-	Cmd   string
+	Cmd   bazel.StringAttribute
 }
 
 // ConvertWithBp2build converts a Soong module -> Bazel target.
@@ -967,14 +967,13 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		}
 	}
 
-	// Replace in and out variables with $< and $@
-	var cmd string
-	if m.properties.Cmd != nil {
+	replaceVariables := func(cmd string) string {
+		// Replace in and out variables with $< and $@
 		if ctx.ModuleType() == "gensrcs" {
-			cmd = strings.ReplaceAll(*m.properties.Cmd, "$(in)", "$(SRC)")
+			cmd = strings.ReplaceAll(cmd, "$(in)", "$(SRC)")
 			cmd = strings.ReplaceAll(cmd, "$(out)", "$(OUT)")
 		} else {
-			cmd = strings.Replace(*m.properties.Cmd, "$(in)", "$(SRCS)", -1)
+			cmd = strings.Replace(cmd, "$(in)", "$(SRCS)", -1)
 			cmd = strings.Replace(cmd, "$(out)", "$(OUTS)", -1)
 		}
 		cmd = strings.Replace(cmd, "$(genDir)", "$(RULEDIR)", -1)
@@ -990,6 +989,21 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 			cmd = strings.Replace(cmd, bpLoc, bazelLoc, -1)
 			cmd = strings.Replace(cmd, bpLocs, bazelLocs, -1)
 		}
+		return cmd
+	}
+
+	var cmdProp bazel.StringAttribute
+	cmdProp.SetValue(replaceVariables(proptools.String(m.properties.Cmd)))
+	allProductVariableProps := android.ProductVariableProperties(ctx, m)
+	if productVariableProps, ok := allProductVariableProps["Cmd"]; ok {
+		for productVariable, value := range productVariableProps {
+			var cmd string
+			if strValue, ok := value.(*string); ok && strValue != nil {
+				cmd = *strValue
+			}
+			cmd = replaceVariables(cmd)
+			cmdProp.SetSelectValue(productVariable.ConfigurationAxis(), productVariable.SelectKey(), &cmd)
+		}
 	}
 
 	tags := android.ApexAvailableTagsWithoutTestApexes(ctx, m)
@@ -1003,7 +1017,7 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		attrs := &bazelGensrcsAttributes{
 			Srcs:             srcs,
 			Output_extension: outputExtension,
-			Cmd:              cmd,
+			Cmd:              cmdProp,
 			Tools:            tools,
 			Data:             data,
 		}
@@ -1026,7 +1040,7 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		attrs := &bazelGenruleAttributes{
 			Srcs:  srcs,
 			Outs:  outs,
-			Cmd:   cmd,
+			Cmd:   cmdProp,
 			Tools: tools,
 		}
 		props := bazel.BazelTargetModuleProperties{
@@ -1056,7 +1070,6 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 			Name: m.Name() + genruleHeaderLibrarySuffix,
 			Tags: tags,
 		}, attrs)
-
 	}
 }
 
