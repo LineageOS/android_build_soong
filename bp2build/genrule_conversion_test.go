@@ -772,3 +772,77 @@ func TestGenruleWithExportIncludeDirs(t *testing.T) {
 		})
 	}
 }
+
+func TestGenruleWithConfiguredCmd(t *testing.T) {
+	testCases := []struct {
+		moduleType string
+		factory    android.ModuleFactory
+		hod        android.HostOrDeviceSupported
+	}{
+		{
+			moduleType: "genrule",
+			factory:    genrule.GenRuleFactory,
+		},
+		{
+			moduleType: "cc_genrule",
+			factory:    cc.GenRuleFactory,
+			hod:        android.DeviceSupported,
+		},
+		{
+			moduleType: "java_genrule",
+			factory:    java.GenRuleFactory,
+			hod:        android.DeviceSupported,
+		},
+		{
+			moduleType: "java_genrule_host",
+			factory:    java.GenRuleFactoryHost,
+			hod:        android.HostSupported,
+		},
+	}
+
+	bp := `
+soong_config_module_type {
+    name: "my_genrule",
+    module_type: "%s",
+    config_namespace: "my_namespace",
+    bool_variables: ["my_variable"],
+    properties: ["cmd"],
+}
+
+my_genrule {
+    name: "foo",
+    out: ["foo.txt"],
+    cmd: "echo 'no variable' > $(out)",
+    soong_config_variables: {
+        my_variable: {
+            cmd: "echo 'with variable' > $(out)",
+        },
+    },
+    bazel_module: { bp2build_available: true },
+}
+`
+
+	for _, tc := range testCases {
+		moduleAttrs := AttrNameToString{
+			"cmd": `select({
+        "//build/bazel/product_config/config_settings:my_namespace__my_variable": "echo 'with variable' > $(OUTS)",
+        "//conditions:default": "echo 'no variable' > $(OUTS)",
+    })`,
+			"outs": `["foo.txt"]`,
+		}
+
+		expectedBazelTargets := []string{
+			makeBazelTargetHostOrDevice("genrule", "foo", moduleAttrs, tc.hod),
+		}
+
+		t.Run(tc.moduleType, func(t *testing.T) {
+			RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) { android.RegisterSoongConfigModuleBuildComponents(ctx) },
+				Bp2buildTestCase{
+					Blueprint:                  fmt.Sprintf(bp, tc.moduleType),
+					ModuleTypeUnderTest:        tc.moduleType,
+					ModuleTypeUnderTestFactory: tc.factory,
+					ExpectedBazelTargets:       expectedBazelTargets,
+				})
+		})
+	}
+}
