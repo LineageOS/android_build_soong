@@ -4967,6 +4967,7 @@ cc_library_static {
 	tc.ExpectedBazelTargets = []string{
 		MakeBazelTarget("proto_library", "foo_proto", AttrNameToString{
 			"srcs": `["//bar:bar.proto"]`,
+			"tags": `["manual"]`,
 		}),
 	}
 	runCcLibraryTestCase(t, tc)
@@ -4976,6 +4977,7 @@ cc_library_static {
 	tc.ExpectedBazelTargets = []string{
 		MakeBazelTarget("proto_library", "foo_proto", AttrNameToString{
 			"srcs": `["//baz/subbaz:baz.proto"]`,
+			"tags": `["manual"]`,
 		}),
 	}
 	runCcLibraryTestCase(t, tc)
@@ -5035,6 +5037,7 @@ cc_library_static {
 			"srcs":                `["//bar:bar.proto"]`,
 			"strip_import_prefix": `""`,
 			"import_prefix":       `"bar"`,
+			"tags":                `["manual"]`,
 		}),
 	}
 	runCcLibraryTestCase(t, tc)
@@ -5046,6 +5049,7 @@ cc_library_static {
 			"srcs":                `["//baz/subbaz:baz.proto"]`,
 			"strip_import_prefix": `""`,
 			"import_prefix":       `"baz/subbaz"`,
+			"tags":                `["manual"]`,
 		}),
 	}
 	runCcLibraryTestCase(t, tc)
