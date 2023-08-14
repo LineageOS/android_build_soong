@@ -283,6 +283,15 @@ func Bp2buildProtoProperties(ctx Bp2buildMutatorContext, m *ModuleBase, srcs baz
 				}
 			}
 
+			// TODO - b/246997908: Handle potential orphaned proto_library targets
+			// To create proto_library targets in the same package, we split the .proto files
+			// This means that if a proto_library in a subpackage imports another proto_library from the parent package
+			// (or a different subpackage), it will not find it.
+			// The CcProtoGen action itself runs fine because we construct the correct ProtoInfo,
+			// but the FileDescriptorSet of each proto_library might not be compile-able
+			if pkg != ctx.ModuleDir() {
+				tags.Append(bazel.MakeStringListAttribute([]string{"manual"}))
+			}
 			ctx.CreateBazelTargetModule(
 				bazel.BazelTargetModuleProperties{Rule_class: "proto_library"},
 				CommonAttributes{Name: name, Dir: proptools.StringPtr(pkg), Tags: tags},
