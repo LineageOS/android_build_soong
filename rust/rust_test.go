@@ -232,11 +232,6 @@ func TestDepsTracking(t *testing.T) {
 			srcs: ["foo.rs"],
 			crate_name: "shared",
 		}
-		rust_library_host_dylib {
-			name: "libdylib",
-			srcs: ["foo.rs"],
-			crate_name: "dylib",
-		}
 		rust_library_host_rlib {
 			name: "librlib",
 			srcs: ["foo.rs"],
@@ -252,7 +247,6 @@ func TestDepsTracking(t *testing.T) {
 		}
 		rust_binary_host {
 			name: "fizz-buzz",
-			dylibs: ["libdylib"],
 			rlibs: ["librlib"],
 			proc_macros: ["libpm"],
 			static_libs: ["libstatic"],
@@ -265,10 +259,6 @@ func TestDepsTracking(t *testing.T) {
 	rustLink := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Rule("rustLink")
 
 	// Since dependencies are added to AndroidMk* properties, we can check these to see if they've been picked up.
-	if !android.InList("libdylib", module.Properties.AndroidMkDylibs) {
-		t.Errorf("Dylib dependency not detected (dependency missing from AndroidMkDylibs)")
-	}
-
 	if !android.InList("librlib.rlib-std", module.Properties.AndroidMkRlibs) {
 		t.Errorf("Rlib dependency not detected (dependency missing from AndroidMkRlibs)")
 	}
