@@ -390,7 +390,7 @@ func TestBasicApex(t *testing.T) {
 			name: "foo.rust",
 			srcs: ["foo.rs"],
 			rlibs: ["libfoo.rlib.rust"],
-			dylibs: ["libfoo.dylib.rust"],
+			rustlibs: ["libfoo.dylib.rust"],
 			apex_available: ["myapex"],
 		}
 
