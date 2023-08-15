@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"android/soong/ui/metrics/bp2build_metrics_proto"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/proptools"
@@ -153,8 +154,8 @@ type Bazelable interface {
 	HasHandcraftedLabel() bool
 	HandcraftedLabel() string
 	GetBazelLabel(ctx BazelConversionPathContext, module blueprint.Module) string
-	ShouldConvertWithBp2build(ctx BazelConversionContext) bool
-	shouldConvertWithBp2build(ctx bazelOtherModuleContext, module blueprint.Module) bool
+	ShouldConvertWithBp2build(ctx ShouldConvertWithBazelContext) bool
+	shouldConvertWithBp2build(shouldConvertModuleContext, shouldConvertParams) bool
 
 	// ConvertWithBp2build either converts the module to a Bazel build target or
 	// declares the module as unconvertible (for logging and metrics).
@@ -448,12 +449,32 @@ func convertedToBazel(ctx BazelConversionContext, module blueprint.Module) bool 
 	if !ok {
 		return false
 	}
-	return b.shouldConvertWithBp2build(ctx, module) || b.HasHandcraftedLabel()
+
+	return b.HasHandcraftedLabel() || b.shouldConvertWithBp2build(ctx, shouldConvertParams{
+		module:     module,
+		moduleDir:  ctx.OtherModuleDir(module),
+		moduleName: ctx.OtherModuleName(module),
+		moduleType: ctx.OtherModuleType(module),
+	})
+}
+
+type ShouldConvertWithBazelContext interface {
+	ModuleErrorf(format string, args ...interface{})
+	Module() Module
+	Config() Config
+	ModuleType() string
+	ModuleName() string
+	ModuleDir() string
 }
 
 // ShouldConvertWithBp2build returns whether the given BazelModuleBase should be converted with bp2build
-func (b *BazelModuleBase) ShouldConvertWithBp2build(ctx BazelConversionContext) bool {
-	return b.shouldConvertWithBp2build(ctx, ctx.Module())
+func (b *BazelModuleBase) ShouldConvertWithBp2build(ctx ShouldConvertWithBazelContext) bool {
+	return b.shouldConvertWithBp2build(ctx, shouldConvertParams{
+		module:     ctx.Module(),
+		moduleDir:  ctx.ModuleDir(),
+		moduleName: ctx.ModuleName(),
+		moduleType: ctx.ModuleType(),
+	})
 }
 
 type bazelOtherModuleContext interface {
@@ -471,11 +492,24 @@ func isPlatformIncompatible(osType OsType, arch ArchType) bool {
 		arch == Riscv64 // TODO(b/262192655) Riscv64 toolchains are not currently supported.
 }
 
-func (b *BazelModuleBase) shouldConvertWithBp2build(ctx bazelOtherModuleContext, module blueprint.Module) bool {
+type shouldConvertModuleContext interface {
+	ModuleErrorf(format string, args ...interface{})
+	Config() Config
+}
+
+type shouldConvertParams struct {
+	module     blueprint.Module
+	moduleType string
+	moduleDir  string
+	moduleName string
+}
+
+func (b *BazelModuleBase) shouldConvertWithBp2build(ctx shouldConvertModuleContext, p shouldConvertParams) bool {
 	if !b.bazelProps().Bazel_module.CanConvertToBazel {
 		return false
 	}
 
+	module := p.module
 	// In api_bp2build mode, all soong modules that can provide API contributions should be converted
 	// This is irrespective of its presence/absence in bp2build allowlists
 	if ctx.Config().BuildMode == ApiBp2build {
@@ -484,7 +518,7 @@ func (b *BazelModuleBase) shouldConvertWithBp2build(ctx bazelOtherModuleContext,
 	}
 
 	propValue := b.bazelProperties.Bazel_module.Bp2build_available
-	packagePath := moduleDirWithPossibleOverride(ctx, module)
+	packagePath := moduleDirWithPossibleOverride(ctx, module, p.moduleDir)
 
 	// Modules in unit tests which are enabled in the allowlist by type or name
 	// trigger this conditional because unit tests run under the "." package path
@@ -493,10 +527,10 @@ func (b *BazelModuleBase) shouldConvertWithBp2build(ctx bazelOtherModuleContext,
 		return true
 	}
 
-	moduleName := moduleNameWithPossibleOverride(ctx, module)
+	moduleName := moduleNameWithPossibleOverride(ctx, module, p.moduleName)
 	allowlist := ctx.Config().Bp2buildPackageConfig
 	moduleNameAllowed := allowlist.moduleAlwaysConvert[moduleName]
-	moduleTypeAllowed := allowlist.moduleTypeAlwaysConvert[ctx.OtherModuleType(module)]
+	moduleTypeAllowed := allowlist.moduleTypeAlwaysConvert[p.moduleType]
 	allowlistConvert := moduleNameAllowed || moduleTypeAllowed
 	if moduleNameAllowed && moduleTypeAllowed {
 		ctx.ModuleErrorf("A module cannot be in moduleAlwaysConvert and also be in moduleTypeAlwaysConvert")
@@ -588,8 +622,21 @@ func bp2buildConversionMutator(ctx TopDownMutatorContext) {
 		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "")
 		return
 	}
+	// There may be cases where the target is created by a macro rather than in a BUILD file, those
+	// should be captured as well.
+	if bModule.HasHandcraftedLabel() {
+		// Defer to the BUILD target. Generating an additional target would
+		// cause a BUILD file conflict.
+		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_DEFINED_IN_BUILD_FILE, "")
+		return
+	}
 	// TODO: b/285631638 - Differentiate between denylisted modules and missing bp2build capabilities.
-	if !bModule.shouldConvertWithBp2build(ctx, ctx.Module()) {
+	if !bModule.shouldConvertWithBp2build(ctx, shouldConvertParams{
+		module:     ctx.Module(),
+		moduleDir:  ctx.ModuleDir(),
+		moduleName: ctx.ModuleName(),
+		moduleType: ctx.ModuleType(),
+	}) {
 		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_UNSUPPORTED, "")
 		return
 	}
