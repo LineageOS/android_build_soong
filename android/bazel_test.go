@@ -373,7 +373,14 @@ func TestBp2BuildAllowlist(t *testing.T) {
 				allowlist: test.allowlist,
 			}
 
-			shouldConvert := test.module.shouldConvertWithBp2build(bcc, test.module.TestModuleInfo)
+			shouldConvert := test.module.shouldConvertWithBp2build(bcc,
+				shouldConvertParams{
+					module:     test.module.TestModuleInfo,
+					moduleDir:  test.module.TestModuleInfo.Dir,
+					moduleType: test.module.TestModuleInfo.Typ,
+					moduleName: test.module.TestModuleInfo.ModuleName,
+				},
+			)
 			if test.shouldConvert != shouldConvert {
 				t.Errorf("Module shouldConvert expected to be: %v, but was: %v", test.shouldConvert, shouldConvert)
 			}

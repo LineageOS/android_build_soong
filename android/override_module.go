@@ -353,26 +353,26 @@ func replaceDepsOnOverridingModuleMutator(ctx BottomUpMutatorContext) {
 // variant of this OverridableModule, or ctx.ModuleName() if this module is not an OverridableModule
 // or if this variant is not overridden.
 func ModuleNameWithPossibleOverride(ctx BazelConversionContext) string {
-	return moduleNameWithPossibleOverride(ctx, ctx.Module())
+	return moduleNameWithPossibleOverride(ctx, ctx.Module(), ctx.OtherModuleName(ctx.Module()))
 }
 
-func moduleNameWithPossibleOverride(ctx bazelOtherModuleContext, module blueprint.Module) string {
+func moduleNameWithPossibleOverride(ctx shouldConvertModuleContext, module blueprint.Module, name string) string {
 	if overridable, ok := module.(OverridableModule); ok {
 		if o := overridable.GetOverriddenBy(); o != "" {
 			return o
 		}
 	}
-	return ctx.OtherModuleName(module)
+	return name
 }
 
 // moduleDirWithPossibleOverride returns the dir of the OverrideModule that overrides the current
 // variant of the given OverridableModule, or ctx.OtherModuleName() if the module is not an
 // OverridableModule or if the variant is not overridden.
-func moduleDirWithPossibleOverride(ctx bazelOtherModuleContext, module blueprint.Module) string {
+func moduleDirWithPossibleOverride(ctx shouldConvertModuleContext, module blueprint.Module, dir string) string {
 	if overridable, ok := module.(OverridableModule); ok {
 		if o := overridable.GetOverriddenByModuleDir(); o != "" {
 			return o
 		}
 	}
-	return ctx.OtherModuleDir(module)
+	return dir
 }
