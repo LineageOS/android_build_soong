@@ -165,7 +165,17 @@ func protoFlags(ctx ModuleContext, flags Flags, p *android.ProtoProperties) Flag
 }
 
 type protoAttributes struct {
-	Deps            bazel.LabelListAttribute
+	Deps bazel.LabelListAttribute
+
+	// A list of proto_library targets that that the proto_library in `deps` depends on
+	// This list is overestimation.
+	// Overestimation is necessary since Soong includes other protos via proto.include_dirs and not
+	// a specific .proto file module explicitly.
+	Transitive_deps bazel.LabelListAttribute
+
+	// A list of cc_library_* targets that the generated cpp code depends on
+	Cc_deps bazel.LabelListAttribute
+
 	Min_sdk_version *string
 }
 
@@ -175,7 +185,7 @@ type bp2buildProtoDeps struct {
 	protoDep                     *bazel.LabelAttribute
 }
 
-func bp2buildProto(ctx android.Bp2buildMutatorContext, m *Module, protoSrcs bazel.LabelListAttribute) bp2buildProtoDeps {
+func bp2buildProto(ctx android.Bp2buildMutatorContext, m *Module, protoSrcs bazel.LabelListAttribute, la linkerAttributes) bp2buildProtoDeps {
 	var ret bp2buildProtoDeps
 
 	protoInfo, ok := android.Bp2buildProtoProperties(ctx, &m.ModuleBase, protoSrcs)
@@ -204,6 +214,35 @@ func bp2buildProto(ctx android.Bp2buildMutatorContext, m *Module, protoSrcs baze
 
 	var protoAttrs protoAttributes
 	protoAttrs.Deps.SetValue(protoInfo.Proto_libs)
+	protoAttrs.Transitive_deps.SetValue(protoInfo.Transitive_proto_libs)
+
+	// Add the implementation deps of the top-level cc_library_static
+	// This is necessary to compile the internal root of cc_proto_library.
+	// Without this, clang might not be able to find .h files that the generated cpp files depends on
+	protoAttrs.Cc_deps = *la.implementationDeps.Clone()
+	protoAttrs.Cc_deps.Append(la.implementationDynamicDeps)
+	protoAttrs.Cc_deps.Append(la.implementationWholeArchiveDeps)
+	protoAttrs.Cc_deps.Append(la.wholeArchiveDeps)
+	// Subtract myself to prevent possible circular dep
+	protoAttrs.Cc_deps = bazel.SubtractBazelLabelListAttribute(
+		protoAttrs.Cc_deps,
+		bazel.MakeLabelListAttribute(
+			bazel.MakeLabelList([]bazel.Label{
+				bazel.Label{Label: ":" + m.Name() + suffix},
+			}),
+		),
+	)
+	// Subtract the protobuf libraries since cc_proto_library implicitly adds them
+	protoAttrs.Cc_deps = bazel.SubtractBazelLabelListAttribute(
+		protoAttrs.Cc_deps,
+		bazel.MakeLabelListAttribute(
+			bazel.MakeLabelList([]bazel.Label{
+				bazel.Label{Label: "//external/protobuf:libprotobuf-cpp-full", OriginalModuleName: "libprotobuf-cpp-full"},
+				bazel.Label{Label: "//external/protobuf:libprotobuf-cpp-lite", OriginalModuleName: "libprotobuf-cpp-lite"},
+			}),
+		),
+	)
+
 	protoAttrs.Min_sdk_version = m.Properties.Min_sdk_version
 
 	name := m.Name() + suffix
