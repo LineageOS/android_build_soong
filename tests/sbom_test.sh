@@ -86,16 +86,17 @@ function test_sbom_aosp_cf_x86_64_phone {
 
   declare -A diff_excludes
   diff_excludes[vendor]="\
-    -I /vendor/lib64/libkeystore2_crypto.so"
+    -I /vendor/lib64/libkeystore2_crypto.so \
+    -I /vendor/lib64/libvsock_utils.so"
   diff_excludes[system]="\
-    -I /system/bin/assemble_cvd
-    -I /system/bin/console_forwarder
-    -I /system/bin/kernel_log_monitor
-    -I /system/bin/logcat_receiver
-    -I /system/bin/mkenvimage_slim
-    -I /system/bin/run_cvd
-    -I /system/bin/simg2img
-    -I /system/bin/log_tee
+    -I /system/bin/assemble_cvd \
+    -I /system/bin/console_forwarder \
+    -I /system/bin/kernel_log_monitor \
+    -I /system/bin/logcat_receiver \
+    -I /system/bin/mkenvimage_slim \
+    -I /system/bin/run_cvd \
+    -I /system/bin/simg2img \
+    -I /system/bin/log_tee \
     -I /system/lib64/android.hardware.confirmationui@1.0.so \
     -I /system/lib64/android.hardware.confirmationui-V1-ndk.so \
     -I /system/lib64/android.hardware.keymaster@4.1.so \
