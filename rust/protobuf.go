@@ -243,7 +243,7 @@ func (proto *protobufDecorator) SourceProviderDeps(ctx DepsContext, deps Deps) D
 
 // rust_protobuf generates protobuf rust code from the provided proto file. This uses the protoc-gen-rust plugin for
 // protoc. Additional flags to the protoc command can be passed via the proto_flags property. This module type will
-// create library variants that can be used as a crate dependency by adding it to the rlibs, dylibs, and rustlibs
+// create library variants that can be used as a crate dependency by adding it to the rlibs and rustlibs
 // properties of other modules.
 func RustProtobufFactory() android.Module {
 	module, _ := NewRustProtobuf(android.HostAndDeviceSupported)
