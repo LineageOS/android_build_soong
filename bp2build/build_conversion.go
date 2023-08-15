@@ -686,6 +686,9 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 			//
 			// bp2build converters are used for the majority of modules.
 			if b, ok := m.(android.Bazelable); ok && b.HasHandcraftedLabel() {
+				if aModule, ok := m.(android.Module); ok && aModule.IsConvertedByBp2build() {
+					panic(fmt.Errorf("module %q [%s] [%s] was both converted with bp2build and has a handcrafted label", bpCtx.ModuleName(m), moduleType, dir))
+				}
 				// Handle modules converted to handcrafted targets.
 				//
 				// Since these modules are associated with some handcrafted
