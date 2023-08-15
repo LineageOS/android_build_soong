@@ -1095,6 +1095,7 @@ var (
 		"ion-unit-tests",
 		"jemalloc5_integrationtests",
 		"jemalloc5_unittests",
+		"jemalloc5_stresstests", // run by run_jemalloc_tests.sh and will be deleted after V
 		"ld_config_test_helper",
 		"ld_preload_test_helper",
 		"libBionicCtsGtestMain", // depends on unconverted modules: libgtest_isolated
