@@ -1449,17 +1449,17 @@ func TestJavaSdkLibrary_ApiLibrary(t *testing.T) {
 		{
 			scope:              apiScopePublic,
 			apiContributions:   []string{"foo.stubs.source.api.contribution"},
-			fullApiSurfaceStub: "android_stubs_current.from-text",
+			fullApiSurfaceStub: "android_stubs_current",
 		},
 		{
 			scope:              apiScopeSystem,
 			apiContributions:   []string{"foo.stubs.source.system.api.contribution", "foo.stubs.source.api.contribution"},
-			fullApiSurfaceStub: "android_system_stubs_current.from-text",
+			fullApiSurfaceStub: "android_system_stubs_current",
 		},
 		{
 			scope:              apiScopeTest,
 			apiContributions:   []string{"foo.stubs.source.test.api.contribution", "foo.stubs.source.system.api.contribution", "foo.stubs.source.api.contribution"},
-			fullApiSurfaceStub: "android_test_stubs_current.from-text",
+			fullApiSurfaceStub: "android_test_stubs_current",
 		},
 		{
 			scope:              apiScopeModuleLib,
