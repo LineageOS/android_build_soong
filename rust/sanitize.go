@@ -209,8 +209,8 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	}
 
 	// TODO:(b/178369775)
-	// For now sanitizing is only supported on devices
-	if ctx.Os() == android.Android && (Bool(s.Hwaddress) || Bool(s.Address) || Bool(s.Memtag_heap) || Bool(s.Fuzzer)) {
+	// For now sanitizing is only supported on non-windows targets
+	if ctx.Os() != android.Windows && (Bool(s.Hwaddress) || Bool(s.Address) || Bool(s.Memtag_heap) || Bool(s.Fuzzer)) {
 		sanitize.Properties.SanitizerEnabled = true
 	}
 }
@@ -234,6 +234,11 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags, deps PathDeps) (
 
 	if Bool(sanitize.Properties.Sanitize.Address) {
 		flags.RustFlags = append(flags.RustFlags, asanFlags...)
+		if ctx.Host() {
+			// -nodefaultlibs (provided with libc++) prevents the driver from linking
+			// libraries needed with -fsanitize=address. http://b/18650275 (WAI)
+			flags.LinkFlags = append(flags.LinkFlags, []string{"-Wl,--no-as-needed"}...)
+		}
 	}
 	return flags, deps
 }
@@ -273,10 +278,17 @@ func rustSanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 		var deps []string
 
 		if mod.IsSanitizerEnabled(cc.Asan) {
-			variations = append(variations,
-				blueprint.Variation{Mutator: "link", Variation: "shared"})
-			depTag = cc.SharedDepTag()
-			deps = []string{config.LibclangRuntimeLibrary(mod.toolchain(mctx), "asan")}
+			if mod.Host() {
+				variations = append(variations,
+					blueprint.Variation{Mutator: "link", Variation: "static"})
+				depTag = cc.StaticDepTag(false)
+				deps = []string{config.LibclangRuntimeLibrary(mod.toolchain(mctx), "asan.static")}
+			} else {
+				variations = append(variations,
+					blueprint.Variation{Mutator: "link", Variation: "shared"})
+				depTag = cc.SharedDepTag()
+				deps = []string{config.LibclangRuntimeLibrary(mod.toolchain(mctx), "asan")}
+			}
 		} else if mod.IsSanitizerEnabled(cc.Hwasan) {
 			// TODO(b/204776996): HWASan for static Rust binaries isn't supported yet.
 			if binary, ok := mod.compiler.(binaryInterface); ok {
@@ -391,7 +403,8 @@ func (sanitize *sanitize) AndroidMk(ctx AndroidMkContext, entries *android.Andro
 }
 
 func (mod *Module) SanitizerSupported(t cc.SanitizerType) bool {
-	if mod.Host() {
+	// Sanitizers are not supported on Windows targets.
+	if mod.Os() == android.Windows {
 		return false
 	}
 	switch t {
@@ -417,7 +430,8 @@ func (mod *Module) IsSanitizerEnabled(t cc.SanitizerType) bool {
 }
 
 func (mod *Module) IsSanitizerExplicitlyDisabled(t cc.SanitizerType) bool {
-	if mod.Host() {
+	// Sanitizers are not supported on Windows targets.
+	if mod.Os() == android.Windows {
 		return true
 	}
 
