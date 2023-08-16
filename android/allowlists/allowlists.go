@@ -145,6 +145,7 @@ var (
 		"external/flatbuffers":                   Bp2BuildDefaultTrueRecursively,
 		"external/fmtlib":                        Bp2BuildDefaultTrueRecursively,
 		"external/fsverity-utils":                Bp2BuildDefaultTrueRecursively,
+		"external/gflags":                        Bp2BuildDefaultTrueRecursively,
 		"external/google-benchmark":              Bp2BuildDefaultTrueRecursively,
 		"external/googletest":                    Bp2BuildDefaultTrueRecursively,
 		"external/guava":                         Bp2BuildDefaultTrueRecursively,
