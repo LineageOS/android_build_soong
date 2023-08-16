@@ -466,7 +466,15 @@ func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) F
 		library.includeDirs = append(library.includeDirs, android.PathsForModuleSrc(ctx, library.Properties.Include_dirs)...)
 	}
 	if library.shared() {
-		flags.LinkFlags = append(flags.LinkFlags, "-Wl,-soname="+library.sharedLibFilename(ctx))
+		if ctx.Darwin() {
+			flags.LinkFlags = append(
+				flags.LinkFlags,
+				"-dynamic_lib",
+				"-install_name @rpath/"+library.sharedLibFilename(ctx),
+			)
+		} else {
+			flags.LinkFlags = append(flags.LinkFlags, "-Wl,-soname="+library.sharedLibFilename(ctx))
+		}
 	}
 
 	return flags
