@@ -40,6 +40,7 @@ func TestMinimalAndroidApp(t *testing.T) {
 			"app.java":            "",
 			"res/res.png":         "",
 			"AndroidManifest.xml": "",
+			"assets/asset.png":    "",
 		},
 		Blueprint: `
 android_app {
@@ -54,6 +55,8 @@ android_app {
 				"manifest":       `"AndroidManifest.xml"`,
 				"resource_files": `["res/res.png"]`,
 				"sdk_version":    `"current"`,
+				"assets":         `["assets/asset.png"]`,
+				"assets_dir":     `"assets"`,
 			}),
 		}})
 }
@@ -68,6 +71,7 @@ func TestAndroidAppAllSupportedFields(t *testing.T) {
 			"resa/res.png":                 "",
 			"resb/res.png":                 "",
 			"manifest/AndroidManifest.xml": "",
+			"assets_/asset.png":            "",
 		},
 		Blueprint: simpleModuleDoNotConvertBp2build("android_app", "static_lib_dep") + `
 android_app {
@@ -81,6 +85,7 @@ android_app {
         java_version: "7",
         certificate: "foocert",
         required: ["static_lib_dep"],
+        asset_dirs: ["assets_"],
 }
 `,
 		ExpectedBazelTargets: []string{
@@ -91,6 +96,8 @@ android_app {
         "resa/res.png",
         "resb/res.png",
     ]`,
+				"assets":           `["assets_/asset.png"]`,
+				"assets_dir":       `"assets_"`,
 				"custom_package":   `"com.google"`,
 				"deps":             `[":static_lib_dep"]`,
 				"java_version":     `"7"`,
