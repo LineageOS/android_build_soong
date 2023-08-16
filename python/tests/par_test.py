@@ -33,6 +33,8 @@ if fileName.endswith('.pyc'):
 assert_equal("os.path.basename(__file__)", fileName, "par_test.py")
 
 archive = os.path.dirname(__file__)
+major = sys.version_info.major
+minor = sys.version_info.minor
 
 assert_equal("__package__", __package__, "")
 assert_equal("sys.argv[0]", sys.argv[0], archive)
@@ -42,10 +44,11 @@ assert_equal("sys.prefix", sys.prefix, archive)
 assert_equal("__loader__.archive", __loader__.archive, archive)
 assert_equal("site.ENABLE_USER_SITE", site.ENABLE_USER_SITE, None)
 
-assert_equal("len(sys.path)", len(sys.path), 3)
+assert_equal("len(sys.path)", len(sys.path), 4)
 assert_equal("sys.path[0]", sys.path[0], archive)
-assert_equal("sys.path[1]", sys.path[1], os.path.join(archive, "internal"))
-assert_equal("sys.path[2]", sys.path[2], os.path.join(archive, "internal", "stdlib"))
+assert_equal("sys.path[1]", sys.path[1], os.path.join(archive, "internal", f"python{major}{minor}.zip"))
+assert_equal("sys.path[2]", sys.path[2], os.path.join(archive, "internal", f"python{major}.{minor}"))
+assert_equal("sys.path[3]", sys.path[3], os.path.join(archive, "internal", f"python{major}.{minor}", "lib-dynload"))
 
 if os.getenv('ARGTEST', False):
     assert_equal("len(sys.argv)", len(sys.argv), 3)
