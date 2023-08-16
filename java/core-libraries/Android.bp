@@ -55,6 +55,19 @@ java_library {
     ],
 }
 
+java_api_library {
+    name: "core.current.stubs.from-text",
+    api_surface: "core",
+    api_contributions: [
+        "art.module.public.api.stubs.source.api.contribution",
+        "conscrypt.module.public.api.stubs.source.api.contribution",
+        "i18n.module.public.api.stubs.source.api.contribution",
+    ],
+    libs: [
+        "stub-annotations",
+    ],
+}
+
 java_library {
     name: "core.current.stubs",
     defaults: [
@@ -152,7 +165,6 @@ java_defaults {
     sdk_version: "none",
     system_modules: "none",
 }
-
 
 // A stubs target containing the parts of the public SDK & @SystemApi(MODULE_LIBRARIES) API
 // provided by the core libraries.
@@ -265,6 +277,32 @@ java_library {
     ],
 }
 
+java_defaults {
+    name: "android_core_platform_stubs_current_contributions",
+    api_surface: "core_platform",
+    api_contributions: [
+        "art.module.public.api.stubs.source.api.contribution",
+        "art.module.public.api.stubs.source.system.api.contribution",
+        "art.module.public.api.stubs.source.module_lib.api.contribution",
+        "conscrypt.module.platform.api.stubs.source.api.contribution",
+        "i18n.module.public.api.stubs.source.api.contribution",
+    ],
+}
+
+java_api_library {
+    name: "legacy.core.platform.api.stubs.from-text",
+    api_surface: "core_platform",
+    defaults: [
+        "android_core_platform_stubs_current_contributions",
+    ],
+    api_contributions: [
+        "legacy.i18n.module.platform.api.stubs.source.api.contribution",
+    ],
+    libs: [
+        "stub-annotations",
+    ],
+}
+
 java_library {
     name: "legacy.core.platform.api.stubs",
     visibility: core_platform_visibility,
@@ -325,6 +363,20 @@ java_library {
         // conscrypt only has a stable version, so it is okay to depend on it here:
         "conscrypt.module.platform.api.stubs",
         "stable.i18n.module.platform.api.stubs",
+    ],
+}
+
+java_api_library {
+    name: "stable.core.platform.api.stubs.from-text",
+    api_surface: "core_platform",
+    defaults: [
+        "android_core_platform_stubs_current_contributions",
+    ],
+    api_contributions: [
+        "stable.i18n.module.platform.api.stubs.source.api.contribution",
+    ],
+    libs: [
+        "stub-annotations",
     ],
 }
 
