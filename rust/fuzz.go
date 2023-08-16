@@ -25,6 +25,7 @@ import (
 
 func init() {
 	android.RegisterModuleType("rust_fuzz", RustFuzzFactory)
+	android.RegisterModuleType("rust_fuzz_host", RustFuzzHostFactory)
 }
 
 type fuzzDecorator struct {
@@ -40,6 +41,11 @@ var _ compiler = (*fuzzDecorator)(nil)
 // rust_binary produces a binary that is runnable on a device.
 func RustFuzzFactory() android.Module {
 	module, _ := NewRustFuzz(android.HostAndDeviceSupported)
+	return module.Init()
+}
+
+func RustFuzzHostFactory() android.Module {
+	module, _ := NewRustFuzz(android.HostSupported)
 	return module.Init()
 }
 
