@@ -34,6 +34,10 @@ func TestRustFuzz(t *testing.T) {
 				srcs: ["foo.rs"],
 				rustlibs: ["libtest_fuzzing"],
 			}
+			rust_fuzz_host {
+				name: "host_fuzzer",
+				srcs: ["foo.rs"],
+			}
 	`)
 
 	// Check that appropriate dependencies are added and that the rustlib linkage is correct.
@@ -50,7 +54,13 @@ func TestRustFuzz(t *testing.T) {
 	if !strings.Contains(fuzz_libtest.Args["rustcFlags"], "-C passes='sancov-module'") ||
 		!strings.Contains(fuzz_libtest.Args["rustcFlags"], "--cfg fuzzing") {
 		t.Errorf("rust_fuzz module does not contain the expected flags (sancov-module, cfg fuzzing).")
+	}
 
+	// Check that host modules support fuzzing.
+	host_fuzzer := ctx.ModuleForTests("fuzz_libtest", "android_arm64_armv8-a_fuzzer").Rule("rustc")
+	if !strings.Contains(host_fuzzer.Args["rustcFlags"], "-C passes='sancov-module'") ||
+		!strings.Contains(host_fuzzer.Args["rustcFlags"], "--cfg fuzzing") {
+		t.Errorf("rust_fuzz_host module does not contain the expected flags (sancov-module, cfg fuzzing).")
 	}
 
 	// Check that dependencies have 'fuzzer' variants produced for them as well.
