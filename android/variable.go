@@ -138,6 +138,7 @@ type variableProperties struct {
 
 			Srcs         []string
 			Exclude_srcs []string
+			Cmd          *string
 		}
 
 		// eng is true for -eng builds, and can be used to turn on additional heavyweight debugging
@@ -677,11 +678,16 @@ func ProductVariableProperties(ctx ArchVariantContext, module Module) ProductCon
 
 	if moduleBase.variableProperties != nil {
 		productVariablesProperty := proptools.FieldNameForProperty("product_variables")
-		for /* axis */ _, configToProps := range moduleBase.GetArchVariantProperties(ctx, moduleBase.variableProperties) {
-			for config, props := range configToProps {
-				variableValues := reflect.ValueOf(props).Elem().FieldByName(productVariablesProperty)
-				productConfigProperties.AddProductConfigProperties(variableValues, config)
+		if moduleBase.ArchSpecific() {
+			for /* axis */ _, configToProps := range moduleBase.GetArchVariantProperties(ctx, moduleBase.variableProperties) {
+				for config, props := range configToProps {
+					variableValues := reflect.ValueOf(props).Elem().FieldByName(productVariablesProperty)
+					productConfigProperties.AddProductConfigProperties(variableValues, config)
+				}
 			}
+		} else {
+			variableValues := reflect.ValueOf(moduleBase.variableProperties).Elem().FieldByName(productVariablesProperty)
+			productConfigProperties.AddProductConfigProperties(variableValues, "")
 		}
 	}
 
