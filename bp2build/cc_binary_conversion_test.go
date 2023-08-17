@@ -880,8 +880,15 @@ func TestCcBinaryWithSanitizerBlocklist(t *testing.T) {
 }`,
 		targets: []testBazelTarget{
 			{"cc_binary", "foo", AttrNameToString{
+				"copts": `select({
+        "//build/bazel/rules/cc:sanitizers_enabled": ["-fsanitize-ignorelist=$(location foo_blocklist.txt)"],
+        "//conditions:default": [],
+    })`,
+				"additional_compiler_inputs": `select({
+        "//build/bazel/rules/cc:sanitizers_enabled": [":foo_blocklist.txt"],
+        "//conditions:default": [],
+    })`,
 				"local_includes": `["."]`,
-				"features":       `["sanitizer_blocklist_foo_blocklist_txt"]`,
 			}},
 		},
 	})
