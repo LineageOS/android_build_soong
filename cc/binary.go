@@ -638,7 +638,8 @@ func binaryBp2buildAttrs(ctx android.TopDownMutatorContext, m *Module) binaryAtt
 		Stl:               baseAttrs.stl,
 		Cpp_std:           baseAttrs.cppStd,
 
-		Additional_linker_inputs: baseAttrs.additionalLinkerInputs,
+		Additional_linker_inputs:   baseAttrs.additionalLinkerInputs,
+		Additional_compiler_inputs: baseAttrs.additionalCompilerInputs,
 
 		Strip: stripAttributes{
 			Keep_symbols:                 baseAttrs.stripKeepSymbols,
@@ -680,10 +681,11 @@ type binaryAttributes struct {
 	Srcs_c  bazel.LabelListAttribute
 	Srcs_as bazel.LabelListAttribute
 
-	Copts      bazel.StringListAttribute
-	Cppflags   bazel.StringListAttribute
-	Conlyflags bazel.StringListAttribute
-	Asflags    bazel.StringListAttribute
+	Copts                      bazel.StringListAttribute
+	Cppflags                   bazel.StringListAttribute
+	Conlyflags                 bazel.StringListAttribute
+	Asflags                    bazel.StringListAttribute
+	Additional_compiler_inputs bazel.LabelListAttribute
 
 	Deps               bazel.LabelListAttribute
 	Dynamic_deps       bazel.LabelListAttribute

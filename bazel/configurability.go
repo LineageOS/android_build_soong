@@ -76,6 +76,8 @@ const (
 	NonApex = "non_apex"
 
 	ErrorproneDisabled = "errorprone_disabled"
+	// TODO: b/294868620 - Remove when completing the bug
+	SanitizersEnabled = "sanitizers_enabled"
 )
 
 func PowerSetWithoutEmptySet[T any](items []T) [][]T {
@@ -223,6 +225,12 @@ var (
 		ErrorproneDisabled:         "//build/bazel/rules/java/errorprone:errorprone_globally_disabled",
 		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey,
 	}
+
+	// TODO: b/294868620 - Remove when completing the bug
+	sanitizersEnabledMap = map[string]string{
+		SanitizersEnabled:          "//build/bazel/rules/cc:sanitizers_enabled",
+		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey,
+	}
 )
 
 // basic configuration types
@@ -237,6 +245,8 @@ const (
 	osAndInApex
 	inApex
 	errorProneDisabled
+	// TODO: b/294868620 - Remove when completing the bug
+	sanitizersEnabled
 )
 
 func osArchString(os string, arch string) string {
@@ -253,6 +263,8 @@ func (ct configurationType) String() string {
 		osAndInApex:        "os_in_apex",
 		inApex:             "in_apex",
 		errorProneDisabled: "errorprone_disabled",
+		// TODO: b/294868620 - Remove when completing the bug
+		sanitizersEnabled: "sanitizers_enabled",
 	}[ct]
 }
 
@@ -287,6 +299,11 @@ func (ct configurationType) validateConfig(config string) {
 		if _, ok := errorProneMap[config]; !ok {
 			panic(fmt.Errorf("Unknown errorprone config: %s", config))
 		}
+	// TODO: b/294868620 - Remove when completing the bug
+	case sanitizersEnabled:
+		if _, ok := sanitizersEnabledMap[config]; !ok {
+			panic(fmt.Errorf("Unknown sanitizers_enabled config: %s", config))
+		}
 	default:
 		panic(fmt.Errorf("Unrecognized ConfigurationType %d", ct))
 	}
@@ -318,6 +335,9 @@ func (ca ConfigurationAxis) SelectKey(config string) string {
 		return inApexMap[config]
 	case errorProneDisabled:
 		return errorProneMap[config]
+	// TODO: b/294868620 - Remove when completing the bug
+	case sanitizersEnabled:
+		return sanitizersEnabledMap[config]
 	default:
 		panic(fmt.Errorf("Unrecognized ConfigurationType %d", ca.configurationType))
 	}
@@ -338,6 +358,9 @@ var (
 	InApexAxis = ConfigurationAxis{configurationType: inApex}
 
 	ErrorProneAxis = ConfigurationAxis{configurationType: errorProneDisabled}
+
+	// TODO: b/294868620 - Remove when completing the bug
+	SanitizersEnabledAxis = ConfigurationAxis{configurationType: sanitizersEnabled}
 )
 
 // ProductVariableConfigurationAxis returns an axis for the given product variable
