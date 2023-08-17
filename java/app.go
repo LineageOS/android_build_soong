@@ -1628,8 +1628,10 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	deps := depLabels.Deps
 	deps.Append(depLabels.StaticDeps)
 
-	aapt := a.convertAaptAttrsWithBp2Build(ctx)
-
+	aapt, supported := a.convertAaptAttrsWithBp2Build(ctx)
+	if !supported {
+		return
+	}
 	certificate, certificateName := android.BazelStringOrLabelFromProp(ctx, a.overridableAppProperties.Certificate)
 
 	manifestValues := &manifestValueAttribute{}
