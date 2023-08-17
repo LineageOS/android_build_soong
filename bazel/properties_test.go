@@ -33,8 +33,12 @@ func TestUniqueBazelLabels(t *testing.T) {
 				{Label: "b"},
 				{Label: "a"},
 				{Label: "c"},
+				// namespaces
+				{Label: "//foo:bar", OriginalModuleName: "bar"},       // when referenced from foo namespace
+				{Label: "//foo:bar", OriginalModuleName: "//foo:bar"}, // when reference from root namespace
 			},
 			expectedUniqueLabels: []Label{
+				{Label: "//foo:bar", OriginalModuleName: "bar"},
 				{Label: "a"},
 				{Label: "b"},
 				{Label: "c"},
@@ -194,6 +198,9 @@ func TestFirstUniqueBazelLabelList(t *testing.T) {
 					{Label: "b"},
 					{Label: "a"},
 					{Label: "c"},
+					// namespaces
+					{Label: "//foo:bar", OriginalModuleName: "bar"},       // when referenced from foo namespace
+					{Label: "//foo:bar", OriginalModuleName: "//foo:bar"}, // when referenced from root namespace
 				},
 				Excludes: []Label{
 					{Label: "x"},
@@ -207,6 +214,7 @@ func TestFirstUniqueBazelLabelList(t *testing.T) {
 					{Label: "a"},
 					{Label: "b"},
 					{Label: "c"},
+					{Label: "//foo:bar", OriginalModuleName: "bar"},
 				},
 				Excludes: []Label{
 					{Label: "x"},
