@@ -205,6 +205,21 @@ func BazelLabelForModuleSrcExcludes(ctx BazelConversionPathContext, paths, exclu
 	return labels
 }
 
+func BazelLabelForSrcPatternExcludes(ctx BazelConversionPathContext, dir, pattern string, excludes []string) bazel.LabelList {
+	topRelPaths, err := ctx.GlobWithDeps(filepath.Join(dir, pattern), excludes)
+	if err != nil {
+		ctx.ModuleErrorf("Could not search dir: %s for pattern %s due to %v\n", dir, pattern, err)
+	}
+	// An intermediate list of labels relative to `dir` that assumes that there no subpacakges beneath `dir`
+	dirRelLabels := []bazel.Label{}
+	for _, topRelPath := range topRelPaths {
+		dirRelPath := Rel(ctx, dir, topRelPath)
+		dirRelLabels = append(dirRelLabels, bazel.Label{Label: "./" + dirRelPath})
+	}
+	// Return the package boudary resolved labels
+	return TransformSubpackagePaths(ctx.Config(), dir, bazel.MakeLabelList(dirRelLabels))
+}
+
 // Returns true if a prefix + components[:i] is a package boundary.
 //
 // A package boundary is determined by a BUILD file in the directory. This can happen in 2 cases:
