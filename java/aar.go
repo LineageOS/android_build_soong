@@ -30,7 +30,6 @@ import (
 )
 
 type AndroidLibraryDependency interface {
-	LibraryDependency
 	ExportPackage() android.Path
 	ResourcesNodeDepSet() *android.DepSet[*resourcesNode]
 	RRODirsDepSet() *android.DepSet[rroDir]
@@ -780,17 +779,9 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		ctx.CheckbuildFile(a.aarFile)
 	}
 
-	a.exportedProguardFlagFiles = append(a.exportedProguardFlagFiles,
-		android.PathsForModuleSrc(ctx, a.dexProperties.Optimize.Proguard_flags_files)...)
-
-	ctx.VisitDirectDeps(func(m android.Module) {
-		if ctx.OtherModuleDependencyTag(m) == staticLibTag {
-			if lib, ok := m.(LibraryDependency); ok {
-				a.exportedProguardFlagFiles = append(a.exportedProguardFlagFiles, lib.ExportedProguardFlagFiles()...)
-			}
-		}
-	})
-	a.exportedProguardFlagFiles = android.FirstUniquePaths(a.exportedProguardFlagFiles)
+	proguardSpecInfo := a.collectProguardSpecInfo(ctx)
+	ctx.SetProvider(ProguardSpecInfoProvider, proguardSpecInfo)
+	a.exportedProguardFlagFiles = proguardSpecInfo.ProguardFlagsFiles.ToList()
 
 	prebuiltJniPackages := android.Paths{}
 	ctx.VisitDirectDeps(func(module android.Module) {
@@ -941,10 +932,6 @@ var _ AndroidLibraryDependency = (*AARImport)(nil)
 func (a *AARImport) ExportPackage() android.Path {
 	return a.exportPackage
 }
-func (a *AARImport) ExportedProguardFlagFiles() android.Paths {
-	return android.Paths{a.proguardFlags}
-}
-
 func (a *AARImport) ResourcesNodeDepSet() *android.DepSet[*resourcesNode] {
 	return a.resourcesNodesDepSet
 }
@@ -1048,10 +1035,17 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	extractedAARDir := android.PathForModuleOut(ctx, "aar")
 	a.classpathFile = extractedAARDir.Join(ctx, "classes-combined.jar")
-	a.proguardFlags = extractedAARDir.Join(ctx, "proguard.txt")
 	a.manifest = extractedAARDir.Join(ctx, "AndroidManifest.xml")
 	aarRTxt := extractedAARDir.Join(ctx, "R.txt")
 	a.assetsPackage = android.PathForModuleOut(ctx, "assets.zip")
+	a.proguardFlags = extractedAARDir.Join(ctx, "proguard.txt")
+	ctx.SetProvider(ProguardSpecInfoProvider, ProguardSpecInfo{
+		ProguardFlagsFiles: android.NewDepSet[android.Path](
+			android.POSTORDER,
+			android.Paths{a.proguardFlags},
+			nil,
+		),
+	})
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        unzipAAR,
