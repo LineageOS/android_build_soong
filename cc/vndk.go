@@ -352,11 +352,19 @@ func IsForVndkApex(mctx android.BottomUpMutatorContext, m *Module) bool {
 		return false
 	}
 
-	// prebuilt vndk modules should match with device
 	// TODO(b/142675459): Use enabled: to select target device in vndk_prebuilt_shared
 	// When b/142675459 is landed, remove following check
-	if p, ok := m.linker.(*vndkPrebuiltLibraryDecorator); ok && !p.MatchesWithDevice(mctx.DeviceConfig()) {
-		return false
+	if p, ok := m.linker.(*vndkPrebuiltLibraryDecorator); ok {
+		// prebuilt vndk modules should match with device
+		if !p.MatchesWithDevice(mctx.DeviceConfig()) {
+			return false
+		}
+
+		// ignore prebuilt vndk modules that are newer than or equal to the platform vndk version
+		platformVndkApiLevel := android.ApiLevelOrPanic(mctx, mctx.DeviceConfig().PlatformVndkVersion())
+		if platformVndkApiLevel.LessThanOrEqualTo(android.ApiLevelOrPanic(mctx, p.Version())) {
+			return false
+		}
 	}
 
 	if lib, ok := m.linker.(libraryInterface); ok {
