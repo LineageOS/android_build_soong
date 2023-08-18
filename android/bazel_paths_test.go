@@ -15,6 +15,7 @@
 package android
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -114,8 +115,9 @@ func TestPathForBazelOutRelativeWithParentDirectoryRoot(t *testing.T) {
 
 type TestBazelConversionPathContext struct {
 	TestBazelConversionContext
-	moduleDir string
-	cfg       Config
+	moduleDir       string
+	cfg             Config
+	mockGlobResults *[]string
 }
 
 func (ctx *TestBazelConversionPathContext) AddNinjaFileDeps(...string) {
@@ -123,7 +125,10 @@ func (ctx *TestBazelConversionPathContext) AddNinjaFileDeps(...string) {
 }
 
 func (ctx *TestBazelConversionPathContext) GlobWithDeps(string, []string) ([]string, error) {
-	panic("Unimplemented")
+	if ctx.mockGlobResults == nil {
+		return []string{}, fmt.Errorf("Set mock glob results first")
+	}
+	return *ctx.mockGlobResults, nil
 }
 
 func (ctx *TestBazelConversionPathContext) PropertyErrorf(string, string, ...interface{}) {
@@ -188,5 +193,48 @@ func TestTransformSubpackagePath(t *testing.T) {
 		if actual != out {
 			t.Errorf("expected:\n%v\nactual:\n%v", out, actual)
 		}
+	}
+}
+
+// Check that the files in a specific directory are returned with labels that respect package boundaries
+// Since the test uses a mock for GlobWithDeps, the params passed to BazelLabelForSrcPatternExcludes are no-ops
+func TestBazelLabelForSrcPatternExcludes(t *testing.T) {
+	cfg := NullConfig("out", "out/soong")
+	cfg.fs = pathtools.MockFs(map[string][]byte{
+		"x/Android.bp":   nil,
+		"x/y/Android.bp": nil,
+		// .proto files
+		"foo.proto":     nil,
+		"x/bar.proto":   nil,
+		"x/baz.proto":   nil,
+		"x/y/qux.proto": nil,
+	})
+
+	var ctx BazelConversionPathContext = &TestBazelConversionPathContext{
+		cfg: cfg,
+	}
+
+	// Root dir
+	ctx.(*TestBazelConversionPathContext).mockGlobResults = &[]string{"foo.proto", "x/bar.proto", "x/baz.proto", "x/y/qux.proto"}
+	actualLabelsFromRoot := BazelLabelForSrcPatternExcludes(ctx, ".", "**/*.proto", []string{})
+	expectedLabelsAsString := []string{"foo.proto", "//x:bar.proto", "//x:baz.proto", "//x/y:qux.proto"}
+	for i, actual := range actualLabelsFromRoot.Includes {
+		AssertStringEquals(t, "Error in finding src labels relative to root directory", expectedLabelsAsString[i], actual.Label)
+	}
+
+	// x dir
+	ctx.(*TestBazelConversionPathContext).mockGlobResults = &[]string{"x/bar.proto", "x/baz.proto", "x/y/qux.proto"}
+	actualLabelsFromRoot = BazelLabelForSrcPatternExcludes(ctx, "x", "**/*.proto", []string{})
+	expectedLabelsAsString = []string{"bar.proto", "baz.proto", "//x/y:qux.proto"}
+	for i, actual := range actualLabelsFromRoot.Includes {
+		AssertStringEquals(t, "Error in finding src labels relative to x directory", expectedLabelsAsString[i], actual.Label)
+	}
+
+	// y dir
+	ctx.(*TestBazelConversionPathContext).mockGlobResults = &[]string{"x/y/qux.proto"}
+	actualLabelsFromRoot = BazelLabelForSrcPatternExcludes(ctx, "x/y", "**/*.proto", []string{})
+	expectedLabelsAsString = []string{"qux.proto"}
+	for i, actual := range actualLabelsFromRoot.Includes {
+		AssertStringEquals(t, "Error in finding src labels relative to x/y directory", expectedLabelsAsString[i], actual.Label)
 	}
 }
