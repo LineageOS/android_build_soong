@@ -101,6 +101,9 @@ var (
 		// Warnings from clang-12
 		"-Wno-gnu-folding-constant",
 
+		// http://b/145210666
+		"-Wno-error=reorder-init-list",
+
 		// Calls to the APIs that are newer than the min sdk version of the caller should be
 		// guarded with __builtin_available.
 		"-Wunguarded-availability",
@@ -218,8 +221,6 @@ var (
 		// new warnings are fixed.
 		"-Wno-tautological-constant-compare",
 		"-Wno-tautological-type-limit-compare",
-		// http://b/145210666
-		"-Wno-reorder-init-list",
 		// http://b/145211066
 		"-Wno-implicit-int-float-conversion",
 		// New warnings to be fixed after clang-r377782.
