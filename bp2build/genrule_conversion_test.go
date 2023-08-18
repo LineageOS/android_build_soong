@@ -27,6 +27,8 @@ import (
 
 func registerGenruleModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("genrule_defaults", func() android.Module { return genrule.DefaultsFactory() })
+	ctx.RegisterModuleType("cc_binary", func() android.Module { return cc.BinaryFactory() })
+	ctx.RegisterModuleType("soong_namespace", func() android.Module { return android.NamespaceFactory() })
 }
 
 func runGenruleTestCase(t *testing.T, tc Bp2buildTestCase) {
@@ -912,4 +914,41 @@ func TestGenruleWithProductVariableConfiguredCmd(t *testing.T) {
 				})
 		})
 	}
+}
+
+func TestGenruleWithModulesInNamespaces(t *testing.T) {
+	bp := `
+genrule {
+	name: "mygenrule",
+	cmd: "echo $(location //mynamespace:mymodule) > $(out)",
+	srcs: ["//mynamespace:mymodule"],
+	out: ["myout"],
+}
+`
+	fs := map[string]string{
+		"mynamespace/Android.bp":     `soong_namespace {}`,
+		"mynamespace/dir/Android.bp": `cc_binary {name: "mymodule"}`,
+	}
+	expectedBazelTargets := []string{
+		MakeBazelTargetNoRestrictions("genrule", "mygenrule", AttrNameToString{
+			// The fully qualified soong label is <namespace>:<module_name>
+			// - here the prefix is mynamespace
+			// The fully qualifed bazel label is <package>:<module_name>
+			// - here the prefix is mynamespace/dir, since there is a BUILD file at each level of this FS path
+			"cmd":  `"echo $(location //mynamespace/dir:mymodule) > $(OUTS)"`,
+			"outs": `["myout"]`,
+			"srcs": `["//mynamespace/dir:mymodule"]`,
+		}),
+	}
+
+	t.Run("genrule that uses module from a different namespace", func(t *testing.T) {
+		runGenruleTestCase(t, Bp2buildTestCase{
+			Blueprint:                  bp,
+			Filesystem:                 fs,
+			ModuleTypeUnderTest:        "genrule",
+			ModuleTypeUnderTestFactory: genrule.GenRuleFactory,
+			ExpectedBazelTargets:       expectedBazelTargets,
+		})
+	})
+
 }
