@@ -918,6 +918,19 @@ func CheckMinSdkVersion(ctx ModuleContext, minSdkVersion ApiLevel, walk WalkPayl
 	})
 }
 
+// Construct ApiLevel object from min_sdk_version string value
+func MinSdkVersionFromValue(ctx EarlyModuleContext, value string) ApiLevel {
+	if value == "" {
+		return NoneApiLevel
+	}
+	apiLevel, err := ApiLevelFromUser(ctx, value)
+	if err != nil {
+		ctx.PropertyErrorf("min_sdk_version", "%s", err.Error())
+		return NoneApiLevel
+	}
+	return apiLevel
+}
+
 // Implemented by apexBundle.
 type ApexTestInterface interface {
 	// Return true if the apex bundle is an apex_test

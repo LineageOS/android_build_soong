@@ -2943,13 +2943,13 @@ func (a *apexBundle) minSdkVersionValue(ctx android.EarlyModuleContext) string {
 	// Only override the minSdkVersion value on Apexes which already specify
 	// a min_sdk_version (it's optional for non-updatable apexes), and that its
 	// min_sdk_version value is lower than the one to override with.
-	minApiLevel := minSdkVersionFromValue(ctx, proptools.String(a.properties.Min_sdk_version))
+	minApiLevel := android.MinSdkVersionFromValue(ctx, proptools.String(a.properties.Min_sdk_version))
 	if minApiLevel.IsNone() {
 		return ""
 	}
 
 	overrideMinSdkValue := ctx.DeviceConfig().ApexGlobalMinSdkVersionOverride()
-	overrideApiLevel := minSdkVersionFromValue(ctx, overrideMinSdkValue)
+	overrideApiLevel := android.MinSdkVersionFromValue(ctx, overrideMinSdkValue)
 	if !overrideApiLevel.IsNone() && overrideApiLevel.CompareTo(minApiLevel) > 0 {
 		minApiLevel = overrideApiLevel
 	}
@@ -2964,20 +2964,7 @@ func (a *apexBundle) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLe
 
 // Returns apex's min_sdk_version ApiLevel, honoring overrides
 func (a *apexBundle) minSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
-	return minSdkVersionFromValue(ctx, a.minSdkVersionValue(ctx))
-}
-
-// Construct ApiLevel object from min_sdk_version string value
-func minSdkVersionFromValue(ctx android.EarlyModuleContext, value string) android.ApiLevel {
-	if value == "" {
-		return android.NoneApiLevel
-	}
-	apiLevel, err := android.ApiLevelFromUser(ctx, value)
-	if err != nil {
-		ctx.PropertyErrorf("min_sdk_version", "%s", err.Error())
-		return android.NoneApiLevel
-	}
-	return apiLevel
+	return android.MinSdkVersionFromValue(ctx, a.minSdkVersionValue(ctx))
 }
 
 // Ensures that a lib providing stub isn't statically linked
