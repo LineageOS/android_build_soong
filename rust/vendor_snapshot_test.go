@@ -1063,7 +1063,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		}
 	}
 
-	libclientAndroidMkSharedLibs := ctx.ModuleForTests("libclient", sharedVariant).Module().(*Module).Properties.AndroidMkSharedLibs
+	libclientAndroidMkSharedLibs := ctx.ModuleForTests("libclient", sharedVariant).Module().(*Module).transitiveAndroidMkSharedLibs.ToList()
 	if g, w := libclientAndroidMkSharedLibs, []string{"libvndk.vendor", "libvendor_available.vendor", "lib64", "liblog.vendor", "libc.vendor", "libm.vendor", "libdl.vendor"}; !reflect.DeepEqual(g, w) {
 		t.Errorf("wanted libclient AndroidMkSharedLibs %q, got %q", w, g)
 	}
@@ -1078,7 +1078,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		t.Errorf("wanted libclient libclientAndroidMkDylibs %q, got %q", w, libclientAndroidMkDylibs)
 	}
 
-	libclient32AndroidMkSharedLibs := ctx.ModuleForTests("libclient", shared32Variant).Module().(*Module).Properties.AndroidMkSharedLibs
+	libclient32AndroidMkSharedLibs := ctx.ModuleForTests("libclient", shared32Variant).Module().(*Module).transitiveAndroidMkSharedLibs.ToList()
 	if g, w := libclient32AndroidMkSharedLibs, []string{"libvndk.vendor", "libvendor_available.vendor", "lib32", "liblog.vendor", "libc.vendor", "libm.vendor", "libdl.vendor"}; !reflect.DeepEqual(g, w) {
 		t.Errorf("wanted libclient32 AndroidMkSharedLibs %q, got %q", w, g)
 	}
