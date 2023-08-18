@@ -689,3 +689,21 @@ func AttachValidationActions(ctx ModuleContext, outputFilePath Path, validations
 	})
 	return validatedOutputFilePath
 }
+
+func RunsOn(hostSupported bool, deviceSupported bool, unitTest bool) []string {
+	var runsOn []string
+
+	if hostSupported && deviceSupported {
+		runsOn = []string{"host_without_device", "device"}
+	} else if hostSupported {
+		if unitTest {
+			runsOn = []string{"host_without_device"}
+		} else {
+			runsOn = []string{"host_with_device"}
+		}
+	} else if deviceSupported {
+		runsOn = []string{"device"}
+	}
+
+	return runsOn
+}
