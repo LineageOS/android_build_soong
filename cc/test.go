@@ -686,6 +686,8 @@ type testBinaryAttributes struct {
 
 	tidyAttributes
 	tradefed.TestConfigAttributes
+
+	Runs_on bazel.StringListAttribute
 }
 
 // testBinaryBp2build is the bp2build converter for cc_test modules. A cc_test's
@@ -730,6 +732,8 @@ func testBinaryBp2build(ctx android.TopDownMutatorContext, m *Module) {
 
 	addImplicitGtestDeps(ctx, &testBinaryAttrs, gtest, gtestIsolated)
 
+	var unitTest *bool
+
 	for _, testProps := range m.GetProperties() {
 		if p, ok := testProps.(*TestBinaryProperties); ok {
 			useVendor := false // TODO Bug: 262914724
@@ -745,8 +749,14 @@ func testBinaryBp2build(ctx android.TopDownMutatorContext, m *Module) {
 				&testInstallBase,
 			)
 			testBinaryAttrs.TestConfigAttributes = testConfigAttributes
+			unitTest = p.Test_options.Unit_test
 		}
 	}
+
+	testBinaryAttrs.Runs_on = bazel.MakeStringListAttribute(android.RunsOn(
+		m.ModuleBase.HostSupported(),
+		m.ModuleBase.DeviceSupported(),
+		gtest || (unitTest != nil && *unitTest)))
 
 	// TODO (b/262914724): convert to tradefed_cc_test and tradefed_cc_test_host
 	ctx.CreateBazelTargetModule(
