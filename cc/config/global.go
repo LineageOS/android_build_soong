@@ -75,11 +75,6 @@ var (
 		// Help catch common 32/64-bit errors.
 		"-Werror=int-conversion",
 
-		// Disable overly aggressive warning for macros defined with a leading underscore
-		// This happens in AndroidConfig.h, which is included nearly everywhere.
-		// TODO: can we remove this now?
-		"-Wno-reserved-id-macro",
-
 		// Force clang to always output color diagnostics. Ninja will strip the ANSI
 		// color codes if it is not running in a terminal.
 		"-fcolor-diagnostics",
