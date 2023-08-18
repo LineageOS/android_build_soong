@@ -80,6 +80,10 @@ func apexVndkMutator(mctx android.TopDownMutatorContext) {
 			// config targets the 'current' VNDK (see `vndkVersion`).
 			ab.Disable()
 		}
+		if proptools.String(ab.vndkProperties.Vndk_version) != "" &&
+			apiLevel.GreaterThanOrEqualTo(android.ApiLevelOrPanic(mctx, mctx.DeviceConfig().PlatformVndkVersion())) {
+			ab.Disable()
+		}
 	}
 }
 
