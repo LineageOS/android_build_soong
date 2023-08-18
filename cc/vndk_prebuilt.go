@@ -131,6 +131,12 @@ func (p *vndkPrebuiltLibraryDecorator) singleSourcePath(ctx ModuleContext) andro
 
 func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
+	platformVndkApiLevel := android.ApiLevelOrPanic(ctx, ctx.DeviceConfig().PlatformVndkVersion())
+	if platformVndkApiLevel.LessThanOrEqualTo(android.ApiLevelOrPanic(ctx, p.Version())) {
+		// This prebuilt VNDK module is not required for the current build
+		ctx.Module().HideFromMake()
+		return nil
+	}
 
 	if !p.MatchesWithDevice(ctx.DeviceConfig()) {
 		ctx.Module().HideFromMake()
