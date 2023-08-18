@@ -3870,6 +3870,7 @@ func TestVndkApexCurrent(t *testing.T) {
 			}
 		`+vndkLibrariesTxtFiles("current"), android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 				variables.DeviceVndkVersion = proptools.StringPtr(tc.vndkVersion)
+				variables.KeepVndk = proptools.BoolPtr(true)
 			}))
 			ensureExactContents(t, ctx, "com.android.vndk.current", "android_common_image", tc.expectedFiles)
 		})
