@@ -140,7 +140,7 @@ type generatorProperties struct {
 	// prebuilts or scripts that do not need a module to build them.
 	Tools []string
 
-	// Local file that is used as the tool
+	// Local files that are used by the tool
 	Tool_files []string `android:"path"`
 
 	// List of directories to export generated headers from
@@ -403,7 +403,6 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 	}
 
 	addLabelsForInputs := func(propName string, include, exclude []string) android.Paths {
-
 		includeDirInPaths := ctx.DeviceConfig().BuildBrokenInputDir(g.Name())
 		var srcFiles android.Paths
 		for _, in := range include {
