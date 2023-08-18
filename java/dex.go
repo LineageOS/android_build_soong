@@ -71,6 +71,10 @@ type DexProperties struct {
 
 		// Specifies the locations of files containing proguard flags.
 		Proguard_flags_files []string `android:"path"`
+
+		// If true, transitive reverse dependencies of this module will have this
+		// module's proguard spec appended to their optimization action
+		Export_proguard_flags_files *bool
 	}
 
 	// Keep the data uncompressed. We always need uncompressed dex for execution,
