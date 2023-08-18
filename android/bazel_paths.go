@@ -378,7 +378,13 @@ func expandSrcsForBazel(ctx BazelConversionPathContext, paths, expandedExcludes 
 		if m, tag := SrcIsModuleWithTag(p); m != "" {
 			l := getOtherModuleLabel(ctx, m, tag, BazelModuleLabel)
 			if l != nil && !InList(l.Label, expandedExcludes) {
-				l.OriginalModuleName = fmt.Sprintf(":%s", m)
+				if strings.HasPrefix(m, "//") {
+					// this is a module in a soong namespace
+					// It appears as //<namespace>:<module_name> in srcs, and not ://<namespace>:<module_name>
+					l.OriginalModuleName = m
+				} else {
+					l.OriginalModuleName = fmt.Sprintf(":%s", m)
+				}
 				labels.Includes = append(labels.Includes, *l)
 			}
 		} else {
