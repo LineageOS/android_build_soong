@@ -671,6 +671,9 @@ var (
 		//frameworks/native/cmds/cmd
 		"libcmd",
 
+		//system/chre
+		"chre_api",
+
 		//system/core/fs_mgr/libdm
 		"libdm",
 
