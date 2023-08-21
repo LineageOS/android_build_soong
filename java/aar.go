@@ -1223,6 +1223,7 @@ func AARImportFactory() android.Module {
 type bazelAapt struct {
 	Manifest       bazel.Label
 	Resource_files bazel.LabelListAttribute
+	Resource_zips  bazel.LabelListAttribute
 	Assets_dir     bazel.StringAttribute
 	Assets         bazel.LabelListAttribute
 }
@@ -1267,9 +1268,20 @@ func (a *aapt) convertAaptAttrsWithBp2Build(ctx android.Bp2buildMutatorContext) 
 		assets = bazel.MakeLabelList(android.RootToModuleRelativePaths(ctx, androidResourceGlob(ctx, dir)))
 
 	}
+	var resourceZips bazel.LabelList
+	if len(a.aaptProperties.Resource_zips) > 0 {
+		if ctx.ModuleName() == "framework-res" {
+			resourceZips = android.BazelLabelForModuleSrc(ctx, a.aaptProperties.Resource_zips)
+		} else {
+			//TODO: b/301593550 - Implement support for this
+			ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_PROPERTY_UNSUPPORTED, "resource_zips")
+			return &bazelAapt{}, false
+		}
+	}
 	return &bazelAapt{
 		android.BazelLabelForModuleSrcSingle(ctx, manifest),
 		bazel.MakeLabelListAttribute(resourceFiles),
+		bazel.MakeLabelListAttribute(resourceZips),
 		assetsDir,
 		bazel.MakeLabelListAttribute(assets),
 	}, true
