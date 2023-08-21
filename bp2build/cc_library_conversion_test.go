@@ -2394,7 +2394,7 @@ func TestCcLibraryProtoIncludeDirsUnknown(t *testing.T) {
 	},
 	include_build_directory: false,
 }`,
-		ExpectedErr: fmt.Errorf("module \"foo\": Could not find the proto_library target for include dir: external/protobuf/abc"),
+		ExpectedErr: fmt.Errorf("module \"foo\": TODO: Add support for proto.include_dir: external/protobuf/abc. This directory does not contain an Android.bp file"),
 	})
 }
 
@@ -5063,6 +5063,75 @@ cc_library_static {
 			"srcs":                `["//baz/subbaz:baz.proto"]`,
 			"strip_import_prefix": `""`,
 			"import_prefix":       `"baz/subbaz"`,
+			"tags":                `["manual"]`,
+		}),
+	}
+	runCcLibraryTestCase(t, tc)
+}
+
+func TestProtoIncludeDirs(t *testing.T) {
+	tc := Bp2buildTestCase{
+		Description:                "cc_library depends on .proto files using proto.include_dirs",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+cc_library_static {
+	name: "foo",
+	srcs: [
+	   "foo.proto",
+	],
+	proto: {
+		include_dirs: ["bar"],
+	}
+}
+` + simpleModuleDoNotConvertBp2build("cc_library", "libprotobuf-cpp-lite"),
+		Filesystem: map[string]string{
+			"bar/Android.bp":     "",
+			"bar/bar.proto":      "",
+			"bar/baz/Android.bp": "",
+			"bar/baz/baz.proto":  "",
+		},
+	}
+
+	// We will run the test 3 times and check in the root, bar and bar/baz directories
+	// Root dir
+	tc.ExpectedBazelTargets = []string{
+		MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+			"local_includes":                    `["."]`,
+			"deps":                              `[":libprotobuf-cpp-lite"]`,
+			"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
+		}),
+		MakeBazelTarget("proto_library", "foo_proto", AttrNameToString{
+			"srcs": `["foo.proto"]`,
+		}),
+		MakeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", AttrNameToString{
+			"deps": `[":foo_proto"]`,
+			"transitive_deps": `[
+        "//bar:bar.include_dir_bp2build_generated_proto",
+        "//bar/baz:bar.include_dir_bp2build_generated_proto",
+    ]`,
+		}),
+	}
+	runCcLibraryTestCase(t, tc)
+
+	// bar dir
+	tc.Dir = "bar"
+	tc.ExpectedBazelTargets = []string{
+		MakeBazelTarget("proto_library", "bar.include_dir_bp2build_generated_proto", AttrNameToString{
+			"srcs":                `["bar.proto"]`,
+			"strip_import_prefix": `""`,
+			"tags":                `["manual"]`,
+		}),
+	}
+	runCcLibraryTestCase(t, tc)
+
+	// bar/baz dir
+	tc.Dir = "bar/baz"
+	tc.ExpectedBazelTargets = []string{
+		MakeBazelTarget("proto_library", "bar.include_dir_bp2build_generated_proto", AttrNameToString{
+			"srcs":                `["//bar/baz:baz.proto"]`,
+			"strip_import_prefix": `""`,
+			"import_prefix":       `"baz"`,
 			"tags":                `["manual"]`,
 		}),
 	}

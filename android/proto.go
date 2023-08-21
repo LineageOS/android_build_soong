@@ -156,8 +156,9 @@ func ProtoRule(rule *RuleBuilder, protoFile Path, flags ProtoFlags, deps Paths,
 
 // Bp2buildProtoInfo contains information necessary to pass on to language specific conversion.
 type Bp2buildProtoInfo struct {
-	Type       *string
-	Proto_libs bazel.LabelList
+	Type                  *string
+	Proto_libs            bazel.LabelList
+	Transitive_proto_libs bazel.LabelList
 }
 
 type ProtoAttrs struct {
@@ -211,6 +212,7 @@ func Bp2buildProtoProperties(ctx Bp2buildMutatorContext, m *ModuleBase, srcs baz
 	}
 
 	var protoLibraries bazel.LabelList
+	var transitiveProtoLibraries bazel.LabelList
 	var directProtoSrcs bazel.LabelList
 
 	// For filegroups that should be converted to proto_library just collect the
@@ -234,6 +236,7 @@ func Bp2buildProtoProperties(ctx Bp2buildMutatorContext, m *ModuleBase, srcs baz
 
 	if len(directProtoSrcs.Includes) > 0 {
 		pkgToSrcs := partitionSrcsByPackage(ctx.ModuleDir(), directProtoSrcs)
+		protoIncludeDirs := []string{}
 		for _, pkg := range SortedStringKeys(pkgToSrcs) {
 			srcs := pkgToSrcs[pkg]
 			attrs := ProtoAttrs{
@@ -262,7 +265,7 @@ func Bp2buildProtoProperties(ctx Bp2buildMutatorContext, m *ModuleBase, srcs baz
 							if dep, ok := includeDirsToProtoDeps[dir]; ok {
 								attrs.Deps.Add(bazel.MakeLabelAttribute(dep))
 							} else {
-								ctx.PropertyErrorf("Could not find the proto_library target for include dir", dir)
+								protoIncludeDirs = append(protoIncludeDirs, dir)
 							}
 						}
 					} else if props.Proto.Type != info.Type && props.Proto.Type != nil {
@@ -308,9 +311,84 @@ func Bp2buildProtoProperties(ctx Bp2buildMutatorContext, m *ModuleBase, srcs baz
 				Label: l,
 			})
 		}
+		protoLibrariesInIncludeDir := createProtoLibraryTargetsForIncludeDirs(ctx, protoIncludeDirs)
+		transitiveProtoLibraries.Append(protoLibrariesInIncludeDir)
 	}
 
 	info.Proto_libs = protoLibraries
+	info.Transitive_proto_libs = transitiveProtoLibraries
 
 	return info, true
+}
+
+var (
+	protoIncludeDirGeneratedSuffix = ".include_dir_bp2build_generated_proto"
+	protoIncludeDirsBp2buildKey    = NewOnceKey("protoIncludeDirsBp2build")
+)
+
+func getProtoIncludeDirsBp2build(config Config) *map[protoIncludeDirKey]bool {
+	return config.Once(protoIncludeDirsBp2buildKey, func() interface{} {
+		return &map[protoIncludeDirKey]bool{}
+	}).(*map[protoIncludeDirKey]bool)
+}
+
+// key for dynamically creating proto_library per proto.include_dirs
+type protoIncludeDirKey struct {
+	dir            string
+	subpackgeInDir string
+}
+
+// createProtoLibraryTargetsForIncludeDirs creates additional proto_library targets for .proto files in includeDirs
+// Since Bazel imposes a constratint that the proto_library must be in the same package as the .proto file, this function
+// might create the targets in a subdirectory of `includeDir`
+// Returns the labels of the proto_library targets
+func createProtoLibraryTargetsForIncludeDirs(ctx Bp2buildMutatorContext, includeDirs []string) bazel.LabelList {
+	var ret bazel.LabelList
+	for _, dir := range includeDirs {
+		if exists, _, _ := ctx.Config().fs.Exists(filepath.Join(dir, "Android.bp")); !exists {
+			ctx.ModuleErrorf("TODO: Add support for proto.include_dir: %v. This directory does not contain an Android.bp file", dir)
+		}
+		dirMap := getProtoIncludeDirsBp2build(ctx.Config())
+		// Find all proto file targets in this dir
+		protoLabelsInDir := BazelLabelForSrcPatternExcludes(ctx, dir, "**/*.proto", []string{})
+		// Partition the labels by package and subpackage(s)
+		protoLabelelsPartitionedByPkg := partitionSrcsByPackage(dir, protoLabelsInDir)
+		for _, pkg := range SortedStringKeys(protoLabelelsPartitionedByPkg) {
+			label := strings.ReplaceAll(dir, "/", ".") + protoIncludeDirGeneratedSuffix
+			ret.Add(&bazel.Label{
+				Label: "//" + pkg + ":" + label,
+			})
+			key := protoIncludeDirKey{dir: dir, subpackgeInDir: pkg}
+			if _, exists := (*dirMap)[key]; exists {
+				// A proto_library has already been created for this package relative to this include dir
+				continue
+			}
+			(*dirMap)[key] = true
+			srcs := protoLabelelsPartitionedByPkg[pkg]
+			rel, err := filepath.Rel(dir, pkg)
+			if err != nil {
+				ctx.ModuleErrorf("Could not create a proto_library in pkg %v due to %v\n", pkg, err)
+			}
+			// Create proto_library
+			attrs := ProtoAttrs{
+				Srcs:                bazel.MakeLabelListAttribute(srcs),
+				Strip_import_prefix: proptools.StringPtr(""),
+			}
+			if rel != "." {
+				attrs.Import_prefix = proptools.StringPtr(rel)
+			}
+			ctx.CreateBazelTargetModule(
+				bazel.BazelTargetModuleProperties{Rule_class: "proto_library"},
+				CommonAttributes{
+					Name: label,
+					Dir:  proptools.StringPtr(pkg),
+					// This proto_library is used to construct a ProtoInfo
+					// But it might not be buildable on its own
+					Tags: bazel.MakeStringListAttribute([]string{"manual"}),
+				},
+				&attrs,
+			)
+		}
+	}
+	return ret
 }
