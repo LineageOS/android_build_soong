@@ -622,6 +622,8 @@ func (j *Module) OutputFiles(tag string) (android.Paths, error) {
 			return android.Paths{j.dexer.proguardDictionary.Path()}, nil
 		}
 		return nil, fmt.Errorf("%q was requested, but no output file was found.", tag)
+	case ".generated_srcjars":
+		return j.properties.Generated_srcjars, nil
 	default:
 		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 	}
