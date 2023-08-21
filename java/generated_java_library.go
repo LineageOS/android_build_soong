@@ -78,11 +78,6 @@ func (module *GeneratedJavaLibraryModule) GenerateAndroidBuildActions(ctx androi
 	checkPropertyEmpty(ctx, module, "exclude_srcs", module.Library.properties.Exclude_srcs)
 	checkPropertyEmpty(ctx, module, "java_resource_dirs", module.Library.properties.Java_resource_dirs)
 	checkPropertyEmpty(ctx, module, "exclude_java_resource_dirs", module.Library.properties.Exclude_java_resource_dirs)
-	// No additional libraries. The generator should add anything necessary automatically
-	// by returning something from ____ (TODO: Additional libraries aren't needed now, so
-	// these are just blocked).
-	checkPropertyEmpty(ctx, module, "libs", module.Library.properties.Libs)
-	checkPropertyEmpty(ctx, module, "static_libs", module.Library.properties.Static_libs)
 	// Restrict these for no good reason other than to limit the surface area. If there's a
 	// good use case put them back.
 	checkPropertyEmpty(ctx, module, "plugins", module.Library.properties.Plugins)
