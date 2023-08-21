@@ -116,32 +116,38 @@ var declarationsProviderKey = blueprint.NewProvider(declarationsProviderData{})
 
 func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Get the values that came from the global RELEASE_ACONFIG_VALUE_SETS flag
+	valuesFiles := make([]android.Path, 0)
 	ctx.VisitDirectDeps(func(dep android.Module) {
 		if !ctx.OtherModuleHasProvider(dep, valueSetProviderKey) {
 			// Other modules get injected as dependencies too, for example the license modules
 			return
 		}
 		depData := ctx.OtherModuleProvider(dep, valueSetProviderKey).(valueSetProviderData)
-		valuesFiles, ok := depData.AvailablePackages[module.properties.Package]
+		paths, ok := depData.AvailablePackages[module.properties.Package]
 		if ok {
-			for _, path := range valuesFiles {
+			valuesFiles = append(valuesFiles, paths...)
+			for _, path := range paths {
 				module.properties.Values = append(module.properties.Values, path.String())
 			}
 		}
 	})
 
 	// Intermediate format
-	inputFiles := android.PathsForModuleSrc(ctx, module.properties.Srcs)
+	declarationFiles := android.PathsForModuleSrc(ctx, module.properties.Srcs)
 	intermediatePath := android.PathForModuleOut(ctx, "intermediate.pb")
 	defaultPermission := ctx.Config().ReleaseAconfigFlagDefaultPermission()
+	inputFiles := make([]android.Path, len(declarationFiles))
+	copy(inputFiles, declarationFiles)
+	inputFiles = append(inputFiles, valuesFiles...)
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        aconfigRule,
 		Output:      intermediatePath,
+		Inputs:      inputFiles,
 		Description: "aconfig_declarations",
 		Args: map[string]string{
 			"release_version":    ctx.Config().ReleaseVersion(),
 			"package":            module.properties.Package,
-			"declarations":       android.JoinPathsWithPrefix(inputFiles, "--declarations "),
+			"declarations":       android.JoinPathsWithPrefix(declarationFiles, "--declarations "),
 			"values":             joinAndPrefix(" --values ", module.properties.Values),
 			"default-permission": optionalVariable(" --default-permission ", defaultPermission),
 		},
