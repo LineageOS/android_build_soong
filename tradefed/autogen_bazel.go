@@ -99,7 +99,7 @@ func GetTestConfig(
 	}
 
 	// check for default AndroidTest.xml
-	defaultTestConfigPath := ctx.ModuleDir() + "/AndroidTest.xml"
+	defaultTestConfigPath := "AndroidTest.xml"
 	c, _ := android.BazelStringOrLabelFromProp(ctx, &defaultTestConfigPath)
 	return c.Value
 }
