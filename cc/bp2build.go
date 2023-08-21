@@ -960,7 +960,7 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 	(&linkerAttrs).wholeArchiveDeps.Append(compilerAttrs.exportXsdSrcs)
 	(&linkerAttrs).implementationWholeArchiveDeps.Append(compilerAttrs.xsdSrcs)
 
-	protoDep := bp2buildProto(ctx, module, compilerAttrs.protoSrcs)
+	protoDep := bp2buildProto(ctx, module, compilerAttrs.protoSrcs, linkerAttrs)
 
 	// bp2buildProto will only set wholeStaticLib or implementationWholeStaticLib, but we don't know
 	// which. This will add the newly generated proto library to the appropriate attribute and nothing
