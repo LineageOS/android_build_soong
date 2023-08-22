@@ -692,6 +692,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	j.checkSdkVersions(ctx)
+	j.checkHeadersOnly(ctx)
 	if ctx.Device() {
 		j.dexpreopter.installPath = j.dexpreopter.getInstallPath(
 			ctx, android.PathForModuleInstall(ctx, "framework", j.Stem()+".jar"))
