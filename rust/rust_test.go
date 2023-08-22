@@ -267,7 +267,7 @@ func TestDepsTracking(t *testing.T) {
 		t.Errorf("Proc_macro dependency not detected (dependency missing from AndroidMkProcMacroLibs)")
 	}
 
-	if !android.InList("libshared", module.Properties.AndroidMkSharedLibs) {
+	if !android.InList("libshared", module.transitiveAndroidMkSharedLibs.ToList()) {
 		t.Errorf("Shared library dependency not detected (dependency missing from AndroidMkSharedLibs)")
 	}
 
