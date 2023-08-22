@@ -185,7 +185,7 @@ func TestStaticBinaryFlags(t *testing.T) {
 	if !android.InList("libc", fizzMod.Properties.AndroidMkStaticLibs) {
 		t.Errorf("static binary not linking against libc as a static library")
 	}
-	if len(fizzMod.Properties.AndroidMkSharedLibs) > 0 {
+	if len(fizzMod.transitiveAndroidMkSharedLibs.ToList()) > 0 {
 		t.Errorf("static binary incorrectly linking against shared libraries")
 	}
 }
