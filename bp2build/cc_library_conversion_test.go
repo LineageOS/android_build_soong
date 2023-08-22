@@ -4965,6 +4965,7 @@ cc_library_static {
 		}),
 		MakeBazelTarget("proto_library", "foo_proto", AttrNameToString{
 			"srcs": `["foo.proto"]`,
+			"tags": `["manual"]`,
 		}),
 		MakeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", AttrNameToString{
 			"deps": `[
@@ -5033,6 +5034,7 @@ cc_library_static {
 		MakeBazelTarget("proto_library", "foo_proto", AttrNameToString{
 			"srcs":                `["foo.proto"]`,
 			"strip_import_prefix": `""`,
+			"tags":                `["manual"]`,
 		}),
 		MakeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", AttrNameToString{
 			"deps": `[
@@ -5103,6 +5105,7 @@ cc_library_static {
 		}),
 		MakeBazelTarget("proto_library", "foo_proto", AttrNameToString{
 			"srcs": `["foo.proto"]`,
+			"tags": `["manual"]`,
 		}),
 		MakeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", AttrNameToString{
 			"deps": `[":foo_proto"]`,

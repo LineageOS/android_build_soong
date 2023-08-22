@@ -292,9 +292,14 @@ func Bp2buildProtoProperties(ctx Bp2buildMutatorContext, m *ModuleBase, srcs baz
 			// (or a different subpackage), it will not find it.
 			// The CcProtoGen action itself runs fine because we construct the correct ProtoInfo,
 			// but the FileDescriptorSet of each proto_library might not be compile-able
-			if pkg != ctx.ModuleDir() {
+			//
+			// Add manual tag if either
+			// 1. .proto files are in more than one package
+			// 2. proto.include_dirs is not empty
+			if len(SortedStringKeys(pkgToSrcs)) > 1 || len(protoIncludeDirs) > 0 {
 				tags.Append(bazel.MakeStringListAttribute([]string{"manual"}))
 			}
+
 			ctx.CreateBazelTargetModule(
 				bazel.BazelTargetModuleProperties{Rule_class: "proto_library"},
 				CommonAttributes{Name: name, Dir: proptools.StringPtr(pkg), Tags: tags},
