@@ -197,6 +197,14 @@ func (p *PythonLibraryModule) getPkgPath() string {
 	return String(p.properties.Pkg_path)
 }
 
+// PkgPath is the "public" version of `getPkgPath` that is only available during bp2build
+func (p *PythonLibraryModule) PkgPath(ctx android.BazelConversionContext) *string {
+	if ctx.Config().BuildMode != android.Bp2build {
+		ctx.ModuleErrorf("PkgPath is only supported in bp2build mode")
+	}
+	return p.properties.Pkg_path
+}
+
 func (p *PythonLibraryModule) getBaseProperties() *BaseProperties {
 	return &p.properties
 }
