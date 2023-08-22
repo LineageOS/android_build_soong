@@ -61,7 +61,7 @@ func (mod *Module) AndroidMkEntries() []android.AndroidMkEntries {
 				entries.AddStrings("LOCAL_RLIB_LIBRARIES", mod.Properties.AndroidMkRlibs...)
 				entries.AddStrings("LOCAL_DYLIB_LIBRARIES", mod.Properties.AndroidMkDylibs...)
 				entries.AddStrings("LOCAL_PROC_MACRO_LIBRARIES", mod.Properties.AndroidMkProcMacroLibs...)
-				entries.AddStrings("LOCAL_SHARED_LIBRARIES", mod.Properties.AndroidMkSharedLibs...)
+				entries.AddStrings("LOCAL_SHARED_LIBRARIES", mod.transitiveAndroidMkSharedLibs.ToList()...)
 				entries.AddStrings("LOCAL_STATIC_LIBRARIES", mod.Properties.AndroidMkStaticLibs...)
 				entries.AddStrings("LOCAL_SOONG_LINK_TYPE", mod.makeLinkType)
 				if mod.UseVndk() {
