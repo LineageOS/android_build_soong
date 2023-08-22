@@ -553,7 +553,9 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		}
 
 		if found, globalSanitizers = removeFromList("hwaddress", globalSanitizers); found && s.Hwaddress == nil {
-			s.Hwaddress = proptools.BoolPtr(true)
+			if !ctx.Config().HWASanDisabledForPath(ctx.ModuleDir()) {
+				s.Hwaddress = proptools.BoolPtr(true)
+			}
 		}
 
 		if found, globalSanitizers = removeFromList("writeonly", globalSanitizers); found && s.Writeonly == nil {
