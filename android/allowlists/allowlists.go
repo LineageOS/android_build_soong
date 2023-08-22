@@ -1560,6 +1560,10 @@ var (
 
 		// depends on libart-unstripped and new module type llvm_prebuilt_build_tool
 		"check_cfi",
+
+		// TODO(b/297070571): cannot convert prebuilts_etc module which possess identical name and src properties
+		"boringssl_self_test.zygote64.rc",
+		"boringssl_self_test.zygote64_32.rc",
 	}
 
 	// Bazel prod-mode allowlist. Modules in this list are built by Bazel
