@@ -1948,6 +1948,10 @@ func (c *deviceConfig) BuildBrokenVendorPropertyNamespace() bool {
 	return c.config.productVariables.BuildBrokenVendorPropertyNamespace
 }
 
+func (c *deviceConfig) BuildBrokenVendorSeappUsesCoredomain() bool {
+	return c.config.productVariables.BuildBrokenVendorSeappUsesCoredomain
+}
+
 func (c *deviceConfig) BuildBrokenInputDir(name string) bool {
 	return InList(name, c.config.productVariables.BuildBrokenInputDirModules)
 }
