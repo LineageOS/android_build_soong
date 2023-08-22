@@ -66,7 +66,6 @@ type BaseProperties struct {
 	AndroidMkRlibs         []string `blueprint:"mutated"`
 	AndroidMkDylibs        []string `blueprint:"mutated"`
 	AndroidMkProcMacroLibs []string `blueprint:"mutated"`
-	AndroidMkSharedLibs    []string `blueprint:"mutated"`
 	AndroidMkStaticLibs    []string `blueprint:"mutated"`
 
 	ImageVariationPrefix string `blueprint:"mutated"`
@@ -168,6 +167,8 @@ type Module struct {
 
 	// For apex variants, this is set as apex.min_sdk_version
 	apexSdkVersion android.ApiLevel
+
+	transitiveAndroidMkSharedLibs *android.DepSet[string]
 }
 
 func (mod *Module) Header() bool {
@@ -1218,6 +1219,9 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		})
 	}
 
+	var transitiveAndroidMkSharedLibs []*android.DepSet[string]
+	var directAndroidMkSharedLibs []string
+
 	ctx.VisitDirectDeps(func(dep android.Module) {
 		depName := ctx.OtherModuleName(dep)
 		depTag := ctx.OtherModuleDependencyTag(dep)
@@ -1260,6 +1264,8 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				directProcMacroDeps = append(directProcMacroDeps, rustDep)
 				mod.Properties.AndroidMkProcMacroLibs = append(mod.Properties.AndroidMkProcMacroLibs, makeLibName)
 			}
+
+			transitiveAndroidMkSharedLibs = append(transitiveAndroidMkSharedLibs, rustDep.transitiveAndroidMkSharedLibs)
 
 			if android.IsSourceDepTagWithOutputTag(depTag, "") {
 				// Since these deps are added in path_properties.go via AddDependencies, we need to ensure the correct
@@ -1388,7 +1394,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				// Record baseLibName for snapshots.
 				mod.Properties.SnapshotSharedLibs = append(mod.Properties.SnapshotSharedLibs, cc.BaseLibName(depName))
 
-				mod.Properties.AndroidMkSharedLibs = append(mod.Properties.AndroidMkSharedLibs, makeLibName)
+				directAndroidMkSharedLibs = append(directAndroidMkSharedLibs, makeLibName)
 				exportDep = true
 			case cc.IsHeaderDepTag(depTag):
 				exportedInfo := ctx.OtherModuleProvider(dep, cc.FlagExporterInfoProvider).(cc.FlagExporterInfo)
@@ -1424,6 +1430,8 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			}
 		}
 	})
+
+	mod.transitiveAndroidMkSharedLibs = android.NewDepSet[string](android.PREORDER, directAndroidMkSharedLibs, transitiveAndroidMkSharedLibs)
 
 	var rlibDepFiles RustLibraries
 	for _, dep := range directRlibDeps {
