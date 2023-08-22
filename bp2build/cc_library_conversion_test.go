@@ -5140,3 +5140,58 @@ cc_library_static {
 	}
 	runCcLibraryTestCase(t, tc)
 }
+
+func TestProtoLocalIncludeDirs(t *testing.T) {
+	tc := Bp2buildTestCase{
+		Description:                "cc_library depends on .proto files using proto.local_include_dirs",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint:                  simpleModuleDoNotConvertBp2build("cc_library", "libprotobuf-cpp-lite"),
+		Filesystem: map[string]string{
+			"foo/Android.bp": `cc_library_static {
+	name: "foo",
+	srcs: [
+	   "foo.proto",
+	],
+	proto: {
+		local_include_dirs: ["foo_subdir"],
+	},
+	bazel_module: { bp2build_available: true },
+}`,
+			"foo/foo.proto":                   "",
+			"foo/foo_subdir/Android.bp":       "",
+			"foo/foo_subdir/foo_subdir.proto": "",
+		},
+	}
+
+	// We will run the test 2 times and check in foo and foo/foo_subdir directories
+	// foo dir
+	tc.Dir = "foo"
+	tc.ExpectedBazelTargets = []string{
+		MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+			"local_includes":                    `["."]`,
+			"deps":                              `["//:libprotobuf-cpp-lite"]`,
+			"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
+		}),
+		MakeBazelTarget("proto_library", "foo_proto", AttrNameToString{
+			"srcs": `["foo.proto"]`,
+			"tags": `["manual"]`,
+		}),
+		MakeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", AttrNameToString{
+			"deps":            `[":foo_proto"]`,
+			"transitive_deps": `["//foo/foo_subdir:foo.foo_subdir.include_dir_bp2build_generated_proto"]`,
+		}),
+	}
+	runCcLibraryTestCase(t, tc)
+
+	// foo/foo_subdir
+	tc.Dir = "foo/foo_subdir"
+	tc.ExpectedBazelTargets = []string{
+		MakeBazelTarget("proto_library", "foo.foo_subdir.include_dir_bp2build_generated_proto", AttrNameToString{
+			"srcs":                `["foo_subdir.proto"]`,
+			"strip_import_prefix": `""`,
+			"tags":                `["manual"]`,
+		}),
+	}
+	runCcLibraryTestCase(t, tc)
+}

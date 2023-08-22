@@ -268,6 +268,13 @@ func Bp2buildProtoProperties(ctx Bp2buildMutatorContext, m *ModuleBase, srcs baz
 								protoIncludeDirs = append(protoIncludeDirs, dir)
 							}
 						}
+
+						// proto.local_include_dirs are similar to proto.include_dirs, except that it is relative to the module directory
+						for _, dir := range props.Proto.Local_include_dirs {
+							relativeToTop := pathForModuleSrc(ctx, dir).String()
+							protoIncludeDirs = append(protoIncludeDirs, relativeToTop)
+						}
+
 					} else if props.Proto.Type != info.Type && props.Proto.Type != nil {
 						ctx.ModuleErrorf("Cannot handle arch-variant types for protos at this time.")
 					}
