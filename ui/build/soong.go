@@ -161,6 +161,14 @@ type PrimaryBuilderFactory struct {
 	debugPort    string
 }
 
+func getGlobPathName(config Config) string {
+	globPathName, ok := config.TargetProductOrErr()
+	if ok != nil {
+		globPathName = soongBuildTag
+	}
+	return globPathName
+}
+
 func (pb PrimaryBuilderFactory) primaryBuilderInvocation() bootstrap.PrimaryBuilderInvocation {
 	commonArgs := make([]string, 0, 0)
 
@@ -195,9 +203,14 @@ func (pb PrimaryBuilderFactory) primaryBuilderInvocation() bootstrap.PrimaryBuil
 
 	var allArgs []string
 	allArgs = append(allArgs, pb.specificArgs...)
+	globPathName := pb.name
+	// Glob path for soong build would be separated per product target
+	if pb.name == soongBuildTag {
+		globPathName = getGlobPathName(pb.config)
+	}
 	allArgs = append(allArgs,
-		"--globListDir", pb.name,
-		"--globFile", pb.config.NamedGlobFile(pb.name))
+		"--globListDir", globPathName,
+		"--globFile", pb.config.NamedGlobFile(globPathName))
 
 	allArgs = append(allArgs, commonArgs...)
 	allArgs = append(allArgs, environmentArgs(pb.config, pb.name)...)
@@ -247,7 +260,7 @@ func bootstrapEpochCleanup(ctx Context, config Config) {
 
 func bootstrapGlobFileList(config Config) []string {
 	return []string{
-		config.NamedGlobFile(soongBuildTag),
+		config.NamedGlobFile(getGlobPathName(config)),
 		config.NamedGlobFile(bp2buildFilesTag),
 		config.NamedGlobFile(jsonModuleGraphTag),
 		config.NamedGlobFile(queryviewTag),
