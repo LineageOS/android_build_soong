@@ -41,21 +41,33 @@ const (
 
 func VndkLibrariesTxtModules(vndkVersion string, ctx android.BaseModuleContext) []string {
 	if vndkVersion == "current" {
-		result := []string{
-			vndkCoreLibrariesTxt,
-			vndkSpLibrariesTxt,
-			vndkPrivateLibrariesTxt,
-			vndkProductLibrariesTxt,
-		}
+		// We can assume all txt files are snapshotted if we find one of them.
+		currentVndkSnapshotted := ctx.OtherModuleExists(insertVndkVersion(llndkLibrariesTxt, ctx.DeviceConfig().PlatformVndkVersion()))
+		if currentVndkSnapshotted {
+			// If the current VNDK is already snapshotted (which can happen with
+			// the `next` config), use the prebuilt txt files in the snapshot.
+			// This is because the txt files built from source are probably be
+			// for the in-development version.
+			vndkVersion = ctx.DeviceConfig().PlatformVndkVersion()
+		} else {
+			// Use the txt files generated from the source
+			result := []string{
+				vndkCoreLibrariesTxt,
+				vndkSpLibrariesTxt,
+				vndkPrivateLibrariesTxt,
+				vndkProductLibrariesTxt,
+			}
 
-		// TODO(b/290159430) This part will not be required once deprecation of VNDK
-		// is handled with 'ro.vndk.version' property
-		if !ctx.Config().IsVndkDeprecated() {
-			result = append(result, llndkLibrariesTxt)
-		}
+			// TODO(b/290159430) This part will not be required once deprecation
+			// of VNDK is handled with 'ro.vndk.version' property
+			if !ctx.Config().IsVndkDeprecated() {
+				result = append(result, llndkLibrariesTxt)
+			}
 
-		return result
+			return result
+		}
 	}
+
 	// Snapshot vndks have their own *.libraries.VER.txt files.
 	// Note that snapshots don't have "vndkcorevariant.libraries.VER.txt"
 	result := []string{
@@ -533,6 +545,15 @@ func insertVndkVersion(filename string, vndkVersion string) string {
 		return filename[:index] + "." + vndkVersion + filename[index:]
 	}
 	return filename
+}
+
+func (txt *vndkLibrariesTxt) DepsMutator(mctx android.BottomUpMutatorContext) {
+	versionedName := insertVndkVersion(txt.Name(), mctx.DeviceConfig().PlatformVndkVersion())
+	if mctx.OtherModuleExists(versionedName) {
+		// If the prebuilt vndk libraries txt files exist, install them instead.
+		txt.HideFromMake()
+		mctx.AddDependency(txt, nil, versionedName)
+	}
 }
 
 func (txt *vndkLibrariesTxt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
