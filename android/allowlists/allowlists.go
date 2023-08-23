@@ -1645,5 +1645,9 @@ var (
 			Label: "//build/bazel/examples/partitions:system_image",
 			Host:  false,
 		},
+		{
+			Label: "//build/bazel/examples/partitions:run_test",
+			Host:  false,
+		},
 	}
 )
