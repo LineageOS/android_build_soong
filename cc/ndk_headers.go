@@ -82,6 +82,7 @@ type headerModule struct {
 
 	properties headerProperties
 
+	srcPaths     android.Paths
 	installPaths android.Paths
 	licensePath  android.Path
 }
@@ -125,8 +126,8 @@ func (m *headerModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	m.licensePath = android.PathForModuleSrc(ctx, String(m.properties.License))
 
-	srcFiles := android.PathsForModuleSrcExcludes(ctx, m.properties.Srcs, m.properties.Exclude_srcs)
-	for _, header := range srcFiles {
+	m.srcPaths = android.PathsForModuleSrcExcludes(ctx, m.properties.Srcs, m.properties.Exclude_srcs)
+	for _, header := range m.srcPaths {
 		installDir := getHeaderInstallDir(ctx, header, String(m.properties.From),
 			String(m.properties.To))
 		installedPath := ctx.InstallFile(installDir, header.Base(), header)
@@ -193,6 +194,7 @@ type versionedHeaderModule struct {
 
 	properties versionedHeaderProperties
 
+	srcPaths     android.Paths
 	installPaths android.Paths
 	licensePath  android.Path
 }
@@ -211,9 +213,9 @@ func (m *versionedHeaderModule) GenerateAndroidBuildActions(ctx android.ModuleCo
 
 	fromSrcPath := android.PathForModuleSrc(ctx, String(m.properties.From))
 	toOutputPath := getCurrentIncludePath(ctx).Join(ctx, String(m.properties.To))
-	srcFiles := ctx.GlobFiles(headerGlobPattern(fromSrcPath.String()), nil)
+	m.srcPaths = ctx.GlobFiles(headerGlobPattern(fromSrcPath.String()), nil)
 	var installPaths []android.WritablePath
-	for _, header := range srcFiles {
+	for _, header := range m.srcPaths {
 		installDir := getHeaderInstallDir(ctx, header, String(m.properties.From), String(m.properties.To))
 		installPath := installDir.Join(ctx, header.Base())
 		installPaths = append(installPaths, installPath)
@@ -224,11 +226,11 @@ func (m *versionedHeaderModule) GenerateAndroidBuildActions(ctx android.ModuleCo
 		ctx.ModuleErrorf("glob %q matched zero files", String(m.properties.From))
 	}
 
-	processHeadersWithVersioner(ctx, fromSrcPath, toOutputPath, srcFiles, installPaths)
+	processHeadersWithVersioner(ctx, fromSrcPath, toOutputPath, m.srcPaths, installPaths)
 }
 
 func processHeadersWithVersioner(ctx android.ModuleContext, srcDir, outDir android.Path,
-	srcFiles android.Paths, installPaths []android.WritablePath) android.Path {
+	srcPaths android.Paths, installPaths []android.WritablePath) android.Path {
 	// The versioner depends on a dependencies directory to simplify determining include paths
 	// when parsing headers. This directory contains architecture specific directories as well
 	// as a common directory, each of which contains symlinks to the actually directories to
@@ -253,7 +255,7 @@ func processHeadersWithVersioner(ctx android.ModuleContext, srcDir, outDir andro
 		Rule:            versionBionicHeaders,
 		Description:     "versioner preprocess " + srcDir.Rel(),
 		Output:          timestampFile,
-		Implicits:       append(srcFiles, depsGlob...),
+		Implicits:       append(srcPaths, depsGlob...),
 		ImplicitOutputs: installPaths,
 		Args: map[string]string{
 			"depsPath": depsPath.String(),
@@ -317,6 +319,7 @@ type preprocessedHeadersModule struct {
 
 	properties preprocessedHeadersProperties
 
+	srcPaths     android.Paths
 	installPaths android.Paths
 	licensePath  android.Path
 }
@@ -329,9 +332,9 @@ func (m *preprocessedHeadersModule) GenerateAndroidBuildActions(ctx android.Modu
 	preprocessor := android.PathForModuleSrc(ctx, String(m.properties.Preprocessor))
 	m.licensePath = android.PathForModuleSrc(ctx, String(m.properties.License))
 
-	srcFiles := android.PathsForModuleSrcExcludes(ctx, m.properties.Srcs, m.properties.Exclude_srcs)
+	m.srcPaths = android.PathsForModuleSrcExcludes(ctx, m.properties.Srcs, m.properties.Exclude_srcs)
 	installDir := getCurrentIncludePath(ctx).Join(ctx, String(m.properties.To))
-	for _, src := range srcFiles {
+	for _, src := range m.srcPaths {
 		installPath := installDir.Join(ctx, src.Base())
 		m.installPaths = append(m.installPaths, installPath)
 
