@@ -667,6 +667,7 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 		"framework-devicelock":              {},
 		"framework-graphics":                {},
 		"framework-healthfitness":           {},
+		"framework-location":                {},
 		"framework-media":                   {},
 		"framework-mediaprovider":           {},
 		"framework-ondevicepersonalization": {},
