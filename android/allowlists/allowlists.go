@@ -338,6 +338,7 @@ var (
 		"prebuilts/sdk/current/support":                    Bp2BuildDefaultTrue,
 		"prebuilts/tools":                                  Bp2BuildDefaultTrue,
 		"prebuilts/tools/common/m2":                        Bp2BuildDefaultTrue,
+		"prebuilts/r8":                                     Bp2BuildDefaultTrueRecursively,
 
 		"sdk/dumpeventlog":  Bp2BuildDefaultTrue,
 		"sdk/eventanalyzer": Bp2BuildDefaultTrue,
@@ -1568,6 +1569,11 @@ var (
 
 		// depends on unconverted module tradefed
 		"HelloWorldPerformanceTest",
+
+		// r8 is a java_binary, which creates an implicit "r8.jar" target, but the
+		// same package contains a "r8.jar" file which gets overshadowed by the implicit target.
+		// We don't need this target as we're not using the Soong wrapper for now
+		"r8",
 	}
 
 	// Bazel prod-mode allowlist. Modules in this list are built by Bazel
