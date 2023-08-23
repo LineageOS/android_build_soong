@@ -876,12 +876,7 @@ func (e *ApexExtractorProperties) prebuiltSrcs(ctx android.BaseModuleContext) []
 		srcs = append(srcs, *e.Set)
 	}
 
-	var sanitizers []string
-	if ctx.Host() {
-		sanitizers = ctx.Config().SanitizeHost()
-	} else {
-		sanitizers = ctx.Config().SanitizeDevice()
-	}
+	sanitizers := ctx.Config().SanitizeDevice()
 
 	if android.InList("address", sanitizers) && e.Sanitized.Address.Set != nil {
 		srcs = append(srcs, *e.Sanitized.Address.Set)

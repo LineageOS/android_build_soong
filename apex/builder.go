@@ -958,11 +958,6 @@ func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
 		return
 	}
 
-	if ctx.Host() {
-		// No need to generate dependency info for host variant
-		return
-	}
-
 	depInfos := android.DepNameToDepInfoMap{}
 	a.WalkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) bool {
 		if from.Name() == to.Name() {

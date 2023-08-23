@@ -42,7 +42,7 @@ func (class apexFileClass) nameInMake() string {
 		return "ETC"
 	case nativeSharedLib:
 		return "SHARED_LIBRARIES"
-	case nativeExecutable, shBinary, pyBinary, goBinary:
+	case nativeExecutable, shBinary:
 		return "EXECUTABLES"
 	case javaSharedLib:
 		return "JAVA_LIBRARIES"
@@ -135,32 +135,9 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir st
 		fmt.Fprintln(w, "LOCAL_MODULE_CLASS :=", fi.class.nameInMake())
 		if fi.module != nil {
 			// This apexFile's module comes from Soong
-			archStr := fi.module.Target().Arch.ArchType.String()
-			host := false
-			switch fi.module.Target().Os.Class {
-			case android.Host:
-				if fi.module.Target().HostCross {
-					if fi.module.Target().Arch.ArchType != android.Common {
-						fmt.Fprintln(w, "LOCAL_MODULE_HOST_CROSS_ARCH :=", archStr)
-					}
-				} else {
-					if fi.module.Target().Arch.ArchType != android.Common {
-						fmt.Fprintln(w, "LOCAL_MODULE_HOST_ARCH :=", archStr)
-					}
-				}
-				host = true
-			case android.Device:
-				if fi.module.Target().Arch.ArchType != android.Common {
-					fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH :=", archStr)
-				}
-			}
-			if host {
-				makeOs := fi.module.Target().Os.String()
-				if fi.module.Target().Os == android.Linux || fi.module.Target().Os == android.LinuxBionic || fi.module.Target().Os == android.LinuxMusl {
-					makeOs = "linux"
-				}
-				fmt.Fprintln(w, "LOCAL_MODULE_HOST_OS :=", makeOs)
-				fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
+			if fi.module.Target().Arch.ArchType != android.Common {
+				archStr := fi.module.Target().Arch.ArchType.String()
+				fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH :=", archStr)
 			}
 		} else if fi.isBazelPrebuilt && fi.arch != "" {
 			// This apexFile comes from Bazel

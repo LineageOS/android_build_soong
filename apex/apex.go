@@ -26,7 +26,6 @@ import (
 	"android/soong/bazel/cquery"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -37,7 +36,6 @@ import (
 	"android/soong/filesystem"
 	"android/soong/java"
 	"android/soong/multitree"
-	"android/soong/python"
 	"android/soong/rust"
 	"android/soong/sh"
 )
@@ -487,12 +485,10 @@ const (
 	app apexFileClass = iota
 	appSet
 	etc
-	goBinary
 	javaSharedLib
 	nativeExecutable
 	nativeSharedLib
 	nativeTest
-	pyBinary
 	shBinary
 )
 
@@ -501,12 +497,10 @@ var (
 		"app":              app,
 		"appSet":           appSet,
 		"etc":              etc,
-		"goBinary":         goBinary,
 		"javaSharedLib":    javaSharedLib,
 		"nativeExecutable": nativeExecutable,
 		"nativeSharedLib":  nativeSharedLib,
 		"nativeTest":       nativeTest,
-		"pyBinary":         pyBinary,
 		"shBinary":         shBinary,
 	}
 )
@@ -697,11 +691,10 @@ func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext, nativeM
 	libVariations := append(target.Variations(), blueprint.Variation{Mutator: "link", Variation: "shared"})
 	rustLibVariations := append(target.Variations(), blueprint.Variation{Mutator: "rust_libraries", Variation: "dylib"})
 
-	if ctx.Device() {
-		binVariations = append(binVariations, blueprint.Variation{Mutator: "image", Variation: imageVariation})
-		libVariations = append(libVariations, blueprint.Variation{Mutator: "image", Variation: imageVariation})
-		rustLibVariations = append(rustLibVariations, blueprint.Variation{Mutator: "image", Variation: imageVariation})
-	}
+	// Append "image" variation
+	binVariations = append(binVariations, blueprint.Variation{Mutator: "image", Variation: imageVariation})
+	libVariations = append(libVariations, blueprint.Variation{Mutator: "image", Variation: imageVariation})
+	rustLibVariations = append(rustLibVariations, blueprint.Variation{Mutator: "image", Variation: imageVariation})
 
 	// Use *FarVariation* to be able to depend on modules having conflicting variations with
 	// this module. This is required since arch variant of an APEX bundle is 'common' but it is
@@ -721,16 +714,7 @@ func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext, nativeM
 }
 
 func (a *apexBundle) combineProperties(ctx android.BottomUpMutatorContext) {
-	if ctx.Device() {
-		proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Android.Multilib, nil)
-	} else {
-		proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Host.Multilib, nil)
-		if ctx.Os().Bionic() {
-			proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Linux_bionic.Multilib, nil)
-		} else {
-			proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Linux_glibc.Multilib, nil)
-		}
-	}
+	proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Android.Multilib, nil)
 }
 
 // getImageVariationPair returns a pair for the image variation name as its
@@ -788,12 +772,6 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 	}
 	for i, target := range targets {
-		// Don't include artifacts for the host cross targets because there is no way for us
-		// to run those artifacts natively on host
-		if target.HostCross {
-			continue
-		}
-
 		var deps ApexNativeDependencies
 
 		// Add native modules targeting both ABIs. When multilib.* is omitted for
@@ -1230,8 +1208,8 @@ func apexTestForMutator(mctx android.BottomUpMutatorContext) {
 // be) available to platform
 // TODO(jiyong): move this to android/apex.go?
 func markPlatformAvailability(mctx android.BottomUpMutatorContext) {
-	// Host and recovery are not considered as platform
-	if mctx.Host() || mctx.Module().InstallInRecovery() {
+	// Recovery is not considered as platform
+	if mctx.Module().InstallInRecovery() {
 		return
 	}
 
@@ -1391,7 +1369,7 @@ var _ cc.Coverage = (*apexBundle)(nil)
 
 // Implements cc.Coverage
 func (a *apexBundle) IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool {
-	return ctx.Device() && ctx.DeviceConfig().NativeCoverageEnabled()
+	return ctx.DeviceConfig().NativeCoverageEnabled()
 }
 
 // Implements cc.Coverage
@@ -1502,13 +1480,9 @@ func (a *apexBundle) IsSanitizerEnabled(config android.Config, sanitizerName str
 
 	// Then follow the global setting
 	var globalSanitizerNames []string
-	if a.Host() {
-		globalSanitizerNames = config.SanitizeHost()
-	} else {
-		arches := config.SanitizeDeviceArch()
-		if len(arches) == 0 || android.InList(a.Arch().ArchType.Name, arches) {
-			globalSanitizerNames = config.SanitizeDevice()
-		}
+	arches := config.SanitizeDeviceArch()
+	if len(arches) == 0 || android.InList(a.Arch().ArchType.Name, arches) {
+		globalSanitizerNames = config.SanitizeDevice()
 	}
 	return android.InList(sanitizerName, globalSanitizerNames)
 }
@@ -1516,7 +1490,7 @@ func (a *apexBundle) IsSanitizerEnabled(config android.Config, sanitizerName str
 func (a *apexBundle) AddSanitizerDependencies(ctx android.BottomUpMutatorContext, sanitizerName string) {
 	// TODO(jiyong): move this info (the sanitizer name, the lib name, etc.) to cc/sanitize.go
 	// Keep only the mechanism here.
-	if ctx.Device() && sanitizerName == "hwaddress" && strings.HasPrefix(a.Name(), "com.android.runtime") {
+	if sanitizerName == "hwaddress" && strings.HasPrefix(a.Name(), "com.android.runtime") {
 		imageVariation := a.getImageVariation(ctx)
 		for _, target := range ctx.MultiTargets() {
 			if target.Arch.ArchType.Multilib == "lib64" {
@@ -1614,22 +1588,6 @@ func apexFileForRustLibrary(ctx android.BaseModuleContext, rustm *rust.Module) a
 	fileToCopy := android.OutputFileForModule(ctx, rustm, "")
 	androidMkModuleName := rustm.BaseModuleName() + rustm.Properties.SubName
 	return newApexFile(ctx, fileToCopy, androidMkModuleName, dirInApex, nativeSharedLib, rustm)
-}
-
-func apexFileForPyBinary(ctx android.BaseModuleContext, py *python.PythonBinaryModule) apexFile {
-	dirInApex := "bin"
-	fileToCopy := py.HostToolPath().Path()
-	return newApexFile(ctx, fileToCopy, py.BaseModuleName(), dirInApex, pyBinary, py)
-}
-
-func apexFileForGoBinary(ctx android.BaseModuleContext, depName string, gb bootstrap.GoBinaryTool) apexFile {
-	dirInApex := "bin"
-	fileToCopy := android.PathForGoBinary(ctx, gb)
-	// NB: Since go binaries are static we don't need the module for anything here, which is
-	// good since the go tool is a blueprint.Module not an android.Module like we would
-	// normally use.
-	//
-	return newApexFile(ctx, fileToCopy, depName, dirInApex, goBinary, nil)
 }
 
 func apexFileForShBinary(ctx android.BaseModuleContext, sh *sh.ShBinary) apexFile {
@@ -1989,11 +1947,6 @@ func (a *apexBundle) setSystemLibLink(ctx android.ModuleContext) {
 	if !forced && updatable {
 		a.linkToSystemLib = false
 	}
-
-	// We also don't want the optimization for host APEXes, because it doesn't make sense.
-	if ctx.Host() {
-		a.linkToSystemLib = false
-	}
 }
 
 func (a *apexBundle) setPayloadFsType(ctx android.ModuleContext) {
@@ -2111,14 +2064,6 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			case *cc.Module:
 				vctx.filesInfo = append(vctx.filesInfo, apexFileForExecutable(ctx, ch))
 				return true // track transitive dependencies
-			case *python.PythonBinaryModule:
-				if ch.HostToolPath().Valid() {
-					vctx.filesInfo = append(vctx.filesInfo, apexFileForPyBinary(ctx, ch))
-				}
-			case bootstrap.GoBinaryTool:
-				if a.Host() {
-					vctx.filesInfo = append(vctx.filesInfo, apexFileForGoBinary(ctx, depName, ch))
-				}
 			case *rust.Module:
 				vctx.filesInfo = append(vctx.filesInfo, apexFileForRustExecutable(ctx, ch))
 				return true // track transitive dependencies
@@ -2280,12 +2225,6 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			af := apexFileForNativeLibrary(ctx, ch, vctx.handleSpecialLibs)
 			af.transitiveDep = true
 
-			// Always track transitive dependencies for host.
-			if a.Host() {
-				vctx.filesInfo = append(vctx.filesInfo, af)
-				return true
-			}
-
 			abInfo := ctx.Provider(ApexBundleInfoProvider).(ApexBundleInfo)
 			if !abInfo.Contents.DirectlyInApex(depName) && (ch.IsStubs() || ch.HasStubsVariants()) {
 				// If the dependency is a stubs lib, don't include it in this APEX,
@@ -2416,11 +2355,7 @@ func (a *apexBundle) shouldCheckDuplicate(ctx android.ModuleContext) bool {
 	if a.testApex {
 		return false
 	}
-	// TODO(b/263309864) remove this
-	if a.Host() {
-		return false
-	}
-	if a.Device() && ctx.DeviceConfig().DeviceArch() == "" {
+	if ctx.DeviceConfig().DeviceArch() == "" {
 		return false
 	}
 	return true
@@ -2601,7 +2536,7 @@ func newApexBundle() *apexBundle {
 	module.AddProperties(&module.archProperties)
 	module.AddProperties(&module.overridableProperties)
 
-	android.InitAndroidMultiTargetsArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
+	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 	android.InitOverridableModule(module, &module.overridableProperties.Overrides)
 	android.InitBazelModule(module)
@@ -2832,7 +2767,7 @@ func minSdkVersionFromValue(ctx android.EarlyModuleContext, value string) androi
 // Ensures that a lib providing stub isn't statically linked
 func (a *apexBundle) checkStaticLinkingToStubLibraries(ctx android.ModuleContext) {
 	// Practically, we only care about regular APEXes on the device.
-	if ctx.Host() || a.testApex || a.vndkApex {
+	if a.testApex || a.vndkApex {
 		return
 	}
 
@@ -2927,7 +2862,7 @@ func (a *apexBundle) checkJavaStableSdkVersion(ctx android.ModuleContext) {
 // checkApexAvailability ensures that the all the dependencies are marked as available for this APEX.
 func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 	// Let's be practical. Availability for test, host, and the VNDK apex isn't important
-	if ctx.Host() || a.testApex || a.vndkApex {
+	if a.testApex || a.vndkApex {
 		return
 	}
 
@@ -2985,11 +2920,6 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 
 // checkStaticExecutable ensures that executables in an APEX are not static.
 func (a *apexBundle) checkStaticExecutables(ctx android.ModuleContext) {
-	// No need to run this for host APEXes
-	if ctx.Host() {
-		return
-	}
-
 	ctx.VisitDirectDepsBlueprint(func(module blueprint.Module) {
 		if ctx.OtherModuleDependencyTag(module) != executableTag {
 			return
