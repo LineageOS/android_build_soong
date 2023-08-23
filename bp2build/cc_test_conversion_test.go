@@ -238,7 +238,8 @@ func TestCcTest_TestConfigAndroidTestXML(t *testing.T) {
 	runCcTestTestCase(t, ccTestBp2buildTestCase{
 		description: "cc test that defaults to test config AndroidTest.xml",
 		filesystem: map[string]string{
-			"AndroidTest.xml": "",
+			"AndroidTest.xml":   "",
+			"DynamicConfig.xml": "",
 		},
 		blueprint: `
 cc_test {
@@ -253,6 +254,7 @@ cc_test {
 				"srcs":                   `["test.cpp"]`,
 				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
 				"test_config":            `"AndroidTest.xml"`,
+				"dynamic_config":         `"DynamicConfig.xml"`,
 				"deps": `[
         ":libgtest_main",
         ":libgtest",
