@@ -39,7 +39,8 @@ const (
 )
 
 type TestConfigAttributes struct {
-	Test_config *bazel.Label
+	Test_config    *bazel.Label
+	Dynamic_config *bazel.Label
 
 	Auto_generate_test_config *bool
 	Template_test_config      *bazel.Label
@@ -58,6 +59,11 @@ func GetTestConfigAttributes(
 	templateInstallBase *string) TestConfigAttributes {
 
 	attrs := TestConfigAttributes{}
+
+	dynamicConfig := "DynamicConfig.xml"
+	c, _ := android.BazelStringOrLabelFromProp(ctx, &dynamicConfig)
+	attrs.Dynamic_config = c.Value
+
 	attrs.Test_config = GetTestConfig(ctx, testConfig)
 	// do not generate a test config if
 	// 1) test config already found
