@@ -79,7 +79,6 @@ func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
 	ctx.BottomUp("mark_platform_availability", markPlatformAvailability).Parallel()
 	ctx.BottomUp("apex", apexMutator).Parallel()
 	ctx.BottomUp("apex_directly_in_any", apexDirectlyInAnyMutator).Parallel()
-	ctx.BottomUp("apex_packaging", apexPackagingMutator).Parallel()
 	ctx.BottomUp("apex_dcla_deps", apexDCLADepsMutator).Parallel()
 	// Register after apex_info mutator so that it can use ApexVariationName
 	ctx.TopDown("apex_strict_updatability_lint", apexStrictUpdatibilityLintMutator).Parallel()
@@ -1347,20 +1346,6 @@ const (
 	f2fsFsType  = "f2fs"
 	erofsFsType = "erofs"
 )
-
-// apexPackagingMutator creates one or more variations each of which is for a packaging method.
-func apexPackagingMutator(mctx android.BottomUpMutatorContext) {
-	if !mctx.Module().Enabled() {
-		return
-	}
-	if _, ok := mctx.Module().(*apexBundle); ok {
-		mctx.CreateLocalVariations(imageApexType)
-	} else if _, ok := mctx.Module().(*OverrideApex); ok {
-		// payload_type is forcibly overridden to "image"
-		// TODO(jiyong): is this the right decision?
-		mctx.CreateVariations(imageApexType)
-	}
-}
 
 var _ android.DepIsInSameApex = (*apexBundle)(nil)
 
