@@ -781,10 +781,10 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	p.initApexFilesForAndroidMk(ctx)
 
 	// in case that prebuilt_apex replaces source apex (using prefer: prop)
-	p.compatSymlinks = makeCompatSymlinks(p.BaseModuleName(), ctx, true)
+	p.compatSymlinks = makeCompatSymlinks(p.BaseModuleName(), ctx)
 	// or that prebuilt_apex overrides other apexes (using overrides: prop)
 	for _, overridden := range p.prebuiltCommonProperties.Overrides {
-		p.compatSymlinks = append(p.compatSymlinks, makeCompatSymlinks(overridden, ctx, true)...)
+		p.compatSymlinks = append(p.compatSymlinks, makeCompatSymlinks(overridden, ctx)...)
 	}
 
 	if p.installable() {
@@ -1006,10 +1006,10 @@ func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	// in case that apex_set replaces source apex (using prefer: prop)
-	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx, true)
+	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx)
 	// or that apex_set overrides other apexes (using overrides: prop)
 	for _, overridden := range a.prebuiltCommonProperties.Overrides {
-		a.compatSymlinks = append(a.compatSymlinks, makeCompatSymlinks(overridden, ctx, true)...)
+		a.compatSymlinks = append(a.compatSymlinks, makeCompatSymlinks(overridden, ctx)...)
 	}
 }
 

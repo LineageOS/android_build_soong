@@ -166,15 +166,7 @@ type apexBundleProperties struct {
 	// Should be only used in non-system apexes (e.g. vendor: true). Default is false.
 	Use_vndk_as_stable *bool
 
-	// The type of APEX to build. Controls what the APEX payload is. Either 'image', 'zip' or
-	// 'both'. When set to image, contents are stored in a filesystem image inside a zip
-	// container. When set to zip, contents are stored in a zip container directly. This type is
-	// mostly for host-side debugging. When set to both, the two types are both built. Default
-	// is 'image'.
-	Payload_type *string
-
-	// The type of filesystem to use when the payload_type is 'image'. Either 'ext4', 'f2fs'
-	// or 'erofs'. Default 'ext4'.
+	// The type of filesystem to use. Either 'ext4', 'f2fs' or 'erofs'. Default 'ext4'.
 	Payload_fs_type *string
 
 	// For telling the APEX to ignore special handling for system libraries such as bionic.
@@ -215,9 +207,6 @@ type apexBundleProperties struct {
 	PreventInstall bool `blueprint:"mutated"`
 
 	HideFromMake bool `blueprint:"mutated"`
-
-	// Internal package method for this APEX.
-	ApexType apexPackaging `blueprint:"mutated"`
 
 	// Name that dependencies can specify in their apex_available properties to refer to this module.
 	// If not specified, this defaults to Soong module name. This must be the name of a Soong module.
@@ -420,13 +409,6 @@ type apexBundle struct {
 	// Flags for special variants of APEX
 	testApex bool
 	vndkApex bool
-
-	// Tells whether this variant of the APEX bundle is the primary one or not. Only the primary
-	// one gets installed to the device.
-	primaryApexType bool
-
-	// Suffix of module name in Android.mk ".apex", ".zipapex", or ""
-	suffix string
 
 	// File system type of apex_payload.img
 	payloadFsType fsType
@@ -1353,88 +1335,26 @@ func apexDirectlyInAnyMutator(mctx android.BottomUpMutatorContext) {
 	}
 }
 
-// apexPackaging represents a specific packaging method for an APEX.
-type apexPackaging int
-
-const (
-	// imageApex is a packaging method where contents are included in a filesystem image which
-	// is then included in a zip container. This is the most typical way of packaging.
-	imageApex apexPackaging = iota
-
-	// zipApex is a packaging method where contents are directly included in the zip container.
-	// This is used for host-side testing - because the contents are easily accessible by
-	// unzipping the container.
-	// TODO(b/279835185) deprecate zipApex
-	zipApex
-)
-
 const (
 	// File extensions of an APEX for different packaging methods
 	imageApexSuffix  = ".apex"
 	imageCapexSuffix = ".capex"
-	zipApexSuffix    = ".zipapex"
 
 	// variant names each of which is for a packaging method
 	imageApexType = "image"
-	zipApexType   = "zip"
 
 	ext4FsType  = "ext4"
 	f2fsFsType  = "f2fs"
 	erofsFsType = "erofs"
 )
 
-// The suffix for the output "file", not the module
-func (a apexPackaging) suffix() string {
-	switch a {
-	case imageApex:
-		return imageApexSuffix
-	case zipApex:
-		return zipApexSuffix
-	default:
-		panic(fmt.Errorf("unknown APEX type %d", a))
-	}
-}
-
-func (a apexPackaging) name() string {
-	switch a {
-	case imageApex:
-		return imageApexType
-	case zipApex:
-		return zipApexType
-	default:
-		panic(fmt.Errorf("unknown APEX type %d", a))
-	}
-}
-
 // apexPackagingMutator creates one or more variations each of which is for a packaging method.
 func apexPackagingMutator(mctx android.BottomUpMutatorContext) {
 	if !mctx.Module().Enabled() {
 		return
 	}
-	if ab, ok := mctx.Module().(*apexBundle); ok {
-		var variants []string
-		switch proptools.StringDefault(ab.properties.Payload_type, "image") {
-		case "image":
-			variants = append(variants, imageApexType)
-		case "zip":
-			variants = append(variants, zipApexType)
-		case "both":
-			variants = append(variants, imageApexType, zipApexType)
-		default:
-			mctx.PropertyErrorf("payload_type", "%q is not one of \"image\", \"zip\", or \"both\".", *ab.properties.Payload_type)
-			return
-		}
-
-		modules := mctx.CreateLocalVariations(variants...)
-
-		for i, v := range variants {
-			switch v {
-			case imageApexType:
-				modules[i].(*apexBundle).properties.ApexType = imageApex
-			case zipApexType:
-				modules[i].(*apexBundle).properties.ApexType = zipApex
-			}
-		}
+	if _, ok := mctx.Module().(*apexBundle); ok {
+		mctx.CreateLocalVariations(imageApexType)
 	} else if _, ok := mctx.Module().(*OverrideApex); ok {
 		// payload_type is forcibly overridden to "image"
 		// TODO(jiyong): is this the right decision?
@@ -1945,7 +1865,7 @@ func (f fsType) string() string {
 var _ android.MixedBuildBuildable = (*apexBundle)(nil)
 
 func (a *apexBundle) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
-	return a.properties.ApexType == imageApex
+	return true
 }
 
 func (a *apexBundle) QueueBazelCall(ctx android.BaseModuleContext) {
@@ -1966,13 +1886,9 @@ func (a *apexBundle) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 		return
 	}
 
-	a.setApexTypeAndSuffix(ctx)
 	a.setPayloadFsType(ctx)
 	a.setSystemLibLink(ctx)
-
-	if a.properties.ApexType != zipApex {
-		a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx, a.primaryApexType)
-	}
+	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx)
 
 	bazelCtx := ctx.Config().BazelContext
 	outputs, err := bazelCtx.GetApexInfo(a.GetBazelLabel(ctx, a), android.GetConfigKey(ctx))
@@ -2007,24 +1923,18 @@ func (a *apexBundle) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 	// part of a bundled build.
 	a.makeModulesToInstall = append(a.makeModulesToInstall, outputs.MakeModulesToInstall...)
 
-	apexType := a.properties.ApexType
-	switch apexType {
-	case imageApex:
-		a.bundleModuleFile = android.PathForBazelOut(ctx, outputs.BundleFile)
-		a.nativeApisUsedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.SymbolsUsedByApex))
-		a.nativeApisBackedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.BackingLibs))
-		// TODO(b/239084755): Generate the java api using.xml file from Bazel.
-		a.javaApisUsedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.JavaSymbolsUsedByApex))
-		a.installedFilesFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.InstalledFiles))
-		installSuffix := imageApexSuffix
-		if a.isCompressed {
-			installSuffix = imageCapexSuffix
-		}
-		a.installedFile = ctx.InstallFile(a.installDir, a.Name()+installSuffix, a.outputFile,
-			a.compatSymlinks.Paths()...)
-	default:
-		panic(fmt.Errorf("internal error: unexpected apex_type for the ProcessBazelQueryResponse: %v", a.properties.ApexType))
+	a.bundleModuleFile = android.PathForBazelOut(ctx, outputs.BundleFile)
+	a.nativeApisUsedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.SymbolsUsedByApex))
+	a.nativeApisBackedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.BackingLibs))
+	// TODO(b/239084755): Generate the java api using.xml file from Bazel.
+	a.javaApisUsedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.JavaSymbolsUsedByApex))
+	a.installedFilesFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.InstalledFiles))
+	installSuffix := imageApexSuffix
+	if a.isCompressed {
+		installSuffix = imageCapexSuffix
 	}
+	a.installedFile = ctx.InstallFile(a.installDir, a.Name()+installSuffix, a.outputFile,
+		a.compatSymlinks.Paths()...)
 
 	// filesInfo in mixed mode must retrieve all information about the apex's
 	// contents completely from the Starlark providers. It should never rely on
@@ -2065,9 +1975,7 @@ func (a *apexBundle) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 }
 
 func (a *apexBundle) setCompression(ctx android.ModuleContext) {
-	if a.properties.ApexType != imageApex {
-		a.isCompressed = false
-	} else if a.testOnlyShouldForceCompression() {
+	if a.testOnlyShouldForceCompression() {
 		a.isCompressed = true
 	} else {
 		a.isCompressed = ctx.Config().ApexCompressionEnabled() && a.isCompressable()
@@ -2093,7 +2001,7 @@ func (a *apexBundle) setSystemLibLink(ctx android.ModuleContext) {
 
 	// We don't need the optimization for updatable APEXes, as it might give false signal
 	// to the system health when the APEXes are still bundled (b/149805758).
-	if !forced && updatable && a.properties.ApexType == imageApex {
+	if !forced && updatable {
 		a.linkToSystemLib = false
 	}
 
@@ -2113,22 +2021,6 @@ func (a *apexBundle) setPayloadFsType(ctx android.ModuleContext) {
 		a.payloadFsType = erofs
 	default:
 		ctx.PropertyErrorf("payload_fs_type", "%q is not a valid filesystem for apex [ext4, f2fs, erofs]", *a.properties.Payload_fs_type)
-	}
-}
-
-func (a *apexBundle) setApexTypeAndSuffix(ctx android.ModuleContext) {
-	// Set suffix and primaryApexType depending on the ApexType
-	switch a.properties.ApexType {
-	case imageApex:
-		a.suffix = ""
-		a.primaryApexType = true
-	case zipApex:
-		if proptools.String(a.properties.Payload_type) == "zip" {
-			a.suffix = ""
-			a.primaryApexType = true
-		} else {
-			a.suffix = zipApexSuffix
-		}
 	}
 }
 
@@ -2621,12 +2513,9 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.installDir = android.PathForModuleInstall(ctx, "apex")
 	a.filesInfo = vctx.filesInfo
 
-	a.setApexTypeAndSuffix(ctx)
 	a.setPayloadFsType(ctx)
 	a.setSystemLibLink(ctx)
-	if a.properties.ApexType != zipApex {
-		a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx, a.primaryApexType)
-	}
+	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx)
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// 4) generate the build rules to create the APEX. This is done in builder.go.

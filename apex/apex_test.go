@@ -819,57 +819,6 @@ func TestFileContexts(t *testing.T) {
 	}
 }
 
-func TestBasicZipApex(t *testing.T) {
-	ctx := testApex(t, `
-		apex {
-			name: "myapex",
-			key: "myapex.key",
-			payload_type: "zip",
-			native_shared_libs: ["mylib"],
-			updatable: false,
-		}
-
-		apex_key {
-			name: "myapex.key",
-			public_key: "testkey.avbpubkey",
-			private_key: "testkey.pem",
-		}
-
-		cc_library {
-			name: "mylib",
-			srcs: ["mylib.cpp"],
-			shared_libs: ["mylib2"],
-			system_shared_libs: [],
-			stl: "none",
-			apex_available: [ "myapex" ],
-		}
-
-		cc_library {
-			name: "mylib2",
-			srcs: ["mylib.cpp"],
-			system_shared_libs: [],
-			stl: "none",
-			apex_available: [ "myapex" ],
-		}
-	`)
-
-	zipApexRule := ctx.ModuleForTests("myapex", "android_common_myapex_zip").Rule("zipApexRule")
-	copyCmds := zipApexRule.Args["copy_commands"]
-
-	// Ensure that main rule creates an output
-	ensureContains(t, zipApexRule.Output.String(), "myapex.zipapex.unsigned")
-
-	// Ensure that APEX variant is created for the direct dep
-	ensureListContains(t, ctx.ModuleVariantsForTests("mylib"), "android_arm64_armv8-a_shared_apex10000")
-
-	// Ensure that APEX variant is created for the indirect dep
-	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_shared_apex10000")
-
-	// Ensure that both direct and indirect deps are copied into apex
-	ensureContains(t, copyCmds, "image.zipapex/lib64/mylib.so")
-	ensureContains(t, copyCmds, "image.zipapex/lib64/mylib2.so")
-}
-
 func TestApexWithStubs(t *testing.T) {
 	ctx := testApex(t, `
 		apex {
@@ -3657,10 +3606,6 @@ func getFiles(t *testing.T, ctx *android.TestContext, moduleName, variant string
 	module := ctx.ModuleForTests(moduleName, variant)
 	apexRule := module.MaybeRule("apexRule")
 	apexDir := "/image.apex/"
-	if apexRule.Rule == nil {
-		apexRule = module.Rule("zipApexRule")
-		apexDir = "/image.zipapex/"
-	}
 	copyCmds := apexRule.Args["copy_commands"]
 	var ret []fileInApex
 	for _, cmd := range strings.Split(copyCmds, "&&") {
@@ -9552,28 +9497,6 @@ func TestPrebuiltStubLibDep(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestHostApexInHostOnlyBuild(t *testing.T) {
-	testApex(t, `
-		apex {
-			name: "myapex",
-			host_supported: true,
-			key: "myapex.key",
-			updatable: false,
-			payload_type: "zip",
-		}
-		apex_key {
-			name: "myapex.key",
-			public_key: "testkey.avbpubkey",
-			private_key: "testkey.pem",
-		}
-	`,
-		android.FixtureModifyConfig(func(config android.Config) {
-			// We may not have device targets in all builds, e.g. in
-			// prebuilts/build-tools/build-prebuilts.sh
-			config.Targets[android.Android] = []android.Target{}
-		}))
 }
 
 func TestApexJavaCoverage(t *testing.T) {
