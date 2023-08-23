@@ -911,8 +911,9 @@ var (
 		"apexer_test", "apexer_test_host_tools", "host_apex_verifier",
 
 		// java bugs
-		"libbase_ndk",  // TODO(b/186826477): fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
-		"bouncycastle", // TODO(b/274474005): Need support for custom system_modules.
+		"libbase_ndk",           // TODO(b/186826477): fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
+		"bouncycastle",          // TODO(b/274474005): Need support for custom system_modules.
+		"bouncycastle-test-lib", // TODO(b/274474005): Reverse dependency of bouncycastle
 
 		// genrule incompatibilities
 		"brotli-fuzzer-corpus",                                       // TODO(b/202015218): outputs are in location incompatible with bazel genrule handling.
