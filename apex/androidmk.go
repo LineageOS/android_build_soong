@@ -287,6 +287,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 			if a.installable() {
 				fmt.Fprintln(w, "LOCAL_SOONG_INSTALLED_MODULE :=", a.installedFile.String())
 				fmt.Fprintln(w, "LOCAL_SOONG_INSTALL_PAIRS :=", a.outputFile.String()+":"+a.installedFile.String())
+				fmt.Fprintln(w, "LOCAL_SOONG_INSTALL_SYMLINKS := ", strings.Join(a.compatSymlinks.Strings(), " "))
 			}
 
 			// Because apex writes .mk with Custom(), we need to write manually some common properties
