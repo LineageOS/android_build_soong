@@ -192,6 +192,9 @@ type CommonProperties struct {
 
 	// Additional srcJars tacked in by GeneratedJavaLibraryModule
 	Generated_srcjars []android.Path `android:"mutated"`
+
+	// If true, then only the headers are built and not the implementation jar.
+	Headers_only bool
 }
 
 // Properties that are specific to device modules. Host module factories should not add these when
@@ -571,6 +574,17 @@ func (j *Module) checkPlatformAPI(ctx android.ModuleContext) {
 			ctx.PropertyErrorf("platform_apis", "This module has conflicting settings. sdk_version is empty, which means that this module is build against platform APIs. However platform_apis is not set to true")
 		}
 
+	}
+}
+
+func (j *Module) checkHeadersOnly(ctx android.ModuleContext) {
+	if _, ok := ctx.Module().(android.SdkContext); ok {
+		headersOnly := proptools.Bool(&j.properties.Headers_only)
+		installable := proptools.Bool(j.properties.Installable)
+
+		if headersOnly && installable {
+			ctx.PropertyErrorf("headers_only", "This module has conflicting settings. headers_only is true which, which means this module doesn't generate an implementation jar. However installable is set to true.")
+		}
 	}
 }
 
@@ -1152,6 +1166,36 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 	// any dependencies so that it can override any non-final R classes from dependencies with the
 	// final R classes from the app.
 	flags.classpath = append(android.CopyOf(extraClasspathJars), flags.classpath...)
+
+	// If compiling headers then compile them and skip the rest
+	if j.properties.Headers_only {
+		if srcFiles.HasExt(".kt") {
+			ctx.ModuleErrorf("Compiling headers_only with .kt not supported")
+		}
+		if ctx.Config().IsEnvFalse("TURBINE_ENABLED") || disableTurbine {
+			ctx.ModuleErrorf("headers_only is enabled but Turbine is disabled.")
+		}
+
+		_, j.headerJarFile =
+			j.compileJavaHeader(ctx, uniqueJavaFiles, srcJars, deps, flags, jarName,
+				extraCombinedJars)
+		if ctx.Failed() {
+			return
+		}
+
+		ctx.SetProvider(JavaInfoProvider, JavaInfo{
+			HeaderJars:                     android.PathsIfNonNil(j.headerJarFile),
+			TransitiveLibsHeaderJars:       j.transitiveLibsHeaderJars,
+			TransitiveStaticLibsHeaderJars: j.transitiveStaticLibsHeaderJars,
+			AidlIncludeDirs:                j.exportAidlIncludeDirs,
+			ExportedPlugins:                j.exportedPluginJars,
+			ExportedPluginClasses:          j.exportedPluginClasses,
+			ExportedPluginDisableTurbine:   j.exportedDisableTurbine,
+		})
+
+		j.outputFile = j.headerJarFile
+		return
+	}
 
 	if srcFiles.HasExt(".kt") {
 		// When using kotlin sources turbine is used to generate annotation processor sources,

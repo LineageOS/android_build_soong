@@ -60,6 +60,7 @@ func init() {
 	AddNeverAllowRules(createBp2BuildRule())
 	AddNeverAllowRules(createCcStubsRule())
 	AddNeverAllowRules(createJavaExcludeStaticLibsRule())
+	AddNeverAllowRules(createProhibitHeaderOnlyRule())
 }
 
 // Add a NeverAllow rule to the set of rules to apply.
@@ -262,6 +263,13 @@ func createJavaExcludeStaticLibsRule() Rule {
 		ModuleType("java_library").
 		WithMatcher("exclude_static_libs", isSetMatcherInstance).
 		Because("exclude_static_libs property is only allowed for java modules defined in build/soong, libcore, and frameworks/base/api")
+}
+
+func createProhibitHeaderOnlyRule() Rule {
+	return NeverAllow().
+		Without("name", "framework-minus-apex-headers").
+		With("headers_only", "true").
+		Because("headers_only can only be used for generating framework-minus-apex headers for non-updatable modules")
 }
 
 func neverallowMutator(ctx BottomUpMutatorContext) {
