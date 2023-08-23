@@ -93,9 +93,6 @@ var (
 		// guide and should not be a warning, at least by default.
 		"-Wno-c99-designator",
 
-		// Many old files still have GNU designator syntax.
-		"-Wno-gnu-designator",
-
 		// Warnings from clang-12
 		"-Wno-gnu-folding-constant",
 
