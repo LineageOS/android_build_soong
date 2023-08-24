@@ -16,6 +16,36 @@ func registerRustLibraryModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("rust_library_host", rust.RustLibraryHostFactory)
 }
 
+func TestLibProtobuf(t *testing.T) {
+	runRustLibraryTestCase(t, Bp2buildTestCase{
+		Dir:       "external/rust/crates/foo",
+		Blueprint: "",
+		Filesystem: map[string]string{
+			"external/rust/crates/foo/src/lib.rs": "",
+			"external/rust/crates/foo/Android.bp": `
+rust_library_host {
+	name: "libprotobuf",
+	crate_name: "protobuf",
+	srcs: ["src/lib.rs"],
+    bazel_module: { bp2build_available: true },
+}
+`,
+		},
+		ExpectedBazelTargets: []string{
+			// TODO(b/290790800): Remove the restriction when rust toolchain for android is implemented
+			makeBazelTargetHostOrDevice("rust_library", "libprotobuf", AttrNameToString{
+				"crate_name": `"protobuf"`,
+				"srcs":       `["src/lib.rs"]`,
+				"deps":       `[":libprotobuf_build_script"]`,
+			}, android.HostSupported),
+			makeBazelTargetHostOrDevice("cargo_build_script", "libprotobuf_build_script", AttrNameToString{
+				"srcs": `["build.rs"]`,
+			}, android.HostSupported),
+		},
+	},
+	)
+}
+
 func TestRustLibrary(t *testing.T) {
 	expectedAttrs := AttrNameToString{
 		"crate_name": `"foo"`,

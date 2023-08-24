@@ -513,6 +513,7 @@ var (
 		"libprotobuf_support",
 		"libtinytemplate",
 		"libserde_json",
+		"libprotobuf",
 
 		// ext
 		"tagsoup",
