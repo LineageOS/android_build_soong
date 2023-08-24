@@ -881,6 +881,20 @@ var (
 	// the "prebuilt_" prefix to the name, so that it's differentiable from
 	// the source versions within Soong's module graph.
 	Bp2buildModuleDoNotConvertList = []string{
+		// rust modules that have cc deps
+		"liblogger",
+		"libbssl_ffi",
+		"libbssl_ffi_nostd",
+		"pull_rust",
+		"libstatslog_rust",
+		"libstatslog_rust_header",
+		"libflatbuffers",
+		"liblog_event_list",
+		"libminijail_rust",
+		"libminijail_sys",
+		"libfsverity_rs",
+		"libtombstoned_client_rust",
+
 		// TODO(b/263326760): Failed already.
 		"minijail_compiler_unittest",
 		"minijail_parser_unittest",

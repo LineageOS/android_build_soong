@@ -20,7 +20,10 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/bazel"
 	"android/soong/cc"
+
+	"github.com/google/blueprint/proptools"
 )
 
 var (
@@ -397,6 +400,8 @@ func (library *libraryDecorator) BuildOnlyShared() {
 
 func NewRustLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
 	module := newModule(hod, android.MultilibBoth)
+
+	android.InitBazelModule(module)
 
 	library := &libraryDecorator{
 		MutatedProperties: LibraryMutatedProperties{
@@ -792,4 +797,93 @@ func (l *libraryDecorator) collectHeadersForSnapshot(ctx android.ModuleContext, 
 
 	// TODO(185577950): If support for generated headers is added, they need to be collected here as well.
 	l.collectedSnapshotHeaders = ret
+}
+
+type rustLibraryAttributes struct {
+	Srcs           bazel.LabelListAttribute
+	Compile_data   bazel.LabelListAttribute
+	Crate_name     bazel.StringAttribute
+	Edition        bazel.StringAttribute
+	Crate_features bazel.StringListAttribute
+	Deps           bazel.LabelListAttribute
+	Rustc_flags    bazel.StringListAttribute
+}
+
+func libraryBp2build(ctx android.TopDownMutatorContext, m *Module) {
+	lib := m.compiler.(*libraryDecorator)
+
+	var srcs bazel.LabelList
+	var compileData bazel.LabelList
+	var rustcFLags []string
+
+	// This is a workaround by assuming the conventions that rust crate repos are structured
+	//  while waiting for the sandboxing work to complete.
+	// TODO: When crate_root prop is set which enforces inputs sandboxing,
+	// always use `srcs` and `compile_data` props to generate `srcs` and `compile_data` attributes
+	// instead of using globs.
+	if lib.baseCompiler.Properties.Srcs[0] == "src/lib.rs" {
+		srcs = android.BazelLabelForModuleSrc(ctx, []string{"src/**/*.rs"})
+		compileData = android.BazelLabelForModuleSrc(
+			ctx,
+			[]string{
+				"src/**/*.proto",
+				"examples/**/*.rs",
+				"**/*.md",
+			},
+		)
+	} else {
+		srcs = android.BazelLabelForModuleSrc(ctx, lib.baseCompiler.Properties.Srcs)
+	}
+
+	for _, cfg := range lib.baseCompiler.Properties.Cfgs {
+		rustcFLags = append(rustcFLags, fmt.Sprintf("--cfg=%s", cfg))
+	}
+
+	deps := android.BazelLabelForModuleDeps(ctx, append(
+		lib.baseCompiler.Properties.Rustlibs,
+		lib.baseCompiler.Properties.Rlibs...,
+	))
+
+	attrs := &rustLibraryAttributes{
+		Srcs: bazel.MakeLabelListAttribute(
+			srcs,
+		),
+		Compile_data: bazel.MakeLabelListAttribute(
+			compileData,
+		),
+		Crate_name: bazel.StringAttribute{
+			Value: &lib.baseCompiler.Properties.Crate_name,
+		},
+		Edition: bazel.StringAttribute{
+			Value: lib.baseCompiler.Properties.Edition,
+		},
+		Crate_features: bazel.StringListAttribute{
+			Value: lib.baseCompiler.Properties.Features,
+		},
+		Deps: bazel.MakeLabelListAttribute(
+			deps,
+		),
+		Rustc_flags: bazel.StringListAttribute{
+			Value: append(
+				rustcFLags,
+				lib.baseCompiler.Properties.Flags...,
+			),
+		},
+	}
+
+	// TODO(b/290790800): Remove the restriction when rust toolchain for android is implemented
+	var restriction bazel.BoolAttribute
+	restriction.SetSelectValue(bazel.OsConfigurationAxis, "android", proptools.BoolPtr(false))
+
+	ctx.CreateBazelTargetModuleWithRestrictions(
+		bazel.BazelTargetModuleProperties{
+			Rule_class:        "rust_library",
+			Bzl_load_location: "@rules_rust//rust:defs.bzl",
+		},
+		android.CommonAttributes{
+			Name: m.Name(),
+		},
+		attrs,
+		restriction,
+	)
 }

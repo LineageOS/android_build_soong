@@ -16,6 +16,7 @@ package rust
 
 import (
 	"android/soong/bloaty"
+	"android/soong/ui/metrics/bp2build_metrics_proto"
 	"fmt"
 	"strings"
 
@@ -169,6 +170,8 @@ type Module struct {
 	apexSdkVersion android.ApiLevel
 
 	transitiveAndroidMkSharedLibs *android.DepSet[string]
+
+	android.BazelModuleBase
 }
 
 func (mod *Module) Header() bool {
@@ -1839,6 +1842,14 @@ func (k kytheExtractRustSingleton) GenerateBuildActions(ctx android.SingletonCon
 
 func (c *Module) Partition() string {
 	return ""
+}
+
+func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	if ctx.ModuleType() == "rust_library_host" || ctx.ModuleType() == "rust_library" {
+		libraryBp2build(ctx, m)
+	} else {
+		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "")
+	}
 }
 
 var Bool = proptools.Bool
