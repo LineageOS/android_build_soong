@@ -179,19 +179,6 @@ var (
 	}, "tool_path", "image_dir", "copy_commands", "file_contexts", "canned_fs_config", "key",
 		"opt_flags", "manifest", "libs_to_trim")
 
-	zipApexRule = pctx.StaticRule("zipApexRule", blueprint.RuleParams{
-		Command: `rm -rf ${image_dir} && mkdir -p ${image_dir} && ` +
-			`(. ${out}.copy_commands) && ` +
-			`APEXER_TOOL_PATH=${tool_path} ` +
-			`${apexer} --force --manifest ${manifest} ` +
-			`--payload_type zip ` +
-			`${image_dir} ${out} `,
-		CommandDeps:    []string{"${apexer}", "${merge_zips}", "${soong_zip}", "${zipalign}", "${aapt2}"},
-		Rspfile:        "${out}.copy_commands",
-		RspfileContent: "${copy_commands}",
-		Description:    "ZipAPEX ${image_dir} => ${out}",
-	}, "tool_path", "image_dir", "copy_commands", "manifest")
-
 	apexProtoConvertRule = pctx.AndroidStaticRule("apexProtoConvertRule",
 		blueprint.RuleParams{
 			Command:     `${aapt2} convert --output-format proto $in -o $out`,
@@ -369,21 +356,16 @@ func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) android.Output
 		// even though VNDK APEX is supposed to be installed on /system. (See com.android.vndk.current.on_vendor)
 		forceLabel = "u:object_r:vendor_apex_metadata_file:s0"
 	}
-	switch a.properties.ApexType {
-	case imageApex:
-		// remove old file
-		rule.Command().Text("rm").FlagWithOutput("-f ", output)
-		// copy file_contexts
-		rule.Command().Text("cat").Input(fileContexts).Text(">>").Output(output)
-		// new line
-		rule.Command().Text("echo").Text(">>").Output(output)
-		if !useFileContextsAsIs {
-			// force-label /apex_manifest.pb and /
-			rule.Command().Text("echo").Text("/apex_manifest\\\\.pb").Text(forceLabel).Text(">>").Output(output)
-			rule.Command().Text("echo").Text("/").Text(forceLabel).Text(">>").Output(output)
-		}
-	default:
-		panic(fmt.Errorf("unsupported type %v", a.properties.ApexType))
+	// remove old file
+	rule.Command().Text("rm").FlagWithOutput("-f ", output)
+	// copy file_contexts
+	rule.Command().Text("cat").Input(fileContexts).Text(">>").Output(output)
+	// new line
+	rule.Command().Text("echo").Text(">>").Output(output)
+	if !useFileContextsAsIs {
+		// force-label /apex_manifest.pb and /
+		rule.Command().Text("echo").Text("/apex_manifest\\\\.pb").Text(forceLabel).Text(">>").Output(output)
+		rule.Command().Text("echo").Text("/").Text(forceLabel).Text(">>").Output(output)
 	}
 
 	rule.Build("file_contexts."+a.Name(), "Generate file_contexts")
@@ -464,8 +446,7 @@ func markManifestTestOnly(ctx android.ModuleContext, androidManifestFile android
 
 // buildApex creates build rules to build an APEX using apexer.
 func (a *apexBundle) buildApex(ctx android.ModuleContext) {
-	apexType := a.properties.ApexType
-	suffix := apexType.suffix()
+	suffix := imageApexSuffix
 	apexName := a.BaseModuleName()
 
 	////////////////////////////////////////////////////////////////////////////////////////////
@@ -604,262 +585,246 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 	outHostBinDir := ctx.Config().HostToolPath(ctx, "").String()
 	prebuiltSdkToolsBinDir := filepath.Join("prebuilts", "sdk", "tools", runtime.GOOS, "bin")
 
-	if apexType == imageApex {
+	////////////////////////////////////////////////////////////////////////////////////
+	// Step 2: create canned_fs_config which encodes filemode,uid,gid of each files
+	// in this APEX. The file will be used by apexer in later steps.
+	cannedFsConfig := a.buildCannedFsConfig(ctx)
+	implicitInputs = append(implicitInputs, cannedFsConfig)
 
-		////////////////////////////////////////////////////////////////////////////////////
-		// Step 2: create canned_fs_config which encodes filemode,uid,gid of each files
-		// in this APEX. The file will be used by apexer in later steps.
-		cannedFsConfig := a.buildCannedFsConfig(ctx)
-		implicitInputs = append(implicitInputs, cannedFsConfig)
+	////////////////////////////////////////////////////////////////////////////////////
+	// Step 3: Prepare option flags for apexer and invoke it to create an unsigned APEX.
+	// TODO(jiyong): use the RuleBuilder
+	optFlags := []string{}
 
-		////////////////////////////////////////////////////////////////////////////////////
-		// Step 3: Prepare option flags for apexer and invoke it to create an unsigned APEX.
-		// TODO(jiyong): use the RuleBuilder
-		optFlags := []string{}
+	fileContexts := a.buildFileContexts(ctx)
+	implicitInputs = append(implicitInputs, fileContexts)
 
-		fileContexts := a.buildFileContexts(ctx)
-		implicitInputs = append(implicitInputs, fileContexts)
+	implicitInputs = append(implicitInputs, a.privateKeyFile, a.publicKeyFile)
+	optFlags = append(optFlags, "--pubkey "+a.publicKeyFile.String())
 
-		implicitInputs = append(implicitInputs, a.privateKeyFile, a.publicKeyFile)
-		optFlags = append(optFlags, "--pubkey "+a.publicKeyFile.String())
+	manifestPackageName := a.getOverrideManifestPackageName(ctx)
+	if manifestPackageName != "" {
+		optFlags = append(optFlags, "--override_apk_package_name "+manifestPackageName)
+	}
 
-		manifestPackageName := a.getOverrideManifestPackageName(ctx)
-		if manifestPackageName != "" {
-			optFlags = append(optFlags, "--override_apk_package_name "+manifestPackageName)
+	if a.properties.AndroidManifest != nil {
+		androidManifestFile := android.PathForModuleSrc(ctx, proptools.String(a.properties.AndroidManifest))
+
+		if a.testApex {
+			androidManifestFile = markManifestTestOnly(ctx, androidManifestFile)
 		}
 
-		if a.properties.AndroidManifest != nil {
-			androidManifestFile := android.PathForModuleSrc(ctx, proptools.String(a.properties.AndroidManifest))
+		implicitInputs = append(implicitInputs, androidManifestFile)
+		optFlags = append(optFlags, "--android_manifest "+androidManifestFile.String())
+	} else if a.testApex {
+		optFlags = append(optFlags, "--test_only")
+	}
 
-			if a.testApex {
-				androidManifestFile = markManifestTestOnly(ctx, androidManifestFile)
-			}
+	// Determine target/min sdk version from the context
+	// TODO(jiyong): make this as a function
+	moduleMinSdkVersion := a.minSdkVersion(ctx)
+	minSdkVersion := moduleMinSdkVersion.String()
 
-			implicitInputs = append(implicitInputs, androidManifestFile)
-			optFlags = append(optFlags, "--android_manifest "+androidManifestFile.String())
-		} else if a.testApex {
-			optFlags = append(optFlags, "--test_only")
-		}
-
-		// Determine target/min sdk version from the context
-		// TODO(jiyong): make this as a function
-		moduleMinSdkVersion := a.minSdkVersion(ctx)
-		minSdkVersion := moduleMinSdkVersion.String()
-
-		// bundletool doesn't understand what "current" is. We need to transform it to
-		// codename
-		if moduleMinSdkVersion.IsCurrent() || moduleMinSdkVersion.IsNone() {
-			minSdkVersion = ctx.Config().DefaultAppTargetSdk(ctx).String()
-
-			if java.UseApiFingerprint(ctx) {
-				minSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", java.ApiFingerprintPath(ctx).String())
-				implicitInputs = append(implicitInputs, java.ApiFingerprintPath(ctx))
-			}
-		}
-		// apex module doesn't have a concept of target_sdk_version, hence for the time
-		// being targetSdkVersion == default targetSdkVersion of the branch.
-		targetSdkVersion := strconv.Itoa(ctx.Config().DefaultAppTargetSdk(ctx).FinalOrFutureInt())
+	// bundletool doesn't understand what "current" is. We need to transform it to
+	// codename
+	if moduleMinSdkVersion.IsCurrent() || moduleMinSdkVersion.IsNone() {
+		minSdkVersion = ctx.Config().DefaultAppTargetSdk(ctx).String()
 
 		if java.UseApiFingerprint(ctx) {
-			targetSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", java.ApiFingerprintPath(ctx).String())
+			minSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", java.ApiFingerprintPath(ctx).String())
 			implicitInputs = append(implicitInputs, java.ApiFingerprintPath(ctx))
 		}
-		optFlags = append(optFlags, "--target_sdk_version "+targetSdkVersion)
-		optFlags = append(optFlags, "--min_sdk_version "+minSdkVersion)
+	}
+	// apex module doesn't have a concept of target_sdk_version, hence for the time
+	// being targetSdkVersion == default targetSdkVersion of the branch.
+	targetSdkVersion := strconv.Itoa(ctx.Config().DefaultAppTargetSdk(ctx).FinalOrFutureInt())
 
-		if a.overridableProperties.Logging_parent != "" {
-			optFlags = append(optFlags, "--logging_parent ", a.overridableProperties.Logging_parent)
-		}
+	if java.UseApiFingerprint(ctx) {
+		targetSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", java.ApiFingerprintPath(ctx).String())
+		implicitInputs = append(implicitInputs, java.ApiFingerprintPath(ctx))
+	}
+	optFlags = append(optFlags, "--target_sdk_version "+targetSdkVersion)
+	optFlags = append(optFlags, "--min_sdk_version "+minSdkVersion)
 
-		// Create a NOTICE file, and embed it as an asset file in the APEX.
-		htmlGzNotice := android.PathForModuleOut(ctx, "NOTICE.html.gz")
-		android.BuildNoticeHtmlOutputFromLicenseMetadata(
-			ctx, htmlGzNotice, "", "",
-			[]string{
-				android.PathForModuleInstall(ctx).String() + "/",
-				android.PathForModuleInPartitionInstall(ctx, "apex").String() + "/",
-			})
-		noticeAssetPath := android.PathForModuleOut(ctx, "NOTICE", "NOTICE.html.gz")
-		builder := android.NewRuleBuilder(pctx, ctx)
-		builder.Command().Text("cp").
-			Input(htmlGzNotice).
-			Output(noticeAssetPath)
-		builder.Build("notice_dir", "Building notice dir")
-		implicitInputs = append(implicitInputs, noticeAssetPath)
-		optFlags = append(optFlags, "--assets_dir "+filepath.Dir(noticeAssetPath.String()))
+	if a.overridableProperties.Logging_parent != "" {
+		optFlags = append(optFlags, "--logging_parent ", a.overridableProperties.Logging_parent)
+	}
 
-		// Apexes which are supposed to be installed in builtin dirs(/system, etc)
-		// don't need hashtree for activation. Therefore, by removing hashtree from
-		// apex bundle (filesystem image in it, to be specific), we can save storage.
-		needHashTree := moduleMinSdkVersion.LessThanOrEqualTo(android.SdkVersion_Android10) ||
-			a.shouldGenerateHashtree()
-		if ctx.Config().ApexCompressionEnabled() && a.isCompressable() {
-			needHashTree = true
-		}
-		if !needHashTree {
-			optFlags = append(optFlags, "--no_hashtree")
-		}
-
-		if a.testOnlyShouldSkipPayloadSign() {
-			optFlags = append(optFlags, "--unsigned_payload")
-		}
-
-		if moduleMinSdkVersion == android.SdkVersion_Android10 {
-			implicitInputs = append(implicitInputs, a.manifestJsonOut)
-			optFlags = append(optFlags, "--manifest_json "+a.manifestJsonOut.String())
-		}
-
-		optFlags = append(optFlags, "--payload_fs_type "+a.payloadFsType.string())
-
-		if a.dynamic_common_lib_apex() {
-			ctx.Build(pctx, android.BuildParams{
-				Rule:        DCLAApexRule,
-				Implicits:   implicitInputs,
-				Output:      unsignedOutputFile,
-				Description: "apex (" + apexType.name() + ")",
-				Args: map[string]string{
-					"tool_path":        outHostBinDir + ":" + prebuiltSdkToolsBinDir,
-					"image_dir":        imageDir.String(),
-					"copy_commands":    strings.Join(copyCommands, " && "),
-					"manifest":         a.manifestPbOut.String(),
-					"file_contexts":    fileContexts.String(),
-					"canned_fs_config": cannedFsConfig.String(),
-					"key":              a.privateKeyFile.String(),
-					"opt_flags":        strings.Join(optFlags, " "),
-				},
-			})
-		} else if ctx.Config().ApexTrimEnabled() && len(a.libs_to_trim(ctx)) > 0 {
-			ctx.Build(pctx, android.BuildParams{
-				Rule:        TrimmedApexRule,
-				Implicits:   implicitInputs,
-				Output:      unsignedOutputFile,
-				Description: "apex (" + apexType.name() + ")",
-				Args: map[string]string{
-					"tool_path":        outHostBinDir + ":" + prebuiltSdkToolsBinDir,
-					"image_dir":        imageDir.String(),
-					"copy_commands":    strings.Join(copyCommands, " && "),
-					"manifest":         a.manifestPbOut.String(),
-					"file_contexts":    fileContexts.String(),
-					"canned_fs_config": cannedFsConfig.String(),
-					"key":              a.privateKeyFile.String(),
-					"opt_flags":        strings.Join(optFlags, " "),
-					"libs_to_trim":     strings.Join(a.libs_to_trim(ctx), ","),
-				},
-			})
-		} else {
-			ctx.Build(pctx, android.BuildParams{
-				Rule:        apexRule,
-				Implicits:   implicitInputs,
-				Output:      unsignedOutputFile,
-				Description: "apex (" + apexType.name() + ")",
-				Args: map[string]string{
-					"tool_path":        outHostBinDir + ":" + prebuiltSdkToolsBinDir,
-					"image_dir":        imageDir.String(),
-					"copy_commands":    strings.Join(copyCommands, " && "),
-					"manifest":         a.manifestPbOut.String(),
-					"file_contexts":    fileContexts.String(),
-					"canned_fs_config": cannedFsConfig.String(),
-					"key":              a.privateKeyFile.String(),
-					"opt_flags":        strings.Join(optFlags, " "),
-				},
-			})
-		}
-
-		// TODO(jiyong): make the two rules below as separate functions
-		apexProtoFile := android.PathForModuleOut(ctx, a.Name()+".pb"+suffix)
-		bundleModuleFile := android.PathForModuleOut(ctx, a.Name()+suffix+"-base.zip")
-		a.bundleModuleFile = bundleModuleFile
-
-		ctx.Build(pctx, android.BuildParams{
-			Rule:        apexProtoConvertRule,
-			Input:       unsignedOutputFile,
-			Output:      apexProtoFile,
-			Description: "apex proto convert",
+	// Create a NOTICE file, and embed it as an asset file in the APEX.
+	htmlGzNotice := android.PathForModuleOut(ctx, "NOTICE.html.gz")
+	android.BuildNoticeHtmlOutputFromLicenseMetadata(
+		ctx, htmlGzNotice, "", "",
+		[]string{
+			android.PathForModuleInstall(ctx).String() + "/",
+			android.PathForModuleInPartitionInstall(ctx, "apex").String() + "/",
 		})
+	noticeAssetPath := android.PathForModuleOut(ctx, "NOTICE", "NOTICE.html.gz")
+	builder := android.NewRuleBuilder(pctx, ctx)
+	builder.Command().Text("cp").
+		Input(htmlGzNotice).
+		Output(noticeAssetPath)
+	builder.Build("notice_dir", "Building notice dir")
+	implicitInputs = append(implicitInputs, noticeAssetPath)
+	optFlags = append(optFlags, "--assets_dir "+filepath.Dir(noticeAssetPath.String()))
 
-		implicitInputs = append(implicitInputs, unsignedOutputFile)
+	// Apexes which are supposed to be installed in builtin dirs(/system, etc)
+	// don't need hashtree for activation. Therefore, by removing hashtree from
+	// apex bundle (filesystem image in it, to be specific), we can save storage.
+	needHashTree := moduleMinSdkVersion.LessThanOrEqualTo(android.SdkVersion_Android10) ||
+		a.shouldGenerateHashtree()
+	if ctx.Config().ApexCompressionEnabled() && a.isCompressable() {
+		needHashTree = true
+	}
+	if !needHashTree {
+		optFlags = append(optFlags, "--no_hashtree")
+	}
 
-		// Run coverage analysis
-		apisUsedbyOutputFile := android.PathForModuleOut(ctx, a.Name()+"_using.txt")
+	if a.testOnlyShouldSkipPayloadSign() {
+		optFlags = append(optFlags, "--unsigned_payload")
+	}
+
+	if moduleMinSdkVersion == android.SdkVersion_Android10 {
+		implicitInputs = append(implicitInputs, a.manifestJsonOut)
+		optFlags = append(optFlags, "--manifest_json "+a.manifestJsonOut.String())
+	}
+
+	optFlags = append(optFlags, "--payload_fs_type "+a.payloadFsType.string())
+
+	if a.dynamic_common_lib_apex() {
 		ctx.Build(pctx, android.BuildParams{
-			Rule:        generateAPIsUsedbyApexRule,
-			Implicits:   implicitInputs,
-			Description: "coverage",
-			Output:      apisUsedbyOutputFile,
-			Args: map[string]string{
-				"image_dir": imageDir.String(),
-				"readelf":   "${config.ClangBin}/llvm-readelf",
-			},
-		})
-		a.nativeApisUsedByModuleFile = apisUsedbyOutputFile
-
-		var nativeLibNames []string
-		for _, f := range a.filesInfo {
-			if f.class == nativeSharedLib {
-				nativeLibNames = append(nativeLibNames, f.stem())
-			}
-		}
-		apisBackedbyOutputFile := android.PathForModuleOut(ctx, a.Name()+"_backing.txt")
-		rule := android.NewRuleBuilder(pctx, ctx)
-		rule.Command().
-			Tool(android.PathForSource(ctx, "build/soong/scripts/gen_ndk_backedby_apex.sh")).
-			Output(apisBackedbyOutputFile).
-			Flags(nativeLibNames)
-		rule.Build("ndk_backedby_list", "Generate API libraries backed by Apex")
-		a.nativeApisBackedByModuleFile = apisBackedbyOutputFile
-
-		var javaLibOrApkPath []android.Path
-		for _, f := range a.filesInfo {
-			if f.class == javaSharedLib || f.class == app {
-				javaLibOrApkPath = append(javaLibOrApkPath, f.builtFile)
-			}
-		}
-		javaApiUsedbyOutputFile := android.PathForModuleOut(ctx, a.Name()+"_using.xml")
-		javaUsedByRule := android.NewRuleBuilder(pctx, ctx)
-		javaUsedByRule.Command().
-			Tool(android.PathForSource(ctx, "build/soong/scripts/gen_java_usedby_apex.sh")).
-			BuiltTool("dexdeps").
-			Output(javaApiUsedbyOutputFile).
-			Inputs(javaLibOrApkPath)
-		javaUsedByRule.Build("java_usedby_list", "Generate Java APIs used by Apex")
-		a.javaApisUsedByModuleFile = javaApiUsedbyOutputFile
-
-		bundleConfig := a.buildBundleConfig(ctx)
-
-		var abis []string
-		for _, target := range ctx.MultiTargets() {
-			if len(target.Arch.Abi) > 0 {
-				abis = append(abis, target.Arch.Abi[0])
-			}
-		}
-
-		abis = android.FirstUniqueStrings(abis)
-
-		ctx.Build(pctx, android.BuildParams{
-			Rule:        apexBundleRule,
-			Input:       apexProtoFile,
-			Implicit:    bundleConfig,
-			Output:      a.bundleModuleFile,
-			Description: "apex bundle module",
-			Args: map[string]string{
-				"abi":    strings.Join(abis, "."),
-				"config": bundleConfig.String(),
-			},
-		})
-	} else { // zipApex
-		ctx.Build(pctx, android.BuildParams{
-			Rule:        zipApexRule,
+			Rule:        DCLAApexRule,
 			Implicits:   implicitInputs,
 			Output:      unsignedOutputFile,
-			Description: "apex (" + apexType.name() + ")",
+			Description: "apex",
 			Args: map[string]string{
-				"tool_path":     outHostBinDir + ":" + prebuiltSdkToolsBinDir,
-				"image_dir":     imageDir.String(),
-				"copy_commands": strings.Join(copyCommands, " && "),
-				"manifest":      a.manifestPbOut.String(),
+				"tool_path":        outHostBinDir + ":" + prebuiltSdkToolsBinDir,
+				"image_dir":        imageDir.String(),
+				"copy_commands":    strings.Join(copyCommands, " && "),
+				"manifest":         a.manifestPbOut.String(),
+				"file_contexts":    fileContexts.String(),
+				"canned_fs_config": cannedFsConfig.String(),
+				"key":              a.privateKeyFile.String(),
+				"opt_flags":        strings.Join(optFlags, " "),
+			},
+		})
+	} else if ctx.Config().ApexTrimEnabled() && len(a.libs_to_trim(ctx)) > 0 {
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        TrimmedApexRule,
+			Implicits:   implicitInputs,
+			Output:      unsignedOutputFile,
+			Description: "apex",
+			Args: map[string]string{
+				"tool_path":        outHostBinDir + ":" + prebuiltSdkToolsBinDir,
+				"image_dir":        imageDir.String(),
+				"copy_commands":    strings.Join(copyCommands, " && "),
+				"manifest":         a.manifestPbOut.String(),
+				"file_contexts":    fileContexts.String(),
+				"canned_fs_config": cannedFsConfig.String(),
+				"key":              a.privateKeyFile.String(),
+				"opt_flags":        strings.Join(optFlags, " "),
+				"libs_to_trim":     strings.Join(a.libs_to_trim(ctx), ","),
+			},
+		})
+	} else {
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        apexRule,
+			Implicits:   implicitInputs,
+			Output:      unsignedOutputFile,
+			Description: "apex",
+			Args: map[string]string{
+				"tool_path":        outHostBinDir + ":" + prebuiltSdkToolsBinDir,
+				"image_dir":        imageDir.String(),
+				"copy_commands":    strings.Join(copyCommands, " && "),
+				"manifest":         a.manifestPbOut.String(),
+				"file_contexts":    fileContexts.String(),
+				"canned_fs_config": cannedFsConfig.String(),
+				"key":              a.privateKeyFile.String(),
+				"opt_flags":        strings.Join(optFlags, " "),
 			},
 		})
 	}
+
+	// TODO(jiyong): make the two rules below as separate functions
+	apexProtoFile := android.PathForModuleOut(ctx, a.Name()+".pb"+suffix)
+	bundleModuleFile := android.PathForModuleOut(ctx, a.Name()+suffix+"-base.zip")
+	a.bundleModuleFile = bundleModuleFile
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        apexProtoConvertRule,
+		Input:       unsignedOutputFile,
+		Output:      apexProtoFile,
+		Description: "apex proto convert",
+	})
+
+	implicitInputs = append(implicitInputs, unsignedOutputFile)
+
+	// Run coverage analysis
+	apisUsedbyOutputFile := android.PathForModuleOut(ctx, a.Name()+"_using.txt")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        generateAPIsUsedbyApexRule,
+		Implicits:   implicitInputs,
+		Description: "coverage",
+		Output:      apisUsedbyOutputFile,
+		Args: map[string]string{
+			"image_dir": imageDir.String(),
+			"readelf":   "${config.ClangBin}/llvm-readelf",
+		},
+	})
+	a.nativeApisUsedByModuleFile = apisUsedbyOutputFile
+
+	var nativeLibNames []string
+	for _, f := range a.filesInfo {
+		if f.class == nativeSharedLib {
+			nativeLibNames = append(nativeLibNames, f.stem())
+		}
+	}
+	apisBackedbyOutputFile := android.PathForModuleOut(ctx, a.Name()+"_backing.txt")
+	rb := android.NewRuleBuilder(pctx, ctx)
+	rb.Command().
+		Tool(android.PathForSource(ctx, "build/soong/scripts/gen_ndk_backedby_apex.sh")).
+		Output(apisBackedbyOutputFile).
+		Flags(nativeLibNames)
+	rb.Build("ndk_backedby_list", "Generate API libraries backed by Apex")
+	a.nativeApisBackedByModuleFile = apisBackedbyOutputFile
+
+	var javaLibOrApkPath []android.Path
+	for _, f := range a.filesInfo {
+		if f.class == javaSharedLib || f.class == app {
+			javaLibOrApkPath = append(javaLibOrApkPath, f.builtFile)
+		}
+	}
+	javaApiUsedbyOutputFile := android.PathForModuleOut(ctx, a.Name()+"_using.xml")
+	javaUsedByRule := android.NewRuleBuilder(pctx, ctx)
+	javaUsedByRule.Command().
+		Tool(android.PathForSource(ctx, "build/soong/scripts/gen_java_usedby_apex.sh")).
+		BuiltTool("dexdeps").
+		Output(javaApiUsedbyOutputFile).
+		Inputs(javaLibOrApkPath)
+	javaUsedByRule.Build("java_usedby_list", "Generate Java APIs used by Apex")
+	a.javaApisUsedByModuleFile = javaApiUsedbyOutputFile
+
+	bundleConfig := a.buildBundleConfig(ctx)
+
+	var abis []string
+	for _, target := range ctx.MultiTargets() {
+		if len(target.Arch.Abi) > 0 {
+			abis = append(abis, target.Arch.Abi[0])
+		}
+	}
+
+	abis = android.FirstUniqueStrings(abis)
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        apexBundleRule,
+		Input:       apexProtoFile,
+		Implicit:    bundleConfig,
+		Output:      a.bundleModuleFile,
+		Description: "apex bundle module",
+		Args: map[string]string{
+			"abi":    strings.Join(abis, "."),
+			"config": bundleConfig.String(),
+		},
+	})
 
 	////////////////////////////////////////////////////////////////////////////////////
 	// Step 4: Sign the APEX using signapk
@@ -987,18 +952,9 @@ func (a *apexBundle) getOverrideManifestPackageName(ctx android.ModuleContext) s
 }
 
 func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
-	if !a.primaryApexType {
-		return
-	}
-
 	if a.properties.IsCoverageVariant {
 		// Otherwise, we will have duplicated rules for coverage and
 		// non-coverage variants of the same APEX
-		return
-	}
-
-	if ctx.Host() {
-		// No need to generate dependency info for host variant
 		return
 	}
 

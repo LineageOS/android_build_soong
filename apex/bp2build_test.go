@@ -80,7 +80,7 @@ apex {
 		}),
 	).RunTestWithBp(t, bp)
 
-	m := result.ModuleForTests("foo", "android_common_foo_image").Module()
+	m := result.ModuleForTests("foo", "android_common_foo").Module()
 	ab, ok := m.(*apexBundle)
 
 	if !ok {
@@ -206,7 +206,7 @@ apex {
 		}),
 	).RunTestWithBp(t, bp)
 
-	m := result.ModuleForTests("foo", "android_common_foo_image").Module()
+	m := result.ModuleForTests("foo", "android_common_foo").Module()
 	ab, ok := m.(*apexBundle)
 
 	if !ok {
@@ -299,7 +299,7 @@ apex {
 		}),
 	).RunTestWithBp(t, bp)
 
-	m := result.ModuleForTests("foo", "android_common_foo_image").Module()
+	m := result.ModuleForTests("foo", "android_common_foo").Module()
 	ab, ok := m.(*apexBundle)
 	if !ok {
 		t.Fatalf("Expected module to be an apexBundle, was not")
@@ -483,7 +483,7 @@ override_apex {
 				}),
 			).RunTest(t)
 
-			m := result.ModuleForTests("foo", "android_common_override_foo_foo_image").Module()
+			m := result.ModuleForTests("foo", "android_common_override_foo_foo").Module()
 			ab, ok := m.(*apexBundle)
 			if !ok {
 				t.Fatalf("Expected module to be an apexBundle, was not")
