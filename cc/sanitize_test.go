@@ -714,6 +714,15 @@ func TestUbsan(t *testing.T) {
 			],
 		}
 
+		cc_binary {
+			name: "static_bin_with_ubsan_dep",
+			static_executable: true,
+			host_supported: true,
+			static_libs: [
+				"libubsan_diag",
+			],
+		}
+
 		cc_library_shared {
 			name: "libshared",
 			host_supported: true,
@@ -742,6 +751,17 @@ func TestUbsan(t *testing.T) {
 		}
 
 		cc_library_static {
+			name: "libubsan_diag",
+			host_supported: true,
+			sanitize: {
+				undefined: true,
+				diag: {
+					undefined: true,
+				},
+			},
+		}
+
+		cc_library_static {
 			name: "libstatic",
 			host_supported: true,
 		}
@@ -763,6 +783,7 @@ func TestUbsan(t *testing.T) {
 		sharedVariant := variant + "_shared"
 
 		minimalRuntime := result.ModuleForTests("libclang_rt.ubsan_minimal", staticVariant)
+		standaloneRuntime := result.ModuleForTests("libclang_rt.ubsan_standalone.static", staticVariant)
 
 		// The binaries, one with ubsan and one without
 		binWithUbsan := result.ModuleForTests("bin_with_ubsan", variant)
@@ -770,6 +791,7 @@ func TestUbsan(t *testing.T) {
 		libSharedUbsan := result.ModuleForTests("libsharedubsan", sharedVariant)
 		binDependsUbsanShared := result.ModuleForTests("bin_depends_ubsan_shared", variant)
 		binNoUbsan := result.ModuleForTests("bin_no_ubsan", variant)
+		staticBin := result.ModuleForTests("static_bin_with_ubsan_dep", variant)
 
 		android.AssertStringListContains(t, "missing libclang_rt.ubsan_minimal in bin_with_ubsan static libs",
 			strings.Split(binWithUbsan.Rule("ld").Args["libFlags"], " "),
@@ -810,6 +832,11 @@ func TestUbsan(t *testing.T) {
 		android.AssertStringListDoesNotContain(t, "unexpected -Wl,--exclude-libs for minimal runtime in bin_no_ubsan static libs",
 			strings.Split(binNoUbsan.Rule("ld").Args["ldFlags"], " "),
 			"-Wl,--exclude-libs="+minimalRuntime.OutputFiles(t, "")[0].Base())
+
+		android.AssertStringListContains(t, "missing libclang_rt.ubsan_standalone.static in static_bin_with_ubsan_dep static libs",
+			strings.Split(staticBin.Rule("ld").Args["libFlags"], " "),
+			standaloneRuntime.OutputFiles(t, "")[0].String())
+
 	}
 
 	t.Run("host", func(t *testing.T) { check(t, buildOS, preparer) })
