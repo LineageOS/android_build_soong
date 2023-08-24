@@ -117,6 +117,14 @@ func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
 			basename: "constants.bzl",
 		},
 		{
+			dir:      "rust_toolchain",
+			basename: GeneratedBuildFileName,
+		},
+		{
+			dir:      "rust_toolchain",
+			basename: "constants.bzl",
+		},
+		{
 			dir:      "apex_toolchain",
 			basename: GeneratedBuildFileName,
 		},

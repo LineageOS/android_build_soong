@@ -12,6 +12,7 @@ import (
 	"android/soong/cc"
 	cc_config "android/soong/cc/config"
 	java_config "android/soong/java/config"
+	rust_config "android/soong/rust/config"
 	"android/soong/starlark_fmt"
 
 	"github.com/google/blueprint/proptools"
@@ -36,6 +37,9 @@ func soongInjectionFiles(cfg android.Config, metrics CodegenMetrics) ([]BazelFil
 
 	files = append(files, newFile("java_toolchain", GeneratedBuildFileName, "")) // Creates a //java_toolchain package.
 	files = append(files, newFile("java_toolchain", "constants.bzl", java_config.BazelJavaToolchainVars(cfg)))
+
+	files = append(files, newFile("rust_toolchain", GeneratedBuildFileName, "")) // Creates a //rust_toolchain package.
+	files = append(files, newFile("rust_toolchain", "constants.bzl", rust_config.BazelRustToolchainVars(cfg)))
 
 	files = append(files, newFile("apex_toolchain", GeneratedBuildFileName, "")) // Creates a //apex_toolchain package.
 	apexToolchainVars, err := apex.BazelApexToolchainVars()
