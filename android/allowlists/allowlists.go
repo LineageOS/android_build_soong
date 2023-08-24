@@ -1575,6 +1575,9 @@ var (
 		// same package contains a "r8.jar" file which gets overshadowed by the implicit target.
 		// We don't need this target as we're not using the Soong wrapper for now
 		"r8",
+
+		// Depends on the module defined in the directory not bp2build default allowed
+		"ota_from_raw_img",
 	}
 
 	// Bazel prod-mode allowlist. Modules in this list are built by Bazel
