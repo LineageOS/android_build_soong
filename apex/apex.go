@@ -26,7 +26,6 @@ import (
 	"android/soong/bazel/cquery"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -37,7 +36,6 @@ import (
 	"android/soong/filesystem"
 	"android/soong/java"
 	"android/soong/multitree"
-	"android/soong/python"
 	"android/soong/rust"
 	"android/soong/sh"
 )
@@ -79,7 +77,6 @@ func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
 	ctx.BottomUp("mark_platform_availability", markPlatformAvailability).Parallel()
 	ctx.BottomUp("apex", apexMutator).Parallel()
 	ctx.BottomUp("apex_directly_in_any", apexDirectlyInAnyMutator).Parallel()
-	ctx.BottomUp("apex_packaging", apexPackagingMutator).Parallel()
 	ctx.BottomUp("apex_dcla_deps", apexDCLADepsMutator).Parallel()
 	// Register after apex_info mutator so that it can use ApexVariationName
 	ctx.TopDown("apex_strict_updatability_lint", apexStrictUpdatibilityLintMutator).Parallel()
@@ -166,15 +163,7 @@ type apexBundleProperties struct {
 	// Should be only used in non-system apexes (e.g. vendor: true). Default is false.
 	Use_vndk_as_stable *bool
 
-	// The type of APEX to build. Controls what the APEX payload is. Either 'image', 'zip' or
-	// 'both'. When set to image, contents are stored in a filesystem image inside a zip
-	// container. When set to zip, contents are stored in a zip container directly. This type is
-	// mostly for host-side debugging. When set to both, the two types are both built. Default
-	// is 'image'.
-	Payload_type *string
-
-	// The type of filesystem to use when the payload_type is 'image'. Either 'ext4', 'f2fs'
-	// or 'erofs'. Default 'ext4'.
+	// The type of filesystem to use. Either 'ext4', 'f2fs' or 'erofs'. Default 'ext4'.
 	Payload_fs_type *string
 
 	// For telling the APEX to ignore special handling for system libraries such as bionic.
@@ -215,9 +204,6 @@ type apexBundleProperties struct {
 	PreventInstall bool `blueprint:"mutated"`
 
 	HideFromMake bool `blueprint:"mutated"`
-
-	// Internal package method for this APEX.
-	ApexType apexPackaging `blueprint:"mutated"`
 
 	// Name that dependencies can specify in their apex_available properties to refer to this module.
 	// If not specified, this defaults to Soong module name. This must be the name of a Soong module.
@@ -421,13 +407,6 @@ type apexBundle struct {
 	testApex bool
 	vndkApex bool
 
-	// Tells whether this variant of the APEX bundle is the primary one or not. Only the primary
-	// one gets installed to the device.
-	primaryApexType bool
-
-	// Suffix of module name in Android.mk ".apex", ".zipapex", or ""
-	suffix string
-
 	// File system type of apex_payload.img
 	payloadFsType fsType
 
@@ -506,12 +485,10 @@ const (
 	app apexFileClass = iota
 	appSet
 	etc
-	goBinary
 	javaSharedLib
 	nativeExecutable
 	nativeSharedLib
 	nativeTest
-	pyBinary
 	shBinary
 )
 
@@ -520,12 +497,10 @@ var (
 		"app":              app,
 		"appSet":           appSet,
 		"etc":              etc,
-		"goBinary":         goBinary,
 		"javaSharedLib":    javaSharedLib,
 		"nativeExecutable": nativeExecutable,
 		"nativeSharedLib":  nativeSharedLib,
 		"nativeTest":       nativeTest,
-		"pyBinary":         pyBinary,
 		"shBinary":         shBinary,
 	}
 )
@@ -716,11 +691,10 @@ func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext, nativeM
 	libVariations := append(target.Variations(), blueprint.Variation{Mutator: "link", Variation: "shared"})
 	rustLibVariations := append(target.Variations(), blueprint.Variation{Mutator: "rust_libraries", Variation: "dylib"})
 
-	if ctx.Device() {
-		binVariations = append(binVariations, blueprint.Variation{Mutator: "image", Variation: imageVariation})
-		libVariations = append(libVariations, blueprint.Variation{Mutator: "image", Variation: imageVariation})
-		rustLibVariations = append(rustLibVariations, blueprint.Variation{Mutator: "image", Variation: imageVariation})
-	}
+	// Append "image" variation
+	binVariations = append(binVariations, blueprint.Variation{Mutator: "image", Variation: imageVariation})
+	libVariations = append(libVariations, blueprint.Variation{Mutator: "image", Variation: imageVariation})
+	rustLibVariations = append(rustLibVariations, blueprint.Variation{Mutator: "image", Variation: imageVariation})
 
 	// Use *FarVariation* to be able to depend on modules having conflicting variations with
 	// this module. This is required since arch variant of an APEX bundle is 'common' but it is
@@ -740,16 +714,7 @@ func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext, nativeM
 }
 
 func (a *apexBundle) combineProperties(ctx android.BottomUpMutatorContext) {
-	if ctx.Device() {
-		proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Android.Multilib, nil)
-	} else {
-		proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Host.Multilib, nil)
-		if ctx.Os().Bionic() {
-			proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Linux_bionic.Multilib, nil)
-		} else {
-			proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Linux_glibc.Multilib, nil)
-		}
-	}
+	proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Android.Multilib, nil)
 }
 
 // getImageVariationPair returns a pair for the image variation name as its
@@ -807,12 +772,6 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 	}
 	for i, target := range targets {
-		// Don't include artifacts for the host cross targets because there is no way for us
-		// to run those artifacts natively on host
-		if target.HostCross {
-			continue
-		}
-
 		var deps ApexNativeDependencies
 
 		// Add native modules targeting both ABIs. When multilib.* is omitted for
@@ -1249,8 +1208,8 @@ func apexTestForMutator(mctx android.BottomUpMutatorContext) {
 // be) available to platform
 // TODO(jiyong): move this to android/apex.go?
 func markPlatformAvailability(mctx android.BottomUpMutatorContext) {
-	// Host and recovery are not considered as platform
-	if mctx.Host() || mctx.Module().InstallInRecovery() {
+	// Recovery is not considered as platform
+	if mctx.Module().InstallInRecovery() {
 		return
 	}
 
@@ -1353,94 +1312,18 @@ func apexDirectlyInAnyMutator(mctx android.BottomUpMutatorContext) {
 	}
 }
 
-// apexPackaging represents a specific packaging method for an APEX.
-type apexPackaging int
-
-const (
-	// imageApex is a packaging method where contents are included in a filesystem image which
-	// is then included in a zip container. This is the most typical way of packaging.
-	imageApex apexPackaging = iota
-
-	// zipApex is a packaging method where contents are directly included in the zip container.
-	// This is used for host-side testing - because the contents are easily accessible by
-	// unzipping the container.
-	// TODO(b/279835185) deprecate zipApex
-	zipApex
-)
-
 const (
 	// File extensions of an APEX for different packaging methods
 	imageApexSuffix  = ".apex"
 	imageCapexSuffix = ".capex"
-	zipApexSuffix    = ".zipapex"
 
 	// variant names each of which is for a packaging method
 	imageApexType = "image"
-	zipApexType   = "zip"
 
 	ext4FsType  = "ext4"
 	f2fsFsType  = "f2fs"
 	erofsFsType = "erofs"
 )
-
-// The suffix for the output "file", not the module
-func (a apexPackaging) suffix() string {
-	switch a {
-	case imageApex:
-		return imageApexSuffix
-	case zipApex:
-		return zipApexSuffix
-	default:
-		panic(fmt.Errorf("unknown APEX type %d", a))
-	}
-}
-
-func (a apexPackaging) name() string {
-	switch a {
-	case imageApex:
-		return imageApexType
-	case zipApex:
-		return zipApexType
-	default:
-		panic(fmt.Errorf("unknown APEX type %d", a))
-	}
-}
-
-// apexPackagingMutator creates one or more variations each of which is for a packaging method.
-func apexPackagingMutator(mctx android.BottomUpMutatorContext) {
-	if !mctx.Module().Enabled() {
-		return
-	}
-	if ab, ok := mctx.Module().(*apexBundle); ok {
-		var variants []string
-		switch proptools.StringDefault(ab.properties.Payload_type, "image") {
-		case "image":
-			variants = append(variants, imageApexType)
-		case "zip":
-			variants = append(variants, zipApexType)
-		case "both":
-			variants = append(variants, imageApexType, zipApexType)
-		default:
-			mctx.PropertyErrorf("payload_type", "%q is not one of \"image\", \"zip\", or \"both\".", *ab.properties.Payload_type)
-			return
-		}
-
-		modules := mctx.CreateLocalVariations(variants...)
-
-		for i, v := range variants {
-			switch v {
-			case imageApexType:
-				modules[i].(*apexBundle).properties.ApexType = imageApex
-			case zipApexType:
-				modules[i].(*apexBundle).properties.ApexType = zipApex
-			}
-		}
-	} else if _, ok := mctx.Module().(*OverrideApex); ok {
-		// payload_type is forcibly overridden to "image"
-		// TODO(jiyong): is this the right decision?
-		mctx.CreateVariations(imageApexType)
-	}
-}
 
 var _ android.DepIsInSameApex = (*apexBundle)(nil)
 
@@ -1486,7 +1369,7 @@ var _ cc.Coverage = (*apexBundle)(nil)
 
 // Implements cc.Coverage
 func (a *apexBundle) IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool {
-	return ctx.Device() && ctx.DeviceConfig().NativeCoverageEnabled()
+	return ctx.DeviceConfig().NativeCoverageEnabled()
 }
 
 // Implements cc.Coverage
@@ -1597,13 +1480,9 @@ func (a *apexBundle) IsSanitizerEnabled(config android.Config, sanitizerName str
 
 	// Then follow the global setting
 	var globalSanitizerNames []string
-	if a.Host() {
-		globalSanitizerNames = config.SanitizeHost()
-	} else {
-		arches := config.SanitizeDeviceArch()
-		if len(arches) == 0 || android.InList(a.Arch().ArchType.Name, arches) {
-			globalSanitizerNames = config.SanitizeDevice()
-		}
+	arches := config.SanitizeDeviceArch()
+	if len(arches) == 0 || android.InList(a.Arch().ArchType.Name, arches) {
+		globalSanitizerNames = config.SanitizeDevice()
 	}
 	return android.InList(sanitizerName, globalSanitizerNames)
 }
@@ -1611,7 +1490,7 @@ func (a *apexBundle) IsSanitizerEnabled(config android.Config, sanitizerName str
 func (a *apexBundle) AddSanitizerDependencies(ctx android.BottomUpMutatorContext, sanitizerName string) {
 	// TODO(jiyong): move this info (the sanitizer name, the lib name, etc.) to cc/sanitize.go
 	// Keep only the mechanism here.
-	if ctx.Device() && sanitizerName == "hwaddress" && strings.HasPrefix(a.Name(), "com.android.runtime") {
+	if sanitizerName == "hwaddress" && strings.HasPrefix(a.Name(), "com.android.runtime") {
 		imageVariation := a.getImageVariation(ctx)
 		for _, target := range ctx.MultiTargets() {
 			if target.Arch.ArchType.Multilib == "lib64" {
@@ -1709,22 +1588,6 @@ func apexFileForRustLibrary(ctx android.BaseModuleContext, rustm *rust.Module) a
 	fileToCopy := android.OutputFileForModule(ctx, rustm, "")
 	androidMkModuleName := rustm.BaseModuleName() + rustm.Properties.SubName
 	return newApexFile(ctx, fileToCopy, androidMkModuleName, dirInApex, nativeSharedLib, rustm)
-}
-
-func apexFileForPyBinary(ctx android.BaseModuleContext, py *python.PythonBinaryModule) apexFile {
-	dirInApex := "bin"
-	fileToCopy := py.HostToolPath().Path()
-	return newApexFile(ctx, fileToCopy, py.BaseModuleName(), dirInApex, pyBinary, py)
-}
-
-func apexFileForGoBinary(ctx android.BaseModuleContext, depName string, gb bootstrap.GoBinaryTool) apexFile {
-	dirInApex := "bin"
-	fileToCopy := android.PathForGoBinary(ctx, gb)
-	// NB: Since go binaries are static we don't need the module for anything here, which is
-	// good since the go tool is a blueprint.Module not an android.Module like we would
-	// normally use.
-	//
-	return newApexFile(ctx, fileToCopy, depName, dirInApex, goBinary, nil)
 }
 
 func apexFileForShBinary(ctx android.BaseModuleContext, sh *sh.ShBinary) apexFile {
@@ -1945,7 +1808,7 @@ func (f fsType) string() string {
 var _ android.MixedBuildBuildable = (*apexBundle)(nil)
 
 func (a *apexBundle) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
-	return a.properties.ApexType == imageApex
+	return true
 }
 
 func (a *apexBundle) QueueBazelCall(ctx android.BaseModuleContext) {
@@ -1966,13 +1829,9 @@ func (a *apexBundle) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 		return
 	}
 
-	a.setApexTypeAndSuffix(ctx)
 	a.setPayloadFsType(ctx)
 	a.setSystemLibLink(ctx)
-
-	if a.properties.ApexType != zipApex {
-		a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx, a.primaryApexType)
-	}
+	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx)
 
 	bazelCtx := ctx.Config().BazelContext
 	outputs, err := bazelCtx.GetApexInfo(a.GetBazelLabel(ctx, a), android.GetConfigKey(ctx))
@@ -2007,24 +1866,18 @@ func (a *apexBundle) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 	// part of a bundled build.
 	a.makeModulesToInstall = append(a.makeModulesToInstall, outputs.MakeModulesToInstall...)
 
-	apexType := a.properties.ApexType
-	switch apexType {
-	case imageApex:
-		a.bundleModuleFile = android.PathForBazelOut(ctx, outputs.BundleFile)
-		a.nativeApisUsedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.SymbolsUsedByApex))
-		a.nativeApisBackedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.BackingLibs))
-		// TODO(b/239084755): Generate the java api using.xml file from Bazel.
-		a.javaApisUsedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.JavaSymbolsUsedByApex))
-		a.installedFilesFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.InstalledFiles))
-		installSuffix := imageApexSuffix
-		if a.isCompressed {
-			installSuffix = imageCapexSuffix
-		}
-		a.installedFile = ctx.InstallFile(a.installDir, a.Name()+installSuffix, a.outputFile,
-			a.compatSymlinks.Paths()...)
-	default:
-		panic(fmt.Errorf("internal error: unexpected apex_type for the ProcessBazelQueryResponse: %v", a.properties.ApexType))
+	a.bundleModuleFile = android.PathForBazelOut(ctx, outputs.BundleFile)
+	a.nativeApisUsedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.SymbolsUsedByApex))
+	a.nativeApisBackedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.BackingLibs))
+	// TODO(b/239084755): Generate the java api using.xml file from Bazel.
+	a.javaApisUsedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.JavaSymbolsUsedByApex))
+	a.installedFilesFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.InstalledFiles))
+	installSuffix := imageApexSuffix
+	if a.isCompressed {
+		installSuffix = imageCapexSuffix
 	}
+	a.installedFile = ctx.InstallFile(a.installDir, a.Name()+installSuffix, a.outputFile,
+		a.compatSymlinks.Paths()...)
 
 	// filesInfo in mixed mode must retrieve all information about the apex's
 	// contents completely from the Starlark providers. It should never rely on
@@ -2065,9 +1918,7 @@ func (a *apexBundle) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 }
 
 func (a *apexBundle) setCompression(ctx android.ModuleContext) {
-	if a.properties.ApexType != imageApex {
-		a.isCompressed = false
-	} else if a.testOnlyShouldForceCompression() {
+	if a.testOnlyShouldForceCompression() {
 		a.isCompressed = true
 	} else {
 		a.isCompressed = ctx.Config().ApexCompressionEnabled() && a.isCompressable()
@@ -2093,12 +1944,7 @@ func (a *apexBundle) setSystemLibLink(ctx android.ModuleContext) {
 
 	// We don't need the optimization for updatable APEXes, as it might give false signal
 	// to the system health when the APEXes are still bundled (b/149805758).
-	if !forced && updatable && a.properties.ApexType == imageApex {
-		a.linkToSystemLib = false
-	}
-
-	// We also don't want the optimization for host APEXes, because it doesn't make sense.
-	if ctx.Host() {
+	if !forced && updatable {
 		a.linkToSystemLib = false
 	}
 }
@@ -2113,22 +1959,6 @@ func (a *apexBundle) setPayloadFsType(ctx android.ModuleContext) {
 		a.payloadFsType = erofs
 	default:
 		ctx.PropertyErrorf("payload_fs_type", "%q is not a valid filesystem for apex [ext4, f2fs, erofs]", *a.properties.Payload_fs_type)
-	}
-}
-
-func (a *apexBundle) setApexTypeAndSuffix(ctx android.ModuleContext) {
-	// Set suffix and primaryApexType depending on the ApexType
-	switch a.properties.ApexType {
-	case imageApex:
-		a.suffix = ""
-		a.primaryApexType = true
-	case zipApex:
-		if proptools.String(a.properties.Payload_type) == "zip" {
-			a.suffix = ""
-			a.primaryApexType = true
-		} else {
-			a.suffix = zipApexSuffix
-		}
 	}
 }
 
@@ -2234,14 +2064,6 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			case *cc.Module:
 				vctx.filesInfo = append(vctx.filesInfo, apexFileForExecutable(ctx, ch))
 				return true // track transitive dependencies
-			case *python.PythonBinaryModule:
-				if ch.HostToolPath().Valid() {
-					vctx.filesInfo = append(vctx.filesInfo, apexFileForPyBinary(ctx, ch))
-				}
-			case bootstrap.GoBinaryTool:
-				if a.Host() {
-					vctx.filesInfo = append(vctx.filesInfo, apexFileForGoBinary(ctx, depName, ch))
-				}
 			case *rust.Module:
 				vctx.filesInfo = append(vctx.filesInfo, apexFileForRustExecutable(ctx, ch))
 				return true // track transitive dependencies
@@ -2403,12 +2225,6 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			af := apexFileForNativeLibrary(ctx, ch, vctx.handleSpecialLibs)
 			af.transitiveDep = true
 
-			// Always track transitive dependencies for host.
-			if a.Host() {
-				vctx.filesInfo = append(vctx.filesInfo, af)
-				return true
-			}
-
 			abInfo := ctx.Provider(ApexBundleInfoProvider).(ApexBundleInfo)
 			if !abInfo.Contents.DirectlyInApex(depName) && (ch.IsStubs() || ch.HasStubsVariants()) {
 				// If the dependency is a stubs lib, don't include it in this APEX,
@@ -2539,11 +2355,7 @@ func (a *apexBundle) shouldCheckDuplicate(ctx android.ModuleContext) bool {
 	if a.testApex {
 		return false
 	}
-	// TODO(b/263309864) remove this
-	if a.Host() {
-		return false
-	}
-	if a.Device() && ctx.DeviceConfig().DeviceArch() == "" {
+	if ctx.DeviceConfig().DeviceArch() == "" {
 		return false
 	}
 	return true
@@ -2621,12 +2433,9 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.installDir = android.PathForModuleInstall(ctx, "apex")
 	a.filesInfo = vctx.filesInfo
 
-	a.setApexTypeAndSuffix(ctx)
 	a.setPayloadFsType(ctx)
 	a.setSystemLibLink(ctx)
-	if a.properties.ApexType != zipApex {
-		a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx, a.primaryApexType)
-	}
+	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx)
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// 4) generate the build rules to create the APEX. This is done in builder.go.
@@ -2727,7 +2536,7 @@ func newApexBundle() *apexBundle {
 	module.AddProperties(&module.archProperties)
 	module.AddProperties(&module.overridableProperties)
 
-	android.InitAndroidMultiTargetsArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
+	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 	android.InitOverridableModule(module, &module.overridableProperties.Overrides)
 	android.InitBazelModule(module)
@@ -2958,7 +2767,7 @@ func minSdkVersionFromValue(ctx android.EarlyModuleContext, value string) androi
 // Ensures that a lib providing stub isn't statically linked
 func (a *apexBundle) checkStaticLinkingToStubLibraries(ctx android.ModuleContext) {
 	// Practically, we only care about regular APEXes on the device.
-	if ctx.Host() || a.testApex || a.vndkApex {
+	if a.testApex || a.vndkApex {
 		return
 	}
 
@@ -3053,7 +2862,7 @@ func (a *apexBundle) checkJavaStableSdkVersion(ctx android.ModuleContext) {
 // checkApexAvailability ensures that the all the dependencies are marked as available for this APEX.
 func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 	// Let's be practical. Availability for test, host, and the VNDK apex isn't important
-	if ctx.Host() || a.testApex || a.vndkApex {
+	if a.testApex || a.vndkApex {
 		return
 	}
 
@@ -3111,11 +2920,6 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 
 // checkStaticExecutable ensures that executables in an APEX are not static.
 func (a *apexBundle) checkStaticExecutables(ctx android.ModuleContext) {
-	// No need to run this for host APEXes
-	if ctx.Host() {
-		return
-	}
-
 	ctx.VisitDirectDepsBlueprint(func(module blueprint.Module) {
 		if ctx.OtherModuleDependencyTag(module) != executableTag {
 			return
