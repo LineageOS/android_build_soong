@@ -112,14 +112,10 @@ func apexVndkDepsMutator(mctx android.BottomUpMutatorContext) {
 }
 
 // name is module.BaseModuleName() which is used as LOCAL_MODULE_NAME and also LOCAL_OVERRIDES_*
-func makeCompatSymlinks(name string, ctx android.ModuleContext, primaryApex bool) (symlinks android.InstallPaths) {
+func makeCompatSymlinks(name string, ctx android.ModuleContext) (symlinks android.InstallPaths) {
 	// small helper to add symlink commands
 	addSymlink := func(target string, dir android.InstallPath, linkName string) {
-		if primaryApex {
-			symlinks = append(symlinks, ctx.InstallAbsoluteSymlink(dir, linkName, target))
-		} else {
-			symlinks = append(symlinks, dir.Join(ctx, linkName))
-		}
+		symlinks = append(symlinks, ctx.InstallAbsoluteSymlink(dir, linkName, target))
 	}
 
 	// TODO(b/142911355): [VNDK APEX] Fix hard-coded references to /system/lib/vndk
