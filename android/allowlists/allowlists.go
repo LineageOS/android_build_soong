@@ -350,6 +350,8 @@ var (
 		"packages/modules/NetworkStack/common/captiveportal": Bp2BuildDefaultTrue,
 		"packages/modules/NeuralNetworks/apex":               Bp2BuildDefaultTrue,
 		"packages/modules/NeuralNetworks/apex/testing":       Bp2BuildDefaultTrue,
+		"packages/modules/SdkExtensions/gen_sdk":             Bp2BuildDefaultTrue,
+		"packages/modules/common/proto":                      Bp2BuildDefaultTrue,
 		"packages/providers/MediaProvider/tools/dialogs":     Bp2BuildDefaultFalse, // TODO(b/242834374)
 		"packages/screensavers/Basic":                        Bp2BuildDefaultTrue,
 		"packages/services/Car/tests/SampleRearViewCamera":   Bp2BuildDefaultFalse, // TODO(b/242834321)
@@ -1088,7 +1090,7 @@ var (
 		"versioner", // TODO(b/228313961):  depends on prebuilt shared library libclang-cpp_host as a shared library, which does not supply expected providers for a shared library
 
 		// requires host tools for apexer
-		"apexer_test", "apexer_test_host_tools", "host_apex_verifier",
+		"apexer_test", "apexer_test_host_tools", "host_apex_verifier", "host-apex-verifier",
 
 		// java bugs
 		"libbase_ndk",           // TODO(b/186826477): fails to link libctscamera2_jni for device (required for CtsCameraTestCases)
