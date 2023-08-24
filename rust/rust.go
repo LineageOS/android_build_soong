@@ -1856,9 +1856,7 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 }
 
 // This is a workaround by assuming the conventions that rust crate repos are structured
-//
-//	while waiting for the sandboxing work to complete.
-//
+// while waiting for the sandboxing work to complete.
 // TODO(b/297344471): When crate_root prop is set which enforces inputs sandboxing,
 // always use `srcs` and `compile_data` props to generate `srcs` and `compile_data` attributes
 // instead of using globs.
