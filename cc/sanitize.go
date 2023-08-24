@@ -1650,12 +1650,12 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			Bool(sanProps.Fuzzer) ||
 			Bool(sanProps.Undefined) ||
 			Bool(sanProps.All_undefined) {
-			if toolchain.Musl() || (c.staticBinary() && toolchain.Bionic()) {
-				// Use a static runtime for static binaries.
-				// Also use a static runtime for musl to match
-				// what clang does for glibc.  Otherwise dlopening
-				// libraries that depend on libclang_rt.ubsan_standalone.so
-				// fails with:
+			if toolchain.Musl() || c.staticBinary() {
+				// Use a static runtime for static binaries.  For sanitized glibc binaries the runtime is
+				// added automatically by clang, but for static glibc binaries that are not sanitized but
+				// have a sanitized dependency the runtime needs to be added manually.
+				// Also manually add a static runtime for musl to match what clang does for glibc.
+				// Otherwise dlopening libraries that depend on libclang_rt.ubsan_standalone.so fails with:
 				// Error relocating ...: initial-exec TLS resolves to dynamic definition
 				addStaticDeps(config.UndefinedBehaviorSanitizerRuntimeLibrary(toolchain)+".static", true)
 			} else {
