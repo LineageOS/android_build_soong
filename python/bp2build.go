@@ -33,6 +33,12 @@ type bazelPythonLibraryAttributes struct {
 
 type bazelPythonProtoLibraryAttributes struct {
 	Deps bazel.LabelListAttribute
+
+	// A list of proto_library targets that the proto_library in `deps` depends on
+	// This list is overestimation.
+	// Overestimation is necessary since Soong includes other protos via proto.include_dirs and not
+	// a specific .proto file module explicitly.
+	Transitive_deps bazel.LabelListAttribute
 }
 
 type baseAttributes struct {
@@ -81,7 +87,8 @@ func (m *PythonLibraryModule) makeArchVariantBaseAttributes(ctx android.TopDownM
 		}, android.CommonAttributes{
 			Name: pyProtoLibraryName,
 		}, &bazelPythonProtoLibraryAttributes{
-			Deps: bazel.MakeLabelListAttribute(protoInfo.Proto_libs),
+			Deps:            bazel.MakeLabelListAttribute(protoInfo.Proto_libs),
+			Transitive_deps: bazel.MakeLabelListAttribute(protoInfo.Transitive_proto_libs),
 		})
 
 		attrs.Deps.Add(bazel.MakeLabelAttribute(":" + pyProtoLibraryName))
