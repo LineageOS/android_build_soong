@@ -231,6 +231,7 @@ type Bp2buildMutatorContext interface {
 	BazelConversionPathContext
 
 	CreateBazelTargetModule(bazel.BazelTargetModuleProperties, CommonAttributes, interface{})
+	CreateBazelTargetModuleWithRestrictions(bazel.BazelTargetModuleProperties, CommonAttributes, interface{}, bazel.BoolAttribute)
 }
 
 // PreArchBp2BuildMutators adds mutators to be register for converting Android Blueprint modules
