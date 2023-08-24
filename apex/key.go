@@ -60,7 +60,7 @@ type apexKeyProperties struct {
 func ApexKeyFactory() android.Module {
 	module := &apexKey{}
 	module.AddProperties(&module.properties)
-	android.InitAndroidArchModule(module, android.HostAndDeviceDefault, android.MultilibCommon)
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitBazelModule(module)
 	return module
 }
