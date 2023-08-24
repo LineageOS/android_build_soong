@@ -471,6 +471,56 @@ func TestZip2Zip(t *testing.T) {
 	}
 }
 
+// TestZip2Zip64 tests that zip2zip on zip file larger than 4GB produces a valid zip file.
+func TestZip2Zip64(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow test in short mode")
+	}
+	inputBuf := &bytes.Buffer{}
+	outputBuf := &bytes.Buffer{}
+
+	inputWriter := zip.NewWriter(inputBuf)
+	w, err := inputWriter.CreateHeaderAndroid(&zip.FileHeader{
+		Name:   "a",
+		Method: zip.Store,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf := make([]byte, 4*1024*1024)
+	for i := 0; i < 1025; i++ {
+		w.Write(buf)
+	}
+	w, err = inputWriter.CreateHeaderAndroid(&zip.FileHeader{
+		Name:   "b",
+		Method: zip.Store,
+	})
+	for i := 0; i < 1025; i++ {
+		w.Write(buf)
+	}
+	inputWriter.Close()
+	inputBytes := inputBuf.Bytes()
+
+	inputReader, err := zip.NewReader(bytes.NewReader(inputBytes), int64(len(inputBytes)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	outputWriter := zip.NewWriter(outputBuf)
+	err = zip2zip(inputReader, outputWriter, false, false, false,
+		nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	outputWriter.Close()
+	outputBytes := outputBuf.Bytes()
+	_, err = zip.NewReader(bytes.NewReader(outputBytes), int64(len(outputBytes)))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestConstantPartOfPattern(t *testing.T) {
 	testCases := []struct{ in, out string }{
 		{
