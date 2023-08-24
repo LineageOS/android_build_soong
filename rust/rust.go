@@ -15,6 +15,7 @@
 package rust
 
 import (
+	"android/soong/bazel"
 	"android/soong/bloaty"
 	"android/soong/ui/metrics/bp2build_metrics_proto"
 	"fmt"
@@ -1847,9 +1848,39 @@ func (c *Module) Partition() string {
 func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	if ctx.ModuleType() == "rust_library_host" || ctx.ModuleType() == "rust_library" {
 		libraryBp2build(ctx, m)
+	} else if ctx.ModuleType() == "rust_proc_macro" {
+		procMacroBp2build(ctx, m)
 	} else {
 		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "")
 	}
+}
+
+// This is a workaround by assuming the conventions that rust crate repos are structured
+//
+//	while waiting for the sandboxing work to complete.
+//
+// TODO(b/297344471): When crate_root prop is set which enforces inputs sandboxing,
+// always use `srcs` and `compile_data` props to generate `srcs` and `compile_data` attributes
+// instead of using globs.
+func srcsAndCompileDataAttrs(ctx android.TopDownMutatorContext, c baseCompiler) (bazel.LabelList, bazel.LabelList) {
+	var srcs bazel.LabelList
+	var compileData bazel.LabelList
+
+	if c.Properties.Srcs[0] == "src/lib.rs" {
+		srcs = android.BazelLabelForModuleSrc(ctx, []string{"src/**/*.rs"})
+		compileData = android.BazelLabelForModuleSrc(
+			ctx,
+			[]string{
+				"src/**/*.proto",
+				"examples/**/*.rs",
+				"**/*.md",
+			},
+		)
+	} else {
+		srcs = android.BazelLabelForModuleSrc(ctx, c.Properties.Srcs)
+	}
+
+	return srcs, compileData
 }
 
 var Bool = proptools.Bool
