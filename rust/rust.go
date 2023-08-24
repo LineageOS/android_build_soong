@@ -1850,6 +1850,8 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		libraryBp2build(ctx, m)
 	} else if ctx.ModuleType() == "rust_proc_macro" {
 		procMacroBp2build(ctx, m)
+	} else if ctx.ModuleType() == "rust_binary_host" {
+		binaryBp2build(ctx, m)
 	} else {
 		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "")
 	}
