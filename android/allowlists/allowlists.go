@@ -233,7 +233,7 @@ var (
 		"frameworks/base/tools/streaming_proto":              Bp2BuildDefaultTrueRecursively,
 		"frameworks/hardware/interfaces/stats/aidl":          Bp2BuildDefaultTrue,
 		"frameworks/libs/modules-utils/build":                Bp2BuildDefaultTrueRecursively,
-		"frameworks/libs/net/common/native":                  Bp2BuildDefaultTrueRecursively,
+		"frameworks/libs/net/common/native":                  Bp2BuildDefaultTrueRecursively, // TODO(b/296014682): Remove this path
 		"frameworks/native":                                  Bp2BuildDefaultTrue,
 		"frameworks/native/libs/adbd_auth":                   Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/arect":                       Bp2BuildDefaultTrueRecursively,
@@ -316,6 +316,7 @@ var (
 		"packages/modules/adb/pairing_connection":            Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb/proto":                         Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb/tls":                           Bp2BuildDefaultTrueRecursively,
+		"packages/modules/Connectivity/staticlibs/native":    Bp2BuildDefaultTrueRecursively,
 		"packages/modules/Gki/libkver":                       Bp2BuildDefaultTrue,
 		"packages/modules/NetworkStack/common/captiveportal": Bp2BuildDefaultTrue,
 		"packages/modules/NeuralNetworks/apex":               Bp2BuildDefaultTrue,
