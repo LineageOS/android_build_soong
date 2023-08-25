@@ -9,6 +9,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/java"
 )
 
 func TestMain(m *testing.M) {
@@ -17,6 +18,7 @@ func TestMain(m *testing.M) {
 
 var prepareForShTest = android.GroupFixturePreparers(
 	cc.PrepareForTestWithCcBuildComponents,
+	java.PrepareForTestWithJavaDefaultModules,
 	PrepareForTestWithShBuildComponents,
 	android.FixtureMergeMockFs(android.MockFS{
 		"test.sh":            nil,
@@ -254,4 +256,40 @@ func TestShTestHost_dataDeviceModulesAutogenTradefedConfig(t *testing.T) {
 	if !strings.Contains(autogen.Args["extraConfigs"], expectedBinAutogenConfig) {
 		t.Errorf("foo extraConfings %v does not contain %q", autogen.Args["extraConfigs"], expectedBinAutogenConfig)
 	}
+}
+
+func TestShTestHost_javaData(t *testing.T) {
+	ctx, config := testShBinary(t, `
+		sh_test_host {
+			name: "foo",
+			src: "test.sh",
+			filename: "test.sh",
+			data: [
+				"testdata/data1",
+				"testdata/sub/data2",
+			],
+			java_data: [
+				"javalib",
+			],
+		}
+
+		java_library_host {
+			name: "javalib",
+			srcs: [],
+		}
+	`)
+	buildOS := ctx.Config().BuildOS.String()
+	mod := ctx.ModuleForTests("foo", buildOS+"_x86_64").Module().(*ShTest)
+	if !mod.Host() {
+		t.Errorf("host bit is not set for a sh_test_host module.")
+	}
+	expectedData := []string{
+		":testdata/data1",
+		":testdata/sub/data2",
+		"out/soong/.intermediates/javalib/" + buildOS + "_common/combined/:javalib.jar",
+	}
+
+	entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
+	actualData := entries.EntryMap["LOCAL_TEST_DATA"]
+	android.AssertStringPathsRelativeToTopEquals(t, "LOCAL_TEST_DATA", config, expectedData, actualData)
 }
