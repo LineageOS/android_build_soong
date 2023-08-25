@@ -9,10 +9,16 @@ import (
 	"android/soong/android"
 	"android/soong/shared"
 	"android/soong/ui/metrics/bp2build_metrics_proto"
+
 	"google.golang.org/protobuf/proto"
 
 	"github.com/google/blueprint"
 )
+
+type moduleInfo struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
 
 // CodegenMetrics represents information about the Blueprint-to-BUILD
 // conversion process.
@@ -30,6 +36,9 @@ type CodegenMetrics struct {
 	// Map of converted modules and paths to call
 	// NOTE: NOT in the .proto
 	convertedModulePathMap map[string]string
+
+	// Name and type of converted modules
+	convertedModuleWithType []moduleInfo
 }
 
 func CreateCodegenMetrics() CodegenMetrics {
@@ -191,6 +200,10 @@ func (metrics *CodegenMetrics) AddConvertedModule(m blueprint.Module, moduleType
 	// Undo prebuilt_ module name prefix modifications
 	moduleName := android.RemoveOptionalPrebuiltPrefix(m.Name())
 	metrics.serialized.ConvertedModules = append(metrics.serialized.ConvertedModules, moduleName)
+	metrics.convertedModuleWithType = append(metrics.convertedModuleWithType, moduleInfo{
+		moduleName,
+		moduleType,
+	})
 	metrics.convertedModulePathMap[moduleName] = "//" + dir
 	metrics.serialized.ConvertedModuleTypeCount[moduleType] += 1
 	metrics.serialized.TotalModuleTypeCount[moduleType] += 1
