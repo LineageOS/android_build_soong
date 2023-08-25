@@ -55,6 +55,11 @@ type prebuiltApisProperties struct {
 
 	// If set to true, compile dex for java_import modules. Defaults to false.
 	Imports_compile_dex *bool
+
+	// If set to true, allow incremental platform API of the form MM.m where MM is the major release
+	// version corresponding to the API level/SDK_INT and m is an incremental release version
+	// (e.g. API changes associated with QPR). Defaults to false.
+	Allow_incremental_platform_api *bool
 }
 
 type prebuiltApis struct {
@@ -69,6 +74,8 @@ func (module *prebuiltApis) GenerateAndroidBuildActions(ctx android.ModuleContex
 // parsePrebuiltPath parses the relevant variables out of a variety of paths, e.g.
 // <version>/<scope>/<module>.jar
 // <version>/<scope>/api/<module>.txt
+// *Note when using incremental platform API, <version> may be of the form MM.m where MM is the
+// API level and m is an incremental release, otherwise <version> is a single integer corresponding to the API level only.
 // extensions/<version>/<scope>/<module>.jar
 // extensions/<version>/<scope>/api/<module>.txt
 func parsePrebuiltPath(ctx android.LoadHookContext, p string) (module string, version string, scope string) {
@@ -90,8 +97,25 @@ func parsePrebuiltPath(ctx android.LoadHookContext, p string) (module string, ve
 }
 
 // parseFinalizedPrebuiltPath is like parsePrebuiltPath, but verifies the version is numeric (a finalized version).
-func parseFinalizedPrebuiltPath(ctx android.LoadHookContext, p string) (module string, version int, scope string) {
+func parseFinalizedPrebuiltPath(ctx android.LoadHookContext, p string, allowIncremental bool) (module string, version int, release int, scope string) {
 	module, v, scope := parsePrebuiltPath(ctx, p)
+	if allowIncremental {
+		parts := strings.Split(v, ".")
+		if len(parts) != 2 {
+			ctx.ModuleErrorf("Found unexpected version '%v' for incremental prebuilts - expect MM.m format for incremental API with both major (MM) an minor (m) revision.", v)
+			return
+		}
+		sdk, sdk_err := strconv.Atoi(parts[0])
+		qpr, qpr_err := strconv.Atoi(parts[1])
+		if sdk_err != nil || qpr_err != nil {
+			ctx.ModuleErrorf("Unable to read version number for incremental prebuilt api '%v'", v)
+			return
+		}
+		version = sdk
+		release = qpr
+		return
+	}
+	release = 0
 	version, err := strconv.Atoi(v)
 	if err != nil {
 		ctx.ModuleErrorf("Found finalized API files in non-numeric dir '%v'", v)
@@ -268,29 +292,35 @@ func prebuiltApiFiles(mctx android.LoadHookContext, p *prebuiltApis) {
 	}
 
 	// Create modules for all (<module>, <scope, <version>) triplets,
+	allowIncremental := proptools.BoolDefault(p.properties.Allow_incremental_platform_api, false)
 	for _, f := range apiLevelFiles {
-		module, version, scope := parseFinalizedPrebuiltPath(mctx, f)
-		createApiModule(mctx, PrebuiltApiModuleName(module, scope, strconv.Itoa(version)), f)
+		module, version, release, scope := parseFinalizedPrebuiltPath(mctx, f, allowIncremental)
+		if allowIncremental {
+			incrementalVersion := strconv.Itoa(version) + "." + strconv.Itoa(release)
+			createApiModule(mctx, PrebuiltApiModuleName(module, scope, incrementalVersion), f)
+		} else {
+			createApiModule(mctx, PrebuiltApiModuleName(module, scope, strconv.Itoa(version)), f)
+		}
 	}
 
 	// Figure out the latest version of each module/scope
 	type latestApiInfo struct {
 		module, scope, path string
-		version             int
+		version, release    int
 		isExtensionApiFile  bool
 	}
 
 	getLatest := func(files []string, isExtensionApiFile bool) map[string]latestApiInfo {
 		m := make(map[string]latestApiInfo)
 		for _, f := range files {
-			module, version, scope := parseFinalizedPrebuiltPath(mctx, f)
+			module, version, release, scope := parseFinalizedPrebuiltPath(mctx, f, allowIncremental)
 			if strings.HasSuffix(module, "incompatibilities") {
 				continue
 			}
 			key := module + "." + scope
 			info, exists := m[key]
-			if !exists || version > info.version {
-				m[key] = latestApiInfo{module, scope, f, version, isExtensionApiFile}
+			if !exists || version > info.version || (version == info.version && release > info.release) {
+				m[key] = latestApiInfo{module, scope, f, version, release, isExtensionApiFile}
 			}
 		}
 		return m
