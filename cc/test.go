@@ -720,6 +720,21 @@ func testBinaryBp2build(ctx android.TopDownMutatorContext, m *Module) {
 		}
 	}
 
+	// The logic comes from https://cs.android.com/android/platform/superproject/main/+/0df8153267f96da877febc5332240fa06ceb8533:build/soong/cc/sanitize.go;l=488
+	var features bazel.StringListAttribute
+	curFeatures := testBinaryAttrs.binaryAttributes.Features.SelectValue(bazel.OsArchConfigurationAxis, bazel.OsArchAndroidArm64)
+	var newFeatures []string
+	if !android.InList("memtag_heap", curFeatures) && !android.InList("-memtag_heap", curFeatures) {
+		newFeatures = append(newFeatures, "memtag_heap")
+		if !android.InList("diag_memtag_heap", curFeatures) && !android.InList("-diag_memtag_heap", curFeatures) {
+			newFeatures = append(newFeatures, "diag_memtag_heap")
+		}
+	}
+
+	features.SetSelectValue(bazel.OsArchConfigurationAxis, bazel.OsArchAndroidArm64, newFeatures)
+	testBinaryAttrs.binaryAttributes.Features.Append(features)
+	testBinaryAttrs.binaryAttributes.Features.DeduplicateAxesFromBase()
+
 	m.convertTidyAttributes(ctx, &testBinaryAttrs.tidyAttributes)
 
 	testBinary := m.linker.(*testBinary)
