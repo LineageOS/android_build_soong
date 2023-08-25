@@ -209,12 +209,14 @@ func WriteFileRuleVerbatim(ctx BuilderContext, outputFile WritablePath, content 
 	buildWriteFileRule(ctx, outputFile, content)
 }
 
-func CatFileRule(ctx BuilderContext, paths Paths, outputFile WritablePath) {
+// WriteExecutableFileRuleVerbatim is the same as WriteFileRuleVerbatim, but runs chmod +x on the result
+func WriteExecutableFileRuleVerbatim(ctx BuilderContext, outputFile WritablePath, content string) {
+	intermediate := PathForIntermediates(ctx, "write_executable_file_intermediates").Join(ctx, outputFile.String())
+	WriteFileRuleVerbatim(ctx, intermediate, content)
 	ctx.Build(pctx, BuildParams{
-		Rule:        Cat,
-		Inputs:      paths,
-		Output:      outputFile,
-		Description: "combine files to " + outputFile.Base(),
+		Rule:   CpExecutable,
+		Output: outputFile,
+		Input:  intermediate,
 	})
 }
 
