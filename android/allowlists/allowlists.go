@@ -65,6 +65,7 @@ var (
 
 		"build/bazel":                        Bp2BuildDefaultTrueRecursively,
 		"build/make/target/product/security": Bp2BuildDefaultTrue,
+		"build/make/tools":                   Bp2BuildDefaultTrue,
 		"build/make/tools/protos":            Bp2BuildDefaultTrue,
 		"build/make/tools/releasetools":      Bp2BuildDefaultTrue,
 		"build/make/tools/sbom":              Bp2BuildDefaultTrue,
@@ -79,7 +80,9 @@ var (
 		"build/soong/scripts":                Bp2BuildDefaultTrueRecursively,
 
 		"cts/common/device-side/nativetesthelper/jni": Bp2BuildDefaultTrueRecursively,
-		"cts/libs/json": Bp2BuildDefaultTrueRecursively,
+		"cts/libs/json":                          Bp2BuildDefaultTrueRecursively,
+		"cts/tests/tests/gesture":                Bp2BuildDefaultTrueRecursively,
+		"platform_testing/libraries/annotations": Bp2BuildDefaultTrueRecursively,
 
 		"dalvik/tools/dexdeps": Bp2BuildDefaultTrueRecursively,
 
@@ -892,9 +895,6 @@ var (
 
 		"merge_annotation_zips_test",
 
-		// bouncycastle dep
-		"platform-test-annotations",
-
 		// java_resources with multiple resource_dirs
 		"emma",
 
@@ -904,6 +904,16 @@ var (
 		"ndk_libc++_static",
 		"ndk_libc++_shared",
 		"ndk_system",
+
+		// allowlist //prebuilts/common/misc/androidx-test/...
+		"androidx.test.runner",
+		"androidx.test.runner-nodeps",
+		"androidx.test.services.storage",
+		"androidx.test.services.storage-nodeps",
+		"androidx.test.monitor",
+		"androidx.test.monitor-nodeps",
+		"androidx.test.annotation",
+		"androidx.test.annotation-nodeps",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
@@ -1649,6 +1659,17 @@ var (
 
 		// TODO(b/299974637) Fix linking error
 		"libbinder_rpc_unstable",
+
+		// TODO(b/297356704) sdk_version is unset.
+		"VendorAtomCodeGenJavaTest",
+
+		// android_test from allowlisted packages, but with unconverted deps
+		"MtsLibnativehelperLazyTestCases",
+		"ObjenesisTck",
+		"DevCodelabTest",
+		"MtsTimeZoneDataTestCases",
+		"NanoAndroidTest",
+		"MtsLibnativehelperTestCases",
 	}
 
 	// Bazel prod-mode allowlist. Modules in this list are built by Bazel

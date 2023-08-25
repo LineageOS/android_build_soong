@@ -1115,6 +1115,8 @@ type AndroidTest struct {
 	testConfig       android.Path
 	extraTestConfigs android.Paths
 	data             android.Paths
+
+	android.BazelModuleBase
 }
 
 func (a *AndroidTest) InstallInTestcases() bool {
@@ -1232,6 +1234,8 @@ func AndroidTestFactory() android.Module {
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 	android.InitOverridableModule(module, &module.overridableAppProperties.Overrides)
+
+	android.InitBazelModule(module)
 	return module
 }
 
@@ -1630,11 +1634,10 @@ type bazelAndroidAppAttributes struct {
 	Proguard_specs   bazel.LabelListAttribute
 }
 
-// ConvertWithBp2build is used to convert android_app to Bazel.
-func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func convertWithBp2build(ctx android.TopDownMutatorContext, a *AndroidApp) (bool, android.CommonAttributes, *bazelAndroidAppAttributes) {
 	aapt, supported := a.convertAaptAttrsWithBp2Build(ctx)
 	if !supported {
-		return
+		return false, android.CommonAttributes{}, &bazelAndroidAppAttributes{}
 	}
 	certificate, certificateName := android.BazelStringOrLabelFromProp(ctx, a.overridableAppProperties.Certificate)
 
@@ -1706,17 +1709,12 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 
 	commonAttrs, bp2BuildInfo, supported := a.convertLibraryAttrsBp2Build(ctx)
 	if !supported {
-		return
+		return false, android.CommonAttributes{}, &bazelAndroidAppAttributes{}
 	}
 	depLabels := bp2BuildInfo.DepLabels
 
 	deps := depLabels.Deps
 	deps.Append(depLabels.StaticDeps)
-
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "android_binary",
-		Bzl_load_location: "//build/bazel/rules/android:android_binary.bzl",
-	}
 
 	if !bp2BuildInfo.hasKotlin {
 		appAttrs.javaCommonAttributes = commonAttrs
@@ -1743,10 +1741,31 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		}
 	}
 
-	ctx.CreateBazelTargetModule(
-		props,
-		android.CommonAttributes{Name: a.Name(), SkipData: proptools.BoolPtr(true)},
-		appAttrs,
-	)
+	return true, android.CommonAttributes{Name: a.Name(), SkipData: proptools.BoolPtr(true)}, appAttrs
+}
+
+// ConvertWithBp2build is used to convert android_app to Bazel.
+func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	if ok, commonAttrs, appAttrs := convertWithBp2build(ctx, a); ok {
+		props := bazel.BazelTargetModuleProperties{
+			Rule_class:        "android_binary",
+			Bzl_load_location: "//build/bazel/rules/android:android_binary.bzl",
+		}
+
+		ctx.CreateBazelTargetModule(props, commonAttrs, appAttrs)
+	}
+
+}
+
+// ConvertWithBp2build is used to convert android_test to Bazel.
+func (at *AndroidTest) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	if ok, commonAttrs, appAttrs := convertWithBp2build(ctx, &at.AndroidApp); ok {
+		props := bazel.BazelTargetModuleProperties{
+			Rule_class:        "android_test",
+			Bzl_load_location: "//build/bazel/rules/android:android_test.bzl",
+		}
+
+		ctx.CreateBazelTargetModule(props, commonAttrs, appAttrs)
+	}
 
 }
