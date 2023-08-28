@@ -60,6 +60,25 @@ func NewRustFuzz(hod android.HostOrDeviceSupported) (*Module, *fuzzDecorator) {
 	fuzz.binaryDecorator.baseCompiler.dir64 = "fuzz"
 	fuzz.binaryDecorator.baseCompiler.location = InstallInData
 	module.sanitize.SetSanitizer(cc.Fuzzer, true)
+
+	// The fuzzer runtime is not present for darwin or bionic host modules, so disable rust_fuzz modules for these.
+	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
+
+		extraProps := struct {
+			Target struct {
+				Darwin struct {
+					Enabled *bool
+				}
+				Linux_bionic struct {
+					Enabled *bool
+				}
+			}
+		}{}
+		extraProps.Target.Darwin.Enabled = cc.BoolPtr(false)
+		extraProps.Target.Linux_bionic.Enabled = cc.BoolPtr(false)
+		ctx.AppendProperties(&extraProps)
+	})
+
 	module.compiler = fuzz
 	return module, fuzz
 }

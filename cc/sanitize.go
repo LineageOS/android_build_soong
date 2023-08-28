@@ -1189,7 +1189,7 @@ func (s *sanitizerSplitMutator) markSanitizableApexesMutator(ctx android.TopDown
 	if sanitizeable, ok := ctx.Module().(Sanitizeable); ok {
 		enabled := sanitizeable.IsSanitizerEnabled(ctx.Config(), s.sanitizer.name())
 		ctx.VisitDirectDeps(func(dep android.Module) {
-			if c, ok := dep.(*Module); ok && c.sanitize.isSanitizerEnabled(s.sanitizer) {
+			if c, ok := dep.(PlatformSanitizeable); ok && c.IsSanitizerEnabled(s.sanitizer) {
 				enabled = true
 			}
 		})
@@ -1243,12 +1243,10 @@ func (s *sanitizerSplitMutator) Split(ctx android.BaseModuleContext) []string {
 		}
 	}
 
-	if c, ok := ctx.Module().(*Module); ok {
-		//TODO: When Rust modules have vendor support, enable this path for PlatformSanitizeable
-
+	if c, ok := ctx.Module().(LinkableInterface); ok {
 		// Check if it's a snapshot module supporting sanitizer
-		if ss, ok := c.linker.(snapshotSanitizer); ok {
-			if ss.isSanitizerAvailable(s.sanitizer) {
+		if c.IsSnapshotSanitizer() {
+			if c.IsSnapshotSanitizerAvailable(s.sanitizer) {
 				return []string{"", s.sanitizer.variationName()}
 			} else {
 				return []string{""}
@@ -1280,8 +1278,8 @@ func (s *sanitizerSplitMutator) OutgoingTransition(ctx android.OutgoingTransitio
 
 func (s *sanitizerSplitMutator) IncomingTransition(ctx android.IncomingTransitionContext, incomingVariation string) string {
 	if d, ok := ctx.Module().(PlatformSanitizeable); ok {
-		if dm, ok := ctx.Module().(*Module); ok {
-			if ss, ok := dm.linker.(snapshotSanitizer); ok && ss.isSanitizerAvailable(s.sanitizer) {
+		if dm, ok := ctx.Module().(LinkableInterface); ok {
+			if dm.IsSnapshotSanitizerAvailable(s.sanitizer) {
 				return incomingVariation
 			}
 		}
@@ -1396,19 +1394,19 @@ func (s *sanitizerSplitMutator) Mutate(mctx android.BottomUpMutatorContext, vari
 		if sanitizerVariation {
 			sanitizeable.AddSanitizerDependencies(mctx, s.sanitizer.name())
 		}
-	} else if c, ok := mctx.Module().(*Module); ok {
-		if ss, ok := c.linker.(snapshotSanitizer); ok && ss.isSanitizerAvailable(s.sanitizer) {
-			if !ss.isUnsanitizedVariant() {
+	} else if c, ok := mctx.Module().(LinkableInterface); ok {
+		if c.IsSnapshotSanitizerAvailable(s.sanitizer) {
+			if !c.IsSnapshotUnsanitizedVariant() {
 				// Snapshot sanitizer may have only one variantion.
 				// Skip exporting the module if it already has a sanitizer variation.
 				c.SetPreventInstall()
 				c.SetHideFromMake()
 				return
 			}
-			c.linker.(snapshotSanitizer).setSanitizerVariation(s.sanitizer, sanitizerVariation)
+			c.SetSnapshotSanitizerVariation(s.sanitizer, sanitizerVariation)
 
 			// Export the static lib name to make
-			if c.static() && c.ExportedToMake() {
+			if c.Static() && c.ExportedToMake() {
 				// use BaseModuleName which is the name for Make.
 				if s.sanitizer == cfi {
 					cfiStaticLibs(mctx.Config()).add(c, c.BaseModuleName())
@@ -1418,6 +1416,35 @@ func (s *sanitizerSplitMutator) Mutate(mctx android.BottomUpMutatorContext, vari
 			}
 		}
 	}
+}
+
+func (c *Module) IsSnapshotSanitizer() bool {
+	if _, ok := c.linker.(SnapshotSanitizer); ok {
+		return true
+	}
+	return false
+}
+
+func (c *Module) IsSnapshotSanitizerAvailable(t SanitizerType) bool {
+	if ss, ok := c.linker.(SnapshotSanitizer); ok {
+		return ss.IsSanitizerAvailable(t)
+	}
+	return false
+}
+
+func (c *Module) SetSnapshotSanitizerVariation(t SanitizerType, enabled bool) {
+	if ss, ok := c.linker.(SnapshotSanitizer); ok {
+		ss.SetSanitizerVariation(t, enabled)
+	} else {
+		panic(fmt.Errorf("Calling SetSnapshotSanitizerVariation on a non-snapshotLibraryDecorator: %s", c.Name()))
+	}
+}
+
+func (c *Module) IsSnapshotUnsanitizedVariant() bool {
+	if ss, ok := c.linker.(SnapshotSanitizer); ok {
+		return ss.IsUnsanitizedVariant()
+	}
+	return false
 }
 
 func (c *Module) SanitizeNever() bool {
