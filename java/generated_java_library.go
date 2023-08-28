@@ -22,6 +22,10 @@ type GeneratedJavaLibraryModule struct {
 	Library
 	callbacks  GeneratedJavaLibraryCallbacks
 	moduleName string
+
+	// true if we've already called DepsMutator. Can't call AddLibrary or AddSharedLibrary
+	// after DepsMutator.
+	depsMutatorDone bool
 }
 
 type GeneratedJavaLibraryCallbacks interface {
@@ -59,8 +63,25 @@ func GeneratedJavaLibraryModuleFactory(moduleName string, callbacks GeneratedJav
 	return module
 }
 
+// Add a java shared library as a dependency, as if they had said `libs: [ "name" ]`
+func (module *GeneratedJavaLibraryModule) AddSharedLibrary(name string) {
+	if module.depsMutatorDone {
+		panic("GeneratedJavaLibraryModule.AddLibrary called after DepsMutator")
+	}
+	module.Library.properties.Libs = append(module.Library.properties.Libs, name)
+}
+
+// Add a java shared library as a dependency, as if they had said `libs: [ "name" ]`
+func (module *GeneratedJavaLibraryModule) AddStaticLibrary(name string) {
+	if module.depsMutatorDone {
+		panic("GeneratedJavaLibraryModule.AddStaticLibrary called after DepsMutator")
+	}
+	module.Library.properties.Static_libs = append(module.Library.properties.Static_libs, name)
+}
+
 func (module *GeneratedJavaLibraryModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 	module.callbacks.DepsMutator(module, ctx)
+	module.depsMutatorDone = true
 	module.Library.DepsMutator(ctx)
 }
 
