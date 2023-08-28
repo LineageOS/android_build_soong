@@ -15,6 +15,8 @@
 package rust
 
 import (
+	"fmt"
+
 	"android/soong/android"
 	"android/soong/cc"
 
@@ -26,15 +28,78 @@ type snapshotLibraryDecorator struct {
 	*libraryDecorator
 	properties          cc.SnapshotLibraryProperties
 	sanitizerProperties struct {
-		CfiEnabled bool `blueprint:"mutated"`
+		SanitizerVariation cc.SanitizerType `blueprint:"mutated"`
 
-		// Library flags for cfi variant.
-		Cfi cc.SnapshotLibraryProperties `android:"arch_variant"`
+		//TODO: Library flags for cfi variant when CFI is supported.
+		//Cfi cc.SnapshotLibraryProperties `android:"arch_variant"`
+
+		// Library flags for hwasan variant.
+		Hwasan cc.SnapshotLibraryProperties `android:"arch_variant"`
 	}
+}
+
+var _ cc.SnapshotSanitizer = (*snapshotLibraryDecorator)(nil)
+
+func (library *snapshotLibraryDecorator) IsSanitizerAvailable(t cc.SanitizerType) bool {
+	switch t {
+	//TODO: When CFI is supported, add a check here as well
+	case cc.Hwasan:
+		return library.sanitizerProperties.Hwasan.Src != nil
+	default:
+		return false
+	}
+}
+
+func (library *snapshotLibraryDecorator) SetSanitizerVariation(t cc.SanitizerType, enabled bool) {
+	if !enabled || library.IsSanitizerEnabled(t) {
+		return
+	}
+	if !library.IsUnsanitizedVariant() {
+		panic(fmt.Errorf("snapshot Sanitizer must be one of Cfi or Hwasan but not both"))
+	}
+	library.sanitizerProperties.SanitizerVariation = t
+}
+
+func (library *snapshotLibraryDecorator) IsSanitizerEnabled(t cc.SanitizerType) bool {
+	return library.sanitizerProperties.SanitizerVariation == t
+}
+
+func (library *snapshotLibraryDecorator) IsUnsanitizedVariant() bool {
+	//TODO: When CFI is supported, add a check here as well
+	return !library.IsSanitizerEnabled(cc.Hwasan)
 }
 
 func init() {
 	registerRustSnapshotModules(android.InitRegistrationContext)
+}
+
+func (mod *Module) IsSnapshotSanitizerAvailable(t cc.SanitizerType) bool {
+	if ss, ok := mod.compiler.(cc.SnapshotSanitizer); ok {
+		return ss.IsSanitizerAvailable(t)
+	}
+	return false
+}
+
+func (mod *Module) SetSnapshotSanitizerVariation(t cc.SanitizerType, enabled bool) {
+	if ss, ok := mod.compiler.(cc.SnapshotSanitizer); ok {
+		ss.SetSanitizerVariation(t, enabled)
+	} else {
+		panic(fmt.Errorf("Calling SetSnapshotSanitizerVariation on a non-snapshotLibraryDecorator: %s", mod.Name()))
+	}
+}
+
+func (mod *Module) IsSnapshotUnsanitizedVariant() bool {
+	if ss, ok := mod.compiler.(cc.SnapshotSanitizer); ok {
+		return ss.IsUnsanitizedVariant()
+	}
+	return false
+}
+
+func (mod *Module) IsSnapshotSanitizer() bool {
+	if _, ok := mod.compiler.(cc.SnapshotSanitizer); ok {
+		return true
+	}
+	return false
 }
 
 func registerRustSnapshotModules(ctx android.RegistrationContext) {
@@ -81,6 +146,9 @@ func (library *snapshotLibraryDecorator) compile(ctx ModuleContext, flags Flags,
 
 	library.SetSnapshotAndroidMkSuffix(ctx, variant)
 
+	if library.IsSanitizerEnabled(cc.Hwasan) {
+		library.properties = library.sanitizerProperties.Hwasan
+	}
 	if !library.MatchesWithDevice(ctx.DeviceConfig()) {
 		return buildOutput{}
 	}
