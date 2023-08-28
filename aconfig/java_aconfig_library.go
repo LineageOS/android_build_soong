@@ -52,6 +52,9 @@ func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) DepsMutator(module *ja
 	} else {
 		ctx.AddDependency(ctx.Module(), declarationsTag, declarations)
 	}
+
+	// Add aconfig-annotations-lib as a dependency for the optimization / code stripping annotations
+	module.AddSharedLibrary("aconfig-annotations-lib")
 }
 
 func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) GenerateSourceJarBuildActions(module *java.GeneratedJavaLibraryModule, ctx android.ModuleContext) android.Path {
