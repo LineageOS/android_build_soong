@@ -54,11 +54,11 @@ var (
 		"-C symbol-mangling-version=v0",
 		"--color always",
 		"-Zdylib-lto",
+		"-Z link-native-libraries=no",
 	}
 
 	deviceGlobalRustFlags = []string{
 		"-C panic=abort",
-		"-Z link-native-libraries=no",
 		// Generate additional debug info for AutoFDO
 		"-Z debug-info-for-profiling",
 	}
