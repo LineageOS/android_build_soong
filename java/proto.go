@@ -143,7 +143,14 @@ func protoFlags(ctx android.ModuleContext, j *CommonProperties, p *android.Proto
 }
 
 type protoAttributes struct {
-	Deps         bazel.LabelListAttribute
+	Deps bazel.LabelListAttribute
+
+	// A list of proto_library targets that the proto_library in `deps` depends on
+	// This list is overestimation.
+	// Overestimation is necessary since Soong includes other protos via proto.include_dirs and not
+	// a specific .proto file module explicitly.
+	Transitive_deps bazel.LabelListAttribute
+
 	Sdk_version  bazel.StringAttribute
 	Java_version bazel.StringAttribute
 }
@@ -176,11 +183,11 @@ func bp2buildProto(ctx android.Bp2buildMutatorContext, m *Module, protoSrcs baze
 		ctx.PropertyErrorf("proto.type", "cannot handle conversion at this time: %q", typ)
 	}
 
-	protoLabel := bazel.Label{Label: ":" + m.Name() + "_proto"}
 	protoAttrs := &protoAttributes{
-		Deps:         bazel.MakeSingleLabelListAttribute(protoLabel),
-		Java_version: bazel.StringAttribute{Value: m.properties.Java_version},
-		Sdk_version:  bazel.StringAttribute{Value: m.deviceProperties.Sdk_version},
+		Deps:            bazel.MakeLabelListAttribute(protoInfo.Proto_libs),
+		Transitive_deps: bazel.MakeLabelListAttribute(protoInfo.Transitive_proto_libs),
+		Java_version:    bazel.StringAttribute{Value: m.properties.Java_version},
+		Sdk_version:     bazel.StringAttribute{Value: m.deviceProperties.Sdk_version},
 	}
 
 	name := m.Name() + suffix
