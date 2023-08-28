@@ -385,6 +385,8 @@ func gatherRequiredDepsForTest() string {
 		"kotlin-stdlib-jdk8",
 		"kotlin-annotations",
 		"stub-annotations",
+
+		"aconfig-annotations-lib",
 	}
 
 	for _, extra := range extraModules {
