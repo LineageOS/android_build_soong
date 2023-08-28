@@ -281,6 +281,13 @@ func Bp2buildProtoProperties(ctx Bp2buildMutatorContext, m *ModuleBase, srcs baz
 				}
 			}
 
+			if p, ok := m.module.(PkgPathInterface); ok && p.PkgPath(ctx) != nil {
+				// python_library with pkg_path
+				// proto_library for this module should have the pkg_path as the import_prefix
+				attrs.Import_prefix = p.PkgPath(ctx)
+				attrs.Strip_import_prefix = proptools.StringPtr("")
+			}
+
 			tags := ApexAvailableTagsWithoutTestApexes(ctx.(TopDownMutatorContext), ctx.Module())
 
 			moduleDir := ctx.ModuleDir()
@@ -331,6 +338,11 @@ func Bp2buildProtoProperties(ctx Bp2buildMutatorContext, m *ModuleBase, srcs baz
 	info.Transitive_proto_libs = transitiveProtoLibraries
 
 	return info, true
+}
+
+// PkgPathInterface is used as a type assertion in bp2build to get pkg_path property of python_library_host
+type PkgPathInterface interface {
+	PkgPath(ctx BazelConversionContext) *string
 }
 
 var (

@@ -348,3 +348,43 @@ func TestPythonLibraryWithProtobufs(t *testing.T) {
 		},
 	})
 }
+
+func TestPythonLibraryWithProtobufsAndPkgPath(t *testing.T) {
+	t.Parallel()
+	runBp2BuildTestCaseWithPythonLibraries(t, Bp2buildTestCase{
+		Description: "test python_library protobuf with pkg_path",
+		Filesystem: map[string]string{
+			"dir/foo.proto": "",
+			"dir/bar.proto": "", // bar contains "import dir/foo.proto"
+			"dir/Android.bp": `
+python_library {
+  name: "foo",
+  pkg_path: "dir",
+  srcs: [
+    "foo.proto",
+    "bar.proto",
+  ],
+  bazel_module: {bp2build_available: true},
+}`,
+		},
+		Dir: "dir",
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("proto_library", "foo_proto", AttrNameToString{
+				"import_prefix":       `"dir"`,
+				"strip_import_prefix": `""`,
+				"srcs": `[
+        "foo.proto",
+        "bar.proto",
+    ]`,
+			}),
+			MakeBazelTarget("py_proto_library", "foo_py_proto", AttrNameToString{
+				"deps": `[":foo_proto"]`,
+			}),
+			MakeBazelTarget("py_library", "foo", AttrNameToString{
+				"srcs_version": `"PY3"`,
+				"imports":      `[".."]`,
+				"deps":         `[":foo_py_proto"]`,
+			}),
+		},
+	})
+}
