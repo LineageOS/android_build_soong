@@ -391,18 +391,56 @@ func TestJavaLibraryResourcesExcludeFile(t *testing.T) {
 	})
 }
 
-func TestJavaLibraryResourcesFailsWithMultipleDirs(t *testing.T) {
+func TestJavaLibraryResourcesWithMultipleDirs(t *testing.T) {
 	runJavaLibraryTestCase(t, Bp2buildTestCase{
 		Filesystem: map[string]string{
 			"res/a.res":  "",
-			"res1/a.res": "",
+			"res1/b.res": "",
 		},
 		Blueprint: `java_library {
     name: "java-lib-1",
 	java_resource_dirs: ["res", "res1"],
 }`,
-		ExpectedErr:          fmt.Errorf("bp2build does not support more than one directory in java_resource_dirs (b/226423379)"),
-		ExpectedBazelTargets: []string{},
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("java_resources", "java-lib-1_resource_dir_res1", AttrNameToString{
+				"resource_strip_prefix": `"res1"`,
+				"resources":             `["res1/b.res"]`,
+			}),
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+				"additional_resources":  `["java-lib-1_resource_dir_res1"]`,
+				"resources":             `["res/a.res"]`,
+				"resource_strip_prefix": `"res"`,
+			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
+		},
+	})
+}
+
+func TestJavaLibraryJavaResourcesAndResourceDirs(t *testing.T) {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Filesystem: map[string]string{
+			"resdir/a.res": "",
+		},
+		Blueprint: `java_library {
+    name: "java-lib-1",
+    java_resources: ["res1", "res2"],
+    java_resource_dirs: ["resdir"],
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("java_resources", "java-lib-1_resource_dir_resdir", AttrNameToString{
+				"resource_strip_prefix": `"resdir"`,
+				"resources":             `["resdir/a.res"]`,
+			}),
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+				"additional_resources":  `["java-lib-1_resource_dir_resdir"]`,
+				"resource_strip_prefix": `"."`,
+				"resources": `[
+        "res1",
+        "res2",
+    ]`,
+			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
+		},
 	})
 }
 
@@ -873,6 +911,60 @@ filegroup {
         "foo/a",
         "foo/b",
     ]`}),
+		},
+	}, func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
+	})
+}
+
+func TestJavaLibraryJavaResourcesMultipleFilegroup(t *testing.T) {
+	runJavaLibraryTestCaseWithRegistrationCtxFunc(t, Bp2buildTestCase{
+		Filesystem: map[string]string{
+			"a.res": "",
+		},
+		Description: "with java_resources that has multiple filegroups",
+		Blueprint: `java_library {
+    name: "java-lib-1",
+    srcs: ["a.java"],
+    java_resources: ["a.res", ":filegroup1", ":filegroup2"],
+    bazel_module: { bp2build_available: true },
+}
+
+filegroup {
+    name: "filegroup1",
+    path: "foo",
+    srcs: ["foo/a"],
+}
+
+filegroup {
+    name: "filegroup2",
+    path: "bar",
+    srcs: ["bar/a"],
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("java_resources", "java-lib-1_filegroup_resources_filegroup1", AttrNameToString{
+				"resource_strip_prefix": `"foo"`,
+				"resources":             `[":filegroup1"]`,
+			}),
+			MakeBazelTarget("java_resources", "java-lib-1_filegroup_resources_filegroup2", AttrNameToString{
+				"resource_strip_prefix": `"bar"`,
+				"resources":             `[":filegroup2"]`,
+			}),
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+				"srcs":                  `["a.java"]`,
+				"resources":             `["a.res"]`,
+				"resource_strip_prefix": `"."`,
+				"additional_resources": `[
+        "java-lib-1_filegroup_resources_filegroup1",
+        "java-lib-1_filegroup_resources_filegroup2",
+    ]`,
+			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
+			MakeBazelTargetNoRestrictions("filegroup", "filegroup1", AttrNameToString{
+				"srcs": `["foo/a"]`}),
+			MakeBazelTargetNoRestrictions("filegroup", "filegroup2", AttrNameToString{
+				"srcs": `["bar/a"]`}),
 		},
 	}, func(ctx android.RegistrationContext) {
 		ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
