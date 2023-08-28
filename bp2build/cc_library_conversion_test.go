@@ -5120,7 +5120,7 @@ cc_library_static {
 	// bar dir
 	tc.Dir = "bar"
 	tc.ExpectedBazelTargets = []string{
-		MakeBazelTarget("proto_library", "bar.include_dir_bp2build_generated_proto", AttrNameToString{
+		MakeBazelTargetNoRestrictions("proto_library", "bar.include_dir_bp2build_generated_proto", AttrNameToString{
 			"srcs":                `["bar.proto"]`,
 			"strip_import_prefix": `""`,
 			"tags":                `["manual"]`,
@@ -5131,7 +5131,7 @@ cc_library_static {
 	// bar/baz dir
 	tc.Dir = "bar/baz"
 	tc.ExpectedBazelTargets = []string{
-		MakeBazelTarget("proto_library", "bar.include_dir_bp2build_generated_proto", AttrNameToString{
+		MakeBazelTargetNoRestrictions("proto_library", "bar.include_dir_bp2build_generated_proto", AttrNameToString{
 			"srcs":                `["//bar/baz:baz.proto"]`,
 			"strip_import_prefix": `""`,
 			"import_prefix":       `"baz"`,
@@ -5139,6 +5139,52 @@ cc_library_static {
 		}),
 	}
 	runCcLibraryTestCase(t, tc)
+}
+
+func TestProtoIncludeDirsWithSrcsInMultiplePackages(t *testing.T) {
+	tc := Bp2buildTestCase{
+		Description:                "cc_library has srcs in multiple bazel packages and uses proto.include_dirs",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+cc_library_static {
+	name: "foo",
+	srcs: [
+	   "foo.proto",
+	   "bar/bar.proto",
+	],
+	proto: {
+		include_dirs: ["baz"],
+	}
+}
+` + simpleModuleDoNotConvertBp2build("cc_library", "libprotobuf-cpp-lite"),
+		Filesystem: map[string]string{
+			"bar/Android.bp": "", // package boundary
+			"baz/Android.bp": "",
+			"baz/baz.proto":  "",
+		},
+	}
+
+	tc.ExpectedBazelTargets = []string{
+		MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+			"local_includes":                    `["."]`,
+			"deps":                              `[":libprotobuf-cpp-lite"]`,
+			"implementation_whole_archive_deps": `[":foo_cc_proto_lite"]`,
+		}),
+		MakeBazelTarget("proto_library", "foo_proto", AttrNameToString{
+			"srcs": `["foo.proto"]`,
+			"tags": `["manual"]`,
+		}),
+		MakeBazelTarget("cc_lite_proto_library", "foo_cc_proto_lite", AttrNameToString{
+			"deps": `[
+        ":foo_proto",
+        "//bar:foo_proto",
+    ]`,
+			"transitive_deps": `["//baz:baz.include_dir_bp2build_generated_proto"]`,
+		}),
+	}
+	runCcLibraryTestCase(t, tc)
+
 }
 
 func TestProtoLocalIncludeDirs(t *testing.T) {
@@ -5187,7 +5233,7 @@ func TestProtoLocalIncludeDirs(t *testing.T) {
 	// foo/foo_subdir
 	tc.Dir = "foo/foo_subdir"
 	tc.ExpectedBazelTargets = []string{
-		MakeBazelTarget("proto_library", "foo.foo_subdir.include_dir_bp2build_generated_proto", AttrNameToString{
+		MakeBazelTargetNoRestrictions("proto_library", "foo.foo_subdir.include_dir_bp2build_generated_proto", AttrNameToString{
 			"srcs":                `["foo_subdir.proto"]`,
 			"strip_import_prefix": `""`,
 			"tags":                `["manual"]`,
