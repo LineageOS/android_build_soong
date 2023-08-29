@@ -310,6 +310,7 @@ var (
 		"packages/modules/StatsD/lib/libstatssocket":         Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb":                               Bp2BuildDefaultTrue,
 		"packages/modules/adb/apex":                          Bp2BuildDefaultTrue,
+		"packages/modules/adb/fastdeploy":                    Bp2BuildDefaultTrue,
 		"packages/modules/adb/crypto":                        Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb/libs":                          Bp2BuildDefaultTrueRecursively,
 		"packages/modules/adb/pairing_auth":                  Bp2BuildDefaultTrueRecursively,
@@ -1612,6 +1613,7 @@ var (
 		"permissive_mte_test",
 		"ICU4CTestRunner",
 		"DeviceLongPollingStubTest",
+		"FastDeployHostTests",
 
 		"libprotobuf-full-test", // TODO(b/246997908): cannot convert proto_libraries which implicitly include other srcs in the same directory
 		"libprotobuf-lite-test", // TODO(b/246997908): cannot convert proto_libraries which implicitly include other srcs in the same directory
