@@ -2085,3 +2085,7 @@ func (c *config) SetApiLibraries(libs []string) {
 func (c *config) GetApiLibraries() map[string]struct{} {
 	return c.apiLibraries
 }
+
+func (c *deviceConfig) CheckVendorSeappViolations() bool {
+	return Bool(c.config.productVariables.CheckVendorSeappViolations)
+}
