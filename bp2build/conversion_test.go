@@ -134,7 +134,7 @@ func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
 		},
 		{
 			dir:      "metrics",
-			basename: "converted_modules.txt",
+			basename: "converted_modules.json",
 		},
 		{
 			dir:      "metrics",
