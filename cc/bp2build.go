@@ -851,7 +851,7 @@ func bp2BuildYasm(ctx android.Bp2buildMutatorContext, m *Module, ca compilerAttr
 	return ret
 }
 
-// bp2BuildParseBaseProps returns all compiler, linker, library attributes of a cc module..
+// bp2BuildParseBaseProps returns all compiler, linker, library attributes of a cc module.
 func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) baseAttributes {
 	archVariantCompilerProps := module.GetArchVariantProperties(ctx, &BaseCompilerProperties{})
 	archVariantLinkerProps := module.GetArchVariantProperties(ctx, &BaseLinkerProperties{})
@@ -1936,6 +1936,8 @@ func bp2buildSanitizerFeatures(ctx android.BazelConversionPathContext, m *Module
 	sanitizerFeatures := bazel.StringListAttribute{}
 	sanitizerCopts := bazel.StringListAttribute{}
 	sanitizerCompilerInputs := bazel.LabelListAttribute{}
+	memtagFeatures := bazel.StringListAttribute{}
+	memtagFeature := ""
 	bp2BuildPropParseHelper(ctx, m, &SanitizeProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
 		var features []string
 		if sanitizerProps, ok := props.(*SanitizeProperties); ok {
@@ -1960,14 +1962,43 @@ func bp2buildSanitizerFeatures(ctx android.BazelConversionPathContext, m *Module
 					features = append(features, "android_cfi_assembly_support")
 				}
 			}
+
+			if sanitizerProps.Sanitize.Memtag_heap != nil {
+				if (axis == bazel.NoConfigAxis && memtagFeature == "") ||
+					(axis == bazel.OsArchConfigurationAxis && config == bazel.OsArchAndroidArm64) {
+					memtagFeature = setMemtagValue(sanitizerProps, &memtagFeatures)
+				}
+			}
 			sanitizerFeatures.SetSelectValue(axis, config, features)
 		}
 	})
+	sanitizerFeatures.Append(memtagFeatures)
+
 	return sanitizerValues{
 		features:                 sanitizerFeatures,
 		copts:                    sanitizerCopts,
 		additionalCompilerInputs: sanitizerCompilerInputs,
 	}
+}
+
+func setMemtagValue(sanitizerProps *SanitizeProperties, memtagFeatures *bazel.StringListAttribute) string {
+	var features []string
+	if proptools.Bool(sanitizerProps.Sanitize.Memtag_heap) {
+		features = append(features, "memtag_heap")
+	} else {
+		features = append(features, "-memtag_heap")
+	}
+	// Logic comes from: https://cs.android.com/android/platform/superproject/main/+/32ea1afbd1148b0b78553f24fa61116c999eb968:build/soong/cc/sanitize.go;l=910
+	if sanitizerProps.Sanitize.Diag.Memtag_heap != nil {
+		if proptools.Bool(sanitizerProps.Sanitize.Diag.Memtag_heap) {
+			features = append(features, "diag_memtag_heap")
+		} else {
+			features = append(features, "-diag_memtag_heap")
+		}
+	}
+	memtagFeatures.SetSelectValue(bazel.OsArchConfigurationAxis, bazel.OsArchAndroidArm64, features)
+
+	return features[0]
 }
 
 func bp2buildLtoFeatures(ctx android.BazelConversionPathContext, m *Module) bazel.StringListAttribute {

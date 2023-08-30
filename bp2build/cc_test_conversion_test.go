@@ -139,6 +139,13 @@ cc_test_library {
         "host_without_device",
         "device",
     ]`,
+				"features": `select({
+        "//build/bazel/platforms/os_arch:android_arm64": [
+            "memtag_heap",
+            "diag_memtag_heap",
+        ],
+        "//conditions:default": [],
+    })`,
 			},
 			},
 		},
@@ -166,6 +173,13 @@ cc_test {
         "host_without_device",
         "device",
     ]`,
+				"features": `select({
+        "//build/bazel/platforms/os_arch:android_arm64": [
+            "memtag_heap",
+            "diag_memtag_heap",
+        ],
+        "//conditions:default": [],
+    })`,
 			},
 			},
 		},
@@ -197,6 +211,13 @@ cc_test {
         "host_without_device",
         "device",
     ]`,
+				"features": `select({
+        "//build/bazel/platforms/os_arch:android_arm64": [
+            "memtag_heap",
+            "diag_memtag_heap",
+        ],
+        "//conditions:default": [],
+    })`,
 			},
 			},
 		},
@@ -228,6 +249,13 @@ cc_test {
         ":libgtest",
     ]`,
 				"runs_on": `["device"]`,
+				"features": `select({
+        "//build/bazel/platforms/os_arch:android_arm64": [
+            "memtag_heap",
+            "diag_memtag_heap",
+        ],
+        "//conditions:default": [],
+    })`,
 			},
 			},
 		},
@@ -260,6 +288,13 @@ cc_test {
         ":libgtest",
     ]`,
 				"runs_on": `["device"]`,
+				"features": `select({
+        "//build/bazel/platforms/os_arch:android_arm64": [
+            "memtag_heap",
+            "diag_memtag_heap",
+        ],
+        "//conditions:default": [],
+    })`,
 			},
 			},
 		},
@@ -297,6 +332,13 @@ cc_test {
 				"deps":                  `[":libgtest_isolated_main"]`,
 				"dynamic_deps":          `[":liblog"]`,
 				"runs_on":               `["device"]`,
+				"features": `select({
+        "//build/bazel/platforms/os_arch:android_arm64": [
+            "memtag_heap",
+            "diag_memtag_heap",
+        ],
+        "//conditions:default": [],
+    })`,
 			},
 			},
 		},
@@ -324,6 +366,13 @@ cc_test {
         ":libgtest_main",
     ]`,
 				"runs_on": `["device"]`,
+				"features": `select({
+        "//build/bazel/platforms/os_arch:android_arm64": [
+            "memtag_heap",
+            "diag_memtag_heap",
+        ],
+        "//conditions:default": [],
+    })`,
 			},
 			},
 		},
@@ -350,6 +399,13 @@ cc_test {
 				"deps":                   `[":libgtest_isolated_main"]`,
 				"dynamic_deps":           `[":liblog"]`,
 				"runs_on":                `["device"]`,
+				"features": `select({
+        "//build/bazel/platforms/os_arch:android_arm64": [
+            "memtag_heap",
+            "diag_memtag_heap",
+        ],
+        "//conditions:default": [],
+    })`,
 			},
 			},
 		},
@@ -381,6 +437,13 @@ cc_test {
 				"gtest":                  "True",
 				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
 				"runs_on":                `["device"]`,
+				"features": `select({
+        "//build/bazel/platforms/os_arch:android_arm64": [
+            "memtag_heap",
+            "diag_memtag_heap",
+        ],
+        "//conditions:default": [],
+    })`,
 			},
 			},
 			{"cc_test", "mytest_with_no_gtest", AttrNameToString{
@@ -388,6 +451,166 @@ cc_test {
 				"gtest":                  "False",
 				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
 				"runs_on":                `["device"]`,
+				"features": `select({
+        "//build/bazel/platforms/os_arch:android_arm64": [
+            "memtag_heap",
+            "diag_memtag_heap",
+        ],
+        "//conditions:default": [],
+    })`,
+			},
+			},
+		},
+	})
+}
+
+func TestCcTest_DisableMemtagHeap(t *testing.T) {
+	runCcTestTestCase(t, ccTestBp2buildTestCase{
+		description: "cc test that disable memtag_heap",
+		blueprint: `
+cc_test {
+	name: "mytest",
+	srcs: ["test.cpp"],
+	isolated: true,
+	sanitize: {
+		cfi: true,
+		memtag_heap: false,
+	},
+}
+` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
+			simpleModuleDoNotConvertBp2build("cc_library", "liblog"),
+		targets: []testBazelTarget{
+			{"cc_test", "mytest", AttrNameToString{
+				"local_includes":         `["."]`,
+				"srcs":                   `["test.cpp"]`,
+				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"deps":                   `[":libgtest_isolated_main"]`,
+				"dynamic_deps":           `[":liblog"]`,
+				"runs_on":                `["device"]`,
+				"features": `["android_cfi"] + select({
+        "//build/bazel/platforms/os_arch:android_arm64": ["-memtag_heap"],
+        "//conditions:default": [],
+    })`,
+			},
+			},
+		},
+	})
+}
+
+func TestCcTest_RespectArm64MemtagHeap(t *testing.T) {
+	runCcTestTestCase(t, ccTestBp2buildTestCase{
+		description: "cc test that disable memtag_heap",
+		blueprint: `
+cc_test {
+	name: "mytest",
+	srcs: ["test.cpp"],
+	isolated: true,
+	target: {
+		android_arm64: {
+			sanitize: {
+				memtag_heap: false,
+			}
+		}
+	},
+}
+` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
+			simpleModuleDoNotConvertBp2build("cc_library", "liblog"),
+		targets: []testBazelTarget{
+			{"cc_test", "mytest", AttrNameToString{
+				"local_includes":         `["."]`,
+				"srcs":                   `["test.cpp"]`,
+				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"deps":                   `[":libgtest_isolated_main"]`,
+				"dynamic_deps":           `[":liblog"]`,
+				"runs_on":                `["device"]`,
+				"features": `select({
+        "//build/bazel/platforms/os_arch:android_arm64": ["-memtag_heap"],
+        "//conditions:default": [],
+    })`,
+			},
+			},
+		},
+	})
+}
+
+func TestCcTest_IgnoreNoneArm64MemtagHeap(t *testing.T) {
+	runCcTestTestCase(t, ccTestBp2buildTestCase{
+		description: "cc test that disable memtag_heap",
+		blueprint: `
+cc_test {
+	name: "mytest",
+	srcs: ["test.cpp"],
+	isolated: true,
+	arch: {
+		x86: {
+			sanitize: {
+				memtag_heap: false,
+			}
+		}
+	},
+}
+` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
+			simpleModuleDoNotConvertBp2build("cc_library", "liblog"),
+		targets: []testBazelTarget{
+			{"cc_test", "mytest", AttrNameToString{
+				"local_includes":         `["."]`,
+				"srcs":                   `["test.cpp"]`,
+				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"deps":                   `[":libgtest_isolated_main"]`,
+				"dynamic_deps":           `[":liblog"]`,
+				"runs_on":                `["device"]`,
+				"features": `select({
+        "//build/bazel/platforms/os_arch:android_arm64": [
+            "memtag_heap",
+            "diag_memtag_heap",
+        ],
+        "//conditions:default": [],
+    })`,
+			},
+			},
+		},
+	})
+}
+
+func TestCcTest_Arm64MemtagHeapOverrideNoConfigOne(t *testing.T) {
+	runCcTestTestCase(t, ccTestBp2buildTestCase{
+		description: "cc test that disable memtag_heap",
+		blueprint: `
+cc_test {
+	name: "mytest",
+	srcs: ["test.cpp"],
+	isolated: true,
+	sanitize: {
+		memtag_heap: true,
+	},
+	target: {
+		android_arm64: {
+			sanitize: {
+				memtag_heap: false,
+				diag: {
+					memtag_heap: false,
+				},
+			}
+		}
+	},
+}
+` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
+			simpleModuleDoNotConvertBp2build("cc_library", "liblog"),
+		targets: []testBazelTarget{
+			{"cc_test", "mytest", AttrNameToString{
+				"local_includes":         `["."]`,
+				"srcs":                   `["test.cpp"]`,
+				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"deps":                   `[":libgtest_isolated_main"]`,
+				"dynamic_deps":           `[":liblog"]`,
+				"runs_on":                `["device"]`,
+				"features": `select({
+        "//build/bazel/platforms/os_arch:android_arm64": [
+            "-memtag_heap",
+            "-diag_memtag_heap",
+        ],
+        "//conditions:default": [],
+    })`,
 			},
 			},
 		},
