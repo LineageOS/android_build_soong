@@ -48,7 +48,11 @@ func soongInjectionFiles(cfg android.Config, metrics CodegenMetrics) ([]BazelFil
 	}
 	files = append(files, newFile("apex_toolchain", "constants.bzl", apexToolchainVars))
 
-	files = append(files, newFile("metrics", "converted_modules.txt", strings.Join(metrics.Serialize().ConvertedModules, "\n")))
+	if buf, err := json.MarshalIndent(metrics.convertedModuleWithType, "", "  "); err != nil {
+		return []BazelFile{}, err
+	} else {
+		files = append(files, newFile("metrics", "converted_modules.json", string(buf)))
+	}
 
 	convertedModulePathMap, err := json.MarshalIndent(metrics.convertedModulePathMap, "", "\t")
 	if err != nil {
