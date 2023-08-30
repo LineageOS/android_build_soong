@@ -753,6 +753,7 @@ var (
 		//system/core/fs_mgr
 		"libfs_mgr",
 
+		"libcodec2_aidl",
 		"libcodec2_hidl@1.0",
 		"libcodec2_hidl@1.1",
 		"libcodec2_hidl@1.2",
