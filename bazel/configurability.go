@@ -39,7 +39,7 @@ const (
 
 	// Targets in arch.go
 	osArchAndroidArm        = "android_arm"
-	osArchAndroidArm64      = "android_arm64"
+	OsArchAndroidArm64      = "android_arm64"
 	osArchAndroidRiscv64    = "android_riscv64"
 	osArchAndroidX86        = "android_x86"
 	osArchAndroidX86_64     = "android_x86_64"
@@ -170,7 +170,7 @@ var (
 
 	platformOsArchMap = map[string]string{
 		osArchAndroidArm:           "//build/bazel/platforms/os_arch:android_arm",
-		osArchAndroidArm64:         "//build/bazel/platforms/os_arch:android_arm64",
+		OsArchAndroidArm64:         "//build/bazel/platforms/os_arch:android_arm64",
 		osArchAndroidRiscv64:       "//build/bazel/platforms/os_arch:android_riscv64",
 		osArchAndroidX86:           "//build/bazel/platforms/os_arch:android_x86",
 		osArchAndroidX86_64:        "//build/bazel/platforms/os_arch:android_x86_64",
