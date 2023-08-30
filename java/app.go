@@ -1059,6 +1059,7 @@ func AndroidAppFactory() android.Module {
 
 	module.Module.dexProperties.Optimize.EnabledByDefault = true
 	module.Module.dexProperties.Optimize.Shrink = proptools.BoolPtr(true)
+	module.Module.dexProperties.Optimize.Proguard_compatibility = proptools.BoolPtr(false)
 
 	module.Module.properties.Instrument = true
 	module.Module.properties.Supports_static_instrumentation = true
