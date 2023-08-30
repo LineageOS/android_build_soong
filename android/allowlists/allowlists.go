@@ -909,6 +909,9 @@ var (
 
 		"merge_annotation_zips_test",
 
+		// bouncycastle dep
+		"platform-test-annotations",
+
 		// java_resources with multiple resource_dirs
 		"emma",
 	}
