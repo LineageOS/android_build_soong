@@ -688,7 +688,9 @@ func makeCcStubSuiteTargets(name string, attrs AttrNameToString) string {
 }
 
 func MakeNeverlinkDuplicateTarget(moduleType string, name string) string {
-	return MakeNeverlinkDuplicateTargetWithAttrs(moduleType, name, AttrNameToString{})
+	return MakeNeverlinkDuplicateTargetWithAttrs(moduleType, name, AttrNameToString{
+		"sdk_version": `"current"`, // use as default
+	})
 }
 
 func MakeNeverlinkDuplicateTargetWithAttrs(moduleType string, name string, extraAttrs AttrNameToString) string {
