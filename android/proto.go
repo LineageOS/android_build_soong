@@ -17,6 +17,7 @@ package android
 import (
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"android/soong/bazel"
 
@@ -349,6 +350,7 @@ type PkgPathInterface interface {
 var (
 	protoIncludeDirGeneratedSuffix = ".include_dir_bp2build_generated_proto"
 	protoIncludeDirsBp2buildKey    = NewOnceKey("protoIncludeDirsBp2build")
+	protoIncludeDirsBp2buildLock   sync.Mutex
 )
 
 func getProtoIncludeDirsBp2build(config Config) *map[protoIncludeDirKey]bool {
@@ -368,6 +370,9 @@ type protoIncludeDirKey struct {
 // might create the targets in a subdirectory of `includeDir`
 // Returns the labels of the proto_library targets
 func createProtoLibraryTargetsForIncludeDirs(ctx Bp2buildMutatorContext, includeDirs []string) bazel.LabelList {
+	protoIncludeDirsBp2buildLock.Lock()
+	defer protoIncludeDirsBp2buildLock.Unlock()
+
 	var ret bazel.LabelList
 	for _, dir := range includeDirs {
 		if exists, _, _ := ctx.Config().fs.Exists(filepath.Join(dir, "Android.bp")); !exists {
