@@ -123,6 +123,7 @@ type BuildStatement struct {
 	// Unlike most properties in BuildStatement, these paths must be relative to the root of
 	// the whole out/ folder, instead of relative to ctx.Config().BazelContext.OutputBase()
 	ImplicitDeps []string
+	IsExecutable bool
 }
 
 // A helper type for aquery processing which facilitates retrieval of path IDs from their
@@ -560,6 +561,7 @@ func (a *aqueryArtifactHandler) fileWriteActionBuildStatement(actionEntry *analy
 		Mnemonic:          actionEntry.Mnemonic,
 		InputDepsetHashes: depsetHashes,
 		FileContents:      actionEntry.FileContents,
+		IsExecutable:      actionEntry.IsExecutable,
 	}, nil
 }
 
