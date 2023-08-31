@@ -134,6 +134,10 @@ type aapt struct {
 	resourcesNodesDepSet *android.DepSet[*resourcesNode]
 	rroDirsDepSet        *android.DepSet[rroDir]
 	manifestsDepSet      *android.DepSet[android.Path]
+
+	manifestValues struct {
+		applicationId string
+	}
 }
 
 type split struct {
@@ -380,7 +384,9 @@ func (a *aapt) buildActions(ctx android.ModuleContext, opts aaptBuildActionOptio
 	if len(transitiveManifestPaths) > 1 && !Bool(a.aaptProperties.Dont_merge_manifests) {
 		manifestMergerParams := ManifestMergerParams{
 			staticLibManifests: transitiveManifestPaths[1:],
-			isLibrary:          a.isLibrary}
+			isLibrary:          a.isLibrary,
+			packageName:        a.manifestValues.applicationId,
+		}
 		a.mergedManifestFile = manifestMerger(ctx, transitiveManifestPaths[0], manifestMergerParams)
 		if !a.isLibrary {
 			// Only use the merged manifest for applications.  For libraries, the transitive closure of manifests
