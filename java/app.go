@@ -29,6 +29,7 @@ import (
 	"android/soong/bazel"
 	"android/soong/cc"
 	"android/soong/dexpreopt"
+	"android/soong/genrule"
 	"android/soong/tradefed"
 )
 
@@ -1614,6 +1615,8 @@ type bazelAndroidAppAttributes struct {
 	Certificate      bazel.LabelAttribute
 	Certificate_name bazel.StringAttribute
 	Manifest_values  *manifestValueAttribute
+	Optimize         *bool
+	Proguard_specs   bazel.LabelListAttribute
 }
 
 // ConvertWithBp2build is used to convert android_app to Bazel.
@@ -1663,6 +1666,41 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		Certificate:      certificate,
 		Certificate_name: certificateName,
 		Manifest_values:  manifestValues,
+	}
+
+	if !BoolDefault(a.dexProperties.Optimize.Enabled, true) {
+		appAttrs.Optimize = proptools.BoolPtr(false)
+	} else {
+		handCraftedFlags := ""
+		if Bool(a.dexProperties.Optimize.Ignore_warnings) {
+			handCraftedFlags += "-ignorewarning "
+		}
+		if !Bool(a.dexProperties.Optimize.Shrink) {
+			handCraftedFlags += "-dontshrink "
+		}
+		if !Bool(a.dexProperties.Optimize.Optimize) {
+			handCraftedFlags += "-dontoptimize "
+		}
+		if !Bool(a.dexProperties.Optimize.Obfuscate) {
+			handCraftedFlags += "-dontobfuscate "
+		}
+		appAttrs.Proguard_specs = bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, a.dexProperties.Optimize.Proguard_flags_files))
+		if handCraftedFlags != "" {
+			generatedFlagFileRuleName := a.Name() + "_proguard_flags"
+			ctx.CreateBazelTargetModule(bazel.BazelTargetModuleProperties{
+				Rule_class: "genrule",
+			}, android.CommonAttributes{
+				Name:     generatedFlagFileRuleName,
+				SkipData: proptools.BoolPtr(true),
+			}, &genrule.BazelGenruleAttributes{
+				Outs: []string{a.Name() + "_proguard.flags"},
+				Cmd: bazel.StringAttribute{
+					Value: proptools.StringPtr("echo " + handCraftedFlags + "> $(OUTS)"),
+				},
+			})
+			appAttrs.Proguard_specs.Add(bazel.MakeLabelAttribute(":" + generatedFlagFileRuleName))
+		}
+
 	}
 
 	props := bazel.BazelTargetModuleProperties{
