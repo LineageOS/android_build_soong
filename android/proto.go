@@ -350,13 +350,12 @@ type PkgPathInterface interface {
 var (
 	protoIncludeDirGeneratedSuffix = ".include_dir_bp2build_generated_proto"
 	protoIncludeDirsBp2buildKey    = NewOnceKey("protoIncludeDirsBp2build")
-	protoIncludeDirsBp2buildLock   sync.Mutex
 )
 
-func getProtoIncludeDirsBp2build(config Config) *map[protoIncludeDirKey]bool {
+func getProtoIncludeDirsBp2build(config Config) *sync.Map {
 	return config.Once(protoIncludeDirsBp2buildKey, func() interface{} {
-		return &map[protoIncludeDirKey]bool{}
-	}).(*map[protoIncludeDirKey]bool)
+		return &sync.Map{}
+	}).(*sync.Map)
 }
 
 // key for dynamically creating proto_library per proto.include_dirs
@@ -370,9 +369,6 @@ type protoIncludeDirKey struct {
 // might create the targets in a subdirectory of `includeDir`
 // Returns the labels of the proto_library targets
 func createProtoLibraryTargetsForIncludeDirs(ctx Bp2buildMutatorContext, includeDirs []string) bazel.LabelList {
-	protoIncludeDirsBp2buildLock.Lock()
-	defer protoIncludeDirsBp2buildLock.Unlock()
-
 	var ret bazel.LabelList
 	for _, dir := range includeDirs {
 		if exists, _, _ := ctx.Config().fs.Exists(filepath.Join(dir, "Android.bp")); !exists {
@@ -389,11 +385,10 @@ func createProtoLibraryTargetsForIncludeDirs(ctx Bp2buildMutatorContext, include
 				Label: "//" + pkg + ":" + label,
 			})
 			key := protoIncludeDirKey{dir: dir, subpackgeInDir: pkg}
-			if _, exists := (*dirMap)[key]; exists {
+			if _, exists := dirMap.LoadOrStore(key, true); exists {
 				// A proto_library has already been created for this package relative to this include dir
 				continue
 			}
-			(*dirMap)[key] = true
 			srcs := protoLabelelsPartitionedByPkg[pkg]
 			rel, err := filepath.Rel(dir, pkg)
 			if err != nil {
