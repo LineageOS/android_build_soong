@@ -107,8 +107,8 @@ var (
 
 	Cat = pctx.AndroidStaticRule("Cat",
 		blueprint.RuleParams{
-			Command:     "cat $in > $out",
-			Description: "concatenate licenses $out",
+			Command:     "rm -f $out && cat $in > $out",
+			Description: "concatenate files to $out",
 		})
 
 	// ubuntu 14.04 offcially use dash for /bin/sh, and its builtin echo command
@@ -116,7 +116,7 @@ var (
 	// content to file.
 	writeFile = pctx.AndroidStaticRule("writeFile",
 		blueprint.RuleParams{
-			Command:     `/bin/bash -c 'echo -e -n "$$0" > $out' $content`,
+			Command:     `rm -f $out && /bin/bash -c 'echo -e -n "$$0" > $out' $content`,
 			Description: "writing file $out",
 		},
 		"content")
