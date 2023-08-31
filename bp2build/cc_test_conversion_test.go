@@ -89,14 +89,14 @@ cc_test_library {
     host_supported: true,
     include_build_directory: false,
 }
-` + simpleModuleDoNotConvertBp2build("cc_library", "foolib") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "hostlib") +
-			simpleModuleDoNotConvertBp2build("genrule", "data_mod") +
-			simpleModuleDoNotConvertBp2build("cc_binary", "cc_bin") +
-			simpleModuleDoNotConvertBp2build("cc_library", "cc_lib") +
-			simpleModuleDoNotConvertBp2build("cc_test_library", "cc_test_lib2") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
+` + SimpleModuleDoNotConvertBp2build("cc_library", "foolib") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "hostlib") +
+			SimpleModuleDoNotConvertBp2build("genrule", "data_mod") +
+			SimpleModuleDoNotConvertBp2build("cc_binary", "cc_bin") +
+			SimpleModuleDoNotConvertBp2build("cc_library", "cc_lib") +
+			SimpleModuleDoNotConvertBp2build("cc_test_library", "cc_test_lib2") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
 		targets: []testBazelTarget{
 			{"cc_library_shared", "cc_test_lib1", AttrNameToString{}},
 			{"cc_library_static", "cc_test_lib1_bp2build_cc_library_static", AttrNameToString{}},
@@ -196,8 +196,8 @@ cc_test {
     srcs: ["test.cpp"],
     test_options: { tags: ["no-remote"] },
 }
-` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
+` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"tags":           `["no-remote"]`,
@@ -236,8 +236,8 @@ cc_test {
 	srcs: ["test.cpp"],
 	test_config: "test_config.xml",
 }
-` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
+` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
@@ -274,8 +274,8 @@ cc_test {
 	name: "mytest",
 	srcs: ["test.cpp"],
 }
-` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
+` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
@@ -315,8 +315,8 @@ cc_test {
 	auto_gen_config: true,
 	isolated: true,
 }
-` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
-			simpleModuleDoNotConvertBp2build("cc_library", "liblog"),
+` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
+			SimpleModuleDoNotConvertBp2build("cc_library", "liblog"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"auto_generate_test_config": "True",
@@ -354,8 +354,8 @@ cc_test {
 	srcs: ["test.cpp"],
 	static_libs: ["libgtest"],
 }
-` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
+` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
@@ -389,8 +389,8 @@ cc_test {
 	srcs: ["test.cpp"],
 	isolated: true,
 }
-` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
-			simpleModuleDoNotConvertBp2build("cc_library", "liblog"),
+` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
+			SimpleModuleDoNotConvertBp2build("cc_library", "liblog"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
@@ -425,8 +425,8 @@ cc_test {
 	name: "mytest_with_no_gtest",
 	gtest: false,
 }
-` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
+` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest_with_gtest", AttrNameToString{
 				"local_includes": `["."]`,
@@ -477,8 +477,8 @@ cc_test {
 		memtag_heap: false,
 	},
 }
-` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
-			simpleModuleDoNotConvertBp2build("cc_library", "liblog"),
+` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
+			SimpleModuleDoNotConvertBp2build("cc_library", "liblog"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
@@ -513,8 +513,8 @@ cc_test {
 		}
 	},
 }
-` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
-			simpleModuleDoNotConvertBp2build("cc_library", "liblog"),
+` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
+			SimpleModuleDoNotConvertBp2build("cc_library", "liblog"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
@@ -549,8 +549,8 @@ cc_test {
 		}
 	},
 }
-` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
-			simpleModuleDoNotConvertBp2build("cc_library", "liblog"),
+` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
+			SimpleModuleDoNotConvertBp2build("cc_library", "liblog"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
@@ -594,8 +594,8 @@ cc_test {
 		}
 	},
 }
-` + simpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
-			simpleModuleDoNotConvertBp2build("cc_library", "liblog"),
+` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
+			SimpleModuleDoNotConvertBp2build("cc_library", "liblog"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,

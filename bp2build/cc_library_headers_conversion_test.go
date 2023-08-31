@@ -340,7 +340,7 @@ cc_library_headers {
 		static_libs: ["foo_export", "foo_no_reexport"],
     bazel_module: { bp2build_available: true },
 }
-` + simpleModuleDoNotConvertBp2build("cc_library_headers", "foo_export"),
+` + SimpleModuleDoNotConvertBp2build("cc_library_headers", "foo_export"),
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
 				"deps": `[":foo_export"]`,
@@ -362,7 +362,7 @@ cc_library_headers {
 		shared_libs: ["foo_export", "foo_no_reexport"],
     bazel_module: { bp2build_available: true },
 }
-` + simpleModuleDoNotConvertBp2build("cc_library_headers", "foo_export"),
+` + SimpleModuleDoNotConvertBp2build("cc_library_headers", "foo_export"),
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
 				"deps": `[":foo_export"]`,
@@ -384,7 +384,7 @@ cc_library_headers {
 		header_libs: ["foo_export", "foo_no_reexport"],
     bazel_module: { bp2build_available: true },
 }
-` + simpleModuleDoNotConvertBp2build("cc_library_headers", "foo_export"),
+` + SimpleModuleDoNotConvertBp2build("cc_library_headers", "foo_export"),
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
 				"deps": `[":foo_export"]`,
@@ -405,7 +405,7 @@ cc_library_headers {
 		whole_static_libs: ["foo_export"],
     bazel_module: { bp2build_available: true },
 }
-` + simpleModuleDoNotConvertBp2build("cc_library_headers", "foo_export"),
+` + SimpleModuleDoNotConvertBp2build("cc_library_headers", "foo_export"),
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
 				"deps": `[":foo_export"]`,
