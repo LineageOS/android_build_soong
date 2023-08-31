@@ -1382,10 +1382,7 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 			WriteFileRuleVerbatim(ctx, out, "")
 		case "FileWrite", "SourceSymlinkManifest":
 			out := PathForBazelOut(ctx, buildStatement.OutputPaths[0])
-			// TODO(b/297366783) This is a hack to make files from skylib's diff_test executable.
-			// We need to update bazel to have aquery tell us whether a file is supposed to be
-			// executable or not.
-			if strings.HasSuffix(buildStatement.OutputPaths[0], "-test.sh") {
+			if buildStatement.IsExecutable {
 				WriteExecutableFileRuleVerbatim(ctx, out, buildStatement.FileContents)
 			} else {
 				WriteFileRuleVerbatim(ctx, out, buildStatement.FileContents)
