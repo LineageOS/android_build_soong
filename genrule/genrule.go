@@ -912,7 +912,7 @@ type genRuleProperties struct {
 	Out []string
 }
 
-type bazelGenruleAttributes struct {
+type BazelGenruleAttributes struct {
 	Srcs  bazel.LabelListAttribute
 	Outs  []string
 	Tools bazel.LabelListAttribute
@@ -1036,7 +1036,7 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 				break
 			}
 		}
-		attrs := &bazelGenruleAttributes{
+		attrs := &BazelGenruleAttributes{
 			Srcs:  srcs,
 			Outs:  outs,
 			Cmd:   cmdProp,
