@@ -82,7 +82,7 @@ func TestPrebuiltEtcVariants(t *testing.T) {
 
 	baz_variants := result.ModuleVariantsForTests("baz.conf")
 	if len(baz_variants) != 1 {
-		t.Errorf("expected 1, got %#v", bar_variants)
+		t.Errorf("expected 1, got %#v", baz_variants)
 	}
 }
 
