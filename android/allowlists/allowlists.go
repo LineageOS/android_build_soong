@@ -228,6 +228,7 @@ var (
 		"frameworks/base/services/tests/servicestests/aidl":  Bp2BuildDefaultTrue,
 		"frameworks/base/startop/apps/test":                  Bp2BuildDefaultTrue,
 		"frameworks/base/tests/appwidgets/AppWidgetHostTest": Bp2BuildDefaultTrueRecursively,
+		"frameworks/base/tools/aapt":                         Bp2BuildDefaultTrue,
 		"frameworks/base/tools/aapt2":                        Bp2BuildDefaultTrue,
 		"frameworks/base/tools/codegen":                      Bp2BuildDefaultTrueRecursively,
 		"frameworks/base/tools/streaming_proto":              Bp2BuildDefaultTrueRecursively,
