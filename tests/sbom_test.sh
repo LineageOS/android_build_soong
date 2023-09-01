@@ -91,6 +91,7 @@ function test_sbom_aosp_cf_x86_64_phone {
   diff_excludes[system]="\
     -I /system/bin/assemble_cvd \
     -I /system/bin/console_forwarder \
+    -I /system/bin/hwservicemanager \
     -I /system/bin/kernel_log_monitor \
     -I /system/bin/logcat_receiver \
     -I /system/bin/mkenvimage_slim \
