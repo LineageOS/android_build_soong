@@ -1796,30 +1796,6 @@ func (c *deviceConfig) BoardSepolicyVers() string {
 	return c.PlatformSepolicyVersion()
 }
 
-func (c *deviceConfig) BoardPlatVendorPolicy() []string {
-	return c.config.productVariables.BoardPlatVendorPolicy
-}
-
-func (c *deviceConfig) BoardReqdMaskPolicy() []string {
-	return c.config.productVariables.BoardReqdMaskPolicy
-}
-
-func (c *deviceConfig) BoardSystemExtPublicPrebuiltDirs() []string {
-	return c.config.productVariables.BoardSystemExtPublicPrebuiltDirs
-}
-
-func (c *deviceConfig) BoardSystemExtPrivatePrebuiltDirs() []string {
-	return c.config.productVariables.BoardSystemExtPrivatePrebuiltDirs
-}
-
-func (c *deviceConfig) BoardProductPublicPrebuiltDirs() []string {
-	return c.config.productVariables.BoardProductPublicPrebuiltDirs
-}
-
-func (c *deviceConfig) BoardProductPrivatePrebuiltDirs() []string {
-	return c.config.productVariables.BoardProductPrivatePrebuiltDirs
-}
-
 func (c *deviceConfig) SystemExtSepolicyPrebuiltApiDir() string {
 	return String(c.config.productVariables.SystemExtSepolicyPrebuiltApiDir)
 }
