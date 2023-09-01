@@ -85,47 +85,7 @@ function test_sbom_aosp_cf_x86_64_phone {
   lz4=$out_dir/host/linux-x86/bin/lz4
 
   declare -A diff_excludes
-  diff_excludes[vendor]="\
-    -I /vendor/lib64/libkeystore2_crypto.so \
-    -I /vendor/lib64/libvsock_utils.so"
-  diff_excludes[system]="\
-    -I /system/bin/assemble_cvd \
-    -I /system/bin/console_forwarder \
-    -I /system/bin/hwservicemanager \
-    -I /system/bin/kernel_log_monitor \
-    -I /system/bin/logcat_receiver \
-    -I /system/bin/mkenvimage_slim \
-    -I /system/bin/run_cvd \
-    -I /system/bin/simg2img \
-    -I /system/bin/log_tee \
-    -I /system/lib64/android.hardware.confirmationui@1.0.so \
-    -I /system/lib64/android.hardware.confirmationui-V1-ndk.so \
-    -I /system/lib64/android.hardware.keymaster@4.1.so \
-    -I /system/lib64/android.hardware.security.rkp-V3-ndk.so \
-    -I /system/lib64/android.hardware.security.sharedsecret-V1-ndk.so \
-    -I /system/lib64/android.security.compat-ndk.so \
-    -I /system/lib64/libcuttlefish_allocd_utils.so \
-    -I /system/lib64/libcuttlefish_device_config_proto.so \
-    -I /system/lib64/libcuttlefish_device_config.so \
-    -I /system/lib64/libcuttlefish_fs.so \
-    -I /system/lib64/libcuttlefish_kernel_log_monitor_utils.so \
-    -I /system/lib64/libcuttlefish_utils.so \
-    -I /system/lib64/libfruit.so \
-    -I /system/lib64/libgflags.so \
-    -I /system/lib64/libkeymaster4_1support.so \
-    -I /system/lib64/libkeymaster4support.so \
-    -I /system/lib64/libkeymint.so \
-    -I /system/lib64/libkeystore2_aaid.so \
-    -I /system/lib64/libkeystore2_apc_compat.so \
-    -I /system/lib64/libkeystore2_crypto.so \
-    -I /system/lib64/libkeystore-attestation-application-id.so \
-    -I /system/lib64/libkm_compat_service.so \
-    -I /system/lib64/libkm_compat.so \
-    -I /system/lib64/vndk-29 \
-    -I /system/lib64/vndk-sp-29 \
-    -I /system/lib/vndk-29 \
-    -I /system/lib/vndk-sp-29 \
-    -I /system/usr/icu"
+  diff_excludes[system]="-I /system/bin/hwservicemanager"
 
   # Example output of dump.erofs is as below, and the data used in the test start
   # at line 11. Column 1 is inode id, column 2 is inode type and column 3 is name.
