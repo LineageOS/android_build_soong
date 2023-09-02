@@ -395,7 +395,7 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 
 	useVendor := ctx.inVendor() || ctx.useVndk()
 	testInstallBase := getTestInstallBase(useVendor)
-	configs := getTradefedConfigOptions(ctx, &test.Properties, test.isolated(ctx))
+	configs := getTradefedConfigOptions(ctx, &test.Properties, test.isolated(ctx), ctx.Device())
 
 	test.testConfig = tradefed.AutoGenTestConfig(ctx, tradefed.AutoGenTestConfigOptions{
 		TestConfigProp:         test.Properties.Test_config,
@@ -435,22 +435,24 @@ func getTestInstallBase(useVendor bool) string {
 	return testInstallBase
 }
 
-func getTradefedConfigOptions(ctx android.EarlyModuleContext, properties *TestBinaryProperties, isolated bool) []tradefed.Config {
+func getTradefedConfigOptions(ctx android.EarlyModuleContext, properties *TestBinaryProperties, isolated bool, device bool) []tradefed.Config {
 	var configs []tradefed.Config
 
 	for _, module := range properties.Test_mainline_modules {
 		configs = append(configs, tradefed.Option{Name: "config-descriptor:metadata", Key: "mainline-param", Value: module})
 	}
-	if Bool(properties.Require_root) {
-		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", nil})
-	} else {
-		var options []tradefed.Option
-		options = append(options, tradefed.Option{Name: "force-root", Value: "false"})
-		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", options})
-	}
-	if Bool(properties.Disable_framework) {
-		var options []tradefed.Option
-		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.StopServicesSetup", options})
+	if device {
+		if Bool(properties.Require_root) {
+			configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", nil})
+		} else {
+			var options []tradefed.Option
+			options = append(options, tradefed.Option{Name: "force-root", Value: "false"})
+			configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", options})
+		}
+		if Bool(properties.Disable_framework) {
+			var options []tradefed.Option
+			configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.StopServicesSetup", options})
+		}
 	}
 	if isolated {
 		configs = append(configs, tradefed.Option{Name: "not-shardable", Value: "true"})
@@ -760,7 +762,7 @@ func testBinaryBp2build(ctx android.TopDownMutatorContext, m *Module) {
 				p.Auto_gen_config,
 				p.Test_options.Test_suite_tag,
 				p.Test_config_template,
-				getTradefedConfigOptions(ctx, p, gtestIsolated),
+				getTradefedConfigOptions(ctx, p, gtestIsolated, true),
 				&testInstallBase,
 			)
 			testBinaryAttrs.TestConfigAttributes = testConfigAttributes
