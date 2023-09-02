@@ -45,7 +45,6 @@ var (
 		"-UDEBUG",
 
 		"-fno-exceptions",
-		"-Wno-multichar",
 
 		"-O2",
 		"-fdebug-default-version=5",
