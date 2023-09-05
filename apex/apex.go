@@ -2217,6 +2217,9 @@ func (vctx *visitorContext) normalizeFileInfo(mctx android.ModuleContext) {
 			// If a module is directly included and also transitively depended on
 			// consider it as directly included.
 			e.transitiveDep = e.transitiveDep && f.transitiveDep
+			// If a module is added as both a JNI library and a regular shared library, consider it as a
+			// JNI library.
+			e.isJniLib = e.isJniLib || f.isJniLib
 			encountered[dest] = e
 		}
 	}

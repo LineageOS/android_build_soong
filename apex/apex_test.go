@@ -7843,7 +7843,8 @@ func TestApexWithJniLibs(t *testing.T) {
 		apex {
 			name: "myapex",
 			key: "myapex.key",
-			jni_libs: ["mylib", "libfoo.rust"],
+			binaries: ["mybin"],
+			jni_libs: ["mylib", "mylib3", "libfoo.rust"],
 			updatable: false,
 		}
 
@@ -7865,6 +7866,24 @@ func TestApexWithJniLibs(t *testing.T) {
 		cc_library {
 			name: "mylib2",
 			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+		}
+
+		// Used as both a JNI library and a regular shared library.
+		cc_library {
+			name: "mylib3",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+		}
+
+		cc_binary {
+			name: "mybin",
+			srcs: ["mybin.cpp"],
+			shared_libs: ["mylib3"],
 			system_shared_libs: [],
 			stl: "none",
 			apex_available: [ "myapex" ],
@@ -7893,10 +7912,12 @@ func TestApexWithJniLibs(t *testing.T) {
 
 	rule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexManifestRule")
 	// Notice mylib2.so (transitive dep) is not added as a jni_lib
-	ensureEquals(t, rule.Args["opt"], "-a jniLibs libfoo.rust.so mylib.so")
+	ensureEquals(t, rule.Args["opt"], "-a jniLibs libfoo.rust.so mylib.so mylib3.so")
 	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
+		"bin/mybin",
 		"lib64/mylib.so",
 		"lib64/mylib2.so",
+		"lib64/mylib3.so",
 		"lib64/libfoo.rust.so",
 		"lib64/libc++.so", // auto-added to libfoo.rust by Soong
 		"lib64/liblog.so", // auto-added to libfoo.rust by Soong
