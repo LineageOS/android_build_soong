@@ -1371,7 +1371,7 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 		for _, axis := range enabledPropertyOverrides.SortedConfigurationAxes() {
 			configToBools := enabledPropertyOverrides.ConfigurableValues[axis]
 			for cfg, val := range configToBools {
-				if axis != bazel.OsConfigurationAxis || osSupport[cfg] {
+				if axis != bazel.OsConfigurationAxis || osSupport[cfg] || val /*If enabled is explicitly requested via overrides */ {
 					enabledProperty.SetSelectValue(axis, cfg, &val)
 				}
 			}
