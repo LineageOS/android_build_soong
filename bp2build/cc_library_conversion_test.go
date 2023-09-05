@@ -5241,3 +5241,41 @@ func TestProtoLocalIncludeDirs(t *testing.T) {
 	}
 	runCcLibraryTestCase(t, tc)
 }
+
+// `foo_device` and `bar_host` can depend on .proto files of a specific dir,
+// the dynamically generated proto_library should not have any target_compatible_with
+func TestProtoLibraryForIncludeDirsIsOsAgnostic(t *testing.T) {
+	tc := Bp2buildTestCase{
+		Description:                "proto_library generated for proto.include_dirs is compatible for all axes",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: simpleModuleDoNotConvertBp2build("cc_library", "libprotobuf-cpp-lite") + `
+cc_library {
+	name: "foo_device",
+	device_supported: true, // this is the default behavior, but added explicitly here for illustration
+	host_supported: false,
+	proto: {include_dirs: ["dir"]},
+}
+cc_library {
+	name: "bar_host",
+	device_supported: false,
+	host_supported: true,
+	srcs: ["bar.proto"],
+	proto: {include_dirs: ["dir"]},
+}
+`,
+		Filesystem: map[string]string{
+			"dir/Android.bp": "",
+			"dir/dir.proto":  "",
+		},
+		Dir: "dir", // check for the generated proto_library
+		ExpectedBazelTargets: []string{
+			MakeBazelTargetNoRestrictions("proto_library", "dir.include_dir_bp2build_generated_proto", AttrNameToString{
+				"srcs":                `["dir.proto"]`,
+				"strip_import_prefix": `""`,
+				"tags":                `["manual"]`,
+			}),
+		},
+	}
+	runCcLibraryTestCase(t, tc)
+}
