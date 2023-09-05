@@ -146,7 +146,11 @@ type bazelPrebuiltEtcXmlAttributes struct {
 }
 
 func (p *prebuiltEtcXml) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
-	baseAttrs := p.PrebuiltEtc.Bp2buildHelper(ctx)
+	baseAttrs, convertible := p.PrebuiltEtc.Bp2buildHelper(ctx)
+
+	if !convertible {
+		return
+	}
 
 	var schema *string
 	if p.properties.Schema != nil {
