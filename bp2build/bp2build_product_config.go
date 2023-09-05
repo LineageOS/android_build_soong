@@ -1,15 +1,16 @@
 package bp2build
 
 import (
-	"android/soong/android"
-	"android/soong/android/soongconfig"
-	"android/soong/starlark_import"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
+
+	"android/soong/android"
+	"android/soong/android/soongconfig"
+	"android/soong/starlark_import"
 
 	"github.com/google/blueprint/proptools"
 	"go.starlark.net/starlark"
@@ -264,6 +265,9 @@ func platformMappingSingleProduct(
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:malloc_not_svelte=%t\n", proptools.Bool(productVariables.Malloc_not_svelte)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:malloc_pattern_fill_contents=%t\n", proptools.Bool(productVariables.Malloc_pattern_fill_contents)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:malloc_zero_contents=%t\n", proptools.Bool(productVariables.Malloc_zero_contents)))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:memtag_heap_exclude_paths=%s\n", strings.Join(productVariables.MemtagHeapExcludePaths, ",")))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:memtag_heap_async_include_paths=%s\n", strings.Join(productVariables.MemtagHeapAsyncIncludePaths, ",")))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:memtag_heap_sync_include_paths=%s\n", strings.Join(productVariables.MemtagHeapSyncIncludePaths, ",")))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:manifest_package_name_overrides=%s\n", strings.Join(productVariables.ManifestPackageNameOverrides, ",")))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:native_coverage=%t\n", proptools.Bool(productVariables.Native_coverage)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:platform_version_name=%s\n", proptools.String(productVariables.Platform_version_name)))
