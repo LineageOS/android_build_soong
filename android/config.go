@@ -1662,11 +1662,18 @@ func (c *config) MemtagHeapSyncEnabledForPath(path string) bool {
 	return HasAnyPrefix(path, c.productVariables.MemtagHeapSyncIncludePaths) && !c.MemtagHeapDisabledForPath(path)
 }
 
+func (c *config) HWASanDisabledForPath(path string) bool {
+	if len(c.productVariables.HWASanExcludePaths) == 0 {
+		return false
+	}
+	return HasAnyPrefix(path, c.productVariables.HWASanExcludePaths)
+}
+
 func (c *config) HWASanEnabledForPath(path string) bool {
 	if len(c.productVariables.HWASanIncludePaths) == 0 {
 		return false
 	}
-	return HasAnyPrefix(path, c.productVariables.HWASanIncludePaths)
+	return HasAnyPrefix(path, c.productVariables.HWASanIncludePaths) && !c.HWASanDisabledForPath(path)
 }
 
 func (c *config) VendorConfig(name string) VendorConfig {
