@@ -2867,7 +2867,6 @@ cc_library {
 		ExpectedBazelTargets: makeCcLibraryTargets("foolib", AttrNameToString{
 			"implementation_dynamic_deps": `select({
         "//build/bazel/rules/apex:foo": ["@api_surfaces//module-libapi/current:barlib"],
-        "//build/bazel/rules/apex:system": ["@api_surfaces//module-libapi/current:barlib"],
         "//conditions:default": [":barlib"],
     })`,
 			"local_includes": `["."]`,
@@ -2922,10 +2921,6 @@ cc_library {
         "//build/bazel/platforms/os:linux_musl": [":quxlib"],
         "//build/bazel/platforms/os:windows": [":quxlib"],
         "//build/bazel/rules/apex:foo": [
-            "@api_surfaces//module-libapi/current:barlib",
-            "@api_surfaces//module-libapi/current:quxlib",
-        ],
-        "//build/bazel/rules/apex:system": [
             "@api_surfaces//module-libapi/current:barlib",
             "@api_surfaces//module-libapi/current:quxlib",
         ],
