@@ -928,6 +928,9 @@ var (
 		"java_sdk_library",
 		"sysprop_library",
 		"xsd_config",
+		"aconfig_declarations",
+		"aconfig_values",
+		"aconfig_value_set",
 	}
 
 	// Add the names of modules that bp2build should never convert, if it is
