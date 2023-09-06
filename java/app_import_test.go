@@ -659,14 +659,19 @@ func TestAndroidAppImport_Preprocessed(t *testing.T) {
 
 	apkName := "foo.apk"
 	variant := ctx.ModuleForTests("foo", "android_common")
-	outputBuildParams := variant.Output("validated-prebuilt/" + apkName).BuildParams
+	outputBuildParams := variant.Output(apkName).BuildParams
 	if outputBuildParams.Rule.String() != android.Cp.String() {
 		t.Errorf("Unexpected prebuilt android_app_import rule: " + outputBuildParams.Rule.String())
 	}
 
 	// Make sure compression and aligning were validated.
-	if len(outputBuildParams.Validations) != 2 {
-		t.Errorf("Expected compression/alignment validation rules, found %d validations", len(outputBuildParams.Validations))
+	if outputBuildParams.Validation == nil {
+		t.Errorf("Expected validation rule, but was not found")
+	}
+
+	validationBuildParams := variant.Output("validated-prebuilt/check.stamp").BuildParams
+	if validationBuildParams.Rule.String() != checkPresignedApkRule.String() {
+		t.Errorf("Unexpected validation rule: " + validationBuildParams.Rule.String())
 	}
 }
 
