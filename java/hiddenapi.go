@@ -305,7 +305,7 @@ func hiddenAPIEncodeDex(ctx android.ModuleContext, dexInput, flagsCSV android.Pa
 	})
 
 	if uncompressDex {
-		TransformZipAlign(ctx, output, encodeRuleOutput)
+		TransformZipAlign(ctx, output, encodeRuleOutput, nil)
 	}
 
 	return output
