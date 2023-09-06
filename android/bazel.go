@@ -533,13 +533,13 @@ func (b *BazelModuleBase) shouldConvertWithBp2build(ctx shouldConvertModuleConte
 	moduleTypeAllowed := allowlist.moduleTypeAlwaysConvert[p.moduleType]
 	allowlistConvert := moduleNameAllowed || moduleTypeAllowed
 	if moduleNameAllowed && moduleTypeAllowed {
-		ctx.ModuleErrorf("A module cannot be in moduleAlwaysConvert and also be in moduleTypeAlwaysConvert")
+		ctx.ModuleErrorf("A module %q of type %q cannot be in moduleAlwaysConvert and also be in moduleTypeAlwaysConvert", moduleName, p.moduleType)
 		return false
 	}
 
 	if allowlist.moduleDoNotConvert[moduleName] {
 		if moduleNameAllowed {
-			ctx.ModuleErrorf("a module cannot be in moduleDoNotConvert and also be in moduleAlwaysConvert")
+			ctx.ModuleErrorf("a module %q cannot be in moduleDoNotConvert and also be in moduleAlwaysConvert", moduleName)
 		}
 		return false
 	}
