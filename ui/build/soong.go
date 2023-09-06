@@ -41,7 +41,6 @@ const (
 	bp2buildWorkspaceTag = "bp2build_workspace"
 	jsonModuleGraphTag   = "modulegraph"
 	queryviewTag         = "queryview"
-	apiBp2buildTag       = "api_bp2build"
 	soongDocsTag         = "soong_docs"
 
 	// bootstrapEpoch is used to determine if an incremental build is incompatible with the current
@@ -264,7 +263,6 @@ func bootstrapGlobFileList(config Config) []string {
 		config.NamedGlobFile(bp2buildFilesTag),
 		config.NamedGlobFile(jsonModuleGraphTag),
 		config.NamedGlobFile(queryviewTag),
-		config.NamedGlobFile(apiBp2buildTag),
 		config.NamedGlobFile(soongDocsTag),
 	}
 }
@@ -305,9 +303,6 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	}
 
 	queryviewDir := filepath.Join(config.SoongOutDir(), "queryview")
-	// The BUILD files will be generated in out/soong/.api_bp2build (no symlinks to src files)
-	// The final workspace will be generated in out/soong/api_bp2build
-	apiBp2buildDir := filepath.Join(config.SoongOutDir(), ".api_bp2build")
 
 	pbfs := []PrimaryBuilderFactory{
 		{
@@ -352,15 +347,6 @@ func bootstrapBlueprint(ctx Context, config Config) {
 			output:      config.QueryviewMarkerFile(),
 			specificArgs: append(baseArgs,
 				"--bazel_queryview_dir", queryviewDir,
-			),
-		},
-		{
-			name:        apiBp2buildTag,
-			description: fmt.Sprintf("generating BUILD files for API contributions at %s", apiBp2buildDir),
-			config:      config,
-			output:      config.ApiBp2buildMarkerFile(),
-			specificArgs: append(baseArgs,
-				"--bazel_api_bp2build_dir", apiBp2buildDir,
 			),
 		},
 		{
@@ -533,10 +519,6 @@ func runSoong(ctx Context, config Config) {
 			checkEnvironmentFile(ctx, soongBuildEnv, config.UsedEnvFile(queryviewTag))
 		}
 
-		if config.ApiBp2build() {
-			checkEnvironmentFile(ctx, soongBuildEnv, config.UsedEnvFile(apiBp2buildTag))
-		}
-
 		if config.SoongDocs() {
 			checkEnvironmentFile(ctx, soongBuildEnv, config.UsedEnvFile(soongDocsTag))
 		}
@@ -606,10 +588,6 @@ func runSoong(ctx Context, config Config) {
 
 	if config.Queryview() {
 		targets = append(targets, config.QueryviewMarkerFile())
-	}
-
-	if config.ApiBp2build() {
-		targets = append(targets, config.ApiBp2buildMarkerFile())
 	}
 
 	if config.SoongDocs() {

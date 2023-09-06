@@ -87,7 +87,6 @@ type CmdArgs struct {
 	SymlinkForestMarker string
 	Bp2buildMarker      string
 	BazelQueryViewDir   string
-	BazelApiBp2buildDir string
 	ModuleGraphFile     string
 	ModuleActionsFile   string
 	DocFile             string
@@ -120,9 +119,6 @@ const (
 	// blueprint modules. Individual BUILD targets will not, however, faitfhully
 	// express build semantics.
 	GenerateQueryView
-
-	// Generate BUILD files for API contributions to API surfaces
-	ApiBp2build
 
 	// Create a JSON representation of the module graph and exit.
 	GenerateModuleGraph
@@ -641,7 +637,6 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 	setBuildMode(cmdArgs.SymlinkForestMarker, SymlinkForest)
 	setBuildMode(cmdArgs.Bp2buildMarker, Bp2build)
 	setBuildMode(cmdArgs.BazelQueryViewDir, GenerateQueryView)
-	setBuildMode(cmdArgs.BazelApiBp2buildDir, ApiBp2build)
 	setBuildMode(cmdArgs.ModuleGraphFile, GenerateModuleGraph)
 	setBuildMode(cmdArgs.DocFile, GenerateDocFile)
 	setBazelMode(cmdArgs.BazelMode, "--bazel-mode", BazelProdMode)

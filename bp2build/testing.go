@@ -108,15 +108,6 @@ func RunBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.Regi
 	runBp2BuildTestCaseWithSetup(t, bp2buildSetup, tc)
 }
 
-func RunApiBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.RegistrationContext), tc Bp2buildTestCase) {
-	t.Helper()
-	apiBp2BuildSetup := android.GroupFixturePreparers(
-		android.FixtureRegisterWithContext(registerModuleTypes),
-		SetApiBp2BuildTestRunner,
-	)
-	runBp2BuildTestCaseWithSetup(t, apiBp2BuildSetup, tc)
-}
-
 func runBp2BuildTestCaseWithSetup(t *testing.T, extraPreparer android.FixturePreparer, tc Bp2buildTestCase) {
 	t.Helper()
 	dir := "."
@@ -180,27 +171,14 @@ func runBp2BuildTestCaseWithSetup(t *testing.T, extraPreparer android.FixturePre
 }
 
 // SetBp2BuildTestRunner customizes the test fixture mechanism to run tests in Bp2Build mode.
-var SetBp2BuildTestRunner = android.FixtureSetTestRunner(&bazelTestRunner{Bp2Build})
+var SetBp2BuildTestRunner = android.FixtureSetTestRunner(&bazelTestRunner{})
 
-// SetApiBp2BuildTestRunner customizes the test fixture mechanism to run tests in ApiBp2build mode.
-var SetApiBp2BuildTestRunner = android.FixtureSetTestRunner(&bazelTestRunner{ApiBp2build})
-
-// bazelTestRunner customizes the test fixture mechanism to run tests of the bp2build and
-// apiBp2build build modes.
-type bazelTestRunner struct {
-	mode CodegenMode
-}
+// bazelTestRunner customizes the test fixture mechanism to run tests of the bp2build build mode.
+type bazelTestRunner struct{}
 
 func (b *bazelTestRunner) FinalPreparer(result *android.TestResult) android.CustomTestResult {
 	ctx := result.TestContext
-	switch b.mode {
-	case Bp2Build:
-		ctx.RegisterForBazelConversion()
-	case ApiBp2build:
-		ctx.RegisterForApiBazelConversion()
-	default:
-		panic(fmt.Errorf("unknown build mode: %d", b.mode))
-	}
+	ctx.RegisterForBazelConversion()
 
 	return &BazelTestResult{TestResult: result}
 }
@@ -214,11 +192,7 @@ func (b *bazelTestRunner) PostParseProcessor(result android.CustomTestResult) {
 		return
 	}
 
-	codegenMode := Bp2Build
-	if ctx.Config().BuildMode == android.ApiBp2build {
-		codegenMode = ApiBp2build
-	}
-	codegenCtx := NewCodegenContext(config, ctx.Context, codegenMode, "")
+	codegenCtx := NewCodegenContext(config, ctx.Context, Bp2Build, "")
 	res, errs := GenerateBazelTargets(codegenCtx, false)
 	if bazelResult.CollateErrs(errs) {
 		return
