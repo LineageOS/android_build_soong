@@ -277,6 +277,14 @@ var (
 			Command:     `${config.Zip2ZipCmd} -i ${in} -o ${out} -x 'META-INF/services/**/*'`,
 			CommandDeps: []string{"${config.Zip2ZipCmd}"},
 		})
+
+	checkBelowTargetSdk30ForNonPreprocessedApks = pctx.AndroidStaticRule("checkBelowTargetSdk30ForNonPreprocessedApks",
+		blueprint.RuleParams{
+			Command:     "build/soong/scripts/check_target_sdk_less_than_30.py ${config.Aapt2Cmd} $in $out",
+			CommandDeps: []string{"build/soong/scripts/check_target_sdk_less_than_30.py", "${config.Aapt2Cmd}"},
+			Description: "Check prebuilt target sdk version",
+		},
+	)
 )
 
 func init() {
@@ -689,12 +697,13 @@ func GenerateMainClassManifest(ctx android.ModuleContext, outputFile android.Wri
 	android.WriteFileRule(ctx, outputFile, "Main-Class: "+mainClass+"\n")
 }
 
-func TransformZipAlign(ctx android.ModuleContext, outputFile android.WritablePath, inputFile android.Path) {
+func TransformZipAlign(ctx android.ModuleContext, outputFile android.WritablePath, inputFile android.Path, validations android.Paths) {
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        zipalign,
 		Description: "align",
 		Input:       inputFile,
 		Output:      outputFile,
+		Validations: validations,
 	})
 }
 
