@@ -208,6 +208,11 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Memtag_heap = nil
 	}
 
+	// Disable sanitizers for musl x86 modules, rustc does not support any sanitizers.
+	if ctx.Os() == android.LinuxMusl && ctx.Arch().ArchType == android.X86 {
+		s.Never = boolPtr(true)
+	}
+
 	// TODO:(b/178369775)
 	// For now sanitizing is only supported on non-windows targets
 	if ctx.Os() != android.Windows && (Bool(s.Hwaddress) || Bool(s.Address) || Bool(s.Memtag_heap) || Bool(s.Fuzzer)) {
