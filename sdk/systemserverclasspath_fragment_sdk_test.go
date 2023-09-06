@@ -86,6 +86,98 @@ func testSnapshotWithSystemServerClasspathFragment(t *testing.T, sdk string, tar
 	)
 }
 
+func TestSnapshotWithPartialSystemServerClasspathFragment(t *testing.T) {
+	commonSdk := `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			min_sdk_version: "Tiramisu",
+			systemserverclasspath_fragments: ["mysystemserverclasspathfragment"],
+		}
+		systemserverclasspath_fragment {
+			name: "mysystemserverclasspathfragment",
+			apex_available: ["myapex"],
+			contents: [
+				"mysdklibrary",
+				"mysdklibrary-future",
+			],
+		}
+		java_sdk_library {
+			name: "mysdklibrary",
+			apex_available: ["myapex"],
+			srcs: ["Test.java"],
+			min_sdk_version: "33", // Tiramisu
+		}
+		java_sdk_library {
+			name: "mysdklibrary-future",
+			apex_available: ["myapex"],
+			srcs: ["Test.java"],
+			min_sdk_version: "34", // UpsideDownCake
+		}
+		sdk {
+			name: "mysdk",
+			apexes: ["myapex"],
+		}
+	`
+
+	result := android.GroupFixturePreparers(
+		prepareForSdkTestWithJava,
+		java.PrepareForTestWithJavaDefaultModules,
+		java.PrepareForTestWithJavaSdkLibraryFiles,
+		java.FixtureWithLastReleaseApis("mysdklibrary", "mysdklibrary-future"),
+		dexpreopt.FixtureSetApexSystemServerJars("myapex:mysdklibrary", "myapex:mysdklibrary-future"),
+		android.FixtureModifyEnv(func(env map[string]string) {
+			// targeting Tiramisu here means that we won't export mysdklibrary-future
+			env["SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE"] = "Tiramisu"
+		}),
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.Platform_version_active_codenames = []string{"UpsideDownCake"}
+		}),
+		prepareForSdkTestWithApex,
+		android.FixtureWithRootAndroidBp(commonSdk),
+	).RunTest(t)
+
+	CheckSnapshot(t, result, "mysdk", "", checkAndroidBpContents(
+		`// This is auto-generated. DO NOT EDIT.
+
+java_sdk_library_import {
+    name: "mysdklibrary",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["myapex"],
+    shared_library: true,
+    public: {
+        jars: ["sdk_library/public/mysdklibrary-stubs.jar"],
+        stub_srcs: ["sdk_library/public/mysdklibrary_stub_sources"],
+        current_api: "sdk_library/public/mysdklibrary.txt",
+        removed_api: "sdk_library/public/mysdklibrary-removed.txt",
+        sdk_version: "current",
+    },
+    system: {
+        jars: ["sdk_library/system/mysdklibrary-stubs.jar"],
+        stub_srcs: ["sdk_library/system/mysdklibrary_stub_sources"],
+        current_api: "sdk_library/system/mysdklibrary.txt",
+        removed_api: "sdk_library/system/mysdklibrary-removed.txt",
+        sdk_version: "system_current",
+    },
+    test: {
+        jars: ["sdk_library/test/mysdklibrary-stubs.jar"],
+        stub_srcs: ["sdk_library/test/mysdklibrary_stub_sources"],
+        current_api: "sdk_library/test/mysdklibrary.txt",
+        removed_api: "sdk_library/test/mysdklibrary-removed.txt",
+        sdk_version: "test_current",
+    },
+}
+
+prebuilt_systemserverclasspath_fragment {
+    name: "mysystemserverclasspathfragment",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["myapex"],
+    contents: ["mysdklibrary"],
+} `))
+}
+
 func TestSnapshotWithEmptySystemServerClasspathFragment(t *testing.T) {
 	commonSdk := `
 		apex {
