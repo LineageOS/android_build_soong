@@ -510,12 +510,6 @@ func (b *BazelModuleBase) shouldConvertWithBp2build(ctx shouldConvertModuleConte
 	}
 
 	module := p.module
-	// In api_bp2build mode, all soong modules that can provide API contributions should be converted
-	// This is irrespective of its presence/absence in bp2build allowlists
-	if ctx.Config().BuildMode == ApiBp2build {
-		_, providesApis := module.(ApiProvider)
-		return providesApis
-	}
 
 	propValue := b.bazelProperties.Bazel_module.Bp2build_available
 	packagePath := moduleDirWithPossibleOverride(ctx, module, p.moduleDir)
