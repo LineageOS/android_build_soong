@@ -5279,3 +5279,58 @@ cc_library {
 	}
 	runCcLibraryTestCase(t, tc)
 }
+
+func TestCcCompileMultilibConversion(t *testing.T) {
+	tc := Bp2buildTestCase{
+		Description:                "cc_library with compile_multilib",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+cc_library {
+	name: "lib32",
+	compile_multilib: "32",
+}
+cc_library {
+	name: "lib64",
+	compile_multilib: "64",
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTargetNoRestrictions("cc_library_shared", "lib32", AttrNameToString{
+				"local_includes": `["."]`,
+				"target_compatible_with": `["//build/bazel/platforms/os:android"] + select({
+        "//build/bazel/platforms/arch:arm64": ["@platforms//:incompatible"],
+        "//build/bazel/platforms/arch:riscv64": ["@platforms//:incompatible"],
+        "//build/bazel/platforms/arch:x86_64": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
+			}),
+			MakeBazelTargetNoRestrictions("cc_library_static", "lib32_bp2build_cc_library_static", AttrNameToString{
+				"local_includes": `["."]`,
+				"target_compatible_with": `["//build/bazel/platforms/os:android"] + select({
+        "//build/bazel/platforms/arch:arm64": ["@platforms//:incompatible"],
+        "//build/bazel/platforms/arch:riscv64": ["@platforms//:incompatible"],
+        "//build/bazel/platforms/arch:x86_64": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
+			}),
+			MakeBazelTargetNoRestrictions("cc_library_shared", "lib64", AttrNameToString{
+				"local_includes": `["."]`,
+				"target_compatible_with": `["//build/bazel/platforms/os:android"] + select({
+        "//build/bazel/platforms/arch:arm": ["@platforms//:incompatible"],
+        "//build/bazel/platforms/arch:x86": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
+			}),
+			MakeBazelTargetNoRestrictions("cc_library_static", "lib64_bp2build_cc_library_static", AttrNameToString{
+				"local_includes": `["."]`,
+				"target_compatible_with": `["//build/bazel/platforms/os:android"] + select({
+        "//build/bazel/platforms/arch:arm": ["@platforms//:incompatible"],
+        "//build/bazel/platforms/arch:x86": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
+			}),
+		},
+	}
+	runCcLibraryTestCase(t, tc)
+}

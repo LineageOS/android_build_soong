@@ -1418,8 +1418,40 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 	moduleEnableConstraints := bazel.LabelListAttribute{}
 	moduleEnableConstraints.Append(platformEnabledAttribute)
 	moduleEnableConstraints.Append(productConfigEnabledAttribute)
+	addCompatibilityConstraintForCompileMultilib(ctx, &moduleEnableConstraints)
 
 	return constraintAttributes{Target_compatible_with: moduleEnableConstraints}
+}
+
+var (
+	incompatible = bazel.LabelList{[]bazel.Label{{Label: "@platforms//:incompatible"}}, nil}
+)
+
+// If compile_mulitilib is set to
+// 1. 32: Add an incompatibility constraint for non-32 arches
+// 1. 64: Add an incompatibility constraint for non-64 arches
+func addCompatibilityConstraintForCompileMultilib(ctx *topDownMutatorContext, enabled *bazel.LabelListAttribute) {
+	mod := ctx.Module().base()
+	multilib, _ := decodeMultilib(mod, mod.commonProperties.CompileOS, ctx.Config().IgnorePrefer32OnDevice())
+
+	switch multilib {
+	case "32":
+		// Add an incompatibility constraint for all known 64-bit arches
+		enabled.SetSelectValue(bazel.ArchConfigurationAxis, "arm64", incompatible)
+		enabled.SetSelectValue(bazel.ArchConfigurationAxis, "x86_64", incompatible)
+		enabled.SetSelectValue(bazel.ArchConfigurationAxis, "riscv64", incompatible)
+	case "64":
+		// Add an incompatibility constraint for all known 32-bit arches
+		enabled.SetSelectValue(bazel.ArchConfigurationAxis, "arm", incompatible)
+		enabled.SetSelectValue(bazel.ArchConfigurationAxis, "x86", incompatible)
+	case "both":
+		// Do nothing: "both" is trivially compatible with 32-bit and 64-bit
+		// The top level rule (e.g. apex/partition) will be responsible for building this module in both variants via an
+		// outgoing_transition.
+	default: // e.g. first, common
+		// TODO - b/299135307: Add bp2build support for these properties.
+	}
+
 }
 
 // Check product variables for `enabled: true` flag override.
