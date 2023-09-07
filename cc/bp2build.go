@@ -1624,6 +1624,11 @@ func setStubsForDynamicDeps(ctx android.BazelConversionPathContext, axis bazel.C
 				if linkable, ok := ctx.Module().(LinkableInterface); ok && linkable.Bootstrap() {
 					sameApiDomain = true
 				}
+				// If dependency has `apex_available: ["//apex_available:platform]`, then the platform variant of rdep should link against its impl.
+				// https://cs.android.com/android/_/android/platform/build/soong/+/main:cc/cc.go;l=3617;bpv=1;bpt=0;drc=c6a93d853b37ec90786e745b8d282145e6d3b589
+				if depApexAvailable := dep.(*Module).ApexAvailable(); len(depApexAvailable) == 1 && depApexAvailable[0] == android.AvailableToPlatform {
+					sameApiDomain = true
+				}
 			} else {
 				sameApiDomain = android.InList(apiDomain, dep.(*Module).ApexAvailable())
 			}
