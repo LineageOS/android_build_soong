@@ -1633,7 +1633,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 	}{}
 
 	props.Name = proptools.StringPtr(module.sourceStubLibraryModuleName(apiScope))
-	props.Visibility = childModuleVisibility(module.sdkLibraryProperties.Stubs_library_visibility)
+	props.Visibility = []string{"//visibility:override", "//visibility:private"}
 	// sources are generated from the droiddoc
 	props.Srcs = []string{":" + module.stubsSourceModuleName(apiScope)}
 	sdkVersion := module.sdkVersionForStubsLibrary(mctx, apiScope)
@@ -1829,7 +1829,7 @@ func (module *SdkLibrary) createApiLibrary(mctx android.DefaultableHookContext, 
 	}{}
 
 	props.Name = proptools.StringPtr(module.apiLibraryModuleName(apiScope))
-	props.Visibility = childModuleVisibility(module.sdkLibraryProperties.Stubs_library_visibility)
+	props.Visibility = []string{"//visibility:override", "//visibility:private"}
 
 	apiContributions := []string{}
 
