@@ -1046,3 +1046,14 @@ filegroup {
 		ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	})
 }
+
+func TestJavaSdkVersionCorePlatformDoesNotConvert(t *testing.T) {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Blueprint: `java_library {
+    name: "java-lib-1",
+    sdk_version: "core_platform",
+    bazel_module: { bp2build_available: true },
+}`,
+		ExpectedBazelTargets: []string{},
+	})
+}
