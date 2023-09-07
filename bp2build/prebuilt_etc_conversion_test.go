@@ -346,3 +346,17 @@ prebuilt_etc {
 		ExpectedErr: fmt.Errorf("label attribute could not be collapsed"),
 	})
 }
+
+func TestPrebuiltEtcNoConversionIfSrcEqualsName(t *testing.T) {
+	runPrebuiltEtcTestCase(t, Bp2buildTestCase{
+		Description: "",
+		Filesystem:  map[string]string{},
+		Blueprint: `
+prebuilt_etc {
+    name: "foo",
+    filename: "fooFilename",
+		src: "foo",
+}`,
+		ExpectedBazelTargets: []string{},
+	})
+}
