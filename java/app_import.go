@@ -277,6 +277,14 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		a.hideApexVariantFromMake = true
 	}
 
+	if Bool(a.properties.Preprocessed) {
+		if a.properties.Presigned != nil && !*a.properties.Presigned {
+			ctx.ModuleErrorf("Setting preprocessed: true implies presigned: true, so you cannot set presigned to false")
+		}
+		t := true
+		a.properties.Presigned = &t
+	}
+
 	numCertPropsSet := 0
 	if String(a.properties.Certificate) != "" {
 		numCertPropsSet++
@@ -288,10 +296,8 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		numCertPropsSet++
 	}
 	if numCertPropsSet != 1 {
-		ctx.ModuleErrorf("One and only one of certficate, presigned, and default_dev_cert properties must be set")
+		ctx.ModuleErrorf("One and only one of certficate, presigned (implied by preprocessed), and default_dev_cert properties must be set")
 	}
-
-	_, _, certificates := collectAppDeps(ctx, a, false, false)
 
 	// TODO: LOCAL_EXTRACT_APK/LOCAL_EXTRACT_DPI_APK
 	// TODO: LOCAL_PACKAGE_SPLITS
@@ -365,6 +371,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	} else if !Bool(a.properties.Presigned) {
 		// If the certificate property is empty at this point, default_dev_cert must be set to true.
 		// Which makes processMainCert's behavior for the empty cert string WAI.
+		_, _, certificates := collectAppDeps(ctx, a, false, false)
 		a.certificate, certificates = processMainCert(a.ModuleBase, String(a.properties.Certificate), certificates, ctx)
 		signed := android.PathForModuleOut(ctx, "signed", apkFilename)
 		var lineageFile android.Path
@@ -377,8 +384,13 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		SignAppPackage(ctx, signed, jnisUncompressed, certificates, nil, lineageFile, rotationMinSdkVersion)
 		a.outputFile = signed
 	} else {
+		// Presigned without Preprocessed shouldn't really be a thing, currently we disallow
+		// it for apps with targetSdk >= 30, because on those targetSdks you must be using signature
+		// v2 or later, and signature v2 would be wrecked by uncompressing libs / zipaligning.
+		// But ideally we would disallow it for all prebuilt apks, and remove the presigned property.
+		targetSdkCheck := a.validateTargetSdkLessThan30(ctx, srcApk)
 		alignedApk := android.PathForModuleOut(ctx, "zip-aligned", apkFilename)
-		TransformZipAlign(ctx, alignedApk, jnisUncompressed)
+		TransformZipAlign(ctx, alignedApk, jnisUncompressed, []android.Path{targetSdkCheck})
 		a.outputFile = alignedApk
 		a.certificate = PresignedCertificate
 	}
@@ -430,6 +442,16 @@ func (a *AndroidAppImport) validatePreprocessedApk(ctx android.ModuleContext, sr
 		Output:      dstApk,
 		Validations: validations,
 	})
+}
+
+func (a *AndroidAppImport) validateTargetSdkLessThan30(ctx android.ModuleContext, srcApk android.Path) android.Path {
+	alignmentStamp := android.PathForModuleOut(ctx, "validated-prebuilt", "old_target_sdk.stamp")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   checkBelowTargetSdk30ForNonPreprocessedApks,
+		Input:  srcApk,
+		Output: alignmentStamp,
+	})
+	return alignmentStamp
 }
 
 func (a *AndroidAppImport) Prebuilt() *android.Prebuilt {
