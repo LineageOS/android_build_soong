@@ -512,17 +512,16 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 	cmd.BuiltTool("metalava").ImplicitTool(ctx.Config().HostJavaToolPath(ctx, "metalava.jar")).
 		Flag(config.JavacVmFlags).
 		Flag("-J--add-opens=java.base/java.util=ALL-UNNAMED").
-		FlagWithArg("-encoding ", "UTF-8").
-		FlagWithArg("-source ", javaVersion.String()).
+		FlagWithArg("--java-source ", javaVersion.String()).
 		FlagWithRspFileInputList("@", android.PathForModuleOut(ctx, "metalava.rsp"), srcs).
 		FlagWithInput("@", srcJarList)
 
-	if len(bootclasspath) > 0 {
-		cmd.FlagWithInputList("-bootclasspath ", bootclasspath.Paths(), ":")
-	}
-
-	if len(classpath) > 0 {
-		cmd.FlagWithInputList("-classpath ", classpath.Paths(), ":")
+	// Metalava does not differentiate between bootclasspath and classpath and has not done so for
+	// years, so it is unlikely to change any time soon.
+	combinedPaths := append(([]android.Path)(nil), bootclasspath.Paths()...)
+	combinedPaths = append(combinedPaths, classpath.Paths()...)
+	if len(combinedPaths) > 0 {
+		cmd.FlagWithInputList("--classpath ", combinedPaths, ":")
 	}
 
 	cmd.Flag("--no-banner").
