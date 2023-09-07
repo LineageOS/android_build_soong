@@ -1500,3 +1500,32 @@ func TestJavaSdkLibrary_ApiLibrary(t *testing.T) {
 		android.AssertStringEquals(t, "Module expected to contain full api surface api library", c.fullApiSurfaceStub, *m.properties.Full_api_surface_stub)
 	}
 }
+
+func TestStaticDepStubLibrariesVisibility(t *testing.T) {
+	android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("foo"),
+		android.FixtureMergeMockFs(
+			map[string][]byte{
+				"A.java": nil,
+				"dir/Android.bp": []byte(
+					`
+					java_library {
+						name: "bar",
+						srcs: ["A.java"],
+						libs: ["foo.stubs.from-source"],
+					}
+					`),
+				"dir/A.java": nil,
+			},
+		).ExtendWithErrorHandler(
+			android.FixtureExpectsAtLeastOneErrorMatchingPattern(
+				`module "bar" variant "android_common": depends on //.:foo.stubs.from-source which is not visible to this module`)),
+	).RunTestWithBp(t, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["A.java"],
+		}
+	`)
+}
