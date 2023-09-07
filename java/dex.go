@@ -450,7 +450,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 	}
 	if proptools.Bool(d.dexProperties.Uncompress_dex) {
 		alignedJavalibJar := android.PathForModuleOut(ctx, "aligned", dexParams.jarName).OutputPath
-		TransformZipAlign(ctx, alignedJavalibJar, javalibJar)
+		TransformZipAlign(ctx, alignedJavalibJar, javalibJar, nil)
 		javalibJar = alignedJavalibJar
 	}
 
