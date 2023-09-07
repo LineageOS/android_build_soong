@@ -661,7 +661,7 @@ cc_library_shared {
             ":libapexfoo_stable",
         ],
         "//build/bazel/rules/apex:system": [
-            "@api_surfaces//module-libapi/current:libplatform_stable",
+            ":libplatform_stable",
             "@api_surfaces//module-libapi/current:libapexfoo_stable",
         ],
         "//conditions:default": [
