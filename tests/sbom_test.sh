@@ -47,13 +47,10 @@ function run_soong {
 }
 
 function diff_files {
-  file_list_file="$1"; shift
-  files_in_spdx_file="$1"; shift
-  partition_name="$1"; shift
-  exclude=
-  if [ -v 'diff_excludes[$partition_name]' ]; then
-   exclude=${diff_excludes[$partition_name]}
-  fi
+  local file_list_file="$1"; shift
+  local files_in_spdx_file="$1"; shift
+  local partition_name="$1"; shift
+  local exclude="$1"; shift
 
   diff "$file_list_file" "$files_in_spdx_file" $exclude
   if [ $? != "0" ]; then
@@ -83,9 +80,6 @@ function test_sbom_aosp_cf_x86_64_phone {
   # Generate installed file list from .img files in PRODUCT_OUT
   dump_erofs=$out_dir/host/linux-x86/bin/dump.erofs
   lz4=$out_dir/host/linux-x86/bin/lz4
-
-  declare -A diff_excludes
-  diff_excludes[system]="-I /system/bin/hwservicemanager"
 
   # Example output of dump.erofs is as below, and the data used in the test start
   # at line 11. Column 1 is inode id, column 2 is inode type and column 3 is name.
@@ -158,7 +152,7 @@ function test_sbom_aosp_cf_x86_64_phone {
     sort -n -o "$files_in_spdx_file" "$files_in_spdx_file"
 
     echo ============ Diffing files in $f and SBOM
-    diff_files "$file_list_file" "$files_in_spdx_file" "$partition_name"
+    diff_files "$file_list_file" "$files_in_spdx_file" "$partition_name" ""
   done
 
   RAMDISK_IMAGES="$product_out/ramdisk.img"
@@ -176,7 +170,7 @@ function test_sbom_aosp_cf_x86_64_phone {
     grep "FileName: /${partition_name}/" $product_out/sbom.spdx | sed 's/^FileName: //' | sort -n > "$files_in_spdx_file"
 
     echo ============ Diffing files in $f and SBOM
-    diff_files "$file_list_file" "$files_in_spdx_file" "$partition_name"
+    diff_files "$file_list_file" "$files_in_spdx_file" "$partition_name" ""
   done
 
   verify_package_verification_code "$product_out/sbom.spdx"
