@@ -2826,7 +2826,7 @@ func (m *Library) convertJavaResourcesAttributes(ctx android.TopDownMutatorConte
 			if resourceStripPrefix == nil && i == 0 {
 				resourceStripPrefix = resAttr.Resource_strip_prefix
 				resources = resAttr.Resources.Value
-			} else {
+			} else if !resAttr.Resources.IsEmpty() {
 				ctx.CreateBazelTargetModule(
 					bazel.BazelTargetModuleProperties{
 						Rule_class:        "java_resources",
