@@ -12,6 +12,7 @@ import (
 	"android/soong/android/soongconfig"
 	"android/soong/starlark_import"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 	"go.starlark.net/starlark"
 )
@@ -44,6 +45,15 @@ func CreateProductConfigFiles(
 	if err != nil {
 		return nil, nil, err
 	}
+
+	// Visit all modules to determine the list of ndk libraries
+	// This list will be used to add additional flags for cc stub generation
+	ndkLibsStringFormatted := []string{}
+	ctx.Context().VisitAllModules(func(m blueprint.Module) {
+		if ctx.Context().ModuleType(m) == "ndk_library" {
+			ndkLibsStringFormatted = append(ndkLibsStringFormatted, fmt.Sprintf(`"%s"`, m.Name())) // name will be `"libc.ndk"`
+		}
+	})
 
 	// TODO(b/249685973): the name is product_config_platforms because product_config
 	// was already used for other files. Deduplicate them.
@@ -154,6 +164,11 @@ build --host_platform @soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_lin
 			productReplacer.Replace(`
 build --host_platform @soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_darwin_x86_64
 `)),
+		newFile(
+			"cc_toolchain",
+			"ndk_libs.bzl",
+			fmt.Sprintf("ndk_libs = [%v]", strings.Join(ndkLibsStringFormatted, ", ")),
+		),
 	}
 	bp2buildDirFiles := []BazelFile{
 		newFile(
