@@ -18,6 +18,7 @@ package apex
 
 import (
 	"fmt"
+	"log"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -991,6 +992,13 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 				return false
 			}
 		}
+
+		//TODO: b/296491928 Vendor APEX should use libbinder.ndk instead of libbinder once VNDK is fully deprecated.
+		if useVndk && mctx.Config().IsVndkDeprecated() && child.Name() == "libbinder" {
+			log.Print("Libbinder is linked from Vendor APEX ", a.Name(), " with module ", parent.Name())
+			return false
+		}
+
 		// By default, all the transitive dependencies are collected, unless filtered out
 		// above.
 		return true
@@ -2223,6 +2231,11 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 		if ch, ok := child.(*cc.Module); ok {
 			if ch.UseVndk() && a.useVndkAsStable(ctx) && ch.IsVndk() {
 				vctx.requireNativeLibs = append(vctx.requireNativeLibs, ":vndk")
+				return false
+			}
+
+			//TODO: b/296491928 Vendor APEX should use libbinder.ndk instead of libbinder once VNDK is fully deprecated.
+			if ch.UseVndk() && ctx.Config().IsVndkDeprecated() && child.Name() == "libbinder" {
 				return false
 			}
 			af := apexFileForNativeLibrary(ctx, ch, vctx.handleSpecialLibs)
