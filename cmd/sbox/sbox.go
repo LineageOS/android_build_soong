@@ -119,6 +119,9 @@ func run() error {
 	}
 
 	manifest, err := readManifest(manifestFile)
+	if err != nil {
+		return err
+	}
 
 	if len(manifest.Commands) == 0 {
 		return fmt.Errorf("at least one commands entry is required in %q", manifestFile)
