@@ -2826,7 +2826,7 @@ func (m *Library) convertJavaResourcesAttributes(ctx android.TopDownMutatorConte
 			if resourceStripPrefix == nil && i == 0 {
 				resourceStripPrefix = resAttr.Resource_strip_prefix
 				resources = resAttr.Resources.Value
-			} else {
+			} else if !resAttr.Resources.IsEmpty() {
 				ctx.CreateBazelTargetModule(
 					bazel.BazelTargetModuleProperties{
 						Rule_class:        "java_resources",
@@ -2904,7 +2904,12 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 	var staticDeps bazel.LabelListAttribute
 
 	if proptools.String(m.deviceProperties.Sdk_version) == "" && m.DeviceSupported() {
+		// TODO(b/297356704): handle platform apis in bp2build
 		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_PROPERTY_UNSUPPORTED, "sdk_version unset")
+		return &javaCommonAttributes{}, &bp2BuildJavaInfo{}, false
+	} else if proptools.String(m.deviceProperties.Sdk_version) == "core_platform" {
+		// TODO(b/297356582): handle core_platform in bp2build
+		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_PROPERTY_UNSUPPORTED, "sdk_version core_platform")
 		return &javaCommonAttributes{}, &bp2BuildJavaInfo{}, false
 	}
 
