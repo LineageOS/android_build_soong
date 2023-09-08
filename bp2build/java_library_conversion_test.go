@@ -441,12 +441,13 @@ func TestJavaLibraryResourcesExcludeFile(t *testing.T) {
 func TestJavaLibraryResourcesWithMultipleDirs(t *testing.T) {
 	runJavaLibraryTestCase(t, Bp2buildTestCase{
 		Filesystem: map[string]string{
-			"res/a.res":  "",
-			"res1/b.res": "",
+			"res/a.res":   "",
+			"res1/b.res":  "",
+			"res2/b.java": "",
 		},
 		Blueprint: `java_library {
 	name: "java-lib-1",
-	java_resource_dirs: ["res", "res1"],
+	java_resource_dirs: ["res", "res1", "res2"],
 	sdk_version: "current",
 }`,
 		ExpectedBazelTargets: []string{
@@ -1044,5 +1045,16 @@ filegroup {
 		},
 	}, func(ctx android.RegistrationContext) {
 		ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
+	})
+}
+
+func TestJavaSdkVersionCorePlatformDoesNotConvert(t *testing.T) {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Blueprint: `java_library {
+    name: "java-lib-1",
+    sdk_version: "core_platform",
+    bazel_module: { bp2build_available: true },
+}`,
+		ExpectedBazelTargets: []string{},
 	})
 }
