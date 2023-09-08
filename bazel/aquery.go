@@ -177,6 +177,21 @@ func newAqueryHandler(aqueryResult *analysis_v2_proto.ActionGraphContainer) (*aq
 		if err != nil {
 			return nil, err
 		}
+		if artifact.IsTreeArtifact &&
+			!strings.HasPrefix(artifactPath, "bazel-out/io_bazel_rules_go/") &&
+			!strings.HasPrefix(artifactPath, "bazel-out/rules_java_builtin/") {
+			// Since we're using ninja as an executor, we can't use tree artifacts. Ninja only
+			// considers a file/directory "dirty" when it's mtime changes. Directories' mtimes will
+			// only change when a file in the directory is added/removed, but not when files in
+			// the directory are changed, or when files in subdirectories are changed/added/removed.
+			// Bazel handles this by walking the directory and generating a hash for it after the
+			// action runs, which we would have to do as well if we wanted to support these
+			// artifacts in mixed builds.
+			//
+			// However, there are some bazel built-in rules that use tree artifacts. Allow those,
+			// but keep in mind that they'll have incrementality issues.
+			return nil, fmt.Errorf("tree artifacts are currently not supported in mixed builds: " + artifactPath)
+		}
 		artifactIdToPath[artifactId(artifact.Id)] = artifactPath
 	}
 
