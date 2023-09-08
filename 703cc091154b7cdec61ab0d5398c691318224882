@@ -33,6 +33,24 @@
       "message": "https://android-review.googlesource.com/c/platform/system/tools/aidl/+/2104586 should be picked instead but I don\u0027t think it warrants a fork",
       "revId": "703cc091154b7cdec61ab0d5398c691318224882",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "3957b480_fca8ad90",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2023-09-08T10:44:24Z",
+      "side": 1,
+      "message": "Yea, not worth it at this point.",
+      "parentUuid": "1a4a49bc_de512531",
+      "revId": "703cc091154b7cdec61ab0d5398c691318224882",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
