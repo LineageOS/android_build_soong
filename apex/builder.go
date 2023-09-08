@@ -76,6 +76,7 @@ func init() {
 	pctx.HostBinToolVariable("debugfs_static", "debugfs_static")
 	pctx.SourcePathVariable("genNdkUsedbyApexPath", "build/soong/scripts/gen_ndk_usedby_apex.sh")
 	pctx.HostBinToolVariable("conv_linker_config", "conv_linker_config")
+	pctx.HostBinToolVariable("assemble_vintf", "assemble_vintf")
 }
 
 var (
@@ -228,6 +229,12 @@ var (
 		Command:     `${conv_linker_config} validate --type apex ${image_dir} && touch ${out}`,
 		CommandDeps: []string{"${conv_linker_config}"},
 		Description: "run apex_linkerconfig_validation",
+	}, "image_dir")
+
+	apexVintfFragmentsValidationRule = pctx.StaticRule("apexVintfFragmentsValidationRule", blueprint.RuleParams{
+		Command:     `/bin/bash -c '(shopt -s nullglob; for f in ${image_dir}/etc/vintf/*.xml; do VINTF_IGNORE_TARGET_FCM_VERSION=true ${assemble_vintf} -i "$$f" > /dev/null; done)' && touch ${out}`,
+		CommandDeps: []string{"${assemble_vintf}"},
+		Description: "run apex_vintf_validation",
 	}, "image_dir")
 )
 
@@ -851,6 +858,9 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 	}
 	var validations android.Paths
 	validations = append(validations, runApexLinkerconfigValidation(ctx, unsignedOutputFile.OutputPath, imageDir.OutputPath))
+	if !a.testApex && a.SocSpecific() {
+		validations = append(validations, runApexVintfFragmentsValidation(ctx, unsignedOutputFile.OutputPath, imageDir.OutputPath))
+	}
 	// TODO(b/279688635) deapexer supports [ext4]
 	if suffix == imageApexSuffix && ext4 == a.payloadFsType {
 		validations = append(validations, runApexSepolicyTests(ctx, unsignedOutputFile.OutputPath))
@@ -1109,6 +1119,19 @@ func runApexLinkerconfigValidation(ctx android.ModuleContext, apexFile android.O
 	timestamp := android.PathForModuleOut(ctx, "apex_linkerconfig_validation.timestamp")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   apexLinkerconfigValidationRule,
+		Input:  apexFile,
+		Output: timestamp,
+		Args: map[string]string{
+			"image_dir": imageDir.String(),
+		},
+	})
+	return timestamp
+}
+
+func runApexVintfFragmentsValidation(ctx android.ModuleContext, apexFile android.OutputPath, imageDir android.OutputPath) android.Path {
+	timestamp := android.PathForModuleOut(ctx, "apex_vintf_fragments_validation.timestamp")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   apexVintfFragmentsValidationRule,
 		Input:  apexFile,
 		Output: timestamp,
 		Args: map[string]string{
