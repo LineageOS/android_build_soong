@@ -17,7 +17,7 @@ package android
 import "path/filepath"
 
 func init() {
-	RegisterModuleType("prebuilt_build_tool", prebuiltBuildToolFactory)
+	RegisterModuleType("prebuilt_build_tool", NewPrebuiltBuildTool)
 }
 
 type prebuiltBuildToolProperties struct {
@@ -101,10 +101,6 @@ var _ HostToolProvider = &prebuiltBuildTool{}
 
 // prebuilt_build_tool is to declare prebuilts to be used during the build, particularly for use
 // in genrules with the "tools" property.
-func prebuiltBuildToolFactory() Module {
-	return NewPrebuiltBuildTool()
-}
-
 func NewPrebuiltBuildTool() Module {
 	module := &prebuiltBuildTool{}
 	module.AddProperties(&module.properties)
