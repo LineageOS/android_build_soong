@@ -1001,7 +1001,6 @@ var (
 		"conscrypt-for-host",               // TODO(b/210751803), we don't handle path property for filegroups
 		"host-libprotobuf-java-full",       // TODO(b/210751803), we don't handle path property for filegroups
 		"libprotobuf-internal-python-srcs", // TODO(b/210751803), we don't handle path property for filegroups
-		"libprotobuf-java-full",            // TODO(b/210751803), we don't handle path property for filegroups
 		"libprotobuf-java-util-full",       // TODO(b/210751803), we don't handle path property for filegroups
 
 		// go deps:
