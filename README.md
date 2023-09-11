@@ -26,8 +26,6 @@ review request is enough. For more substantial changes, file a bug in our
 [bug tracker](https://issuetracker.google.com/issues/new?component=381517) or
 or write us at android-building@googlegroups.com .
 
-For Googlers, see our [internal documentation](http://go/soong).
-
 ## Android.bp file format
 
 By design, Android.bp files are very simple.  There are no conditionals or
