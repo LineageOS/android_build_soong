@@ -194,6 +194,10 @@ func runNinjaForBuild(ctx Context, config Config) {
 
 			// LLVM compiler wrapper options
 			"TOOLCHAIN_RUSAGE_OUTPUT",
+
+			// We don't want this build broken flag to cause reanalysis, so allow it through to the
+			// actions.
+			"BUILD_BROKEN_INCORRECT_PARTITION_IMAGES",
 		}, config.BuildBrokenNinjaUsesEnvVars()...)...)
 	}
 
