@@ -120,6 +120,37 @@ def Merge(args):
         f.write(pb.SerializeToString())
 
 
+def Validate(args):
+    if os.path.isdir(args.input):
+        config_file = os.path.join(args.input, 'etc/linker.config.pb')
+        if os.path.exists(config_file):
+            args.input = config_file
+            Validate(args)
+        # OK if there's no linker config file.
+        return
+
+    if not os.path.isfile(args.input):
+        sys.exit(f"{args.input} is not a file")
+
+    pb = linker_config_pb2.LinkerConfig()
+    with open(args.input, 'rb') as f:
+        pb.ParseFromString(f.read())
+
+    if args.type == 'apex':
+        # Shouldn't use provideLibs/requireLibs in APEX linker.config.pb
+        if getattr(pb, 'provideLibs'):
+            sys.exit(f'{args.input}: provideLibs is set. Use provideSharedLibs in apex_manifest')
+        if getattr(pb, 'requireLibs'):
+            sys.exit(f'{args.input}: requireLibs is set. Use requireSharedLibs in apex_manifest')
+    elif args.type == 'system':
+        if getattr(pb, 'visible'):
+            sys.exit(f'{args.input}: do not use visible, which is for APEX')
+        if getattr(pb, 'permittedPaths'):
+            sys.exit(f'{args.input}: do not use permittedPaths, which is for APEX')
+    else:
+        sys.exit(f'Unknown type: {args.type}')
+
+
 def GetArgParser():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
@@ -226,6 +257,18 @@ def GetArgParser():
         type=str,
         help='Linker configuration files to merge.')
     append.set_defaults(func=Merge)
+
+    validate = subparsers.add_parser('validate', help='Validate configuration')
+    validate.add_argument(
+        '--type',
+        required=True,
+        choices=['apex', 'system'],
+        help='Type of linker configuration')
+    validate.add_argument(
+        'input',
+        help='Input can be a directory which has etc/linker.config.pb or a path'
+        ' to the linker config file')
+    validate.set_defaults(func=Validate)
 
     return parser
 
