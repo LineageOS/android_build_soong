@@ -1798,6 +1798,7 @@ func (al *ApiLibrary) extractApiSrcs(ctx android.ModuleContext, rule *android.Ru
 		Flag("-jar").
 		Flag("-write_if_changed").
 		Flag("-ignore_missing_files").
+		Flag("-quiet").
 		FlagWithArg("-C ", unzippedSrcJarDir.String()).
 		FlagWithInput("-l ", classFilesList).
 		FlagWithOutput("-o ", al.stubsJarWithoutStaticLibs)
