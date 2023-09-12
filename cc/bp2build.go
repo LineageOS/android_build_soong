@@ -1380,10 +1380,10 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversion
 		// having stubs or not, so Bazel select() statement can be used to choose
 		// source/stub variants of them.
 		apexAvailable := module.ApexAvailable()
-		setStubsForDynamicDeps(ctx, axis, config, apexAvailable, sharedDeps.export, &la.dynamicDeps, 0, false)
-		setStubsForDynamicDeps(ctx, axis, config, apexAvailable, sharedDeps.implementation, &la.implementationDynamicDeps, 1, false)
+		SetStubsForDynamicDeps(ctx, axis, config, apexAvailable, sharedDeps.export, &la.dynamicDeps, 0, false)
+		SetStubsForDynamicDeps(ctx, axis, config, apexAvailable, sharedDeps.implementation, &la.implementationDynamicDeps, 1, false)
 		if len(systemSharedLibs) > 0 {
-			setStubsForDynamicDeps(ctx, axis, config, apexAvailable, bazelLabelForSharedDeps(ctx, systemSharedLibs), &la.systemDynamicDeps, 2, true)
+			SetStubsForDynamicDeps(ctx, axis, config, apexAvailable, bazelLabelForSharedDeps(ctx, systemSharedLibs), &la.systemDynamicDeps, 2, true)
 		}
 	}
 
@@ -1583,7 +1583,7 @@ func useStubOrImplInApexWithName(ssi stubSelectionInfo) {
 	}
 }
 
-func setStubsForDynamicDeps(ctx android.BazelConversionPathContext, axis bazel.ConfigurationAxis,
+func SetStubsForDynamicDeps(ctx android.BazelConversionPathContext, axis bazel.ConfigurationAxis,
 	config string, apexAvailable []string, dynamicLibs bazel.LabelList, dynamicDeps *bazel.LabelListAttribute, ind int, buildNonApexWithStubs bool) {
 
 	// Create a config_setting for each apex_available.

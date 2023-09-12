@@ -677,7 +677,7 @@ func TestConvertArmNeonVariant(t *testing.T) {
 		Description:                "Android Library - simple arch feature",
 		ModuleTypeUnderTest:        "android_library",
 		ModuleTypeUnderTestFactory: java.AndroidLibraryFactory,
-		Blueprint: simpleModuleDoNotConvertBp2build("android_library", "static_lib_dep") + `
+		Blueprint: SimpleModuleDoNotConvertBp2build("android_library", "static_lib_dep") + `
 android_library {
   name: "TestLib",
   manifest: "manifest/AndroidManifest.xml",
@@ -715,7 +715,7 @@ func TestConvertMultipleArchFeatures(t *testing.T) {
 		Description:                "Android Library - multiple arch features",
 		ModuleTypeUnderTest:        "android_library",
 		ModuleTypeUnderTestFactory: java.AndroidLibraryFactory,
-		Blueprint: simpleModuleDoNotConvertBp2build("android_library", "static_lib_dep") + `
+		Blueprint: SimpleModuleDoNotConvertBp2build("android_library", "static_lib_dep") + `
 android_library {
   name: "TestLib",
   manifest: "manifest/AndroidManifest.xml",
@@ -761,7 +761,7 @@ func TestConvertExcludeSrcsArchFeature(t *testing.T) {
 		Description:                "Android Library - exclude_srcs with arch feature",
 		ModuleTypeUnderTest:        "android_library",
 		ModuleTypeUnderTestFactory: java.AndroidLibraryFactory,
-		Blueprint: simpleModuleDoNotConvertBp2build("android_library", "static_lib_dep") + `
+		Blueprint: SimpleModuleDoNotConvertBp2build("android_library", "static_lib_dep") + `
 android_library {
   name: "TestLib",
   manifest: "manifest/AndroidManifest.xml",
