@@ -190,10 +190,20 @@ func readdirToMap(dir string) map[string]os.FileInfo {
 
 // Creates a symbolic link at dst pointing to src
 func symlinkIntoForest(topdir, dst, src string) uint64 {
-	srcPath := shared.JoinPath(topdir, src)
-	dstPath := shared.JoinPath(topdir, dst)
+	// b/259191764 - Make all symlinks relative
+	dst = shared.JoinPath(topdir, dst)
+	src = shared.JoinPath(topdir, src)
+	basePath := filepath.Dir(dst)
+	var dstPath string
+	srcPath, err := filepath.Rel(basePath, src)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to find relative path for symlinking: %s\n", err)
+		os.Exit(1)
+	} else {
+		dstPath = dst
+	}
 
-	// Check if a symlink already exists.
+	// Check whether a symlink already exists.
 	if dstInfo, err := os.Lstat(dstPath); err != nil {
 		if !os.IsNotExist(err) {
 			fmt.Fprintf(os.Stderr, "Failed to lstat '%s': %s", dst, err)
