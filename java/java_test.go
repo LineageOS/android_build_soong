@@ -2388,3 +2388,22 @@ func TestHeadersOnly(t *testing.T) {
 	javac := ctx.ModuleForTests("foo", "android_common").MaybeRule("javac")
 	android.AssertDeepEquals(t, "javac rule", nil, javac.Rule)
 }
+
+func TestJavaApiContributionImport(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_api_library {
+			name: "foo",
+			api_contributions: ["bar"],
+		}
+		java_api_contribution_import {
+			name: "bar",
+			api_file: "current.txt",
+		}
+	`)
+	m := ctx.ModuleForTests("foo", "android_common")
+	manifest := m.Output("metalava.sbox.textproto")
+	sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
+	manifestCommand := sboxProto.Commands[0].GetCommand()
+	sourceFilesFlag := "--source-files current.txt"
+	android.AssertStringDoesContain(t, "source text files not present", manifestCommand, sourceFilesFlag)
+}

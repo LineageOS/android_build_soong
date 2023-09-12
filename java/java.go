@@ -64,6 +64,7 @@ func registerJavaBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("dex_import", DexImportFactory)
 	ctx.RegisterModuleType("java_api_library", ApiLibraryFactory)
 	ctx.RegisterModuleType("java_api_contribution", ApiContributionFactory)
+	ctx.RegisterModuleType("java_api_contribution_import", ApiContributionImportFactory)
 
 	// This mutator registers dependencies on dex2oat for modules that should be
 	// dexpreopted. This is done late when the final variants have been
@@ -3420,4 +3421,31 @@ func (i *Import) QueueBazelCall(ctx android.BaseModuleContext) {
 
 func (i *Import) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
 	return true
+}
+
+type JavaApiContributionImport struct {
+	JavaApiContribution
+
+	prebuilt android.Prebuilt
+}
+
+func ApiContributionImportFactory() android.Module {
+	module := &JavaApiContributionImport{}
+	android.InitAndroidModule(module)
+	android.InitDefaultableModule(module)
+	android.InitPrebuiltModule(module, &[]string{""})
+	module.AddProperties(&module.properties)
+	return module
+}
+
+func (module *JavaApiContributionImport) Prebuilt() *android.Prebuilt {
+	return &module.prebuilt
+}
+
+func (module *JavaApiContributionImport) Name() string {
+	return module.prebuilt.Name(module.ModuleBase.Name())
+}
+
+func (ap *JavaApiContributionImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	ap.JavaApiContribution.GenerateAndroidBuildActions(ctx)
 }
