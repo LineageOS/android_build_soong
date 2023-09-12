@@ -94,7 +94,7 @@ func TestCcLibrarySimple(t *testing.T) {
 			"foo-dir/a.h":      "",
 		},
 		Blueprint: soongCcLibraryPreamble +
-			simpleModuleDoNotConvertBp2build("cc_library_headers", "some-headers") + `
+			SimpleModuleDoNotConvertBp2build("cc_library_headers", "some-headers") + `
 cc_library {
     name: "foo-lib",
     srcs: ["impl.cpp"],
@@ -176,7 +176,7 @@ func TestCcLibraryTrimmedLdAndroid(t *testing.T) {
 			"linker_cfi.h":             "",
 		},
 		Blueprint: soongCcLibraryPreamble +
-			simpleModuleDoNotConvertBp2build("cc_library_headers", "libc_headers") + `
+			SimpleModuleDoNotConvertBp2build("cc_library_headers", "libc_headers") + `
 cc_library {
     name: "fake-ld-android",
     srcs: ["ld_android.cpp"],
@@ -457,24 +457,24 @@ cc_library {
     },
     include_build_directory: false,
 }
-` + simpleModuleDoNotConvertBp2build("cc_library_static", "static_dep_for_shared") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "implementation_static_dep_for_shared") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "static_dep_for_static") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "implementation_static_dep_for_static") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "static_dep_for_both") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "implementation_static_dep_for_both") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "whole_static_dep_for_shared") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "not_explicitly_exported_whole_static_dep_for_shared") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "whole_static_dep_for_static") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "not_explicitly_exported_whole_static_dep_for_static") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "whole_static_dep_for_both") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "not_explicitly_exported_whole_static_dep_for_both") +
-			simpleModuleDoNotConvertBp2build("cc_library", "shared_dep_for_shared") +
-			simpleModuleDoNotConvertBp2build("cc_library", "implementation_shared_dep_for_shared") +
-			simpleModuleDoNotConvertBp2build("cc_library", "shared_dep_for_static") +
-			simpleModuleDoNotConvertBp2build("cc_library", "implementation_shared_dep_for_static") +
-			simpleModuleDoNotConvertBp2build("cc_library", "shared_dep_for_both") +
-			simpleModuleDoNotConvertBp2build("cc_library", "implementation_shared_dep_for_both"),
+` + SimpleModuleDoNotConvertBp2build("cc_library_static", "static_dep_for_shared") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "implementation_static_dep_for_shared") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "static_dep_for_static") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "implementation_static_dep_for_static") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "static_dep_for_both") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "implementation_static_dep_for_both") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "whole_static_dep_for_shared") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "not_explicitly_exported_whole_static_dep_for_shared") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "whole_static_dep_for_static") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "not_explicitly_exported_whole_static_dep_for_static") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "whole_static_dep_for_both") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "not_explicitly_exported_whole_static_dep_for_both") +
+			SimpleModuleDoNotConvertBp2build("cc_library", "shared_dep_for_shared") +
+			SimpleModuleDoNotConvertBp2build("cc_library", "implementation_shared_dep_for_shared") +
+			SimpleModuleDoNotConvertBp2build("cc_library", "shared_dep_for_static") +
+			SimpleModuleDoNotConvertBp2build("cc_library", "implementation_shared_dep_for_static") +
+			SimpleModuleDoNotConvertBp2build("cc_library", "shared_dep_for_both") +
+			SimpleModuleDoNotConvertBp2build("cc_library", "implementation_shared_dep_for_both"),
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "a_bp2build_cc_library_static", AttrNameToString{
 				"copts": `[
@@ -2549,10 +2549,10 @@ func TestCcLibraryProtoFilegroups(t *testing.T) {
 		ModuleTypeUnderTest:        "cc_library",
 		ModuleTypeUnderTestFactory: cc.LibraryFactory,
 		Blueprint: soongCcProtoPreamble +
-			simpleModuleDoNotConvertBp2build("filegroup", "a_fg_proto") +
-			simpleModuleDoNotConvertBp2build("filegroup", "b_protos") +
-			simpleModuleDoNotConvertBp2build("filegroup", "c-proto-srcs") +
-			simpleModuleDoNotConvertBp2build("filegroup", "proto-srcs-d") + `
+			SimpleModuleDoNotConvertBp2build("filegroup", "a_fg_proto") +
+			SimpleModuleDoNotConvertBp2build("filegroup", "b_protos") +
+			SimpleModuleDoNotConvertBp2build("filegroup", "c-proto-srcs") +
+			SimpleModuleDoNotConvertBp2build("filegroup", "proto-srcs-d") + `
 cc_library {
 	name: "a",
 	srcs: [":a_fg_proto"],
@@ -2882,7 +2882,7 @@ func TestCcLibraryExcludesLibsHost(t *testing.T) {
 		Filesystem: map[string]string{
 			"bar.map.txt": "",
 		},
-		Blueprint: simpleModuleDoNotConvertBp2build("cc_library", "bazlib") + `
+		Blueprint: SimpleModuleDoNotConvertBp2build("cc_library", "bazlib") + `
 cc_library {
 	name: "quxlib",
 	stubs: { symbol_file: "bar.map.txt", versions: ["current"] },
@@ -3537,10 +3537,10 @@ cc_library_static {
 		"baz-shared",
 	],
 }` +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "bar-static") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "baz-static") +
-			simpleModuleDoNotConvertBp2build("cc_library", "bar-shared") +
-			simpleModuleDoNotConvertBp2build("cc_library", "baz-shared"),
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "bar-static") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "baz-static") +
+			SimpleModuleDoNotConvertBp2build("cc_library", "bar-shared") +
+			SimpleModuleDoNotConvertBp2build("cc_library", "baz-shared"),
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("aidl_library", "foo_aidl_library", AttrNameToString{
 				"srcs": `["Foo.aidl"]`,
@@ -4744,7 +4744,7 @@ cc_library_static {
 		canonical_path_from_root: true,
 	}
 }
-` + simpleModuleDoNotConvertBp2build("cc_library", "libprotobuf-cpp-lite"),
+` + SimpleModuleDoNotConvertBp2build("cc_library", "libprotobuf-cpp-lite"),
 		Filesystem: map[string]string{
 			"bar/Android.bp":        "",
 			"baz/subbaz/Android.bp": "",
@@ -4812,7 +4812,7 @@ cc_library_static {
 		canonical_path_from_root: false,
 	}
 }
-` + simpleModuleDoNotConvertBp2build("cc_library", "libprotobuf-cpp-lite"),
+` + SimpleModuleDoNotConvertBp2build("cc_library", "libprotobuf-cpp-lite"),
 		Filesystem: map[string]string{
 			"bar/Android.bp":        "",
 			"baz/subbaz/Android.bp": "",
@@ -4882,7 +4882,7 @@ cc_library_static {
 		include_dirs: ["bar"],
 	}
 }
-` + simpleModuleDoNotConvertBp2build("cc_library", "libprotobuf-cpp-lite"),
+` + SimpleModuleDoNotConvertBp2build("cc_library", "libprotobuf-cpp-lite"),
 		Filesystem: map[string]string{
 			"bar/Android.bp":     "",
 			"bar/bar.proto":      "",
@@ -4953,7 +4953,7 @@ cc_library_static {
 		include_dirs: ["baz"],
 	}
 }
-` + simpleModuleDoNotConvertBp2build("cc_library", "libprotobuf-cpp-lite"),
+` + SimpleModuleDoNotConvertBp2build("cc_library", "libprotobuf-cpp-lite"),
 		Filesystem: map[string]string{
 			"bar/Android.bp": "", // package boundary
 			"baz/Android.bp": "",
@@ -4988,7 +4988,7 @@ func TestProtoLocalIncludeDirs(t *testing.T) {
 		Description:                "cc_library depends on .proto files using proto.local_include_dirs",
 		ModuleTypeUnderTest:        "cc_library",
 		ModuleTypeUnderTestFactory: cc.LibraryFactory,
-		Blueprint:                  simpleModuleDoNotConvertBp2build("cc_library", "libprotobuf-cpp-lite"),
+		Blueprint:                  SimpleModuleDoNotConvertBp2build("cc_library", "libprotobuf-cpp-lite"),
 		Filesystem: map[string]string{
 			"foo/Android.bp": `cc_library_static {
 	name: "foo",
@@ -5045,7 +5045,7 @@ func TestProtoLibraryForIncludeDirsIsOsAgnostic(t *testing.T) {
 		Description:                "proto_library generated for proto.include_dirs is compatible for all axes",
 		ModuleTypeUnderTest:        "cc_library",
 		ModuleTypeUnderTestFactory: cc.LibraryFactory,
-		Blueprint: simpleModuleDoNotConvertBp2build("cc_library", "libprotobuf-cpp-lite") + `
+		Blueprint: SimpleModuleDoNotConvertBp2build("cc_library", "libprotobuf-cpp-lite") + `
 cc_library {
 	name: "foo_device",
 	device_supported: true, // this is the default behavior, but added explicitly here for illustration

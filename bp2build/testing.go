@@ -570,7 +570,7 @@ func registerCustomModuleForBp2buildConversion(ctx *android.TestContext) {
 	ctx.RegisterForBazelConversion()
 }
 
-func simpleModuleDoNotConvertBp2build(typ, name string) string {
+func SimpleModuleDoNotConvertBp2build(typ, name string) string {
 	return fmt.Sprintf(`
 %s {
 		name: "%s",
