@@ -298,8 +298,8 @@ python_defaults {
         "r1",
         "r2",
     ],
-}` + simpleModuleDoNotConvertBp2build("genrule", "r1") +
-			simpleModuleDoNotConvertBp2build("genrule", "r2"),
+}` + SimpleModuleDoNotConvertBp2build("genrule", "r1") +
+			SimpleModuleDoNotConvertBp2build("genrule", "r2"),
 
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("py_binary", "foo", AttrNameToString{

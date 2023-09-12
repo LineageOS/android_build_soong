@@ -89,8 +89,8 @@ apex_key {
         public_key: ":com.android.apogee.avbpubkey",
         private_key: ":com.android.apogee.pem",
 }
-` + simpleModuleDoNotConvertBp2build("filegroup", "com.android.apogee.avbpubkey") +
-			simpleModuleDoNotConvertBp2build("filegroup", "com.android.apogee.pem"),
+` + SimpleModuleDoNotConvertBp2build("filegroup", "com.android.apogee.avbpubkey") +
+			SimpleModuleDoNotConvertBp2build("filegroup", "com.android.apogee.pem"),
 		ExpectedBazelTargets: []string{MakeBazelTargetNoRestrictions("apex_key", "com.android.apogee.key", AttrNameToString{
 			"private_key":            `":com.android.apogee.pem"`,
 			"public_key":             `":com.android.apogee.avbpubkey"`,
