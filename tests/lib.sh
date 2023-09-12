@@ -8,10 +8,15 @@ HARDWIRED_MOCK_TOP=
 
 REAL_TOP="$(readlink -f "$(dirname "$0")"/../../..)"
 
+function make_mock_top {
+  mock=$(mktemp -t -d st.XXXXX)
+  echo "$mock"
+}
+
 if [[ -n "$HARDWIRED_MOCK_TOP" ]]; then
   MOCK_TOP="$HARDWIRED_MOCK_TOP"
 else
-  MOCK_TOP=$(mktemp -t -d st.XXXXX)
+  MOCK_TOP=$(make_mock_top)
   trap cleanup_mock_top EXIT
 fi
 
@@ -196,4 +201,11 @@ function scan_and_run_tests {
     $f
     info "Completed test case \e[96;1m$f\e[0m"
   done
+}
+
+function move_mock_top {
+  MOCK_TOP2=$(make_mock_top)
+  mv $MOCK_TOP $MOCK_TOP2
+  MOCK_TOP=$MOCK_TOP2
+  trap cleanup_mock_top EXIT
 }
