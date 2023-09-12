@@ -222,6 +222,7 @@ var (
 		"frameworks/av/media/module/foundation":              Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/media/module/minijail":                Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/services/minijail":                    Bp2BuildDefaultTrueRecursively,
+		"frameworks/base/core/java":                          Bp2BuildDefaultTrue,
 		"frameworks/base/libs/androidfw":                     Bp2BuildDefaultTrue,
 		"frameworks/base/libs/services":                      Bp2BuildDefaultTrue,
 		"frameworks/base/media/tests/MediaDump":              Bp2BuildDefaultTrue,
@@ -239,10 +240,12 @@ var (
 		"frameworks/native":                                  Bp2BuildDefaultTrue,
 		"frameworks/native/libs/adbd_auth":                   Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/arect":                       Bp2BuildDefaultTrueRecursively,
+		"frameworks/native/libs/binder":                      Bp2BuildDefaultTrue,
 		"frameworks/native/libs/gui":                         Bp2BuildDefaultTrue,
 		"frameworks/native/libs/math":                        Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/nativebase":                  Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/permission":                  Bp2BuildDefaultTrueRecursively,
+		"frameworks/native/libs/ui":                          Bp2BuildDefaultTrue,
 		"frameworks/native/libs/vr":                          Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/opengl/tests/gl2_cameraeye":       Bp2BuildDefaultTrue,
 		"frameworks/native/opengl/tests/gl2_java":            Bp2BuildDefaultTrue,
@@ -369,6 +372,7 @@ var (
 		"system/core/mkbootfs":                                   Bp2BuildDefaultTrueRecursively,
 		"system/core/property_service/libpropertyinfoparser":     Bp2BuildDefaultTrueRecursively,
 		"system/core/property_service/libpropertyinfoserializer": Bp2BuildDefaultTrueRecursively,
+		"system/core/trusty/libtrusty":                           Bp2BuildDefaultTrue,
 		"system/extras/f2fs_utils":                               Bp2BuildDefaultTrueRecursively,
 		"system/extras/toolchain-extras":                         Bp2BuildDefaultTrue,
 		"system/extras/verity":                                   Bp2BuildDefaultTrueRecursively,
@@ -377,6 +381,7 @@ var (
 		"system/libartpalette":                                   Bp2BuildDefaultTrueRecursively,
 		"system/libbase":                                         Bp2BuildDefaultTrueRecursively,
 		"system/libfmq":                                          Bp2BuildDefaultTrue,
+		"system/libhidl":                                         Bp2BuildDefaultTrue,
 		"system/libhidl/libhidlmemory":                           Bp2BuildDefaultTrue,
 		"system/libhidl/transport":                               Bp2BuildDefaultTrue,
 		"system/libhidl/transport/allocator/1.0":                 Bp2BuildDefaultTrue,
@@ -557,7 +562,6 @@ var (
 		"json",
 		"remote-color-resources-compile-public",
 		"statslog-art-java-gen",
-		"statslog-framework-java-gen",
 
 		"AndroidCommonLint",
 		"ImmutabilityAnnotation",
@@ -590,10 +594,6 @@ var (
 		"libandroid_runtime_lazy",
 		"libandroid_runtime_vm_headers",
 		"libaudioclient_aidl_conversion_util",
-		"libbinder",
-		"libbinder_device_interface_sources",
-		"libbinder_aidl",
-		"libbinder_headers",
 		"libbinder_headers_platform_shared",
 		"libbinderthreadstateutils",
 		"libbluetooth-types-header",
@@ -626,9 +626,6 @@ var (
 		"libtextclassifier_hash_static",
 		"libtflite_kernel_utils",
 		"libtinyxml2",
-		"libui",
-		"libui-types",
-		"libui_headers",
 		"libvorbisidec",
 		"media_ndk_headers",
 		"media_plugin_headers",
@@ -636,8 +633,6 @@ var (
 		"mediaswcodec.xml",
 		"neuralnetworks_types",
 		"libneuralnetworks_common",
-		// packagemanager_aidl_interface is created implicitly in packagemanager_aidl module
-		"packagemanager_aidl_interface",
 		"philox_random",
 		"philox_random_headers",
 		"server_configurable_flags",
@@ -679,9 +674,6 @@ var (
 		//external/fec
 		"libfec_rs",
 
-		//frameworks/base/core/java
-		"IDropBoxManagerService_aidl",
-
 		//system/extras/ext4_utils
 		"libext4_utils",
 		"mke2fs_conf",
@@ -702,10 +694,6 @@ var (
 		"car-ui-androidx-lifecycle-common-nodeps",
 		"car-ui-androidx-constraintlayout-solver-nodeps",
 
-		//system/libhidl
-		"libhidlbase", // needed by cc_hidl_library
-		"libhidl_gtest_helper",
-
 		//frameworks/native/libs/input
 		"inputconstants_aidl",
 
@@ -713,11 +701,6 @@ var (
 		"libbinder_ndk",
 
 		"libusb",
-
-		// needed by liblogd
-		"ILogcatManagerService_aidl",
-		"libincremental_aidl-cpp",
-		"incremental_aidl",
 
 		//frameworks/native/cmds/cmd
 		"libcmd",
@@ -913,6 +896,8 @@ var (
 
 		// java_resources with multiple resource_dirs
 		"emma",
+
+		"modules-utils-preconditions-srcs",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
@@ -1644,6 +1629,16 @@ var (
 
 		// Depends on the module defined in the directory not bp2build default allowed
 		"ota_from_raw_img",
+
+		// TODO(b/299924782): Fix linking error
+		"libbinder_on_trusty_mock",
+
+		// TODO(b/299943581): Depends on aidl filegroups with implicit headers
+		"libdataloader_aidl-cpp",
+		"libincremental_manager_aidl-cpp",
+
+		// TODO(b/299974637) Fix linking error
+		"libbinder_rpc_unstable",
 	}
 
 	// Bazel prod-mode allowlist. Modules in this list are built by Bazel
