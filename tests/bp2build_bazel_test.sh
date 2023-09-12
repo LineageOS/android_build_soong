@@ -330,6 +330,12 @@ function test_bp2build_symlinks_files {
   if [[ -L "./out/soong/workspace/foo/F2D" ]] || [[ ! -d "./out/soong/workspace/foo/F2D" ]]; then
     fail "./out/soong/workspace/foo/F2D should be a dir"
   fi
+
+  # relative symlinks
+  local BAZEL_BIN_RELATIVE_SYMLINK=`readlink out/soong/workspace/build/bazel/bin`
+  if [[ $BAZEL_BIN_RELATIVE_SYMLINK != "../../../../../build/bazel/bin" ]]; then
+    fail "out/soong/workspace/build/bazel/bin should be a relative symlink"
+  fi
 }
 
 function test_cc_correctness {
