@@ -276,7 +276,7 @@ func TestCcBinarySplitSrcsByLang(t *testing.T) {
     ],
     include_build_directory: false,
 }
-` + simpleModuleDoNotConvertBp2build("filegroup", "fg_foo"),
+` + SimpleModuleDoNotConvertBp2build("filegroup", "fg_foo"),
 		targets: []testBazelTarget{
 			{"cc_binary", "foo", AttrNameToString{
 				"srcs": `[
@@ -326,12 +326,12 @@ genrule {
     export_generated_headers: ["export_generated_hdr"],
 }
 ` +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "static_dep") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "implementation_static_dep") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "whole_static_dep") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "not_explicitly_exported_whole_static_dep") +
-			simpleModuleDoNotConvertBp2build("cc_library", "shared_dep") +
-			simpleModuleDoNotConvertBp2build("cc_library", "implementation_shared_dep"),
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "static_dep") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "implementation_static_dep") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "whole_static_dep") +
+			SimpleModuleDoNotConvertBp2build("cc_library_static", "not_explicitly_exported_whole_static_dep") +
+			SimpleModuleDoNotConvertBp2build("cc_library", "shared_dep") +
+			SimpleModuleDoNotConvertBp2build("cc_library", "implementation_shared_dep"),
 		targets: []testBazelTarget{
 			{"cc_binary", "foo", AttrNameToString{
 				"deps": `[
@@ -1226,7 +1226,7 @@ func TestCcBinaryStatic_SystemSharedLibUsedAsDep(t *testing.T) {
 	runCcBinaryTestCase(t, ccBinaryBp2buildTestCase{
 		description: "cc_library_static system_shared_lib empty for linux_bionic variant",
 		blueprint: soongCcLibraryStaticPreamble +
-			simpleModuleDoNotConvertBp2build("cc_library", "libc") + `
+			SimpleModuleDoNotConvertBp2build("cc_library", "libc") + `
 
 cc_library {
     name: "libm",
