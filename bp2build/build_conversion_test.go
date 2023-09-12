@@ -1743,7 +1743,7 @@ func TestCommonBp2BuildModuleAttrs(t *testing.T) {
 			Description:                "Required into data test",
 			ModuleTypeUnderTest:        "filegroup",
 			ModuleTypeUnderTestFactory: android.FileGroupFactory,
-			Blueprint: simpleModuleDoNotConvertBp2build("filegroup", "reqd") + `
+			Blueprint: SimpleModuleDoNotConvertBp2build("filegroup", "reqd") + `
 filegroup {
     name: "fg_foo",
     required: ["reqd"],
@@ -1759,7 +1759,7 @@ filegroup {
 			Description:                "Required into data test, cyclic self reference is filtered out",
 			ModuleTypeUnderTest:        "filegroup",
 			ModuleTypeUnderTestFactory: android.FileGroupFactory,
-			Blueprint: simpleModuleDoNotConvertBp2build("filegroup", "reqd") + `
+			Blueprint: SimpleModuleDoNotConvertBp2build("filegroup", "reqd") + `
 filegroup {
     name: "fg_foo",
     required: ["reqd", "fg_foo"],
@@ -1775,8 +1775,8 @@ filegroup {
 			Description:                "Required via arch into data test",
 			ModuleTypeUnderTest:        "python_library",
 			ModuleTypeUnderTestFactory: python.PythonLibraryFactory,
-			Blueprint: simpleModuleDoNotConvertBp2build("python_library", "reqdx86") +
-				simpleModuleDoNotConvertBp2build("python_library", "reqdarm") + `
+			Blueprint: SimpleModuleDoNotConvertBp2build("python_library", "reqdx86") +
+				SimpleModuleDoNotConvertBp2build("python_library", "reqdarm") + `
 python_library {
     name: "fg_foo",
     arch: {
@@ -1809,7 +1809,7 @@ python_library {
 				"data.bin": "",
 				"src.py":   "",
 			},
-			Blueprint: simpleModuleDoNotConvertBp2build("python_library", "reqd") + `
+			Blueprint: SimpleModuleDoNotConvertBp2build("python_library", "reqd") + `
 python_library {
     name: "fg_foo",
     data: ["data.bin"],
@@ -1831,7 +1831,7 @@ python_library {
 			Description:                "All props-to-attrs at once together test",
 			ModuleTypeUnderTest:        "filegroup",
 			ModuleTypeUnderTestFactory: android.FileGroupFactory,
-			Blueprint: simpleModuleDoNotConvertBp2build("filegroup", "reqd") + `
+			Blueprint: SimpleModuleDoNotConvertBp2build("filegroup", "reqd") + `
 filegroup {
     name: "fg_foo",
     required: ["reqd"],
