@@ -1632,15 +1632,6 @@ type bazelAndroidAppAttributes struct {
 
 // ConvertWithBp2build is used to convert android_app to Bazel.
 func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
-	commonAttrs, bp2BuildInfo, supported := a.convertLibraryAttrsBp2Build(ctx)
-	if !supported {
-		return
-	}
-	depLabels := bp2BuildInfo.DepLabels
-
-	deps := depLabels.Deps
-	deps.Append(depLabels.StaticDeps)
-
 	aapt, supported := a.convertAaptAttrsWithBp2Build(ctx)
 	if !supported {
 		return
@@ -1711,8 +1702,16 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 			})
 			appAttrs.Proguard_specs.Add(bazel.MakeLabelAttribute(":" + generatedFlagFileRuleName))
 		}
-
 	}
+
+	commonAttrs, bp2BuildInfo, supported := a.convertLibraryAttrsBp2Build(ctx)
+	if !supported {
+		return
+	}
+	depLabels := bp2BuildInfo.DepLabels
+
+	deps := depLabels.Deps
+	deps.Append(depLabels.StaticDeps)
 
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "android_binary",
