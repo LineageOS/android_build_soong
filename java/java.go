@@ -3143,9 +3143,7 @@ func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
 			// bp2build converts this module to 2 java_libraries + java_xx_proto_library + proto_library
 			// the non-empty deps here are not necessary for compiling the protos, in which case
 			// they're unnecessary as deps on the java_library as well since they aren't
-			// being propagated to any dependencies.
-			// so we can put the deps to exports and drop deps here.
-			exports.Append(deps)
+			// being propagated to any dependencies. So we can drop deps here.
 			deps = bazel.LabelListAttribute{}
 		} else {
 			ctx.ModuleErrorf("Module has direct dependencies but no sources. Bazel will not allow this.")
