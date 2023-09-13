@@ -15,6 +15,7 @@ import (
 	rust_config "android/soong/rust/config"
 	"android/soong/starlark_fmt"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -24,16 +25,28 @@ type BazelFile struct {
 	Contents string
 }
 
-// PRIVATE: Use CreateSoongInjectionDirFiles instead
-func soongInjectionFiles(cfg android.Config, metrics CodegenMetrics) ([]BazelFile, error) {
+// createSoongInjectionDirFiles returns most of the files to write to the soong_injection directory.
+// Some other files also come from CreateProductConfigFiles
+func createSoongInjectionDirFiles(ctx *CodegenContext, metrics CodegenMetrics) ([]BazelFile, error) {
+	cfg := ctx.Config()
 	var files []BazelFile
 
 	files = append(files, newFile("android", GeneratedBuildFileName, "")) // Creates a //cc_toolchain package.
 	files = append(files, newFile("android", "constants.bzl", android.BazelCcToolchainVars(cfg)))
 
+	// Visit all modules to determine the list of ndk libraries
+	// This list will be used to add additional flags for cc stub generation
+	ndkLibsStringFormatted := []string{}
+	ctx.Context().VisitAllModules(func(m blueprint.Module) {
+		if ctx.Context().ModuleType(m) == "ndk_library" {
+			ndkLibsStringFormatted = append(ndkLibsStringFormatted, fmt.Sprintf(`"%s"`, m.Name())) // name will be `"libc.ndk"`
+		}
+	})
+
 	files = append(files, newFile("cc_toolchain", GeneratedBuildFileName, "")) // Creates a //cc_toolchain package.
 	files = append(files, newFile("cc_toolchain", "config_constants.bzl", cc_config.BazelCcToolchainVars(cfg)))
 	files = append(files, newFile("cc_toolchain", "sanitizer_constants.bzl", cc.BazelCcSanitizerToolchainVars(cfg)))
+	files = append(files, newFile("cc_toolchain", "ndk_libs.bzl", fmt.Sprintf("ndk_libs = [%v]", strings.Join(ndkLibsStringFormatted, ", "))))
 
 	files = append(files, newFile("java_toolchain", GeneratedBuildFileName, "")) // Creates a //java_toolchain package.
 	files = append(files, newFile("java_toolchain", "constants.bzl", java_config.BazelJavaToolchainVars(cfg)))
