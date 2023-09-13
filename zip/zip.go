@@ -283,6 +283,7 @@ type ZipArgs struct {
 	IgnoreMissingFiles       bool
 	Sha256Checksum           bool
 	DoNotWrite               bool
+	Quiet                    bool
 
 	Stderr     io.Writer
 	Filesystem pathtools.FileSystem
@@ -340,7 +341,9 @@ func zipTo(args ZipArgs, w io.Writer) error {
 					Err:  os.ErrNotExist,
 				}
 				if args.IgnoreMissingFiles {
-					fmt.Fprintln(z.stderr, "warning:", err)
+					if !args.Quiet {
+						fmt.Fprintln(z.stderr, "warning:", err)
+					}
 				} else {
 					return err
 				}
@@ -357,7 +360,9 @@ func zipTo(args ZipArgs, w io.Writer) error {
 					Err:  os.ErrNotExist,
 				}
 				if args.IgnoreMissingFiles {
-					fmt.Fprintln(z.stderr, "warning:", err)
+					if !args.Quiet {
+						fmt.Fprintln(z.stderr, "warning:", err)
+					}
 				} else {
 					return err
 				}
@@ -368,7 +373,9 @@ func zipTo(args ZipArgs, w io.Writer) error {
 					Err:  syscall.ENOTDIR,
 				}
 				if args.IgnoreMissingFiles {
-					fmt.Fprintln(z.stderr, "warning:", err)
+					if !args.Quiet {
+						fmt.Fprintln(z.stderr, "warning:", err)
+					}
 				} else {
 					return err
 				}
