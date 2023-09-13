@@ -43,7 +43,7 @@ import (
 // clean the whole symlink forest and recreate it. This number can be bumped whenever there's
 // an incompatible change to the forest layout or a bug in incrementality that needs to be fixed
 // on machines that may still have the bug present in their forest.
-const symlinkForestVersion = 1
+const symlinkForestVersion = 2
 
 type instructionsNode struct {
 	name     string
