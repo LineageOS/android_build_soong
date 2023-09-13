@@ -543,6 +543,7 @@ cc_library_shared {
 		},
 		Blueprint: soongCcLibraryPreamble,
 		ExpectedBazelTargets: []string{makeCcStubSuiteTargets("a", AttrNameToString{
+			"api_surface":          `"module-libapi"`,
 			"soname":               `"a.so"`,
 			"source_library_label": `"//foo/bar:a"`,
 			"stubs_symbol_file":    `"a.map.txt"`,
@@ -1442,6 +1443,7 @@ cc_library_shared {
 `,
 		ExpectedBazelTargets: []string{
 			makeCcStubSuiteTargets("a", AttrNameToString{
+				"api_surface":          `"module-libapi"`,
 				"soname":               `"a.so"`,
 				"source_library_label": `"//:a"`,
 				"stubs_symbol_file":    `"a.map.txt"`,
@@ -1456,6 +1458,7 @@ cc_library_shared {
 				"stubs_symbol_file": `"a.map.txt"`,
 			}),
 			makeCcStubSuiteTargets("b", AttrNameToString{
+				"api_surface":          `"module-libapi"`,
 				"soname":               `"b.so"`,
 				"source_library_label": `"//:b"`,
 				"stubs_symbol_file":    `"b.map.txt"`,
