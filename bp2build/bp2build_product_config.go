@@ -12,14 +12,19 @@ import (
 	"android/soong/android/soongconfig"
 	"android/soong/starlark_import"
 
-	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 	"go.starlark.net/starlark"
 )
 
-func CreateProductConfigFiles(
+type createProductConfigFilesResult struct {
+	injectionFiles  []BazelFile
+	bp2buildFiles   []BazelFile
+	bp2buildTargets map[string]BazelTargets
+}
+
+func createProductConfigFiles(
 	ctx *CodegenContext,
-	metrics CodegenMetrics) ([]BazelFile, []BazelFile, error) {
+	metrics CodegenMetrics) (createProductConfigFilesResult, error) {
 	cfg := &ctx.config
 	targetProduct := "unknown"
 	if cfg.HasDeviceProduct() {
@@ -32,28 +37,21 @@ func CreateProductConfigFiles(
 		targetBuildVariant = "userdebug"
 	}
 
+	var res createProductConfigFilesResult
+
 	productVariablesFileName := cfg.ProductVariablesFileName
 	if !strings.HasPrefix(productVariablesFileName, "/") {
 		productVariablesFileName = filepath.Join(ctx.topDir, productVariablesFileName)
 	}
 	productVariablesBytes, err := os.ReadFile(productVariablesFileName)
 	if err != nil {
-		return nil, nil, err
+		return res, err
 	}
 	productVariables := android.ProductVariables{}
 	err = json.Unmarshal(productVariablesBytes, &productVariables)
 	if err != nil {
-		return nil, nil, err
+		return res, err
 	}
-
-	// Visit all modules to determine the list of ndk libraries
-	// This list will be used to add additional flags for cc stub generation
-	ndkLibsStringFormatted := []string{}
-	ctx.Context().VisitAllModules(func(m blueprint.Module) {
-		if ctx.Context().ModuleType(m) == "ndk_library" {
-			ndkLibsStringFormatted = append(ndkLibsStringFormatted, fmt.Sprintf(`"%s"`, m.Name())) // name will be `"libc.ndk"`
-		}
-	})
 
 	// TODO(b/249685973): the name is product_config_platforms because product_config
 	// was already used for other files. Deduplicate them.
@@ -64,25 +62,36 @@ func CreateProductConfigFiles(
 		"{VARIANT}", targetBuildVariant,
 		"{PRODUCT_FOLDER}", currentProductFolder)
 
-	platformMappingContent, err := platformMappingContent(
-		productReplacer.Replace("@soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}"),
-		&productVariables,
-		ctx.Config().Bp2buildSoongConfigDefinitions,
-		metrics.convertedModulePathMap)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	productsForTestingMap, err := starlark_import.GetStarlarkValue[map[string]map[string]starlark.Value]("products_for_testing")
 	if err != nil {
-		return nil, nil, err
+		return res, err
 	}
 	productsForTesting := android.SortedKeys(productsForTestingMap)
 	for i := range productsForTesting {
 		productsForTesting[i] = fmt.Sprintf("  \"@//build/bazel/tests/products:%s\",", productsForTesting[i])
 	}
 
-	injectionDirFiles := []BazelFile{
+	productLabelsToVariables := make(map[string]*android.ProductVariables)
+	productLabelsToVariables[productReplacer.Replace("@soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}")] = &productVariables
+	for product, productVariablesStarlark := range productsForTestingMap {
+		productVariables, err := starlarkMapToProductVariables(productVariablesStarlark)
+		if err != nil {
+			return res, err
+		}
+		productLabelsToVariables["@//build/bazel/tests/products:"+product] = &productVariables
+	}
+
+	res.bp2buildTargets = createTargets(productLabelsToVariables)
+
+	platformMappingContent, err := platformMappingContent(
+		productLabelsToVariables,
+		ctx.Config().Bp2buildSoongConfigDefinitions,
+		metrics.convertedModulePathMap)
+	if err != nil {
+		return res, err
+	}
+
+	res.injectionFiles = []BazelFile{
 		newFile(
 			currentProductFolder,
 			"soong.variables.bzl",
@@ -164,30 +173,21 @@ build --host_platform @soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_lin
 			productReplacer.Replace(`
 build --host_platform @soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_darwin_x86_64
 `)),
-		newFile(
-			"cc_toolchain",
-			"ndk_libs.bzl",
-			fmt.Sprintf("ndk_libs = [%v]", strings.Join(ndkLibsStringFormatted, ", ")),
-		),
 	}
-	bp2buildDirFiles := []BazelFile{
+	res.bp2buildFiles = []BazelFile{
 		newFile(
 			"",
 			"platform_mappings",
 			platformMappingContent),
 	}
-	return injectionDirFiles, bp2buildDirFiles, nil
+
+	return res, nil
 }
 
 func platformMappingContent(
-	mainProductLabel string,
-	mainProductVariables *android.ProductVariables,
+	productLabelToVariables map[string]*android.ProductVariables,
 	soongConfigDefinitions soongconfig.Bp2BuildSoongConfigDefinitions,
 	convertedModulePathMap map[string]string) (string, error) {
-	productsForTesting, err := starlark_import.GetStarlarkValue[map[string]map[string]starlark.Value]("products_for_testing")
-	if err != nil {
-		return "", err
-	}
 	var result strings.Builder
 
 	mergedConvertedModulePathMap := make(map[string]string)
@@ -203,13 +203,8 @@ func platformMappingContent(
 	}
 
 	result.WriteString("platforms:\n")
-	platformMappingSingleProduct(mainProductLabel, mainProductVariables, soongConfigDefinitions, mergedConvertedModulePathMap, &result)
-	for product, productVariablesStarlark := range productsForTesting {
-		productVariables, err := starlarkMapToProductVariables(productVariablesStarlark)
-		if err != nil {
-			return "", err
-		}
-		platformMappingSingleProduct("@//build/bazel/tests/products:"+product, &productVariables, soongConfigDefinitions, mergedConvertedModulePathMap, &result)
+	for productLabel, productVariables := range productLabelToVariables {
+		platformMappingSingleProduct(productLabel, productVariables, soongConfigDefinitions, mergedConvertedModulePathMap, &result)
 	}
 	return result.String(), nil
 }
@@ -248,7 +243,7 @@ func platformMappingSingleProduct(
 
 	defaultAppCertificateFilegroup := "//build/bazel/utils:empty_filegroup"
 	if proptools.String(productVariables.DefaultAppCertificate) != "" {
-		defaultAppCertificateFilegroup = "@//" + filepath.Dir(proptools.String(productVariables.DefaultAppCertificate)) + ":android_certificate_directory"
+		defaultAppCertificateFilegroup = "@//" + filepath.Dir(proptools.String(productVariables.DefaultAppCertificate)) + ":generated_android_certificate_directory"
 	}
 
 	for _, suffix := range bazelPlatformSuffixes {
@@ -418,4 +413,34 @@ func starlarkMapToProductVariables(in map[string]starlark.Value) (android.Produc
 			proptools.Bool(result.ClangCoverage))
 
 	return result, nil
+}
+
+func createTargets(productLabelsToVariables map[string]*android.ProductVariables) map[string]BazelTargets {
+	res := make(map[string]BazelTargets)
+	var allDefaultAppCertificateDirs []string
+	for _, productVariables := range productLabelsToVariables {
+		if proptools.String(productVariables.DefaultAppCertificate) != "" {
+			d := filepath.Dir(proptools.String(productVariables.DefaultAppCertificate))
+			if !android.InList(d, allDefaultAppCertificateDirs) {
+				allDefaultAppCertificateDirs = append(allDefaultAppCertificateDirs, d)
+			}
+		}
+	}
+	for _, dir := range allDefaultAppCertificateDirs {
+		content := fmt.Sprintf(ruleTargetTemplate, "filegroup", "generated_android_certificate_directory", propsToAttributes(map[string]string{
+			"srcs": `glob([
+        "*.pk8",
+        "*.pem",
+        "*.avbpubkey",
+    ])`,
+			"visibility": `["//visibility:public"]`,
+		}))
+		res[dir] = append(res[dir], BazelTarget{
+			name:        "generated_android_certificate_directory",
+			packageName: dir,
+			content:     content,
+			ruleClass:   "filegroup",
+		})
+	}
+	return res
 }
