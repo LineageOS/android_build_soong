@@ -82,15 +82,25 @@ func Codegen(ctx *CodegenContext) *CodegenMetrics {
 		os.Exit(1)
 	}
 	var bp2buildFiles []BazelFile
+	productConfig, err := createProductConfigFiles(ctx, res.metrics)
 	ctx.Context().EventHandler.Do("CreateBazelFile", func() {
-		bp2buildFiles = CreateBazelFiles(nil, res.buildFileToTargets, ctx.mode)
+		allTargets := make(map[string]BazelTargets)
+		for k, v := range res.buildFileToTargets {
+			allTargets[k] = append(allTargets[k], v...)
+		}
+		for k, v := range productConfig.bp2buildTargets {
+			allTargets[k] = append(allTargets[k], v...)
+		}
+		bp2buildFiles = CreateBazelFiles(nil, allTargets, ctx.mode)
 	})
-	injectionFiles, additionalBp2buildFiles, err := CreateSoongInjectionDirFiles(ctx, res.metrics)
+	bp2buildFiles = append(bp2buildFiles, productConfig.bp2buildFiles...)
+	injectionFiles, err := createSoongInjectionDirFiles(ctx, res.metrics)
 	if err != nil {
 		fmt.Printf("%s\n", err.Error())
 		os.Exit(1)
 	}
-	bp2buildFiles = append(bp2buildFiles, additionalBp2buildFiles...)
+	injectionFiles = append(injectionFiles, productConfig.injectionFiles...)
+
 	writeFiles(ctx, bp2buildDir, bp2buildFiles)
 	// Delete files under the bp2build root which weren't just written. An
 	// alternative would have been to delete the whole directory and write these
@@ -107,26 +117,6 @@ func Codegen(ctx *CodegenContext) *CodegenMetrics {
 	}
 	ctx.AddNinjaFileDeps(starlarkDeps...)
 	return &res.metrics
-}
-
-// Wrapper function that will be responsible for all files in soong_injection directory
-// This includes
-// 1. config value(s) that are hardcoded in Soong
-// 2. product_config variables
-func CreateSoongInjectionDirFiles(ctx *CodegenContext, metrics CodegenMetrics) ([]BazelFile, []BazelFile, error) {
-	var ret []BazelFile
-
-	productConfigInjectionFiles, productConfigBp2BuildDirFiles, err := CreateProductConfigFiles(ctx, metrics)
-	if err != nil {
-		return nil, nil, err
-	}
-	ret = append(ret, productConfigInjectionFiles...)
-	injectionFiles, err := soongInjectionFiles(ctx.Config(), metrics)
-	if err != nil {
-		return nil, nil, err
-	}
-	ret = append(injectionFiles, ret...)
-	return ret, productConfigBp2BuildDirFiles, nil
 }
 
 // Get the output directory and create it if it doesn't exist.
