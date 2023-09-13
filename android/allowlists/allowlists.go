@@ -79,6 +79,7 @@ var (
 		"build/soong/scripts":                Bp2BuildDefaultTrueRecursively,
 
 		"cts/common/device-side/nativetesthelper/jni": Bp2BuildDefaultTrueRecursively,
+		"cts/libs/json": Bp2BuildDefaultTrueRecursively,
 
 		"dalvik/tools/dexdeps": Bp2BuildDefaultTrueRecursively,
 
@@ -127,6 +128,7 @@ var (
 		"external/auto/android-annotation-stubs": Bp2BuildDefaultTrueRecursively,
 		"external/auto/common":                   Bp2BuildDefaultTrueRecursively,
 		"external/auto/service":                  Bp2BuildDefaultTrueRecursively,
+		"external/auto/value":                    Bp2BuildDefaultTrueRecursively,
 		"external/boringssl":                     Bp2BuildDefaultTrueRecursively,
 		"external/bouncycastle":                  Bp2BuildDefaultTrue,
 		"external/brotli":                        Bp2BuildDefaultTrue,
@@ -222,6 +224,7 @@ var (
 		"frameworks/av/media/module/foundation":              Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/media/module/minijail":                Bp2BuildDefaultTrueRecursively,
 		"frameworks/av/services/minijail":                    Bp2BuildDefaultTrueRecursively,
+		"frameworks/base/apex/jobscheduler/service/jni":      Bp2BuildDefaultTrueRecursively,
 		"frameworks/base/core/java":                          Bp2BuildDefaultTrue,
 		"frameworks/base/libs/androidfw":                     Bp2BuildDefaultTrue,
 		"frameworks/base/libs/services":                      Bp2BuildDefaultTrue,
@@ -233,9 +236,11 @@ var (
 		"frameworks/base/tools/aapt":                         Bp2BuildDefaultTrue,
 		"frameworks/base/tools/aapt2":                        Bp2BuildDefaultTrue,
 		"frameworks/base/tools/codegen":                      Bp2BuildDefaultTrueRecursively,
+		"frameworks/base/tools/locked_region_code_injection": Bp2BuildDefaultTrueRecursively,
 		"frameworks/base/tools/streaming_proto":              Bp2BuildDefaultTrueRecursively,
 		"frameworks/hardware/interfaces/stats/aidl":          Bp2BuildDefaultTrue,
 		"frameworks/libs/modules-utils/build":                Bp2BuildDefaultTrueRecursively,
+		"frameworks/libs/modules-utils/java":                 Bp2BuildDefaultTrue,
 		"frameworks/libs/net/common/native":                  Bp2BuildDefaultTrueRecursively, // TODO(b/296014682): Remove this path
 		"frameworks/native":                                  Bp2BuildDefaultTrue,
 		"frameworks/native/libs/adbd_auth":                   Bp2BuildDefaultTrueRecursively,
@@ -422,12 +427,13 @@ var (
 		"system/tools/xsdc/utils":                                Bp2BuildDefaultTrueRecursively,
 		"system/unwinding/libunwindstack":                        Bp2BuildDefaultTrueRecursively,
 
-		"tools/apifinder":                            Bp2BuildDefaultTrue,
-		"tools/apksig":                               Bp2BuildDefaultTrue,
-		"tools/external_updater":                     Bp2BuildDefaultTrueRecursively,
-		"tools/metalava":                             Bp2BuildDefaultTrueRecursively,
-		"tools/platform-compat/java/android/compat":  Bp2BuildDefaultTrueRecursively,
-		"tools/tradefederation/prebuilts/filegroups": Bp2BuildDefaultTrueRecursively,
+		"tools/apifinder":                             Bp2BuildDefaultTrue,
+		"tools/apksig":                                Bp2BuildDefaultTrue,
+		"tools/external_updater":                      Bp2BuildDefaultTrueRecursively,
+		"tools/metalava":                              Bp2BuildDefaultTrueRecursively,
+		"tools/platform-compat/java/android/compat":   Bp2BuildDefaultTrueRecursively,
+		"tools/platform-compat/java/androidprocessor": Bp2BuildDefaultTrueRecursively,
+		"tools/tradefederation/prebuilts/filegroups":  Bp2BuildDefaultTrueRecursively,
 	}
 
 	Bp2buildKeepExistingBuildFile = map[string]bool{
@@ -550,6 +556,7 @@ var (
 		"remote-color-resources-compile-colors",
 
 		// framework-minus-apex
+		"ImmutabilityAnnotationProcessor",
 		"android.mime.types.minimized",
 		"debian.mime.types.minimized",
 		"framework-javastream-protos",
@@ -559,7 +566,6 @@ var (
 		"apache-commons-math",
 		"cbor-java",
 		"icu4j_calendar_astronomer",
-		"json",
 		"remote-color-resources-compile-public",
 		"statslog-art-java-gen",
 
@@ -847,11 +853,6 @@ var (
 		"aidl",
 		"libaidl-common",
 
-		// java_resources containing only a single filegroup
-		"libauto_value_plugin",
-		"auto_value_plugin_resources",
-		"auto_value_extension",
-
 		// Used by xsd_config
 		"xsdc",
 
@@ -896,8 +897,6 @@ var (
 
 		// java_resources with multiple resource_dirs
 		"emma",
-
-		"modules-utils-preconditions-srcs",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
