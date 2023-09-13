@@ -2885,8 +2885,9 @@ type javaAidlLibraryAttributes struct {
 // depending on the module type.
 type bp2BuildJavaInfo struct {
 	// separates dependencies into dynamic dependencies and static dependencies.
-	DepLabels *javaDependencyLabels
-	hasKotlin bool
+	DepLabels       *javaDependencyLabels
+	hasKotlin       bool
+	onlyProtoInSrcs bool
 }
 
 func javaXsdTargetName(xsd android.XsdConfigBp2buildTargets) string {
@@ -2948,6 +2949,9 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 	javaSrcs.Append(kotlinSrcs)
 
 	staticDeps.Append(srcPartitions[xsdSrcPartition])
+
+	_, protoInSrcs := srcPartitions[protoSrcPartition]
+	onlyProtoInSrcs := protoInSrcs && len(srcPartitions) == 1
 
 	if !srcPartitions[logtagSrcPartition].IsEmpty() {
 		logtagsLibName := m.Name() + "_logtags"
@@ -3086,8 +3090,9 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext)
 	}
 
 	bp2BuildInfo := &bp2BuildJavaInfo{
-		DepLabels: depLabels,
-		hasKotlin: hasKotlin,
+		DepLabels:       depLabels,
+		hasKotlin:       hasKotlin,
+		onlyProtoInSrcs: onlyProtoInSrcs,
 	}
 
 	return commonAttrs, bp2BuildInfo, true
@@ -3127,16 +3132,29 @@ func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
 	depLabels := bp2BuildInfo.DepLabels
 
 	deps := depLabels.Deps
+	exports := depLabels.StaticDeps
 	if !commonAttrs.Srcs.IsEmpty() {
-		deps.Append(depLabels.StaticDeps) // we should only append these if there are sources to use them
+		deps.Append(exports) // we should only append these if there are sources to use them
 	} else if !deps.IsEmpty() {
-		ctx.ModuleErrorf("Module has direct dependencies but no sources. Bazel will not allow this.")
+		if bp2BuildInfo.onlyProtoInSrcs {
+			// java_library does not accept deps when there are no srcs because
+			// there is no compilation happening, but it accepts exports.
+			// bp2build converts this module to 2 java_libraries + java_xx_proto_library + proto_library
+			// the non-empty deps here are not necessary for compiling the protos, in which case
+			// they're unnecessary as deps on the java_library as well since they aren't
+			// being propagated to any dependencies.
+			// so we can put the deps to exports and drop deps here.
+			exports.Append(deps)
+			deps = bazel.LabelListAttribute{}
+		} else {
+			ctx.ModuleErrorf("Module has direct dependencies but no sources. Bazel will not allow this.")
+		}
 	}
 	var props bazel.BazelTargetModuleProperties
 	attrs := &javaLibraryAttributes{
 		javaCommonAttributes: commonAttrs,
 		Deps:                 deps,
-		Exports:              depLabels.StaticDeps,
+		Exports:              exports,
 	}
 	name := m.Name()
 
