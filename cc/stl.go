@@ -172,6 +172,7 @@ func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 		// The system STL doesn't have a prebuilt (it uses the system's libstdc++), but it does have
 		// its own includes. The includes are handled in CCBase.Flags().
 		deps.SharedLibs = append([]string{"libstdc++"}, deps.SharedLibs...)
+		deps.HeaderLibs = append([]string{"ndk_system"}, deps.HeaderLibs...)
 	case "ndk_libc++_shared", "ndk_libc++_static":
 		if stl.Properties.SelectedStl == "ndk_libc++_shared" {
 			deps.SharedLibs = append(deps.SharedLibs, stl.Properties.SelectedStl)
@@ -219,8 +220,7 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 	case "libstdc++":
 		// Nothing
 	case "ndk_system":
-		ndkSrcRoot := android.PathForSource(ctx, "prebuilts/ndk/current/sources/cxx-stl/system/include")
-		flags.Local.CFlags = append(flags.Local.CFlags, "-isystem "+ndkSrcRoot.String())
+		// Nothing: The exports of ndk_system will be added automatically to the local cflags
 	case "ndk_libc++_shared", "ndk_libc++_static":
 		if ctx.Arch().ArchType == android.Arm {
 			// Make sure the _Unwind_XXX symbols are not re-exported.
