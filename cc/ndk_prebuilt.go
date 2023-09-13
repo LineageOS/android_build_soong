@@ -87,9 +87,12 @@ func NdkPrebuiltStaticStlFactory() android.Module {
 	return module.Init()
 }
 
+const (
+	libDir = "current/sources/cxx-stl/llvm-libc++/libs"
+)
+
 func getNdkStlLibDir(ctx android.ModuleContext) android.SourcePath {
-	libDir := "prebuilts/ndk/current/sources/cxx-stl/llvm-libc++/libs"
-	return android.PathForSource(ctx, libDir).Join(ctx, ctx.Arch().Abi[0])
+	return android.PathForSource(ctx, ctx.ModuleDir(), libDir).Join(ctx, ctx.Arch().Abi[0])
 }
 
 func (ndk *ndkPrebuiltStlLinker) link(ctx ModuleContext, flags Flags,
