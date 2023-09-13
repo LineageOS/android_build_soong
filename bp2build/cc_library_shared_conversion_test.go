@@ -218,12 +218,12 @@ cc_library_shared {
 
 func TestCcLibrarySharedOsSpecificSharedLib(t *testing.T) {
 	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
-		Description: "cc_library_shared os-specific shared_libs",
-		Filesystem:  map[string]string{},
+		StubbedBuildDefinitions: []string{"shared_dep"},
+		Description:             "cc_library_shared os-specific shared_libs",
+		Filesystem:              map[string]string{},
 		Blueprint: soongCcLibrarySharedPreamble + `
 cc_library_shared {
     name: "shared_dep",
-    bazel_module: { bp2build_available: false },
 }
 cc_library_shared {
     name: "foo_shared",
@@ -243,20 +243,18 @@ cc_library_shared {
 
 func TestCcLibrarySharedBaseArchOsSpecificSharedLib(t *testing.T) {
 	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
-		Description: "cc_library_shared base, arch, and os-specific shared_libs",
-		Filesystem:  map[string]string{},
+		StubbedBuildDefinitions: []string{"shared_dep", "shared_dep2", "shared_dep3"},
+		Description:             "cc_library_shared base, arch, and os-specific shared_libs",
+		Filesystem:              map[string]string{},
 		Blueprint: soongCcLibrarySharedPreamble + `
 cc_library_shared {
     name: "shared_dep",
-    bazel_module: { bp2build_available: false },
 }
 cc_library_shared {
     name: "shared_dep2",
-    bazel_module: { bp2build_available: false },
 }
 cc_library_shared {
     name: "shared_dep3",
-    bazel_module: { bp2build_available: false },
 }
 cc_library_shared {
     name: "foo_shared",
