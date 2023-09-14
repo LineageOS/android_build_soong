@@ -62,6 +62,7 @@ bootstrap_go_package {
         "cc_test_conversion_test.go",
         "cc_yasm_conversion_test.go",
         "conversion_test.go",
+        "droiddoc_exported_dir_conversion_test.go",
         "filegroup_conversion_test.go",
         "genrule_conversion_test.go",
         "gensrcs_conversion_test.go",
