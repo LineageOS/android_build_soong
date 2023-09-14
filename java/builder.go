@@ -259,32 +259,11 @@ var (
 		},
 	)
 
-	checkZipAlignment = pctx.AndroidStaticRule("checkzipalign",
-		blueprint.RuleParams{
-			Command: "if ! ${config.ZipAlign} -c -p 4 $in > /dev/null; then " +
-				"echo $in: Improper package alignment >&2; " +
-				"exit 1; " +
-				"else " +
-				"touch $out; " +
-				"fi",
-			CommandDeps: []string{"${config.ZipAlign}"},
-			Description: "Check zip alignment",
-		},
-	)
-
 	convertImplementationJarToHeaderJarRule = pctx.AndroidStaticRule("convertImplementationJarToHeaderJar",
 		blueprint.RuleParams{
 			Command:     `${config.Zip2ZipCmd} -i ${in} -o ${out} -x 'META-INF/services/**/*'`,
 			CommandDeps: []string{"${config.Zip2ZipCmd}"},
 		})
-
-	checkBelowTargetSdk30ForNonPreprocessedApks = pctx.AndroidStaticRule("checkBelowTargetSdk30ForNonPreprocessedApks",
-		blueprint.RuleParams{
-			Command:     "build/soong/scripts/check_target_sdk_less_than_30.py ${config.Aapt2Cmd} $in $out",
-			CommandDeps: []string{"build/soong/scripts/check_target_sdk_less_than_30.py", "${config.Aapt2Cmd}"},
-			Description: "Check prebuilt target sdk version",
-		},
-	)
 )
 
 func init() {
