@@ -558,7 +558,7 @@ var PrepareForTestWithCcBuildComponents = android.GroupFixturePreparers(
 	// This includes files that are needed by all, or at least most, instances of a cc module type.
 	android.MockFS{
 		// Needed for ndk_prebuilt_(shared|static)_stl.
-		"prebuilts/ndk/current/sources/cxx-stl/llvm-libc++/libs": nil,
+		"defaults/cc/common/current/sources/cxx-stl/llvm-libc++/libs": nil,
 	}.AddToFixture(),
 )
 
