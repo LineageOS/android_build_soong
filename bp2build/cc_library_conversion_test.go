@@ -2809,6 +2809,7 @@ func TestCcLibraryStubs(t *testing.T) {
 		"stubs_symbol_file": `"a.map.txt"`,
 	})
 	expectedBazelTargets = append(expectedBazelTargets, makeCcStubSuiteTargets("a", AttrNameToString{
+		"api_surface":          `"module-libapi"`,
 		"soname":               `"a.so"`,
 		"source_library_label": `"//foo/bar:a"`,
 		"stubs_symbol_file":    `"a.map.txt"`,

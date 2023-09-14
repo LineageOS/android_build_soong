@@ -644,6 +644,7 @@ func makeCcStubSuiteTargets(name string, attrs AttrNameToString) string {
 		return ""
 	}
 	STUB_SUITE_ATTRS := map[string]string{
+		"api_surface":          "api_surface",
 		"stubs_symbol_file":    "symbol_file",
 		"stubs_versions":       "versions",
 		"soname":               "soname",
