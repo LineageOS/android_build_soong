@@ -19,6 +19,7 @@ package java
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/google/blueprint"
 
@@ -51,27 +52,11 @@ var (
 		Description: "Uncompress dex files",
 	})
 
-	checkDexLibsAreUncompressedRule = pctx.AndroidStaticRule("check-dex-libs-are-uncompressed", blueprint.RuleParams{
-		// grep -v ' stor ' will search for lines that don't have ' stor '. stor means the file is stored uncompressed
-		Command: "if (zipinfo $in '*.dex' 2>/dev/null | grep -v ' stor ' >/dev/null) ; then " +
-			"echo $in: Contains compressed JNI libraries and/or dex files >&2;" +
-			"exit 1; " +
-			"else " +
-			"touch $out; " +
-			"fi",
-		Description: "Check for compressed JNI libs or dex files",
-	})
-
-	checkJniLibsAreUncompressedRule = pctx.AndroidStaticRule("check-jni-libs-are-uncompressed", blueprint.RuleParams{
-		// grep -v ' stor ' will search for lines that don't have ' stor '. stor means the file is stored uncompressed
-		Command: "if (zipinfo $in 'lib/*.so' 2>/dev/null | grep -v ' stor ' >/dev/null) ; then " +
-			"echo $in: Contains compressed JNI libraries >&2;" +
-			"exit 1; " +
-			"else " +
-			"touch $out; " +
-			"fi",
-		Description: "Check for compressed JNI libs or dex files",
-	})
+	checkPresignedApkRule = pctx.AndroidStaticRule("check-presigned-apk", blueprint.RuleParams{
+		Command:     "build/soong/scripts/check_prebuilt_presigned_apk.py --aapt2 ${config.Aapt2Cmd} --zipalign ${config.ZipAlign} $extraArgs $in $out",
+		CommandDeps: []string{"build/soong/scripts/check_prebuilt_presigned_apk.py", "${config.Aapt2Cmd}", "${config.ZipAlign}"},
+		Description: "Check presigned apk",
+	}, "extraArgs")
 )
 
 func RegisterAppImportBuildComponents(ctx android.RegistrationContext) {
@@ -352,20 +337,14 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	// Sign or align the package if package has not been preprocessed
 
 	if proptools.Bool(a.properties.Preprocessed) {
-		var output android.WritablePath
-		if !proptools.Bool(a.properties.Skip_preprocessed_apk_checks) {
-			output = android.PathForModuleOut(ctx, "validated-prebuilt", apkFilename)
-			a.validatePreprocessedApk(ctx, srcApk, output)
-		} else {
-			// If using the input APK unmodified, still make a copy of it so that the output filename has the
-			// right basename.
-			output = android.PathForModuleOut(ctx, apkFilename)
-			ctx.Build(pctx, android.BuildParams{
-				Rule:   android.Cp,
-				Input:  srcApk,
-				Output: output,
-			})
-		}
+		validationStamp := a.validatePresignedApk(ctx, srcApk)
+		output := android.PathForModuleOut(ctx, apkFilename)
+		ctx.Build(pctx, android.BuildParams{
+			Rule:       android.Cp,
+			Input:      srcApk,
+			Output:     output,
+			Validation: validationStamp,
+		})
 		a.outputFile = output
 		a.certificate = PresignedCertificate
 	} else if !Bool(a.properties.Presigned) {
@@ -384,13 +363,9 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		SignAppPackage(ctx, signed, jnisUncompressed, certificates, nil, lineageFile, rotationMinSdkVersion)
 		a.outputFile = signed
 	} else {
-		// Presigned without Preprocessed shouldn't really be a thing, currently we disallow
-		// it for apps with targetSdk >= 30, because on those targetSdks you must be using signature
-		// v2 or later, and signature v2 would be wrecked by uncompressing libs / zipaligning.
-		// But ideally we would disallow it for all prebuilt apks, and remove the presigned property.
-		targetSdkCheck := a.validateTargetSdkLessThan30(ctx, srcApk)
+		validationStamp := a.validatePresignedApk(ctx, srcApk)
 		alignedApk := android.PathForModuleOut(ctx, "zip-aligned", apkFilename)
-		TransformZipAlign(ctx, alignedApk, jnisUncompressed, []android.Path{targetSdkCheck})
+		TransformZipAlign(ctx, alignedApk, jnisUncompressed, []android.Path{validationStamp})
 		a.outputFile = alignedApk
 		a.certificate = PresignedCertificate
 	}
@@ -406,52 +381,28 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	// TODO: androidmk converter jni libs
 }
 
-func (a *AndroidAppImport) validatePreprocessedApk(ctx android.ModuleContext, srcApk android.Path, dstApk android.WritablePath) {
-	var validations android.Paths
-
-	alignmentStamp := android.PathForModuleOut(ctx, "validated-prebuilt", "alignment.stamp")
-	ctx.Build(pctx, android.BuildParams{
-		Rule:   checkZipAlignment,
-		Input:  srcApk,
-		Output: alignmentStamp,
-	})
-
-	validations = append(validations, alignmentStamp)
-	jniCompressionStamp := android.PathForModuleOut(ctx, "validated-prebuilt", "jni_compression.stamp")
-	ctx.Build(pctx, android.BuildParams{
-		Rule:   checkJniLibsAreUncompressedRule,
-		Input:  srcApk,
-		Output: jniCompressionStamp,
-	})
-	validations = append(validations, jniCompressionStamp)
-
+func (a *AndroidAppImport) validatePresignedApk(ctx android.ModuleContext, srcApk android.Path) android.Path {
+	stamp := android.PathForModuleOut(ctx, "validated-prebuilt", "check.stamp")
+	var extraArgs []string
 	if a.Privileged() {
-		// It's ok for non-privileged apps to have compressed dex files, see go/gms-uncompressed-jni-slides
-		dexCompressionStamp := android.PathForModuleOut(ctx, "validated-prebuilt", "dex_compression.stamp")
-		ctx.Build(pctx, android.BuildParams{
-			Rule:   checkDexLibsAreUncompressedRule,
-			Input:  srcApk,
-			Output: dexCompressionStamp,
-		})
-		validations = append(validations, dexCompressionStamp)
+		extraArgs = append(extraArgs, "--privileged")
+	}
+	if proptools.Bool(a.properties.Skip_preprocessed_apk_checks) {
+		extraArgs = append(extraArgs, "--skip-preprocessed-apk-checks")
+	}
+	if proptools.Bool(a.properties.Preprocessed) {
+		extraArgs = append(extraArgs, "--preprocessed")
 	}
 
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        android.Cp,
-		Input:       srcApk,
-		Output:      dstApk,
-		Validations: validations,
-	})
-}
-
-func (a *AndroidAppImport) validateTargetSdkLessThan30(ctx android.ModuleContext, srcApk android.Path) android.Path {
-	alignmentStamp := android.PathForModuleOut(ctx, "validated-prebuilt", "old_target_sdk.stamp")
-	ctx.Build(pctx, android.BuildParams{
-		Rule:   checkBelowTargetSdk30ForNonPreprocessedApks,
+		Rule:   checkPresignedApkRule,
 		Input:  srcApk,
-		Output: alignmentStamp,
+		Output: stamp,
+		Args: map[string]string{
+			"extraArgs": strings.Join(extraArgs, " "),
+		},
 	})
-	return alignmentStamp
+	return stamp
 }
 
 func (a *AndroidAppImport) Prebuilt() *android.Prebuilt {
