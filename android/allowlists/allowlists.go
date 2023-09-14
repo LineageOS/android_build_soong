@@ -922,6 +922,7 @@ var (
 		"aconfig_values",
 		"aidl_interface_headers",
 		"bpf",
+		"cc_aconfig_library",
 		"cc_prebuilt_library",
 		"cc_prebuilt_library_headers",
 		"cc_prebuilt_library_shared",
