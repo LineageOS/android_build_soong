@@ -289,29 +289,10 @@ func logAndSymlinkSetup(buildCtx build.Context, config build.Config) {
 		}
 	}
 
-	// Fix up the source tree due to a repo bug where it doesn't remove
-	// linkfiles that have been removed
-	fixBadDanglingLink(buildCtx, "hardware/qcom/sdm710/Android.bp")
-	fixBadDanglingLink(buildCtx, "hardware/qcom/sdm710/Android.mk")
-
 	// Create a source finder.
 	f := build.NewSourceFinder(buildCtx, config)
 	defer f.Shutdown()
 	build.FindSources(buildCtx, config, f)
-}
-
-func fixBadDanglingLink(ctx build.Context, name string) {
-	_, err := os.Lstat(name)
-	if err != nil {
-		return
-	}
-	_, err = os.Stat(name)
-	if os.IsNotExist(err) {
-		err = os.Remove(name)
-		if err != nil {
-			ctx.Fatalf("Failed to remove dangling link %q: %v", name, err)
-		}
-	}
 }
 
 func dumpVar(ctx build.Context, config build.Config, args []string) {
