@@ -190,6 +190,15 @@ func (s *ShBinary) OutputFile() android.OutputPath {
 	return s.outputFilePath
 }
 
+func (s *ShBinary) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "":
+		return android.Paths{s.outputFilePath}, nil
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+	}
+}
+
 func (s *ShBinary) SubDir() string {
 	return proptools.String(s.properties.Sub_dir)
 }
