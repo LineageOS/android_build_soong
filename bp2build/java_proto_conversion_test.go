@@ -167,10 +167,7 @@ java_library_static {
 					"sdk_version":  `"current"`,
 				}),
 			MakeBazelTarget("java_library", "java-protos", AttrNameToString{
-				"exports": `[
-        ":java-protos_java_proto_lite",
-        ":java-lib-neverlink",
-    ]`,
+				"exports":      `[":java-protos_java_proto_lite"]`,
 				"java_version": `"7"`,
 				"sdk_version":  `"current"`,
 			}),
