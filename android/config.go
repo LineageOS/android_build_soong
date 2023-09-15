@@ -197,9 +197,22 @@ func (c Config) ReleaseVersion() string {
 	return c.config.productVariables.ReleaseVersion
 }
 
-// The flag values files passed to aconfig, derived from RELEASE_VERSION
-func (c Config) ReleaseAconfigValueSets() []string {
-	return c.config.productVariables.ReleaseAconfigValueSets
+// The aconfig value set passed to aconfig, derived from RELEASE_VERSION
+func (c Config) ReleaseAconfigValueSets() string {
+	// This logic to handle both Soong module name and bazel target is temporary in order to
+	// provide backward compatibility where aosp and vendor/google both have the release
+	// aconfig value set but can't be updated at the same time to use bazel target
+	value := strings.Split(c.config.productVariables.ReleaseAconfigValueSets, ":")
+	value_len := len(value)
+	if value_len > 2 {
+		// This shouldn't happen as this should be either a module name or a bazel target path.
+		panic(fmt.Errorf("config file: invalid value for release aconfig value sets: %s",
+			c.config.productVariables.ReleaseAconfigValueSets))
+	}
+	if value_len > 0 {
+		return value[value_len-1]
+	}
+	return ""
 }
 
 // The flag default permission value passed to aconfig
