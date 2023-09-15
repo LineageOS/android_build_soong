@@ -1614,7 +1614,6 @@ func androidAppCertificateBp2Build(ctx android.TopDownMutatorContext, module *An
 
 type manifestValueAttribute struct {
 	MinSdkVersion    *string
-	MaxSdkVersion    *string
 	TargetSdkVersion *string
 }
 
@@ -1628,6 +1627,7 @@ type bazelAndroidAppAttributes struct {
 	Manifest_values  *manifestValueAttribute
 	Optimize         *bool
 	Proguard_specs   bazel.LabelListAttribute
+	Updatable        *bool
 }
 
 // ConvertWithBp2build is used to convert android_app to Bazel.
@@ -1638,28 +1638,9 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	}
 	certificate, certificateName := android.BazelStringOrLabelFromProp(ctx, a.overridableAppProperties.Certificate)
 
-	manifestValues := &manifestValueAttribute{}
-	// TODO(b/274474008 ): Directly convert deviceProperties.Min_sdk_version in bp2build
-	// MinSdkVersion(ctx) calls SdkVersion(ctx) if no value for min_sdk_version is set
-	minSdkVersion := a.MinSdkVersion(ctx)
-	if !minSdkVersion.IsPreview() && !minSdkVersion.IsInvalid() {
-		if minSdkStr, err := minSdkVersion.EffectiveVersionString(ctx); err == nil {
-			manifestValues.MinSdkVersion = &minSdkStr
-		}
-	}
-
-	maxSdkVersion := a.MaxSdkVersion(ctx)
-	if !maxSdkVersion.IsPreview() && !maxSdkVersion.IsInvalid() {
-		if maxSdkStr, err := maxSdkVersion.EffectiveVersionString(ctx); err == nil {
-			manifestValues.MaxSdkVersion = &maxSdkStr
-		}
-	}
-
-	targetSdkVersion := a.TargetSdkVersion(ctx)
-	if !targetSdkVersion.IsPreview() && !targetSdkVersion.IsInvalid() {
-		if targetSdkStr, err := targetSdkVersion.EffectiveVersionString(ctx); err == nil {
-			manifestValues.TargetSdkVersion = &targetSdkStr
-		}
+	manifestValues := &manifestValueAttribute{
+		MinSdkVersion:    a.deviceProperties.Min_sdk_version,
+		TargetSdkVersion: a.deviceProperties.Target_sdk_version,
 	}
 
 	appAttrs := &bazelAndroidAppAttributes{
@@ -1668,6 +1649,7 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		Certificate:      certificate,
 		Certificate_name: certificateName,
 		Manifest_values:  manifestValues,
+		Updatable:        a.appProperties.Updatable,
 	}
 
 	if !BoolDefault(a.dexProperties.Optimize.Enabled, true) {
