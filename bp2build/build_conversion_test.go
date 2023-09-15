@@ -1926,6 +1926,69 @@ func TestPrettyPrintSelectMapEqualValues(t *testing.T) {
 	android.AssertStringEquals(t, "Print the common value if all keys in an axis have the same value", `[":libfoo.impl"]`, actual)
 }
 
+func TestAlreadyPresentBuildTarget(t *testing.T) {
+	bp := `
+	custom {
+		name: "foo",
+	}
+	custom {
+		name: "bar",
+	}
+	`
+	alreadyPresentBuildFile :=
+		MakeBazelTarget(
+			"custom",
+			"foo",
+			AttrNameToString{},
+		)
+	expectedBazelTargets := []string{
+		MakeBazelTarget(
+			"custom",
+			"bar",
+			AttrNameToString{},
+		),
+	}
+	registerCustomModule := func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("custom", customModuleFactoryHostAndDevice)
+	}
+	RunBp2BuildTestCase(t, registerCustomModule, Bp2buildTestCase{
+		AlreadyExistingBuildContents: alreadyPresentBuildFile,
+		Blueprint:                    bp,
+		ExpectedBazelTargets:         expectedBazelTargets,
+		Description:                  "Not duplicating work for an already-present BUILD target.",
+	})
+}
+
+// Verifies that if a module is defined in pkg1/Android.bp, that a target present
+// in pkg2/BUILD.bazel does not result in the module being labeled "already defined
+// in a BUILD file".
+func TestBuildTargetPresentOtherDirectory(t *testing.T) {
+	bp := `
+	custom {
+		name: "foo",
+	}
+	`
+	expectedBazelTargets := []string{
+		MakeBazelTarget(
+			"custom",
+			"foo",
+			AttrNameToString{},
+		),
+	}
+	registerCustomModule := func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("custom", customModuleFactoryHostAndDevice)
+	}
+	RunBp2BuildTestCase(t, registerCustomModule, Bp2buildTestCase{
+		KeepBuildFileForDirs: []string{"other_pkg"},
+		Filesystem: map[string]string{
+			"other_pkg/BUILD.bazel": MakeBazelTarget("custom", "foo", AttrNameToString{}),
+		},
+		Blueprint:            bp,
+		ExpectedBazelTargets: expectedBazelTargets,
+		Description:          "Not treating a BUILD target as the bazel definition for a module in another package",
+	})
+}
+
 // If CommonAttributes.Dir is set, the bazel target should be created in that dir
 func TestCreateBazelTargetInDifferentDir(t *testing.T) {
 	t.Parallel()
