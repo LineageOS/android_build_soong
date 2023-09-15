@@ -15,7 +15,6 @@
 package bp2build
 
 import (
-	"fmt"
 	"testing"
 
 	"android/soong/android"
@@ -140,26 +139,6 @@ java_library {
 }
 `,
 		ExpectedBazelTargets: []string{}, // no targets expected because sdk_version is not set
-	})
-}
-
-func TestJavaLibraryFailsToConvertLibsWithNoSrcs(t *testing.T) {
-	runJavaLibraryTestCase(t, Bp2buildTestCase{
-		ExpectedErr: fmt.Errorf("Module has direct dependencies but no sources. Bazel will not allow this."),
-		Blueprint: `java_library {
-    name: "java-lib-1",
-    libs: ["java-lib-2"],
-    sdk_version: "current",
-    bazel_module: { bp2build_available: true },
-}
-
-java_library {
-    name: "java-lib-2",
-    srcs: ["a.java"],
-    sdk_version: "current",
-    bazel_module: { bp2build_available: false },
-}`,
-		ExpectedBazelTargets: []string{},
 	})
 }
 
@@ -865,6 +844,30 @@ func TestJavaLibraryKotlinCommonSrcs(t *testing.T) {
 				"sdk_version": `"current"`,
 			}),
 			MakeNeverlinkDuplicateTarget("kt_jvm_library", "java-lib-1"),
+		},
+	})
+}
+
+func TestJavaLibraryLibsWithNoSrcs(t *testing.T) {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Description: "java_library that has libs but no srcs",
+		Blueprint: `java_library {
+    name: "java-lib-1",
+    libs: ["java-lib-2"],
+    sdk_version: "current",
+    bazel_module: { bp2build_available: true },
+}
+
+java_library{
+    name: "java-lib-2",
+    bazel_module: { bp2build_available: false },
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+				"sdk_version": `"current"`,
+			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
 		},
 	})
 }
