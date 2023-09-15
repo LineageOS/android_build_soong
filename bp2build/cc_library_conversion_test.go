@@ -3640,8 +3640,8 @@ cc_library {
 		{
 			description: "cc_library with afdo enabled and existing profile",
 			filesystem: map[string]string{
-				"vendor/google_data/pgo_profile/sampling/BUILD":    "",
-				"vendor/google_data/pgo_profile/sampling/foo.afdo": "",
+				"vendor/google_data/pgo_profile/sampling/Android.bp": "",
+				"vendor/google_data/pgo_profile/sampling/foo.afdo":   "",
 			},
 			expectedBazelTargets: []string{
 				MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{}),
@@ -3653,8 +3653,8 @@ cc_library {
 		{
 			description: "cc_library with afdo enabled and existing profile in AOSP",
 			filesystem: map[string]string{
-				"toolchain/pgo-profiles/sampling/BUILD":    "",
-				"toolchain/pgo-profiles/sampling/foo.afdo": "",
+				"toolchain/pgo-profiles/sampling/Android.bp": "",
+				"toolchain/pgo-profiles/sampling/foo.afdo":   "",
 			},
 			expectedBazelTargets: []string{
 				MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{}),
@@ -3666,8 +3666,8 @@ cc_library {
 		{
 			description: "cc_library with afdo enabled but profile filename doesn't match with module name",
 			filesystem: map[string]string{
-				"toolchain/pgo-profiles/sampling/BUILD":    "",
-				"toolchain/pgo-profiles/sampling/bar.afdo": "",
+				"toolchain/pgo-profiles/sampling/Android.bp": "",
+				"toolchain/pgo-profiles/sampling/bar.afdo":   "",
 			},
 			expectedBazelTargets: []string{
 				MakeBazelTarget("cc_library_static", "foo_bp2build_cc_library_static", AttrNameToString{}),

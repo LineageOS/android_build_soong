@@ -1000,6 +1000,8 @@ func bp2BuildParseBaseProps(ctx android.Bp2buildMutatorContext, module *Module) 
 	if module.afdo != nil && module.afdo.Properties.Afdo {
 		fdoProfileDep := bp2buildFdoProfile(ctx, module)
 		if fdoProfileDep != nil {
+			// TODO(b/276287371): Only set fdo_profile for android platform
+			// https://cs.android.com/android/platform/superproject/main/+/main:build/soong/cc/afdo.go;l=105;drc=2dbe160d1af445de32725098570ec594e3944fc5
 			(&compilerAttrs).fdoProfile.SetValue(*fdoProfileDep)
 		}
 	}
@@ -1109,22 +1111,15 @@ func bp2buildFdoProfile(
 	ctx android.Bp2buildMutatorContext,
 	m *Module,
 ) *bazel.Label {
+	// TODO(b/267229066): Convert to afdo boolean attribute and let Bazel handles finding
+	// fdo_profile target from AfdoProfiles product var
 	for _, project := range globalAfdoProfileProjects {
-		// Ensure handcrafted BUILD file exists in the project
-		BUILDPath := android.ExistentPathForSource(ctx, project, "BUILD")
-		if BUILDPath.Valid() {
-			// We handcraft a BUILD file with fdo_profile targets that use the existing profiles in the project
-			// This implementation is assuming that every afdo profile in globalAfdoProfileProjects already has
-			// an associated fdo_profile target declared in the same package.
+		// Ensure it's a Soong package
+		bpPath := android.ExistentPathForSource(ctx, project, "Android.bp")
+		if bpPath.Valid() {
 			// TODO(b/260714900): Handle arch-specific afdo profiles (e.g. `<module-name>-arm<64>.afdo`)
 			path := android.ExistentPathForSource(ctx, project, m.Name()+".afdo")
 			if path.Valid() {
-				// FIXME: Some profiles only exist internally and are not released to AOSP.
-				// When generated BUILD files are checked in, we'll run into merge conflict.
-				// The cc_library_shared target in AOSP won't have reference to an fdo_profile target because
-				// the profile doesn't exist. Internally, the same cc_library_shared target will
-				// have reference to the fdo_profile.
-				// For more context, see b/258682955#comment2
 				fdoProfileLabel := "//" + strings.TrimSuffix(project, "/") + ":" + m.Name()
 				return &bazel.Label{
 					Label: fdoProfileLabel,
