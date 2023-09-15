@@ -20,7 +20,7 @@ import (
 	"android/soong/android"
 )
 
-var PrepareForTestWithAconfigBuildComponents = android.FixtureRegisterWithContext(registerBuildComponents)
+var PrepareForTestWithAconfigBuildComponents = android.FixtureRegisterWithContext(RegisterBuildComponents)
 
 func runTest(t *testing.T, errorHandler android.FixtureErrorHandler, bp string) *android.TestResult {
 	return android.GroupFixturePreparers(PrepareForTestWithAconfigBuildComponents).
