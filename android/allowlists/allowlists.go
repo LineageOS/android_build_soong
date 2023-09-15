@@ -897,6 +897,13 @@ var (
 
 		// java_resources with multiple resource_dirs
 		"emma",
+
+		// NDK STL
+		"ndk_libc++abi",
+		"ndk_libunwind",
+		"ndk_libc++_static",
+		"ndk_libc++_shared",
+		"ndk_system",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
