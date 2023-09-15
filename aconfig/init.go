@@ -97,12 +97,12 @@ var (
 )
 
 func init() {
-	registerBuildComponents(android.InitRegistrationContext)
+	RegisterBuildComponents(android.InitRegistrationContext)
 	pctx.HostBinToolVariable("aconfig", "aconfig")
 	pctx.HostBinToolVariable("soong_zip", "soong_zip")
 }
 
-func registerBuildComponents(ctx android.RegistrationContext) {
+func RegisterBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("aconfig_declarations", DeclarationsFactory)
 	ctx.RegisterModuleType("aconfig_values", ValuesFactory)
 	ctx.RegisterModuleType("aconfig_value_set", ValueSetFactory)
