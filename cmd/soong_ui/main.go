@@ -289,10 +289,36 @@ func logAndSymlinkSetup(buildCtx build.Context, config build.Config) {
 		}
 	}
 
+	removeBadTargetRename(buildCtx, config)
+
 	// Create a source finder.
 	f := build.NewSourceFinder(buildCtx, config)
 	defer f.Shutdown()
 	build.FindSources(buildCtx, config, f)
+}
+
+func removeBadTargetRename(ctx build.Context, config build.Config) {
+	log := ctx.ContextImpl.Logger
+	// find bad paths
+	m, err := filepath.Glob(filepath.Join(config.OutDir(), "bazel", "output", "execroot", "__main__", "bazel-out", "mixed_builds_product-*", "bin", "tools", "metalava", "metalava"))
+	if err != nil {
+		log.Fatalf("Glob for invalid file failed %s", err)
+	}
+	for _, f := range m {
+		info, err := os.Stat(f)
+		if err != nil {
+			log.Fatalf("Stat of invalid file %q failed %s", f, err)
+		}
+		// if it's a directory, leave it, but remove the files
+		if !info.IsDir() {
+			err = os.Remove(f)
+			if err != nil {
+				log.Fatalf("Remove of invalid file %q failed %s", f, err)
+			} else {
+				log.Verbosef("Removed %q", f)
+			}
+		}
+	}
 }
 
 func dumpVar(ctx build.Context, config build.Config, args []string) {
