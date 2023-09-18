@@ -918,6 +918,7 @@ var (
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
+		// go/keep-sorted start
 		"aconfig_declarations",
 		"aconfig_value_set",
 		"aconfig_values",
@@ -937,6 +938,7 @@ var (
 		"linker_config",
 		"sysprop_library",
 		"xsd_config",
+		// go/keep-sorted end
 	}
 
 	// Add the names of modules that bp2build should never convert, if it is
