@@ -32,6 +32,7 @@ func registerCcLibrarySharedModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
 	ctx.RegisterModuleType("cc_library_static", cc.LibraryStaticFactory)
 	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
+	ctx.RegisterModuleType("ndk_library", cc.NdkLibraryFactory)
 }
 
 func runCcLibrarySharedTestCase(t *testing.T, tc Bp2buildTestCase) {
@@ -1592,4 +1593,63 @@ cc_library_shared{
         "foo_renderscript",
     ]`,
 			})}})
+}
+
+func TestCcLibrarySdkVariantUsesStubs(t *testing.T) {
+	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library_shared stubs",
+		ModuleTypeUnderTest:        "cc_library_shared",
+		ModuleTypeUnderTestFactory: cc.LibrarySharedFactory,
+		Blueprint: soongCcLibrarySharedPreamble + `
+cc_library_shared {
+	name: "libUsesSdk",
+	sdk_version: "current",
+	shared_libs: [
+		"libNoStubs",
+		"libHasApexStubs",
+		"libHasApexAndNdkStubs",
+	]
+}
+cc_library_shared {
+	name: "libNoStubs",
+	bazel_module: { bp2build_available: false },
+}
+cc_library_shared {
+	name: "libHasApexStubs",
+	stubs: { symbol_file: "a.map.txt", versions: ["28", "29", "current"] },
+	bazel_module: { bp2build_available: false },
+	apex_available: ["apex_a"],
+}
+cc_library_shared {
+	name: "libHasApexAndNdkStubs",
+	stubs: { symbol_file: "b.map.txt", versions: ["28", "29", "current"] },
+	bazel_module: { bp2build_available: false },
+	apex_available: ["apex_b"],
+}
+ndk_library {
+	name: "libHasApexAndNdkStubs",
+	bazel_module: { bp2build_available: false },
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_shared", "libUsesSdk", AttrNameToString{
+				"implementation_dynamic_deps": `[":libNoStubs"] + select({
+        "//build/bazel/rules/apex:system": [
+            "@api_surfaces//module-libapi/current:libHasApexStubs",
+            "@api_surfaces//module-libapi/current:libHasApexAndNdkStubs",
+        ],
+        "//build/bazel/rules/apex:unbundled_app": [
+            ":libHasApexStubs",
+            "//.:libHasApexAndNdkStubs.ndk_stub_libs",
+        ],
+        "//conditions:default": [
+            ":libHasApexStubs",
+            ":libHasApexAndNdkStubs",
+        ],
+    })`,
+				"local_includes": `["."]`,
+				"sdk_version":    `"current"`,
+			}),
+		},
+	})
 }
