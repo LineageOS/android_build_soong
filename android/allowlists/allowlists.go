@@ -900,20 +900,20 @@ var (
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
+		"aconfig_declarations",
+		"aconfig_value_set",
+		"aconfig_values",
 		"aidl_interface_headers",
 		"bpf",
 		"combined_apis",
 		"droiddoc_exported_dir",
-		"license",
-		"linker_config",
 		"java_import",
 		"java_import_host",
 		"java_sdk_library",
+		"license",
+		"linker_config",
 		"sysprop_library",
 		"xsd_config",
-		"aconfig_declarations",
-		"aconfig_values",
-		"aconfig_value_set",
 	}
 
 	// Add the names of modules that bp2build should never convert, if it is
