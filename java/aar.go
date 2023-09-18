@@ -993,7 +993,7 @@ var extractJNI = pctx.AndroidStaticRule("extractJNI",
 			`jni_files=$$(find $outDir/jni -type f) && ` +
 			// print error message if there are no JNI libs for this arch
 			`[ -n "$$jni_files" ] || (echo "ERROR: no JNI libs found for arch ${archString}" && exit 1) && ` +
-			`${config.SoongZipCmd} -o $out -P 'lib/${archString}' ` +
+			`${config.SoongZipCmd} -o $out -L 0 -P 'lib/${archString}' ` +
 			`-C $outDir/jni/${archString} $$(echo $$jni_files | xargs -n1 printf " -f %s")`,
 		CommandDeps: []string{"${config.SoongZipCmd}"},
 	},
