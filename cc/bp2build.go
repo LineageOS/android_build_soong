@@ -1578,6 +1578,12 @@ func useStubOrImplInApexWithName(ssi stubSelectionInfo) {
 	}
 }
 
+// hasNdkStubs returns true for libfoo if there exists a libfoo.ndk of type ndk_library
+func hasNdkStubs(ctx android.BazelConversionPathContext, c *Module) bool {
+	mod, exists := ctx.ModuleFromName(c.Name() + ndkLibrarySuffix)
+	return exists && ctx.OtherModuleType(mod) == "ndk_library"
+}
+
 func SetStubsForDynamicDeps(ctx android.BazelConversionPathContext, axis bazel.ConfigurationAxis,
 	config string, apexAvailable []string, dynamicLibs bazel.LabelList, dynamicDeps *bazel.LabelListAttribute, ind int, buildNonApexWithStubs bool) {
 
@@ -1636,6 +1642,27 @@ func SetStubsForDynamicDeps(ctx android.BazelConversionPathContext, axis bazel.C
 				sameApiDomain: sameApiDomain,
 			}
 			useStubOrImplInApexWithName(ssi)
+		}
+	}
+
+	// If the library has an sdk variant, create additional selects to build this variant against the ndk
+	// The config setting for this variant will be //build/bazel/rules/apex:unbundled_app
+	if c, ok := ctx.Module().(*Module); ok && c.Properties.Sdk_version != nil {
+		for _, l := range dynamicLibs.Includes {
+			dep, _ := ctx.ModuleFromName(l.OriginalModuleName)
+			label := l // use the implementation by default
+			if depC, ok := dep.(*Module); ok && hasNdkStubs(ctx, depC) {
+				// If the dependency has ndk stubs, build against the ndk stubs
+				// https://cs.android.com/android/_/android/platform/build/soong/+/main:cc/cc.go;l=2642-2643;drc=e12d252e22dd8afa654325790d3298a0d67bd9d6;bpv=1;bpt=0
+				ndkLibModule, _ := ctx.ModuleFromName(dep.Name() + ndkLibrarySuffix)
+				label = bazel.Label{
+					Label: "//" + ctx.OtherModuleDir(ndkLibModule) + ":" + ndkLibModule.Name() + "_stub_libs",
+				}
+			}
+			// add the ndk lib label to this axis
+			existingValue := dynamicDeps.SelectValue(bazel.OsAndInApexAxis, "unbundled_app")
+			existingValue.Append(bazel.MakeLabelList([]bazel.Label{label}))
+			dynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, "unbundled_app", bazel.FirstUniqueBazelLabelList(existingValue))
 		}
 	}
 }
