@@ -83,14 +83,15 @@ func TestApexKey_KeysAreModules(t *testing.T) {
 		ModuleTypeUnderTest:        "apex_key",
 		ModuleTypeUnderTestFactory: apex.ApexKeyFactory,
 		Filesystem:                 map[string]string{},
+		StubbedBuildDefinitions:    []string{"com.android.apogee.avbpubkey", "com.android.apogee.pem"},
 		Blueprint: `
 apex_key {
         name: "com.android.apogee.key",
         public_key: ":com.android.apogee.avbpubkey",
         private_key: ":com.android.apogee.pem",
 }
-` + SimpleModuleDoNotConvertBp2build("filegroup", "com.android.apogee.avbpubkey") +
-			SimpleModuleDoNotConvertBp2build("filegroup", "com.android.apogee.pem"),
+` + simpleModule("filegroup", "com.android.apogee.avbpubkey") +
+			simpleModule("filegroup", "com.android.apogee.pem"),
 		ExpectedBazelTargets: []string{MakeBazelTargetNoRestrictions("apex_key", "com.android.apogee.key", AttrNameToString{
 			"private_key":            `":com.android.apogee.pem"`,
 			"public_key":             `":com.android.apogee.avbpubkey"`,

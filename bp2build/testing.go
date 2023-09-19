@@ -22,6 +22,7 @@ specific-but-shared functionality among tests in package
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -36,6 +37,9 @@ import (
 var (
 	buildDir string
 )
+
+var labelRegex = regexp.MustCompile(`^//([^: ]+):([^ ]+)$`)
+var simpleModuleNameRegex = regexp.MustCompile(`^[^: /]+$`)
 
 func checkError(t *testing.T, errs []error, expectedErr error) bool {
 	t.Helper()
@@ -87,9 +91,12 @@ type Bp2buildTestCase struct {
 	// in the directory under test. The BUILD file has the given contents. This BUILD file
 	// will also be treated as "BUILD file to keep" by the simulated bp2build environment.
 	AlreadyExistingBuildContents string
-	// StubbedBuildDefinitions, if non-empty, adds stub definitions to an already-present source
-	// BUILD file in the directory under test, for each target name given. These stub definitions
-	// are added to the BUILD file given in AlreadyExistingBuildContents, if it is set.
+
+	// StubbedBuildDefinitions, if non-empty, adds stub definitions to already-present source
+	// BUILD files for each bazel label given. The BUILD files with these stub definitions
+	// are added to the BUILD file given in AlreadyExistingBuildContents.
+	// Labels may be of the form //pkg/to:target_name (which would be defined in pkg/to/BUILD.bazel)
+	// or `target_name` (which would be defined in ./BUILD.bazel).
 	StubbedBuildDefinitions []string
 
 	Filesystem map[string]string
@@ -120,32 +127,51 @@ func RunBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.Regi
 
 func runBp2BuildTestCaseWithSetup(t *testing.T, extraPreparer android.FixturePreparer, tc Bp2buildTestCase) {
 	t.Helper()
+	if tc.Filesystem == nil {
+		tc.Filesystem = map[string]string{}
+	}
 	checkDir := "."
 	if tc.Dir != "" {
 		checkDir = tc.Dir
 	}
 	keepExistingBuildDirs := tc.KeepBuildFileForDirs
 	buildFilesToParse := []string{}
+
+	if len(tc.StubbedBuildDefinitions) > 0 {
+		for _, buildDef := range tc.StubbedBuildDefinitions {
+			globalLabelMatch := labelRegex.FindStringSubmatch(buildDef)
+			var dir, targetName string
+			if len(globalLabelMatch) > 0 {
+				dir = globalLabelMatch[1]
+				targetName = globalLabelMatch[2]
+			} else {
+				if !simpleModuleNameRegex.MatchString(buildDef) {
+					t.Errorf("Stubbed build definition '%s' must be either a simple module name or of global target syntax (//foo/bar:baz).", buildDef)
+					return
+				}
+				dir = "."
+				targetName = buildDef
+			}
+			buildFilePath := filepath.Join(dir, "BUILD")
+			tc.Filesystem[buildFilePath] +=
+				MakeBazelTarget(
+					"bp2build_test_stub",
+					targetName,
+					AttrNameToString{})
+			keepExistingBuildDirs = append(keepExistingBuildDirs, dir)
+			buildFilesToParse = append(buildFilesToParse, buildFilePath)
+		}
+	}
+	if len(tc.AlreadyExistingBuildContents) > 0 {
+		buildFilePath := filepath.Join(checkDir, "BUILD")
+		tc.Filesystem[buildFilePath] += tc.AlreadyExistingBuildContents
+		keepExistingBuildDirs = append(keepExistingBuildDirs, checkDir)
+		buildFilesToParse = append(buildFilesToParse, buildFilePath)
+	}
 	filesystem := make(map[string][]byte)
 	for f, content := range tc.Filesystem {
 		filesystem[f] = []byte(content)
 	}
-	alreadyExistingBuildContents := tc.AlreadyExistingBuildContents
-	if len(tc.StubbedBuildDefinitions) > 0 {
-		for _, targetName := range tc.StubbedBuildDefinitions {
-			alreadyExistingBuildContents += MakeBazelTarget(
-				"bp2build_test_stub",
-				targetName,
-				AttrNameToString{})
-		}
-	}
-	if len(alreadyExistingBuildContents) > 0 {
-		buildFilePath := filepath.Join(checkDir, "BUILD")
-		filesystem[buildFilePath] = []byte(alreadyExistingBuildContents)
-		keepExistingBuildDirs = append(keepExistingBuildDirs, checkDir)
-		buildFilesToParse = append(buildFilesToParse, buildFilePath)
-	}
-
 	preparers := []android.FixturePreparer{
 		extraPreparer,
 		android.FixtureMergeMockFs(filesystem),
@@ -600,11 +626,10 @@ func registerCustomModuleForBp2buildConversion(ctx *android.TestContext) {
 	ctx.RegisterForBazelConversion()
 }
 
-func SimpleModuleDoNotConvertBp2build(typ, name string) string {
+func simpleModule(typ, name string) string {
 	return fmt.Sprintf(`
 %s {
 		name: "%s",
-		bazel_module: { bp2build_available: false },
 }`, typ, name)
 }
 

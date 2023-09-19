@@ -3391,7 +3391,6 @@ func (i *Import) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		javaLibraryBazelTargetModuleProperties(),
 		android.CommonAttributes{Name: name + "-neverlink"},
 		neverlinkAttrs)
-
 }
 
 var _ android.MixedBuildBuildable = (*Import)(nil)
