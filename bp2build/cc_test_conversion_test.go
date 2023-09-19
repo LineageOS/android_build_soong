@@ -24,10 +24,11 @@ import (
 )
 
 type ccTestBp2buildTestCase struct {
-	description string
-	blueprint   string
-	filesystem  map[string]string
-	targets     []testBazelTarget
+	description             string
+	blueprint               string
+	filesystem              map[string]string
+	targets                 []testBazelTarget
+	stubbedBuildDefinitions []string
 }
 
 func registerCcTestModuleTypes(ctx android.RegistrationContext) {
@@ -52,6 +53,7 @@ func runCcTestTestCase(t *testing.T, testCase ccTestBp2buildTestCase) {
 			ModuleTypeUnderTestFactory: cc.TestFactory,
 			Description:                description,
 			Blueprint:                  testCase.blueprint,
+			StubbedBuildDefinitions:    testCase.stubbedBuildDefinitions,
 		})
 	})
 }
@@ -59,6 +61,8 @@ func runCcTestTestCase(t *testing.T, testCase ccTestBp2buildTestCase) {
 func TestBasicCcTest(t *testing.T) {
 	runCcTestTestCase(t, ccTestBp2buildTestCase{
 		description: "basic cc_test with commonly used attributes",
+		stubbedBuildDefinitions: []string{"libbuildversion", "libprotobuf-cpp-lite", "libprotobuf-cpp-full",
+			"foolib", "hostlib", "data_mod", "cc_bin", "cc_lib", "cc_test_lib2", "libgtest_main", "libgtest"},
 		blueprint: `
 cc_test {
     name: "mytest",
@@ -89,14 +93,14 @@ cc_test_library {
     host_supported: true,
     include_build_directory: false,
 }
-` + SimpleModuleDoNotConvertBp2build("cc_library", "foolib") +
-			SimpleModuleDoNotConvertBp2build("cc_library_static", "hostlib") +
-			SimpleModuleDoNotConvertBp2build("genrule", "data_mod") +
-			SimpleModuleDoNotConvertBp2build("cc_binary", "cc_bin") +
-			SimpleModuleDoNotConvertBp2build("cc_library", "cc_lib") +
-			SimpleModuleDoNotConvertBp2build("cc_test_library", "cc_test_lib2") +
-			SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
-			SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
+` + simpleModule("cc_library", "foolib") +
+			simpleModule("cc_library_static", "hostlib") +
+			simpleModule("genrule", "data_mod") +
+			simpleModule("cc_binary", "cc_bin") +
+			simpleModule("cc_library", "cc_lib") +
+			simpleModule("cc_test_library", "cc_test_lib2") +
+			simpleModule("cc_library_static", "libgtest_main") +
+			simpleModule("cc_library_static", "libgtest"),
 		targets: []testBazelTarget{
 			{"cc_library_shared", "cc_test_lib1", AttrNameToString{}},
 			{"cc_library_static", "cc_test_lib1_bp2build_cc_library_static", AttrNameToString{}},
@@ -188,7 +192,8 @@ cc_test {
 
 func TestCcTest_TestOptions_Tags(t *testing.T) {
 	runCcTestTestCase(t, ccTestBp2buildTestCase{
-		description: "cc test with test_options.tags converted to tags",
+		description:             "cc test with test_options.tags converted to tags",
+		stubbedBuildDefinitions: []string{"libgtest_main", "libgtest"},
 		blueprint: `
 cc_test {
     name: "mytest",
@@ -196,8 +201,8 @@ cc_test {
     srcs: ["test.cpp"],
     test_options: { tags: ["no-remote"] },
 }
-` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
-			SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
+` + simpleModule("cc_library_static", "libgtest_main") +
+			simpleModule("cc_library_static", "libgtest"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"tags":           `["no-remote"]`,
@@ -230,14 +235,15 @@ func TestCcTest_TestConfig(t *testing.T) {
 		filesystem: map[string]string{
 			"test_config.xml": "",
 		},
+		stubbedBuildDefinitions: []string{"libgtest_main", "libgtest"},
 		blueprint: `
 cc_test {
 	name: "mytest",
 	srcs: ["test.cpp"],
 	test_config: "test_config.xml",
 }
-` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
-			SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
+` + simpleModule("cc_library_static", "libgtest_main") +
+			simpleModule("cc_library_static", "libgtest"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
@@ -269,13 +275,14 @@ func TestCcTest_TestConfigAndroidTestXML(t *testing.T) {
 			"AndroidTest.xml":   "",
 			"DynamicConfig.xml": "",
 		},
+		stubbedBuildDefinitions: []string{"libgtest_main", "libgtest"},
 		blueprint: `
 cc_test {
 	name: "mytest",
 	srcs: ["test.cpp"],
 }
-` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
-			SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
+` + simpleModule("cc_library_static", "libgtest_main") +
+			simpleModule("cc_library_static", "libgtest"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
@@ -307,6 +314,7 @@ func TestCcTest_TestConfigTemplateOptions(t *testing.T) {
 		filesystem: map[string]string{
 			"test_config_template.xml": "",
 		},
+		stubbedBuildDefinitions: []string{"libgtest_isolated_main", "liblog"},
 		blueprint: `
 cc_test {
 	name: "mytest",
@@ -315,8 +323,8 @@ cc_test {
 	auto_gen_config: true,
 	isolated: true,
 }
-` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
-			SimpleModuleDoNotConvertBp2build("cc_library", "liblog"),
+` + simpleModule("cc_library_static", "libgtest_isolated_main") +
+			simpleModule("cc_library", "liblog"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"auto_generate_test_config": "True",
@@ -347,15 +355,16 @@ cc_test {
 
 func TestCcTest_WithExplicitGTestDepInAndroidBp(t *testing.T) {
 	runCcTestTestCase(t, ccTestBp2buildTestCase{
-		description: "cc test that lists libgtest in Android.bp should not have dups of libgtest in BUILD file",
+		description:             "cc test that lists libgtest in Android.bp should not have dups of libgtest in BUILD file",
+		stubbedBuildDefinitions: []string{"libgtest_main", "libgtest"},
 		blueprint: `
 cc_test {
 	name: "mytest",
 	srcs: ["test.cpp"],
 	static_libs: ["libgtest"],
 }
-` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
-			SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
+` + simpleModule("cc_library_static", "libgtest_main") +
+			simpleModule("cc_library_static", "libgtest"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
@@ -382,15 +391,16 @@ cc_test {
 
 func TestCcTest_WithIsolatedTurnedOn(t *testing.T) {
 	runCcTestTestCase(t, ccTestBp2buildTestCase{
-		description: "cc test that sets `isolated: true` should run with ligtest_isolated_main instead of libgtest_main",
+		description:             "cc test that sets `isolated: true` should run with ligtest_isolated_main instead of libgtest_main",
+		stubbedBuildDefinitions: []string{"libgtest_isolated_main", "liblog"},
 		blueprint: `
 cc_test {
 	name: "mytest",
 	srcs: ["test.cpp"],
 	isolated: true,
 }
-` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
-			SimpleModuleDoNotConvertBp2build("cc_library", "liblog"),
+` + simpleModule("cc_library_static", "libgtest_isolated_main") +
+			simpleModule("cc_library", "liblog"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
@@ -415,7 +425,8 @@ cc_test {
 
 func TestCcTest_GtestExplicitlySpecifiedInAndroidBp(t *testing.T) {
 	runCcTestTestCase(t, ccTestBp2buildTestCase{
-		description: "If `gtest` is explicit in Android.bp, it should be explicit in BUILD files as well",
+		description:             "If `gtest` is explicit in Android.bp, it should be explicit in BUILD files as well",
+		stubbedBuildDefinitions: []string{"libgtest_main", "libgtest"},
 		blueprint: `
 cc_test {
 	name: "mytest_with_gtest",
@@ -425,8 +436,8 @@ cc_test {
 	name: "mytest_with_no_gtest",
 	gtest: false,
 }
-` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_main") +
-			SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest"),
+` + simpleModule("cc_library_static", "libgtest_main") +
+			simpleModule("cc_library_static", "libgtest"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest_with_gtest", AttrNameToString{
 				"local_includes": `["."]`,
@@ -466,7 +477,8 @@ cc_test {
 
 func TestCcTest_DisableMemtagHeap(t *testing.T) {
 	runCcTestTestCase(t, ccTestBp2buildTestCase{
-		description: "cc test that disable memtag_heap",
+		description:             "cc test that disable memtag_heap",
+		stubbedBuildDefinitions: []string{"libgtest_isolated_main", "liblog"},
 		blueprint: `
 cc_test {
 	name: "mytest",
@@ -477,8 +489,8 @@ cc_test {
 		memtag_heap: false,
 	},
 }
-` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
-			SimpleModuleDoNotConvertBp2build("cc_library", "liblog"),
+` + simpleModule("cc_library_static", "libgtest_isolated_main") +
+			simpleModule("cc_library", "liblog"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
@@ -499,7 +511,8 @@ cc_test {
 
 func TestCcTest_RespectArm64MemtagHeap(t *testing.T) {
 	runCcTestTestCase(t, ccTestBp2buildTestCase{
-		description: "cc test that disable memtag_heap",
+		description:             "cc test that disable memtag_heap",
+		stubbedBuildDefinitions: []string{"libgtest_isolated_main", "liblog"},
 		blueprint: `
 cc_test {
 	name: "mytest",
@@ -513,8 +526,8 @@ cc_test {
 		}
 	},
 }
-` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
-			SimpleModuleDoNotConvertBp2build("cc_library", "liblog"),
+` + simpleModule("cc_library_static", "libgtest_isolated_main") +
+			simpleModule("cc_library", "liblog"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
@@ -535,7 +548,8 @@ cc_test {
 
 func TestCcTest_IgnoreNoneArm64MemtagHeap(t *testing.T) {
 	runCcTestTestCase(t, ccTestBp2buildTestCase{
-		description: "cc test that disable memtag_heap",
+		description:             "cc test that disable memtag_heap",
+		stubbedBuildDefinitions: []string{"libgtest_isolated_main", "liblog"},
 		blueprint: `
 cc_test {
 	name: "mytest",
@@ -549,8 +563,8 @@ cc_test {
 		}
 	},
 }
-` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
-			SimpleModuleDoNotConvertBp2build("cc_library", "liblog"),
+` + simpleModule("cc_library_static", "libgtest_isolated_main") +
+			simpleModule("cc_library", "liblog"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
@@ -574,7 +588,8 @@ cc_test {
 
 func TestCcTest_Arm64MemtagHeapOverrideNoConfigOne(t *testing.T) {
 	runCcTestTestCase(t, ccTestBp2buildTestCase{
-		description: "cc test that disable memtag_heap",
+		description:             "cc test that disable memtag_heap",
+		stubbedBuildDefinitions: []string{"libgtest_isolated_main", "liblog"},
 		blueprint: `
 cc_test {
 	name: "mytest",
@@ -594,8 +609,8 @@ cc_test {
 		}
 	},
 }
-` + SimpleModuleDoNotConvertBp2build("cc_library_static", "libgtest_isolated_main") +
-			SimpleModuleDoNotConvertBp2build("cc_library", "liblog"),
+` + simpleModule("cc_library_static", "libgtest_isolated_main") +
+			simpleModule("cc_library", "liblog"),
 		targets: []testBazelTarget{
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,

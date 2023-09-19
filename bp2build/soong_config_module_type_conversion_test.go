@@ -15,10 +15,11 @@
 package bp2build
 
 import (
-	"android/soong/android"
-	"android/soong/cc"
 	"fmt"
 	"testing"
+
+	"android/soong/android"
+	"android/soong/cc"
 )
 
 func runSoongConfigModuleTypeTest(t *testing.T, tc Bp2buildTestCase) {
@@ -364,9 +365,9 @@ custom_cc_library_static {
 }`
 
 	otherDeps := `
-cc_library_static { name: "soc_a_dep", bazel_module: { bp2build_available: false } }
-cc_library_static { name: "soc_b_dep", bazel_module: { bp2build_available: false } }
-cc_library_static { name: "soc_default_static_dep", bazel_module: { bp2build_available: false } }
+cc_library_static { name: "soc_a_dep"}
+cc_library_static { name: "soc_b_dep"}
+cc_library_static { name: "soc_default_static_dep"}
 `
 
 	runSoongConfigModuleTypeTest(t, Bp2buildTestCase{
@@ -377,6 +378,7 @@ cc_library_static { name: "soc_default_static_dep", bazel_module: { bp2build_ava
 		Filesystem: map[string]string{
 			"foo/bar/Android.bp": otherDeps,
 		},
+		StubbedBuildDefinitions: []string{"//foo/bar:soc_a_dep", "//foo/bar:soc_b_dep", "//foo/bar:soc_default_static_dep"},
 		ExpectedBazelTargets: []string{`cc_library_static(
     name = "foo",
     copts = select({
@@ -763,9 +765,9 @@ cc_binary {
 }`
 
 	otherDeps := `
-cc_library { name: "lib_a", bazel_module: { bp2build_available: false } }
-cc_library { name: "lib_b", bazel_module: { bp2build_available: false } }
-cc_library { name: "lib_default", bazel_module: { bp2build_available: false } }
+cc_library { name: "lib_a"}
+cc_library { name: "lib_b"}
+cc_library { name: "lib_default"}
 `
 
 	runSoongConfigModuleTypeTest(t, Bp2buildTestCase{
@@ -773,6 +775,7 @@ cc_library { name: "lib_default", bazel_module: { bp2build_available: false } }
 		ModuleTypeUnderTest:        "cc_binary",
 		ModuleTypeUnderTestFactory: cc.BinaryFactory,
 		Blueprint:                  bp,
+		StubbedBuildDefinitions:    []string{"//foo/bar:lib_a", "//foo/bar:lib_b", "//foo/bar:lib_default"},
 		Filesystem: map[string]string{
 			"foo/bar/Android.bp": otherDeps,
 		},
@@ -852,15 +855,16 @@ cc_binary {
 }`
 
 	otherDeps := `
-cc_library { name: "lib_a", bazel_module: { bp2build_available: false } }
-cc_library { name: "lib_b", bazel_module: { bp2build_available: false } }
-cc_library { name: "lib_c", bazel_module: { bp2build_available: false } }
+cc_library { name: "lib_a"}
+cc_library { name: "lib_b"}
+cc_library { name: "lib_c"}
 `
 
 	runSoongConfigModuleTypeTest(t, Bp2buildTestCase{
 		Description:                "soong config variables - generates selects for library_linking_strategy",
 		ModuleTypeUnderTest:        "cc_binary",
 		ModuleTypeUnderTestFactory: cc.BinaryFactory,
+		StubbedBuildDefinitions:    []string{"//foo/bar:lib_a", "//foo/bar:lib_b", "//foo/bar:lib_c"},
 		Blueprint:                  bp,
 		Filesystem: map[string]string{
 			"foo/bar/Android.bp": otherDeps,
@@ -949,9 +953,9 @@ cc_binary {
 }`
 
 	otherDeps := `
-cc_library { name: "lib_a", bazel_module: { bp2build_available: false } }
-cc_library { name: "lib_b", bazel_module: { bp2build_available: false } }
-cc_library { name: "lib_default", bazel_module: { bp2build_available: false } }
+cc_library { name: "lib_a"}
+cc_library { name: "lib_b"}
+cc_library { name: "lib_default"}
 `
 
 	runSoongConfigModuleTypeTest(t, Bp2buildTestCase{
@@ -962,6 +966,7 @@ cc_library { name: "lib_default", bazel_module: { bp2build_available: false } }
 		Filesystem: map[string]string{
 			"foo/bar/Android.bp": otherDeps,
 		},
+		StubbedBuildDefinitions: []string{"//foo/bar:lib_a", "//foo/bar:lib_b", "//foo/bar:lib_default"},
 		ExpectedBazelTargets: []string{`cc_binary(
     name = "library_linking_strategy_sample_binary",
     deps = select({
@@ -1031,8 +1036,8 @@ cc_binary {
 }`
 
 	otherDeps := `
-cc_library { name: "lib_a", bazel_module: { bp2build_available: false } }
-cc_library { name: "lib_b", bazel_module: { bp2build_available: false } }
+cc_library { name: "lib_a"}
+cc_library { name: "lib_b"}
 `
 
 	runSoongConfigModuleTypeTest(t, Bp2buildTestCase{
@@ -1040,6 +1045,7 @@ cc_library { name: "lib_b", bazel_module: { bp2build_available: false } }
 		ModuleTypeUnderTest:        "cc_binary",
 		ModuleTypeUnderTestFactory: cc.BinaryFactory,
 		Blueprint:                  bp,
+		StubbedBuildDefinitions:    []string{"//foo/bar:lib_a", "//foo/bar:lib_b"},
 		Filesystem: map[string]string{
 			"foo/bar/Android.bp": otherDeps,
 		},
@@ -1118,9 +1124,9 @@ cc_binary {
 }`
 
 	otherDeps := `
-cc_library { name: "lib_a", bazel_module: { bp2build_available: false } }
-cc_library { name: "lib_b", bazel_module: { bp2build_available: false } }
-cc_library { name: "lib_default", bazel_module: { bp2build_available: false } }
+cc_library { name: "lib_a"}
+cc_library { name: "lib_b"}
+cc_library { name: "lib_default"}
 `
 
 	runSoongConfigModuleTypeTest(t, Bp2buildTestCase{
@@ -1131,6 +1137,7 @@ cc_library { name: "lib_default", bazel_module: { bp2build_available: false } }
 		Filesystem: map[string]string{
 			"foo/bar/Android.bp": otherDeps,
 		},
+		StubbedBuildDefinitions: []string{"//foo/bar:lib_a", "//foo/bar:lib_b", "//foo/bar:lib_default"},
 		ExpectedBazelTargets: []string{`cc_binary(
     name = "alphabet_binary",
     deps = select({
