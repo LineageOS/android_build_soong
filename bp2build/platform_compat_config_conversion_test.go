@@ -37,6 +37,7 @@ func TestPlatformCompatConfig(t *testing.T) {
 			name: "foo",
 			src: ":lib",
 		}`,
+		StubbedBuildDefinitions: []string{"//a/b:lib"},
 		Filesystem: map[string]string{
 			"a/b/Android.bp": `
 			java_library {
