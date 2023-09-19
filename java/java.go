@@ -64,6 +64,7 @@ func registerJavaBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("dex_import", DexImportFactory)
 	ctx.RegisterModuleType("java_api_library", ApiLibraryFactory)
 	ctx.RegisterModuleType("java_api_contribution", ApiContributionFactory)
+	ctx.RegisterModuleType("java_api_contribution_import", ApiContributionImportFactory)
 
 	// This mutator registers dependencies on dex2oat for modules that should be
 	// dexpreopted. This is done late when the final variants have been
@@ -1623,7 +1624,8 @@ func ApiContributionFactory() android.Module {
 }
 
 type JavaApiImportInfo struct {
-	ApiFile android.Path
+	ApiFile    android.Path
+	ApiSurface string
 }
 
 var JavaApiImportProvider = blueprint.NewProvider(JavaApiImportInfo{})
@@ -1635,7 +1637,8 @@ func (ap *JavaApiContribution) GenerateAndroidBuildActions(ctx android.ModuleCon
 	}
 
 	ctx.SetProvider(JavaApiImportProvider, JavaApiImportInfo{
-		ApiFile: apiFile,
+		ApiFile:    apiFile,
+		ApiSurface: proptools.String(ap.properties.Api_surface),
 	})
 }
 
@@ -1821,18 +1824,29 @@ func (al *ApiLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 var scopeOrderedSourceFileNames = allApiScopes.Strings(
 	func(s *apiScope) string { return s.apiFilePrefix + "current.txt" })
 
-func (al *ApiLibrary) sortApiFilesByApiScope(ctx android.ModuleContext, srcFiles android.Paths) android.Paths {
-	sortedSrcFiles := android.Paths{}
+func (al *ApiLibrary) sortApiFilesByApiScope(ctx android.ModuleContext, srcFilesInfo []JavaApiImportInfo, apiFiles android.Paths) android.Paths {
+	var sortedSrcFiles android.Paths
 
-	for _, scopeSourceFileName := range scopeOrderedSourceFileNames {
-		for _, sourceFileName := range srcFiles {
-			if sourceFileName.Base() == scopeSourceFileName {
-				sortedSrcFiles = append(sortedSrcFiles, sourceFileName)
+	for i, apiScope := range allApiScopes {
+		for _, srcFileInfo := range srcFilesInfo {
+			if srcFileInfo.ApiFile.Base() == scopeOrderedSourceFileNames[i] || srcFileInfo.ApiSurface == apiScope.name {
+				sortedSrcFiles = append(sortedSrcFiles, android.PathForSource(ctx, srcFileInfo.ApiFile.String()))
+			}
+		}
+		// TODO: b/300964421 - Remove when api_files property is removed
+		for _, apiFileName := range apiFiles {
+			if apiFileName.Base() == scopeOrderedSourceFileNames[i] {
+				sortedSrcFiles = append(sortedSrcFiles, apiFileName)
 			}
 		}
 	}
-	if len(srcFiles) != len(sortedSrcFiles) {
-		ctx.ModuleErrorf("Unrecognizable source file found within %s", srcFiles)
+
+	if len(srcFilesInfo)+len(apiFiles) != len(sortedSrcFiles) {
+		var srcFiles android.Paths
+		for _, srcFileInfo := range srcFilesInfo {
+			srcFiles = append(srcFiles, srcFileInfo.ApiFile)
+		}
+		ctx.ModuleErrorf("Unrecognizable source file found within %s", append(srcFiles, apiFiles...))
 	}
 
 	return sortedSrcFiles
@@ -1853,7 +1867,7 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	homeDir := android.PathForModuleOut(ctx, "metalava", "home")
 
-	var srcFiles android.Paths
+	var srcFilesInfo []JavaApiImportInfo
 	var classPaths android.Paths
 	var staticLibs android.Paths
 	var depApiSrcsStubsJar android.Path
@@ -1862,11 +1876,10 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		switch tag {
 		case javaApiContributionTag:
 			provider := ctx.OtherModuleProvider(dep, JavaApiImportProvider).(JavaApiImportInfo)
-			providerApiFile := provider.ApiFile
-			if providerApiFile == nil && !ctx.Config().AllowMissingDependencies() {
+			if provider.ApiFile == nil && !ctx.Config().AllowMissingDependencies() {
 				ctx.ModuleErrorf("Error: %s has an empty api file.", dep.Name())
 			}
-			srcFiles = append(srcFiles, android.PathForSource(ctx, providerApiFile.String()))
+			srcFilesInfo = append(srcFilesInfo, provider)
 		case libTag:
 			provider := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
 			classPaths = append(classPaths, provider.HeaderJars...)
@@ -1880,15 +1893,18 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 
 	// Add the api_files inputs
+	// These are api files in the module subdirectory, which are not provided by
+	// java_api_contribution but provided directly as module property.
+	var apiFiles android.Paths
 	for _, api := range al.properties.Api_files {
-		srcFiles = append(srcFiles, android.PathForModuleSrc(ctx, api))
+		apiFiles = append(apiFiles, android.PathForModuleSrc(ctx, api))
 	}
+
+	srcFiles := al.sortApiFilesByApiScope(ctx, srcFilesInfo, apiFiles)
 
 	if srcFiles == nil && !ctx.Config().AllowMissingDependencies() {
 		ctx.ModuleErrorf("Error: %s has an empty api file.", ctx.ModuleName())
 	}
-
-	srcFiles = al.sortApiFilesByApiScope(ctx, srcFiles)
 
 	cmd := metalavaStubCmd(ctx, rule, srcFiles, homeDir)
 
@@ -3427,4 +3443,31 @@ func (i *Import) QueueBazelCall(ctx android.BaseModuleContext) {
 
 func (i *Import) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
 	return true
+}
+
+type JavaApiContributionImport struct {
+	JavaApiContribution
+
+	prebuilt android.Prebuilt
+}
+
+func ApiContributionImportFactory() android.Module {
+	module := &JavaApiContributionImport{}
+	android.InitAndroidModule(module)
+	android.InitDefaultableModule(module)
+	android.InitPrebuiltModule(module, &[]string{""})
+	module.AddProperties(&module.properties)
+	return module
+}
+
+func (module *JavaApiContributionImport) Prebuilt() *android.Prebuilt {
+	return &module.prebuilt
+}
+
+func (module *JavaApiContributionImport) Name() string {
+	return module.prebuilt.Name(module.ModuleBase.Name())
+}
+
+func (ap *JavaApiContributionImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	ap.JavaApiContribution.GenerateAndroidBuildActions(ctx)
 }
