@@ -669,7 +669,8 @@ type ProductConfigProperties map[string]map[ProductConfigOrSoongConfigProperty]i
 
 // ProductVariableProperties returns a ProductConfigProperties containing only the properties which
 // have been set for the given module.
-func ProductVariableProperties(ctx ArchVariantContext, module Module) ProductConfigProperties {
+func ProductVariableProperties(ctx ArchVariantContext, module Module) (ProductConfigProperties, []error) {
+	var errs []error
 	moduleBase := module.base()
 
 	productConfigProperties := ProductConfigProperties{}
@@ -693,12 +694,15 @@ func ProductVariableProperties(ctx ArchVariantContext, module Module) ProductCon
 		for namespace, namespacedVariableProps := range m.namespacedVariableProps() {
 			for _, namespacedVariableProp := range namespacedVariableProps {
 				variableValues := reflect.ValueOf(namespacedVariableProp).Elem().FieldByName(soongconfig.SoongConfigProperty)
-				productConfigProperties.AddSoongConfigProperties(namespace, variableValues)
+				err := productConfigProperties.AddSoongConfigProperties(namespace, variableValues)
+				if err != nil {
+					errs = append(errs, err)
+				}
 			}
 		}
 	}
 
-	return productConfigProperties
+	return productConfigProperties, errs
 }
 
 func (p *ProductConfigProperties) AddProductConfigProperty(
@@ -820,7 +824,7 @@ func (productConfigProperties *ProductConfigProperties) AddProductConfigProperti
 
 }
 
-func (productConfigProperties *ProductConfigProperties) AddSoongConfigProperties(namespace string, soongConfigVariablesStruct reflect.Value) {
+func (productConfigProperties *ProductConfigProperties) AddSoongConfigProperties(namespace string, soongConfigVariablesStruct reflect.Value) error {
 	//
 	// Example of soong_config_variables:
 	//
@@ -917,7 +921,7 @@ func (productConfigProperties *ProductConfigProperties) AddSoongConfigProperties
 					if propertyName == "Target" {
 						productConfigProperties.AddSoongConfigPropertiesFromTargetStruct(namespace, variableName, proptools.PropertyNameForField(propertyOrValueName), field.Field(k))
 					} else if propertyName == "Arch" || propertyName == "Multilib" {
-						panic("Arch/Multilib are not currently supported in soong config variable structs")
+						return fmt.Errorf("Arch/Multilib are not currently supported in soong config variable structs")
 					} else {
 						productConfigProperties.AddSoongConfigProperty(propertyName, namespace, variableName, proptools.PropertyNameForField(propertyOrValueName), "", field.Field(k).Interface())
 					}
@@ -928,13 +932,14 @@ func (productConfigProperties *ProductConfigProperties) AddSoongConfigProperties
 				if propertyOrValueName == "Target" {
 					productConfigProperties.AddSoongConfigPropertiesFromTargetStruct(namespace, variableName, "", propertyOrStruct)
 				} else if propertyOrValueName == "Arch" || propertyOrValueName == "Multilib" {
-					panic("Arch/Multilib are not currently supported in soong config variable structs")
+					return fmt.Errorf("Arch/Multilib are not currently supported in soong config variable structs")
 				} else {
 					productConfigProperties.AddSoongConfigProperty(propertyOrValueName, namespace, variableName, "", "", propertyOrStruct.Interface())
 				}
 			}
 		}
 	}
+	return nil
 }
 
 func (productConfigProperties *ProductConfigProperties) AddSoongConfigPropertiesFromTargetStruct(namespace, soongConfigVariableName string, soongConfigVariableValue string, targetStruct reflect.Value) {
