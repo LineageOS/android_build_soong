@@ -2485,6 +2485,10 @@ func (module *SdkLibraryImport) createInternalModules(mctx android.DefaultableHo
 		if len(scopeProperties.Stub_srcs) > 0 {
 			module.createPrebuiltStubsSources(mctx, apiScope, scopeProperties)
 		}
+
+		if scopeProperties.Current_api != nil {
+			module.createPrebuiltApiContribution(mctx, apiScope, scopeProperties)
+		}
 	}
 
 	javaSdkLibraries := javaSdkLibraries(mctx.Config())
@@ -2538,6 +2542,25 @@ func (module *SdkLibraryImport) createPrebuiltStubsSources(mctx android.Defaulta
 	props.CopyUserSuppliedPropertiesFromPrebuilt(&module.prebuilt)
 
 	mctx.CreateModule(PrebuiltStubsSourcesFactory, &props)
+}
+
+func (module *SdkLibraryImport) createPrebuiltApiContribution(mctx android.DefaultableHookContext, apiScope *apiScope, scopeProperties *sdkLibraryScopeProperties) {
+	api_file := scopeProperties.Current_api
+	api_surface := &apiScope.name
+
+	props := struct {
+		Name        *string
+		Api_surface *string
+		Api_file    *string
+		Visibility  []string
+	}{}
+
+	props.Name = proptools.StringPtr(module.stubsSourceModuleName(apiScope) + ".api.contribution")
+	props.Api_surface = api_surface
+	props.Api_file = api_file
+	props.Visibility = []string{"//visibility:override", "//visibility:public"}
+
+	mctx.CreateModule(ApiContributionImportFactory, &props)
 }
 
 // Add the dependencies on the child module in the component deps mutator so that it
