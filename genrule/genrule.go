@@ -920,7 +920,7 @@ type BazelGenruleAttributes struct {
 }
 
 // ConvertWithBp2build converts a Soong module -> Bazel target.
-func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (m *Module) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	// Bazel only has the "tools" attribute.
 	tools_prop := android.BazelLabelForModuleDeps(ctx, m.properties.Tools)
 	tool_files_prop := android.BazelLabelForModuleSrc(ctx, m.properties.Tool_files)

@@ -591,7 +591,7 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 }
 
 // TODO(b/240463568): Additional properties will be added for API validation
-func (m *syspropLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (m *syspropLibrary) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	labels := cc.SyspropLibraryLabels{
 		SyspropLibraryLabel: m.BaseModuleName(),
 		SharedLibraryLabel:  m.CcImplementationModuleName(),

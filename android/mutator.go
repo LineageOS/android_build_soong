@@ -15,9 +15,10 @@
 package android
 
 import (
+	"path/filepath"
+
 	"android/soong/bazel"
 	"android/soong/ui/metrics/bp2build_metrics_proto"
-	"path/filepath"
 
 	"github.com/google/blueprint"
 )
@@ -229,36 +230,7 @@ var bp2buildPreArchMutators = []RegisterMutatorFunc{}
 // A minimal context for Bp2build conversion
 type Bp2buildMutatorContext interface {
 	BazelConversionPathContext
-
-	CreateBazelTargetModule(bazel.BazelTargetModuleProperties, CommonAttributes, interface{})
-	CreateBazelTargetModuleWithRestrictions(bazel.BazelTargetModuleProperties, CommonAttributes, interface{}, bazel.BoolAttribute)
-}
-
-// PreArchBp2BuildMutators adds mutators to be register for converting Android Blueprint modules
-// into Bazel BUILD targets that should run prior to deps and conversion.
-func PreArchBp2BuildMutators(f RegisterMutatorFunc) {
-	bp2buildPreArchMutators = append(bp2buildPreArchMutators, f)
-}
-
-type BaseMutatorContext interface {
-	BaseModuleContext
-
-	// MutatorName returns the name that this mutator was registered with.
-	MutatorName() string
-
-	// Rename all variants of a module.  The new name is not visible to calls to ModuleName,
-	// AddDependency or OtherModuleName until after this mutator pass is complete.
-	Rename(name string)
-}
-
-type TopDownMutator func(TopDownMutatorContext)
-
-type TopDownMutatorContext interface {
 	BaseMutatorContext
-
-	// CreateModule creates a new module by calling the factory method for the specified moduleType, and applies
-	// the specified property structs to it as if the properties were set in a blueprint file.
-	CreateModule(ModuleFactory, ...interface{}) Module
 
 	// CreateBazelTargetModule creates a BazelTargetModule by calling the
 	// factory method, just like in CreateModule, but also requires
@@ -288,6 +260,34 @@ type TopDownMutatorContext interface {
 	// This function can be used to createa additional config_setting(s) based on the build graph
 	// (e.g. a config_setting specific to an apex variant)
 	CreateBazelConfigSetting(csa bazel.ConfigSettingAttributes, ca CommonAttributes, dir string)
+}
+
+// PreArchBp2BuildMutators adds mutators to be register for converting Android Blueprint modules
+// into Bazel BUILD targets that should run prior to deps and conversion.
+func PreArchBp2BuildMutators(f RegisterMutatorFunc) {
+	bp2buildPreArchMutators = append(bp2buildPreArchMutators, f)
+}
+
+type BaseMutatorContext interface {
+	BaseModuleContext
+
+	// MutatorName returns the name that this mutator was registered with.
+	MutatorName() string
+
+	// Rename all variants of a module.  The new name is not visible to calls to ModuleName,
+	// AddDependency or OtherModuleName until after this mutator pass is complete.
+	Rename(name string)
+}
+
+type TopDownMutator func(TopDownMutatorContext)
+
+type TopDownMutatorContext interface {
+	BaseMutatorContext
+	Bp2buildMutatorContext
+
+	// CreateModule creates a new module by calling the factory method for the specified moduleType, and applies
+	// the specified property structs to it as if the properties were set in a blueprint file.
+	CreateModule(ModuleFactory, ...interface{}) Module
 }
 
 type topDownMutatorContext struct {

@@ -45,7 +45,7 @@ type bazelFdoProfileAttributes struct {
 	Profile bazel.StringAttribute
 }
 
-func (fp *fdoProfile) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (fp *fdoProfile) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	var profileAttr bazel.StringAttribute
 
 	archVariantProps := fp.GetArchVariantProperties(ctx, &fdoProfileProperties{})
