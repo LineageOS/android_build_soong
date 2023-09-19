@@ -1865,11 +1865,13 @@ func TestJavaApiLibraryAndProviderLink(t *testing.T) {
 	java_api_contribution {
 		name: "foo1",
 		api_file: "current.txt",
+		api_surface: "public",
 	}
 	`
 	provider_bp_b := `java_api_contribution {
 		name: "foo2",
 		api_file: "current.txt",
+		api_surface: "public",
 	}
 	`
 	ctx, _ := testJavaWithFS(t, `
@@ -1919,24 +1921,28 @@ func TestJavaApiLibraryAndDefaultsLink(t *testing.T) {
 	java_api_contribution {
 		name: "foo1",
 		api_file: "current.txt",
+		api_surface: "public",
 	}
 	`
 	provider_bp_b := `
 	java_api_contribution {
 		name: "foo2",
 		api_file: "current.txt",
+		api_surface: "public",
 	}
 	`
 	provider_bp_c := `
 	java_api_contribution {
 		name: "foo3",
-		api_file: "current.txt",
+		api_file: "system-current.txt",
+		api_surface: "system",
 	}
 	`
 	provider_bp_d := `
 	java_api_contribution {
 		name: "foo4",
-		api_file: "current.txt",
+		api_file: "system-current.txt",
+		api_surface: "system",
 	}
 	`
 	ctx, _ := testJavaWithFS(t, `
@@ -1992,8 +1998,9 @@ func TestJavaApiLibraryAndDefaultsLink(t *testing.T) {
 			sourceTextFileDirs: []string{"a/current.txt", "b/current.txt"},
 		},
 		{
-			moduleName:         "bar3",
-			sourceTextFileDirs: []string{"c/current.txt", "a/current.txt", "b/current.txt", "d/current.txt", "api1/current.txt", "api2/current.txt"},
+			moduleName: "bar3",
+			// API text files need to be sorted from the narrower api scope to the wider api scope
+			sourceTextFileDirs: []string{"a/current.txt", "b/current.txt", "api1/current.txt", "api2/current.txt", "c/system-current.txt", "d/system-current.txt"},
 		},
 	}
 	for _, c := range testcases {
@@ -2011,12 +2018,14 @@ func TestJavaApiLibraryJarGeneration(t *testing.T) {
 	java_api_contribution {
 		name: "foo1",
 		api_file: "current.txt",
+		api_surface: "public",
 	}
 	`
 	provider_bp_b := `
 	java_api_contribution {
 		name: "foo2",
 		api_file: "current.txt",
+		api_surface: "public",
 	}
 	`
 	ctx, _ := testJavaWithFS(t, `
@@ -2064,12 +2073,14 @@ func TestJavaApiLibraryLibsLink(t *testing.T) {
 	java_api_contribution {
 		name: "foo1",
 		api_file: "current.txt",
+		api_surface: "public",
 	}
 	`
 	provider_bp_b := `
 	java_api_contribution {
 		name: "foo2",
 		api_file: "current.txt",
+		api_surface: "public",
 	}
 	`
 	lib_bp_a := `
@@ -2139,12 +2150,14 @@ func TestJavaApiLibraryStaticLibsLink(t *testing.T) {
 	java_api_contribution {
 		name: "foo1",
 		api_file: "current.txt",
+		api_surface: "public",
 	}
 	`
 	provider_bp_b := `
 	java_api_contribution {
 		name: "foo2",
 		api_file: "current.txt",
+		api_surface: "public",
 	}
 	`
 	lib_bp_a := `
@@ -2213,12 +2226,14 @@ func TestJavaApiLibraryFullApiSurfaceStub(t *testing.T) {
 	java_api_contribution {
 		name: "foo1",
 		api_file: "current.txt",
+		api_surface: "public",
 	}
 	`
 	provider_bp_b := `
 	java_api_contribution {
 		name: "foo2",
 		api_file: "current.txt",
+		api_surface: "public",
 	}
 	`
 	lib_bp_a := `
@@ -2387,4 +2402,24 @@ func TestHeadersOnly(t *testing.T) {
 
 	javac := ctx.ModuleForTests("foo", "android_common").MaybeRule("javac")
 	android.AssertDeepEquals(t, "javac rule", nil, javac.Rule)
+}
+
+func TestJavaApiContributionImport(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_api_library {
+			name: "foo",
+			api_contributions: ["bar"],
+		}
+		java_api_contribution_import {
+			name: "bar",
+			api_file: "current.txt",
+			api_surface: "public",
+		}
+	`)
+	m := ctx.ModuleForTests("foo", "android_common")
+	manifest := m.Output("metalava.sbox.textproto")
+	sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
+	manifestCommand := sboxProto.Commands[0].GetCommand()
+	sourceFilesFlag := "--source-files current.txt"
+	android.AssertStringDoesContain(t, "source text files not present", manifestCommand, sourceFilesFlag)
 }
