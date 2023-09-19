@@ -65,6 +65,7 @@ func registerCcLibraryModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("cc_prebuilt_library_static", cc.PrebuiltStaticLibraryFactory)
 	ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
 	ctx.RegisterModuleType("aidl_library", aidl_library.AidlLibraryFactory)
+	ctx.RegisterModuleType("ndk_library", cc.NdkLibraryFactory)
 }
 
 func TestCcLibrarySimple(t *testing.T) {
@@ -5126,6 +5127,41 @@ cc_library {
         "//build/bazel/platforms/arch:x86": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
+			}),
+		},
+	}
+	runCcLibraryTestCase(t, tc)
+}
+
+func TestNdkLibraryConversion(t *testing.T) {
+	tc := Bp2buildTestCase{
+		Description:                "ndk_library conversion",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+cc_library {
+	name: "libfoo",
+	bazel_module: { bp2build_available: false },
+}
+ndk_library {
+	name: "libfoo",
+	first_version: "29",
+	symbol_file: "libfoo.map.txt",
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_stub_suite", "libfoo.ndk_stub_libs", AttrNameToString{
+				"api_surface":          `"publicapi"`,
+				"soname":               `"libfoo.so"`,
+				"source_library_label": `"//:libfoo"`,
+				"symbol_file":          `"libfoo.map.txt"`,
+				"versions": `[
+        "29",
+        "30",
+        "S",
+        "Tiramisu",
+        "current",
+    ]`,
 			}),
 		},
 	}

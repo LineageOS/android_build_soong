@@ -4255,6 +4255,8 @@ func (c *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		}
 	case ndkPrebuiltStl:
 		ndkPrebuiltStlBp2build(ctx, c)
+	case ndkLibrary:
+		ndkLibraryBp2build(ctx, c)
 	default:
 		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "")
 	}
