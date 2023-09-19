@@ -484,6 +484,12 @@ type ProductVariables struct {
 	KeepVndk *bool `json:",omitempty"`
 
 	CheckVendorSeappViolations *bool `json:",omitempty"`
+
+	// PartitionsVars are extra variables that are used to define the partition images. They should
+	// not be read from soong modules.
+	PartitionVars struct {
+		ProductDirectory string `json:",omitempty"`
+	} `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
