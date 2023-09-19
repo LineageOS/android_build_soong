@@ -15,8 +15,9 @@
 package bp2build
 
 import (
-	"android/soong/python"
 	"testing"
+
+	"android/soong/python"
 )
 
 func TestPythonTestHostSimple(t *testing.T) {
@@ -31,6 +32,7 @@ func TestPythonTestHostSimple(t *testing.T) {
 			"b/e.py":         "",
 			"files/data.txt": "",
 		},
+		StubbedBuildDefinitions: []string{"bar"},
 		Blueprint: `python_test_host {
     name: "foo",
     main: "a.py",
@@ -43,7 +45,6 @@ func TestPythonTestHostSimple(t *testing.T) {
     python_library_host {
       name: "bar",
       srcs: ["b/e.py"],
-      bazel_module: { bp2build_available: false },
     }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("py_test", "foo", AttrNameToString{
