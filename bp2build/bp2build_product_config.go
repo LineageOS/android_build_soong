@@ -53,9 +53,10 @@ func createProductConfigFiles(
 		return res, err
 	}
 
-	// TODO(b/249685973): the name is product_config_platforms because product_config
-	// was already used for other files. Deduplicate them.
-	currentProductFolder := fmt.Sprintf("product_config_platforms/products/%s-%s", targetProduct, targetBuildVariant)
+	currentProductFolder := fmt.Sprintf("build/bazel/products/%s-%s", targetProduct, targetBuildVariant)
+	if len(productVariables.PartitionVars.ProductDirectory) > 0 {
+		currentProductFolder = fmt.Sprintf("%s%s-%s", productVariables.PartitionVars.ProductDirectory, targetProduct, targetBuildVariant)
+	}
 
 	productReplacer := strings.NewReplacer(
 		"{PRODUCT}", targetProduct,
@@ -72,7 +73,7 @@ func createProductConfigFiles(
 	}
 
 	productLabelsToVariables := make(map[string]*android.ProductVariables)
-	productLabelsToVariables[productReplacer.Replace("@soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}")] = &productVariables
+	productLabelsToVariables[productReplacer.Replace("@//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}")] = &productVariables
 	for product, productVariablesStarlark := range productsForTestingMap {
 		productVariables, err := starlarkMapToProductVariables(productVariablesStarlark)
 		if err != nil {
@@ -81,7 +82,30 @@ func createProductConfigFiles(
 		productLabelsToVariables["@//build/bazel/tests/products:"+product] = &productVariables
 	}
 
-	res.bp2buildTargets = createTargets(productLabelsToVariables)
+	res.bp2buildTargets = make(map[string]BazelTargets)
+	res.bp2buildTargets[currentProductFolder] = append(res.bp2buildTargets[currentProductFolder], BazelTarget{
+		name:        productReplacer.Replace("{PRODUCT}-{VARIANT}"),
+		packageName: currentProductFolder,
+		content: productReplacer.Replace(`android_product(
+    name = "{PRODUCT}-{VARIANT}",
+    soong_variables = _soong_variables,
+)`),
+		ruleClass: "android_product",
+		loads: []BazelLoad{
+			{
+				file: ":soong.variables.bzl",
+				symbols: []BazelLoadSymbol{{
+					symbol: "variables",
+					alias:  "_soong_variables",
+				}},
+			},
+			{
+				file:    "//build/bazel/product_config:android_product.bzl",
+				symbols: []BazelLoadSymbol{{symbol: "android_product"}},
+			},
+		},
+	})
+	createTargets(productLabelsToVariables, res.bp2buildTargets)
 
 	platformMappingContent, err := platformMappingContent(
 		productLabelsToVariables,
@@ -93,26 +117,6 @@ func createProductConfigFiles(
 
 	res.injectionFiles = []BazelFile{
 		newFile(
-			currentProductFolder,
-			"soong.variables.bzl",
-			`variables = json.decode("""`+strings.ReplaceAll(string(productVariablesBytes), "\\", "\\\\")+`""")`),
-		newFile(
-			currentProductFolder,
-			"BUILD",
-			productReplacer.Replace(`
-package(default_visibility=[
-    "@soong_injection//product_config_platforms:__subpackages__",
-    "@//build/bazel/product_config:__subpackages__",
-])
-load(":soong.variables.bzl", _soong_variables = "variables")
-load("@//build/bazel/product_config:android_product.bzl", "android_product")
-
-android_product(
-    name = "{PRODUCT}-{VARIANT}",
-    soong_variables = _soong_variables,
-)
-`)),
-		newFile(
 			"product_config_platforms",
 			"BUILD.bazel",
 			productReplacer.Replace(`
@@ -121,7 +125,7 @@ package(default_visibility = [
 	"@soong_injection//product_config_platforms:__subpackages__",
 ])
 
-load("//{PRODUCT_FOLDER}:soong.variables.bzl", _soong_variables = "variables")
+load("@//{PRODUCT_FOLDER}:soong.variables.bzl", _soong_variables = "variables")
 load("@//build/bazel/product_config:android_product.bzl", "android_product")
 
 # Bazel will qualify its outputs by the platform name. When switching between products, this
@@ -145,33 +149,33 @@ android_product(
 # currently lunched product, they should all be listed here
 product_labels = [
   "@soong_injection//product_config_platforms:mixed_builds_product-{VARIANT}",
-  "@soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}",
+  "@//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}",
 `)+strings.Join(productsForTesting, "\n")+"\n]\n"),
 		newFile(
 			"product_config_platforms",
 			"common.bazelrc",
 			productReplacer.Replace(`
 build --platform_mappings=platform_mappings
-build --platforms @soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_x86_64
+build --platforms @//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_x86_64
 
-build:android --platforms=@soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}
-build:linux_x86 --platforms=@soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_x86
-build:linux_x86_64 --platforms=@soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_x86_64
-build:linux_bionic_x86_64 --platforms=@soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_bionic_x86_64
-build:linux_musl_x86 --platforms=@soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_musl_x86
-build:linux_musl_x86_64 --platforms=@soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_musl_x86_64
+build:android --platforms=@//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}
+build:linux_x86 --platforms=@//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_x86
+build:linux_x86_64 --platforms=@//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_x86_64
+build:linux_bionic_x86_64 --platforms=@//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_bionic_x86_64
+build:linux_musl_x86 --platforms=@//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_musl_x86
+build:linux_musl_x86_64 --platforms=@//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_musl_x86_64
 `)),
 		newFile(
 			"product_config_platforms",
 			"linux.bazelrc",
 			productReplacer.Replace(`
-build --host_platform @soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_x86_64
+build --host_platform @//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_x86_64
 `)),
 		newFile(
 			"product_config_platforms",
 			"darwin.bazelrc",
 			productReplacer.Replace(`
-build --host_platform @soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_darwin_x86_64
+build --host_platform @//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_darwin_x86_64
 `)),
 	}
 	res.bp2buildFiles = []BazelFile{
@@ -179,6 +183,10 @@ build --host_platform @soong_injection//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_dar
 			"",
 			"platform_mappings",
 			platformMappingContent),
+		newFile(
+			currentProductFolder,
+			"soong.variables.bzl",
+			`variables = json.decode("""`+strings.ReplaceAll(string(productVariablesBytes), "\\", "\\\\")+`""")`),
 	}
 
 	return res, nil
@@ -421,8 +429,11 @@ func starlarkMapToProductVariables(in map[string]starlark.Value) (android.Produc
 	return result, nil
 }
 
-func createTargets(productLabelsToVariables map[string]*android.ProductVariables) map[string]BazelTargets {
-	res := make(map[string]BazelTargets)
+func createTargets(productLabelsToVariables map[string]*android.ProductVariables, res map[string]BazelTargets) {
+	createGeneratedAndroidCertificateDirectories(productLabelsToVariables, res)
+}
+
+func createGeneratedAndroidCertificateDirectories(productLabelsToVariables map[string]*android.ProductVariables, targets map[string]BazelTargets) {
 	var allDefaultAppCertificateDirs []string
 	for _, productVariables := range productLabelsToVariables {
 		if proptools.String(productVariables.DefaultAppCertificate) != "" {
@@ -433,20 +444,20 @@ func createTargets(productLabelsToVariables map[string]*android.ProductVariables
 		}
 	}
 	for _, dir := range allDefaultAppCertificateDirs {
-		content := fmt.Sprintf(ruleTargetTemplate, "filegroup", "generated_android_certificate_directory", propsToAttributes(map[string]string{
-			"srcs": `glob([
+		content := `filegroup(
+    name = "generated_android_certificate_directory",
+    srcs = glob([
         "*.pk8",
         "*.pem",
         "*.avbpubkey",
-    ])`,
-			"visibility": `["//visibility:public"]`,
-		}))
-		res[dir] = append(res[dir], BazelTarget{
+    ]),
+    visibility = ["//visibility:public"],
+)`
+		targets[dir] = append(targets[dir], BazelTarget{
 			name:        "generated_android_certificate_directory",
 			packageName: dir,
 			content:     content,
 			ruleClass:   "filegroup",
 		})
 	}
-	return res
 }
