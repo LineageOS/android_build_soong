@@ -78,7 +78,8 @@ func TestAndroidAppAllSupportedFields(t *testing.T) {
 			"manifest/AndroidManifest.xml": "",
 			"assets_/asset.png":            "",
 		},
-		Blueprint: SimpleModuleDoNotConvertBp2build("android_app", "static_lib_dep") + `
+		StubbedBuildDefinitions: []string{"static_lib_dep"},
+		Blueprint: simpleModule("android_app", "static_lib_dep") + `
 android_app {
 	name: "TestApp",
 	srcs: ["app.java"],
@@ -177,7 +178,8 @@ func TestAndroidAppCertIsModule(t *testing.T) {
 		ModuleTypeUnderTest:        "android_app",
 		ModuleTypeUnderTestFactory: java.AndroidAppFactory,
 		Filesystem:                 map[string]string{},
-		Blueprint: SimpleModuleDoNotConvertBp2build("filegroup", "foocert") + `
+		StubbedBuildDefinitions:    []string{"foocert"},
+		Blueprint: simpleModule("filegroup", "foocert") + `
 android_app {
 	name: "TestApp",
 	certificate: ":foocert",
@@ -262,7 +264,8 @@ func TestAndroidAppLibs(t *testing.T) {
 		ModuleTypeUnderTest:        "android_app",
 		ModuleTypeUnderTestFactory: java.AndroidAppFactory,
 		Filesystem:                 map[string]string{},
-		Blueprint: SimpleModuleDoNotConvertBp2build("java_library", "barLib") + `
+		StubbedBuildDefinitions:    []string{"barLib"},
+		Blueprint: simpleModule("java_library", "barLib") + `
 android_app {
 	name: "foo",
 	libs: ["barLib"],
@@ -291,8 +294,9 @@ func TestAndroidAppKotlinSrcs(t *testing.T) {
 		Filesystem: map[string]string{
 			"res/res.png": "",
 		},
-		Blueprint: SimpleModuleDoNotConvertBp2build("filegroup", "foocert") +
-			SimpleModuleDoNotConvertBp2build("java_library", "barLib") + `
+		StubbedBuildDefinitions: []string{"foocert", "barLib"},
+		Blueprint: simpleModule("filegroup", "foocert") +
+			simpleModule("java_library", "barLib") + `
 android_app {
 	name: "foo",
 	srcs: ["a.java", "b.kt"],
@@ -334,6 +338,7 @@ func TestAndroidAppCommonSrcs(t *testing.T) {
 		Filesystem: map[string]string{
 			"res/res.png": "",
 		},
+		StubbedBuildDefinitions: []string{"barLib"},
 		Blueprint: `
 android_app {
 	name: "foo",
@@ -348,7 +353,6 @@ android_app {
 }
 java_library{
 	name:   "barLib",
-	bazel_module: { bp2build_available: false },
 }
 `,
 		ExpectedBazelTargets: []string{
