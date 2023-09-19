@@ -32,7 +32,8 @@ func runJavaPluginTestCase(t *testing.T, tc Bp2buildTestCase) {
 
 func TestJavaPlugin(t *testing.T) {
 	runJavaPluginTestCase(t, Bp2buildTestCase{
-		Description: "java_plugin with srcs, libs, static_libs",
+		Description:             "java_plugin with srcs, libs, static_libs",
+		StubbedBuildDefinitions: []string{"java-lib-1", "java-lib-2"},
 		Blueprint: `java_plugin {
     name: "java-plug-1",
     srcs: ["a.java", "b.java"],
@@ -45,13 +46,11 @@ func TestJavaPlugin(t *testing.T) {
 java_library {
     name: "java-lib-1",
     srcs: ["b.java"],
-    bazel_module: { bp2build_available: false },
 }
 
 java_library {
     name: "java-lib-2",
     srcs: ["c.java"],
-    bazel_module: { bp2build_available: false },
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("java_plugin", "java-plug-1", AttrNameToString{
@@ -75,7 +74,8 @@ java_library {
 
 func TestJavaPluginNoSrcs(t *testing.T) {
 	runJavaPluginTestCase(t, Bp2buildTestCase{
-		Description: "java_plugin without srcs converts (static) libs to deps",
+		Description:             "java_plugin without srcs converts (static) libs to deps",
+		StubbedBuildDefinitions: []string{"java-lib-1", "java-lib-2"},
 		Blueprint: `java_plugin {
     name: "java-plug-1",
     libs: ["java-lib-1"],
