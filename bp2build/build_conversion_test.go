@@ -773,9 +773,12 @@ func TestLoadStatements(t *testing.T) {
 		{
 			bazelTargets: BazelTargets{
 				BazelTarget{
-					name:            "foo",
-					ruleClass:       "cc_library",
-					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+					name:      "foo",
+					ruleClass: "cc_library",
+					loads: []BazelLoad{{
+						file:    "//build/bazel/rules:cc.bzl",
+						symbols: []BazelLoadSymbol{{symbol: "cc_library"}},
+					}},
 				},
 			},
 			expectedLoadStatements: `load("//build/bazel/rules:cc.bzl", "cc_library")`,
@@ -783,14 +786,20 @@ func TestLoadStatements(t *testing.T) {
 		{
 			bazelTargets: BazelTargets{
 				BazelTarget{
-					name:            "foo",
-					ruleClass:       "cc_library",
-					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+					name:      "foo",
+					ruleClass: "cc_library",
+					loads: []BazelLoad{{
+						file:    "//build/bazel/rules:cc.bzl",
+						symbols: []BazelLoadSymbol{{symbol: "cc_library"}},
+					}},
 				},
 				BazelTarget{
-					name:            "bar",
-					ruleClass:       "cc_library",
-					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+					name:      "bar",
+					ruleClass: "cc_library",
+					loads: []BazelLoad{{
+						file:    "//build/bazel/rules:cc.bzl",
+						symbols: []BazelLoadSymbol{{symbol: "cc_library"}},
+					}},
 				},
 			},
 			expectedLoadStatements: `load("//build/bazel/rules:cc.bzl", "cc_library")`,
@@ -798,14 +807,20 @@ func TestLoadStatements(t *testing.T) {
 		{
 			bazelTargets: BazelTargets{
 				BazelTarget{
-					name:            "foo",
-					ruleClass:       "cc_library",
-					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+					name:      "foo",
+					ruleClass: "cc_library",
+					loads: []BazelLoad{{
+						file:    "//build/bazel/rules:cc.bzl",
+						symbols: []BazelLoadSymbol{{symbol: "cc_library"}},
+					}},
 				},
 				BazelTarget{
-					name:            "bar",
-					ruleClass:       "cc_binary",
-					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+					name:      "bar",
+					ruleClass: "cc_binary",
+					loads: []BazelLoad{{
+						file:    "//build/bazel/rules:cc.bzl",
+						symbols: []BazelLoadSymbol{{symbol: "cc_binary"}},
+					}},
 				},
 			},
 			expectedLoadStatements: `load("//build/bazel/rules:cc.bzl", "cc_binary", "cc_library")`,
@@ -813,19 +828,28 @@ func TestLoadStatements(t *testing.T) {
 		{
 			bazelTargets: BazelTargets{
 				BazelTarget{
-					name:            "foo",
-					ruleClass:       "cc_library",
-					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+					name:      "foo",
+					ruleClass: "cc_library",
+					loads: []BazelLoad{{
+						file:    "//build/bazel/rules:cc.bzl",
+						symbols: []BazelLoadSymbol{{symbol: "cc_library"}},
+					}},
 				},
 				BazelTarget{
-					name:            "bar",
-					ruleClass:       "cc_binary",
-					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+					name:      "bar",
+					ruleClass: "cc_binary",
+					loads: []BazelLoad{{
+						file:    "//build/bazel/rules:cc.bzl",
+						symbols: []BazelLoadSymbol{{symbol: "cc_binary"}},
+					}},
 				},
 				BazelTarget{
-					name:            "baz",
-					ruleClass:       "java_binary",
-					bzlLoadLocation: "//build/bazel/rules:java.bzl",
+					name:      "baz",
+					ruleClass: "java_binary",
+					loads: []BazelLoad{{
+						file:    "//build/bazel/rules:java.bzl",
+						symbols: []BazelLoadSymbol{{symbol: "java_binary"}},
+					}},
 				},
 			},
 			expectedLoadStatements: `load("//build/bazel/rules:cc.bzl", "cc_binary", "cc_library")
@@ -834,19 +858,25 @@ load("//build/bazel/rules:java.bzl", "java_binary")`,
 		{
 			bazelTargets: BazelTargets{
 				BazelTarget{
-					name:            "foo",
-					ruleClass:       "cc_binary",
-					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+					name:      "foo",
+					ruleClass: "cc_binary",
+					loads: []BazelLoad{{
+						file:    "//build/bazel/rules:cc.bzl",
+						symbols: []BazelLoadSymbol{{symbol: "cc_binary"}},
+					}},
 				},
 				BazelTarget{
-					name:            "bar",
-					ruleClass:       "java_binary",
-					bzlLoadLocation: "//build/bazel/rules:java.bzl",
+					name:      "bar",
+					ruleClass: "java_binary",
+					loads: []BazelLoad{{
+						file:    "//build/bazel/rules:java.bzl",
+						symbols: []BazelLoadSymbol{{symbol: "java_binary"}},
+					}},
 				},
 				BazelTarget{
 					name:      "baz",
 					ruleClass: "genrule",
-					// Note: no bzlLoadLocation for native rules
+					// Note: no loads for native rules
 				},
 			},
 			expectedLoadStatements: `load("//build/bazel/rules:cc.bzl", "cc_binary")
