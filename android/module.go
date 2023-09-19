@@ -1636,15 +1636,23 @@ func (b bp2buildInfo) BazelAttributes() []interface{} {
 }
 
 func (m *ModuleBase) addBp2buildInfo(info bp2buildInfo) {
-	if m.commonProperties.BazelConversionStatus.UnconvertedReason != nil {
-		panic(fmt.Errorf("bp2build: module '%s' marked unconvertible and also is converted", m.Name()))
+	reason := m.commonProperties.BazelConversionStatus.UnconvertedReason
+	if reason != nil {
+		panic(fmt.Errorf("bp2build: internal error trying to convert module '%s' marked unconvertible. Reason type %d: %s",
+			m.Name(),
+			reason.ReasonType,
+			reason.Detail))
 	}
 	m.commonProperties.BazelConversionStatus.Bp2buildInfo = append(m.commonProperties.BazelConversionStatus.Bp2buildInfo, info)
 }
 
 func (m *ModuleBase) setBp2buildUnconvertible(reasonType bp2build_metrics_proto.UnconvertedReasonType, detail string) {
 	if len(m.commonProperties.BazelConversionStatus.Bp2buildInfo) > 0 {
-		panic(fmt.Errorf("bp2build: module '%s' marked unconvertible and also is converted", m.Name()))
+		fmt.Println(m.commonProperties.BazelConversionStatus.Bp2buildInfo)
+		panic(fmt.Errorf("bp2build: internal error trying to mark converted module '%s' as unconvertible. Reason type %d: %s",
+			m.Name(),
+			reasonType,
+			detail))
 	}
 	m.commonProperties.BazelConversionStatus.UnconvertedReason = &UnconvertedReason{
 		ReasonType: int(reasonType),

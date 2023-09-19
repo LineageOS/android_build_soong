@@ -17,7 +17,6 @@ package bp2build
 import (
 	"android/soong/android"
 	"android/soong/java"
-	"fmt"
 
 	"testing"
 )
@@ -91,7 +90,6 @@ android_library {
 	sdk_version: "current",
 }
 `,
-		ExpectedErr:          fmt.Errorf("Module has direct dependencies but no sources. Bazel will not allow this."),
 		ExpectedBazelTargets: []string{},
 	})
 }
