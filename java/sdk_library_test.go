@@ -74,6 +74,8 @@ func TestJavaSdkLibrary(t *testing.T) {
 		    name: "quuz",
 				public: {
 					jars: ["c.jar"],
+					current_api: "api/current.txt",
+					removed_api: "api/removed.txt",
 				},
 		}
 		java_sdk_library_import {
@@ -172,6 +174,9 @@ func TestJavaSdkLibrary(t *testing.T) {
 		android.AssertDeepEquals(t, "qux exports (required)", []string{"fred", "quuz", "foo", "bar"}, requiredSdkLibs)
 		android.AssertDeepEquals(t, "qux exports (optional)", []string{}, optionalSdkLibs)
 	}
+
+	// test if quuz have created the api_contribution module
+	result.ModuleForTests(apiScopePublic.stubsSourceModuleName("quuz")+".api.contribution", "")
 
 	fooDexJar := result.ModuleForTests("foo", "android_common").Rule("d8")
 	// tests if kotlinc generated files are NOT excluded from output of foo.
