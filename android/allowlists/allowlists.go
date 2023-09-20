@@ -969,8 +969,8 @@ var (
 		"java_sdk_library_import",
 		"license",
 		"linker_config",
-		"ndk_library",
 		"ndk_headers",
+		"ndk_library",
 		"sysprop_library",
 		"xsd_config",
 		// go/keep-sorted end
@@ -1776,19 +1776,5 @@ var (
 		"droidstubs":  DEFAULT_PRIORITIZED_WEIGHT,
 		"art_":        DEFAULT_PRIORITIZED_WEIGHT,
 		"ndk_library": DEFAULT_PRIORITIZED_WEIGHT,
-	}
-
-	BazelSandwichTargets = []struct {
-		Label string
-		Host  bool
-	}{
-		{
-			Label: "//build/bazel/examples/partitions:system_image",
-			Host:  false,
-		},
-		{
-			Label: "//build/bazel/examples/partitions:run_test",
-			Host:  false,
-		},
 	}
 )
