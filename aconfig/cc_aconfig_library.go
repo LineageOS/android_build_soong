@@ -17,7 +17,9 @@ package aconfig
 import (
 	"android/soong/android"
 	"android/soong/cc"
+
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 
 	"fmt"
 	"strings"
@@ -32,6 +34,9 @@ var ccDeclarationsTag = ccDeclarationsTagType{}
 type CcAconfigLibraryProperties struct {
 	// name of the aconfig_declarations module to generate a library for
 	Aconfig_declarations string
+
+	// whether to generate test mode version of the library
+	Test *bool
 }
 
 type CcAconfigLibraryCallbacks struct {
@@ -113,6 +118,12 @@ func (this *CcAconfigLibraryCallbacks) GeneratorBuildActions(ctx cc.ModuleContex
 	}
 	declarations := ctx.OtherModuleProvider(declarationsModules[0], declarationsProviderKey).(declarationsProviderData)
 
+	var mode string
+	if proptools.Bool(this.properties.Test) {
+		mode = "test"
+	} else {
+		mode = "production"
+	}
 	ctx.Build(pctx, android.BuildParams{
 		Rule:  cppRule,
 		Input: declarations.IntermediatePath,
@@ -123,6 +134,7 @@ func (this *CcAconfigLibraryCallbacks) GeneratorBuildActions(ctx cc.ModuleContex
 		Description: "cc_aconfig_library",
 		Args: map[string]string{
 			"gendir": this.generatedDir.String(),
+			"mode":   mode,
 		},
 	})
 }
