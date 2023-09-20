@@ -922,6 +922,7 @@ var (
 		"aconfig_values",
 		"aidl_interface_headers",
 		"bpf",
+		"cc_prebuilt_library_headers",
 		"combined_apis",
 		"droiddoc_exported_dir",
 		"java_import",
