@@ -54,7 +54,7 @@ type baseAttributes struct {
 	Imports bazel.StringListAttribute
 }
 
-func (m *PythonLibraryModule) makeArchVariantBaseAttributes(ctx android.TopDownMutatorContext) baseAttributes {
+func (m *PythonLibraryModule) makeArchVariantBaseAttributes(ctx android.Bp2buildMutatorContext) baseAttributes {
 	var attrs baseAttributes
 	archVariantBaseProps := m.GetArchVariantProperties(ctx, &BaseProperties{})
 	for axis, configToProps := range archVariantBaseProps {
@@ -123,7 +123,7 @@ func (m *PythonLibraryModule) makeArchVariantBaseAttributes(ctx android.TopDownM
 	return attrs
 }
 
-func (m *PythonLibraryModule) bp2buildPythonVersion(ctx android.TopDownMutatorContext) *string {
+func (m *PythonLibraryModule) bp2buildPythonVersion(ctx android.Bp2buildMutatorContext) *string {
 	py3Enabled := proptools.BoolDefault(m.properties.Version.Py3.Enabled, true)
 	py2Enabled := proptools.BoolDefault(m.properties.Version.Py2.Enabled, false)
 	if py2Enabled && !py3Enabled {
@@ -146,7 +146,7 @@ type bazelPythonBinaryAttributes struct {
 	Imports        bazel.StringListAttribute
 }
 
-func (p *PythonLibraryModule) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (p *PythonLibraryModule) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	// TODO(b/182306917): this doesn't fully handle all nested props versioned
 	// by the python version, which would have been handled by the version split
 	// mutator. This is sufficient for very simple python_library modules under
@@ -176,7 +176,7 @@ func (p *PythonLibraryModule) ConvertWithBp2build(ctx android.TopDownMutatorCont
 	}, attrs)
 }
 
-func (p *PythonBinaryModule) bp2buildBinaryProperties(ctx android.TopDownMutatorContext) (*bazelPythonBinaryAttributes, bazel.LabelListAttribute) {
+func (p *PythonBinaryModule) bp2buildBinaryProperties(ctx android.Bp2buildMutatorContext) (*bazelPythonBinaryAttributes, bazel.LabelListAttribute) {
 	// TODO(b/182306917): this doesn't fully handle all nested props versioned
 	// by the python version, which would have been handled by the version split
 	// mutator. This is sufficient for very simple python_binary_host modules
@@ -209,7 +209,7 @@ func (p *PythonBinaryModule) bp2buildBinaryProperties(ctx android.TopDownMutator
 	return attrs, baseAttrs.Data
 }
 
-func (p *PythonBinaryModule) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (p *PythonBinaryModule) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	attrs, data := p.bp2buildBinaryProperties(ctx)
 
 	props := bazel.BazelTargetModuleProperties{
@@ -223,7 +223,7 @@ func (p *PythonBinaryModule) ConvertWithBp2build(ctx android.TopDownMutatorConte
 	}, attrs)
 }
 
-func (p *PythonTestModule) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (p *PythonTestModule) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	// Python tests are currently exactly the same as binaries, but with a different module type
 	attrs, data := p.bp2buildBinaryProperties(ctx)
 

@@ -107,7 +107,7 @@ type linkerConfigAttributes struct {
 	Src bazel.LabelAttribute
 }
 
-func (l *linkerConfig) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (l *linkerConfig) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	if l.properties.Src == nil {
 		ctx.PropertyErrorf("src", "empty src is not supported")
 		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_UNSUPPORTED, "")

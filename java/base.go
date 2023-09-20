@@ -2359,7 +2359,7 @@ type ModuleWithStem interface {
 
 var _ ModuleWithStem = (*Module)(nil)
 
-func (j *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (j *Module) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	switch ctx.ModuleType() {
 	case "java_library", "java_library_host", "java_library_static", "tradefed_java_library_host":
 		if lib, ok := ctx.Module().(*Library); ok {
