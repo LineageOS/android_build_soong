@@ -2282,11 +2282,11 @@ func SdkLibraryFactory() android.Module {
 }
 
 type bazelSdkLibraryAttributes struct {
-	Public        bazel.StringAttribute
-	System        bazel.StringAttribute
-	Test          bazel.StringAttribute
-	Module_lib    bazel.StringAttribute
-	System_server bazel.StringAttribute
+	Public        *bazel.Label
+	System        *bazel.Label
+	Test          *bazel.Label
+	Module_lib    *bazel.Label
+	System_server *bazel.Label
 }
 
 // java_sdk_library bp2build converter
@@ -2296,13 +2296,11 @@ func (module *SdkLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext)
 		return
 	}
 
-	nameToAttr := make(map[string]bazel.StringAttribute)
+	nameToAttr := make(map[string]*bazel.Label)
 
 	for _, scope := range module.getGeneratedApiScopes(ctx) {
-		apiSurfaceFile := path.Join(module.getApiDir(), scope.apiFilePrefix+"current.txt")
-		var scopeStringAttribute bazel.StringAttribute
-		scopeStringAttribute.SetValue(apiSurfaceFile)
-		nameToAttr[scope.name] = scopeStringAttribute
+		apiSurfaceFile := android.BazelLabelForModuleSrcSingle(ctx, path.Join(module.getApiDir(), scope.apiFilePrefix+"current.txt"))
+		nameToAttr[scope.name] = &apiSurfaceFile
 	}
 
 	attrs := bazelSdkLibraryAttributes{
@@ -2361,6 +2359,7 @@ type sdkLibraryImportProperties struct {
 type SdkLibraryImport struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
+	android.BazelModuleBase
 	prebuilt android.Prebuilt
 	android.ApexModuleBase
 
@@ -2444,6 +2443,7 @@ func sdkLibraryImportFactory() android.Module {
 
 	android.InitPrebuiltModule(module, &[]string{""})
 	android.InitApexModule(module)
+	android.InitBazelModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 
 	module.SetDefaultableHook(func(mctx android.DefaultableHookContext) {
@@ -2452,6 +2452,33 @@ func sdkLibraryImportFactory() android.Module {
 		}
 	})
 	return module
+}
+
+// java_sdk_library bp2build converter
+func (i *SdkLibraryImport) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+	nameToAttr := make(map[string]*bazel.Label)
+
+	for scope, props := range i.scopeProperties {
+		if api := proptools.String(props.Current_api); api != "" {
+			apiSurfaceFile := android.BazelLabelForModuleSrcSingle(ctx, api)
+			nameToAttr[scope.name] = &apiSurfaceFile
+		}
+	}
+
+	attrs := bazelSdkLibraryAttributes{
+		Public:        nameToAttr["public"],
+		System:        nameToAttr["system"],
+		Test:          nameToAttr["test"],
+		Module_lib:    nameToAttr["module-lib"],
+		System_server: nameToAttr["system-server"],
+	}
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "java_sdk_library",
+		Bzl_load_location: "//build/bazel/rules/java:sdk_library.bzl",
+	}
+
+	name := android.RemoveOptionalPrebuiltPrefix(i.Name())
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name}, &attrs)
 }
 
 var _ PermittedPackagesForUpdatableBootJars = (*SdkLibraryImport)(nil)
