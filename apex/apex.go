@@ -3298,7 +3298,10 @@ func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (baze
 		cannedFsConfigAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *a.properties.Canned_fs_config))
 	}
 
-	productVariableProps := android.ProductVariableProperties(ctx, a)
+	productVariableProps, errs := android.ProductVariableProperties(ctx, a)
+	for _, err := range errs {
+		ctx.ModuleErrorf("ProductVariableProperties error: %s", err)
+	}
 	// TODO(b/219503907) this would need to be set to a.MinSdkVersionValue(ctx) but
 	// given it's coming via config, we probably don't want to put it in here.
 	var minSdkVersion bazel.StringAttribute
