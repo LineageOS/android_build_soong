@@ -810,7 +810,7 @@ type rustLibraryAttributes struct {
 	Proc_macro_deps bazel.LabelListAttribute
 }
 
-func libraryBp2build(ctx android.TopDownMutatorContext, m *Module) {
+func libraryBp2build(ctx android.Bp2buildMutatorContext, m *Module) {
 	lib := m.compiler.(*libraryDecorator)
 
 	srcs, compileData := srcsAndCompileDataAttrs(ctx, *lib.baseCompiler)
@@ -887,7 +887,7 @@ type cargoBuildScriptAttributes struct {
 	Version bazel.StringAttribute
 }
 
-func cargoBuildScriptBp2build(ctx android.TopDownMutatorContext, m *Module) *string {
+func cargoBuildScriptBp2build(ctx android.Bp2buildMutatorContext, m *Module) *string {
 	// Soong treats some crates like libprotobuf as special in that they have
 	// cargo build script ran to produce an out folder and check it into AOSP
 	// For example, https://cs.android.com/android/platform/superproject/main/+/main:external/rust/crates/protobuf/out/

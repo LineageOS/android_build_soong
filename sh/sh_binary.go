@@ -583,7 +583,7 @@ type bazelShTestAttributes struct {
 	Auto_gen_config      *bool
 }
 
-func (m *ShBinary) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (m *ShBinary) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	srcs := bazel.MakeLabelListAttribute(
 		android.BazelLabelForModuleSrc(ctx, []string{*m.properties.Src}))
 
@@ -611,7 +611,7 @@ func (m *ShBinary) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
 }
 
-func (m *ShTest) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (m *ShTest) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	srcs := bazel.MakeLabelListAttribute(
 		android.BazelLabelForModuleSrc(ctx, []string{*m.properties.Src}))
 

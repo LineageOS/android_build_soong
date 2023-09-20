@@ -599,7 +599,7 @@ func (handler *ccBinaryBazelHandler) ProcessBazelQueryResponse(ctx android.Modul
 	handler.module.setAndroidMkVariablesFromCquery(info.CcAndroidMkInfo)
 }
 
-func binaryBp2buildAttrs(ctx android.TopDownMutatorContext, m *Module) binaryAttributes {
+func binaryBp2buildAttrs(ctx android.Bp2buildMutatorContext, m *Module) binaryAttributes {
 	baseAttrs := bp2BuildParseBaseProps(ctx, m)
 	binaryLinkerAttrs := bp2buildBinaryLinkerProps(ctx, m)
 
@@ -661,7 +661,7 @@ func binaryBp2buildAttrs(ctx android.TopDownMutatorContext, m *Module) binaryAtt
 	return attrs
 }
 
-func binaryBp2build(ctx android.TopDownMutatorContext, m *Module) {
+func binaryBp2build(ctx android.Bp2buildMutatorContext, m *Module) {
 	// shared with cc_test
 	binaryAttrs := binaryBp2buildAttrs(ctx, m)
 

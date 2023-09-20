@@ -71,7 +71,7 @@ type bazelLicenseAttributes struct {
 	Visibility       []string
 }
 
-func (m *licenseModule) ConvertWithBp2build(ctx TopDownMutatorContext) {
+func (m *licenseModule) ConvertWithBp2build(ctx Bp2buildMutatorContext) {
 	attrs := &bazelLicenseAttributes{
 		License_kinds:    m.properties.License_kinds,
 		Copyright_notice: m.properties.Copyright_notice,

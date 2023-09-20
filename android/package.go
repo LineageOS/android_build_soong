@@ -54,7 +54,7 @@ type packageModule struct {
 
 var _ Bazelable = &packageModule{}
 
-func (p *packageModule) ConvertWithBp2build(ctx TopDownMutatorContext) {
+func (p *packageModule) ConvertWithBp2build(ctx Bp2buildMutatorContext) {
 	defaultPackageMetadata := bazel.MakeLabelListAttribute(BazelLabelForModuleDeps(ctx, p.properties.Default_applicable_licenses))
 	// If METADATA file exists in the package, add it to package(default_package_metadata=) using a
 	// filegroup(name="default_metadata_file") which can be accessed later on each module in Bazel

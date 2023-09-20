@@ -313,7 +313,7 @@ type bazelBpfAttributes struct {
 }
 
 // bpf bp2build converter
-func (b *bpf) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (b *bpf) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	if ctx.ModuleType() != "bpf" {
 		return
 	}

@@ -469,7 +469,7 @@ func mixedBuildModuleFactory() Module {
 	return m
 }
 
-func (m *mixedBuildModule) ConvertWithBp2build(ctx TopDownMutatorContext) {
+func (m *mixedBuildModule) ConvertWithBp2build(ctx Bp2buildMutatorContext) {
 }
 
 func (m *mixedBuildModule) DepsMutator(ctx BottomUpMutatorContext) {
