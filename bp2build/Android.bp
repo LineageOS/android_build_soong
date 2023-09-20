@@ -74,6 +74,8 @@ bootstrap_go_package {
         "java_library_host_conversion_test.go",
         "java_plugin_conversion_test.go",
         "java_proto_conversion_test.go",
+        "java_sdk_library_conversion_test.go",
+        "java_sdk_library_import_conversion_test.go",
         "license_conversion_test.go",
         "license_kind_conversion_test.go",
         "linker_config_conversion_test.go",
