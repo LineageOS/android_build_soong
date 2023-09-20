@@ -35,6 +35,7 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 
 	multitree.RegisterApiImportsModule(ctx)
 
+	ctx.RegisterModuleType("prebuilt_build_tool", android.NewPrebuiltBuildTool)
 	ctx.RegisterModuleType("cc_benchmark", BenchmarkFactory)
 	ctx.RegisterModuleType("cc_object", ObjectFactory)
 	ctx.RegisterModuleType("cc_genrule", GenRuleFactory)
