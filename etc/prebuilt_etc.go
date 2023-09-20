@@ -712,7 +712,7 @@ type bazelPrebuiltFileAttributes struct {
 // Bp2buildHelper returns a bazelPrebuiltFileAttributes used for the conversion
 // of prebuilt_*  modules. bazelPrebuiltFileAttributes has the common attributes
 // used by both prebuilt_etc_xml and other prebuilt_* moodules
-func (module *PrebuiltEtc) Bp2buildHelper(ctx android.TopDownMutatorContext) (*bazelPrebuiltFileAttributes, bool) {
+func (module *PrebuiltEtc) Bp2buildHelper(ctx android.Bp2buildMutatorContext) (*bazelPrebuiltFileAttributes, bool) {
 	var src bazel.LabelAttribute
 	for axis, configToProps := range module.GetArchVariantProperties(ctx, &prebuiltEtcProperties{}) {
 		for config, p := range configToProps {
@@ -794,7 +794,7 @@ func (module *PrebuiltEtc) Bp2buildHelper(ctx android.TopDownMutatorContext) (*b
 // ConvertWithBp2build performs bp2build conversion of PrebuiltEtc
 // prebuilt_* modules (except prebuilt_etc_xml) are PrebuiltEtc,
 // which we treat as *PrebuiltFile*
-func (module *PrebuiltEtc) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (module *PrebuiltEtc) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	var dir = module.installDirBase
 	// prebuilt_file supports only `etc` or `usr/share`
 	if !(dir == "etc" || dir == "usr/share") {

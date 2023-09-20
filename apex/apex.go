@@ -2623,7 +2623,7 @@ func OverrideApexFactory() android.Module {
 	return m
 }
 
-func (o *OverrideApex) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (o *OverrideApex) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	if ctx.ModuleType() != "override_apex" {
 		return
 	}
@@ -3261,7 +3261,7 @@ const (
 )
 
 // ConvertWithBp2build performs bp2build conversion of an apex
-func (a *apexBundle) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (a *apexBundle) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	// We only convert apex and apex_test modules at this time
 	if ctx.ModuleType() != "apex" && ctx.ModuleType() != "apex_test" {
 		return
@@ -3272,7 +3272,7 @@ func (a *apexBundle) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 	ctx.CreateBazelTargetModule(props, commonAttrs, &attrs)
 }
 
-func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (bazelApexBundleAttributes, bazel.BazelTargetModuleProperties, android.CommonAttributes) {
+func convertWithBp2build(a *apexBundle, ctx android.Bp2buildMutatorContext) (bazelApexBundleAttributes, bazel.BazelTargetModuleProperties, android.CommonAttributes) {
 	var manifestLabelAttribute bazel.LabelAttribute
 	manifestLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json")))
 
@@ -3432,7 +3432,7 @@ func convertWithBp2build(a *apexBundle, ctx android.TopDownMutatorContext) (baze
 // both,                    32/32,     64/none,   32&64/32, 64/32
 // first,                   32/32,     64/none,   64/32,    64/32
 
-func convert32Libs(ctx android.TopDownMutatorContext, compileMultilb string,
+func convert32Libs(ctx android.Bp2buildMutatorContext, compileMultilb string,
 	libs []string, nativeSharedLibs *convertedNativeSharedLibs) {
 	libsLabelList := android.BazelLabelForModuleDeps(ctx, libs)
 	switch compileMultilb {
@@ -3447,7 +3447,7 @@ func convert32Libs(ctx android.TopDownMutatorContext, compileMultilb string,
 	}
 }
 
-func convert64Libs(ctx android.TopDownMutatorContext, compileMultilb string,
+func convert64Libs(ctx android.Bp2buildMutatorContext, compileMultilb string,
 	libs []string, nativeSharedLibs *convertedNativeSharedLibs) {
 	libsLabelList := android.BazelLabelForModuleDeps(ctx, libs)
 	switch compileMultilb {
@@ -3460,7 +3460,7 @@ func convert64Libs(ctx android.TopDownMutatorContext, compileMultilb string,
 	}
 }
 
-func convertBothLibs(ctx android.TopDownMutatorContext, compileMultilb string,
+func convertBothLibs(ctx android.Bp2buildMutatorContext, compileMultilb string,
 	libs []string, nativeSharedLibs *convertedNativeSharedLibs) {
 	libsLabelList := android.BazelLabelForModuleDeps(ctx, libs)
 	switch compileMultilb {
@@ -3478,7 +3478,7 @@ func convertBothLibs(ctx android.TopDownMutatorContext, compileMultilb string,
 	}
 }
 
-func convertFirstLibs(ctx android.TopDownMutatorContext, compileMultilb string,
+func convertFirstLibs(ctx android.Bp2buildMutatorContext, compileMultilb string,
 	libs []string, nativeSharedLibs *convertedNativeSharedLibs) {
 	libsLabelList := android.BazelLabelForModuleDeps(ctx, libs)
 	switch compileMultilb {
@@ -3521,7 +3521,7 @@ func makeSharedLibsAttributes(config string, libsLabelList bazel.LabelList,
 	labelListAttr.Append(list)
 }
 
-func invalidCompileMultilib(ctx android.TopDownMutatorContext, value string) {
+func invalidCompileMultilib(ctx android.Bp2buildMutatorContext, value string) {
 	ctx.PropertyErrorf("compile_multilib", "Invalid value: %s", value)
 }
 
