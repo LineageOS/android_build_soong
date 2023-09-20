@@ -145,7 +145,7 @@ var kaptStubs = pctx.AndroidRemoteStaticRule("kaptStubs", android.RemoteRuleSupp
 			`$kaptProcessorPath ` +
 			`$kaptProcessor ` +
 			`-Xbuild-file=$kotlinBuildFile && ` +
-			`${config.SoongZipCmd} -jar -o $out -C $kaptDir/stubs -D $kaptDir/stubs && ` +
+			`${config.SoongZipCmd} -jar -write_if_changed -o $out -C $kaptDir/stubs -D $kaptDir/stubs && ` +
 			`rm -rf "$srcJarDir"`,
 		CommandDeps: []string{
 			"${config.KotlincCmd}",
@@ -157,6 +157,7 @@ var kaptStubs = pctx.AndroidRemoteStaticRule("kaptStubs", android.RemoteRuleSupp
 		},
 		Rspfile:        "$out.rsp",
 		RspfileContent: `$in`,
+		Restat:         true,
 	},
 	"kotlincFlags", "encodedJavacFlags", "kaptProcessorPath", "kaptProcessor",
 	"classpath", "srcJars", "commonSrcFilesArg", "srcJarDir", "kaptDir", "kotlinJvmTarget",
