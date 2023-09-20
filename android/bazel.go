@@ -162,7 +162,7 @@ type Bazelable interface {
 	// Modules must implement this function to be bp2build convertible. The function
 	// must either create at least one Bazel target module (using ctx.CreateBazelTargetModule or
 	// its related functions), or declare itself unconvertible using ctx.MarkBp2buildUnconvertible.
-	ConvertWithBp2build(ctx TopDownMutatorContext)
+	ConvertWithBp2build(ctx Bp2buildMutatorContext)
 
 	// namespacedVariableProps is a map from a soong config variable namespace
 	// (e.g. acme, android) to a map of interfaces{}, which are really

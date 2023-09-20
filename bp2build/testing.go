@@ -497,7 +497,7 @@ func (m *customModule) dir() *string {
 	return m.props.Dir
 }
 
-func (m *customModule) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (m *customModule) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	if p := m.props.One_to_many_prop; p != nil && *p {
 		customBp2buildOneToMany(ctx, m)
 		return
@@ -555,7 +555,7 @@ func (m *customModule) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 
 }
 
-func (m *customModule) createConfigSetting(ctx android.TopDownMutatorContext) {
+func (m *customModule) createConfigSetting(ctx android.Bp2buildMutatorContext) {
 	csa := bazel.ConfigSettingAttributes{
 		Flag_values: bazel.StringMapAttribute{
 			"//build/bazel/rules/my_string_setting": m.Name(),
@@ -590,7 +590,7 @@ func (c *customModule) ConvertWithApiBp2build(ctx android.TopDownMutatorContext)
 
 // A bp2build mutator that uses load statements and creates a 1:M mapping from
 // module to target.
-func customBp2buildOneToMany(ctx android.TopDownMutatorContext, m *customModule) {
+func customBp2buildOneToMany(ctx android.Bp2buildMutatorContext, m *customModule) {
 
 	baseName := m.Name()
 	attrs := &customBazelModuleAttributes{}

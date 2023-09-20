@@ -2290,7 +2290,7 @@ type bazelSdkLibraryAttributes struct {
 }
 
 // java_sdk_library bp2build converter
-func (module *SdkLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (module *SdkLibrary) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	if ctx.ModuleType() != "java_sdk_library" {
 		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "")
 		return
@@ -2455,7 +2455,7 @@ func sdkLibraryImportFactory() android.Module {
 }
 
 // java_sdk_library bp2build converter
-func (i *SdkLibraryImport) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (i *SdkLibraryImport) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	nameToAttr := make(map[string]*bazel.Label)
 
 	for scope, props := range i.scopeProperties {

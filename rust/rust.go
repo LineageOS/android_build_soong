@@ -15,11 +15,12 @@
 package rust
 
 import (
+	"fmt"
+	"strings"
+
 	"android/soong/bazel"
 	"android/soong/bloaty"
 	"android/soong/ui/metrics/bp2build_metrics_proto"
-	"fmt"
-	"strings"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -1845,7 +1846,7 @@ func (c *Module) Partition() string {
 	return ""
 }
 
-func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (m *Module) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	if ctx.ModuleType() == "rust_library_host" || ctx.ModuleType() == "rust_library" {
 		libraryBp2build(ctx, m)
 	} else if ctx.ModuleType() == "rust_proc_macro" {
@@ -1864,7 +1865,7 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 // TODO(b/297344471): When crate_root prop is set which enforces inputs sandboxing,
 // always use `srcs` and `compile_data` props to generate `srcs` and `compile_data` attributes
 // instead of using globs.
-func srcsAndCompileDataAttrs(ctx android.TopDownMutatorContext, c baseCompiler) (bazel.LabelList, bazel.LabelList) {
+func srcsAndCompileDataAttrs(ctx android.Bp2buildMutatorContext, c baseCompiler) (bazel.LabelList, bazel.LabelList) {
 	var srcs bazel.LabelList
 	var compileData bazel.LabelList
 

@@ -148,7 +148,7 @@ var (
 
 // stlSrcBp2build returns a bazel label for the checked-in .so/.a file
 // It contains a select statement for each ABI
-func stlSrcBp2build(ctx android.TopDownMutatorContext, c *Module) bazel.LabelAttribute {
+func stlSrcBp2build(ctx android.Bp2buildMutatorContext, c *Module) bazel.LabelAttribute {
 	libName := strings.TrimPrefix(c.Name(), "ndk_")
 	libExt := ".so" // TODO - b/201079053: Support windows
 	if ctx.ModuleType() == "ndk_prebuilt_static_stl" {
@@ -180,7 +180,7 @@ func stlIncludesBp2build(c *Module) bazel.StringListAttribute {
 	return bazel.MakeStringListAttribute(android.FirstUniqueStrings(includeDirs))
 }
 
-func ndkPrebuiltStlBp2build(ctx android.TopDownMutatorContext, c *Module) {
+func ndkPrebuiltStlBp2build(ctx android.Bp2buildMutatorContext, c *Module) {
 	if ctx.ModuleType() == "ndk_prebuilt_static_stl" {
 		ndkPrebuiltStaticStlBp2build(ctx, c)
 	} else {
@@ -188,7 +188,7 @@ func ndkPrebuiltStlBp2build(ctx android.TopDownMutatorContext, c *Module) {
 	}
 }
 
-func ndkPrebuiltStaticStlBp2build(ctx android.TopDownMutatorContext, c *Module) {
+func ndkPrebuiltStaticStlBp2build(ctx android.Bp2buildMutatorContext, c *Module) {
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "cc_prebuilt_library_static",
 		Bzl_load_location: "//build/bazel/rules/cc:cc_prebuilt_library_static.bzl",
@@ -201,7 +201,7 @@ func ndkPrebuiltStaticStlBp2build(ctx android.TopDownMutatorContext, c *Module) 
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: c.Name()}, attrs)
 }
 
-func ndkPrebuiltSharedStlBp2build(ctx android.TopDownMutatorContext, c *Module) {
+func ndkPrebuiltSharedStlBp2build(ctx android.Bp2buildMutatorContext, c *Module) {
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "cc_prebuilt_library_shared",
 		Bzl_load_location: "//build/bazel/rules/cc:cc_prebuilt_library_shared.bzl",

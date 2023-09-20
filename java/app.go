@@ -1594,11 +1594,11 @@ type bazelAndroidAppCertificateAttributes struct {
 	Certificate string
 }
 
-func (m *AndroidAppCertificate) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (m *AndroidAppCertificate) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	androidAppCertificateBp2Build(ctx, m)
 }
 
-func androidAppCertificateBp2Build(ctx android.TopDownMutatorContext, module *AndroidAppCertificate) {
+func androidAppCertificateBp2Build(ctx android.Bp2buildMutatorContext, module *AndroidAppCertificate) {
 	var certificate string
 	if module.properties.Certificate != nil {
 		certificate = *module.properties.Certificate
@@ -1634,7 +1634,7 @@ type bazelAndroidAppAttributes struct {
 	Proguard_specs   bazel.LabelListAttribute
 }
 
-func convertWithBp2build(ctx android.TopDownMutatorContext, a *AndroidApp) (bool, android.CommonAttributes, *bazelAndroidAppAttributes) {
+func convertWithBp2build(ctx android.Bp2buildMutatorContext, a *AndroidApp) (bool, android.CommonAttributes, *bazelAndroidAppAttributes) {
 	aapt, supported := a.convertAaptAttrsWithBp2Build(ctx)
 	if !supported {
 		return false, android.CommonAttributes{}, &bazelAndroidAppAttributes{}
@@ -1745,7 +1745,7 @@ func convertWithBp2build(ctx android.TopDownMutatorContext, a *AndroidApp) (bool
 }
 
 // ConvertWithBp2build is used to convert android_app to Bazel.
-func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (a *AndroidApp) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	if ok, commonAttrs, appAttrs := convertWithBp2build(ctx, a); ok {
 		props := bazel.BazelTargetModuleProperties{
 			Rule_class:        "android_binary",
@@ -1758,7 +1758,7 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 }
 
 // ConvertWithBp2build is used to convert android_test to Bazel.
-func (at *AndroidTest) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (at *AndroidTest) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	if ok, commonAttrs, appAttrs := convertWithBp2build(ctx, &at.AndroidApp); ok {
 		props := bazel.BazelTargetModuleProperties{
 			Rule_class:        "android_test",

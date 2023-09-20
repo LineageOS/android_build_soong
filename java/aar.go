@@ -1241,7 +1241,7 @@ type bazelAndroidLibraryImport struct {
 	Sdk_version bazel.StringAttribute
 }
 
-func (a *aapt) convertAaptAttrsWithBp2Build(ctx android.TopDownMutatorContext) (*bazelAapt, bool) {
+func (a *aapt) convertAaptAttrsWithBp2Build(ctx android.Bp2buildMutatorContext) (*bazelAapt, bool) {
 	manifest := proptools.StringDefault(a.aaptProperties.Manifest, "AndroidManifest.xml")
 
 	resourceFiles := bazel.LabelList{
@@ -1277,7 +1277,7 @@ func (a *aapt) convertAaptAttrsWithBp2Build(ctx android.TopDownMutatorContext) (
 	}, true
 }
 
-func (a *AARImport) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (a *AARImport) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	aars := android.BazelLabelForModuleSrcExcludes(ctx, a.properties.Aars, []string{})
 	exportableStaticLibs := []string{}
 	// TODO(b/240716882): investigate and handle static_libs deps that are not imports. They are not supported for export by Bazel.
@@ -1330,7 +1330,7 @@ func AndroidLibraryBazelTargetModuleProperties() bazel.BazelTargetModuleProperti
 	}
 }
 
-func (a *AndroidLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (a *AndroidLibrary) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	commonAttrs, bp2buildInfo, supported := a.convertLibraryAttrsBp2Build(ctx)
 	if !supported {
 		return

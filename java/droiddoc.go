@@ -871,7 +871,7 @@ func (d *ExportedDroiddocDir) GenerateAndroidBuildActions(ctx android.ModuleCont
 }
 
 // ConvertWithBp2build implements android.BazelModule.
-func (d *ExportedDroiddocDir) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (d *ExportedDroiddocDir) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	props := bazel.BazelTargetModuleProperties{
 		// Use the native py_library rule.
 		Rule_class:        "droiddoc_exported_dir",

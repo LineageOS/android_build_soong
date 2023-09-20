@@ -2775,7 +2775,7 @@ type javaResourcesAttributes struct {
 	Additional_resources  bazel.LabelListAttribute
 }
 
-func (m *Library) getResourceFilegroupStripPrefix(ctx android.TopDownMutatorContext, resourceFilegroup string) (*string, bool) {
+func (m *Library) getResourceFilegroupStripPrefix(ctx android.Bp2buildMutatorContext, resourceFilegroup string) (*string, bool) {
 	if otherM, ok := ctx.ModuleFromName(resourceFilegroup); ok {
 		if fg, isFilegroup := otherM.(android.FileGroupPath); isFilegroup {
 			return proptools.StringPtr(filepath.Join(ctx.OtherModuleDir(otherM), fg.GetPath(ctx))), true
@@ -2784,7 +2784,7 @@ func (m *Library) getResourceFilegroupStripPrefix(ctx android.TopDownMutatorCont
 	return proptools.StringPtr(""), false
 }
 
-func (m *Library) convertJavaResourcesAttributes(ctx android.TopDownMutatorContext) *javaResourcesAttributes {
+func (m *Library) convertJavaResourcesAttributes(ctx android.Bp2buildMutatorContext) *javaResourcesAttributes {
 	var resources bazel.LabelList
 	var resourceStripPrefix *string
 
@@ -2915,7 +2915,7 @@ func javaXsdTargetName(xsd android.XsdConfigBp2buildTargets) string {
 // which has other non-attribute information needed for bp2build conversion
 // that needs different handling depending on the module types, and thus needs
 // to be returned to the calling function.
-func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext) (*javaCommonAttributes, *bp2BuildJavaInfo, bool) {
+func (m *Library) convertLibraryAttrsBp2Build(ctx android.Bp2buildMutatorContext) (*javaCommonAttributes, *bp2BuildJavaInfo, bool) {
 	var srcs bazel.LabelListAttribute
 	var deps bazel.LabelListAttribute
 	var staticDeps bazel.LabelListAttribute
@@ -3136,7 +3136,7 @@ func javaLibraryBazelTargetModuleProperties() bazel.BazelTargetModuleProperties 
 	}
 }
 
-func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
+func javaLibraryBp2Build(ctx android.Bp2buildMutatorContext, m *Library) {
 	commonAttrs, bp2BuildInfo, supported := m.convertLibraryAttrsBp2Build(ctx)
 	if !supported {
 		return
@@ -3192,7 +3192,7 @@ type javaBinaryHostAttributes struct {
 }
 
 // JavaBinaryHostBp2Build is for java_binary_host bp2build.
-func javaBinaryHostBp2Build(ctx android.TopDownMutatorContext, m *Binary) {
+func javaBinaryHostBp2Build(ctx android.Bp2buildMutatorContext, m *Binary) {
 	commonAttrs, bp2BuildInfo, supported := m.convertLibraryAttrsBp2Build(ctx)
 	if !supported {
 		return
@@ -3279,7 +3279,7 @@ type javaTestHostAttributes struct {
 }
 
 // javaTestHostBp2Build is for java_test_host bp2build.
-func javaTestHostBp2Build(ctx android.TopDownMutatorContext, m *TestHost) {
+func javaTestHostBp2Build(ctx android.Bp2buildMutatorContext, m *TestHost) {
 	commonAttrs, bp2BuildInfo, supported := m.convertLibraryAttrsBp2Build(ctx)
 	if !supported {
 		return
@@ -3332,7 +3332,7 @@ type libraryCreationInfo struct {
 
 // helper function that creates java_library target from java_binary_host or java_test_host,
 // and returns the library target name,
-func createLibraryTarget(ctx android.TopDownMutatorContext, libInfo libraryCreationInfo) string {
+func createLibraryTarget(ctx android.Bp2buildMutatorContext, libInfo libraryCreationInfo) string {
 	libName := libInfo.baseName + "_lib"
 	var libProps bazel.BazelTargetModuleProperties
 	if libInfo.hasKotlin {
@@ -3355,7 +3355,7 @@ type bazelJavaImportAttributes struct {
 }
 
 // java_import bp2Build converter.
-func (i *Import) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (i *Import) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	var jars bazel.LabelListAttribute
 	archVariantProps := i.GetArchVariantProperties(ctx, &ImportProperties{})
 	for axis, configToProps := range archVariantProps {
