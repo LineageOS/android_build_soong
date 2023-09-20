@@ -138,9 +138,14 @@ func (binary *binaryDecorator) preferRlib() bool {
 
 func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput {
 	fileName := binary.getStem(ctx) + ctx.toolchain().ExecutableSuffix()
-	srcPath, _ := srcPathFromModuleSrcs(ctx, binary.baseCompiler.Properties.Srcs)
 	outputFile := android.PathForModuleOut(ctx, fileName)
 	ret := buildOutput{outputFile: outputFile}
+	var crateRootPath android.Path
+	if binary.baseCompiler.Properties.Crate_root == nil {
+		crateRootPath, _ = srcPathFromModuleSrcs(ctx, binary.baseCompiler.Properties.Srcs)
+	} else {
+		crateRootPath = android.PathForModuleSrc(ctx, *binary.baseCompiler.Properties.Crate_root)
+	}
 
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.depLinkFlags...)
@@ -155,7 +160,7 @@ func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps Path
 	}
 	binary.baseCompiler.unstrippedOutputFile = outputFile
 
-	ret.kytheFile = TransformSrcToBinary(ctx, srcPath, deps, flags, outputFile).kytheFile
+	ret.kytheFile = TransformSrcToBinary(ctx, crateRootPath, deps, flags, outputFile).kytheFile
 	return ret
 }
 
