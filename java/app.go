@@ -1683,9 +1683,22 @@ func convertWithBp2build(ctx android.Bp2buildMutatorContext, a *AndroidApp) (boo
 		Updatable:        a.appProperties.Updatable,
 	}
 
-	if !BoolDefault(a.dexProperties.Optimize.Enabled, true) {
-		appAttrs.Optimize = proptools.BoolPtr(false)
-	} else {
+	// Optimization is..
+	// - enabled by default for android_app, android_test_helper_app
+	// - disabled by default for android_test
+	//
+	// TODO(b/192032291): Disable android_test_helper_app optimization by
+	// default after auditing downstream usage.
+	if a.dexProperties.Optimize.Enabled == nil {
+		// Property was not explicitly defined.
+		a.dexProperties.Optimize.Enabled = &a.dexProperties.Optimize.EnabledByDefault
+	}
+	if Bool(a.dexProperties.Optimize.Enabled) {
+		if !a.dexProperties.Optimize.EnabledByDefault {
+			// explicitly enable optimize for module types that disable it by default
+			appAttrs.Optimize = proptools.BoolPtr(true)
+		}
+
 		handCraftedFlags := ""
 		if Bool(a.dexProperties.Optimize.Ignore_warnings) {
 			handCraftedFlags += "-ignorewarning "
@@ -1715,6 +1728,9 @@ func convertWithBp2build(ctx android.Bp2buildMutatorContext, a *AndroidApp) (boo
 			})
 			appAttrs.Proguard_specs.Add(bazel.MakeLabelAttribute(":" + generatedFlagFileRuleName))
 		}
+	} else if a.dexProperties.Optimize.EnabledByDefault {
+		// explicitly disable optimize for module types that enable it by default
+		appAttrs.Optimize = proptools.BoolPtr(false)
 	}
 
 	commonAttrs, bp2BuildInfo, supported := a.convertLibraryAttrsBp2Build(ctx)
@@ -1803,13 +1819,12 @@ func (atha *AndroidTestHelperApp) ConvertWithBp2build(ctx android.Bp2buildMutato
 		// an android_test_helper_app is an android_binary with testonly = True
 		commonAttrs.Testonly = proptools.BoolPtr(true)
 
-		// additionally, it sets default values differently to android_app,
+		// android_test_helper_app sets default values differently to android_app,
 		// https://cs.android.com/android/platform/superproject/main/+/main:build/soong/java/app.go;l=1273-1279;drc=e12c083198403ec694af6c625aed11327eb2bf7f
 		//
 		// installable: true (settable prop)
 		// use_embedded_native_libs: true (settable prop)
 		// lint.test: true (settable prop)
-		// optimize EnabledByDefault: true (blueprint mutated prop)
 		// AlwaysPackageNativeLibs: true (blueprint mutated prop)
 		// dexpreopt isTest: true (not prop)
 
