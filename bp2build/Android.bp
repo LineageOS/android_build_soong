@@ -44,6 +44,7 @@ bootstrap_go_package {
         "aidl_library_conversion_test.go",
         "android_app_certificate_conversion_test.go",
         "android_app_conversion_test.go",
+        "android_test_conversion_test.go",
         "apex_conversion_test.go",
         "apex_key_conversion_test.go",
         "build_conversion_test.go",
