@@ -993,7 +993,10 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 
 	var cmdProp bazel.StringAttribute
 	cmdProp.SetValue(replaceVariables(proptools.String(m.properties.Cmd)))
-	allProductVariableProps := android.ProductVariableProperties(ctx, m)
+	allProductVariableProps, errs := android.ProductVariableProperties(ctx, m)
+	for _, err := range errs {
+		ctx.ModuleErrorf("ProductVariableProperties error: %s", err)
+	}
 	if productVariableProps, ok := allProductVariableProps["Cmd"]; ok {
 		for productVariable, value := range productVariableProps {
 			var cmd string

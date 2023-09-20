@@ -730,8 +730,11 @@ func (module *PrebuiltEtc) Bp2buildHelper(ctx android.TopDownMutatorContext) (*b
 				src.SetSelectValue(axis, config, label)
 			}
 		}
-
-		for propName, productConfigProps := range android.ProductVariableProperties(ctx, ctx.Module()) {
+		productVarProperties, errs := android.ProductVariableProperties(ctx, ctx.Module())
+		for _, err := range errs {
+			ctx.ModuleErrorf("ProductVariableProperties error: %s", err)
+		}
+		for propName, productConfigProps := range productVarProperties {
 			for configProp, propVal := range productConfigProps {
 				if propName == "Src" {
 					props, ok := propVal.(*string)

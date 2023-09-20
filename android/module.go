@@ -1458,7 +1458,10 @@ func addCompatibilityConstraintForCompileMultilib(ctx *topDownMutatorContext, en
 // Returns a list of the constraint_value targets who enable this override.
 func productVariableConfigEnableAttribute(ctx *topDownMutatorContext) bazel.LabelListAttribute {
 	result := bazel.LabelListAttribute{}
-	productVariableProps := ProductVariableProperties(ctx, ctx.Module())
+	productVariableProps, errs := ProductVariableProperties(ctx, ctx.Module())
+	for _, err := range errs {
+		ctx.ModuleErrorf("ProductVariableProperties error: %s", err)
+	}
 	if productConfigProps, exists := productVariableProps["Enabled"]; exists {
 		for productConfigProp, prop := range productConfigProps {
 			flag, ok := prop.(*bool)
