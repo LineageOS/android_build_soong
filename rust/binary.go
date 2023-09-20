@@ -15,9 +15,10 @@
 package rust
 
 import (
+	"fmt"
+
 	"android/soong/android"
 	"android/soong/bazel"
-	"fmt"
 )
 
 func init() {
@@ -199,7 +200,7 @@ type rustBinaryLibraryAttributes struct {
 	Rustc_flags     bazel.StringListAttribute
 }
 
-func binaryBp2build(ctx android.TopDownMutatorContext, m *Module) {
+func binaryBp2build(ctx android.Bp2buildMutatorContext, m *Module) {
 	binary := m.compiler.(*binaryDecorator)
 
 	var srcs bazel.LabelList

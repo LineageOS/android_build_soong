@@ -156,7 +156,7 @@ type bazelObjectAttributes struct {
 
 // objectBp2Build is the bp2build converter from cc_object modules to the
 // Bazel equivalent target, plus any necessary include deps for the cc_object.
-func objectBp2Build(ctx android.TopDownMutatorContext, m *Module) {
+func objectBp2Build(ctx android.Bp2buildMutatorContext, m *Module) {
 	if m.compiler == nil {
 		// a cc_object must have access to the compiler decorator for its props.
 		ctx.ModuleErrorf("compiler must not be nil for a cc_object module")

@@ -4214,7 +4214,7 @@ func (c *Module) typ() moduleType {
 }
 
 // ConvertWithBp2build converts Module to Bazel for bp2build.
-func (c *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (c *Module) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	prebuilt := c.IsPrebuilt()
 	switch c.typ() {
 	case binary:

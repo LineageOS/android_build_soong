@@ -198,7 +198,7 @@ type bazelDeviceHostConverterAttributes struct {
 	Exports bazel.LabelListAttribute
 }
 
-func (d *DeviceHostConverter) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (d *DeviceHostConverter) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	ctx.CreateBazelTargetModule(
 		bazel.BazelTargetModuleProperties{
 			Rule_class:        "java_host_for_device",

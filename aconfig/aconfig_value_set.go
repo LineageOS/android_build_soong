@@ -96,7 +96,7 @@ type bazelAconfigValueSetAttributes struct {
 	Values bazel.LabelListAttribute
 }
 
-func (module *ValueSetModule) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (module *ValueSetModule) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	if ctx.ModuleType() != "aconfig_value_set" {
 		return
 	}

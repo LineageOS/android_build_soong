@@ -584,7 +584,7 @@ func apiHeaderLabels(ctx android.TopDownMutatorContext, hdrLibs []string) bazel.
 	return android.BazelLabelForModuleDepsWithFn(ctx, hdrLibs, addSuffix)
 }
 
-func ndkLibraryBp2build(ctx android.TopDownMutatorContext, c *Module) {
+func ndkLibraryBp2build(ctx android.Bp2buildMutatorContext, c *Module) {
 	ndk, _ := c.linker.(*stubDecorator)
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "cc_stub_suite",

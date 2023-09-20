@@ -75,7 +75,7 @@ type bazelAconfigValuesAttributes struct {
 	Package string
 }
 
-func (module *ValuesModule) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (module *ValuesModule) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	if ctx.ModuleType() != "aconfig_values" {
 		return
 	}

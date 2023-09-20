@@ -64,7 +64,7 @@ type bazelAidlLibraryAttributes struct {
 	Deps                bazel.LabelListAttribute
 }
 
-func (lib *AidlLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (lib *AidlLibrary) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	srcs := bazel.MakeLabelListAttribute(
 		android.BazelLabelForModuleSrc(
 			ctx,

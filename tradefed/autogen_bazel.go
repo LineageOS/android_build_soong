@@ -49,7 +49,7 @@ type TestConfigAttributes struct {
 }
 
 func GetTestConfigAttributes(
-	ctx android.TopDownMutatorContext,
+	ctx android.Bp2buildMutatorContext,
 	testConfig *string,
 	extraTestConfigs []string,
 	autoGenConfig *bool,
@@ -93,7 +93,7 @@ func GetTestConfigAttributes(
 }
 
 func GetTestConfig(
-	ctx android.TopDownMutatorContext,
+	ctx android.Bp2buildMutatorContext,
 	testConfig *string,
 ) *bazel.Label {
 

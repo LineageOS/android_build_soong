@@ -50,7 +50,7 @@ type bazelLicenseKindAttributes struct {
 	Visibility []string
 }
 
-func (m *licenseKindModule) ConvertWithBp2build(ctx TopDownMutatorContext) {
+func (m *licenseKindModule) ConvertWithBp2build(ctx Bp2buildMutatorContext) {
 	attrs := &bazelLicenseKindAttributes{
 		Conditions: m.properties.Conditions,
 		Url:        m.properties.Url,
