@@ -415,7 +415,7 @@ func (this *stubDecorator) diffAbi(ctx ModuleContext) {
 	// Also ensure that the ABI of the next API level (if there is one) matches
 	// this API level. *New* ABI is allowed, but any changes to APIs that exist
 	// in this API level are disallowed.
-	if !this.apiLevel.IsCurrent() {
+	if !this.apiLevel.IsCurrent() && prebuiltAbiDump.Valid() {
 		nextApiLevel := findNextApiLevel(ctx, this.apiLevel)
 		if nextApiLevel == nil {
 			panic(fmt.Errorf("could not determine which API level follows "+
@@ -435,10 +435,12 @@ func (this *stubDecorator) diffAbi(ctx ModuleContext) {
 		} else {
 			ctx.Build(pctx, android.BuildParams{
 				Rule: stgdiff,
-				Description: fmt.Sprintf("abidiff %s %s", this.abiDumpPath,
-					nextAbiDump),
+				Description: fmt.Sprintf(
+					"Comparing ABI to the next API level %s %s",
+					prebuiltAbiDump, nextAbiDump),
 				Output: nextAbiDiffPath,
-				Inputs: android.Paths{this.abiDumpPath, nextAbiDump.Path()},
+				Inputs: android.Paths{
+					prebuiltAbiDump.Path(), nextAbiDump.Path()},
 				Args: map[string]string{
 					"args": "--format=small --ignore=interface_addition",
 				},
