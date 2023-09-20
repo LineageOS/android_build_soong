@@ -282,7 +282,7 @@ type protoLibraryAttributes struct {
 	Srcs bazel.LabelListAttribute
 }
 
-func protoLibraryBp2build(ctx android.TopDownMutatorContext, m *Module) {
+func protoLibraryBp2build(ctx android.Bp2buildMutatorContext, m *Module) {
 	var protoFiles []string
 
 	for _, propsInterface := range m.sourceProvider.SourceProviderProps() {

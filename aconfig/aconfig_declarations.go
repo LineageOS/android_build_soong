@@ -168,7 +168,7 @@ type bazelAconfigDeclarationsAttributes struct {
 	Package string
 }
 
-func (module *DeclarationsModule) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (module *DeclarationsModule) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	if ctx.ModuleType() != "aconfig_declarations" {
 		return
 	}

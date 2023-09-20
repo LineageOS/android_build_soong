@@ -700,7 +700,7 @@ type testBinaryAttributes struct {
 // TODO(b/244432609): handle `isolated` property.
 // TODO(b/244432134): handle custom runpaths for tests that assume runfile layouts not
 // default to bazel. (see linkerInit function)
-func testBinaryBp2build(ctx android.TopDownMutatorContext, m *Module) {
+func testBinaryBp2build(ctx android.Bp2buildMutatorContext, m *Module) {
 	var testBinaryAttrs testBinaryAttributes
 	testBinaryAttrs.binaryAttributes = binaryBp2buildAttrs(ctx, m)
 

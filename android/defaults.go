@@ -180,7 +180,7 @@ func (d *DefaultsModuleBase) GenerateAndroidBuildActions(ctx ModuleContext) {}
 
 // ConvertWithBp2build to fulfill Bazelable interface; however, at this time defaults module are
 // *NOT* converted with bp2build
-func (defaultable *DefaultsModuleBase) ConvertWithBp2build(ctx TopDownMutatorContext) {
+func (defaultable *DefaultsModuleBase) ConvertWithBp2build(ctx Bp2buildMutatorContext) {
 	// Defaults types are never convertible.
 	ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "")
 }
