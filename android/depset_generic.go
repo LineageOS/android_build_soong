@@ -95,6 +95,12 @@ func NewDepSet[T depSettableType](order DepSetOrder, direct []T, transitive []*D
 	}
 }
 
+// AddDirectToDepSet returns a new DepSet with additional elements added to its direct set.
+// The transitive sets remain untouched.
+func AddDirectToDepSet[T depSettableType](d *DepSet[T], direct ...T) *DepSet[T] {
+	return NewDepSet[T](d.order, Concat(d.direct, direct), d.transitive)
+}
+
 // DepSetBuilder is used to create an immutable DepSet.
 type DepSetBuilder[T depSettableType] struct {
 	order      DepSetOrder
@@ -186,5 +192,16 @@ func (d *DepSet[T]) ToList() []T {
 	if d.reverse {
 		ReverseSliceInPlace(list)
 	}
+	return list
+}
+
+// ToListDirect returns the direct elements of a DepSet flattened to a list.
+func (d *DepSet[T]) ToListDirect() []T {
+	if d == nil {
+		return nil
+	}
+	list := make([]T, len(d.direct))
+	copy(list, d.direct)
+	list = firstUniqueInPlace(list)
 	return list
 }
