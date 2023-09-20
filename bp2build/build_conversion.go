@@ -837,7 +837,7 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 		for dir := range dirs {
 			buildFileToTargets[dir] = append(buildFileToTargets[dir], BazelTarget{
 				name:      "bp2build_all_srcs",
-				content:   `filegroup(name = "bp2build_all_srcs", srcs = glob(["**/*"]))`,
+				content:   `filegroup(name = "bp2build_all_srcs", srcs = glob(["**/*"]), tags = ["manual"])`,
 				ruleClass: "filegroup",
 			})
 		}
