@@ -14,7 +14,11 @@
 
 package android
 
-import "path/filepath"
+import (
+	"path/filepath"
+
+	"github.com/google/blueprint"
+)
 
 func init() {
 	RegisterModuleType("prebuilt_build_tool", NewPrebuiltBuildTool)
@@ -55,6 +59,13 @@ func (t *prebuiltBuildTool) DepsMutator(ctx BottomUpMutatorContext) {
 	}
 }
 
+type PrebuiltBuildToolInfo struct {
+	Src  Path
+	Deps Paths
+}
+
+var PrebuiltBuildToolInfoProvider = blueprint.NewProvider(PrebuiltBuildToolInfo{})
+
 func (t *prebuiltBuildTool) GenerateAndroidBuildActions(ctx ModuleContext) {
 	sourcePath := t.prebuilt.SingleSourcePath(ctx)
 	installedPath := PathForModuleOut(ctx, t.BaseModuleName())
@@ -82,6 +93,11 @@ func (t *prebuiltBuildTool) GenerateAndroidBuildActions(ctx ModuleContext) {
 	}
 
 	t.toolPath = OptionalPathForPath(installedPath)
+
+	ctx.SetProvider(PrebuiltBuildToolInfoProvider, PrebuiltBuildToolInfo{
+		Src:  sourcePath,
+		Deps: deps,
+	})
 }
 
 func (t *prebuiltBuildTool) MakeVars(ctx MakeVarsModuleContext) {

@@ -30,7 +30,7 @@ func TestRustProcMacro(t *testing.T) {
 
 	libprocmacro := ctx.ModuleForTests("libprocmacro", "linux_glibc_x86_64").Rule("rustc")
 
-	if !strings.Contains(libprocmacro.Args["rustcFlags"], "--extern proc_macro") {
-		t.Errorf("--extern proc_macro flag not being passed to rustc for proc macro %#v", libprocmacro.Args["rustcFlags"])
+	if !strings.Contains(libprocmacro.RuleParams.Command, "--extern proc_macro") {
+		t.Errorf("--extern proc_macro flag not being passed to rustc for proc macro %#v", libprocmacro.RuleParams.Command)
 	}
 }

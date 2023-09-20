@@ -33,12 +33,17 @@ func CopyOf[T any](s []T) []T {
 	return append([]T{}, s...)
 }
 
-// Concat returns a new slice concatenated from the two input slices. It does not change the input
+// Concat returns a new slice concatenated from the input slices. It does not change the input
 // slices.
-func Concat[T any](s1, s2 []T) []T {
-	res := make([]T, 0, len(s1)+len(s2))
-	res = append(res, s1...)
-	res = append(res, s2...)
+func Concat[T any](slices ...[]T) []T {
+	newLength := 0
+	for _, s := range slices {
+		newLength += len(s)
+	}
+	res := make([]T, 0, newLength)
+	for _, s := range slices {
+		res = append(res, s...)
+	}
 	return res
 }
 
