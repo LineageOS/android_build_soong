@@ -41,8 +41,10 @@ func init() {
 }
 
 type toolchainLibraryProperties struct {
-	// path to the toolchain source, relative to the top of the toolchain source
-	Toolchain_src *string `android:"arch_variant"`
+	// path to the toolchain crate root, relative to the top of the toolchain source
+	Toolchain_crate_root *string `android:"arch_variant"`
+	// path to the rest of the toolchain srcs, relative to the top of the toolchain source
+	Toolchain_srcs []string `android:"arch_variant"`
 }
 
 type toolchainLibraryDecorator struct {
@@ -88,15 +90,20 @@ func initToolchainLibrary(module *Module, library *libraryDecorator) android.Mod
 func rustSetToolchainSource(ctx android.LoadHookContext) {
 	if toolchainLib, ok := ctx.Module().(*Module).compiler.(*toolchainLibraryDecorator); ok {
 		prefix := filepath.Join(config.HostPrebuiltTag(ctx.Config()), GetRustPrebuiltVersion(ctx))
-		newSrcs := []string{path.Join(prefix, android.String(toolchainLib.Properties.Toolchain_src))}
+		versionedCrateRoot := path.Join(prefix, android.String(toolchainLib.Properties.Toolchain_crate_root))
+		versionedSrcs := make([]string, len(toolchainLib.Properties.Toolchain_srcs))
+		for i, src := range toolchainLib.Properties.Toolchain_srcs {
+			versionedSrcs[i] = path.Join(prefix, src)
+		}
 
 		type props struct {
-			Srcs []string
+			Crate_root *string
+			Srcs       []string
 		}
 		p := &props{}
-		p.Srcs = newSrcs
+		p.Crate_root = &versionedCrateRoot
+		p.Srcs = versionedSrcs
 		ctx.AppendProperties(p)
-
 	} else {
 		ctx.ModuleErrorf("Called rustSetToolchainSource on a non-Rust Module.")
 	}
