@@ -93,7 +93,6 @@ func TestGenruleCliVariableReplacement(t *testing.T) {
     out: ["foo_tool.out"],
     srcs: ["foo_tool.in"],
     cmd: "cp $(in) $(out)",
-    bazel_module: { bp2build_available: false },
 }
 
 %s {
@@ -124,6 +123,7 @@ func TestGenruleCliVariableReplacement(t *testing.T) {
 					ModuleTypeUnderTestFactory: tc.factory,
 					Blueprint:                  fmt.Sprintf(bp, tc.moduleType, tc.moduleType),
 					ExpectedBazelTargets:       expectedBazelTargets,
+					StubbedBuildDefinitions:    []string{"foo.tool", "other.tool"},
 				})
 		})
 	}
@@ -262,6 +262,7 @@ func TestGenruleLocationsAbsoluteLabel(t *testing.T) {
 					Blueprint:                  fmt.Sprintf(bp, tc.moduleType),
 					ExpectedBazelTargets:       expectedBazelTargets,
 					Filesystem:                 otherGenruleBp(tc.moduleType),
+					StubbedBuildDefinitions:    []string{"//other:foo.tool"},
 				})
 		})
 	}
@@ -326,6 +327,7 @@ func TestGenruleSrcsLocationsAbsoluteLabel(t *testing.T) {
 					Blueprint:                  fmt.Sprintf(bp, tc.moduleType),
 					ExpectedBazelTargets:       expectedBazelTargets,
 					Filesystem:                 otherGenruleBp(tc.moduleType),
+					StubbedBuildDefinitions:    []string{"//other:foo.tool", "//other:other.tool"},
 				})
 		})
 	}
@@ -390,6 +392,7 @@ func TestGenruleLocationLabelShouldSubstituteFirstToolLabel(t *testing.T) {
 					Blueprint:                  fmt.Sprintf(bp, tc.moduleType),
 					ExpectedBazelTargets:       expectedBazelTargets,
 					Filesystem:                 otherGenruleBp(tc.moduleType),
+					StubbedBuildDefinitions:    []string{"//other:foo.tool", "//other:other.tool"},
 				})
 		})
 	}
@@ -454,6 +457,7 @@ func TestGenruleLocationsLabelShouldSubstituteFirstToolLabel(t *testing.T) {
 					Blueprint:                  fmt.Sprintf(bp, tc.moduleType),
 					ExpectedBazelTargets:       expectedBazelTargets,
 					Filesystem:                 otherGenruleBp(tc.moduleType),
+					StubbedBuildDefinitions:    []string{"//other:foo.tool", "//other:other.tool"},
 				})
 		})
 	}
@@ -948,6 +952,7 @@ genrule {
 			ModuleTypeUnderTest:        "genrule",
 			ModuleTypeUnderTestFactory: genrule.GenRuleFactory,
 			ExpectedBazelTargets:       expectedBazelTargets,
+			StubbedBuildDefinitions:    []string{"//mynamespace/dir:mymodule"},
 		})
 	})
 

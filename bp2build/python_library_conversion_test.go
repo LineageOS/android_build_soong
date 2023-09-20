@@ -13,12 +13,13 @@ import (
 type PythonLibBp2Build func(ctx android.TopDownMutatorContext)
 
 type pythonLibBp2BuildTestCase struct {
-	description          string
-	filesystem           map[string]string
-	blueprint            string
-	expectedBazelTargets []testBazelTarget
-	dir                  string
-	expectedError        error
+	description             string
+	filesystem              map[string]string
+	blueprint               string
+	expectedBazelTargets    []testBazelTarget
+	dir                     string
+	expectedError           error
+	stubbedBuildDefinitions []string
 }
 
 func convertPythonLibTestCaseToBp2build_Host(tc pythonLibBp2BuildTestCase) Bp2buildTestCase {
@@ -44,12 +45,13 @@ func convertPythonLibTestCaseToBp2build(tc pythonLibBp2BuildTestCase) Bp2buildTe
 		filesystemCopy[k] = v
 	}
 	return Bp2buildTestCase{
-		Description:          tc.description,
-		Filesystem:           filesystemCopy,
-		Blueprint:            tc.blueprint,
-		ExpectedBazelTargets: bp2BuildTargets,
-		Dir:                  tc.dir,
-		ExpectedErr:          tc.expectedError,
+		Description:             tc.description,
+		Filesystem:              filesystemCopy,
+		Blueprint:               tc.blueprint,
+		ExpectedBazelTargets:    bp2BuildTargets,
+		Dir:                     tc.dir,
+		ExpectedErr:             tc.expectedError,
+		StubbedBuildDefinitions: tc.stubbedBuildDefinitions,
 	}
 }
 
@@ -104,6 +106,7 @@ func TestSimplePythonLib(t *testing.T) {
 				"b/e.py":         "",
 				"files/data.txt": "",
 			},
+			stubbedBuildDefinitions: []string{"bar"},
 			blueprint: `%s {
     name: "foo",
     srcs: ["**/*.py"],
@@ -115,7 +118,6 @@ func TestSimplePythonLib(t *testing.T) {
     python_library {
       name: "bar",
       srcs: ["b/e.py"],
-      bazel_module: { bp2build_available: false },
     }`,
 			expectedBazelTargets: []testBazelTarget{
 				{

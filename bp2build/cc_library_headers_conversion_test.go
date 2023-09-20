@@ -131,30 +131,26 @@ func TestCcLibraryHeadersOsSpecificHeader(t *testing.T) {
 		ModuleTypeUnderTest:        "cc_library_headers",
 		ModuleTypeUnderTestFactory: cc.LibraryHeaderFactory,
 		Filesystem:                 map[string]string{},
+		StubbedBuildDefinitions: []string{"android-lib", "base-lib", "darwin-lib",
+			"linux-lib", "linux_bionic-lib", "windows-lib"},
 		Blueprint: soongCcLibraryPreamble + `
 cc_library_headers {
     name: "android-lib",
-    bazel_module: { bp2build_available: false },
 }
 cc_library_headers {
     name: "base-lib",
-    bazel_module: { bp2build_available: false },
 }
 cc_library_headers {
     name: "darwin-lib",
-    bazel_module: { bp2build_available: false },
 }
 cc_library_headers {
     name: "linux-lib",
-    bazel_module: { bp2build_available: false },
 }
 cc_library_headers {
     name: "linux_bionic-lib",
-    bazel_module: { bp2build_available: false },
 }
 cc_library_headers {
     name: "windows-lib",
-    bazel_module: { bp2build_available: false },
 }
 cc_library_headers {
     name: "foo_headers",
@@ -205,14 +201,13 @@ func TestCcLibraryHeadersOsSpecficHeaderLibsExportHeaderLibHeaders(t *testing.T)
 		ModuleTypeUnderTest:        "cc_library_headers",
 		ModuleTypeUnderTestFactory: cc.LibraryHeaderFactory,
 		Filesystem:                 map[string]string{},
+		StubbedBuildDefinitions:    []string{"android-lib", "exported-lib"},
 		Blueprint: soongCcLibraryPreamble + `
 cc_library_headers {
     name: "android-lib",
-    bazel_module: { bp2build_available: false },
   }
 cc_library_headers {
     name: "exported-lib",
-    bazel_module: { bp2build_available: false },
 }
 cc_library_headers {
     name: "foo_headers",
@@ -333,6 +328,7 @@ func TestCcLibraryHeadersExportedStaticLibHeadersReexported(t *testing.T) {
 		ModuleTypeUnderTest:        "cc_library_headers",
 		ModuleTypeUnderTestFactory: cc.LibraryHeaderFactory,
 		Filesystem:                 map[string]string{},
+		StubbedBuildDefinitions:    []string{"foo_export"},
 		Blueprint: soongCcLibraryHeadersPreamble + `
 cc_library_headers {
 		name: "foo_headers",
@@ -340,7 +336,7 @@ cc_library_headers {
 		static_libs: ["foo_export", "foo_no_reexport"],
     bazel_module: { bp2build_available: true },
 }
-` + SimpleModuleDoNotConvertBp2build("cc_library_headers", "foo_export"),
+` + simpleModule("cc_library_headers", "foo_export"),
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
 				"deps": `[":foo_export"]`,
@@ -355,6 +351,7 @@ func TestCcLibraryHeadersExportedSharedLibHeadersReexported(t *testing.T) {
 		ModuleTypeUnderTest:        "cc_library_headers",
 		ModuleTypeUnderTestFactory: cc.LibraryHeaderFactory,
 		Filesystem:                 map[string]string{},
+		StubbedBuildDefinitions:    []string{"foo_export"},
 		Blueprint: soongCcLibraryHeadersPreamble + `
 cc_library_headers {
 		name: "foo_headers",
@@ -362,7 +359,7 @@ cc_library_headers {
 		shared_libs: ["foo_export", "foo_no_reexport"],
     bazel_module: { bp2build_available: true },
 }
-` + SimpleModuleDoNotConvertBp2build("cc_library_headers", "foo_export"),
+` + simpleModule("cc_library_headers", "foo_export"),
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
 				"deps": `[":foo_export"]`,
@@ -377,6 +374,7 @@ func TestCcLibraryHeadersExportedHeaderLibHeadersReexported(t *testing.T) {
 		ModuleTypeUnderTest:        "cc_library_headers",
 		ModuleTypeUnderTestFactory: cc.LibraryHeaderFactory,
 		Filesystem:                 map[string]string{},
+		StubbedBuildDefinitions:    []string{"foo_export"},
 		Blueprint: soongCcLibraryHeadersPreamble + `
 cc_library_headers {
 		name: "foo_headers",
@@ -384,7 +382,7 @@ cc_library_headers {
 		header_libs: ["foo_export", "foo_no_reexport"],
     bazel_module: { bp2build_available: true },
 }
-` + SimpleModuleDoNotConvertBp2build("cc_library_headers", "foo_export"),
+` + simpleModule("cc_library_headers", "foo_export"),
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
 				"deps": `[":foo_export"]`,
@@ -399,13 +397,14 @@ func TestCcLibraryHeadersWholeStaticLibsReexported(t *testing.T) {
 		ModuleTypeUnderTest:        "cc_library_headers",
 		ModuleTypeUnderTestFactory: cc.LibraryHeaderFactory,
 		Filesystem:                 map[string]string{},
+		StubbedBuildDefinitions:    []string{"foo_export"},
 		Blueprint: soongCcLibraryHeadersPreamble + `
 cc_library_headers {
 		name: "foo_headers",
 		whole_static_libs: ["foo_export"],
     bazel_module: { bp2build_available: true },
 }
-` + SimpleModuleDoNotConvertBp2build("cc_library_headers", "foo_export"),
+` + simpleModule("cc_library_headers", "foo_export"),
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
 				"deps": `[":foo_export"]`,
