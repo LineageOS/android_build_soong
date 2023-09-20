@@ -2398,3 +2398,30 @@ func TestJavaApiContributionImport(t *testing.T) {
 	sourceFilesFlag := "--source-files current.txt"
 	android.AssertStringDoesContain(t, "source text files not present", manifestCommand, sourceFilesFlag)
 }
+
+func TestJavaApiLibraryApiFilesSorting(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_api_library {
+			name: "foo",
+			api_contributions: [
+				"system-server-api-stubs-docs-non-updatable.api.contribution",
+				"test-api-stubs-docs-non-updatable.api.contribution",
+				"system-api-stubs-docs-non-updatable.api.contribution",
+				"module-lib-api-stubs-docs-non-updatable.api.contribution",
+				"api-stubs-docs-non-updatable.api.contribution",
+			],
+		}
+	`)
+	m := ctx.ModuleForTests("foo", "android_common")
+	manifest := m.Output("metalava.sbox.textproto")
+	sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
+	manifestCommand := sboxProto.Commands[0].GetCommand()
+
+	// Api files are sorted from the narrowest api scope to the widest api scope.
+	// test api and module lib api surface do not have subset/superset relationship,
+	// but they will never be passed as inputs at the same time.
+	sourceFilesFlag := "--source-files default/java/api/current.txt " +
+		"default/java/api/system-current.txt default/java/api/test-current.txt " +
+		"default/java/api/module-lib-current.txt default/java/api/system-server-current.txt"
+	android.AssertStringDoesContain(t, "source text files not in api scope order", manifestCommand, sourceFilesFlag)
+}

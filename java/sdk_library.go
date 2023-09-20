@@ -286,6 +286,17 @@ func (scopes apiScopes) Strings(accessor func(*apiScope) string) []string {
 	return list
 }
 
+// Method that maps the apiScopes properties to the index of each apiScopes elements.
+// apiScopes property to be used as the key can be specified with the input accessor.
+// Only a string property of apiScope can be used as the key of the map.
+func (scopes apiScopes) MapToIndex(accessor func(*apiScope) string) map[string]int {
+	ret := make(map[string]int)
+	for i, scope := range scopes {
+		ret[accessor(scope)] = i
+	}
+	return ret
+}
+
 var (
 	scopeByName    = make(map[string]*apiScope)
 	allScopeNames  []string

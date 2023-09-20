@@ -1814,31 +1814,22 @@ func (al *ApiLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
-// API signature file names sorted from
-// the narrowest api scope to the widest api scope
-var scopeOrderedSourceFileNames = allApiScopes.Strings(
-	func(s *apiScope) string { return s.apiFilePrefix + "current.txt" })
+// Map where key is the api scope name and value is the int value
+// representing the order of the api scope, narrowest to the widest
+var scopeOrderMap = allApiScopes.MapToIndex(
+	func(s *apiScope) string { return s.name })
 
-func (al *ApiLibrary) sortApiFilesByApiScope(ctx android.ModuleContext, srcFilesInfo []JavaApiImportInfo) android.Paths {
-	var sortedSrcFiles android.Paths
-
-	for i, apiScope := range allApiScopes {
-		for _, srcFileInfo := range srcFilesInfo {
-			if srcFileInfo.ApiFile.Base() == scopeOrderedSourceFileNames[i] || srcFileInfo.ApiSurface == apiScope.name {
-				sortedSrcFiles = append(sortedSrcFiles, android.PathForSource(ctx, srcFileInfo.ApiFile.String()))
-			}
+func (al *ApiLibrary) sortApiFilesByApiScope(ctx android.ModuleContext, srcFilesInfo []JavaApiImportInfo) []JavaApiImportInfo {
+	for _, srcFileInfo := range srcFilesInfo {
+		if srcFileInfo.ApiSurface == "" {
+			ctx.ModuleErrorf("Api surface not defined for the associated api file %s", srcFileInfo.ApiFile)
 		}
 	}
+	sort.Slice(srcFilesInfo, func(i, j int) bool {
+		return scopeOrderMap[srcFilesInfo[i].ApiSurface] < scopeOrderMap[srcFilesInfo[j].ApiSurface]
+	})
 
-	if len(srcFilesInfo) != len(sortedSrcFiles) {
-		var srcFiles android.Paths
-		for _, srcFileInfo := range srcFilesInfo {
-			srcFiles = append(srcFiles, srcFileInfo.ApiFile)
-		}
-		ctx.ModuleErrorf("Unrecognizable source file found within %s", srcFiles)
-	}
-
-	return sortedSrcFiles
+	return srcFilesInfo
 }
 
 func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -1881,7 +1872,11 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 	})
 
-	srcFiles := al.sortApiFilesByApiScope(ctx, srcFilesInfo)
+	srcFilesInfo = al.sortApiFilesByApiScope(ctx, srcFilesInfo)
+	var srcFiles android.Paths
+	for _, srcFileInfo := range srcFilesInfo {
+		srcFiles = append(srcFiles, android.PathForSource(ctx, srcFileInfo.ApiFile.String()))
+	}
 
 	if srcFiles == nil && !ctx.Config().AllowMissingDependencies() {
 		ctx.ModuleErrorf("Error: %s has an empty api file.", ctx.ModuleName())
