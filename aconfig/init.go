@@ -64,13 +64,14 @@ var (
 			Command: `rm -rf ${gendir}` +
 				` && mkdir -p ${gendir}` +
 				` && ${aconfig} create-cpp-lib` +
+				`    --mode ${mode}` +
 				`    --cache ${in}` +
 				`    --out ${gendir}`,
 			CommandDeps: []string{
 				"$aconfig",
 				"$soong_zip",
 			},
-		}, "gendir")
+		}, "gendir", "mode")
 
 	rustRule = pctx.AndroidStaticRule("rust_aconfig_library",
 		blueprint.RuleParams{
