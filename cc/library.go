@@ -331,7 +331,6 @@ func libraryBp2Build(ctx android.Bp2buildMutatorContext, m *Module) {
 	sharedFeatures.DeduplicateAxesFromBase()
 	staticFeatures := baseAttributes.features.Clone().Append(staticAttrs.Features)
 	staticFeatures.DeduplicateAxesFromBase()
-	staticFeatures.RemoveFromAllConfigs(cfiFeatureName)
 
 	staticCommonAttrs := staticOrSharedAttributes{
 		Srcs:    *srcs.Clone().Append(staticAttrs.Srcs),
@@ -2948,9 +2947,6 @@ func sharedOrStaticLibraryBp2Build(ctx android.Bp2buildMutatorContext, module *M
 
 	features := baseAttributes.features.Clone().Append(libSharedOrStaticAttrs.Features)
 	features.DeduplicateAxesFromBase()
-	if isStatic {
-		features.RemoveFromAllConfigs(cfiFeatureName)
-	}
 
 	commonAttrs := staticOrSharedAttributes{
 		Srcs:    compilerAttrs.srcs,
