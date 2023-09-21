@@ -483,20 +483,55 @@ func PrebuiltPostDepsMutator(ctx BottomUpMutatorContext) {
 // usePrebuilt returns true if a prebuilt should be used instead of the source module.  The prebuilt
 // will be used if it is marked "prefer" or if the source module is disabled.
 func (p *Prebuilt) usePrebuilt(ctx TopDownMutatorContext, source Module, prebuilt Module) bool {
-	if p.srcsSupplier != nil && len(p.srcsSupplier(ctx, prebuilt)) == 0 {
-		return false
-	}
+	if !ctx.Config().Bp2buildMode() {
+		if p.srcsSupplier != nil && len(p.srcsSupplier(ctx, prebuilt)) == 0 {
+			return false
+		}
 
-	// Skip prebuilt modules under unexported namespaces so that we won't
-	// end up shadowing non-prebuilt module when prebuilt module under same
-	// name happens to have a `Prefer` property set to true.
-	if ctx.Config().KatiEnabled() && !prebuilt.ExportedToMake() {
-		return false
+		// Skip prebuilt modules under unexported namespaces so that we won't
+		// end up shadowing non-prebuilt module when prebuilt module under same
+		// name happens to have a `Prefer` property set to true.
+		if ctx.Config().KatiEnabled() && !prebuilt.ExportedToMake() {
+			return false
+		}
 	}
 
 	// If source is not available or is disabled then always use the prebuilt.
 	if source == nil || !source.Enabled() {
-		return true
+		// If in bp2build mode, we need to check product variables & Soong config variables, which may
+		// have overridden the "enabled" property but have not been merged into the property value as
+		// they would in a non-bp2build mode invocation
+		if ctx.Config().Bp2buildMode() && source != nil {
+			productVariableProps, errs := ProductVariableProperties(ctx, source)
+			if productConfigProps, exists := productVariableProps["Enabled"]; len(errs) == 0 && exists && len(productConfigProps) == 1 {
+				var prop ProductConfigOrSoongConfigProperty
+				var value bool
+				for p, v := range productConfigProps {
+					prop = p
+					actual, ok := v.(*bool)
+					if ok {
+						value = proptools.Bool(actual)
+					}
+				}
+				if scv, ok := prop.(SoongConfigProperty); ok {
+					// If the product config var is enabled but the value of enabled is false still, the
+					// prebuilt is preferred. Otherwise, check if the prebulit is explicitly preferred
+					if ctx.Config().VendorConfig(scv.namespace).Bool(strings.ToLower(scv.name)) && !value {
+						return true
+					}
+				} else {
+					// TODO: b/300998219 - handle product vars
+					// We don't handle product variables yet, so return based on the non-product specific
+					// value of enabled
+					return true
+				}
+			} else {
+				// No "enabled" property override, return true since this module isn't enabled
+				return true
+			}
+		} else {
+			return true
+		}
 	}
 
 	// If the use_source_config_var property is set then it overrides the prefer property setting.

@@ -56,6 +56,7 @@ func registerMutatorsForBazelConversion(ctx *Context, bp2buildMutators []Registe
 		// TODO(b/165114590): this is required to resolve deps that are only prebuilts, but we should
 		// evaluate the impact on conversion.
 		RegisterPrebuiltsPreArchMutators,
+		RegisterPrebuiltsPostDepsMutators,
 	},
 		bp2buildMutators...)
 
