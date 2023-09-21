@@ -1296,6 +1296,42 @@ func (sla StringListAttribute) IsEmpty() bool {
 	return len(sla.Value) == 0 && !sla.HasConfigurableValues()
 }
 
+// RemoveFromAllConfigs removes all instances of the specified value from all configurations
+// of the givenStringListAttribute
+func (sla *StringListAttribute) RemoveFromAllConfigs(toRemove string) {
+	if removed, removalResult := removeFromList(toRemove, sla.Value); removed {
+		if len(removalResult) > 0 {
+			sla.Value = removalResult
+		} else {
+			sla.Value = nil
+		}
+	}
+	for axis, slsv := range sla.ConfigurableValues {
+		for config, sl := range slsv {
+			if removed, removalResult := removeFromList(toRemove, sl); removed {
+				if len(removalResult) > 0 {
+					sla.SetSelectValue(axis, config, removalResult)
+				} else {
+					sla.SetSelectValue(axis, config, nil)
+				}
+			}
+		}
+	}
+}
+
+func removeFromList(s string, list []string) (bool, []string) {
+	result := make([]string, 0, len(list))
+	var removed bool
+	for _, item := range list {
+		if item != s {
+			result = append(result, item)
+		} else {
+			removed = true
+		}
+	}
+	return removed, result
+}
+
 type configurableStringLists map[ConfigurationAxis]stringListSelectValues
 
 func (csl configurableStringLists) Append(other configurableStringLists) {
