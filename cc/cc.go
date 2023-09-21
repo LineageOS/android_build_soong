@@ -589,6 +589,7 @@ type Generator interface {
 	GeneratorFlags(ctx ModuleContext, flags Flags, deps PathDeps) Flags
 	GeneratorSources(ctx ModuleContext) GeneratedSource
 	GeneratorBuildActions(ctx ModuleContext, flags Flags, deps PathDeps)
+	GeneratorBp2build(ctx android.Bp2buildMutatorContext) bool
 }
 
 // compiler is the interface for a compiler helper object. Different module decorators may implement
@@ -4215,6 +4216,16 @@ func (c *Module) typ() moduleType {
 
 // ConvertWithBp2build converts Module to Bazel for bp2build.
 func (c *Module) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
+	if len(c.generators) > 0 {
+		allConverted := true
+		for _, generator := range c.generators {
+			allConverted = allConverted && generator.GeneratorBp2build(ctx)
+		}
+		if allConverted {
+			return
+		}
+	}
+
 	prebuilt := c.IsPrebuilt()
 	switch c.typ() {
 	case binary:
