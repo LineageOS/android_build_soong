@@ -19,10 +19,12 @@ import (
 
 	"android/soong/aconfig"
 	"android/soong/android"
+	"android/soong/cc"
 )
 
 func registerAconfigModuleTypes(ctx android.RegistrationContext) {
 	aconfig.RegisterBuildComponents(ctx)
+	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
 }
 
 func TestAconfigDeclarations(t *testing.T) {
@@ -83,6 +85,49 @@ func TestAconfigValues(t *testing.T) {
 			"bar",
 			AttrNameToString{
 				"values": `[":foo"]`,
+			},
+		)}
+	RunBp2BuildTestCase(t, registerAconfigModuleTypes, Bp2buildTestCase{
+		Blueprint:            bp,
+		ExpectedBazelTargets: expectedBazelTargets,
+	})
+}
+
+func TestCcAconfigLibrary(t *testing.T) {
+	bp := `
+	aconfig_declarations {
+		name: "foo_aconfig_declarations",
+		srcs: [
+			"foo1.aconfig",
+		],
+		package: "com.android.foo",
+	}
+	cc_library {
+			name: "server_configurable_flags",
+			srcs: ["bar.cc"],
+			bazel_module: { bp2build_available: false },
+	}
+	cc_aconfig_library {
+			name: "foo",
+			aconfig_declarations: "foo_aconfig_declarations",
+	}
+	`
+	expectedBazelTargets := []string{
+		MakeBazelTargetNoRestrictions(
+			"aconfig_declarations",
+			"foo_aconfig_declarations",
+			AttrNameToString{
+				"srcs":    `["foo1.aconfig"]`,
+				"package": `"com.android.foo"`,
+			},
+		),
+		MakeBazelTargetNoRestrictions(
+			"cc_aconfig_library",
+			"foo",
+			AttrNameToString{
+				"aconfig_declarations":   `":foo_aconfig_declarations"`,
+				"dynamic_deps":           `[":server_configurable_flags"]`,
+				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
 			},
 		)}
 	RunBp2BuildTestCase(t, registerAconfigModuleTypes, Bp2buildTestCase{
