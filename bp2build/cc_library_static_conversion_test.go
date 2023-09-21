@@ -2134,9 +2134,9 @@ cc_library_static {
 	})
 }
 
-func TestCcLibraryStaticNoCfi(t *testing.T) {
+func TestCcLibraryStaticWithCfi(t *testing.T) {
 	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
-		Description: "cc_library_static never explicitly enables CFI",
+		Description: "cc_library_static has correct features when cfi is enabled",
 		Blueprint: `
 cc_library_static {
 	name: "foo",
@@ -2146,6 +2146,7 @@ cc_library_static {
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+				"features":       `["android_cfi"]`,
 				"local_includes": `["."]`,
 			}),
 		},
@@ -2154,7 +2155,7 @@ cc_library_static {
 
 func TestCcLibraryStaticWithCfiOsSpecific(t *testing.T) {
 	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
-		Description: "cc_library_static never explicitly enables CFI even for specific variants",
+		Description: "cc_library_static has correct features when cfi is enabled for specific variants",
 		Blueprint: `
 cc_library_static {
 	name: "foo",
@@ -2168,6 +2169,10 @@ cc_library_static {
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+				"features": `select({
+        "//build/bazel/platforms/os:android": ["android_cfi"],
+        "//conditions:default": [],
+    })`,
 				"local_includes": `["."]`,
 			}),
 		},
@@ -2176,7 +2181,7 @@ cc_library_static {
 
 func TestCcLibraryStaticWithCfiAndCfiAssemblySupport(t *testing.T) {
 	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
-		Description: "cc_library_static will specify cfi_assembly_support feature but not cfi feature",
+		Description: "cc_library_static has correct features when cfi is enabled with cfi_assembly_support",
 		Blueprint: `
 cc_library_static {
 	name: "foo",
@@ -2189,7 +2194,10 @@ cc_library_static {
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
-				"features":       `["android_cfi_assembly_support"]`,
+				"features": `[
+        "android_cfi",
+        "android_cfi_assembly_support",
+    ]`,
 				"local_includes": `["."]`,
 			}),
 		},
