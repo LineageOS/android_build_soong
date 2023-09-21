@@ -140,7 +140,8 @@ func TestJavaProtoDefault(t *testing.T) {
 
 func TestJavaLibsAndOnlyProtoSrcs(t *testing.T) {
 	runJavaProtoTestCase(t, Bp2buildTestCase{
-		Description: "java_library that has only proto srcs",
+		Description:             "java_library that has only proto srcs",
+		StubbedBuildDefinitions: []string{"java-lib"},
 		Blueprint: `java_library_static {
     name: "java-protos",
     srcs: ["a.proto"],
@@ -151,7 +152,6 @@ func TestJavaLibsAndOnlyProtoSrcs(t *testing.T) {
 
 java_library_static {
     name: "java-lib",
-    bazel_module: { bp2build_available: false },
 }
 `,
 		ExpectedBazelTargets: []string{
