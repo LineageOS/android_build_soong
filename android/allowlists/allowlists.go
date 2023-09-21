@@ -340,6 +340,7 @@ var (
 		"prebuilts/clang/host/linux-x86":                   Bp2BuildDefaultTrueRecursively,
 		"prebuilts/gradle-plugin":                          Bp2BuildDefaultTrueRecursively,
 		"prebuilts/runtime/mainline/platform/sdk":          Bp2BuildDefaultTrueRecursively,
+		"prebuilts/module_sdk":                             Bp2BuildDefaultTrueRecursively,
 		"prebuilts/sdk":                                    Bp2BuildDefaultTrue,
 		"prebuilts/sdk/current/androidx":                   Bp2BuildDefaultTrue,
 		"prebuilts/sdk/current/androidx-legacy":            Bp2BuildDefaultTrue,
