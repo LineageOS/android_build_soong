@@ -1732,6 +1732,20 @@ func convertWithBp2build(ctx android.Bp2buildMutatorContext, a *AndroidApp) (boo
 	deps := depLabels.Deps
 	deps.Append(depLabels.StaticDeps)
 
+	var jniDeps bazel.LabelListAttribute
+	archVariantProps := a.GetArchVariantProperties(ctx, &appProperties{})
+	for axis, configToProps := range archVariantProps {
+		for config, _props := range configToProps {
+			if archProps, ok := _props.(*appProperties); ok {
+				archJniLibs := android.BazelLabelForModuleDeps(
+					ctx,
+					android.LastUniqueStrings(android.CopyOf(archProps.Jni_libs)))
+				jniDeps.SetSelectValue(axis, config, archJniLibs)
+			}
+		}
+	}
+	deps.Append(jniDeps)
+
 	if !bp2BuildInfo.hasKotlin {
 		appAttrs.javaCommonAttributes = commonAttrs
 		appAttrs.bazelAapt = aapt
