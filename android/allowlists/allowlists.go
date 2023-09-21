@@ -1688,9 +1688,6 @@ var (
 		"MtsTimeZoneDataTestCases",
 		"NanoAndroidTest",
 		"MtsLibnativehelperTestCases",
-
-		// android_test_helper_app from allowlisted packages, but with unconverted deps
-		"SharedLibraryInfoTestApp",
 	}
 
 	// Bazel prod-mode allowlist. Modules in this list are built by Bazel
