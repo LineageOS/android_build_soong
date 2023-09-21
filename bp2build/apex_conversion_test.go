@@ -818,7 +818,7 @@ func TestApexBundleSimple_manifestIsEmpty_baseApexOverrideApexInDifferentAndroid
 		Description:                "override_apex - manifest of base apex is empty, base apex and override_apex is in different Android.bp",
 		ModuleTypeUnderTest:        "override_apex",
 		ModuleTypeUnderTestFactory: apex.OverrideApexFactory,
-		StubbedBuildDefinitions:    []string{"//system/sepolicy/apex:com.android.apogee-file_contexts"},
+		StubbedBuildDefinitions:    []string{"//a/b:com.android.apogee", "//system/sepolicy/apex:com.android.apogee-file_contexts"},
 		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
@@ -828,7 +828,6 @@ filegroup {
 			"a/b/Android.bp": `
 apex {
 	name: "com.android.apogee",
-	bazel_module: { bp2build_available: false },
 }
 `,
 		},
@@ -852,7 +851,7 @@ func TestApexBundleSimple_manifestIsSet_baseApexOverrideApexInDifferentAndroidBp
 		Description:                "override_apex - manifest of base apex is set, base apex and override_apex is in different Android.bp",
 		ModuleTypeUnderTest:        "override_apex",
 		ModuleTypeUnderTestFactory: apex.OverrideApexFactory,
-		StubbedBuildDefinitions:    []string{"//system/sepolicy/apex:com.android.apogee-file_contexts"},
+		StubbedBuildDefinitions:    []string{"//a/b:com.android.apogee", "//system/sepolicy/apex:com.android.apogee-file_contexts"},
 		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
@@ -863,7 +862,6 @@ filegroup {
 apex {
 	name: "com.android.apogee",
   manifest: "apogee_manifest.json",
-	bazel_module: { bp2build_available: false },
 }
 `,
 		},
@@ -887,7 +885,7 @@ func TestApexBundleSimple_manifestIsEmpty_baseApexOverrideApexInSameAndroidBp(t 
 		Description:                "override_apex - manifest of base apex is empty, base apex and override_apex is in same Android.bp",
 		ModuleTypeUnderTest:        "override_apex",
 		ModuleTypeUnderTestFactory: apex.OverrideApexFactory,
-		StubbedBuildDefinitions:    []string{"//system/sepolicy/apex:com.android.apogee-file_contexts"},
+		StubbedBuildDefinitions:    []string{"com.android.apogee", "//system/sepolicy/apex:com.android.apogee-file_contexts"},
 		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
@@ -898,7 +896,6 @@ filegroup {
 		Blueprint: `
 apex {
 	name: "com.android.apogee",
-	bazel_module: { bp2build_available: false },
 }
 
 override_apex {
@@ -920,7 +917,7 @@ func TestApexBundleSimple_manifestIsSet_baseApexOverrideApexInSameAndroidBp(t *t
 		Description:                "override_apex - manifest of base apex is set, base apex and override_apex is in same Android.bp",
 		ModuleTypeUnderTest:        "override_apex",
 		ModuleTypeUnderTestFactory: apex.OverrideApexFactory,
-		StubbedBuildDefinitions:    []string{"//system/sepolicy/apex:com.android.apogee-file_contexts"},
+		StubbedBuildDefinitions:    []string{"com.android.apogee", "//system/sepolicy/apex:com.android.apogee-file_contexts"},
 		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
@@ -932,7 +929,6 @@ filegroup {
 apex {
 	name: "com.android.apogee",
   manifest: "apogee_manifest.json",
-	bazel_module: { bp2build_available: false },
 }
 
 override_apex {
@@ -954,7 +950,7 @@ func TestApexBundleSimple_packageNameOverride(t *testing.T) {
 		Description:                "override_apex - override package name",
 		ModuleTypeUnderTest:        "override_apex",
 		ModuleTypeUnderTestFactory: apex.OverrideApexFactory,
-		StubbedBuildDefinitions:    []string{"//system/sepolicy/apex:com.android.apogee-file_contexts"},
+		StubbedBuildDefinitions:    []string{"com.android.apogee", "//system/sepolicy/apex:com.android.apogee-file_contexts"},
 		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
@@ -965,7 +961,6 @@ filegroup {
 		Blueprint: `
 apex {
 	name: "com.android.apogee",
-	bazel_module: { bp2build_available: false },
 }
 
 override_apex {
@@ -1109,7 +1104,7 @@ func TestApexBundleSimple_NoLoggingParentOverride(t *testing.T) {
 		Description:                "override_apex - logging_parent - no override",
 		ModuleTypeUnderTest:        "override_apex",
 		ModuleTypeUnderTestFactory: apex.OverrideApexFactory,
-		StubbedBuildDefinitions:    []string{"//system/sepolicy/apex:com.android.apogee-file_contexts"},
+		StubbedBuildDefinitions:    []string{"com.android.apogee", "//system/sepolicy/apex:com.android.apogee-file_contexts"},
 		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
@@ -1120,7 +1115,6 @@ filegroup {
 		Blueprint: `
 apex {
 	name: "com.android.apogee",
-	bazel_module: { bp2build_available: false },
 	logging_parent: "foo.bar.baz",
 }
 
@@ -1144,7 +1138,7 @@ func TestApexBundleSimple_LoggingParentOverride(t *testing.T) {
 		Description:                "override_apex - logging_parent - override",
 		ModuleTypeUnderTest:        "override_apex",
 		ModuleTypeUnderTestFactory: apex.OverrideApexFactory,
-		StubbedBuildDefinitions:    []string{"//system/sepolicy/apex:com.android.apogee-file_contexts"},
+		StubbedBuildDefinitions:    []string{"com.android.apogee", "//system/sepolicy/apex:com.android.apogee-file_contexts"},
 		Filesystem: map[string]string{
 			"system/sepolicy/apex/Android.bp": `
 filegroup {
@@ -1155,7 +1149,6 @@ filegroup {
 		Blueprint: `
 apex {
 	name: "com.android.apogee",
-	bazel_module: { bp2build_available: false },
 	logging_parent: "foo.bar.baz",
 }
 
@@ -1398,7 +1391,7 @@ func TestBp2BuildOverrideApex_CertificateIsSrc(t *testing.T) {
 		ModuleTypeUnderTest:        "override_apex",
 		ModuleTypeUnderTestFactory: apex.OverrideApexFactory,
 		Filesystem:                 map[string]string{},
-		StubbedBuildDefinitions:    []string{"com.android.apogee.certificate", "com.android.apogee", "com.android.apogee-file_contexts"},
+		StubbedBuildDefinitions:    []string{"com.android.apogee", "com.android.apogee.certificate", "com.android.apogee", "com.android.apogee-file_contexts"},
 		Blueprint: `
 android_app_certificate {
 	name: "com.android.apogee.certificate",
@@ -1417,7 +1410,6 @@ apex {
 	manifest: "apogee_manifest.json",
 	file_contexts: ":com.android.apogee-file_contexts",
 	certificate: ":com.android.apogee.certificate",
-	bazel_module: { bp2build_available: false },
 }
 
 override_apex {

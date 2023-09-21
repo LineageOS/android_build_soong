@@ -1857,7 +1857,6 @@ func TestCcLibrary_SystemSharedLibsBionicEmpty(t *testing.T) {
 		Blueprint: soongCcLibraryPreamble + `
 cc_library {
 	name: "libc_musl",
-	bazel_module: { bp2build_available: false },
 }
 
 cc_library {
@@ -1912,10 +1911,10 @@ func TestCcLibrary_SystemSharedLibsLinuxMuslEmpty(t *testing.T) {
 		Description:                "cc_library system_shared_lib empty for linux_musl variant",
 		ModuleTypeUnderTest:        "cc_library",
 		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		StubbedBuildDefinitions:    []string{"libc_musl"},
 		Blueprint: soongCcLibraryPreamble + `
 cc_library {
 		name: "libc_musl",
-		bazel_module: { bp2build_available: false },
 }
 
 cc_library {
