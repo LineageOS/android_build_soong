@@ -1258,6 +1258,8 @@ type AndroidTestHelperApp struct {
 	AndroidApp
 
 	appTestHelperAppProperties appTestHelperAppProperties
+
+	android.BazelModuleBase
 }
 
 func (a *AndroidTestHelperApp) InstallInTestcases() bool {
@@ -1289,6 +1291,7 @@ func AndroidTestHelperAppFactory() android.Module {
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 	android.InitApexModule(module)
+	android.InitBazelModule(module)
 	return module
 }
 
@@ -1798,4 +1801,28 @@ func (at *AndroidTest) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 		ctx.CreateBazelTargetModule(props, commonAttrs, appAttrs)
 	}
 
+}
+
+func (atha *AndroidTestHelperApp) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
+	if ok, commonAttrs, appAttrs := convertWithBp2build(ctx, &atha.AndroidApp); ok {
+		// an android_test_helper_app is an android_binary with testonly = True
+		commonAttrs.Testonly = proptools.BoolPtr(true)
+
+		// additionally, it sets default values differently to android_app,
+		// https://cs.android.com/android/platform/superproject/main/+/main:build/soong/java/app.go;l=1273-1279;drc=e12c083198403ec694af6c625aed11327eb2bf7f
+		//
+		// installable: true (settable prop)
+		// use_embedded_native_libs: true (settable prop)
+		// lint.test: true (settable prop)
+		// optimize EnabledByDefault: true (blueprint mutated prop)
+		// AlwaysPackageNativeLibs: true (blueprint mutated prop)
+		// dexpreopt isTest: true (not prop)
+
+		props := bazel.BazelTargetModuleProperties{
+			Rule_class:        "android_binary",
+			Bzl_load_location: "//build/bazel/rules/android:android_binary.bzl",
+		}
+
+		ctx.CreateBazelTargetModule(props, commonAttrs, appAttrs)
+	}
 }
