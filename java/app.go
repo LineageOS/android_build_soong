@@ -31,6 +31,7 @@ import (
 	"android/soong/dexpreopt"
 	"android/soong/genrule"
 	"android/soong/tradefed"
+	"android/soong/ui/metrics/bp2build_metrics_proto"
 )
 
 func init() {
@@ -1639,6 +1640,21 @@ func convertWithBp2build(ctx android.Bp2buildMutatorContext, a *AndroidApp) (boo
 	if !supported {
 		return false, android.CommonAttributes{}, &bazelAndroidAppAttributes{}
 	}
+	if a.appProperties.Jni_uses_platform_apis != nil {
+		ctx.MarkBp2buildUnconvertible(
+			bp2build_metrics_proto.UnconvertedReasonType_UNSUPPORTED,
+			"TODO - b/299360988: Add bp2build support for jni_uses_platform_apis",
+		)
+		return false, android.CommonAttributes{}, &bazelAndroidAppAttributes{}
+	}
+	if a.appProperties.Jni_uses_sdk_apis != nil {
+		ctx.MarkBp2buildUnconvertible(
+			bp2build_metrics_proto.UnconvertedReasonType_UNSUPPORTED,
+			"TODO - b/299360988: Add bp2build support for jni_uses_sdk_apis",
+		)
+		return false, android.CommonAttributes{}, &bazelAndroidAppAttributes{}
+	}
+
 	certificate, certificateName := android.BazelStringOrLabelFromProp(ctx, a.overridableAppProperties.Certificate)
 
 	manifestValues := &manifestValueAttribute{}
