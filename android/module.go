@@ -3100,11 +3100,21 @@ func (b *baseModuleContext) ModuleFromName(name string) (blueprint.Module, bool)
 	if !b.isBazelConversionMode() {
 		panic("cannot call ModuleFromName if not in bazel conversion mode")
 	}
+	var m blueprint.Module
+	var ok bool
 	if moduleName, _ := SrcIsModuleWithTag(name); moduleName != "" {
-		return b.bp.ModuleFromName(moduleName)
+		m, ok = b.bp.ModuleFromName(moduleName)
 	} else {
-		return b.bp.ModuleFromName(name)
+		m, ok = b.bp.ModuleFromName(name)
 	}
+	if !ok {
+		return m, ok
+	}
+	// If this module is not preferred, tried to get the prebuilt version instead
+	if a, aOk := m.(Module); aOk && !IsModulePrebuilt(a) && !IsModulePreferred(a) {
+		return b.ModuleFromName("prebuilt_" + name)
+	}
+	return m, ok
 }
 
 func (b *baseModuleContext) VisitDirectDepsBlueprint(visit func(blueprint.Module)) {

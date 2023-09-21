@@ -58,6 +58,7 @@ func TestCcLibraryHeadersLoadStatement(t *testing.T) {
 func registerCcLibraryHeadersModuleTypes(ctx android.RegistrationContext) {
 	cc.RegisterCCBuildComponents(ctx)
 	cc.RegisterLibraryHeadersBuildComponents(ctx)
+	ctx.RegisterModuleType("cc_library_shared", cc.LibrarySharedFactory)
 }
 
 func runCcLibraryHeadersTestCase(t *testing.T, tc Bp2buildTestCase) {
@@ -413,6 +414,70 @@ cc_prebuilt_library_headers {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
 				"deps": `[":foo_export"]`,
+			}),
+		},
+	})
+}
+
+func TestPrebuiltCcLibraryHeadersPreferredRdepUpdated(t *testing.T) {
+	runCcLibraryHeadersTestCase(t, Bp2buildTestCase{
+		Description:             "cc_library_headers prebuilt preferred is used as rdep",
+		StubbedBuildDefinitions: []string{"foo_export"},
+		Filesystem: map[string]string{
+			"foo/bar/Android.bp": simpleModule("cc_library_headers", "foo_headers"),
+		},
+		Blueprint: soongCcLibraryHeadersPreamble + `
+cc_prebuilt_library_headers {
+		name: "foo_headers",
+		whole_static_libs: ["foo_export"],
+		bazel_module: { bp2build_available: true },
+		prefer: true,
+}
+
+cc_library_shared {
+	name: "foo",
+	header_libs: ["foo_headers"],
+	include_build_directory: false,
+}
+` + simpleModule("cc_library_headers", "foo_export"),
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
+				"deps": `[":foo_export"]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"implementation_deps": `[":foo_headers"]`,
+			}),
+		},
+	})
+}
+
+func TestPrebuiltCcLibraryHeadersRdepUpdated(t *testing.T) {
+	runCcLibraryHeadersTestCase(t, Bp2buildTestCase{
+		Description:             "cc_library_headers not preferred is not used for rdep",
+		StubbedBuildDefinitions: []string{"foo_export"},
+		Filesystem: map[string]string{
+			"foo/bar/Android.bp": simpleModule("cc_library_headers", "foo_headers"),
+		},
+		Blueprint: soongCcLibraryHeadersPreamble + `
+cc_prebuilt_library_headers {
+		name: "foo_headers",
+		whole_static_libs: ["foo_export"],
+		bazel_module: { bp2build_available: true },
+		prefer: false,
+}
+
+cc_library_shared {
+	name: "foo",
+	header_libs: ["foo_headers"],
+	include_build_directory: false,
+}
+` + simpleModule("cc_library_headers", "foo_export"),
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
+				"deps": `[":foo_export"]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+				"implementation_deps": `["//foo/bar:foo_headers"]`,
 			}),
 		},
 	})
