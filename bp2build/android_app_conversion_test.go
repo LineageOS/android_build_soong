@@ -434,7 +434,6 @@ android_app {
 	name: "foo",
 	sdk_version: "current",
 	min_sdk_version: "24",
-	max_sdk_version: "30",
 	target_sdk_version: "29",
 	optimize: {
 		enabled: false,
@@ -446,7 +445,6 @@ android_app {
 				"manifest":       `"AndroidManifest.xml"`,
 				"resource_files": `[]`,
 				"manifest_values": `{
-        "maxSdkVersion": "30",
         "minSdkVersion": "24",
         "targetSdkVersion": "29",
     }`,
@@ -475,12 +473,8 @@ android_app {
 			MakeBazelTarget("android_binary", "foo", AttrNameToString{
 				"manifest":       `"AndroidManifest.xml"`,
 				"resource_files": `[]`,
-				"manifest_values": `{
-        "minSdkVersion": "30",
-        "targetSdkVersion": "30",
-    }`,
-				"sdk_version": `"30"`,
-				"optimize":    `False`,
+				"sdk_version":    `"30"`,
+				"optimize":       `False`,
 			}),
 		}})
 }
