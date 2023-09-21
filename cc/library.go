@@ -331,7 +331,6 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 	sharedFeatures.DeduplicateAxesFromBase()
 	staticFeatures := baseAttributes.features.Clone().Append(staticAttrs.Features)
 	staticFeatures.DeduplicateAxesFromBase()
-	staticFeatures.RemoveFromAllConfigs(cfiFeatureName)
 
 	staticCommonAttrs := staticOrSharedAttributes{
 		Srcs:    *srcs.Clone().Append(staticAttrs.Srcs),
@@ -2947,9 +2946,6 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 
 	features := baseAttributes.features.Clone().Append(libSharedOrStaticAttrs.Features)
 	features.DeduplicateAxesFromBase()
-	if isStatic {
-		features.RemoveFromAllConfigs(cfiFeatureName)
-	}
 
 	commonAttrs := staticOrSharedAttributes{
 		Srcs:    compilerAttrs.srcs,
