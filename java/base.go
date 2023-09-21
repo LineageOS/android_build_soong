@@ -1077,8 +1077,8 @@ func (j *Module) AddJSONData(d *map[string]interface{}) {
 
 }
 
-func (module *Module) addGeneratedSrcJars(path android.Path) {
-	module.properties.Generated_srcjars = append(module.properties.Generated_srcjars, path)
+func (j *Module) addGeneratedSrcJars(path android.Path) {
+	j.properties.Generated_srcjars = append(j.properties.Generated_srcjars, path)
 }
 
 func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspathJars, extraCombinedJars android.Paths) {
