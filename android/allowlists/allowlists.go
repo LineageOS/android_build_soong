@@ -946,6 +946,7 @@ var (
 		"java_sdk_library_import",
 		"license",
 		"linker_config",
+		"ndk_library",
 		"sysprop_library",
 		"xsd_config",
 		// go/keep-sorted end
