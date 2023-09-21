@@ -1987,9 +1987,9 @@ func bp2buildSanitizerFeatures(ctx android.BazelConversionPathContext, m *Module
 				sanitizerCompilerInputs.SetSelectValue(bazel.SanitizersEnabledAxis, bazel.SanitizersEnabled, bazel.MakeLabelListFromTargetNames([]string{*blocklist}))
 			}
 			if sanitizerProps.Sanitize.Cfi != nil && !proptools.Bool(sanitizerProps.Sanitize.Cfi) {
-				features = append(features, "-android_cfi")
+				features = append(features, "-"+cfiFeatureName)
 			} else if proptools.Bool(sanitizerProps.Sanitize.Cfi) {
-				features = append(features, "android_cfi")
+				features = append(features, cfiFeatureName)
 				if proptools.Bool(sanitizerProps.Sanitize.Config.Cfi_assembly_support) {
 					features = append(features, "android_cfi_assembly_support")
 				}
