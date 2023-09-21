@@ -1398,11 +1398,11 @@ cc_library_static {
 
 func TestStaticLibrary_SystemSharedLibsMuslEmpty(t *testing.T) {
 	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
-		Description: "cc_library_static system_shared_lib empty for musl variant",
+		Description:             "cc_library_static system_shared_lib empty for musl variant",
+		StubbedBuildDefinitions: []string{"libc_musl"},
 		Blueprint: soongCcLibraryStaticPreamble + `
 cc_library {
 		name: "libc_musl",
-		bazel_module: { bp2build_available: false },
 }
 
 cc_library_static {
@@ -1425,11 +1425,11 @@ cc_library_static {
 
 func TestStaticLibrary_SystemSharedLibsLinuxMuslEmpty(t *testing.T) {
 	runCcLibraryStaticTestCase(t, Bp2buildTestCase{
-		Description: "cc_library_static system_shared_lib empty for linux_musl variant",
+		Description:             "cc_library_static system_shared_lib empty for linux_musl variant",
+		StubbedBuildDefinitions: []string{"libc_musl"},
 		Blueprint: soongCcLibraryStaticPreamble + `
 cc_library {
 		name: "libc_musl",
-		bazel_module: { bp2build_available: false },
 }
 
 cc_library_static {

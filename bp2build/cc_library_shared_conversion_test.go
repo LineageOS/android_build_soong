@@ -1595,6 +1595,7 @@ func TestCcLibrarySdkVariantUsesStubs(t *testing.T) {
 		Description:                "cc_library_shared stubs",
 		ModuleTypeUnderTest:        "cc_library_shared",
 		ModuleTypeUnderTestFactory: cc.LibrarySharedFactory,
+		StubbedBuildDefinitions:    []string{"libNoStubs", "libHasApexStubs", "libHasApexAndNdkStubs"},
 		Blueprint: soongCcLibrarySharedPreamble + `
 cc_library_shared {
 	name: "libUsesSdk",
@@ -1607,22 +1608,21 @@ cc_library_shared {
 }
 cc_library_shared {
 	name: "libNoStubs",
-	bazel_module: { bp2build_available: false },
 }
 cc_library_shared {
 	name: "libHasApexStubs",
 	stubs: { symbol_file: "a.map.txt", versions: ["28", "29", "current"] },
-	bazel_module: { bp2build_available: false },
 	apex_available: ["apex_a"],
 }
 cc_library_shared {
 	name: "libHasApexAndNdkStubs",
 	stubs: { symbol_file: "b.map.txt", versions: ["28", "29", "current"] },
-	bazel_module: { bp2build_available: false },
 	apex_available: ["apex_b"],
 }
 ndk_library {
 	name: "libHasApexAndNdkStubs",
+	// TODO: b/301321658 - Stub this once existing-build-file handling can deal with
+	// modules that generate targets of a different name.
 	bazel_module: { bp2build_available: false },
 }
 `,
