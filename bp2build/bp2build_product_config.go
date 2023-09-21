@@ -290,6 +290,7 @@ func platformMappingSingleProduct(
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:memtag_heap_sync_include_paths=%s\n", strings.Join(productVariables.MemtagHeapSyncIncludePaths, ",")))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:manifest_package_name_overrides=%s\n", strings.Join(productVariables.ManifestPackageNameOverrides, ",")))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:native_coverage=%t\n", proptools.Bool(productVariables.Native_coverage)))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:platform_sdk_final=%t\n", proptools.Bool(productVariables.Platform_sdk_final)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:platform_version_name=%s\n", proptools.String(productVariables.Platform_version_name)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:product_brand=%s\n", productVariables.ProductBrand))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:product_manufacturer=%s\n", productVariables.ProductManufacturer))
