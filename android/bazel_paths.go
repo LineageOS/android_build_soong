@@ -487,6 +487,9 @@ func bp2buildModuleLabel(ctx BazelConversionContext, module blueprint.Module) st
 	if moduleDir == Bp2BuildTopLevel {
 		moduleDir = ""
 	}
+	if a, ok := module.(Module); ok && IsModulePrebuilt(a) {
+		moduleName = RemoveOptionalPrebuiltPrefix(moduleName)
+	}
 	return fmt.Sprintf("//%s:%s", moduleDir, moduleName)
 }
 
