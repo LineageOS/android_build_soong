@@ -3067,17 +3067,6 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.Bp2buildMutatorContext
 		}
 	}
 
-	protoDepLabel := bp2buildProto(ctx, &m.Module, srcPartitions[protoSrcPartition])
-	// Soong does not differentiate between a java_library and the Bazel equivalent of
-	// a java_proto_library + proto_library pair. Instead, in Soong proto sources are
-	// listed directly in the srcs of a java_library, and the classes produced
-	// by protoc are included directly in the resulting JAR. Thus upstream dependencies
-	// that depend on a java_library with proto sources can link directly to the protobuf API,
-	// and so this should be a static dependency.
-	if protoDepLabel != nil {
-		staticDeps.Append(bazel.MakeSingleLabelListAttribute(*protoDepLabel))
-	}
-
 	depLabels := &javaDependencyLabels{}
 	depLabels.Deps = deps
 
@@ -3092,6 +3081,20 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.Bp2buildMutatorContext
 		}
 	}
 	depLabels.StaticDeps.Append(staticDeps)
+
+	var additionalProtoDeps bazel.LabelListAttribute
+	additionalProtoDeps.Append(depLabels.Deps)
+	additionalProtoDeps.Append(depLabels.StaticDeps)
+	protoDepLabel := bp2buildProto(ctx, &m.Module, srcPartitions[protoSrcPartition], additionalProtoDeps)
+	// Soong does not differentiate between a java_library and the Bazel equivalent of
+	// a java_proto_library + proto_library pair. Instead, in Soong proto sources are
+	// listed directly in the srcs of a java_library, and the classes produced
+	// by protoc are included directly in the resulting JAR. Thus upstream dependencies
+	// that depend on a java_library with proto sources can link directly to the protobuf API,
+	// and so this should be a static dependency.
+	if protoDepLabel != nil {
+		depLabels.StaticDeps.Append(bazel.MakeSingleLabelListAttribute(*protoDepLabel))
+	}
 
 	hasKotlin := !kotlinSrcs.IsEmpty()
 	commonAttrs.kotlinAttributes = &kotlinAttributes{

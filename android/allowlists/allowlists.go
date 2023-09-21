@@ -947,6 +947,7 @@ var (
 		"gson",
 		"GsonBuildConfig.java",
 		"gson_version_generator",
+		"lab-resource-grpc",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
@@ -969,8 +970,8 @@ var (
 		"java_sdk_library_import",
 		"license",
 		"linker_config",
-		"ndk_library",
 		"ndk_headers",
+		"ndk_library",
 		"sysprop_library",
 		"xsd_config",
 		// go/keep-sorted end
