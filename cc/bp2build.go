@@ -1657,9 +1657,11 @@ func SetStubsForDynamicDeps(ctx android.BazelConversionPathContext, axis bazel.C
 			if depC, ok := dep.(*Module); ok && hasNdkStubs(ctx, depC) {
 				// If the dependency has ndk stubs, build against the ndk stubs
 				// https://cs.android.com/android/_/android/platform/build/soong/+/main:cc/cc.go;l=2642-2643;drc=e12d252e22dd8afa654325790d3298a0d67bd9d6;bpv=1;bpt=0
+				ver := proptools.String(c.Properties.Sdk_version)
+				// TODO - b/298085502: Add bp2build support for sdk_version: "minimum"
 				ndkLibModule, _ := ctx.ModuleFromName(dep.Name() + ndkLibrarySuffix)
 				label = bazel.Label{
-					Label: "//" + ctx.OtherModuleDir(ndkLibModule) + ":" + ndkLibModule.Name() + "_stub_libs",
+					Label: "//" + ctx.OtherModuleDir(ndkLibModule) + ":" + ndkLibModule.Name() + "_stub_libs-" + ver,
 				}
 			}
 			// add the ndk lib label to this axis
