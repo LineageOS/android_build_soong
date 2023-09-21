@@ -1519,7 +1519,7 @@ func TestCcLibrarySharedWithCfiAndCfiAssemblySupport(t *testing.T) {
 	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
 		Description: "cc_library_shared has correct features when cfi is enabled with cfi assembly support",
 		Blueprint: `
-cc_library_shared {
+cc_library_static {
 	name: "foo",
 	sanitize: {
 		cfi: true,
@@ -1529,7 +1529,7 @@ cc_library_shared {
 	},
 }`,
 		ExpectedBazelTargets: []string{
-			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
+			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
 				"features": `[
         "android_cfi",
         "android_cfi_assembly_support",
