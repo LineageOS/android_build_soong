@@ -432,6 +432,7 @@ var (
 
 		"tools/apifinder":                             Bp2BuildDefaultTrue,
 		"tools/apksig":                                Bp2BuildDefaultTrue,
+		"tools/dexter/slicer":                         Bp2BuildDefaultTrueRecursively,
 		"tools/external_updater":                      Bp2BuildDefaultTrueRecursively,
 		"tools/metalava":                              Bp2BuildDefaultTrueRecursively,
 		"tools/platform-compat/java/android/compat":   Bp2BuildDefaultTrueRecursively,
@@ -914,6 +915,11 @@ var (
 		"androidx.test.monitor-nodeps",
 		"androidx.test.annotation",
 		"androidx.test.annotation-nodeps",
+
+		// jni deps of an internal android_test (b/297405812)
+		"libdexmakerjvmtiagent",
+		"libopenjdkjvmti_headers",
+		"libstaticjvmtiagent",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
