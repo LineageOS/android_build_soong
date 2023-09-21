@@ -1371,7 +1371,7 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 		for _, axis := range enabledPropertyOverrides.SortedConfigurationAxes() {
 			configToBools := enabledPropertyOverrides.ConfigurableValues[axis]
 			for cfg, val := range configToBools {
-				if axis != bazel.OsConfigurationAxis || osSupport[cfg] {
+				if axis != bazel.OsConfigurationAxis || osSupport[cfg] || val /*If enabled is explicitly requested via overrides */ {
 					enabledProperty.SetSelectValue(axis, cfg, &val)
 				}
 			}
@@ -1418,15 +1418,50 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *topDownMutator
 	moduleEnableConstraints := bazel.LabelListAttribute{}
 	moduleEnableConstraints.Append(platformEnabledAttribute)
 	moduleEnableConstraints.Append(productConfigEnabledAttribute)
+	addCompatibilityConstraintForCompileMultilib(ctx, &moduleEnableConstraints)
 
 	return constraintAttributes{Target_compatible_with: moduleEnableConstraints}
+}
+
+var (
+	incompatible = bazel.LabelList{[]bazel.Label{{Label: "@platforms//:incompatible"}}, nil}
+)
+
+// If compile_mulitilib is set to
+// 1. 32: Add an incompatibility constraint for non-32 arches
+// 1. 64: Add an incompatibility constraint for non-64 arches
+func addCompatibilityConstraintForCompileMultilib(ctx *topDownMutatorContext, enabled *bazel.LabelListAttribute) {
+	mod := ctx.Module().base()
+	multilib, _ := decodeMultilib(mod, mod.commonProperties.CompileOS, ctx.Config().IgnorePrefer32OnDevice())
+
+	switch multilib {
+	case "32":
+		// Add an incompatibility constraint for all known 64-bit arches
+		enabled.SetSelectValue(bazel.ArchConfigurationAxis, "arm64", incompatible)
+		enabled.SetSelectValue(bazel.ArchConfigurationAxis, "x86_64", incompatible)
+		enabled.SetSelectValue(bazel.ArchConfigurationAxis, "riscv64", incompatible)
+	case "64":
+		// Add an incompatibility constraint for all known 32-bit arches
+		enabled.SetSelectValue(bazel.ArchConfigurationAxis, "arm", incompatible)
+		enabled.SetSelectValue(bazel.ArchConfigurationAxis, "x86", incompatible)
+	case "both":
+		// Do nothing: "both" is trivially compatible with 32-bit and 64-bit
+		// The top level rule (e.g. apex/partition) will be responsible for building this module in both variants via an
+		// outgoing_transition.
+	default: // e.g. first, common
+		// TODO - b/299135307: Add bp2build support for these properties.
+	}
+
 }
 
 // Check product variables for `enabled: true` flag override.
 // Returns a list of the constraint_value targets who enable this override.
 func productVariableConfigEnableAttribute(ctx *topDownMutatorContext) bazel.LabelListAttribute {
 	result := bazel.LabelListAttribute{}
-	productVariableProps := ProductVariableProperties(ctx, ctx.Module())
+	productVariableProps, errs := ProductVariableProperties(ctx, ctx.Module())
+	for _, err := range errs {
+		ctx.ModuleErrorf("ProductVariableProperties error: %s", err)
+	}
 	if productConfigProps, exists := productVariableProps["Enabled"]; exists {
 		for productConfigProp, prop := range productConfigProps {
 			flag, ok := prop.(*bool)
@@ -1604,15 +1639,23 @@ func (b bp2buildInfo) BazelAttributes() []interface{} {
 }
 
 func (m *ModuleBase) addBp2buildInfo(info bp2buildInfo) {
-	if m.commonProperties.BazelConversionStatus.UnconvertedReason != nil {
-		panic(fmt.Errorf("bp2build: module '%s' marked unconvertible and also is converted", m.Name()))
+	reason := m.commonProperties.BazelConversionStatus.UnconvertedReason
+	if reason != nil {
+		panic(fmt.Errorf("bp2build: internal error trying to convert module '%s' marked unconvertible. Reason type %d: %s",
+			m.Name(),
+			reason.ReasonType,
+			reason.Detail))
 	}
 	m.commonProperties.BazelConversionStatus.Bp2buildInfo = append(m.commonProperties.BazelConversionStatus.Bp2buildInfo, info)
 }
 
 func (m *ModuleBase) setBp2buildUnconvertible(reasonType bp2build_metrics_proto.UnconvertedReasonType, detail string) {
 	if len(m.commonProperties.BazelConversionStatus.Bp2buildInfo) > 0 {
-		panic(fmt.Errorf("bp2build: module '%s' marked unconvertible and also is converted", m.Name()))
+		fmt.Println(m.commonProperties.BazelConversionStatus.Bp2buildInfo)
+		panic(fmt.Errorf("bp2build: internal error trying to mark converted module '%s' as unconvertible. Reason type %d: %s",
+			m.Name(),
+			reasonType,
+			detail))
 	}
 	m.commonProperties.BazelConversionStatus.UnconvertedReason = &UnconvertedReason{
 		ReasonType: int(reasonType),
@@ -3057,11 +3100,21 @@ func (b *baseModuleContext) ModuleFromName(name string) (blueprint.Module, bool)
 	if !b.isBazelConversionMode() {
 		panic("cannot call ModuleFromName if not in bazel conversion mode")
 	}
+	var m blueprint.Module
+	var ok bool
 	if moduleName, _ := SrcIsModuleWithTag(name); moduleName != "" {
-		return b.bp.ModuleFromName(moduleName)
+		m, ok = b.bp.ModuleFromName(moduleName)
 	} else {
-		return b.bp.ModuleFromName(name)
+		m, ok = b.bp.ModuleFromName(name)
 	}
+	if !ok {
+		return m, ok
+	}
+	// If this module is not preferred, tried to get the prebuilt version instead
+	if a, aOk := m.(Module); aOk && !IsModulePrebuilt(a) && !IsModulePreferred(a) {
+		return b.ModuleFromName("prebuilt_" + name)
+	}
+	return m, ok
 }
 
 func (b *baseModuleContext) VisitDirectDepsBlueprint(visit func(blueprint.Module)) {

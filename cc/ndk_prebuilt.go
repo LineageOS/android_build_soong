@@ -15,9 +15,11 @@
 package cc
 
 import (
+	"path/filepath"
 	"strings"
 
 	"android/soong/android"
+	"android/soong/bazel"
 )
 
 func init() {
@@ -64,6 +66,7 @@ func NdkPrebuiltSharedStlFactory() android.Module {
 	module.Properties.Sdk_version = StringPtr("minimum")
 	module.Properties.AlwaysSdk = true
 	module.stl.Properties.Stl = StringPtr("none")
+	module.bazelable = true
 	return module.Init()
 }
 
@@ -84,12 +87,16 @@ func NdkPrebuiltStaticStlFactory() android.Module {
 	module.Properties.AlwaysSdk = true
 	module.Properties.Sdk_version = StringPtr("current")
 	module.stl.Properties.Stl = StringPtr("none")
+	module.bazelable = true
 	return module.Init()
 }
 
+const (
+	libDir = "current/sources/cxx-stl/llvm-libc++/libs"
+)
+
 func getNdkStlLibDir(ctx android.ModuleContext) android.SourcePath {
-	libDir := "prebuilts/ndk/current/sources/cxx-stl/llvm-libc++/libs"
-	return android.PathForSource(ctx, libDir).Join(ctx, ctx.Arch().Abi[0])
+	return android.PathForSource(ctx, ctx.ModuleDir(), libDir).Join(ctx, ctx.Arch().Abi[0])
 }
 
 func (ndk *ndkPrebuiltStlLinker) link(ctx ModuleContext, flags Flags,
@@ -127,4 +134,82 @@ func (ndk *ndkPrebuiltStlLinker) link(ctx ModuleContext, flags Flags,
 	}
 
 	return lib
+}
+
+var (
+	archToAbiDirMap = map[string]string{
+		"android_arm":     "armeabi-v7a",
+		"android_arm64":   "arm64-v8a",
+		"android_riscv64": "riscv64",
+		"android_x86":     "x86",
+		"android_x86_64":  "x86_64",
+	}
+)
+
+// stlSrcBp2build returns a bazel label for the checked-in .so/.a file
+// It contains a select statement for each ABI
+func stlSrcBp2build(ctx android.Bp2buildMutatorContext, c *Module) bazel.LabelAttribute {
+	libName := strings.TrimPrefix(c.Name(), "ndk_")
+	libExt := ".so" // TODO - b/201079053: Support windows
+	if ctx.ModuleType() == "ndk_prebuilt_static_stl" {
+		libExt = ".a"
+	}
+	src := bazel.LabelAttribute{}
+	for arch, abiDir := range archToAbiDirMap {
+		srcPath := filepath.Join(libDir, abiDir, libName+libExt)
+		src.SetSelectValue(
+			bazel.OsArchConfigurationAxis,
+			arch,
+			android.BazelLabelForModuleSrcSingle(ctx, srcPath),
+		)
+	}
+	return src
+}
+
+// stlIncludesBp2build returns the includes exported by the STL
+func stlIncludesBp2build(c *Module) bazel.StringListAttribute {
+	linker, _ := c.linker.(*ndkPrebuiltStlLinker)
+	includeDirs := append(
+		[]string{},
+		linker.libraryDecorator.flagExporter.Properties.Export_include_dirs...,
+	)
+	includeDirs = append(
+		includeDirs,
+		linker.libraryDecorator.flagExporter.Properties.Export_system_include_dirs...,
+	)
+	return bazel.MakeStringListAttribute(android.FirstUniqueStrings(includeDirs))
+}
+
+func ndkPrebuiltStlBp2build(ctx android.Bp2buildMutatorContext, c *Module) {
+	if ctx.ModuleType() == "ndk_prebuilt_static_stl" {
+		ndkPrebuiltStaticStlBp2build(ctx, c)
+	} else {
+		ndkPrebuiltSharedStlBp2build(ctx, c)
+	}
+}
+
+func ndkPrebuiltStaticStlBp2build(ctx android.Bp2buildMutatorContext, c *Module) {
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "cc_prebuilt_library_static",
+		Bzl_load_location: "//build/bazel/rules/cc:cc_prebuilt_library_static.bzl",
+	}
+	attrs := &bazelPrebuiltLibraryStaticAttributes{
+		Static_library:         stlSrcBp2build(ctx, c),
+		Export_system_includes: stlIncludesBp2build(c), // The exports are always as system
+	}
+	// TODO: min_sdk_version
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: c.Name()}, attrs)
+}
+
+func ndkPrebuiltSharedStlBp2build(ctx android.Bp2buildMutatorContext, c *Module) {
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "cc_prebuilt_library_shared",
+		Bzl_load_location: "//build/bazel/rules/cc:cc_prebuilt_library_shared.bzl",
+	}
+	attrs := &bazelPrebuiltLibrarySharedAttributes{
+		Shared_library:         stlSrcBp2build(ctx, c),
+		Export_system_includes: stlIncludesBp2build(c), // The exports are always as system
+	}
+	// TODO: min_sdk_version
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: c.Name()}, attrs)
 }

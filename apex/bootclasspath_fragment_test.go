@@ -302,14 +302,14 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 			java.FixtureSetBootImageInstallDirOnDevice("art", "apex/com.android.art/javalib"),
 		).RunTest(t)
 
-		ensureExactContents(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
+		ensureExactContents(t, result.TestContext, "com.android.art", "android_common_com.android.art", []string{
 			"etc/boot-image.prof",
 			"etc/classpaths/bootclasspath.pb",
 			"javalib/bar.jar",
 			"javalib/foo.jar",
 		})
 
-		java.CheckModuleDependencies(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
+		java.CheckModuleDependencies(t, result.TestContext, "com.android.art", "android_common_com.android.art", []string{
 			`art-bootclasspath-fragment`,
 			`com.android.art.key`,
 		})
@@ -332,7 +332,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 			dexpreopt.FixtureDisableDexpreoptBootImages(true),
 		).RunTest(t)
 
-		ensureExactContents(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
+		ensureExactContents(t, result.TestContext, "com.android.art", "android_common_com.android.art", []string{
 			"etc/boot-image.prof",
 			"etc/classpaths/bootclasspath.pb",
 			"javalib/bar.jar",
@@ -351,7 +351,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 			dexpreopt.FixtureDisableGenerateProfile(true),
 		).RunTest(t)
 
-		files := getFiles(t, result.TestContext, "com.android.art", "android_common_com.android.art_image")
+		files := getFiles(t, result.TestContext, "com.android.art", "android_common_com.android.art")
 		for _, file := range files {
 			matched, _ := path.Match("etc/boot-image.prof", file.path)
 			android.AssertBoolEquals(t, "\"etc/boot-image.prof\" should not be in the APEX", matched, false)
@@ -380,7 +380,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 			"javalib/foo.jar",
 		})
 
-		java.CheckModuleDependencies(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
+		java.CheckModuleDependencies(t, result.TestContext, "com.android.art", "android_common_com.android.art", []string{
 			`art-bootclasspath-fragment`,
 			`com.android.art.key`,
 			`prebuilt_com.android.art`,
@@ -635,7 +635,7 @@ func TestBootclasspathFragmentContentsNoName(t *testing.T) {
 		}
 	`)
 
-	ensureExactContents(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
+	ensureExactContents(t, result.TestContext, "myapex", "android_common_myapex", []string{
 		// This does not include art, oat or vdex files as they are only included for the art boot
 		// image.
 		"etc/classpaths/bootclasspath.pb",
@@ -643,12 +643,12 @@ func TestBootclasspathFragmentContentsNoName(t *testing.T) {
 		"javalib/foo.jar",
 	})
 
-	java.CheckModuleDependencies(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
+	java.CheckModuleDependencies(t, result.TestContext, "myapex", "android_common_myapex", []string{
 		`myapex.key`,
 		`mybootclasspathfragment`,
 	})
 
-	apex := result.ModuleForTests("myapex", "android_common_myapex_image")
+	apex := result.ModuleForTests("myapex", "android_common_myapex")
 	apexRule := apex.Rule("apexRule")
 	copyCommands := apexRule.Args["copy_commands"]
 
@@ -665,7 +665,7 @@ func TestBootclasspathFragmentContentsNoName(t *testing.T) {
 		}
 		android.AssertPathRelativeToTopEquals(t, name+" dex", expectedDexJar, dexJar)
 
-		expectedCopyCommand := fmt.Sprintf("&& cp -f %s out/soong/.intermediates/myapex/android_common_myapex_image/image.apex/javalib/%s.jar", expectedDexJar, name)
+		expectedCopyCommand := fmt.Sprintf("&& cp -f %s out/soong/.intermediates/myapex/android_common_myapex/image.apex/javalib/%s.jar", expectedDexJar, name)
 		android.AssertStringDoesContain(t, name+" apex copy command", copyCommands, expectedCopyCommand)
 	}
 

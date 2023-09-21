@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 type rustDeclarationsTagType struct {
@@ -17,6 +18,7 @@ var rustDeclarationsTag = rustDeclarationsTagType{}
 type RustAconfigLibraryProperties struct {
 	// name of the aconfig_declarations module to generate a library for
 	Aconfig_declarations string
+	Test                 *bool
 }
 
 type aconfigDecorator struct {
@@ -58,6 +60,11 @@ func (a *aconfigDecorator) GenerateSource(ctx rust.ModuleContext, deps rust.Path
 	}
 	declarations := ctx.OtherModuleProvider(declarationsModules[0], declarationsProviderKey).(declarationsProviderData)
 
+	mode := "production"
+	if proptools.Bool(a.Properties.Test) {
+		mode = "test"
+	}
+
 	ctx.Build(pctx, android.BuildParams{
 		Rule:  rustRule,
 		Input: declarations.IntermediatePath,
@@ -67,8 +74,7 @@ func (a *aconfigDecorator) GenerateSource(ctx rust.ModuleContext, deps rust.Path
 		Description: "rust_aconfig_library",
 		Args: map[string]string{
 			"gendir": generatedDir.String(),
-			// TODO: Add test mode
-			"mode": "production",
+			"mode":   mode,
 		},
 	})
 	a.BaseSourceProvider.OutputFiles = android.Paths{generatedSource}

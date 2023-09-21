@@ -44,10 +44,11 @@ func generateBazelTargetsForTest(targets []testBazelTarget, hod android.HostOrDe
 }
 
 type ccBinaryBp2buildTestCase struct {
-	description string
-	filesystem  map[string]string
-	blueprint   string
-	targets     []testBazelTarget
+	description             string
+	filesystem              map[string]string
+	blueprint               string
+	targets                 []testBazelTarget
+	stubbedBuildDefinitions []string
 }
 
 func registerCcBinaryModuleTypes(ctx android.RegistrationContext) {
@@ -81,6 +82,7 @@ func runCcBinaryTestCase(t *testing.T, testCase ccBinaryBp2buildTestCase) {
 			Description:                description,
 			Blueprint:                  binaryReplacer.Replace(testCase.blueprint),
 			Filesystem:                 testCase.filesystem,
+			StubbedBuildDefinitions:    testCase.stubbedBuildDefinitions,
 		})
 	})
 }
@@ -97,6 +99,7 @@ func runCcHostBinaryTestCase(t *testing.T, testCase ccBinaryBp2buildTestCase) {
 			Description:                description,
 			Blueprint:                  hostBinaryReplacer.Replace(testCase.blueprint),
 			Filesystem:                 testCase.filesystem,
+			StubbedBuildDefinitions:    testCase.stubbedBuildDefinitions,
 		})
 	})
 }
@@ -107,6 +110,7 @@ func TestBasicCcBinary(t *testing.T) {
 		filesystem: map[string]string{
 			soongCcVersionLibBpPath: soongCcVersionLibBp,
 		},
+		stubbedBuildDefinitions: []string{"//build/soong/cc/libbuildversion:libbuildversion"},
 		blueprint: `
 {rule_name} {
     name: "foo",
@@ -264,7 +268,8 @@ func TestCcBinaryLdflagsSplitBySpaceExceptSoongAdded(t *testing.T) {
 
 func TestCcBinarySplitSrcsByLang(t *testing.T) {
 	runCcHostBinaryTestCase(t, ccBinaryBp2buildTestCase{
-		description: "split srcs by lang",
+		description:             "split srcs by lang",
+		stubbedBuildDefinitions: []string{"fg_foo"},
 		blueprint: `
 {rule_name} {
     name: "foo",
@@ -276,7 +281,7 @@ func TestCcBinarySplitSrcsByLang(t *testing.T) {
     ],
     include_build_directory: false,
 }
-` + simpleModuleDoNotConvertBp2build("filegroup", "fg_foo"),
+` + simpleModule("filegroup", "fg_foo"),
 		targets: []testBazelTarget{
 			{"cc_binary", "foo", AttrNameToString{
 				"srcs": `[
@@ -300,17 +305,17 @@ func TestCcBinarySplitSrcsByLang(t *testing.T) {
 func TestCcBinaryDoNotDistinguishBetweenDepsAndImplementationDeps(t *testing.T) {
 	runCcBinaryTestCase(t, ccBinaryBp2buildTestCase{
 		description: "no implementation deps",
+		stubbedBuildDefinitions: []string{"generated_hdr", "export_generated_hdr", "static_dep", "implementation_static_dep",
+			"whole_static_dep", "not_explicitly_exported_whole_static_dep", "shared_dep", "implementation_shared_dep"},
 		blueprint: `
 genrule {
     name: "generated_hdr",
     cmd: "nothing to see here",
-    bazel_module: { bp2build_available: false },
 }
 
 genrule {
     name: "export_generated_hdr",
     cmd: "nothing to see here",
-    bazel_module: { bp2build_available: false },
 }
 
 {rule_name} {
@@ -326,12 +331,12 @@ genrule {
     export_generated_headers: ["export_generated_hdr"],
 }
 ` +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "static_dep") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "implementation_static_dep") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "whole_static_dep") +
-			simpleModuleDoNotConvertBp2build("cc_library_static", "not_explicitly_exported_whole_static_dep") +
-			simpleModuleDoNotConvertBp2build("cc_library", "shared_dep") +
-			simpleModuleDoNotConvertBp2build("cc_library", "implementation_shared_dep"),
+			simpleModule("cc_library_static", "static_dep") +
+			simpleModule("cc_library_static", "implementation_static_dep") +
+			simpleModule("cc_library_static", "whole_static_dep") +
+			simpleModule("cc_library_static", "not_explicitly_exported_whole_static_dep") +
+			simpleModule("cc_library", "shared_dep") +
+			simpleModule("cc_library", "implementation_shared_dep"),
 		targets: []testBazelTarget{
 			{"cc_binary", "foo", AttrNameToString{
 				"deps": `[
@@ -502,6 +507,7 @@ func TestCcBinaryPropertiesToFeatures(t *testing.T) {
 
 func TestCcBinarySharedProto(t *testing.T) {
 	runCcBinaryTests(t, ccBinaryBp2buildTestCase{
+		stubbedBuildDefinitions: []string{"libprotobuf-cpp-full", "libprotobuf-cpp-lite"},
 		blueprint: soongCcProtoLibraries + `{rule_name} {
 	name: "foo",
 	srcs: ["foo.proto"],
@@ -524,6 +530,7 @@ func TestCcBinarySharedProto(t *testing.T) {
 
 func TestCcBinaryStaticProto(t *testing.T) {
 	runCcBinaryTests(t, ccBinaryBp2buildTestCase{
+		stubbedBuildDefinitions: []string{"libprotobuf-cpp-full", "libprotobuf-cpp-lite"},
 		blueprint: soongCcProtoLibraries + `{rule_name} {
 	name: "foo",
 	srcs: ["foo.proto"],
@@ -880,8 +887,15 @@ func TestCcBinaryWithSanitizerBlocklist(t *testing.T) {
 }`,
 		targets: []testBazelTarget{
 			{"cc_binary", "foo", AttrNameToString{
+				"copts": `select({
+        "//build/bazel/rules/cc:sanitizers_enabled": ["-fsanitize-ignorelist=$(location foo_blocklist.txt)"],
+        "//conditions:default": [],
+    })`,
+				"additional_compiler_inputs": `select({
+        "//build/bazel/rules/cc:sanitizers_enabled": [":foo_blocklist.txt"],
+        "//conditions:default": [],
+    })`,
 				"local_includes": `["."]`,
-				"features":       `["sanitizer_blocklist_foo_blocklist_txt"]`,
 			}},
 		},
 	})
@@ -1217,13 +1231,13 @@ func TestCCBinaryRscriptSrc(t *testing.T) {
 
 func TestCcBinaryStatic_SystemSharedLibUsedAsDep(t *testing.T) {
 	runCcBinaryTestCase(t, ccBinaryBp2buildTestCase{
-		description: "cc_library_static system_shared_lib empty for linux_bionic variant",
+		stubbedBuildDefinitions: []string{"libm", "libc"},
+		description:             "cc_library_static system_shared_lib empty for linux_bionic variant",
 		blueprint: soongCcLibraryStaticPreamble +
-			simpleModuleDoNotConvertBp2build("cc_library", "libc") + `
+			simpleModule("cc_library", "libc") + `
 
 cc_library {
     name: "libm",
-    bazel_module: { bp2build_available: false },
 }
 
 cc_binary {

@@ -1636,7 +1636,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 	}{}
 
 	props.Name = proptools.StringPtr(module.sourceStubLibraryModuleName(apiScope))
-	props.Visibility = childModuleVisibility(module.sdkLibraryProperties.Stubs_library_visibility)
+	props.Visibility = []string{"//visibility:override", "//visibility:private"}
 	// sources are generated from the droiddoc
 	props.Srcs = []string{":" + module.stubsSourceModuleName(apiScope)}
 	sdkVersion := module.sdkVersionForStubsLibrary(mctx, apiScope)
@@ -1834,7 +1834,7 @@ func (module *SdkLibrary) createApiLibrary(mctx android.DefaultableHookContext, 
 	}{}
 
 	props.Name = proptools.StringPtr(module.apiLibraryModuleName(apiScope))
-	props.Visibility = childModuleVisibility(module.sdkLibraryProperties.Stubs_library_visibility)
+	props.Visibility = []string{"//visibility:override", "//visibility:private"}
 
 	apiContributions := []string{}
 
@@ -2282,27 +2282,25 @@ func SdkLibraryFactory() android.Module {
 }
 
 type bazelSdkLibraryAttributes struct {
-	Public        bazel.StringAttribute
-	System        bazel.StringAttribute
-	Test          bazel.StringAttribute
-	Module_lib    bazel.StringAttribute
-	System_server bazel.StringAttribute
+	Public        *bazel.Label
+	System        *bazel.Label
+	Test          *bazel.Label
+	Module_lib    *bazel.Label
+	System_server *bazel.Label
 }
 
 // java_sdk_library bp2build converter
-func (module *SdkLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (module *SdkLibrary) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	if ctx.ModuleType() != "java_sdk_library" {
 		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "")
 		return
 	}
 
-	nameToAttr := make(map[string]bazel.StringAttribute)
+	nameToAttr := make(map[string]*bazel.Label)
 
 	for _, scope := range module.getGeneratedApiScopes(ctx) {
-		apiSurfaceFile := path.Join(module.getApiDir(), scope.apiFilePrefix+"current.txt")
-		var scopeStringAttribute bazel.StringAttribute
-		scopeStringAttribute.SetValue(apiSurfaceFile)
-		nameToAttr[scope.name] = scopeStringAttribute
+		apiSurfaceFile := android.BazelLabelForModuleSrcSingle(ctx, path.Join(module.getApiDir(), scope.apiFilePrefix+"current.txt"))
+		nameToAttr[scope.name] = &apiSurfaceFile
 	}
 
 	attrs := bazelSdkLibraryAttributes{
@@ -2361,6 +2359,7 @@ type sdkLibraryImportProperties struct {
 type SdkLibraryImport struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
+	android.BazelModuleBase
 	prebuilt android.Prebuilt
 	android.ApexModuleBase
 
@@ -2444,6 +2443,7 @@ func sdkLibraryImportFactory() android.Module {
 
 	android.InitPrebuiltModule(module, &[]string{""})
 	android.InitApexModule(module)
+	android.InitBazelModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 
 	module.SetDefaultableHook(func(mctx android.DefaultableHookContext) {
@@ -2452,6 +2452,33 @@ func sdkLibraryImportFactory() android.Module {
 		}
 	})
 	return module
+}
+
+// java_sdk_library bp2build converter
+func (i *SdkLibraryImport) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
+	nameToAttr := make(map[string]*bazel.Label)
+
+	for scope, props := range i.scopeProperties {
+		if api := proptools.String(props.Current_api); api != "" {
+			apiSurfaceFile := android.BazelLabelForModuleSrcSingle(ctx, api)
+			nameToAttr[scope.name] = &apiSurfaceFile
+		}
+	}
+
+	attrs := bazelSdkLibraryAttributes{
+		Public:        nameToAttr["public"],
+		System:        nameToAttr["system"],
+		Test:          nameToAttr["test"],
+		Module_lib:    nameToAttr["module-lib"],
+		System_server: nameToAttr["system-server"],
+	}
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "java_sdk_library",
+		Bzl_load_location: "//build/bazel/rules/java:sdk_library.bzl",
+	}
+
+	name := android.RemoveOptionalPrebuiltPrefix(i.Name())
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name}, &attrs)
 }
 
 var _ PermittedPackagesForUpdatableBootJars = (*SdkLibraryImport)(nil)
@@ -2484,6 +2511,10 @@ func (module *SdkLibraryImport) createInternalModules(mctx android.DefaultableHo
 
 		if len(scopeProperties.Stub_srcs) > 0 {
 			module.createPrebuiltStubsSources(mctx, apiScope, scopeProperties)
+		}
+
+		if scopeProperties.Current_api != nil {
+			module.createPrebuiltApiContribution(mctx, apiScope, scopeProperties)
 		}
 	}
 
@@ -2538,6 +2569,25 @@ func (module *SdkLibraryImport) createPrebuiltStubsSources(mctx android.Defaulta
 	props.CopyUserSuppliedPropertiesFromPrebuilt(&module.prebuilt)
 
 	mctx.CreateModule(PrebuiltStubsSourcesFactory, &props)
+}
+
+func (module *SdkLibraryImport) createPrebuiltApiContribution(mctx android.DefaultableHookContext, apiScope *apiScope, scopeProperties *sdkLibraryScopeProperties) {
+	api_file := scopeProperties.Current_api
+	api_surface := &apiScope.name
+
+	props := struct {
+		Name        *string
+		Api_surface *string
+		Api_file    *string
+		Visibility  []string
+	}{}
+
+	props.Name = proptools.StringPtr(module.stubsSourceModuleName(apiScope) + ".api.contribution")
+	props.Api_surface = api_surface
+	props.Api_file = api_file
+	props.Visibility = []string{"//visibility:override", "//visibility:public"}
+
+	mctx.CreateModule(ApiContributionImportFactory, &props)
 }
 
 // Add the dependencies on the child module in the component deps mutator so that it

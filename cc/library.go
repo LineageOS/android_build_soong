@@ -308,7 +308,7 @@ func stripAttrsFromLinkerAttrs(la *linkerAttributes) stripAttributes {
 	}
 }
 
-func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
+func libraryBp2Build(ctx android.Bp2buildMutatorContext, m *Module) {
 	sharedAttrs := bp2BuildParseSharedProps(ctx, m)
 	staticAttrs := bp2BuildParseStaticProps(ctx, m)
 	baseAttributes := bp2BuildParseBaseProps(ctx, m)
@@ -331,6 +331,7 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 	sharedFeatures.DeduplicateAxesFromBase()
 	staticFeatures := baseAttributes.features.Clone().Append(staticAttrs.Features)
 	staticFeatures.DeduplicateAxesFromBase()
+	staticFeatures.RemoveFromAllConfigs(cfiFeatureName)
 
 	staticCommonAttrs := staticOrSharedAttributes{
 		Srcs:    *srcs.Clone().Append(staticAttrs.Srcs),
@@ -349,6 +350,7 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 		Runtime_deps:                      linkerAttrs.runtimeDeps,
 		sdkAttributes:                     bp2BuildParseSdkAttributes(m),
 		Native_coverage:                   baseAttributes.Native_coverage,
+		Additional_compiler_inputs:        compilerAttrs.additionalCompilerInputs,
 	}
 
 	includeAttrs := includesAttributes{
@@ -376,6 +378,7 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 		Runtime_deps:                      linkerAttrs.runtimeDeps,
 		sdkAttributes:                     bp2BuildParseSdkAttributes(m),
 		Native_coverage:                   baseAttributes.Native_coverage,
+		Additional_compiler_inputs:        compilerAttrs.additionalCompilerInputs,
 	}
 
 	staticTargetAttrs := &bazelCcLibraryStaticAttributes{
@@ -478,7 +481,7 @@ func libraryBp2Build(ctx android.TopDownMutatorContext, m *Module) {
 	createStubsBazelTargetIfNeeded(ctx, m, compilerAttrs, exportedIncludes, baseAttributes)
 }
 
-func createStubsBazelTargetIfNeeded(ctx android.TopDownMutatorContext, m *Module, compilerAttrs compilerAttributes, exportedIncludes BazelIncludes, baseAttributes baseAttributes) {
+func createStubsBazelTargetIfNeeded(ctx android.Bp2buildMutatorContext, m *Module, compilerAttrs compilerAttributes, exportedIncludes BazelIncludes, baseAttributes baseAttributes) {
 	if compilerAttrs.stubsSymbolFile != nil && len(compilerAttrs.stubsVersions.Value) > 0 {
 		stubSuitesProps := bazel.BazelTargetModuleProperties{
 			Rule_class:        "cc_stub_suite",
@@ -492,6 +495,7 @@ func createStubsBazelTargetIfNeeded(ctx android.TopDownMutatorContext, m *Module
 			Soname:               &soname,
 			Source_library_label: proptools.StringPtr(m.GetBazelLabel(ctx, m)),
 			Deps:                 baseAttributes.deps,
+			Api_surface:          proptools.StringPtr("module-libapi"),
 		}
 		ctx.CreateBazelTargetModule(stubSuitesProps,
 			android.CommonAttributes{Name: m.Name() + "_stub_libs"},
@@ -2883,7 +2887,7 @@ func maybeInjectBoringSSLHash(ctx android.ModuleContext, outputFile android.Modu
 	return outputFile
 }
 
-func bp2buildParseAbiCheckerProps(ctx android.TopDownMutatorContext, module *Module) bazelCcHeaderAbiCheckerAttributes {
+func bp2buildParseAbiCheckerProps(ctx android.Bp2buildMutatorContext, module *Module) bazelCcHeaderAbiCheckerAttributes {
 	lib, ok := module.linker.(*libraryDecorator)
 	if !ok {
 		return bazelCcHeaderAbiCheckerAttributes{}
@@ -2906,7 +2910,7 @@ func bp2buildParseAbiCheckerProps(ctx android.TopDownMutatorContext, module *Mod
 	return abiCheckerAttrs
 }
 
-func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Module, isStatic bool) {
+func sharedOrStaticLibraryBp2Build(ctx android.Bp2buildMutatorContext, module *Module, isStatic bool) {
 	baseAttributes := bp2BuildParseBaseProps(ctx, module)
 	compilerAttrs := baseAttributes.compilerAttributes
 	linkerAttrs := baseAttributes.linkerAttributes
@@ -2944,6 +2948,9 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 
 	features := baseAttributes.features.Clone().Append(libSharedOrStaticAttrs.Features)
 	features.DeduplicateAxesFromBase()
+	if isStatic {
+		features.RemoveFromAllConfigs(cfiFeatureName)
+	}
 
 	commonAttrs := staticOrSharedAttributes{
 		Srcs:    compilerAttrs.srcs,
@@ -2962,6 +2969,7 @@ func sharedOrStaticLibraryBp2Build(ctx android.TopDownMutatorContext, module *Mo
 		sdkAttributes:                     bp2BuildParseSdkAttributes(module),
 		Runtime_deps:                      linkerAttrs.runtimeDeps,
 		Native_coverage:                   baseAttributes.Native_coverage,
+		Additional_compiler_inputs:        compilerAttrs.additionalCompilerInputs,
 	}
 
 	module.convertTidyAttributes(ctx, &commonAttrs.tidyAttributes)
@@ -3118,6 +3126,7 @@ type bazelCcStubSuiteAttributes struct {
 	Source_library_label *string
 	Soname               *string
 	Deps                 bazel.LabelListAttribute
+	Api_surface          *string
 }
 
 type bazelCcHeaderAbiCheckerAttributes struct {

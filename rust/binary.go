@@ -15,7 +15,10 @@
 package rust
 
 import (
+	"fmt"
+
 	"android/soong/android"
+	"android/soong/bazel"
 )
 
 func init() {
@@ -59,6 +62,8 @@ func RustBinaryHostFactory() android.Module {
 
 func NewRustBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
 	module := newModule(hod, android.MultilibFirst)
+
+	android.InitBazelModule(module)
 
 	binary := &binaryDecorator{
 		baseCompiler: NewBaseCompiler("bin", "", InstallInSystem),
@@ -133,13 +138,17 @@ func (binary *binaryDecorator) preferRlib() bool {
 
 func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput {
 	fileName := binary.getStem(ctx) + ctx.toolchain().ExecutableSuffix()
-	srcPath, _ := srcPathFromModuleSrcs(ctx, binary.baseCompiler.Properties.Srcs)
 	outputFile := android.PathForModuleOut(ctx, fileName)
 	ret := buildOutput{outputFile: outputFile}
+	var crateRootPath android.Path
+	if binary.baseCompiler.Properties.Crate_root == nil {
+		crateRootPath, _ = srcPathFromModuleSrcs(ctx, binary.baseCompiler.Properties.Srcs)
+	} else {
+		crateRootPath = android.PathForModuleSrc(ctx, *binary.baseCompiler.Properties.Crate_root)
+	}
 
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.depLinkFlags...)
-	flags.LinkFlags = append(flags.LinkFlags, deps.linkObjects.Strings()...)
 
 	if binary.stripper.NeedsStrip(ctx) {
 		strippedOutputFile := outputFile
@@ -150,7 +159,7 @@ func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps Path
 	}
 	binary.baseCompiler.unstrippedOutputFile = outputFile
 
-	ret.kytheFile = TransformSrcToBinary(ctx, srcPath, deps, flags, outputFile).kytheFile
+	ret.kytheFile = TransformSrcToBinary(ctx, binary, crateRootPath, deps, flags, outputFile).kytheFile
 	return ret
 }
 
@@ -182,4 +191,89 @@ func (binary *binaryDecorator) staticallyLinked() bool {
 
 func (binary *binaryDecorator) testBinary() bool {
 	return false
+}
+
+type rustBinaryLibraryAttributes struct {
+	Srcs            bazel.LabelListAttribute
+	Compile_data    bazel.LabelListAttribute
+	Crate_name      bazel.StringAttribute
+	Edition         bazel.StringAttribute
+	Crate_features  bazel.StringListAttribute
+	Deps            bazel.LabelListAttribute
+	Proc_macro_deps bazel.LabelListAttribute
+	Rustc_flags     bazel.StringListAttribute
+}
+
+func binaryBp2build(ctx android.Bp2buildMutatorContext, m *Module) {
+	binary := m.compiler.(*binaryDecorator)
+
+	var srcs bazel.LabelList
+	var compileData bazel.LabelList
+
+	if binary.baseCompiler.Properties.Srcs[0] == "src/main.rs" {
+		srcs = android.BazelLabelForModuleSrc(ctx, []string{"src/**/*.rs"})
+		compileData = android.BazelLabelForModuleSrc(
+			ctx,
+			[]string{
+				"src/**/*.proto",
+				"examples/**/*.rs",
+				"**/*.md",
+				"templates/**/*.template",
+			},
+		)
+	} else {
+		srcs = android.BazelLabelForModuleSrc(ctx, binary.baseCompiler.Properties.Srcs)
+	}
+
+	deps := android.BazelLabelForModuleDeps(ctx, append(
+		binary.baseCompiler.Properties.Rustlibs,
+	))
+
+	procMacroDeps := android.BazelLabelForModuleDeps(ctx, binary.baseCompiler.Properties.Proc_macros)
+
+	var rustcFLags []string
+	for _, cfg := range binary.baseCompiler.Properties.Cfgs {
+		rustcFLags = append(rustcFLags, fmt.Sprintf("--cfg=%s", cfg))
+	}
+
+	attrs := &rustBinaryLibraryAttributes{
+		Srcs: bazel.MakeLabelListAttribute(
+			srcs,
+		),
+		Compile_data: bazel.MakeLabelListAttribute(
+			compileData,
+		),
+		Crate_name: bazel.StringAttribute{
+			Value: &binary.baseCompiler.Properties.Crate_name,
+		},
+		Edition: bazel.StringAttribute{
+			Value: binary.baseCompiler.Properties.Edition,
+		},
+		Crate_features: bazel.StringListAttribute{
+			Value: binary.baseCompiler.Properties.Features,
+		},
+		Deps: bazel.MakeLabelListAttribute(
+			deps,
+		),
+		Proc_macro_deps: bazel.MakeLabelListAttribute(
+			procMacroDeps,
+		),
+		Rustc_flags: bazel.StringListAttribute{
+			Value: append(
+				rustcFLags,
+				binary.baseCompiler.Properties.Flags...,
+			),
+		},
+	}
+
+	ctx.CreateBazelTargetModule(
+		bazel.BazelTargetModuleProperties{
+			Rule_class:        "rust_binary",
+			Bzl_load_location: "@rules_rust//rust:defs.bzl",
+		},
+		android.CommonAttributes{
+			Name: m.Name(),
+		},
+		attrs,
+	)
 }

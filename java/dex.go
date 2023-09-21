@@ -45,8 +45,8 @@ type DexProperties struct {
 		// Whether to continue building even if warnings are emitted.  Defaults to true.
 		Ignore_warnings *bool
 
-		// If true, runs R8 in Proguard compatibility mode (default).
-		// Otherwise, runs R8 in full mode.
+		// If true, runs R8 in Proguard compatibility mode, otherwise runs R8 in full mode.
+		// Defaults to false for apps, true for libraries and tests.
 		Proguard_compatibility *bool
 
 		// If true, optimize for size by removing unused code.  Defaults to true for apps,
@@ -71,6 +71,10 @@ type DexProperties struct {
 
 		// Specifies the locations of files containing proguard flags.
 		Proguard_flags_files []string `android:"path"`
+
+		// If true, transitive reverse dependencies of this module will have this
+		// module's proguard spec appended to their optimization action
+		Export_proguard_flags_files *bool
 	}
 
 	// Keep the data uncompressed. We always need uncompressed dex for execution,
@@ -213,8 +217,9 @@ func (d *dexer) dexCommonFlags(ctx android.ModuleContext,
 	// Note: Targets with a min SDK kind of core_platform (e.g., framework.jar) or unspecified (e.g.,
 	// services.jar), are not classified as stable, which is WAI.
 	// TODO(b/232073181): Expand to additional min SDK cases after validation.
+	var addAndroidPlatformBuildFlag = false
 	if !dexParams.sdkVersion.Stable() {
-		flags = append(flags, "--android-platform-build")
+		addAndroidPlatformBuildFlag = true
 	}
 
 	effectiveVersion, err := dexParams.minSdkVersion.EffectiveVersion(ctx)
@@ -222,7 +227,18 @@ func (d *dexer) dexCommonFlags(ctx android.ModuleContext,
 		ctx.PropertyErrorf("min_sdk_version", "%s", err)
 	}
 
-	flags = append(flags, "--min-api "+strconv.Itoa(effectiveVersion.FinalOrFutureInt()))
+	// If the specified SDK level is 10000, then configure the compiler to use the
+	// current platform SDK level and to compile the build as a platform build.
+	var minApiFlagValue = effectiveVersion.FinalOrFutureInt()
+	if minApiFlagValue == 10000 {
+		minApiFlagValue = ctx.Config().PlatformSdkVersion().FinalInt()
+		addAndroidPlatformBuildFlag = true
+	}
+	flags = append(flags, "--min-api "+strconv.Itoa(minApiFlagValue))
+
+	if addAndroidPlatformBuildFlag {
+		flags = append(flags, "--android-platform-build")
+	}
 	return flags, deps
 }
 
@@ -299,15 +315,14 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8Fl
 
 	if BoolDefault(opt.Proguard_compatibility, true) {
 		r8Flags = append(r8Flags, "--force-proguard-compatibility")
-	} else {
+	}
+
+	if Bool(opt.Optimize) || Bool(opt.Obfuscate) {
 		// TODO(b/213833843): Allow configuration of the prefix via a build variable.
 		var sourceFilePrefix = "go/retraceme "
 		var sourceFileTemplate = "\"" + sourceFilePrefix + "%MAP_ID\""
-		// TODO(b/200967150): Also tag the source file in compat builds.
-		if Bool(opt.Optimize) || Bool(opt.Obfuscate) {
-			r8Flags = append(r8Flags, "--map-id-template", "%MAP_HASH")
-			r8Flags = append(r8Flags, "--source-file-template", sourceFileTemplate)
-		}
+		r8Flags = append(r8Flags, "--map-id-template", "%MAP_HASH")
+		r8Flags = append(r8Flags, "--source-file-template", sourceFileTemplate)
 	}
 
 	// TODO(ccross): Don't shrink app instrumentation tests by default.
@@ -434,7 +449,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 	}
 	if proptools.Bool(d.dexProperties.Uncompress_dex) {
 		alignedJavalibJar := android.PathForModuleOut(ctx, "aligned", dexParams.jarName).OutputPath
-		TransformZipAlign(ctx, alignedJavalibJar, javalibJar)
+		TransformZipAlign(ctx, alignedJavalibJar, javalibJar, nil)
 		javalibJar = alignedJavalibJar
 	}
 

@@ -129,7 +129,7 @@ type bazelCcLibraryHeadersAttributes struct {
 	sdkAttributes
 }
 
-func libraryHeadersBp2Build(ctx android.TopDownMutatorContext, module *Module) {
+func libraryHeadersBp2Build(ctx android.Bp2buildMutatorContext, module *Module) {
 	baseAttributes := bp2BuildParseBaseProps(ctx, module)
 	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module, &baseAttributes.includes)
 	linkerAttrs := baseAttributes.linkerAttributes
@@ -153,8 +153,13 @@ func libraryHeadersBp2Build(ctx android.TopDownMutatorContext, module *Module) {
 
 	tags := android.ApexAvailableTagsWithoutTestApexes(ctx, module)
 
+	name := module.Name()
+	if module.IsPrebuilt() {
+		name = android.RemoveOptionalPrebuiltPrefix(name)
+	}
+
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{
-		Name: module.Name(),
+		Name: name,
 		Tags: tags,
 	}, attrs)
 }

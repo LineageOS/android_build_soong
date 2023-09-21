@@ -162,7 +162,7 @@ type Bazelable interface {
 	// Modules must implement this function to be bp2build convertible. The function
 	// must either create at least one Bazel target module (using ctx.CreateBazelTargetModule or
 	// its related functions), or declare itself unconvertible using ctx.MarkBp2buildUnconvertible.
-	ConvertWithBp2build(ctx TopDownMutatorContext)
+	ConvertWithBp2build(ctx Bp2buildMutatorContext)
 
 	// namespacedVariableProps is a map from a soong config variable namespace
 	// (e.g. acme, android) to a map of interfaces{}, which are really
@@ -510,12 +510,6 @@ func (b *BazelModuleBase) shouldConvertWithBp2build(ctx shouldConvertModuleConte
 	}
 
 	module := p.module
-	// In api_bp2build mode, all soong modules that can provide API contributions should be converted
-	// This is irrespective of its presence/absence in bp2build allowlists
-	if ctx.Config().BuildMode == ApiBp2build {
-		_, providesApis := module.(ApiProvider)
-		return providesApis
-	}
 
 	propValue := b.bazelProperties.Bazel_module.Bp2build_available
 	packagePath := moduleDirWithPossibleOverride(ctx, module, p.moduleDir)
@@ -533,13 +527,13 @@ func (b *BazelModuleBase) shouldConvertWithBp2build(ctx shouldConvertModuleConte
 	moduleTypeAllowed := allowlist.moduleTypeAlwaysConvert[p.moduleType]
 	allowlistConvert := moduleNameAllowed || moduleTypeAllowed
 	if moduleNameAllowed && moduleTypeAllowed {
-		ctx.ModuleErrorf("A module cannot be in moduleAlwaysConvert and also be in moduleTypeAlwaysConvert")
+		ctx.ModuleErrorf("A module %q of type %q cannot be in moduleAlwaysConvert and also be in moduleTypeAlwaysConvert", moduleName, p.moduleType)
 		return false
 	}
 
 	if allowlist.moduleDoNotConvert[moduleName] {
 		if moduleNameAllowed {
-			ctx.ModuleErrorf("a module cannot be in moduleDoNotConvert and also be in moduleAlwaysConvert")
+			ctx.ModuleErrorf("a module %q cannot be in moduleDoNotConvert and also be in moduleAlwaysConvert", moduleName)
 		}
 		return false
 	}
@@ -688,4 +682,22 @@ func AttachValidationActions(ctx ModuleContext, outputFilePath Path, validations
 		Validations: validations,
 	})
 	return validatedOutputFilePath
+}
+
+func RunsOn(hostSupported bool, deviceSupported bool, unitTest bool) []string {
+	var runsOn []string
+
+	if hostSupported && deviceSupported {
+		runsOn = []string{"host_without_device", "device"}
+	} else if hostSupported {
+		if unitTest {
+			runsOn = []string{"host_without_device"}
+		} else {
+			runsOn = []string{"host_with_device"}
+		}
+	} else if deviceSupported {
+		runsOn = []string{"device"}
+	}
+
+	return runsOn
 }

@@ -35,6 +35,7 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 
 	multitree.RegisterApiImportsModule(ctx)
 
+	ctx.RegisterModuleType("prebuilt_build_tool", android.NewPrebuiltBuildTool)
 	ctx.RegisterModuleType("cc_benchmark", BenchmarkFactory)
 	ctx.RegisterModuleType("cc_object", ObjectFactory)
 	ctx.RegisterModuleType("cc_genrule", GenRuleFactory)
@@ -67,6 +68,26 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 
 func commonDefaultModules() string {
 	return `
+		prebuilt_build_tool {
+			name: "clang++",
+			src: "bin/clang++",
+		}
+		prebuilt_build_tool {
+			name: "clang++.real",
+			src: "bin/clang++.real",
+		}
+		prebuilt_build_tool {
+			name: "lld",
+			src: "bin/lld",
+		}
+		prebuilt_build_tool {
+			name: "ld.lld",
+			src: "bin/ld.lld",
+		}
+		prebuilt_build_tool {
+			name: "llvm-ar",
+			src: "bin/llvm-ar",
+		}
 		cc_defaults {
 			name: "toolchain_libs_defaults",
 			host_supported: true,
@@ -558,7 +579,7 @@ var PrepareForTestWithCcBuildComponents = android.GroupFixturePreparers(
 	// This includes files that are needed by all, or at least most, instances of a cc module type.
 	android.MockFS{
 		// Needed for ndk_prebuilt_(shared|static)_stl.
-		"prebuilts/ndk/current/sources/cxx-stl/llvm-libc++/libs": nil,
+		"defaults/cc/common/current/sources/cxx-stl/llvm-libc++/libs": nil,
 	}.AddToFixture(),
 )
 
@@ -568,6 +589,12 @@ var PrepareForTestWithCcDefaultModules = android.GroupFixturePreparers(
 
 	// Additional files needed in tests that disallow non-existent source.
 	android.MockFS{
+		"defaults/cc/common/bin/clang++":      nil,
+		"defaults/cc/common/bin/clang++.real": nil,
+		"defaults/cc/common/bin/lld":          nil,
+		"defaults/cc/common/bin/ld.lld":       nil,
+		"defaults/cc/common/bin/llvm-ar":      nil,
+
 		"defaults/cc/common/libc.map.txt":      nil,
 		"defaults/cc/common/libdl.map.txt":     nil,
 		"defaults/cc/common/libm.map.txt":      nil,
@@ -671,7 +698,7 @@ var PrepareForTestWithHostMusl = android.GroupFixturePreparers(
 // PrepareForTestWithFdoProfile registers module types to test with fdo_profile
 var PrepareForTestWithFdoProfile = android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("soong_namespace", android.NamespaceFactory)
-	ctx.RegisterModuleType("fdo_profile", fdoProfileFactory)
+	ctx.RegisterModuleType("fdo_profile", FdoProfileFactory)
 })
 
 // TestConfig is the legacy way of creating a test Config for testing cc modules.

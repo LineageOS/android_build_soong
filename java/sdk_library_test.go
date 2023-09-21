@@ -74,6 +74,8 @@ func TestJavaSdkLibrary(t *testing.T) {
 		    name: "quuz",
 				public: {
 					jars: ["c.jar"],
+					current_api: "api/current.txt",
+					removed_api: "api/removed.txt",
 				},
 		}
 		java_sdk_library_import {
@@ -172,6 +174,9 @@ func TestJavaSdkLibrary(t *testing.T) {
 		android.AssertDeepEquals(t, "qux exports (required)", []string{"fred", "quuz", "foo", "bar"}, requiredSdkLibs)
 		android.AssertDeepEquals(t, "qux exports (optional)", []string{}, optionalSdkLibs)
 	}
+
+	// test if quuz have created the api_contribution module
+	result.ModuleForTests(apiScopePublic.stubsSourceModuleName("quuz")+".api.contribution", "")
 
 	fooDexJar := result.ModuleForTests("foo", "android_common").Rule("d8")
 	// tests if kotlinc generated files are NOT excluded from output of foo.
@@ -1499,4 +1504,33 @@ func TestJavaSdkLibrary_ApiLibrary(t *testing.T) {
 		android.AssertArrayString(t, "Module expected to contain api contributions", c.apiContributions, m.properties.Api_contributions)
 		android.AssertStringEquals(t, "Module expected to contain full api surface api library", c.fullApiSurfaceStub, *m.properties.Full_api_surface_stub)
 	}
+}
+
+func TestStaticDepStubLibrariesVisibility(t *testing.T) {
+	android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("foo"),
+		android.FixtureMergeMockFs(
+			map[string][]byte{
+				"A.java": nil,
+				"dir/Android.bp": []byte(
+					`
+					java_library {
+						name: "bar",
+						srcs: ["A.java"],
+						libs: ["foo.stubs.from-source"],
+					}
+					`),
+				"dir/A.java": nil,
+			},
+		).ExtendWithErrorHandler(
+			android.FixtureExpectsAtLeastOneErrorMatchingPattern(
+				`module "bar" variant "android_common": depends on //.:foo.stubs.from-source which is not visible to this module`)),
+	).RunTestWithBp(t, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["A.java"],
+		}
+	`)
 }

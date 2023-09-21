@@ -599,7 +599,7 @@ func (handler *ccBinaryBazelHandler) ProcessBazelQueryResponse(ctx android.Modul
 	handler.module.setAndroidMkVariablesFromCquery(info.CcAndroidMkInfo)
 }
 
-func binaryBp2buildAttrs(ctx android.TopDownMutatorContext, m *Module) binaryAttributes {
+func binaryBp2buildAttrs(ctx android.Bp2buildMutatorContext, m *Module) binaryAttributes {
 	baseAttrs := bp2BuildParseBaseProps(ctx, m)
 	binaryLinkerAttrs := bp2buildBinaryLinkerProps(ctx, m)
 
@@ -638,7 +638,8 @@ func binaryBp2buildAttrs(ctx android.TopDownMutatorContext, m *Module) binaryAtt
 		Stl:               baseAttrs.stl,
 		Cpp_std:           baseAttrs.cppStd,
 
-		Additional_linker_inputs: baseAttrs.additionalLinkerInputs,
+		Additional_linker_inputs:   baseAttrs.additionalLinkerInputs,
+		Additional_compiler_inputs: baseAttrs.additionalCompilerInputs,
 
 		Strip: stripAttributes{
 			Keep_symbols:                 baseAttrs.stripKeepSymbols,
@@ -660,7 +661,7 @@ func binaryBp2buildAttrs(ctx android.TopDownMutatorContext, m *Module) binaryAtt
 	return attrs
 }
 
-func binaryBp2build(ctx android.TopDownMutatorContext, m *Module) {
+func binaryBp2build(ctx android.Bp2buildMutatorContext, m *Module) {
 	// shared with cc_test
 	binaryAttrs := binaryBp2buildAttrs(ctx, m)
 
@@ -680,10 +681,11 @@ type binaryAttributes struct {
 	Srcs_c  bazel.LabelListAttribute
 	Srcs_as bazel.LabelListAttribute
 
-	Copts      bazel.StringListAttribute
-	Cppflags   bazel.StringListAttribute
-	Conlyflags bazel.StringListAttribute
-	Asflags    bazel.StringListAttribute
+	Copts                      bazel.StringListAttribute
+	Cppflags                   bazel.StringListAttribute
+	Conlyflags                 bazel.StringListAttribute
+	Asflags                    bazel.StringListAttribute
+	Additional_compiler_inputs bazel.LabelListAttribute
 
 	Deps               bazel.LabelListAttribute
 	Dynamic_deps       bazel.LabelListAttribute

@@ -30,6 +30,7 @@ func TestPythonBinaryHostSimple(t *testing.T) {
 			"b/e.py":         "",
 			"files/data.txt": "",
 		},
+		StubbedBuildDefinitions: []string{"bar"},
 		Blueprint: `python_binary_host {
     name: "foo",
     main: "a.py",
@@ -42,7 +43,6 @@ func TestPythonBinaryHostSimple(t *testing.T) {
     python_library_host {
       name: "bar",
       srcs: ["b/e.py"],
-      bazel_module: { bp2build_available: false },
     }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("py_binary", "foo", AttrNameToString{
@@ -196,6 +196,7 @@ func TestPythonBinaryMainIsLabel(t *testing.T) {
 		Description:                "python_binary_host main label in same package",
 		ModuleTypeUnderTest:        "python_binary_host",
 		ModuleTypeUnderTestFactory: python.PythonBinaryHostFactory,
+		StubbedBuildDefinitions:    []string{"a"},
 		Blueprint: `python_binary_host {
     name: "foo",
     main: ":a",
@@ -204,7 +205,6 @@ func TestPythonBinaryMainIsLabel(t *testing.T) {
 
 genrule {
 		name: "a",
-		bazel_module: { bp2build_available: false },
 }
 `,
 		ExpectedBazelTargets: []string{
@@ -282,6 +282,7 @@ func TestPythonBinaryDuplicatesInRequired(t *testing.T) {
 		Description:                "python_binary_host duplicates in required attribute of the module and its defaults",
 		ModuleTypeUnderTest:        "python_binary_host",
 		ModuleTypeUnderTestFactory: python.PythonBinaryHostFactory,
+		StubbedBuildDefinitions:    []string{"r1", "r2"},
 		Blueprint: `python_binary_host {
     name: "foo",
     main: "a.py",
@@ -298,8 +299,8 @@ python_defaults {
         "r1",
         "r2",
     ],
-}` + simpleModuleDoNotConvertBp2build("genrule", "r1") +
-			simpleModuleDoNotConvertBp2build("genrule", "r2"),
+}` + simpleModule("genrule", "r1") +
+			simpleModule("genrule", "r2"),
 
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("py_binary", "foo", AttrNameToString{

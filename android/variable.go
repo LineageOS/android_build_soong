@@ -315,6 +315,7 @@ type ProductVariables struct {
 	MemtagHeapSyncIncludePaths  []string `json:",omitempty"`
 
 	HWASanIncludePaths []string `json:",omitempty"`
+	HWASanExcludePaths []string `json:",omitempty"`
 
 	VendorPath    *string `json:",omitempty"`
 	OdmPath       *string `json:",omitempty"`
@@ -372,17 +373,11 @@ type ProductVariables struct {
 
 	MultitreeUpdateMeta bool `json:",omitempty"`
 
-	BoardVendorSepolicyDirs           []string `json:",omitempty"`
-	BoardOdmSepolicyDirs              []string `json:",omitempty"`
-	BoardReqdMaskPolicy               []string `json:",omitempty"`
-	BoardPlatVendorPolicy             []string `json:",omitempty"`
-	BoardSystemExtPublicPrebuiltDirs  []string `json:",omitempty"`
-	BoardSystemExtPrivatePrebuiltDirs []string `json:",omitempty"`
-	BoardProductPublicPrebuiltDirs    []string `json:",omitempty"`
-	BoardProductPrivatePrebuiltDirs   []string `json:",omitempty"`
-	SystemExtPublicSepolicyDirs       []string `json:",omitempty"`
-	SystemExtPrivateSepolicyDirs      []string `json:",omitempty"`
-	BoardSepolicyM4Defs               []string `json:",omitempty"`
+	BoardVendorSepolicyDirs      []string `json:",omitempty"`
+	BoardOdmSepolicyDirs         []string `json:",omitempty"`
+	SystemExtPublicSepolicyDirs  []string `json:",omitempty"`
+	SystemExtPrivateSepolicyDirs []string `json:",omitempty"`
+	BoardSepolicyM4Defs          []string `json:",omitempty"`
 
 	BoardSepolicyVers       *string `json:",omitempty"`
 	PlatformSepolicyVersion *string `json:",omitempty"`
@@ -443,16 +438,17 @@ type ProductVariables struct {
 
 	ShippingApiLevel *string `json:",omitempty"`
 
-	BuildBrokenPluginValidation        []string `json:",omitempty"`
-	BuildBrokenClangAsFlags            bool     `json:",omitempty"`
-	BuildBrokenClangCFlags             bool     `json:",omitempty"`
-	BuildBrokenClangProperty           bool     `json:",omitempty"`
-	GenruleSandboxing                  *bool    `json:",omitempty"`
-	BuildBrokenEnforceSyspropOwner     bool     `json:",omitempty"`
-	BuildBrokenTrebleSyspropNeverallow bool     `json:",omitempty"`
-	BuildBrokenUsesSoongPython2Modules bool     `json:",omitempty"`
-	BuildBrokenVendorPropertyNamespace bool     `json:",omitempty"`
-	BuildBrokenInputDirModules         []string `json:",omitempty"`
+	BuildBrokenPluginValidation         []string `json:",omitempty"`
+	BuildBrokenClangAsFlags             bool     `json:",omitempty"`
+	BuildBrokenClangCFlags              bool     `json:",omitempty"`
+	BuildBrokenClangProperty            bool     `json:",omitempty"`
+	GenruleSandboxing                   *bool    `json:",omitempty"`
+	BuildBrokenEnforceSyspropOwner      bool     `json:",omitempty"`
+	BuildBrokenTrebleSyspropNeverallow  bool     `json:",omitempty"`
+	BuildBrokenUsesSoongPython2Modules  bool     `json:",omitempty"`
+	BuildBrokenVendorPropertyNamespace  bool     `json:",omitempty"`
+	BuildBrokenIncorrectPartitionImages bool     `json:",omitempty"`
+	BuildBrokenInputDirModules          []string `json:",omitempty"`
 
 	BuildWarningBadOptionalUsesLibsAllowlist []string `json:",omitempty"`
 
@@ -480,12 +476,20 @@ type ProductVariables struct {
 	ProductBrand        string   `json:",omitempty"`
 	BuildVersionTags    []string `json:",omitempty"`
 
-	ReleaseVersion          string   `json:",omitempty"`
-	ReleaseAconfigValueSets []string `json:",omitempty"`
+	ReleaseVersion          string `json:",omitempty"`
+	ReleaseAconfigValueSets string `json:",omitempty"`
 
 	ReleaseAconfigFlagDefaultPermission string `json:",omitempty"`
 
 	KeepVndk *bool `json:",omitempty"`
+
+	CheckVendorSeappViolations *bool `json:",omitempty"`
+
+	// PartitionsVars are extra variables that are used to define the partition images. They should
+	// not be read from soong modules.
+	PartitionVars struct {
+		ProductDirectory string `json:",omitempty"`
+	} `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
@@ -671,7 +675,8 @@ type ProductConfigProperties map[string]map[ProductConfigOrSoongConfigProperty]i
 
 // ProductVariableProperties returns a ProductConfigProperties containing only the properties which
 // have been set for the given module.
-func ProductVariableProperties(ctx ArchVariantContext, module Module) ProductConfigProperties {
+func ProductVariableProperties(ctx ArchVariantContext, module Module) (ProductConfigProperties, []error) {
+	var errs []error
 	moduleBase := module.base()
 
 	productConfigProperties := ProductConfigProperties{}
@@ -695,12 +700,15 @@ func ProductVariableProperties(ctx ArchVariantContext, module Module) ProductCon
 		for namespace, namespacedVariableProps := range m.namespacedVariableProps() {
 			for _, namespacedVariableProp := range namespacedVariableProps {
 				variableValues := reflect.ValueOf(namespacedVariableProp).Elem().FieldByName(soongconfig.SoongConfigProperty)
-				productConfigProperties.AddSoongConfigProperties(namespace, variableValues)
+				err := productConfigProperties.AddSoongConfigProperties(namespace, variableValues)
+				if err != nil {
+					errs = append(errs, err)
+				}
 			}
 		}
 	}
 
-	return productConfigProperties
+	return productConfigProperties, errs
 }
 
 func (p *ProductConfigProperties) AddProductConfigProperty(
@@ -822,7 +830,7 @@ func (productConfigProperties *ProductConfigProperties) AddProductConfigProperti
 
 }
 
-func (productConfigProperties *ProductConfigProperties) AddSoongConfigProperties(namespace string, soongConfigVariablesStruct reflect.Value) {
+func (productConfigProperties *ProductConfigProperties) AddSoongConfigProperties(namespace string, soongConfigVariablesStruct reflect.Value) error {
 	//
 	// Example of soong_config_variables:
 	//
@@ -919,7 +927,7 @@ func (productConfigProperties *ProductConfigProperties) AddSoongConfigProperties
 					if propertyName == "Target" {
 						productConfigProperties.AddSoongConfigPropertiesFromTargetStruct(namespace, variableName, proptools.PropertyNameForField(propertyOrValueName), field.Field(k))
 					} else if propertyName == "Arch" || propertyName == "Multilib" {
-						panic("Arch/Multilib are not currently supported in soong config variable structs")
+						return fmt.Errorf("Arch/Multilib are not currently supported in soong config variable structs")
 					} else {
 						productConfigProperties.AddSoongConfigProperty(propertyName, namespace, variableName, proptools.PropertyNameForField(propertyOrValueName), "", field.Field(k).Interface())
 					}
@@ -930,13 +938,14 @@ func (productConfigProperties *ProductConfigProperties) AddSoongConfigProperties
 				if propertyOrValueName == "Target" {
 					productConfigProperties.AddSoongConfigPropertiesFromTargetStruct(namespace, variableName, "", propertyOrStruct)
 				} else if propertyOrValueName == "Arch" || propertyOrValueName == "Multilib" {
-					panic("Arch/Multilib are not currently supported in soong config variable structs")
+					return fmt.Errorf("Arch/Multilib are not currently supported in soong config variable structs")
 				} else {
 					productConfigProperties.AddSoongConfigProperty(propertyOrValueName, namespace, variableName, "", "", propertyOrStruct.Interface())
 				}
 			}
 		}
 	}
+	return nil
 }
 
 func (productConfigProperties *ProductConfigProperties) AddSoongConfigPropertiesFromTargetStruct(namespace, soongConfigVariableName string, soongConfigVariableValue string, targetStruct reflect.Value) {

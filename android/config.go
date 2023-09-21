@@ -87,7 +87,6 @@ type CmdArgs struct {
 	SymlinkForestMarker string
 	Bp2buildMarker      string
 	BazelQueryViewDir   string
-	BazelApiBp2buildDir string
 	ModuleGraphFile     string
 	ModuleActionsFile   string
 	DocFile             string
@@ -120,9 +119,6 @@ const (
 	// blueprint modules. Individual BUILD targets will not, however, faitfhully
 	// express build semantics.
 	GenerateQueryView
-
-	// Generate BUILD files for API contributions to API surfaces
-	ApiBp2build
 
 	// Create a JSON representation of the module graph and exit.
 	GenerateModuleGraph
@@ -201,9 +197,22 @@ func (c Config) ReleaseVersion() string {
 	return c.config.productVariables.ReleaseVersion
 }
 
-// The flag values files passed to aconfig, derived from RELEASE_VERSION
-func (c Config) ReleaseAconfigValueSets() []string {
-	return c.config.productVariables.ReleaseAconfigValueSets
+// The aconfig value set passed to aconfig, derived from RELEASE_VERSION
+func (c Config) ReleaseAconfigValueSets() string {
+	// This logic to handle both Soong module name and bazel target is temporary in order to
+	// provide backward compatibility where aosp and vendor/google both have the release
+	// aconfig value set but can't be updated at the same time to use bazel target
+	value := strings.Split(c.config.productVariables.ReleaseAconfigValueSets, ":")
+	value_len := len(value)
+	if value_len > 2 {
+		// This shouldn't happen as this should be either a module name or a bazel target path.
+		panic(fmt.Errorf("config file: invalid value for release aconfig value sets: %s",
+			c.config.productVariables.ReleaseAconfigValueSets))
+	}
+	if value_len > 0 {
+		return value[value_len-1]
+	}
+	return ""
 }
 
 // The flag default permission value passed to aconfig
@@ -641,7 +650,6 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 	setBuildMode(cmdArgs.SymlinkForestMarker, SymlinkForest)
 	setBuildMode(cmdArgs.Bp2buildMarker, Bp2build)
 	setBuildMode(cmdArgs.BazelQueryViewDir, GenerateQueryView)
-	setBuildMode(cmdArgs.BazelApiBp2buildDir, ApiBp2build)
 	setBuildMode(cmdArgs.ModuleGraphFile, GenerateModuleGraph)
 	setBuildMode(cmdArgs.DocFile, GenerateDocFile)
 	setBazelMode(cmdArgs.BazelMode, "--bazel-mode", BazelProdMode)
@@ -667,6 +675,7 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 		"framework-devicelock":              {},
 		"framework-graphics":                {},
 		"framework-healthfitness":           {},
+		"framework-location":                {},
 		"framework-media":                   {},
 		"framework-mediaprovider":           {},
 		"framework-ondevicepersonalization": {},
@@ -1665,11 +1674,18 @@ func (c *config) MemtagHeapSyncEnabledForPath(path string) bool {
 	return HasAnyPrefix(path, c.productVariables.MemtagHeapSyncIncludePaths) && !c.MemtagHeapDisabledForPath(path)
 }
 
+func (c *config) HWASanDisabledForPath(path string) bool {
+	if len(c.productVariables.HWASanExcludePaths) == 0 {
+		return false
+	}
+	return HasAnyPrefix(path, c.productVariables.HWASanExcludePaths)
+}
+
 func (c *config) HWASanEnabledForPath(path string) bool {
 	if len(c.productVariables.HWASanIncludePaths) == 0 {
 		return false
 	}
-	return HasAnyPrefix(path, c.productVariables.HWASanIncludePaths)
+	return HasAnyPrefix(path, c.productVariables.HWASanIncludePaths) && !c.HWASanDisabledForPath(path)
 }
 
 func (c *config) VendorConfig(name string) VendorConfig {
@@ -1793,30 +1809,6 @@ func (c *deviceConfig) BoardSepolicyVers() string {
 		return ver
 	}
 	return c.PlatformSepolicyVersion()
-}
-
-func (c *deviceConfig) BoardPlatVendorPolicy() []string {
-	return c.config.productVariables.BoardPlatVendorPolicy
-}
-
-func (c *deviceConfig) BoardReqdMaskPolicy() []string {
-	return c.config.productVariables.BoardReqdMaskPolicy
-}
-
-func (c *deviceConfig) BoardSystemExtPublicPrebuiltDirs() []string {
-	return c.config.productVariables.BoardSystemExtPublicPrebuiltDirs
-}
-
-func (c *deviceConfig) BoardSystemExtPrivatePrebuiltDirs() []string {
-	return c.config.productVariables.BoardSystemExtPrivatePrebuiltDirs
-}
-
-func (c *deviceConfig) BoardProductPublicPrebuiltDirs() []string {
-	return c.config.productVariables.BoardProductPublicPrebuiltDirs
-}
-
-func (c *deviceConfig) BoardProductPrivatePrebuiltDirs() []string {
-	return c.config.productVariables.BoardProductPrivatePrebuiltDirs
 }
 
 func (c *deviceConfig) SystemExtSepolicyPrebuiltApiDir() string {
@@ -2083,4 +2075,13 @@ func (c *config) SetApiLibraries(libs []string) {
 
 func (c *config) GetApiLibraries() map[string]struct{} {
 	return c.apiLibraries
+}
+
+// Bp2buildMode indicates whether the config is for bp2build mode of Soong
+func (c *config) Bp2buildMode() bool {
+	return c.BuildMode == Bp2build
+}
+
+func (c *deviceConfig) CheckVendorSeappViolations() bool {
+	return Bool(c.config.productVariables.CheckVendorSeappViolations)
 }

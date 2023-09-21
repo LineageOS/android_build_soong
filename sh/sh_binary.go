@@ -143,6 +143,9 @@ type TestProperties struct {
 	// Only available for host sh_test modules.
 	Data_device_libs []string `android:"path,arch_variant"`
 
+	// list of java modules that provide data that should be installed alongside the test.
+	Java_data []string
+
 	// Install the test into a folder named for the module in all test suites.
 	Per_testcase_directory *bool
 
@@ -185,6 +188,15 @@ func (s *ShBinary) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 func (s *ShBinary) OutputFile() android.OutputPath {
 	return s.outputFilePath
+}
+
+func (s *ShBinary) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "":
+		return android.Paths{s.outputFilePath}, nil
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+	}
 }
 
 func (s *ShBinary) SubDir() string {
@@ -307,6 +319,7 @@ var (
 	shTestDataLibsTag       = dependencyTag{name: "dataLibs"}
 	shTestDataDeviceBinsTag = dependencyTag{name: "dataDeviceBins"}
 	shTestDataDeviceLibsTag = dependencyTag{name: "dataDeviceLibs"}
+	shTestJavaDataTag       = dependencyTag{name: "javaData"}
 )
 
 var sharedLibVariations = []blueprint.Variation{{Mutator: "link", Variation: "shared"}}
@@ -322,12 +335,19 @@ func (s *ShTest) DepsMutator(ctx android.BottomUpMutatorContext) {
 		ctx.AddFarVariationDependencies(deviceVariations, shTestDataDeviceBinsTag, s.testProperties.Data_device_bins...)
 		ctx.AddFarVariationDependencies(append(deviceVariations, sharedLibVariations...),
 			shTestDataDeviceLibsTag, s.testProperties.Data_device_libs...)
+
+		javaDataVariation := []blueprint.Variation{{"arch", android.Common.String()}}
+		ctx.AddVariationDependencies(javaDataVariation, shTestJavaDataTag, s.testProperties.Java_data...)
+
 	} else if ctx.Target().Os.Class != android.Host {
 		if len(s.testProperties.Data_device_bins) > 0 {
 			ctx.PropertyErrorf("data_device_bins", "only available for host modules")
 		}
 		if len(s.testProperties.Data_device_libs) > 0 {
 			ctx.PropertyErrorf("data_device_libs", "only available for host modules")
+		}
+		if len(s.testProperties.Java_data) > 0 {
+			ctx.PropertyErrorf("Java_data", "only available for host modules")
 		}
 	}
 }
@@ -361,7 +381,13 @@ func (s *ShTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 	s.installedFile = ctx.InstallExecutable(s.installDir, s.outputFilePath.Base(), s.outputFilePath)
 
-	s.data = android.PathsForModuleSrc(ctx, s.testProperties.Data)
+	expandedData := android.PathsForModuleSrc(ctx, s.testProperties.Data)
+
+	// Emulate the data property for java_data dependencies.
+	for _, javaData := range ctx.GetDirectDepsWithTag(shTestJavaDataTag) {
+		expandedData = append(expandedData, android.OutputFilesForModule(ctx, javaData, "")...)
+	}
+	s.data = expandedData
 
 	var configs []tradefed.Config
 	if Bool(s.testProperties.Require_root) {
@@ -502,7 +528,7 @@ func ShBinaryHostFactory() android.Module {
 // sh_test defines a shell script based test module.
 func ShTestFactory() android.Module {
 	module := &ShTest{}
-	initShBinaryModule(&module.ShBinary, false)
+	initShBinaryModule(&module.ShBinary, true)
 	module.AddProperties(&module.testProperties)
 
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibFirst)
@@ -512,7 +538,7 @@ func ShTestFactory() android.Module {
 // sh_test_host defines a shell script based test module that runs on a host.
 func ShTestHostFactory() android.Module {
 	module := &ShTest{}
-	initShBinaryModule(&module.ShBinary, false)
+	initShBinaryModule(&module.ShBinary, true)
 	module.AddProperties(&module.testProperties)
 	// Default sh_test_host to unit_tests = true
 	if module.testProperties.Test_options.Unit_test == nil {
@@ -548,7 +574,16 @@ type bazelShBinaryAttributes struct {
 	// visibility
 }
 
-func (m *ShBinary) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+type bazelShTestAttributes struct {
+	Srcs                 bazel.LabelListAttribute
+	Data                 bazel.LabelListAttribute
+	Tags                 bazel.StringListAttribute
+	Test_config          *string
+	Test_config_template *string
+	Auto_gen_config      *bool
+}
+
+func (m *ShBinary) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	srcs := bazel.MakeLabelListAttribute(
 		android.BazelLabelForModuleSrc(ctx, []string{*m.properties.Src}))
 
@@ -573,6 +608,41 @@ func (m *ShBinary) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		Bzl_load_location: "//build/bazel/rules:sh_binary.bzl",
 	}
 
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
+}
+
+func (m *ShTest) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
+	srcs := bazel.MakeLabelListAttribute(
+		android.BazelLabelForModuleSrc(ctx, []string{*m.properties.Src}))
+
+	combinedData := append(m.testProperties.Data, m.testProperties.Data_bins...)
+	combinedData = append(combinedData, m.testProperties.Data_libs...)
+
+	data := bazel.MakeLabelListAttribute(
+		android.BazelLabelForModuleSrc(ctx, combinedData))
+
+	tags := bazel.MakeStringListAttribute(
+		m.testProperties.Test_options.Tags)
+
+	test_config := m.testProperties.Test_config
+
+	test_config_template := m.testProperties.Test_config_template
+
+	auto_gen_config := m.testProperties.Auto_gen_config
+
+	attrs := &bazelShTestAttributes{
+		Srcs:                 srcs,
+		Data:                 data,
+		Tags:                 tags,
+		Test_config:          test_config,
+		Test_config_template: test_config_template,
+		Auto_gen_config:      auto_gen_config,
+	}
+
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "sh_test",
+		Bzl_load_location: "//build/bazel/rules:sh_test.bzl",
+	}
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
 }
 

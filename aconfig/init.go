@@ -64,13 +64,14 @@ var (
 			Command: `rm -rf ${gendir}` +
 				` && mkdir -p ${gendir}` +
 				` && ${aconfig} create-cpp-lib` +
+				`    --mode ${mode}` +
 				`    --cache ${in}` +
 				`    --out ${gendir}`,
 			CommandDeps: []string{
 				"$aconfig",
 				"$soong_zip",
 			},
-		}, "gendir")
+		}, "gendir", "mode")
 
 	rustRule = pctx.AndroidStaticRule("rust_aconfig_library",
 		blueprint.RuleParams{
@@ -97,12 +98,12 @@ var (
 )
 
 func init() {
-	registerBuildComponents(android.InitRegistrationContext)
+	RegisterBuildComponents(android.InitRegistrationContext)
 	pctx.HostBinToolVariable("aconfig", "aconfig")
 	pctx.HostBinToolVariable("soong_zip", "soong_zip")
 }
 
-func registerBuildComponents(ctx android.RegistrationContext) {
+func RegisterBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("aconfig_declarations", DeclarationsFactory)
 	ctx.RegisterModuleType("aconfig_values", ValuesFactory)
 	ctx.RegisterModuleType("aconfig_value_set", ValueSetFactory)

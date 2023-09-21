@@ -22,6 +22,10 @@ type GeneratedJavaLibraryModule struct {
 	Library
 	callbacks  GeneratedJavaLibraryCallbacks
 	moduleName string
+
+	// true if we've already called DepsMutator. Can't call AddLibrary or AddSharedLibrary
+	// after DepsMutator.
+	depsMutatorDone bool
 }
 
 type GeneratedJavaLibraryCallbacks interface {
@@ -59,8 +63,25 @@ func GeneratedJavaLibraryModuleFactory(moduleName string, callbacks GeneratedJav
 	return module
 }
 
+// Add a java shared library as a dependency, as if they had said `libs: [ "name" ]`
+func (module *GeneratedJavaLibraryModule) AddSharedLibrary(name string) {
+	if module.depsMutatorDone {
+		panic("GeneratedJavaLibraryModule.AddLibrary called after DepsMutator")
+	}
+	module.Library.properties.Libs = append(module.Library.properties.Libs, name)
+}
+
+// Add a java shared library as a dependency, as if they had said `libs: [ "name" ]`
+func (module *GeneratedJavaLibraryModule) AddStaticLibrary(name string) {
+	if module.depsMutatorDone {
+		panic("GeneratedJavaLibraryModule.AddStaticLibrary called after DepsMutator")
+	}
+	module.Library.properties.Static_libs = append(module.Library.properties.Static_libs, name)
+}
+
 func (module *GeneratedJavaLibraryModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 	module.callbacks.DepsMutator(module, ctx)
+	module.depsMutatorDone = true
 	module.Library.DepsMutator(ctx)
 }
 
@@ -78,11 +99,6 @@ func (module *GeneratedJavaLibraryModule) GenerateAndroidBuildActions(ctx androi
 	checkPropertyEmpty(ctx, module, "exclude_srcs", module.Library.properties.Exclude_srcs)
 	checkPropertyEmpty(ctx, module, "java_resource_dirs", module.Library.properties.Java_resource_dirs)
 	checkPropertyEmpty(ctx, module, "exclude_java_resource_dirs", module.Library.properties.Exclude_java_resource_dirs)
-	// No additional libraries. The generator should add anything necessary automatically
-	// by returning something from ____ (TODO: Additional libraries aren't needed now, so
-	// these are just blocked).
-	checkPropertyEmpty(ctx, module, "libs", module.Library.properties.Libs)
-	checkPropertyEmpty(ctx, module, "static_libs", module.Library.properties.Static_libs)
 	// Restrict these for no good reason other than to limit the surface area. If there's a
 	// good use case put them back.
 	checkPropertyEmpty(ctx, module, "plugins", module.Library.properties.Plugins)

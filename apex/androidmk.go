@@ -42,7 +42,7 @@ func (class apexFileClass) nameInMake() string {
 		return "ETC"
 	case nativeSharedLib:
 		return "SHARED_LIBRARIES"
-	case nativeExecutable, shBinary, pyBinary, goBinary:
+	case nativeExecutable, shBinary:
 		return "EXECUTABLES"
 	case javaSharedLib:
 		return "JAVA_LIBRARIES"
@@ -67,7 +67,7 @@ func (a *apexBundle) fullModuleName(apexBundleName string, linkToSystemLib bool,
 	if linkToSystemLib {
 		return fi.androidMkModuleName
 	}
-	return fi.androidMkModuleName + "." + apexBundleName + a.suffix
+	return fi.androidMkModuleName + "." + apexBundleName
 }
 
 // androidMkForFiles generates Make definitions for the contents of an
@@ -85,11 +85,6 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir st
 	// conflicts between two apexes with the same apexName.
 
 	moduleNames := []string{}
-	// To avoid creating duplicate build rules, run this function only when primaryApexType is true
-	// to install symbol files in $(PRODUCT_OUT}/apex.
-	if !a.primaryApexType {
-		return moduleNames
-	}
 
 	for _, fi := range a.filesInfo {
 		linkToSystemLib := a.linkToSystemLib && fi.transitiveDep && fi.availableToPlatform()
@@ -140,32 +135,9 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir st
 		fmt.Fprintln(w, "LOCAL_MODULE_CLASS :=", fi.class.nameInMake())
 		if fi.module != nil {
 			// This apexFile's module comes from Soong
-			archStr := fi.module.Target().Arch.ArchType.String()
-			host := false
-			switch fi.module.Target().Os.Class {
-			case android.Host:
-				if fi.module.Target().HostCross {
-					if fi.module.Target().Arch.ArchType != android.Common {
-						fmt.Fprintln(w, "LOCAL_MODULE_HOST_CROSS_ARCH :=", archStr)
-					}
-				} else {
-					if fi.module.Target().Arch.ArchType != android.Common {
-						fmt.Fprintln(w, "LOCAL_MODULE_HOST_ARCH :=", archStr)
-					}
-				}
-				host = true
-			case android.Device:
-				if fi.module.Target().Arch.ArchType != android.Common {
-					fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH :=", archStr)
-				}
-			}
-			if host {
-				makeOs := fi.module.Target().Os.String()
-				if fi.module.Target().Os == android.Linux || fi.module.Target().Os == android.LinuxBionic || fi.module.Target().Os == android.LinuxMusl {
-					makeOs = "linux"
-				}
-				fmt.Fprintln(w, "LOCAL_MODULE_HOST_OS :=", makeOs)
-				fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
+			if fi.module.Target().Arch.ArchType != android.Common {
+				archStr := fi.module.Target().Arch.ArchType.String()
+				fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH :=", archStr)
 			}
 		} else if fi.isBazelPrebuilt && fi.arch != "" {
 			// This apexFile comes from Bazel
@@ -237,7 +209,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir st
 		}
 
 		// m <module_name> will build <module_name>.<apex_name> as well.
-		if fi.androidMkModuleName != moduleName && a.primaryApexType {
+		if fi.androidMkModuleName != moduleName {
 			fmt.Fprintf(w, ".PHONY: %s\n", fi.androidMkModuleName)
 			fmt.Fprintf(w, "%s: %s\n", fi.androidMkModuleName, moduleName)
 		}
@@ -266,19 +238,18 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 	return android.AndroidMkData{
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
 			moduleNames := []string{}
-			apexType := a.properties.ApexType
 			if a.installable() {
 				moduleNames = a.androidMkForFiles(w, name, moduleDir, data)
 			}
 
 			fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)  # apex.apexBundle")
 			fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
-			fmt.Fprintln(w, "LOCAL_MODULE :=", name+a.suffix)
+			fmt.Fprintln(w, "LOCAL_MODULE :=", name)
 			data.Entries.WriteLicenseVariables(w)
 			fmt.Fprintln(w, "LOCAL_MODULE_CLASS := ETC") // do we need a new class?
 			fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", a.outputFile.String())
 			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", a.installDir.String())
-			stemSuffix := apexType.suffix()
+			stemSuffix := imageApexSuffix
 			if a.isCompressed {
 				stemSuffix = imageCapexSuffix
 			}
@@ -287,6 +258,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 			if a.installable() {
 				fmt.Fprintln(w, "LOCAL_SOONG_INSTALLED_MODULE :=", a.installedFile.String())
 				fmt.Fprintln(w, "LOCAL_SOONG_INSTALL_PAIRS :=", a.outputFile.String()+":"+a.installedFile.String())
+				fmt.Fprintln(w, "LOCAL_SOONG_INSTALL_SYMLINKS := ", strings.Join(a.compatSymlinks.Strings(), " "))
 			}
 
 			// Because apex writes .mk with Custom(), we need to write manually some common properties
@@ -306,10 +278,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 			a.writeRequiredModules(w, moduleNames)
 
 			fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
-
-			if apexType == imageApex {
-				fmt.Fprintln(w, "ALL_MODULES.$(my_register_name).BUNDLE :=", a.bundleModuleFile.String())
-			}
+			fmt.Fprintln(w, "ALL_MODULES.$(my_register_name).BUNDLE :=", a.bundleModuleFile.String())
 			android.AndroidMkEmitAssignList(w, "ALL_MODULES.$(my_register_name).LINT_REPORTS", a.lintReports.Strings())
 
 			if a.installedFilesFile != nil {

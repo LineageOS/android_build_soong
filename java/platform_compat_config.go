@@ -130,7 +130,7 @@ type bazelPlatformCompatConfigAttributes struct {
 	Src bazel.LabelAttribute
 }
 
-func (p *platformCompatConfig) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (p *platformCompatConfig) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "platform_compat_config",
 		Bzl_load_location: "//build/bazel/rules/java:platform_compat_config.bzl",

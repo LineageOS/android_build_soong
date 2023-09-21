@@ -29,7 +29,9 @@ import (
 	"android/soong/bazel"
 	"android/soong/cc"
 	"android/soong/dexpreopt"
+	"android/soong/genrule"
 	"android/soong/tradefed"
+	"android/soong/ui/metrics/bp2build_metrics_proto"
 )
 
 func init() {
@@ -200,10 +202,6 @@ func (a *AndroidApp) IsInstallable() bool {
 	return Bool(a.properties.Installable)
 }
 
-func (a *AndroidApp) ExportedProguardFlagFiles() android.Paths {
-	return nil
-}
-
 func (a *AndroidApp) ResourcesNodeDepSet() *android.DepSet[*resourcesNode] {
 	return a.aapt.resourcesNodesDepSet
 }
@@ -317,6 +315,17 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.checkAppSdkVersions(ctx)
 	a.generateAndroidBuildActions(ctx)
 	a.generateJavaUsedByApex(ctx)
+}
+
+func (a *AndroidApp) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+	defaultMinSdkVersion := a.Module.MinSdkVersion(ctx)
+	if proptools.Bool(a.appProperties.Updatable) {
+		overrideApiLevel := android.MinSdkVersionFromValue(ctx, ctx.DeviceConfig().ApexGlobalMinSdkVersionOverride())
+		if !overrideApiLevel.IsNone() && overrideApiLevel.CompareTo(defaultMinSdkVersion) > 0 {
+			return overrideApiLevel
+		}
+	}
+	return defaultMinSdkVersion
 }
 
 func (a *AndroidApp) checkAppSdkVersions(ctx android.ModuleContext) {
@@ -482,8 +491,10 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 func (a *AndroidApp) proguardBuildActions(ctx android.ModuleContext) {
 	var staticLibProguardFlagFiles android.Paths
 	ctx.VisitDirectDeps(func(m android.Module) {
-		if lib, ok := m.(LibraryDependency); ok && ctx.OtherModuleDependencyTag(m) == staticLibTag {
-			staticLibProguardFlagFiles = append(staticLibProguardFlagFiles, lib.ExportedProguardFlagFiles()...)
+		depProguardInfo := ctx.OtherModuleProvider(m, ProguardSpecInfoProvider).(ProguardSpecInfo)
+		staticLibProguardFlagFiles = append(staticLibProguardFlagFiles, depProguardInfo.UnconditionallyExportedProguardFlags.ToList()...)
+		if ctx.OtherModuleDependencyTag(m) == staticLibTag {
+			staticLibProguardFlagFiles = append(staticLibProguardFlagFiles, depProguardInfo.ProguardFlagsFiles.ToList()...)
 		}
 	})
 
@@ -1061,6 +1072,7 @@ func AndroidAppFactory() android.Module {
 
 	module.Module.dexProperties.Optimize.EnabledByDefault = true
 	module.Module.dexProperties.Optimize.Shrink = proptools.BoolPtr(true)
+	module.Module.dexProperties.Optimize.Proguard_compatibility = proptools.BoolPtr(false)
 
 	module.Module.properties.Instrument = true
 	module.Module.properties.Supports_static_instrumentation = true
@@ -1104,6 +1116,8 @@ type AndroidTest struct {
 	testConfig       android.Path
 	extraTestConfigs android.Paths
 	data             android.Paths
+
+	android.BazelModuleBase
 }
 
 func (a *AndroidTest) InstallInTestcases() bool {
@@ -1221,6 +1235,8 @@ func AndroidTestFactory() android.Module {
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 	android.InitOverridableModule(module, &module.overridableAppProperties.Overrides)
+
+	android.InitBazelModule(module)
 	return module
 }
 
@@ -1579,11 +1595,11 @@ type bazelAndroidAppCertificateAttributes struct {
 	Certificate string
 }
 
-func (m *AndroidAppCertificate) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (m *AndroidAppCertificate) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	androidAppCertificateBp2Build(ctx, m)
 }
 
-func androidAppCertificateBp2Build(ctx android.TopDownMutatorContext, module *AndroidAppCertificate) {
+func androidAppCertificateBp2Build(ctx android.Bp2buildMutatorContext, module *AndroidAppCertificate) {
 	var certificate string
 	if module.properties.Certificate != nil {
 		certificate = *module.properties.Certificate
@@ -1615,20 +1631,29 @@ type bazelAndroidAppAttributes struct {
 	Certificate      bazel.LabelAttribute
 	Certificate_name bazel.StringAttribute
 	Manifest_values  *manifestValueAttribute
+	Optimize         *bool
+	Proguard_specs   bazel.LabelListAttribute
 }
 
-// ConvertWithBp2build is used to convert android_app to Bazel.
-func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
-	commonAttrs, bp2BuildInfo, supported := a.convertLibraryAttrsBp2Build(ctx)
+func convertWithBp2build(ctx android.Bp2buildMutatorContext, a *AndroidApp) (bool, android.CommonAttributes, *bazelAndroidAppAttributes) {
+	aapt, supported := a.convertAaptAttrsWithBp2Build(ctx)
 	if !supported {
-		return
+		return false, android.CommonAttributes{}, &bazelAndroidAppAttributes{}
 	}
-	depLabels := bp2BuildInfo.DepLabels
-
-	deps := depLabels.Deps
-	deps.Append(depLabels.StaticDeps)
-
-	aapt := a.convertAaptAttrsWithBp2Build(ctx)
+	if a.appProperties.Jni_uses_platform_apis != nil {
+		ctx.MarkBp2buildUnconvertible(
+			bp2build_metrics_proto.UnconvertedReasonType_UNSUPPORTED,
+			"TODO - b/299360988: Add bp2build support for jni_uses_platform_apis",
+		)
+		return false, android.CommonAttributes{}, &bazelAndroidAppAttributes{}
+	}
+	if a.appProperties.Jni_uses_sdk_apis != nil {
+		ctx.MarkBp2buildUnconvertible(
+			bp2build_metrics_proto.UnconvertedReasonType_UNSUPPORTED,
+			"TODO - b/299360988: Add bp2build support for jni_uses_sdk_apis",
+		)
+		return false, android.CommonAttributes{}, &bazelAndroidAppAttributes{}
+	}
 
 	certificate, certificateName := android.BazelStringOrLabelFromProp(ctx, a.overridableAppProperties.Certificate)
 
@@ -1664,10 +1689,48 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		Manifest_values:  manifestValues,
 	}
 
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "android_binary",
-		Bzl_load_location: "//build/bazel/rules/android:android_binary.bzl",
+	if !BoolDefault(a.dexProperties.Optimize.Enabled, true) {
+		appAttrs.Optimize = proptools.BoolPtr(false)
+	} else {
+		handCraftedFlags := ""
+		if Bool(a.dexProperties.Optimize.Ignore_warnings) {
+			handCraftedFlags += "-ignorewarning "
+		}
+		if !Bool(a.dexProperties.Optimize.Shrink) {
+			handCraftedFlags += "-dontshrink "
+		}
+		if !Bool(a.dexProperties.Optimize.Optimize) {
+			handCraftedFlags += "-dontoptimize "
+		}
+		if !Bool(a.dexProperties.Optimize.Obfuscate) {
+			handCraftedFlags += "-dontobfuscate "
+		}
+		appAttrs.Proguard_specs = bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, a.dexProperties.Optimize.Proguard_flags_files))
+		if handCraftedFlags != "" {
+			generatedFlagFileRuleName := a.Name() + "_proguard_flags"
+			ctx.CreateBazelTargetModule(bazel.BazelTargetModuleProperties{
+				Rule_class: "genrule",
+			}, android.CommonAttributes{
+				Name:     generatedFlagFileRuleName,
+				SkipData: proptools.BoolPtr(true),
+			}, &genrule.BazelGenruleAttributes{
+				Outs: []string{a.Name() + "_proguard.flags"},
+				Cmd: bazel.StringAttribute{
+					Value: proptools.StringPtr("echo " + handCraftedFlags + "> $(OUTS)"),
+				},
+			})
+			appAttrs.Proguard_specs.Add(bazel.MakeLabelAttribute(":" + generatedFlagFileRuleName))
+		}
 	}
+
+	commonAttrs, bp2BuildInfo, supported := a.convertLibraryAttrsBp2Build(ctx)
+	if !supported {
+		return false, android.CommonAttributes{}, &bazelAndroidAppAttributes{}
+	}
+	depLabels := bp2BuildInfo.DepLabels
+
+	deps := depLabels.Deps
+	deps.Append(depLabels.StaticDeps)
 
 	if !bp2BuildInfo.hasKotlin {
 		appAttrs.javaCommonAttributes = commonAttrs
@@ -1694,10 +1757,31 @@ func (a *AndroidApp) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		}
 	}
 
-	ctx.CreateBazelTargetModule(
-		props,
-		android.CommonAttributes{Name: a.Name(), SkipData: proptools.BoolPtr(true)},
-		appAttrs,
-	)
+	return true, android.CommonAttributes{Name: a.Name(), SkipData: proptools.BoolPtr(true)}, appAttrs
+}
+
+// ConvertWithBp2build is used to convert android_app to Bazel.
+func (a *AndroidApp) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
+	if ok, commonAttrs, appAttrs := convertWithBp2build(ctx, a); ok {
+		props := bazel.BazelTargetModuleProperties{
+			Rule_class:        "android_binary",
+			Bzl_load_location: "//build/bazel/rules/android:android_binary.bzl",
+		}
+
+		ctx.CreateBazelTargetModule(props, commonAttrs, appAttrs)
+	}
+
+}
+
+// ConvertWithBp2build is used to convert android_test to Bazel.
+func (at *AndroidTest) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
+	if ok, commonAttrs, appAttrs := convertWithBp2build(ctx, &at.AndroidApp); ok {
+		props := bazel.BazelTargetModuleProperties{
+			Rule_class:        "android_test",
+			Bzl_load_location: "//build/bazel/rules/android:android_test.bzl",
+		}
+
+		ctx.CreateBazelTargetModule(props, commonAttrs, appAttrs)
+	}
 
 }

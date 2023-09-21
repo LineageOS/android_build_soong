@@ -252,7 +252,7 @@ func TestBp2BuildAllowlist(t *testing.T) {
 		{
 			description:    "module in name allowlist and type allowlist fails",
 			shouldConvert:  false,
-			expectedErrors: []string{"A module cannot be in moduleAlwaysConvert and also be in moduleTypeAlwaysConvert"},
+			expectedErrors: []string{"A module \"foo\" of type \"rule1\" cannot be in moduleAlwaysConvert and also be in moduleTypeAlwaysConvert"},
 			module: TestBazelModule{
 				TestModuleInfo: bazel.TestModuleInfo{
 					ModuleName: "foo",
@@ -273,7 +273,7 @@ func TestBp2BuildAllowlist(t *testing.T) {
 		{
 			description:    "module in allowlist and denylist fails",
 			shouldConvert:  false,
-			expectedErrors: []string{"a module cannot be in moduleDoNotConvert and also be in moduleAlwaysConvert"},
+			expectedErrors: []string{"a module \"foo\" cannot be in moduleDoNotConvert and also be in moduleAlwaysConvert"},
 			module: TestBazelModule{
 				TestModuleInfo: bazel.TestModuleInfo{
 					ModuleName: "foo",
@@ -469,7 +469,7 @@ func mixedBuildModuleFactory() Module {
 	return m
 }
 
-func (m *mixedBuildModule) ConvertWithBp2build(ctx TopDownMutatorContext) {
+func (m *mixedBuildModule) ConvertWithBp2build(ctx Bp2buildMutatorContext) {
 }
 
 func (m *mixedBuildModule) DepsMutator(ctx BottomUpMutatorContext) {

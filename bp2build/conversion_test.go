@@ -83,7 +83,8 @@ func TestCreateBazelFiles_QueryView_AddsTopLevelFiles(t *testing.T) {
 
 func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
 	testConfig := android.TestConfig("", make(map[string]string), "", make(map[string][]byte))
-	files, err := soongInjectionFiles(testConfig, CreateCodegenMetrics())
+	codegenCtx := NewCodegenContext(testConfig, android.NewTestContext(testConfig).Context, Bp2Build, "")
+	files, err := createSoongInjectionDirFiles(codegenCtx, CreateCodegenMetrics())
 	if err != nil {
 		t.Error(err)
 	}
@@ -106,6 +107,10 @@ func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
 		},
 		{
 			dir:      "cc_toolchain",
+			basename: "ndk_libs.bzl",
+		},
+		{
+			dir:      "cc_toolchain",
 			basename: "sanitizer_constants.bzl",
 		},
 		{
@@ -114,6 +119,14 @@ func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
 		},
 		{
 			dir:      "java_toolchain",
+			basename: "constants.bzl",
+		},
+		{
+			dir:      "rust_toolchain",
+			basename: GeneratedBuildFileName,
+		},
+		{
+			dir:      "rust_toolchain",
 			basename: "constants.bzl",
 		},
 		{
@@ -126,7 +139,7 @@ func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
 		},
 		{
 			dir:      "metrics",
-			basename: "converted_modules.txt",
+			basename: "converted_modules.json",
 		},
 		{
 			dir:      "metrics",
@@ -174,15 +187,45 @@ func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
 		},
 	}
 
-	if len(files) != len(expectedFilePaths) {
-		t.Errorf("Expected %d file, got %d", len(expectedFilePaths), len(files))
+	less := func(a bazelFilepath, b bazelFilepath) bool {
+		return a.dir+"/"+a.basename < b.dir+"/"+b.basename
 	}
 
-	for i := range files {
-		actualFile, expectedFile := files[i], expectedFilePaths[i]
+	fileToFilepath := func(a BazelFile) bazelFilepath {
+		return bazelFilepath{basename: a.Basename, dir: a.Dir}
+	}
 
-		if actualFile.Dir != expectedFile.dir || actualFile.Basename != expectedFile.basename {
-			t.Errorf("Did not find expected file %s/%s", actualFile.Dir, actualFile.Basename)
+	sort.Slice(expectedFilePaths, func(i, j int) bool {
+		return less(expectedFilePaths[i], expectedFilePaths[j])
+	})
+	sort.Slice(files, func(i, j int) bool {
+		return less(fileToFilepath(files[i]), fileToFilepath(files[j]))
+	})
+
+	i := 0
+	j := 0
+	for i < len(expectedFilePaths) && j < len(files) {
+		expectedFile, actualFile := expectedFilePaths[i], files[j]
+
+		if actualFile.Dir == expectedFile.dir && actualFile.Basename == expectedFile.basename {
+			i++
+			j++
+		} else if less(expectedFile, fileToFilepath(actualFile)) {
+			t.Errorf("Did not find expected file %s/%s", expectedFile.dir, expectedFile.basename)
+			i++
+		} else {
+			t.Errorf("Found unexpected file %s/%s", actualFile.Dir, actualFile.Basename)
+			j++
 		}
+	}
+	for i < len(expectedFilePaths) {
+		expectedFile := expectedFilePaths[i]
+		t.Errorf("Did not find expected file %s/%s", expectedFile.dir, expectedFile.basename)
+		i++
+	}
+	for j < len(files) {
+		actualFile := files[j]
+		t.Errorf("Found unexpected file %s/%s", actualFile.Dir, actualFile.Basename)
+		j++
 	}
 }

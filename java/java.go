@@ -21,6 +21,7 @@ package java
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"android/soong/bazel"
@@ -63,6 +64,7 @@ func registerJavaBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("dex_import", DexImportFactory)
 	ctx.RegisterModuleType("java_api_library", ApiLibraryFactory)
 	ctx.RegisterModuleType("java_api_contribution", ApiContributionFactory)
+	ctx.RegisterModuleType("java_api_contribution_import", ApiContributionImportFactory)
 
 	// This mutator registers dependencies on dex2oat for modules that should be
 	// dexpreopted. This is done late when the final variants have been
@@ -225,6 +227,23 @@ var (
 	}, "jar_name", "partition", "main_class")
 )
 
+type ProguardSpecInfo struct {
+	// If true, proguard flags files will be exported to reverse dependencies across libs edges
+	// If false, proguard flags files will only be exported to reverse dependencies across
+	// static_libs edges.
+	Export_proguard_flags_files bool
+
+	// TransitiveDepsProguardSpecFiles is a depset of paths to proguard flags files that are exported from
+	// all transitive deps. This list includes all proguard flags files from transitive static dependencies,
+	// and all proguard flags files from transitive libs dependencies which set `export_proguard_spec: true`.
+	ProguardFlagsFiles *android.DepSet[android.Path]
+
+	// implementation detail to store transitive proguard flags files from exporting shared deps
+	UnconditionallyExportedProguardFlags *android.DepSet[android.Path]
+}
+
+var ProguardSpecInfoProvider = blueprint.NewProvider(ProguardSpecInfo{})
+
 // JavaInfo contains information about a java module for use by modules that depend on it.
 type JavaInfo struct {
 	// HeaderJars is a list of jars that can be passed as the javac classpath in order to link
@@ -308,11 +327,6 @@ type UsesLibraryDependency interface {
 	DexJarBuildPath() OptionalDexJarPath
 	DexJarInstallPath() android.Path
 	ClassLoaderContexts() dexpreopt.ClassLoaderContextMap
-}
-
-// Provides transitive Proguard flag files to downstream DEX jars.
-type LibraryDependency interface {
-	ExportedProguardFlagFiles() android.Paths
 }
 
 // TODO(jungjw): Move this to kythe.go once it's created.
@@ -626,12 +640,6 @@ type Library struct {
 	InstallMixin func(ctx android.ModuleContext, installPath android.Path) (extraInstallDeps android.Paths)
 }
 
-var _ LibraryDependency = (*Library)(nil)
-
-func (j *Library) ExportedProguardFlagFiles() android.Paths {
-	return j.exportedProguardFlagFiles
-}
-
 var _ android.ApexModule = (*Library)(nil)
 
 // Provides access to the list of permitted packages from apex boot jars.
@@ -692,6 +700,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	j.checkSdkVersions(ctx)
+	j.checkHeadersOnly(ctx)
 	if ctx.Device() {
 		j.dexpreopter.installPath = j.dexpreopter.getInstallPath(
 			ctx, android.PathForModuleInstall(ctx, "framework", j.Stem()+".jar"))
@@ -730,15 +739,9 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		j.installFile = ctx.InstallFile(installDir, j.Stem()+".jar", j.outputFile, extraInstallDeps...)
 	}
 
-	j.exportedProguardFlagFiles = append(j.exportedProguardFlagFiles,
-		android.PathsForModuleSrc(ctx, j.dexProperties.Optimize.Proguard_flags_files)...)
-	ctx.VisitDirectDeps(func(m android.Module) {
-		if lib, ok := m.(LibraryDependency); ok && ctx.OtherModuleDependencyTag(m) == staticLibTag {
-			j.exportedProguardFlagFiles = append(j.exportedProguardFlagFiles, lib.ExportedProguardFlagFiles()...)
-		}
-	})
-	j.exportedProguardFlagFiles = android.FirstUniquePaths(j.exportedProguardFlagFiles)
-
+	proguardSpecInfo := j.collectProguardSpecInfo(ctx)
+	ctx.SetProvider(ProguardSpecInfoProvider, proguardSpecInfo)
+	j.exportedProguardFlagFiles = proguardSpecInfo.ProguardFlagsFiles.ToList()
 }
 
 func (j *Library) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -1621,7 +1624,8 @@ func ApiContributionFactory() android.Module {
 }
 
 type JavaApiImportInfo struct {
-	ApiFile android.Path
+	ApiFile    android.Path
+	ApiSurface string
 }
 
 var JavaApiImportProvider = blueprint.NewProvider(JavaApiImportInfo{})
@@ -1633,7 +1637,8 @@ func (ap *JavaApiContribution) GenerateAndroidBuildActions(ctx android.ModuleCon
 	}
 
 	ctx.SetProvider(JavaApiImportProvider, JavaApiImportInfo{
-		ApiFile: apiFile,
+		ApiFile:    apiFile,
+		ApiSurface: proptools.String(ap.properties.Api_surface),
 	})
 }
 
@@ -1733,7 +1738,6 @@ func metalavaStubCmd(ctx android.ModuleContext, rule *android.RuleBuilder,
 
 	cmd.Flag("--color").
 		Flag("--quiet").
-		Flag("--format=v2").
 		Flag("--include-annotations").
 		// The flag makes nullability issues as warnings rather than errors by replacing
 		// @Nullable/@NonNull in the listed packages APIs with @RecentlyNullable/@RecentlyNonNull,
@@ -1745,13 +1749,12 @@ func metalavaStubCmd(ctx android.ModuleContext, rule *android.RuleBuilder,
 		FlagWithArg("--hide ", "InvalidNullabilityOverride").
 		FlagWithArg("--hide ", "ChangedDefault")
 
-	// Force metalava to ignore classes on the classpath when an API file contains missing classes.
-	// See b/285140653 for more information.
+	// The main purpose of the `--api-class-resolution api` option is to force metalava to ignore
+	// classes on the classpath when an API file contains missing classes. However, as this command
+	// does not specify `--classpath` this is not needed for that. However, this is also used as a
+	// signal to the special metalava code for generating stubs from text files that it needs to add
+	// some additional items into the API (e.g. default constructors).
 	cmd.FlagWithArg("--api-class-resolution ", "api")
-
-	// Force metalava to sort overloaded methods by their order in the source code.
-	// See b/285312164 for more information.
-	cmd.FlagWithArg("--api-overloaded-method-order ", "source")
 
 	return cmd
 }
@@ -1798,6 +1801,7 @@ func (al *ApiLibrary) extractApiSrcs(ctx android.ModuleContext, rule *android.Ru
 		Flag("-jar").
 		Flag("-write_if_changed").
 		Flag("-ignore_missing_files").
+		Flag("-quiet").
 		FlagWithArg("-C ", unzippedSrcJarDir.String()).
 		FlagWithInput("-l ", classFilesList).
 		FlagWithOutput("-o ", al.stubsJarWithoutStaticLibs)
@@ -1820,18 +1824,29 @@ func (al *ApiLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 var scopeOrderedSourceFileNames = allApiScopes.Strings(
 	func(s *apiScope) string { return s.apiFilePrefix + "current.txt" })
 
-func (al *ApiLibrary) sortApiFilesByApiScope(ctx android.ModuleContext, srcFiles android.Paths) android.Paths {
-	sortedSrcFiles := android.Paths{}
+func (al *ApiLibrary) sortApiFilesByApiScope(ctx android.ModuleContext, srcFilesInfo []JavaApiImportInfo, apiFiles android.Paths) android.Paths {
+	var sortedSrcFiles android.Paths
 
-	for _, scopeSourceFileName := range scopeOrderedSourceFileNames {
-		for _, sourceFileName := range srcFiles {
-			if sourceFileName.Base() == scopeSourceFileName {
-				sortedSrcFiles = append(sortedSrcFiles, sourceFileName)
+	for i, apiScope := range allApiScopes {
+		for _, srcFileInfo := range srcFilesInfo {
+			if srcFileInfo.ApiFile.Base() == scopeOrderedSourceFileNames[i] || srcFileInfo.ApiSurface == apiScope.name {
+				sortedSrcFiles = append(sortedSrcFiles, android.PathForSource(ctx, srcFileInfo.ApiFile.String()))
+			}
+		}
+		// TODO: b/300964421 - Remove when api_files property is removed
+		for _, apiFileName := range apiFiles {
+			if apiFileName.Base() == scopeOrderedSourceFileNames[i] {
+				sortedSrcFiles = append(sortedSrcFiles, apiFileName)
 			}
 		}
 	}
-	if len(srcFiles) != len(sortedSrcFiles) {
-		ctx.ModuleErrorf("Unrecognizable source file found within %s", srcFiles)
+
+	if len(srcFilesInfo)+len(apiFiles) != len(sortedSrcFiles) {
+		var srcFiles android.Paths
+		for _, srcFileInfo := range srcFilesInfo {
+			srcFiles = append(srcFiles, srcFileInfo.ApiFile)
+		}
+		ctx.ModuleErrorf("Unrecognizable source file found within %s", append(srcFiles, apiFiles...))
 	}
 
 	return sortedSrcFiles
@@ -1852,7 +1867,7 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	homeDir := android.PathForModuleOut(ctx, "metalava", "home")
 
-	var srcFiles android.Paths
+	var srcFilesInfo []JavaApiImportInfo
 	var classPaths android.Paths
 	var staticLibs android.Paths
 	var depApiSrcsStubsJar android.Path
@@ -1861,11 +1876,10 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		switch tag {
 		case javaApiContributionTag:
 			provider := ctx.OtherModuleProvider(dep, JavaApiImportProvider).(JavaApiImportInfo)
-			providerApiFile := provider.ApiFile
-			if providerApiFile == nil && !ctx.Config().AllowMissingDependencies() {
+			if provider.ApiFile == nil && !ctx.Config().AllowMissingDependencies() {
 				ctx.ModuleErrorf("Error: %s has an empty api file.", dep.Name())
 			}
-			srcFiles = append(srcFiles, android.PathForSource(ctx, providerApiFile.String()))
+			srcFilesInfo = append(srcFilesInfo, provider)
 		case libTag:
 			provider := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
 			classPaths = append(classPaths, provider.HeaderJars...)
@@ -1879,15 +1893,18 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 
 	// Add the api_files inputs
+	// These are api files in the module subdirectory, which are not provided by
+	// java_api_contribution but provided directly as module property.
+	var apiFiles android.Paths
 	for _, api := range al.properties.Api_files {
-		srcFiles = append(srcFiles, android.PathForModuleSrc(ctx, api))
+		apiFiles = append(apiFiles, android.PathForModuleSrc(ctx, api))
 	}
+
+	srcFiles := al.sortApiFilesByApiScope(ctx, srcFilesInfo, apiFiles)
 
 	if srcFiles == nil && !ctx.Config().AllowMissingDependencies() {
 		ctx.ModuleErrorf("Error: %s has an empty api file.", ctx.ModuleName())
 	}
-
-	srcFiles = al.sortApiFilesByApiScope(ctx, srcFiles)
 
 	cmd := metalavaStubCmd(ctx, rule, srcFiles, homeDir)
 
@@ -1914,7 +1931,7 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		FlagWithArg("-C ", stubsDir.String()).
 		FlagWithArg("-D ", stubsDir.String())
 
-	rule.Build("metalava", "metalava merged")
+	rule.Build("metalava", "metalava merged text")
 
 	if depApiSrcsStubsJar == nil {
 		var flags javaBuilderFlags
@@ -2755,32 +2772,41 @@ func addCLCFromDep(ctx android.ModuleContext, depModule android.Module,
 type javaResourcesAttributes struct {
 	Resources             bazel.LabelListAttribute
 	Resource_strip_prefix *string
+	Additional_resources  bazel.LabelListAttribute
 }
 
-func (m *Library) javaResourcesGetSingleFilegroupStripPrefix(ctx android.TopDownMutatorContext) (string, bool) {
-	if otherM, ok := ctx.ModuleFromName(m.properties.Java_resources[0]); ok && len(m.properties.Java_resources) == 1 {
+func (m *Library) getResourceFilegroupStripPrefix(ctx android.Bp2buildMutatorContext, resourceFilegroup string) (*string, bool) {
+	if otherM, ok := ctx.ModuleFromName(resourceFilegroup); ok {
 		if fg, isFilegroup := otherM.(android.FileGroupPath); isFilegroup {
-			return filepath.Join(ctx.OtherModuleDir(otherM), fg.GetPath(ctx)), true
+			return proptools.StringPtr(filepath.Join(ctx.OtherModuleDir(otherM), fg.GetPath(ctx))), true
 		}
 	}
-	return "", false
+	return proptools.StringPtr(""), false
 }
 
-func (m *Library) convertJavaResourcesAttributes(ctx android.TopDownMutatorContext) *javaResourcesAttributes {
+func (m *Library) convertJavaResourcesAttributes(ctx android.Bp2buildMutatorContext) *javaResourcesAttributes {
 	var resources bazel.LabelList
 	var resourceStripPrefix *string
 
-	if m.properties.Java_resources != nil && len(m.properties.Java_resource_dirs) > 0 {
-		ctx.ModuleErrorf("bp2build doesn't support both java_resources and java_resource_dirs being set on the same module.")
-	}
+	additionalJavaResourcesMap := make(map[string]*javaResourcesAttributes)
 
 	if m.properties.Java_resources != nil {
-		if prefix, ok := m.javaResourcesGetSingleFilegroupStripPrefix(ctx); ok {
-			resourceStripPrefix = proptools.StringPtr(prefix)
-		} else {
+		for _, res := range m.properties.Java_resources {
+			if prefix, isFilegroup := m.getResourceFilegroupStripPrefix(ctx, res); isFilegroup {
+				otherM, _ := ctx.ModuleFromName(res)
+				resourcesTargetName := ctx.ModuleName() + "_filegroup_resources_" + otherM.Name()
+				additionalJavaResourcesMap[resourcesTargetName] = &javaResourcesAttributes{
+					Resources:             bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, []string{res})),
+					Resource_strip_prefix: prefix,
+				}
+			} else {
+				resources.Append(android.BazelLabelForModuleSrc(ctx, []string{res}))
+			}
+		}
+
+		if !resources.IsEmpty() {
 			resourceStripPrefix = proptools.StringPtr(ctx.ModuleDir())
 		}
-		resources.Append(android.BazelLabelForModuleSrc(ctx, m.properties.Java_resources))
 	}
 
 	//TODO(b/179889880) handle case where glob includes files outside package
@@ -2791,23 +2817,51 @@ func (m *Library) convertJavaResourcesAttributes(ctx android.TopDownMutatorConte
 		m.properties.Exclude_java_resources,
 	)
 
-	for i, resDep := range resDeps {
+	for _, resDep := range resDeps {
 		dir, files := resDep.dir, resDep.files
-
-		resources.Append(bazel.MakeLabelList(android.RootToModuleRelativePaths(ctx, files)))
 
 		// Bazel includes the relative path from the WORKSPACE root when placing the resource
 		// inside the JAR file, so we need to remove that prefix
-		resourceStripPrefix = proptools.StringPtr(dir.String())
-		if i > 0 {
-			// TODO(b/226423379) allow multiple resource prefixes
-			ctx.ModuleErrorf("bp2build does not support more than one directory in java_resource_dirs (b/226423379)")
+		prefix := proptools.StringPtr(dir.String())
+		resourcesTargetName := ctx.ModuleName() + "_resource_dir_" + dir.String()
+		additionalJavaResourcesMap[resourcesTargetName] = &javaResourcesAttributes{
+			Resources:             bazel.MakeLabelListAttribute(bazel.MakeLabelList(android.RootToModuleRelativePaths(ctx, files))),
+			Resource_strip_prefix: prefix,
 		}
+	}
+
+	var additionalResourceLabels bazel.LabelList
+	if len(additionalJavaResourcesMap) > 0 {
+		var additionalResources []string
+		for resName, _ := range additionalJavaResourcesMap {
+			additionalResources = append(additionalResources, resName)
+		}
+		sort.Strings(additionalResources)
+
+		for i, resName := range additionalResources {
+			resAttr := additionalJavaResourcesMap[resName]
+			if resourceStripPrefix == nil && i == 0 {
+				resourceStripPrefix = resAttr.Resource_strip_prefix
+				resources = resAttr.Resources.Value
+			} else if !resAttr.Resources.IsEmpty() {
+				ctx.CreateBazelTargetModule(
+					bazel.BazelTargetModuleProperties{
+						Rule_class:        "java_resources",
+						Bzl_load_location: "//build/bazel/rules/java:java_resources.bzl",
+					},
+					android.CommonAttributes{Name: resName},
+					resAttr,
+				)
+				additionalResourceLabels.Append(android.BazelLabelForModuleSrc(ctx, []string{resName}))
+			}
+		}
+
 	}
 
 	return &javaResourcesAttributes{
 		Resources:             bazel.MakeLabelListAttribute(resources),
 		Resource_strip_prefix: resourceStripPrefix,
+		Additional_resources:  bazel.MakeLabelListAttribute(additionalResourceLabels),
 	}
 }
 
@@ -2861,10 +2915,20 @@ func javaXsdTargetName(xsd android.XsdConfigBp2buildTargets) string {
 // which has other non-attribute information needed for bp2build conversion
 // that needs different handling depending on the module types, and thus needs
 // to be returned to the calling function.
-func (m *Library) convertLibraryAttrsBp2Build(ctx android.TopDownMutatorContext) (*javaCommonAttributes, *bp2BuildJavaInfo, bool) {
+func (m *Library) convertLibraryAttrsBp2Build(ctx android.Bp2buildMutatorContext) (*javaCommonAttributes, *bp2BuildJavaInfo, bool) {
 	var srcs bazel.LabelListAttribute
 	var deps bazel.LabelListAttribute
 	var staticDeps bazel.LabelListAttribute
+
+	if proptools.String(m.deviceProperties.Sdk_version) == "" && m.DeviceSupported() {
+		// TODO(b/297356704): handle platform apis in bp2build
+		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_PROPERTY_UNSUPPORTED, "sdk_version unset")
+		return &javaCommonAttributes{}, &bp2BuildJavaInfo{}, false
+	} else if proptools.String(m.deviceProperties.Sdk_version) == "core_platform" {
+		// TODO(b/297356582): handle core_platform in bp2build
+		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_PROPERTY_UNSUPPORTED, "sdk_version core_platform")
+		return &javaCommonAttributes{}, &bp2BuildJavaInfo{}, false
+	}
 
 	archVariantProps := m.GetArchVariantProperties(ctx, &CommonProperties{})
 	for axis, configToProps := range archVariantProps {
@@ -3072,7 +3136,7 @@ func javaLibraryBazelTargetModuleProperties() bazel.BazelTargetModuleProperties 
 	}
 }
 
-func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
+func javaLibraryBp2Build(ctx android.Bp2buildMutatorContext, m *Library) {
 	commonAttrs, bp2BuildInfo, supported := m.convertLibraryAttrsBp2Build(ctx)
 	if !supported {
 		return
@@ -3080,16 +3144,22 @@ func javaLibraryBp2Build(ctx android.TopDownMutatorContext, m *Library) {
 	depLabels := bp2BuildInfo.DepLabels
 
 	deps := depLabels.Deps
+	exports := depLabels.StaticDeps
 	if !commonAttrs.Srcs.IsEmpty() {
-		deps.Append(depLabels.StaticDeps) // we should only append these if there are sources to use them
+		deps.Append(exports) // we should only append these if there are sources to use them
 	} else if !deps.IsEmpty() {
-		ctx.ModuleErrorf("Module has direct dependencies but no sources. Bazel will not allow this.")
+		// java_library does not accept deps when there are no srcs because
+		// there is no compilation happening, but it accepts exports.
+		// The non-empty deps here are unnecessary as deps on the java_library
+		// since they aren't being propagated to any dependencies.
+		// So we can drop deps here.
+		deps = bazel.LabelListAttribute{}
 	}
 	var props bazel.BazelTargetModuleProperties
 	attrs := &javaLibraryAttributes{
 		javaCommonAttributes: commonAttrs,
 		Deps:                 deps,
-		Exports:              depLabels.StaticDeps,
+		Exports:              exports,
 	}
 	name := m.Name()
 
@@ -3122,7 +3192,7 @@ type javaBinaryHostAttributes struct {
 }
 
 // JavaBinaryHostBp2Build is for java_binary_host bp2build.
-func javaBinaryHostBp2Build(ctx android.TopDownMutatorContext, m *Binary) {
+func javaBinaryHostBp2Build(ctx android.Bp2buildMutatorContext, m *Binary) {
 	commonAttrs, bp2BuildInfo, supported := m.convertLibraryAttrsBp2Build(ctx)
 	if !supported {
 		return
@@ -3209,7 +3279,7 @@ type javaTestHostAttributes struct {
 }
 
 // javaTestHostBp2Build is for java_test_host bp2build.
-func javaTestHostBp2Build(ctx android.TopDownMutatorContext, m *TestHost) {
+func javaTestHostBp2Build(ctx android.Bp2buildMutatorContext, m *TestHost) {
 	commonAttrs, bp2BuildInfo, supported := m.convertLibraryAttrsBp2Build(ctx)
 	if !supported {
 		return
@@ -3262,7 +3332,7 @@ type libraryCreationInfo struct {
 
 // helper function that creates java_library target from java_binary_host or java_test_host,
 // and returns the library target name,
-func createLibraryTarget(ctx android.TopDownMutatorContext, libInfo libraryCreationInfo) string {
+func createLibraryTarget(ctx android.Bp2buildMutatorContext, libInfo libraryCreationInfo) string {
 	libName := libInfo.baseName + "_lib"
 	var libProps bazel.BazelTargetModuleProperties
 	if libInfo.hasKotlin {
@@ -3285,7 +3355,7 @@ type bazelJavaImportAttributes struct {
 }
 
 // java_import bp2Build converter.
-func (i *Import) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (i *Import) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	var jars bazel.LabelListAttribute
 	archVariantProps := i.GetArchVariantProperties(ctx, &ImportProperties{})
 	for axis, configToProps := range archVariantProps {
@@ -3321,7 +3391,6 @@ func (i *Import) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 		javaLibraryBazelTargetModuleProperties(),
 		android.CommonAttributes{Name: name + "-neverlink"},
 		neverlinkAttrs)
-
 }
 
 var _ android.MixedBuildBuildable = (*Import)(nil)
@@ -3373,4 +3442,31 @@ func (i *Import) QueueBazelCall(ctx android.BaseModuleContext) {
 
 func (i *Import) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
 	return true
+}
+
+type JavaApiContributionImport struct {
+	JavaApiContribution
+
+	prebuilt android.Prebuilt
+}
+
+func ApiContributionImportFactory() android.Module {
+	module := &JavaApiContributionImport{}
+	android.InitAndroidModule(module)
+	android.InitDefaultableModule(module)
+	android.InitPrebuiltModule(module, &[]string{""})
+	module.AddProperties(&module.properties)
+	return module
+}
+
+func (module *JavaApiContributionImport) Prebuilt() *android.Prebuilt {
+	return &module.prebuilt
+}
+
+func (module *JavaApiContributionImport) Name() string {
+	return module.prebuilt.Name(module.ModuleBase.Name())
+}
+
+func (ap *JavaApiContributionImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	ap.JavaApiContribution.GenerateAndroidBuildActions(ctx)
 }

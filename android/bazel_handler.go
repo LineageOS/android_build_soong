@@ -1382,7 +1382,11 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 			WriteFileRuleVerbatim(ctx, out, "")
 		case "FileWrite", "SourceSymlinkManifest":
 			out := PathForBazelOut(ctx, buildStatement.OutputPaths[0])
-			WriteFileRuleVerbatim(ctx, out, buildStatement.FileContents)
+			if buildStatement.IsExecutable {
+				WriteExecutableFileRuleVerbatim(ctx, out, buildStatement.FileContents)
+			} else {
+				WriteFileRuleVerbatim(ctx, out, buildStatement.FileContents)
+			}
 		case "SymlinkTree":
 			// build-runfiles arguments are the manifest file and the target directory
 			// where it creates the symlink tree according to this manifest (and then

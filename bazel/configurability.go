@@ -39,7 +39,7 @@ const (
 
 	// Targets in arch.go
 	osArchAndroidArm        = "android_arm"
-	osArchAndroidArm64      = "android_arm64"
+	OsArchAndroidArm64      = "android_arm64"
 	osArchAndroidRiscv64    = "android_riscv64"
 	osArchAndroidX86        = "android_x86"
 	osArchAndroidX86_64     = "android_x86_64"
@@ -71,11 +71,14 @@ const (
 
 	AndroidAndInApex = "android-in_apex"
 	AndroidPlatform  = "system"
+	Unbundled_app    = "unbundled_app"
 
 	InApex  = "in_apex"
 	NonApex = "non_apex"
 
 	ErrorproneDisabled = "errorprone_disabled"
+	// TODO: b/294868620 - Remove when completing the bug
+	SanitizersEnabled = "sanitizers_enabled"
 )
 
 func PowerSetWithoutEmptySet[T any](items []T) [][]T {
@@ -168,7 +171,7 @@ var (
 
 	platformOsArchMap = map[string]string{
 		osArchAndroidArm:           "//build/bazel/platforms/os_arch:android_arm",
-		osArchAndroidArm64:         "//build/bazel/platforms/os_arch:android_arm64",
+		OsArchAndroidArm64:         "//build/bazel/platforms/os_arch:android_arm64",
 		osArchAndroidRiscv64:       "//build/bazel/platforms/os_arch:android_riscv64",
 		osArchAndroidX86:           "//build/bazel/platforms/os_arch:android_x86",
 		osArchAndroidX86_64:        "//build/bazel/platforms/os_arch:android_x86_64",
@@ -205,6 +208,7 @@ var (
 	osAndInApexMap = map[string]string{
 		AndroidAndInApex:           "//build/bazel/rules/apex:android-in_apex",
 		AndroidPlatform:            "//build/bazel/rules/apex:system",
+		Unbundled_app:              "//build/bazel/rules/apex:unbundled_app",
 		OsDarwin:                   "//build/bazel/platforms/os:darwin",
 		OsLinux:                    "//build/bazel/platforms/os:linux_glibc",
 		osLinuxMusl:                "//build/bazel/platforms/os:linux_musl",
@@ -223,6 +227,12 @@ var (
 		ErrorproneDisabled:         "//build/bazel/rules/java/errorprone:errorprone_globally_disabled",
 		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey,
 	}
+
+	// TODO: b/294868620 - Remove when completing the bug
+	sanitizersEnabledMap = map[string]string{
+		SanitizersEnabled:          "//build/bazel/rules/cc:sanitizers_enabled",
+		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey,
+	}
 )
 
 // basic configuration types
@@ -237,6 +247,8 @@ const (
 	osAndInApex
 	inApex
 	errorProneDisabled
+	// TODO: b/294868620 - Remove when completing the bug
+	sanitizersEnabled
 )
 
 func osArchString(os string, arch string) string {
@@ -253,6 +265,8 @@ func (ct configurationType) String() string {
 		osAndInApex:        "os_in_apex",
 		inApex:             "in_apex",
 		errorProneDisabled: "errorprone_disabled",
+		// TODO: b/294868620 - Remove when completing the bug
+		sanitizersEnabled: "sanitizers_enabled",
 	}[ct]
 }
 
@@ -287,6 +301,11 @@ func (ct configurationType) validateConfig(config string) {
 		if _, ok := errorProneMap[config]; !ok {
 			panic(fmt.Errorf("Unknown errorprone config: %s", config))
 		}
+	// TODO: b/294868620 - Remove when completing the bug
+	case sanitizersEnabled:
+		if _, ok := sanitizersEnabledMap[config]; !ok {
+			panic(fmt.Errorf("Unknown sanitizers_enabled config: %s", config))
+		}
 	default:
 		panic(fmt.Errorf("Unrecognized ConfigurationType %d", ct))
 	}
@@ -318,6 +337,9 @@ func (ca ConfigurationAxis) SelectKey(config string) string {
 		return inApexMap[config]
 	case errorProneDisabled:
 		return errorProneMap[config]
+	// TODO: b/294868620 - Remove when completing the bug
+	case sanitizersEnabled:
+		return sanitizersEnabledMap[config]
 	default:
 		panic(fmt.Errorf("Unrecognized ConfigurationType %d", ca.configurationType))
 	}
@@ -338,6 +360,9 @@ var (
 	InApexAxis = ConfigurationAxis{configurationType: inApex}
 
 	ErrorProneAxis = ConfigurationAxis{configurationType: errorProneDisabled}
+
+	// TODO: b/294868620 - Remove when completing the bug
+	SanitizersEnabledAxis = ConfigurationAxis{configurationType: sanitizersEnabled}
 )
 
 // ProductVariableConfigurationAxis returns an axis for the given product variable

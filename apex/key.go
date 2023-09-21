@@ -60,7 +60,7 @@ type apexKeyProperties struct {
 func ApexKeyFactory() android.Module {
 	module := &apexKey{}
 	module.AddProperties(&module.properties)
-	android.InitAndroidArchModule(module, android.HostAndDeviceDefault, android.MultilibCommon)
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitBazelModule(module)
 	return module
 }
@@ -208,11 +208,11 @@ type bazelApexKeyAttributes struct {
 }
 
 // ConvertWithBp2build performs conversion apexKey for bp2build
-func (m *apexKey) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (m *apexKey) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	apexKeyBp2BuildInternal(ctx, m)
 }
 
-func apexKeyBp2BuildInternal(ctx android.TopDownMutatorContext, module *apexKey) {
+func apexKeyBp2BuildInternal(ctx android.Bp2buildMutatorContext, module *apexKey) {
 	privateKeyLabelAttribute, privateKeyNameAttribute :=
 		android.BazelStringOrLabelFromProp(ctx, module.properties.Private_key)
 

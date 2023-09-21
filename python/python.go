@@ -169,6 +169,7 @@ type pythonDependency interface {
 	getDataPathMappings() []pathMapping
 	getSrcsZip() android.Path
 	getPrecompiledSrcsZip() android.Path
+	getPkgPath() string
 }
 
 // getSrcsPathMappings gets this module's path mapping of src source path : runfiles destination
@@ -189,6 +190,19 @@ func (p *PythonLibraryModule) getSrcsZip() android.Path {
 // getSrcsZip returns the filepath where the current module's source/data files are zipped.
 func (p *PythonLibraryModule) getPrecompiledSrcsZip() android.Path {
 	return p.precompiledSrcsZip
+}
+
+// getPkgPath returns the pkg_path value
+func (p *PythonLibraryModule) getPkgPath() string {
+	return String(p.properties.Pkg_path)
+}
+
+// PkgPath is the "public" version of `getPkgPath` that is only available during bp2build
+func (p *PythonLibraryModule) PkgPath(ctx android.BazelConversionContext) *string {
+	if ctx.Config().BuildMode != android.Bp2build {
+		ctx.ModuleErrorf("PkgPath is only supported in bp2build mode")
+	}
+	return p.properties.Pkg_path
 }
 
 func (p *PythonLibraryModule) getBaseProperties() *BaseProperties {
@@ -370,7 +384,20 @@ func (p *PythonLibraryModule) AddDepsOnPythonLauncherAndStdlib(ctx android.Botto
 
 		launcherSharedLibDeps = append(launcherSharedLibDeps, "libc++")
 	case pyVersion3:
-		stdLib = "py3-stdlib"
+		var prebuiltStdLib bool
+		if targetForDeps.Os.Bionic() {
+			prebuiltStdLib = false
+		} else if ctx.Config().VendorConfig("cpython3").Bool("force_build_host") {
+			prebuiltStdLib = false
+		} else {
+			prebuiltStdLib = true
+		}
+
+		if prebuiltStdLib {
+			stdLib = "py3-stdlib-prebuilt"
+		} else {
+			stdLib = "py3-stdlib"
+		}
 
 		launcherModule = "py3-launcher"
 		if autorun {
@@ -461,14 +488,19 @@ func (p *PythonLibraryModule) genModulePathMappings(ctx android.ModuleContext, p
 	destToPySrcs := make(map[string]string)
 	destToPyData := make(map[string]string)
 
+	// Disable path checks for the stdlib, as it includes a "." in the version string
+	isInternal := proptools.BoolDefault(p.properties.Is_internal, false)
+
 	for _, s := range expandedSrcs {
 		if s.Ext() != pyExt && s.Ext() != protoExt {
 			ctx.PropertyErrorf("srcs", "found non (.py|.proto) file: %q!", s.String())
 			continue
 		}
 		runfilesPath := filepath.Join(pkgPath, s.Rel())
-		if err := isValidPythonPath(runfilesPath); err != nil {
-			ctx.PropertyErrorf("srcs", err.Error())
+		if !isInternal {
+			if err := isValidPythonPath(runfilesPath); err != nil {
+				ctx.PropertyErrorf("srcs", err.Error())
+			}
 		}
 		if !checkForDuplicateOutputPath(ctx, destToPySrcs, runfilesPath, s.String(), p.Name(), p.Name()) {
 			p.srcsPathMappings = append(p.srcsPathMappings, pathMapping{dest: runfilesPath, src: s})
@@ -591,13 +623,16 @@ func (p *PythonLibraryModule) precompileSrcs(ctx android.ModuleContext) android.
 	// "cross compiling" for device here purely by virtue of host and device python bytecode
 	// being the same.
 	var stdLib android.Path
+	var stdLibPkg string
 	var launcher android.Path
-	if ctx.ModuleName() == "py3-stdlib" || ctx.ModuleName() == "py2-stdlib" {
+	if proptools.BoolDefault(p.properties.Is_internal, false) {
 		stdLib = p.srcsZip
+		stdLibPkg = p.getPkgPath()
 	} else {
 		ctx.VisitDirectDepsWithTag(hostStdLibTag, func(module android.Module) {
 			if dep, ok := module.(pythonDependency); ok {
 				stdLib = dep.getPrecompiledSrcsZip()
+				stdLibPkg = dep.getPkgPath()
 			}
 		})
 	}
@@ -636,6 +671,7 @@ func (p *PythonLibraryModule) precompileSrcs(ctx android.ModuleContext) android.
 		Description: "Precompile the python sources of " + ctx.ModuleName(),
 		Args: map[string]string{
 			"stdlibZip":     stdLib.String(),
+			"stdlibPkg":     stdLibPkg,
 			"launcher":      launcher.String(),
 			"ldLibraryPath": strings.Join(ldLibraryPath, ":"),
 		},

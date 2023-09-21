@@ -140,7 +140,7 @@ type generatorProperties struct {
 	// prebuilts or scripts that do not need a module to build them.
 	Tools []string
 
-	// Local file that is used as the tool
+	// Local files that are used by the tool
 	Tool_files []string `android:"path"`
 
 	// List of directories to export generated headers from
@@ -403,7 +403,6 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 	}
 
 	addLabelsForInputs := func(propName string, include, exclude []string) android.Paths {
-
 		includeDirInPaths := ctx.DeviceConfig().BuildBrokenInputDir(g.Name())
 		var srcFiles android.Paths
 		for _, in := range include {
@@ -913,7 +912,7 @@ type genRuleProperties struct {
 	Out []string
 }
 
-type bazelGenruleAttributes struct {
+type BazelGenruleAttributes struct {
 	Srcs  bazel.LabelListAttribute
 	Outs  []string
 	Tools bazel.LabelListAttribute
@@ -921,7 +920,7 @@ type bazelGenruleAttributes struct {
 }
 
 // ConvertWithBp2build converts a Soong module -> Bazel target.
-func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (m *Module) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	// Bazel only has the "tools" attribute.
 	tools_prop := android.BazelLabelForModuleDeps(ctx, m.properties.Tools)
 	tool_files_prop := android.BazelLabelForModuleSrc(ctx, m.properties.Tool_files)
@@ -994,7 +993,10 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 
 	var cmdProp bazel.StringAttribute
 	cmdProp.SetValue(replaceVariables(proptools.String(m.properties.Cmd)))
-	allProductVariableProps := android.ProductVariableProperties(ctx, m)
+	allProductVariableProps, errs := android.ProductVariableProperties(ctx, m)
+	for _, err := range errs {
+		ctx.ModuleErrorf("ProductVariableProperties error: %s", err)
+	}
 	if productVariableProps, ok := allProductVariableProps["Cmd"]; ok {
 		for productVariable, value := range productVariableProps {
 			var cmd string
@@ -1037,7 +1039,7 @@ func (m *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
 				break
 			}
 		}
-		attrs := &bazelGenruleAttributes{
+		attrs := &BazelGenruleAttributes{
 			Srcs:  srcs,
 			Outs:  outs,
 			Cmd:   cmdProp,

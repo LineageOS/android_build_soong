@@ -235,6 +235,7 @@ func (p *prebuiltCommon) AndroidMkEntries() []android.AndroidMkEntries {
 					entries.SetString("LOCAL_MODULE_STEM", p.installFilename)
 					entries.SetPath("LOCAL_SOONG_INSTALLED_MODULE", p.installedFile)
 					entries.SetString("LOCAL_SOONG_INSTALL_PAIRS", p.outputApex.String()+":"+p.installedFile.String())
+					entries.AddStrings("LOCAL_SOONG_INSTALL_SYMLINKS", p.compatSymlinks.Strings()...)
 					entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !p.installable())
 					entries.AddStrings("LOCAL_OVERRIDES_MODULES", p.prebuiltCommonProperties.Overrides...)
 					p.addRequiredModules(entries)
@@ -781,10 +782,10 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	p.initApexFilesForAndroidMk(ctx)
 
 	// in case that prebuilt_apex replaces source apex (using prefer: prop)
-	p.compatSymlinks = makeCompatSymlinks(p.BaseModuleName(), ctx, true)
+	p.compatSymlinks = makeCompatSymlinks(p.BaseModuleName(), ctx)
 	// or that prebuilt_apex overrides other apexes (using overrides: prop)
 	for _, overridden := range p.prebuiltCommonProperties.Overrides {
-		p.compatSymlinks = append(p.compatSymlinks, makeCompatSymlinks(overridden, ctx, true)...)
+		p.compatSymlinks = append(p.compatSymlinks, makeCompatSymlinks(overridden, ctx)...)
 	}
 
 	if p.installable() {
@@ -876,12 +877,7 @@ func (e *ApexExtractorProperties) prebuiltSrcs(ctx android.BaseModuleContext) []
 		srcs = append(srcs, *e.Set)
 	}
 
-	var sanitizers []string
-	if ctx.Host() {
-		sanitizers = ctx.Config().SanitizeHost()
-	} else {
-		sanitizers = ctx.Config().SanitizeDevice()
-	}
+	sanitizers := ctx.Config().SanitizeDevice()
 
 	if android.InList("address", sanitizers) && e.Sanitized.Address.Set != nil {
 		srcs = append(srcs, *e.Sanitized.Address.Set)
@@ -1006,10 +1002,10 @@ func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	// in case that apex_set replaces source apex (using prefer: prop)
-	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx, true)
+	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx)
 	// or that apex_set overrides other apexes (using overrides: prop)
 	for _, overridden := range a.prebuiltCommonProperties.Overrides {
-		a.compatSymlinks = append(a.compatSymlinks, makeCompatSymlinks(overridden, ctx, true)...)
+		a.compatSymlinks = append(a.compatSymlinks, makeCompatSymlinks(overridden, ctx)...)
 	}
 }
 

@@ -21,9 +21,15 @@ import (
 )
 
 var (
-	Riscv64RustFlags            = []string{}
-	Riscv64ArchFeatureRustFlags = map[string][]string{"": {}}
-	Riscv64LinkFlags            = []string{}
+	Riscv64RustFlags = []string{
+		"-C force-frame-pointers=y",
+	}
+	Riscv64ArchFeatureRustFlags = map[string][]string{
+		"riscv64": {
+			"-C target-feature=+V,+Zba,+Zbb,+Zbs",
+		},
+	}
+	Riscv64LinkFlags = []string{}
 
 	Riscv64ArchVariantRustFlags = map[string][]string{"": {}}
 )

@@ -95,6 +95,18 @@ type Snapshottable interface {
 
 	// IsSnapshotPrebuilt returns true if this module is a snapshot prebuilt.
 	IsSnapshotPrebuilt() bool
+
+	// IsSnapshotSanitizer returns true if this snapshot module implements SnapshotSanitizer.
+	IsSnapshotSanitizer() bool
+
+	// IsSnapshotSanitizerAvailable returns true if this snapshot module has a sanitizer source available (cfi, hwasan).
+	IsSnapshotSanitizerAvailable(t SanitizerType) bool
+
+	// SetSnapshotSanitizerVariation sets the sanitizer variation type for this snapshot module.
+	SetSnapshotSanitizerVariation(t SanitizerType, enabled bool)
+
+	// IsSnapshotUnsanitizedVariant returns true if this is the unsanitized snapshot module variant.
+	IsSnapshotUnsanitizedVariant() bool
 }
 
 // LinkableInterface is an interface for a type of module that is linkable in a C++ library.

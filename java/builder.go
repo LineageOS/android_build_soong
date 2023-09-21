@@ -259,19 +259,6 @@ var (
 		},
 	)
 
-	checkZipAlignment = pctx.AndroidStaticRule("checkzipalign",
-		blueprint.RuleParams{
-			Command: "if ! ${config.ZipAlign} -c -p 4 $in > /dev/null; then " +
-				"echo $in: Improper package alignment >&2; " +
-				"exit 1; " +
-				"else " +
-				"touch $out; " +
-				"fi",
-			CommandDeps: []string{"${config.ZipAlign}"},
-			Description: "Check zip alignment",
-		},
-	)
-
 	convertImplementationJarToHeaderJarRule = pctx.AndroidStaticRule("convertImplementationJarToHeaderJar",
 		blueprint.RuleParams{
 			Command:     `${config.Zip2ZipCmd} -i ${in} -o ${out} -x 'META-INF/services/**/*'`,
@@ -689,12 +676,13 @@ func GenerateMainClassManifest(ctx android.ModuleContext, outputFile android.Wri
 	android.WriteFileRule(ctx, outputFile, "Main-Class: "+mainClass+"\n")
 }
 
-func TransformZipAlign(ctx android.ModuleContext, outputFile android.WritablePath, inputFile android.Path) {
+func TransformZipAlign(ctx android.ModuleContext, outputFile android.WritablePath, inputFile android.Path, validations android.Paths) {
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        zipalign,
 		Description: "align",
 		Input:       inputFile,
 		Output:      outputFile,
+		Validations: validations,
 	})
 }
 

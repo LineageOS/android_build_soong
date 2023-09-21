@@ -32,11 +32,13 @@ func registerCcLibrarySharedModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
 	ctx.RegisterModuleType("cc_library_static", cc.LibraryStaticFactory)
 	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
+	ctx.RegisterModuleType("ndk_library", cc.NdkLibraryFactory)
 }
 
 func runCcLibrarySharedTestCase(t *testing.T, tc Bp2buildTestCase) {
 	t.Helper()
 	t.Parallel()
+	tc.StubbedBuildDefinitions = append(tc.StubbedBuildDefinitions, "libbuildversion", "libprotobuf-cpp-lite", "libprotobuf-cpp-full")
 	(&tc).ModuleTypeUnderTest = "cc_library_shared"
 	(&tc).ModuleTypeUnderTestFactory = cc.LibrarySharedFactory
 	RunBp2BuildTestCase(t, registerCcLibrarySharedModuleTypes, tc)
@@ -44,7 +46,8 @@ func runCcLibrarySharedTestCase(t *testing.T, tc Bp2buildTestCase) {
 
 func TestCcLibrarySharedSimple(t *testing.T) {
 	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
-		Description: "cc_library_shared simple overall test",
+		Description:             "cc_library_shared simple overall test",
+		StubbedBuildDefinitions: []string{"header_lib_1", "header_lib_2", "whole_static_lib_1", "whole_static_lib_2", "shared_lib_1", "shared_lib_2"},
 		Filesystem: map[string]string{
 			// NOTE: include_dir headers *should not* appear in Bazel hdrs later (?)
 			"include_dir_1/include_dir_1_a.h": "",
@@ -69,37 +72,31 @@ func TestCcLibrarySharedSimple(t *testing.T) {
 cc_library_headers {
     name: "header_lib_1",
     export_include_dirs: ["header_lib_1"],
-    bazel_module: { bp2build_available: false },
 }
 
 cc_library_headers {
     name: "header_lib_2",
     export_include_dirs: ["header_lib_2"],
-    bazel_module: { bp2build_available: false },
 }
 
 cc_library_shared {
     name: "shared_lib_1",
     srcs: ["shared_lib_1.cc"],
-    bazel_module: { bp2build_available: false },
 }
 
 cc_library_shared {
     name: "shared_lib_2",
     srcs: ["shared_lib_2.cc"],
-    bazel_module: { bp2build_available: false },
 }
 
 cc_library_static {
     name: "whole_static_lib_1",
     srcs: ["whole_static_lib_1.cc"],
-    bazel_module: { bp2build_available: false },
 }
 
 cc_library_static {
     name: "whole_static_lib_2",
     srcs: ["whole_static_lib_2.cc"],
-    bazel_module: { bp2build_available: false },
 }
 
 cc_library_shared {
@@ -185,16 +182,15 @@ cc_library_shared {
 
 func TestCcLibrarySharedArchSpecificSharedLib(t *testing.T) {
 	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
-		Description: "cc_library_shared arch-specific shared_libs with whole_static_libs",
-		Filesystem:  map[string]string{},
+		Description:             "cc_library_shared arch-specific shared_libs with whole_static_libs",
+		Filesystem:              map[string]string{},
+		StubbedBuildDefinitions: []string{"static_dep", "shared_dep"},
 		Blueprint: soongCcLibrarySharedPreamble + `
 cc_library_static {
     name: "static_dep",
-    bazel_module: { bp2build_available: false },
 }
 cc_library_shared {
     name: "shared_dep",
-    bazel_module: { bp2build_available: false },
 }
 cc_library_shared {
     name: "foo_shared",
@@ -218,12 +214,12 @@ cc_library_shared {
 
 func TestCcLibrarySharedOsSpecificSharedLib(t *testing.T) {
 	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
-		Description: "cc_library_shared os-specific shared_libs",
-		Filesystem:  map[string]string{},
+		StubbedBuildDefinitions: []string{"shared_dep"},
+		Description:             "cc_library_shared os-specific shared_libs",
+		Filesystem:              map[string]string{},
 		Blueprint: soongCcLibrarySharedPreamble + `
 cc_library_shared {
     name: "shared_dep",
-    bazel_module: { bp2build_available: false },
 }
 cc_library_shared {
     name: "foo_shared",
@@ -243,20 +239,18 @@ cc_library_shared {
 
 func TestCcLibrarySharedBaseArchOsSpecificSharedLib(t *testing.T) {
 	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
-		Description: "cc_library_shared base, arch, and os-specific shared_libs",
-		Filesystem:  map[string]string{},
+		StubbedBuildDefinitions: []string{"shared_dep", "shared_dep2", "shared_dep3"},
+		Description:             "cc_library_shared base, arch, and os-specific shared_libs",
+		Filesystem:              map[string]string{},
 		Blueprint: soongCcLibrarySharedPreamble + `
 cc_library_shared {
     name: "shared_dep",
-    bazel_module: { bp2build_available: false },
 }
 cc_library_shared {
     name: "shared_dep2",
-    bazel_module: { bp2build_available: false },
 }
 cc_library_shared {
     name: "shared_dep3",
-    bazel_module: { bp2build_available: false },
 }
 cc_library_shared {
     name: "foo_shared",
@@ -511,6 +505,7 @@ func TestCcLibrarySharedUseVersionLib(t *testing.T) {
 		Filesystem: map[string]string{
 			soongCcVersionLibBpPath: soongCcVersionLibBp,
 		},
+		StubbedBuildDefinitions: []string{"//build/soong/cc/libbuildversion:libbuildversion"},
 		Blueprint: soongCcProtoPreamble + `cc_library_shared {
         name: "foo",
         use_version_lib: true,
@@ -543,6 +538,7 @@ cc_library_shared {
 		},
 		Blueprint: soongCcLibraryPreamble,
 		ExpectedBazelTargets: []string{makeCcStubSuiteTargets("a", AttrNameToString{
+			"api_surface":          `"module-libapi"`,
 			"soname":               `"a.so"`,
 			"source_library_label": `"//foo/bar:a"`,
 			"stubs_symbol_file":    `"a.map.txt"`,
@@ -564,11 +560,11 @@ func TestCcLibrarySharedStubs_UseImplementationInSameApex(t *testing.T) {
 		Description:                "cc_library_shared stubs",
 		ModuleTypeUnderTest:        "cc_library_shared",
 		ModuleTypeUnderTestFactory: cc.LibrarySharedFactory,
+		StubbedBuildDefinitions:    []string{"a"},
 		Blueprint: soongCcLibrarySharedPreamble + `
 cc_library_shared {
 	name: "a",
 	stubs: { symbol_file: "a.map.txt", versions: ["28", "29", "current"] },
-	bazel_module: { bp2build_available: false },
 	include_build_directory: false,
 	apex_available: ["made_up_apex"],
 }
@@ -593,11 +589,11 @@ func TestCcLibrarySharedStubs_UseStubsInDifferentApex(t *testing.T) {
 		Description:                "cc_library_shared stubs",
 		ModuleTypeUnderTest:        "cc_library_shared",
 		ModuleTypeUnderTestFactory: cc.LibrarySharedFactory,
+		StubbedBuildDefinitions:    []string{"a"},
 		Blueprint: soongCcLibrarySharedPreamble + `
 cc_library_shared {
 	name: "a",
 	stubs: { symbol_file: "a.map.txt", versions: ["28", "29", "current"] },
-	bazel_module: { bp2build_available: false },
 	include_build_directory: false,
 	apex_available: ["apex_a"],
 }
@@ -627,19 +623,18 @@ func TestCcLibrarySharedStubs_UseStubsFromMultipleApiDomains(t *testing.T) {
 		Description:                "cc_library_shared stubs",
 		ModuleTypeUnderTest:        "cc_library_shared",
 		ModuleTypeUnderTestFactory: cc.LibrarySharedFactory,
+		StubbedBuildDefinitions:    []string{"libplatform_stable", "libapexfoo_stable"},
 		Blueprint: soongCcLibrarySharedPreamble + `
 cc_library_shared {
 	name: "libplatform_stable",
 	stubs: { symbol_file: "libplatform_stable.map.txt", versions: ["28", "29", "current"] },
 	apex_available: ["//apex_available:platform"],
-	bazel_module: { bp2build_available: false },
 	include_build_directory: false,
 }
 cc_library_shared {
 	name: "libapexfoo_stable",
 	stubs: { symbol_file: "libapexfoo_stable.map.txt", versions: ["28", "29", "current"] },
 	apex_available: ["apexfoo"],
-	bazel_module: { bp2build_available: false },
 	include_build_directory: false,
 }
 cc_library_shared {
@@ -661,7 +656,7 @@ cc_library_shared {
             ":libapexfoo_stable",
         ],
         "//build/bazel/rules/apex:system": [
-            "@api_surfaces//module-libapi/current:libplatform_stable",
+            ":libplatform_stable",
             "@api_surfaces//module-libapi/current:libapexfoo_stable",
         ],
         "//conditions:default": [
@@ -684,11 +679,11 @@ func TestCcLibrarySharedStubs_IgnorePlatformAvailable(t *testing.T) {
 		Description:                "cc_library_shared stubs",
 		ModuleTypeUnderTest:        "cc_library_shared",
 		ModuleTypeUnderTestFactory: cc.LibrarySharedFactory,
+		StubbedBuildDefinitions:    []string{"a"},
 		Blueprint: soongCcLibrarySharedPreamble + `
 cc_library_shared {
 	name: "a",
 	stubs: { symbol_file: "a.map.txt", versions: ["28", "29", "current"] },
-	bazel_module: { bp2build_available: false },
 	include_build_directory: false,
 	apex_available: ["//apex_available:platform", "apex_a"],
 }
@@ -720,11 +715,11 @@ func TestCcLibraryDoesNotDropStubDepIfNoVariationAcrossAxis(t *testing.T) {
 		Description:                "cc_library depeends on impl for all configurations",
 		ModuleTypeUnderTest:        "cc_library_shared",
 		ModuleTypeUnderTestFactory: cc.LibrarySharedFactory,
+		StubbedBuildDefinitions:    []string{"a"},
 		Blueprint: soongCcLibrarySharedPreamble + `
 cc_library_shared {
 	name: "a",
 	stubs: { symbol_file: "a.map.txt", versions: ["28", "29", "current"] },
-	bazel_module: { bp2build_available: false },
 	apex_available: ["//apex_available:platform"],
 }
 cc_library_shared {
@@ -747,11 +742,11 @@ func TestCcLibrarySharedStubs_MultipleApexAvailable(t *testing.T) {
 	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
 		ModuleTypeUnderTest:        "cc_library_shared",
 		ModuleTypeUnderTestFactory: cc.LibrarySharedFactory,
+		StubbedBuildDefinitions:    []string{"a"},
 		Blueprint: soongCcLibrarySharedPreamble + `
 cc_library_shared {
 	name: "a",
 	stubs: { symbol_file: "a.map.txt", versions: ["28", "29", "current"] },
-	bazel_module: { bp2build_available: false },
 	include_build_directory: false,
 	apex_available: ["//apex_available:platform", "apex_a", "apex_b"],
 }
@@ -929,14 +924,14 @@ func TestCCLibrarySharedRuntimeDeps(t *testing.T) {
 
 cc_library_shared {
   name: "foo",
-  runtime_libs: ["foo"],
+  runtime_libs: ["bar"],
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_shared", "bar", AttrNameToString{
 				"local_includes": `["."]`,
 			}),
 			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"runtime_deps":   `[":foo"]`,
+				"runtime_deps":   `[":bar"]`,
 				"local_includes": `["."]`,
 			}),
 		},
@@ -1225,7 +1220,14 @@ cc_library_shared {
 `,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
-				"features":       `["sanitizer_blocklist_foo_blocklist_txt"]`,
+				"copts": `select({
+        "//build/bazel/rules/cc:sanitizers_enabled": ["-fsanitize-ignorelist=$(location foo_blocklist.txt)"],
+        "//conditions:default": [],
+    })`,
+				"additional_compiler_inputs": `select({
+        "//build/bazel/rules/cc:sanitizers_enabled": [":foo_blocklist.txt"],
+        "//conditions:default": [],
+    })`,
 				"local_includes": `["."]`,
 			}),
 		},
@@ -1435,6 +1437,7 @@ cc_library_shared {
 `,
 		ExpectedBazelTargets: []string{
 			makeCcStubSuiteTargets("a", AttrNameToString{
+				"api_surface":          `"module-libapi"`,
 				"soname":               `"a.so"`,
 				"source_library_label": `"//:a"`,
 				"stubs_symbol_file":    `"a.map.txt"`,
@@ -1449,6 +1452,7 @@ cc_library_shared {
 				"stubs_symbol_file": `"a.map.txt"`,
 			}),
 			makeCcStubSuiteTargets("b", AttrNameToString{
+				"api_surface":          `"module-libapi"`,
 				"soname":               `"b.so"`,
 				"source_library_label": `"//:b"`,
 				"stubs_symbol_file":    `"b.map.txt"`,
@@ -1515,7 +1519,7 @@ func TestCcLibrarySharedWithCfiAndCfiAssemblySupport(t *testing.T) {
 	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
 		Description: "cc_library_shared has correct features when cfi is enabled with cfi assembly support",
 		Blueprint: `
-cc_library_static {
+cc_library_shared {
 	name: "foo",
 	sanitize: {
 		cfi: true,
@@ -1525,7 +1529,7 @@ cc_library_static {
 	},
 }`,
 		ExpectedBazelTargets: []string{
-			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
+			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"features": `[
         "android_cfi",
         "android_cfi_assembly_support",
@@ -1584,4 +1588,63 @@ cc_library_shared{
         "foo_renderscript",
     ]`,
 			})}})
+}
+
+func TestCcLibrarySdkVariantUsesStubs(t *testing.T) {
+	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		Description:                "cc_library_shared stubs",
+		ModuleTypeUnderTest:        "cc_library_shared",
+		ModuleTypeUnderTestFactory: cc.LibrarySharedFactory,
+		Blueprint: soongCcLibrarySharedPreamble + `
+cc_library_shared {
+	name: "libUsesSdk",
+	sdk_version: "current",
+	shared_libs: [
+		"libNoStubs",
+		"libHasApexStubs",
+		"libHasApexAndNdkStubs",
+	]
+}
+cc_library_shared {
+	name: "libNoStubs",
+	bazel_module: { bp2build_available: false },
+}
+cc_library_shared {
+	name: "libHasApexStubs",
+	stubs: { symbol_file: "a.map.txt", versions: ["28", "29", "current"] },
+	bazel_module: { bp2build_available: false },
+	apex_available: ["apex_a"],
+}
+cc_library_shared {
+	name: "libHasApexAndNdkStubs",
+	stubs: { symbol_file: "b.map.txt", versions: ["28", "29", "current"] },
+	bazel_module: { bp2build_available: false },
+	apex_available: ["apex_b"],
+}
+ndk_library {
+	name: "libHasApexAndNdkStubs",
+	bazel_module: { bp2build_available: false },
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_shared", "libUsesSdk", AttrNameToString{
+				"implementation_dynamic_deps": `[":libNoStubs"] + select({
+        "//build/bazel/rules/apex:system": [
+            "@api_surfaces//module-libapi/current:libHasApexStubs",
+            "@api_surfaces//module-libapi/current:libHasApexAndNdkStubs",
+        ],
+        "//build/bazel/rules/apex:unbundled_app": [
+            ":libHasApexStubs",
+            "//.:libHasApexAndNdkStubs.ndk_stub_libs-current",
+        ],
+        "//conditions:default": [
+            ":libHasApexStubs",
+            ":libHasApexAndNdkStubs",
+        ],
+    })`,
+				"local_includes": `["."]`,
+				"sdk_version":    `"current"`,
+			}),
+		},
+	})
 }

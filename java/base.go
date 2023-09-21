@@ -192,6 +192,9 @@ type CommonProperties struct {
 
 	// Additional srcJars tacked in by GeneratedJavaLibraryModule
 	Generated_srcjars []android.Path `android:"mutated"`
+
+	// If true, then only the headers are built and not the implementation jar.
+	Headers_only bool
 }
 
 // Properties that are specific to device modules. Host module factories should not add these when
@@ -574,6 +577,17 @@ func (j *Module) checkPlatformAPI(ctx android.ModuleContext) {
 	}
 }
 
+func (j *Module) checkHeadersOnly(ctx android.ModuleContext) {
+	if _, ok := ctx.Module().(android.SdkContext); ok {
+		headersOnly := proptools.Bool(&j.properties.Headers_only)
+		installable := proptools.Bool(j.properties.Installable)
+
+		if headersOnly && installable {
+			ctx.PropertyErrorf("headers_only", "This module has conflicting settings. headers_only is true which, which means this module doesn't generate an implementation jar. However installable is set to true.")
+		}
+	}
+}
+
 func (j *Module) addHostProperties() {
 	j.AddProperties(
 		&j.properties,
@@ -622,6 +636,8 @@ func (j *Module) OutputFiles(tag string) (android.Paths, error) {
 			return android.Paths{j.dexer.proguardDictionary.Path()}, nil
 		}
 		return nil, fmt.Errorf("%q was requested, but no output file was found.", tag)
+	case ".generated_srcjars":
+		return j.properties.Generated_srcjars, nil
 	default:
 		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 	}
@@ -1061,8 +1077,8 @@ func (j *Module) AddJSONData(d *map[string]interface{}) {
 
 }
 
-func (module *Module) addGeneratedSrcJars(path android.Path) {
-	module.properties.Generated_srcjars = append(module.properties.Generated_srcjars, path)
+func (j *Module) addGeneratedSrcJars(path android.Path) {
+	j.properties.Generated_srcjars = append(j.properties.Generated_srcjars, path)
 }
 
 func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspathJars, extraCombinedJars android.Paths) {
@@ -1150,6 +1166,36 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 	// any dependencies so that it can override any non-final R classes from dependencies with the
 	// final R classes from the app.
 	flags.classpath = append(android.CopyOf(extraClasspathJars), flags.classpath...)
+
+	// If compiling headers then compile them and skip the rest
+	if j.properties.Headers_only {
+		if srcFiles.HasExt(".kt") {
+			ctx.ModuleErrorf("Compiling headers_only with .kt not supported")
+		}
+		if ctx.Config().IsEnvFalse("TURBINE_ENABLED") || disableTurbine {
+			ctx.ModuleErrorf("headers_only is enabled but Turbine is disabled.")
+		}
+
+		_, j.headerJarFile =
+			j.compileJavaHeader(ctx, uniqueJavaFiles, srcJars, deps, flags, jarName,
+				extraCombinedJars)
+		if ctx.Failed() {
+			return
+		}
+
+		ctx.SetProvider(JavaInfoProvider, JavaInfo{
+			HeaderJars:                     android.PathsIfNonNil(j.headerJarFile),
+			TransitiveLibsHeaderJars:       j.transitiveLibsHeaderJars,
+			TransitiveStaticLibsHeaderJars: j.transitiveStaticLibsHeaderJars,
+			AidlIncludeDirs:                j.exportAidlIncludeDirs,
+			ExportedPlugins:                j.exportedPluginJars,
+			ExportedPluginClasses:          j.exportedPluginClasses,
+			ExportedPluginDisableTurbine:   j.exportedDisableTurbine,
+		})
+
+		j.outputFile = j.headerJarFile
+		return
+	}
 
 	if srcFiles.HasExt(".kt") {
 		// When using kotlin sources turbine is used to generate annotation processor sources,
@@ -1562,7 +1608,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 					false, nil, nil)
 				if *j.dexProperties.Uncompress_dex {
 					combinedAlignedJar := android.PathForModuleOut(ctx, "dex-withres-aligned", jarName).OutputPath
-					TransformZipAlign(ctx, combinedAlignedJar, combinedJar)
+					TransformZipAlign(ctx, combinedAlignedJar, combinedJar, nil)
 					dexOutputFile = combinedAlignedJar
 				} else {
 					dexOutputFile = combinedJar
@@ -1668,6 +1714,49 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 
 func (j *Module) useCompose() bool {
 	return android.InList("androidx.compose.runtime_runtime", j.properties.Static_libs)
+}
+
+func (j *Module) collectProguardSpecInfo(ctx android.ModuleContext) ProguardSpecInfo {
+	transitiveUnconditionalExportedFlags := []*android.DepSet[android.Path]{}
+	transitiveProguardFlags := []*android.DepSet[android.Path]{}
+
+	ctx.VisitDirectDeps(func(m android.Module) {
+		depProguardInfo := ctx.OtherModuleProvider(m, ProguardSpecInfoProvider).(ProguardSpecInfo)
+		depTag := ctx.OtherModuleDependencyTag(m)
+
+		if depProguardInfo.UnconditionallyExportedProguardFlags != nil {
+			transitiveUnconditionalExportedFlags = append(transitiveUnconditionalExportedFlags, depProguardInfo.UnconditionallyExportedProguardFlags)
+			transitiveProguardFlags = append(transitiveProguardFlags, depProguardInfo.UnconditionallyExportedProguardFlags)
+		}
+
+		if depTag == staticLibTag && depProguardInfo.ProguardFlagsFiles != nil {
+			transitiveProguardFlags = append(transitiveProguardFlags, depProguardInfo.ProguardFlagsFiles)
+		}
+	})
+
+	directUnconditionalExportedFlags := android.Paths{}
+	proguardFlagsForThisModule := android.PathsForModuleSrc(ctx, j.dexProperties.Optimize.Proguard_flags_files)
+	exportUnconditionally := proptools.Bool(j.dexProperties.Optimize.Export_proguard_flags_files)
+	if exportUnconditionally {
+		// if we explicitly export, then our unconditional exports are the same as our transitive flags
+		transitiveUnconditionalExportedFlags = transitiveProguardFlags
+		directUnconditionalExportedFlags = proguardFlagsForThisModule
+	}
+
+	return ProguardSpecInfo{
+		Export_proguard_flags_files: exportUnconditionally,
+		ProguardFlagsFiles: android.NewDepSet[android.Path](
+			android.POSTORDER,
+			proguardFlagsForThisModule,
+			transitiveProguardFlags,
+		),
+		UnconditionallyExportedProguardFlags: android.NewDepSet[android.Path](
+			android.POSTORDER,
+			directUnconditionalExportedFlags,
+			transitiveUnconditionalExportedFlags,
+		),
+	}
+
 }
 
 // Returns a copy of the supplied flags, but with all the errorprone-related
@@ -2270,7 +2359,7 @@ type ModuleWithStem interface {
 
 var _ ModuleWithStem = (*Module)(nil)
 
-func (j *Module) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (j *Module) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	switch ctx.ModuleType() {
 	case "java_library", "java_library_host", "java_library_static", "tradefed_java_library_host":
 		if lib, ok := ctx.Module().(*Library); ok {

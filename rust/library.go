@@ -20,7 +20,10 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/bazel"
 	"android/soong/cc"
+
+	"github.com/google/blueprint/proptools"
 )
 
 var (
@@ -398,6 +401,8 @@ func (library *libraryDecorator) BuildOnlyShared() {
 func NewRustLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
 	module := newModule(hod, android.MultilibBoth)
 
+	android.InitBazelModule(module)
+
 	library := &libraryDecorator{
 		MutatedProperties: LibraryMutatedProperties{
 			BuildDylib:  false,
@@ -466,17 +471,42 @@ func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) F
 		library.includeDirs = append(library.includeDirs, android.PathsForModuleSrc(ctx, library.Properties.Include_dirs)...)
 	}
 	if library.shared() {
-		flags.LinkFlags = append(flags.LinkFlags, "-Wl,-soname="+library.sharedLibFilename(ctx))
+		if ctx.Darwin() {
+			flags.LinkFlags = append(
+				flags.LinkFlags,
+				"-dynamic_lib",
+				"-install_name @rpath/"+library.sharedLibFilename(ctx),
+			)
+		} else {
+			flags.LinkFlags = append(flags.LinkFlags, "-Wl,-soname="+library.sharedLibFilename(ctx))
+		}
 	}
 
 	return flags
+}
+
+func (library *libraryDecorator) compilationSourcesAndData(ctx ModuleContext) android.Paths {
+	var extraSrcs android.Paths
+	if library.rlib() {
+		extraSrcs = android.PathsForModuleSrc(ctx, library.Properties.Rlib.Srcs)
+	} else if library.dylib() {
+		extraSrcs = android.PathsForModuleSrc(ctx, library.Properties.Dylib.Srcs)
+	} else if library.static() {
+		extraSrcs = android.PathsForModuleSrc(ctx, library.Properties.Static.Srcs)
+	} else if library.shared() {
+		extraSrcs = android.PathsForModuleSrc(ctx, library.Properties.Shared.Srcs)
+	}
+	return android.Concat(
+		library.baseCompiler.compilationSourcesAndData(ctx),
+		extraSrcs,
+	)
 }
 
 func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput {
 	var outputFile android.ModuleOutPath
 	var ret buildOutput
 	var fileName string
-	srcPath := library.srcPath(ctx, deps)
+	crateRootPath := library.crateRootPath(ctx, deps)
 
 	if library.sourceProvider != nil {
 		deps.srcProviderFiles = append(deps.srcProviderFiles, library.sourceProvider.Srcs()...)
@@ -512,7 +542,6 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.depLinkFlags...)
-	flags.LinkFlags = append(flags.LinkFlags, deps.linkObjects.Strings()...)
 
 	if library.dylib() {
 		// We need prefer-dynamic for now to avoid linking in the static stdlib. See:
@@ -523,13 +552,13 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 
 	// Call the appropriate builder for this library type
 	if library.rlib() {
-		ret.kytheFile = TransformSrctoRlib(ctx, srcPath, deps, flags, outputFile).kytheFile
+		ret.kytheFile = TransformSrctoRlib(ctx, library, crateRootPath, deps, flags, outputFile).kytheFile
 	} else if library.dylib() {
-		ret.kytheFile = TransformSrctoDylib(ctx, srcPath, deps, flags, outputFile).kytheFile
+		ret.kytheFile = TransformSrctoDylib(ctx, library, crateRootPath, deps, flags, outputFile).kytheFile
 	} else if library.static() {
-		ret.kytheFile = TransformSrctoStatic(ctx, srcPath, deps, flags, outputFile).kytheFile
+		ret.kytheFile = TransformSrctoStatic(ctx, library, crateRootPath, deps, flags, outputFile).kytheFile
 	} else if library.shared() {
-		ret.kytheFile = TransformSrctoShared(ctx, srcPath, deps, flags, outputFile).kytheFile
+		ret.kytheFile = TransformSrctoShared(ctx, library, crateRootPath, deps, flags, outputFile).kytheFile
 	}
 
 	if library.rlib() || library.dylib() {
@@ -572,13 +601,15 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	return ret
 }
 
-func (library *libraryDecorator) srcPath(ctx ModuleContext, _ PathDeps) android.Path {
+func (library *libraryDecorator) crateRootPath(ctx ModuleContext, _ PathDeps) android.Path {
 	if library.sourceProvider != nil {
 		// Assume the first source from the source provider is the library entry point.
 		return library.sourceProvider.Srcs()[0]
-	} else {
+	} else if library.baseCompiler.Properties.Crate_root == nil {
 		path, _ := srcPathFromModuleSrcs(ctx, library.baseCompiler.Properties.Srcs)
 		return path
+	} else {
+		return android.PathForModuleSrc(ctx, *library.baseCompiler.Properties.Crate_root)
 	}
 }
 
@@ -593,7 +624,7 @@ func (library *libraryDecorator) rustdoc(ctx ModuleContext, flags Flags,
 		return android.OptionalPath{}
 	}
 
-	return android.OptionalPathForPath(Rustdoc(ctx, library.srcPath(ctx, deps),
+	return android.OptionalPathForPath(Rustdoc(ctx, library.crateRootPath(ctx, deps),
 		deps, flags))
 }
 
@@ -784,4 +815,156 @@ func (l *libraryDecorator) collectHeadersForSnapshot(ctx android.ModuleContext, 
 
 	// TODO(185577950): If support for generated headers is added, they need to be collected here as well.
 	l.collectedSnapshotHeaders = ret
+}
+
+type rustLibraryAttributes struct {
+	Srcs            bazel.LabelListAttribute
+	Compile_data    bazel.LabelListAttribute
+	Crate_name      bazel.StringAttribute
+	Edition         bazel.StringAttribute
+	Crate_features  bazel.StringListAttribute
+	Deps            bazel.LabelListAttribute
+	Rustc_flags     bazel.StringListAttribute
+	Proc_macro_deps bazel.LabelListAttribute
+}
+
+func libraryBp2build(ctx android.Bp2buildMutatorContext, m *Module) {
+	lib := m.compiler.(*libraryDecorator)
+
+	srcs, compileData := srcsAndCompileDataAttrs(ctx, *lib.baseCompiler)
+
+	deps := android.BazelLabelForModuleDeps(ctx, append(
+		lib.baseCompiler.Properties.Rustlibs,
+		lib.baseCompiler.Properties.Rlibs...,
+	))
+
+	cargoBuildScript := cargoBuildScriptBp2build(ctx, m)
+	if cargoBuildScript != nil {
+		deps.Add(&bazel.Label{
+			Label: ":" + *cargoBuildScript,
+		})
+	}
+
+	procMacroDeps := android.BazelLabelForModuleDeps(ctx, lib.baseCompiler.Properties.Proc_macros)
+
+	var rustcFLags []string
+	for _, cfg := range lib.baseCompiler.Properties.Cfgs {
+		rustcFLags = append(rustcFLags, fmt.Sprintf("--cfg=%s", cfg))
+	}
+
+	attrs := &rustLibraryAttributes{
+		Srcs: bazel.MakeLabelListAttribute(
+			srcs,
+		),
+		Compile_data: bazel.MakeLabelListAttribute(
+			compileData,
+		),
+		Crate_name: bazel.StringAttribute{
+			Value: &lib.baseCompiler.Properties.Crate_name,
+		},
+		Edition: bazel.StringAttribute{
+			Value: lib.baseCompiler.Properties.Edition,
+		},
+		Crate_features: bazel.StringListAttribute{
+			Value: lib.baseCompiler.Properties.Features,
+		},
+		Deps: bazel.MakeLabelListAttribute(
+			deps,
+		),
+		Proc_macro_deps: bazel.MakeLabelListAttribute(
+			procMacroDeps,
+		),
+		Rustc_flags: bazel.StringListAttribute{
+			Value: append(
+				rustcFLags,
+				lib.baseCompiler.Properties.Flags...,
+			),
+		},
+	}
+
+	// TODO(b/290790800): Remove the restriction when rust toolchain for android is implemented
+	var restriction bazel.BoolAttribute
+	restriction.SetSelectValue(bazel.OsConfigurationAxis, "android", proptools.BoolPtr(false))
+
+	ctx.CreateBazelTargetModuleWithRestrictions(
+		bazel.BazelTargetModuleProperties{
+			Rule_class:        "rust_library",
+			Bzl_load_location: "@rules_rust//rust:defs.bzl",
+		},
+		android.CommonAttributes{
+			Name: m.Name(),
+		},
+		attrs,
+		restriction,
+	)
+}
+
+type cargoBuildScriptAttributes struct {
+	Srcs    bazel.LabelListAttribute
+	Edition bazel.StringAttribute
+	Version bazel.StringAttribute
+}
+
+func cargoBuildScriptBp2build(ctx android.Bp2buildMutatorContext, m *Module) *string {
+	// Soong treats some crates like libprotobuf as special in that they have
+	// cargo build script ran to produce an out folder and check it into AOSP
+	// For example, https://cs.android.com/android/platform/superproject/main/+/main:external/rust/crates/protobuf/out/
+	// is produced by cargo build script https://cs.android.com/android/platform/superproject/main/+/main:external/rust/crates/protobuf/build.rs
+	// The out folder is then fed into `rust_library` by a genrule
+	// https://cs.android.com/android/platform/superproject/main/+/main:external/rust/crates/protobuf/Android.bp;l=22
+	// This allows Soong to decouple from cargo completely.
+
+	// Soong decouples from cargo so that it has control over cc compilation.
+	// https://cs.android.com/android/platform/superproject/main/+/main:development/scripts/cargo2android.py;l=1033-1041;drc=8449944a50a0445a5ecaf9b7aed12608c81bf3f1
+	// generates a `cc_library_static` module to have custom cc flags.
+	// Since bp2build will convert the cc modules to cc targets which include the cflags,
+	// Bazel does not need to have this optimization.
+
+	// Performance-wise: rust_library -> cargo_build_script vs rust_library -> genrule (like Soong)
+	// don't have any major difference in build time in Bazel. So using cargo_build_script does not slow
+	// down the build.
+
+	// The benefit of using `cargo_build_script` here is that it would take care of setting correct
+	// `OUT_DIR` for us - similar to what Soong does here
+	// https://cs.android.com/android/platform/superproject/main/+/main:build/soong/rust/builder.go;l=202-218;drc=f29ca58e88c5846bbe8955e5192135e5ab4f14a1
+
+	// TODO(b/297364081): cargo2android.py has logic for when generate/not cc_library_static and out directory
+	// bp2build might be able use the same logic for when to use `cargo_build_script`.
+	// For now, we're building libprotobuf_build_script as a one-off until we have a more principled solution
+	if m.Name() != "libprotobuf" {
+		return nil
+	}
+
+	lib := m.compiler.(*libraryDecorator)
+
+	name := m.Name() + "_build_script"
+	attrs := &cargoBuildScriptAttributes{
+		Srcs: bazel.MakeLabelListAttribute(
+			android.BazelLabelForModuleSrc(ctx, []string{"build.rs"}),
+		),
+		Edition: bazel.StringAttribute{
+			Value: lib.baseCompiler.Properties.Edition,
+		},
+		Version: bazel.StringAttribute{
+			Value: lib.baseCompiler.Properties.Cargo_pkg_version,
+		},
+	}
+
+	// TODO(b/290790800): Remove the restriction when rust toolchain for android is implemented
+	var restriction bazel.BoolAttribute
+	restriction.SetSelectValue(bazel.OsConfigurationAxis, "android", proptools.BoolPtr(false))
+
+	ctx.CreateBazelTargetModuleWithRestrictions(
+		bazel.BazelTargetModuleProperties{
+			Rule_class:        "cargo_build_script",
+			Bzl_load_location: "@rules_rust//cargo:cargo_build_script.bzl",
+		},
+		android.CommonAttributes{
+			Name: name,
+		},
+		attrs,
+		restriction,
+	)
+
+	return &name
 }

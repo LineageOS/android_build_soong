@@ -27,6 +27,8 @@ import (
 
 func registerGenruleModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("genrule_defaults", func() android.Module { return genrule.DefaultsFactory() })
+	ctx.RegisterModuleType("cc_binary", func() android.Module { return cc.BinaryFactory() })
+	ctx.RegisterModuleType("soong_namespace", func() android.Module { return android.NamespaceFactory() })
 }
 
 func runGenruleTestCase(t *testing.T, tc Bp2buildTestCase) {
@@ -91,7 +93,6 @@ func TestGenruleCliVariableReplacement(t *testing.T) {
     out: ["foo_tool.out"],
     srcs: ["foo_tool.in"],
     cmd: "cp $(in) $(out)",
-    bazel_module: { bp2build_available: false },
 }
 
 %s {
@@ -122,6 +123,7 @@ func TestGenruleCliVariableReplacement(t *testing.T) {
 					ModuleTypeUnderTestFactory: tc.factory,
 					Blueprint:                  fmt.Sprintf(bp, tc.moduleType, tc.moduleType),
 					ExpectedBazelTargets:       expectedBazelTargets,
+					StubbedBuildDefinitions:    []string{"foo.tool", "other.tool"},
 				})
 		})
 	}
@@ -260,6 +262,7 @@ func TestGenruleLocationsAbsoluteLabel(t *testing.T) {
 					Blueprint:                  fmt.Sprintf(bp, tc.moduleType),
 					ExpectedBazelTargets:       expectedBazelTargets,
 					Filesystem:                 otherGenruleBp(tc.moduleType),
+					StubbedBuildDefinitions:    []string{"//other:foo.tool"},
 				})
 		})
 	}
@@ -324,6 +327,7 @@ func TestGenruleSrcsLocationsAbsoluteLabel(t *testing.T) {
 					Blueprint:                  fmt.Sprintf(bp, tc.moduleType),
 					ExpectedBazelTargets:       expectedBazelTargets,
 					Filesystem:                 otherGenruleBp(tc.moduleType),
+					StubbedBuildDefinitions:    []string{"//other:foo.tool", "//other:other.tool"},
 				})
 		})
 	}
@@ -388,6 +392,7 @@ func TestGenruleLocationLabelShouldSubstituteFirstToolLabel(t *testing.T) {
 					Blueprint:                  fmt.Sprintf(bp, tc.moduleType),
 					ExpectedBazelTargets:       expectedBazelTargets,
 					Filesystem:                 otherGenruleBp(tc.moduleType),
+					StubbedBuildDefinitions:    []string{"//other:foo.tool", "//other:other.tool"},
 				})
 		})
 	}
@@ -452,6 +457,7 @@ func TestGenruleLocationsLabelShouldSubstituteFirstToolLabel(t *testing.T) {
 					Blueprint:                  fmt.Sprintf(bp, tc.moduleType),
 					ExpectedBazelTargets:       expectedBazelTargets,
 					Filesystem:                 otherGenruleBp(tc.moduleType),
+					StubbedBuildDefinitions:    []string{"//other:foo.tool", "//other:other.tool"},
 				})
 		})
 	}
@@ -912,4 +918,42 @@ func TestGenruleWithProductVariableConfiguredCmd(t *testing.T) {
 				})
 		})
 	}
+}
+
+func TestGenruleWithModulesInNamespaces(t *testing.T) {
+	bp := `
+genrule {
+	name: "mygenrule",
+	cmd: "echo $(location //mynamespace:mymodule) > $(out)",
+	srcs: ["//mynamespace:mymodule"],
+	out: ["myout"],
+}
+`
+	fs := map[string]string{
+		"mynamespace/Android.bp":     `soong_namespace {}`,
+		"mynamespace/dir/Android.bp": `cc_binary {name: "mymodule"}`,
+	}
+	expectedBazelTargets := []string{
+		MakeBazelTargetNoRestrictions("genrule", "mygenrule", AttrNameToString{
+			// The fully qualified soong label is <namespace>:<module_name>
+			// - here the prefix is mynamespace
+			// The fully qualifed bazel label is <package>:<module_name>
+			// - here the prefix is mynamespace/dir, since there is a BUILD file at each level of this FS path
+			"cmd":  `"echo $(location //mynamespace/dir:mymodule) > $(OUTS)"`,
+			"outs": `["myout"]`,
+			"srcs": `["//mynamespace/dir:mymodule"]`,
+		}),
+	}
+
+	t.Run("genrule that uses module from a different namespace", func(t *testing.T) {
+		runGenruleTestCase(t, Bp2buildTestCase{
+			Blueprint:                  bp,
+			Filesystem:                 fs,
+			ModuleTypeUnderTest:        "genrule",
+			ModuleTypeUnderTestFactory: genrule.GenRuleFactory,
+			ExpectedBazelTargets:       expectedBazelTargets,
+			StubbedBuildDefinitions:    []string{"//mynamespace/dir:mymodule"},
+		})
+	})
+
 }

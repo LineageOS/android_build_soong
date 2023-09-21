@@ -1051,7 +1051,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 	ctx := testRustVndkFsVersions(t, "", mockFS, "30", "current", "31")
 
 	// libclient uses libvndk.vndk.30.arm64, libvendor.vendor_static.30.arm64, libvendor_without_snapshot
-	libclientLdFlags := ctx.ModuleForTests("libclient", sharedVariant).Rule("rustLink").Args["linkFlags"]
+	libclientLdFlags := ctx.ModuleForTests("libclient", sharedVariant).Rule("rustc").RuleParams.Command
 	for _, input := range [][]string{
 		[]string{sharedVariant, "libvndk.vndk.30.arm64"},
 		[]string{staticVariant, "libvendor.vendor_static.30.arm64"},
@@ -1063,7 +1063,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		}
 	}
 
-	libclientAndroidMkSharedLibs := ctx.ModuleForTests("libclient", sharedVariant).Module().(*Module).Properties.AndroidMkSharedLibs
+	libclientAndroidMkSharedLibs := ctx.ModuleForTests("libclient", sharedVariant).Module().(*Module).transitiveAndroidMkSharedLibs.ToList()
 	if g, w := libclientAndroidMkSharedLibs, []string{"libvndk.vendor", "libvendor_available.vendor", "lib64", "liblog.vendor", "libc.vendor", "libm.vendor", "libdl.vendor"}; !reflect.DeepEqual(g, w) {
 		t.Errorf("wanted libclient AndroidMkSharedLibs %q, got %q", w, g)
 	}
@@ -1078,7 +1078,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		t.Errorf("wanted libclient libclientAndroidMkDylibs %q, got %q", w, libclientAndroidMkDylibs)
 	}
 
-	libclient32AndroidMkSharedLibs := ctx.ModuleForTests("libclient", shared32Variant).Module().(*Module).Properties.AndroidMkSharedLibs
+	libclient32AndroidMkSharedLibs := ctx.ModuleForTests("libclient", shared32Variant).Module().(*Module).transitiveAndroidMkSharedLibs.ToList()
 	if g, w := libclient32AndroidMkSharedLibs, []string{"libvndk.vendor", "libvendor_available.vendor", "lib32", "liblog.vendor", "libc.vendor", "libm.vendor", "libdl.vendor"}; !reflect.DeepEqual(g, w) {
 		t.Errorf("wanted libclient32 AndroidMkSharedLibs %q, got %q", w, g)
 	}
@@ -1119,7 +1119,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		t.Errorf("Unexpected rust rlib name in AndroidMk: %q, expected: %q\n", rustVendorBinMkDylibName, expectedRustVendorSnapshotName)
 	}
 
-	binWithoutSnapshotLdFlags := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Rule("rustLink").Args["linkFlags"]
+	binWithoutSnapshotLdFlags := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Rule("rustc").RuleParams.Command
 	libVndkStaticOutputPaths := cc.GetOutputPaths(ctx, staticVariant, []string{"libvndk.vendor_static.30.arm64"})
 	if !strings.Contains(binWithoutSnapshotLdFlags, libVndkStaticOutputPaths[0].String()) {
 		t.Errorf("libflags for bin_without_snapshot must contain %#v, but was %#v",

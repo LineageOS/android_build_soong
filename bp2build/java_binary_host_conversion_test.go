@@ -26,6 +26,7 @@ func runJavaBinaryHostTestCase(t *testing.T, tc Bp2buildTestCase) {
 	t.Helper()
 	(&tc).ModuleTypeUnderTest = "java_binary_host"
 	(&tc).ModuleTypeUnderTestFactory = java.BinaryHostFactory
+	tc.StubbedBuildDefinitions = append(tc.StubbedBuildDefinitions, "//other:jni-lib-1")
 	RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {
 		ctx.RegisterModuleType("cc_library_host_shared", cc.LibraryHostSharedFactory)
 		ctx.RegisterModuleType("java_library", java.LibraryFactory)
@@ -81,8 +82,9 @@ func TestJavaBinaryHost(t *testing.T) {
 
 func TestJavaBinaryHostRuntimeDeps(t *testing.T) {
 	runJavaBinaryHostTestCase(t, Bp2buildTestCase{
-		Description: "java_binary_host with srcs, exclude_srcs, jni_libs, javacflags, and manifest.",
-		Filesystem:  testFs,
+		Description:             "java_binary_host with srcs, exclude_srcs, jni_libs, javacflags, and manifest.",
+		Filesystem:              testFs,
+		StubbedBuildDefinitions: []string{"java-dep-1"},
 		Blueprint: `java_binary_host {
     name: "java-binary-host-1",
     static_libs: ["java-dep-1"],
@@ -93,7 +95,6 @@ func TestJavaBinaryHostRuntimeDeps(t *testing.T) {
 java_library {
     name: "java-dep-1",
     srcs: ["a.java"],
-    bazel_module: { bp2build_available: false },
 }
 `,
 		ExpectedBazelTargets: []string{
@@ -111,8 +112,9 @@ java_library {
 
 func TestJavaBinaryHostLibs(t *testing.T) {
 	runJavaBinaryHostTestCase(t, Bp2buildTestCase{
-		Description: "java_binary_host with srcs, libs.",
-		Filesystem:  testFs,
+		Description:             "java_binary_host with srcs, libs.",
+		Filesystem:              testFs,
+		StubbedBuildDefinitions: []string{"prebuilt_java-lib-dep-1"},
 		Blueprint: `java_binary_host {
     name: "java-binary-host-libs",
     libs: ["java-lib-dep-1"],
@@ -123,7 +125,6 @@ func TestJavaBinaryHostLibs(t *testing.T) {
 java_import_host{
     name: "java-lib-dep-1",
     jars: ["foo.jar"],
-    bazel_module: { bp2build_available: false },
 }
 `,
 		ExpectedBazelTargets: []string{

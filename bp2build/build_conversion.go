@@ -39,18 +39,24 @@ type BazelAttributes struct {
 	Attrs map[string]string
 }
 
-type BazelTarget struct {
-	name            string
-	packageName     string
-	content         string
-	ruleClass       string
-	bzlLoadLocation string
+type BazelLoadSymbol struct {
+	// The name of the symbol in the file being loaded
+	symbol string
+	// The name the symbol wil have in this file. Can be left blank to use the same name as symbol.
+	alias string
 }
 
-// IsLoadedFromStarlark determines if the BazelTarget's rule class is loaded from a .bzl file,
-// as opposed to a native rule built into Bazel.
-func (t BazelTarget) IsLoadedFromStarlark() bool {
-	return t.bzlLoadLocation != ""
+type BazelLoad struct {
+	file    string
+	symbols []BazelLoadSymbol
+}
+
+type BazelTarget struct {
+	name        string
+	packageName string
+	content     string
+	ruleClass   string
+	loads       []BazelLoad
 }
 
 // Label is the fully qualified Bazel label constructed from the BazelTarget's
@@ -110,30 +116,62 @@ func (targets BazelTargets) String() string {
 // LoadStatements return the string representation of the sorted and deduplicated
 // Starlark rule load statements needed by a group of BazelTargets.
 func (targets BazelTargets) LoadStatements() string {
-	bzlToLoadedSymbols := map[string][]string{}
+	// First, merge all the load statements from all the targets onto one list
+	bzlToLoadedSymbols := map[string][]BazelLoadSymbol{}
 	for _, target := range targets {
-		if target.IsLoadedFromStarlark() {
-			bzlToLoadedSymbols[target.bzlLoadLocation] =
-				append(bzlToLoadedSymbols[target.bzlLoadLocation], target.ruleClass)
+		for _, load := range target.loads {
+		outer:
+			for _, symbol := range load.symbols {
+				alias := symbol.alias
+				if alias == "" {
+					alias = symbol.symbol
+				}
+				for _, otherSymbol := range bzlToLoadedSymbols[load.file] {
+					otherAlias := otherSymbol.alias
+					if otherAlias == "" {
+						otherAlias = otherSymbol.symbol
+					}
+					if symbol.symbol == otherSymbol.symbol && alias == otherAlias {
+						continue outer
+					} else if alias == otherAlias {
+						panic(fmt.Sprintf("Conflicting destination (%s) for loads of %s and %s", alias, symbol.symbol, otherSymbol.symbol))
+					}
+				}
+				bzlToLoadedSymbols[load.file] = append(bzlToLoadedSymbols[load.file], symbol)
+			}
 		}
 	}
 
-	var loadStatements []string
-	for bzl, ruleClasses := range bzlToLoadedSymbols {
-		loadStatement := "load(\""
-		loadStatement += bzl
-		loadStatement += "\", "
-		ruleClasses = android.SortedUniqueStrings(ruleClasses)
-		for i, ruleClass := range ruleClasses {
-			loadStatement += "\"" + ruleClass + "\""
-			if i != len(ruleClasses)-1 {
-				loadStatement += ", "
+	var loadStatements strings.Builder
+	for i, bzl := range android.SortedKeys(bzlToLoadedSymbols) {
+		symbols := bzlToLoadedSymbols[bzl]
+		loadStatements.WriteString("load(\"")
+		loadStatements.WriteString(bzl)
+		loadStatements.WriteString("\", ")
+		sort.Slice(symbols, func(i, j int) bool {
+			if symbols[i].symbol < symbols[j].symbol {
+				return true
+			}
+			return symbols[i].alias < symbols[j].alias
+		})
+		for j, symbol := range symbols {
+			if symbol.alias != "" && symbol.alias != symbol.symbol {
+				loadStatements.WriteString(symbol.alias)
+				loadStatements.WriteString(" = ")
+			}
+			loadStatements.WriteString("\"")
+			loadStatements.WriteString(symbol.symbol)
+			loadStatements.WriteString("\"")
+			if j != len(symbols)-1 {
+				loadStatements.WriteString(", ")
 			}
 		}
-		loadStatement += ")"
-		loadStatements = append(loadStatements, loadStatement)
+		loadStatements.WriteString(")")
+		if i != len(bzlToLoadedSymbols)-1 {
+			loadStatements.WriteString("\n")
+		}
 	}
-	return strings.Join(android.SortedUniqueStrings(loadStatements), "\n")
+	return loadStatements.String()
 }
 
 type bpToBuildContext interface {
@@ -175,9 +213,6 @@ const (
 	// This mode is used for discovering and introspecting the existing Soong
 	// module graph.
 	QueryView
-
-	// ApiBp2build - generate BUILD files for API contribution targets
-	ApiBp2build
 )
 
 type unconvertedDepsMode int
@@ -196,8 +231,6 @@ func (mode CodegenMode) String() string {
 		return "Bp2Build"
 	case QueryView:
 		return "QueryView"
-	case ApiBp2build:
-		return "ApiBp2build"
 	default:
 		return fmt.Sprintf("%d", mode)
 	}
@@ -774,10 +807,6 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 				errs = append(errs, err)
 			}
 			targets = append(targets, t)
-		case ApiBp2build:
-			if aModule, ok := m.(android.Module); ok && aModule.IsConvertedByBp2build() {
-				targets, errs = generateBazelTargets(bpCtx, aModule)
-			}
 		default:
 			errs = append(errs, fmt.Errorf("Unknown code-generation mode: %s", ctx.Mode()))
 			return
@@ -808,7 +837,7 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 		for dir := range dirs {
 			buildFileToTargets[dir] = append(buildFileToTargets[dir], BazelTarget{
 				name:      "bp2build_all_srcs",
-				content:   `filegroup(name = "bp2build_all_srcs", srcs = glob(["**/*"]))`,
+				content:   `filegroup(name = "bp2build_all_srcs", srcs = glob(["**/*"]), tags = ["manual"])`,
 				ruleClass: "filegroup",
 			})
 		}
@@ -866,12 +895,19 @@ func generateBazelTarget(ctx bpToBuildContext, m bp2buildModule) (BazelTarget, e
 	} else {
 		content = fmt.Sprintf(unnamedRuleTargetTemplate, ruleClass, attributes)
 	}
+	var loads []BazelLoad
+	if bzlLoadLocation != "" {
+		loads = append(loads, BazelLoad{
+			file:    bzlLoadLocation,
+			symbols: []BazelLoadSymbol{{symbol: ruleClass}},
+		})
+	}
 	return BazelTarget{
-		name:            targetName,
-		packageName:     m.TargetPackage(),
-		ruleClass:       ruleClass,
-		bzlLoadLocation: bzlLoadLocation,
-		content:         content,
+		name:        targetName,
+		packageName: m.TargetPackage(),
+		ruleClass:   ruleClass,
+		loads:       loads,
+		content:     content,
 	}, nil
 }
 

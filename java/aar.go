@@ -23,13 +23,13 @@ import (
 	"android/soong/android"
 	"android/soong/bazel"
 	"android/soong/dexpreopt"
+	"android/soong/ui/metrics/bp2build_metrics_proto"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
 
 type AndroidLibraryDependency interface {
-	LibraryDependency
 	ExportPackage() android.Path
 	ResourcesNodeDepSet() *android.DepSet[*resourcesNode]
 	RRODirsDepSet() *android.DepSet[rroDir]
@@ -779,17 +779,9 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		ctx.CheckbuildFile(a.aarFile)
 	}
 
-	a.exportedProguardFlagFiles = append(a.exportedProguardFlagFiles,
-		android.PathsForModuleSrc(ctx, a.dexProperties.Optimize.Proguard_flags_files)...)
-
-	ctx.VisitDirectDeps(func(m android.Module) {
-		if ctx.OtherModuleDependencyTag(m) == staticLibTag {
-			if lib, ok := m.(LibraryDependency); ok {
-				a.exportedProguardFlagFiles = append(a.exportedProguardFlagFiles, lib.ExportedProguardFlagFiles()...)
-			}
-		}
-	})
-	a.exportedProguardFlagFiles = android.FirstUniquePaths(a.exportedProguardFlagFiles)
+	proguardSpecInfo := a.collectProguardSpecInfo(ctx)
+	ctx.SetProvider(ProguardSpecInfoProvider, proguardSpecInfo)
+	a.exportedProguardFlagFiles = proguardSpecInfo.ProguardFlagsFiles.ToList()
 
 	prebuiltJniPackages := android.Paths{}
 	ctx.VisitDirectDeps(func(module android.Module) {
@@ -940,10 +932,6 @@ var _ AndroidLibraryDependency = (*AARImport)(nil)
 func (a *AARImport) ExportPackage() android.Path {
 	return a.exportPackage
 }
-func (a *AARImport) ExportedProguardFlagFiles() android.Paths {
-	return android.Paths{a.proguardFlags}
-}
-
 func (a *AARImport) ResourcesNodeDepSet() *android.DepSet[*resourcesNode] {
 	return a.resourcesNodesDepSet
 }
@@ -1007,7 +995,7 @@ var extractJNI = pctx.AndroidStaticRule("extractJNI",
 			`jni_files=$$(find $outDir/jni -type f) && ` +
 			// print error message if there are no JNI libs for this arch
 			`[ -n "$$jni_files" ] || (echo "ERROR: no JNI libs found for arch ${archString}" && exit 1) && ` +
-			`${config.SoongZipCmd} -o $out -P 'lib/${archString}' ` +
+			`${config.SoongZipCmd} -o $out -L 0 -P 'lib/${archString}' ` +
 			`-C $outDir/jni/${archString} $$(echo $$jni_files | xargs -n1 printf " -f %s")`,
 		CommandDeps: []string{"${config.SoongZipCmd}"},
 	},
@@ -1047,10 +1035,17 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	extractedAARDir := android.PathForModuleOut(ctx, "aar")
 	a.classpathFile = extractedAARDir.Join(ctx, "classes-combined.jar")
-	a.proguardFlags = extractedAARDir.Join(ctx, "proguard.txt")
 	a.manifest = extractedAARDir.Join(ctx, "AndroidManifest.xml")
 	aarRTxt := extractedAARDir.Join(ctx, "R.txt")
 	a.assetsPackage = android.PathForModuleOut(ctx, "assets.zip")
+	a.proguardFlags = extractedAARDir.Join(ctx, "proguard.txt")
+	ctx.SetProvider(ProguardSpecInfoProvider, ProguardSpecInfo{
+		ProguardFlagsFiles: android.NewDepSet[android.Path](
+			android.POSTORDER,
+			android.Paths{a.proguardFlags},
+			nil,
+		),
+	})
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        unzipAAR,
@@ -1230,6 +1225,8 @@ func AARImportFactory() android.Module {
 type bazelAapt struct {
 	Manifest       bazel.Label
 	Resource_files bazel.LabelListAttribute
+	Assets_dir     bazel.StringAttribute
+	Assets         bazel.LabelListAttribute
 }
 
 type bazelAndroidLibrary struct {
@@ -1244,7 +1241,7 @@ type bazelAndroidLibraryImport struct {
 	Sdk_version bazel.StringAttribute
 }
 
-func (a *aapt) convertAaptAttrsWithBp2Build(ctx android.TopDownMutatorContext) *bazelAapt {
+func (a *aapt) convertAaptAttrsWithBp2Build(ctx android.Bp2buildMutatorContext) (*bazelAapt, bool) {
 	manifest := proptools.StringDefault(a.aaptProperties.Manifest, "AndroidManifest.xml")
 
 	resourceFiles := bazel.LabelList{
@@ -1254,13 +1251,33 @@ func (a *aapt) convertAaptAttrsWithBp2Build(ctx android.TopDownMutatorContext) *
 		files := android.RootToModuleRelativePaths(ctx, androidResourceGlob(ctx, dir))
 		resourceFiles.Includes = append(resourceFiles.Includes, files...)
 	}
+
+	assetsDir := bazel.StringAttribute{}
+	var assets bazel.LabelList
+	for i, dir := range android.PathsWithOptionalDefaultForModuleSrc(ctx, a.aaptProperties.Asset_dirs, "assets") {
+		if i > 0 {
+			ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_PROPERTY_UNSUPPORTED, "multiple asset_dirs")
+			return &bazelAapt{}, false
+		}
+		// Assets_dirs are relative to the module dir when specified, but if the default in used in
+		// PathsWithOptionalDefaultForModuleSrc, then dir is relative to the top.
+		assetsRelDir, error := filepath.Rel(ctx.ModuleDir(), dir.Rel())
+		if error != nil {
+			assetsRelDir = dir.Rel()
+		}
+		assetsDir.Value = proptools.StringPtr(assetsRelDir)
+		assets = bazel.MakeLabelList(android.RootToModuleRelativePaths(ctx, androidResourceGlob(ctx, dir)))
+
+	}
 	return &bazelAapt{
 		android.BazelLabelForModuleSrcSingle(ctx, manifest),
 		bazel.MakeLabelListAttribute(resourceFiles),
-	}
+		assetsDir,
+		bazel.MakeLabelListAttribute(assets),
+	}, true
 }
 
-func (a *AARImport) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (a *AARImport) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	aars := android.BazelLabelForModuleSrcExcludes(ctx, a.properties.Aars, []string{})
 	exportableStaticLibs := []string{}
 	// TODO(b/240716882): investigate and handle static_libs deps that are not imports. They are not supported for export by Bazel.
@@ -1313,7 +1330,7 @@ func AndroidLibraryBazelTargetModuleProperties() bazel.BazelTargetModuleProperti
 	}
 }
 
-func (a *AndroidLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
+func (a *AndroidLibrary) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	commonAttrs, bp2buildInfo, supported := a.convertLibraryAttrsBp2Build(ctx)
 	if !supported {
 		return
@@ -1325,11 +1342,18 @@ func (a *AndroidLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) 
 	if !commonAttrs.Srcs.IsEmpty() {
 		deps.Append(depLabels.StaticDeps) // we should only append these if there are sources to use them
 	} else if !depLabels.Deps.IsEmpty() {
-		ctx.ModuleErrorf("Module has direct dependencies but no sources. Bazel will not allow this.")
+		ctx.MarkBp2buildUnconvertible(
+			bp2build_metrics_proto.UnconvertedReasonType_UNSUPPORTED,
+			"Module has direct dependencies but no sources. Bazel will not allow this.")
+		return
 	}
 	name := a.Name()
 	props := AndroidLibraryBazelTargetModuleProperties()
 
+	aaptAttrs, supported := a.convertAaptAttrsWithBp2Build(ctx)
+	if !supported {
+		return
+	}
 	ctx.CreateBazelTargetModule(
 		props,
 		android.CommonAttributes{Name: name},
@@ -1339,7 +1363,7 @@ func (a *AndroidLibrary) ConvertWithBp2build(ctx android.TopDownMutatorContext) 
 				Deps:                 deps,
 				Exports:              depLabels.StaticDeps,
 			},
-			a.convertAaptAttrsWithBp2Build(ctx),
+			aaptAttrs,
 		},
 	)
 

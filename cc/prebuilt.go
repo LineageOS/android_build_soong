@@ -363,12 +363,12 @@ type bazelPrebuiltLibraryStaticAttributes struct {
 //     all variants
 //
 // In all cases, cc_prebuilt_library_static target names will be appended with "_bp2build_cc_library_static".
-func prebuiltLibraryBp2Build(ctx android.TopDownMutatorContext, module *Module) {
+func prebuiltLibraryBp2Build(ctx android.Bp2buildMutatorContext, module *Module) {
 	prebuiltLibraryStaticBp2Build(ctx, module, true)
 	prebuiltLibrarySharedBp2Build(ctx, module)
 }
 
-func prebuiltLibraryStaticBp2Build(ctx android.TopDownMutatorContext, module *Module, fullBuild bool) {
+func prebuiltLibraryStaticBp2Build(ctx android.Bp2buildMutatorContext, module *Module, fullBuild bool) {
 	prebuiltAttrs := Bp2BuildParsePrebuiltLibraryProps(ctx, module, true)
 	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module, nil)
 
@@ -404,7 +404,7 @@ type bazelPrebuiltLibrarySharedAttributes struct {
 	Export_system_includes bazel.StringListAttribute
 }
 
-func prebuiltLibrarySharedBp2Build(ctx android.TopDownMutatorContext, module *Module) {
+func prebuiltLibrarySharedBp2Build(ctx android.Bp2buildMutatorContext, module *Module) {
 	prebuiltAttrs := Bp2BuildParsePrebuiltLibraryProps(ctx, module, false)
 	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module, nil)
 
@@ -637,7 +637,7 @@ type bazelPrebuiltObjectAttributes struct {
 	Src bazel.LabelAttribute
 }
 
-func prebuiltObjectBp2Build(ctx android.TopDownMutatorContext, module *Module) {
+func prebuiltObjectBp2Build(ctx android.Bp2buildMutatorContext, module *Module) {
 	prebuiltAttrs := bp2BuildParsePrebuiltObjectProps(ctx, module)
 
 	attrs := &bazelPrebuiltObjectAttributes{
@@ -797,7 +797,7 @@ type bazelPrebuiltBinaryAttributes struct {
 	Strip stripAttributes
 }
 
-func prebuiltBinaryBp2Build(ctx android.TopDownMutatorContext, module *Module) {
+func prebuiltBinaryBp2Build(ctx android.Bp2buildMutatorContext, module *Module) {
 	prebuiltAttrs := bp2BuildParsePrebuiltBinaryProps(ctx, module)
 
 	var la linkerAttributes
