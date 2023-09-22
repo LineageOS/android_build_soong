@@ -604,13 +604,6 @@ func registerBp2buildConversionMutator(ctx RegisterMutatorsContext) {
 }
 
 func bp2buildConversionMutator(ctx TopDownMutatorContext) {
-	if ctx.Config().HasBazelBuildTargetInSource(ctx) {
-		// Defer to the BUILD target. Generating an additional target would
-		// cause a BUILD file conflict.
-		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_DEFINED_IN_BUILD_FILE, "")
-		return
-	}
-
 	bModule, ok := ctx.Module().(Bazelable)
 	if !ok {
 		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "")
@@ -634,10 +627,23 @@ func bp2buildConversionMutator(ctx TopDownMutatorContext) {
 		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_UNSUPPORTED, "")
 		return
 	}
+	if ctx.Module().base().GetUnconvertedReason() != nil {
+		return
+	}
+
 	bModule.ConvertWithBp2build(ctx)
 
-	if !ctx.Module().base().IsConvertedByBp2build() && ctx.Module().base().GetUnconvertedReason() == nil {
+	if len(ctx.Module().base().Bp2buildTargets()) == 0 && ctx.Module().base().GetUnconvertedReason() == nil {
 		panic(fmt.Errorf("illegal bp2build invariant: module '%s' was neither converted nor marked unconvertible", ctx.ModuleName()))
+	}
+
+	for _, targetInfo := range ctx.Module().base().Bp2buildTargets() {
+		if ctx.Config().HasBazelBuildTargetInSource(targetInfo.TargetPackage(), targetInfo.TargetName()) {
+			// Defer to the BUILD target. Generating an additional target would
+			// cause a BUILD file conflict.
+			ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_DEFINED_IN_BUILD_FILE, targetInfo.TargetName())
+			return
+		}
 	}
 }
 

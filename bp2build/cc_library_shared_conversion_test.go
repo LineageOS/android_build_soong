@@ -1595,7 +1595,7 @@ func TestCcLibrarySdkVariantUsesStubs(t *testing.T) {
 		Description:                "cc_library_shared stubs",
 		ModuleTypeUnderTest:        "cc_library_shared",
 		ModuleTypeUnderTestFactory: cc.LibrarySharedFactory,
-		StubbedBuildDefinitions:    []string{"libNoStubs", "libHasApexStubs", "libHasApexAndNdkStubs"},
+		StubbedBuildDefinitions:    []string{"libNoStubs", "libHasApexStubs", "libHasApexAndNdkStubs", "libHasApexAndNdkStubs.ndk_stub_libs"},
 		Blueprint: soongCcLibrarySharedPreamble + `
 cc_library_shared {
 	name: "libUsesSdk",
@@ -1621,9 +1621,7 @@ cc_library_shared {
 }
 ndk_library {
 	name: "libHasApexAndNdkStubs",
-	// TODO: b/301321658 - Stub this once existing-build-file handling can deal with
-	// modules that generate targets of a different name.
-	bazel_module: { bp2build_available: false },
+	first_version: "28",
 }
 `,
 		ExpectedBazelTargets: []string{
