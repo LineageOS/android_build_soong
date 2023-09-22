@@ -472,13 +472,6 @@ type PathDeps struct {
 	// Paths to generated source files
 	SrcDeps          android.Paths
 	srcProviderFiles android.Paths
-
-	// Paths to specific build tools
-	Rustc         android.Path
-	Clang         android.Path
-	Llvm_ar       android.Path
-	Clippy_driver android.Path
-	Rustdoc       android.Path
 }
 
 type RustLibraries []RustLibrary
@@ -1480,18 +1473,9 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				depPaths.BuildToolDeps = append(depPaths.BuildToolDeps, buildTool.Deps...)
 				switch android.RemoveOptionalPrebuiltPrefix(dep.Name()) {
 				case "rustc":
-					depPaths.Rustc = buildTool.Src
 					// rustc expects the standard cc toolchain libraries (libdl, libm, libc, etc.)
 					// not to be under the __SBOX_SANDBOX_DIR__/ directory
 					depPaths.BuildToolSrcDeps = append(depPaths.BuildToolSrcDeps, buildTool.Deps...)
-				case "clang++":
-					depPaths.Clang = buildTool.Src
-				case "llvm-ar":
-					depPaths.Llvm_ar = buildTool.Src
-				case "clippy-driver":
-					depPaths.Clippy_driver = buildTool.Src
-				case "rustdoc":
-					depPaths.Rustdoc = buildTool.Src
 				}
 			case depTag == cc.CrtBeginDepTag:
 				depPaths.CrtBegin = append(depPaths.CrtBegin, android.OutputFileForModule(ctx, dep, ""))
@@ -1612,13 +1596,6 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	}
 
 	ctx.AddFarVariationDependencies([]blueprint.Variation{}, buildToolDepTag, "rustc")
-	ctx.AddFarVariationDependencies([]blueprint.Variation{}, buildToolDepTag, "clippy-driver")
-	ctx.AddFarVariationDependencies([]blueprint.Variation{}, buildToolDepTag, "rustdoc")
-	ctx.AddFarVariationDependencies([]blueprint.Variation{}, buildToolDepTag, "clang++")
-	ctx.AddFarVariationDependencies([]blueprint.Variation{}, buildToolDepTag, "clang++.real")
-	ctx.AddFarVariationDependencies([]blueprint.Variation{}, buildToolDepTag, "lld")
-	ctx.AddFarVariationDependencies([]blueprint.Variation{}, buildToolDepTag, "ld.lld")
-	ctx.AddFarVariationDependencies([]blueprint.Variation{}, buildToolDepTag, "llvm-ar")
 
 	// rlibs
 	rlibDepVariations = append(rlibDepVariations, blueprint.Variation{Mutator: "rust_libraries", Variation: rlibVariation})
