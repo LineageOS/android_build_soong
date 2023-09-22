@@ -1354,6 +1354,9 @@ func (a *AndroidLibrary) ConvertWithBp2build(ctx android.Bp2buildMutatorContext)
 	if !supported {
 		return
 	}
+	if hasJavaResources := aaptAttrs.ConvertJavaResources(ctx, commonAttrs); hasJavaResources {
+		return
+	}
 	ctx.CreateBazelTargetModule(
 		props,
 		android.CommonAttributes{Name: name},
