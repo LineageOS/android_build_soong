@@ -112,7 +112,7 @@ filegroup {
 }
 
 cc_binary { name: "cc_binary_1"}
-sh_binary { name: "sh_binary_2"}
+sh_binary { name: "sh_binary_2", src: "foo.sh"}
 
 apex {
 	name: "com.android.apogee",
@@ -609,7 +609,7 @@ filegroup {
 }
 
 cc_binary { name: "cc_binary_1" }
-sh_binary { name: "sh_binary_2" }
+sh_binary { name: "sh_binary_2", src: "foo.sh"}
 
 apex {
 	name: "com.android.apogee",
@@ -736,7 +736,7 @@ filegroup {
 }
 
 cc_binary { name: "cc_binary_1"}
-sh_binary { name: "sh_binary_2"}
+sh_binary { name: "sh_binary_2", src: "foo.sh"}
 
 apex_test {
 	name: "com.android.apogee",
