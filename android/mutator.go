@@ -38,13 +38,6 @@ func RegisterMutatorsForBazelConversion(ctx *Context, preArchMutators []Register
 	registerMutatorsForBazelConversion(ctx, bp2buildMutators)
 }
 
-// RegisterMutatorsForApiBazelConversion is an alternate registration pipeline for api_bp2build
-// This pipeline restricts generation of Bazel targets to Soong modules that contribute APIs
-func RegisterMutatorsForApiBazelConversion(ctx *Context, preArchMutators []RegisterMutatorFunc) {
-	bp2buildMutators := append(preArchMutators, registerApiBp2buildConversionMutator)
-	registerMutatorsForBazelConversion(ctx, bp2buildMutators)
-}
-
 func registerMutatorsForBazelConversion(ctx *Context, bp2buildMutators []RegisterMutatorFunc) {
 	mctx := &registerMutatorsContext{
 		bazelConversionMode: true,
@@ -284,7 +277,6 @@ type TopDownMutator func(TopDownMutatorContext)
 
 type TopDownMutatorContext interface {
 	BaseMutatorContext
-	Bp2buildMutatorContext
 
 	// CreateModule creates a new module by calling the factory method for the specified moduleType, and applies
 	// the specified property structs to it as if the properties were set in a blueprint file.
@@ -300,6 +292,7 @@ type BottomUpMutator func(BottomUpMutatorContext)
 
 type BottomUpMutatorContext interface {
 	BaseMutatorContext
+	Bp2buildMutatorContext
 
 	// AddDependency adds a dependency to the given module.  It returns a slice of modules for each
 	// dependency (some entries may be nil).
@@ -711,14 +704,14 @@ func registerDepsMutatorBp2Build(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("deps", depsMutator).Parallel()
 }
 
-func (t *topDownMutatorContext) CreateBazelTargetModule(
+func (t *bottomUpMutatorContext) CreateBazelTargetModule(
 	bazelProps bazel.BazelTargetModuleProperties,
 	commonAttrs CommonAttributes,
 	attrs interface{}) {
 	t.createBazelTargetModule(bazelProps, commonAttrs, attrs, bazel.BoolAttribute{})
 }
 
-func (t *topDownMutatorContext) CreateBazelTargetModuleWithRestrictions(
+func (t *bottomUpMutatorContext) CreateBazelTargetModuleWithRestrictions(
 	bazelProps bazel.BazelTargetModuleProperties,
 	commonAttrs CommonAttributes,
 	attrs interface{},
@@ -726,7 +719,7 @@ func (t *topDownMutatorContext) CreateBazelTargetModuleWithRestrictions(
 	t.createBazelTargetModule(bazelProps, commonAttrs, attrs, enabledProperty)
 }
 
-func (t *topDownMutatorContext) MarkBp2buildUnconvertible(
+func (t *bottomUpMutatorContext) MarkBp2buildUnconvertible(
 	reasonType bp2build_metrics_proto.UnconvertedReasonType, detail string) {
 	mod := t.Module()
 	mod.base().setBp2buildUnconvertible(reasonType, detail)
@@ -742,7 +735,7 @@ type bazelAliasAttributes struct {
 	Actual *bazel.LabelAttribute
 }
 
-func (t *topDownMutatorContext) CreateBazelTargetAliasInDir(
+func (t *bottomUpMutatorContext) CreateBazelTargetAliasInDir(
 	dir string,
 	name string,
 	actual bazel.Label) {
@@ -763,7 +756,7 @@ func (t *topDownMutatorContext) CreateBazelTargetAliasInDir(
 // Returns the directory in which the bazel target will be generated
 // If ca.Dir is not nil, use that
 // Otherwise default to the directory of the soong module
-func dirForBazelTargetGeneration(t *topDownMutatorContext, ca *CommonAttributes) string {
+func dirForBazelTargetGeneration(t *bottomUpMutatorContext, ca *CommonAttributes) string {
 	dir := t.OtherModuleDir(t.Module())
 	if ca.Dir != nil {
 		dir = *ca.Dir
@@ -781,7 +774,7 @@ func dirForBazelTargetGeneration(t *topDownMutatorContext, ca *CommonAttributes)
 	return dir
 }
 
-func (t *topDownMutatorContext) CreateBazelConfigSetting(
+func (t *bottomUpMutatorContext) CreateBazelConfigSetting(
 	csa bazel.ConfigSettingAttributes,
 	ca CommonAttributes,
 	dir string) {
@@ -867,7 +860,7 @@ func ConvertApexAvailableToTagsWithoutTestApexes(ctx BaseModuleContext, apexAvai
 	return ConvertApexAvailableToTags(noTestApexes)
 }
 
-func (t *topDownMutatorContext) createBazelTargetModule(
+func (t *bottomUpMutatorContext) createBazelTargetModule(
 	bazelProps bazel.BazelTargetModuleProperties,
 	commonAttrs CommonAttributes,
 	attrs interface{},

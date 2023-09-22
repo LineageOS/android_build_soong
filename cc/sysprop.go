@@ -38,7 +38,7 @@ type SyspropLibraryLabels struct {
 }
 
 func Bp2buildSysprop(ctx android.Bp2buildMutatorContext, labels SyspropLibraryLabels, srcs bazel.LabelListAttribute, minSdkVersion *string) {
-	apexAvailableTags := android.ApexAvailableTagsWithoutTestApexes(ctx.(android.TopDownMutatorContext), ctx.Module())
+	apexAvailableTags := android.ApexAvailableTagsWithoutTestApexes(ctx, ctx.Module())
 	ctx.CreateBazelTargetModule(
 		bazel.BazelTargetModuleProperties{
 			Rule_class:        "sysprop_library",
