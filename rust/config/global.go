@@ -147,6 +147,6 @@ func rustPath(ctx android.PathContext) android.SourcePath {
 		if override := ctx.Config().Getenv("RUST_DEFAULT_VERSION"); override != "" {
 			rustVersion = override
 		}
-		return android.PathForSource(ctx, rustBase, ctx.Config().PrebuiltOS(), rustVersion)
+		return android.PathForSource(ctx, rustBase, HostPrebuiltTag(ctx.Config()), rustVersion)
 	})
 }
