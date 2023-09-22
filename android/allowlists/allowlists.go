@@ -854,6 +854,10 @@ var (
 
 		"libstagefright_headers",
 
+		// Apps with JNI libs
+		"SimpleJNI",
+		"libsimplejni",
+
 		// aidl
 		"aidl",
 		"libaidl-common",
@@ -930,6 +934,7 @@ var (
 		"aconfig_values",
 		"aidl_interface_headers",
 		"bpf",
+		"cc_aconfig_library",
 		"cc_prebuilt_library",
 		"cc_prebuilt_library_headers",
 		"cc_prebuilt_library_shared",
@@ -942,6 +947,7 @@ var (
 		"java_sdk_library_import",
 		"license",
 		"linker_config",
+		"ndk_library",
 		"sysprop_library",
 		"xsd_config",
 		// go/keep-sorted end
@@ -1684,6 +1690,9 @@ var (
 		"MtsTimeZoneDataTestCases",
 		"NanoAndroidTest",
 		"MtsLibnativehelperTestCases",
+
+		// android_test_helper_app from allowlisted packages, but with unconverted deps
+		"SharedLibraryInfoTestApp",
 	}
 
 	// Bazel prod-mode allowlist. Modules in this list are built by Bazel

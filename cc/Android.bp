@@ -30,7 +30,6 @@ bootstrap_go_package {
         "cc.go",
         "ccdeps.go",
         "check.go",
-        "constants.go",
         "coverage.go",
         "gen.go",
         "generated_cc_library.go",
