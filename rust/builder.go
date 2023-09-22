@@ -22,7 +22,6 @@ import (
 	"github.com/google/blueprint"
 
 	"android/soong/android"
-	cc_config "android/soong/cc/config"
 	"android/soong/rust/config"
 )
 
@@ -205,9 +204,7 @@ func rustEnvVars(ctx ModuleContext, deps PathDeps, cmd *android.RuleBuilderComma
 		}
 	}
 
-	envVars = append(envVars, "AR="+cmd.PathForInput(
-		cc_config.ClangPath(ctx, "bin/llvm-ar")),
-	)
+	envVars = append(envVars, "AR="+cmd.PathForTool(deps.Llvm_ar))
 
 	if ctx.Darwin() {
 		envVars = append(envVars, "ANDROID_RUST_DARWIN=true")
@@ -295,6 +292,11 @@ func transformSrctoCrate(ctx ModuleContext, comp compiler, main android.Path, de
 	}
 
 	if flags.Clippy {
+		// TODO(b/298461712) remove this hack to let slim manifest branches build
+		if deps.Clippy_driver == nil {
+			deps.Clippy_driver = config.RustPath(ctx, "bin/clippy-driver")
+		}
+
 		clippyRule := getRuleBuilder(ctx, pctx, false, "clippy")
 		clippyCmd := clippyRule.Command()
 		clippyFile := android.PathForModuleOut(ctx, outputFile.Base()+".clippy")
@@ -303,7 +305,7 @@ func transformSrctoCrate(ctx ModuleContext, comp compiler, main android.Path, de
 
 		clippyCmd.
 			Flags(rustEnvVars(ctx, deps, clippyCmd)).
-			Tool(config.RustPath(ctx, "bin/clippy-driver")).
+			Tool(deps.Clippy_driver).
 			Flag("--emit metadata").
 			FlagWithOutput("-o ", clippyFile).
 			FlagWithOutput("--emit dep-info=", clippyDepInfoFile).
@@ -363,18 +365,14 @@ func transformSrctoCrate(ctx ModuleContext, comp compiler, main android.Path, de
 		}
 	}
 
-	clangTools := android.Paths{
-		cc_config.ClangPath(ctx, "bin/llvm-ar"),
-	}
-	if ctx.Config().BuildOS != android.Darwin {
-		clangTools = append(clangTools,
-			cc_config.ClangPath(ctx, "lib/libc++.so"),
-		)
+	// TODO(b/298461712) remove this hack to let slim manifest branches build
+	if deps.Rustc == nil {
+		deps.Rustc = config.RustPath(ctx, "bin/rustc")
 	}
 
 	rustcCmd.
 		Flags(rustEnvVars(ctx, deps, rustcCmd)).
-		Tool(config.RustPath(ctx, "bin/rustc")).
+		Tool(deps.Rustc).
 		FlagWithInput("-C linker=", android.PathForSource(ctx, "build", "soong", "scripts", "mkcratersp.py")).
 		Flag("--emit link").
 		Flag("-o").
@@ -382,7 +380,6 @@ func transformSrctoCrate(ctx ModuleContext, comp compiler, main android.Path, de
 		FlagWithOutput("--emit dep-info=", depInfoFile).
 		Inputs(inputs).
 		Flags(libFlags).
-		Implicits(clangTools).
 		ImplicitTools(toolImplicits).
 		Implicits(implicits).
 		Flags(rustcFlags).
@@ -409,20 +406,9 @@ func transformSrctoCrate(ctx ModuleContext, comp compiler, main android.Path, de
 		// those need to be renamed/symlinked to something in the rustLink sandbox
 		// if we want to separate the rules
 		linkerSboxOutputFile := android.PathForModuleOut(ctx, sboxDirectory, outputFile.Base())
-		clangTools := android.Paths{
-			cc_config.ClangPath(ctx, "bin/clang++"),
-			cc_config.ClangPath(ctx, "bin/lld"),
-			cc_config.ClangPath(ctx, "bin/ld.lld"),
-		}
-		if ctx.Config().BuildOS != android.Darwin {
-			clangTools = append(clangTools,
-				cc_config.ClangPath(ctx, "bin/clang++.real"),
-				cc_config.ClangPath(ctx, "lib/libc++.so"),
-			)
-		}
 		rustLinkCmd := rustcRule.Command()
 		rustLinkCmd.
-			Tool(cc_config.ClangPath(ctx, "bin/clang++")).
+			Tool(deps.Clang).
 			Flag("-o").
 			Output(linkerSboxOutputFile).
 			Inputs(deps.CrtBegin).
@@ -430,7 +416,6 @@ func transformSrctoCrate(ctx ModuleContext, comp compiler, main android.Path, de
 			FlagWithInput("@", rustSboxOutputFile).
 			Flags(linkFlags).
 			Inputs(deps.CrtEnd).
-			ImplicitTools(clangTools).
 			ImplicitTools(toolImplicits).
 			Implicits(rustcImplicitOutputs.Paths()).
 			Implicits(implicits).
@@ -456,7 +441,7 @@ func transformSrctoCrate(ctx ModuleContext, comp compiler, main android.Path, de
 			Flag("KYTHE_CANONICALIZE_VNAME_PATHS=prefer-relative").
 			Tool(ctx.Config().PrebuiltBuildTool(ctx, "rust_extractor")).
 			Flags(rustEnvVars(ctx, deps, kytheCmd)).
-			Tool(config.RustPath(ctx, "bin/rustc")).
+			Tool(deps.Rustc).
 			Flag("-C linker=true").
 			Inputs(inputs).
 			Flags(makeLibFlags(deps, kytheCmd)).
@@ -470,6 +455,11 @@ func transformSrctoCrate(ctx ModuleContext, comp compiler, main android.Path, de
 }
 
 func Rustdoc(ctx ModuleContext, main android.Path, deps PathDeps, flags Flags) android.ModuleOutPath {
+	// TODO(b/298461712) remove this hack to let slim manifest branches build
+	if deps.Rustdoc == nil {
+		deps.Rustdoc = config.RustPath(ctx, "bin/rustdoc")
+	}
+
 	rustdocRule := getRuleBuilder(ctx, pctx, false, "rustdoc")
 	rustdocCmd := rustdocRule.Command()
 
@@ -508,7 +498,7 @@ func Rustdoc(ctx ModuleContext, main android.Path, deps PathDeps, flags Flags) a
 
 	rustdocCmd.
 		Flags(rustEnvVars(ctx, deps, rustdocCmd)).
-		Tool(config.RustPath(ctx, "bin/rustdoc")).
+		Tool(deps.Rustdoc).
 		Flags(rustdocFlags).
 		Input(main).
 		Flag("-o "+docDir.String()).
