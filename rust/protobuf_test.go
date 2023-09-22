@@ -118,6 +118,58 @@ func TestRustProtobuf3(t *testing.T) {
 	}
 }
 
+func TestRustProtobufInclude(t *testing.T) {
+	ctx := testRust(t, `
+		rust_protobuf {
+			name: "librust_proto",
+			protos: ["proto.proto"],
+			crate_name: "rust_proto",
+			source_stem: "proto",
+			use_protobuf3: true,
+			rustlibs: ["librust_exported_proto", "libfoo"],
+		}
+		rust_protobuf {
+			name: "librust_exported_proto",
+			protos: ["proto.proto"],
+			crate_name: "rust_exported_proto",
+			source_stem: "exported_proto",
+			use_protobuf3: true,
+			exported_include_dirs: ["proto"]
+		}
+		rust_library {
+			name: "libfoo",
+			crate_name: "foo",
+			srcs: ["foo.rs"],
+		}
+	`)
+	// Check that librust_exported_proto is added as additional crate to generate source.
+	librust_proto := ctx.ModuleForTests("librust_proto", "android_arm64_armv8-a_source").Module().(*Module).sourceProvider.(*protobufDecorator)
+	if !android.InList("rust_exported_proto", librust_proto.additionalCrates) {
+		t.Errorf("librust_proto should have librust_exported_proto included as an additional crate for generated source, instead got: %#v", librust_proto.additionalCrates)
+	}
+
+	// Make sure the default crates aren't being included.
+	if android.InList("std", librust_proto.additionalCrates) {
+		t.Errorf("librust_proto should not have included libstd as an additional crate for generated source, instead got: %#v", librust_proto.additionalCrates)
+	}
+	if android.InList("protobuf", librust_proto.additionalCrates) {
+		t.Errorf("librust_proto should not have included libprotobuf as an additional crate for generated source, instead got: %#v", librust_proto.additionalCrates)
+	}
+
+	// And make sure that non-protobuf crates aren't getting included either.
+	if android.InList("foo", librust_proto.additionalCrates) {
+		t.Errorf("librust_proto should not have included libfoo as an additional crate for generated source, instead got: %#v", librust_proto.additionalCrates)
+	}
+
+	// Check librust_proto args includes -Iproto
+	librust_proto_rule := ctx.ModuleForTests("librust_proto", "android_arm64_armv8-a_source").Output("proto.rs")
+	cmd := librust_proto_rule.RuleParams.Command
+	if w := "-Iproto"; !strings.Contains(cmd, w) {
+		t.Errorf("expected %q in %q", w, cmd)
+	}
+
+}
+
 func TestRustGrpc(t *testing.T) {
 	ctx := testRust(t, `
 		rust_protobuf {
