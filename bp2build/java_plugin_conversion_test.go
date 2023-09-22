@@ -86,13 +86,11 @@ func TestJavaPluginNoSrcs(t *testing.T) {
 java_library {
     name: "java-lib-1",
     srcs: ["b.java"],
-    bazel_module: { bp2build_available: false },
 }
 
 java_library {
     name: "java-lib-2",
     srcs: ["c.java"],
-    bazel_module: { bp2build_available: false },
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("java_plugin", "java-plug-1", AttrNameToString{
