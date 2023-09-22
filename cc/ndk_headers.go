@@ -21,6 +21,7 @@ import (
 	"github.com/google/blueprint"
 
 	"android/soong/android"
+	"android/soong/bazel"
 )
 
 var (
@@ -79,6 +80,7 @@ type headerProperties struct {
 
 type headerModule struct {
 	android.ModuleBase
+	android.BazelModuleBase
 
 	properties headerProperties
 
@@ -145,6 +147,29 @@ func (m *headerModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 }
 
+type bazelNdkHeadersAttributes struct {
+	Strip_import_prefix *string
+	Import_prefix       *string
+	Hdrs                bazel.LabelListAttribute
+}
+
+func (h *headerModule) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "ndk_headers",
+		Bzl_load_location: "//build/bazel/rules/cc:ndk_headers.bzl",
+	}
+	attrs := &bazelNdkHeadersAttributes{
+		Strip_import_prefix: h.properties.From,
+		Import_prefix:       h.properties.To,
+		Hdrs:                bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrcExcludes(ctx, h.properties.Srcs, h.properties.Exclude_srcs)),
+	}
+	ctx.CreateBazelTargetModule(
+		props,
+		android.CommonAttributes{Name: h.Name()},
+		attrs,
+	)
+}
+
 // ndk_headers installs the sets of ndk headers defined in the srcs property
 // to the sysroot base + "usr/include" + to directory + directory component.
 // ndk_headers requires the license file to be specified. Example:
@@ -155,10 +180,11 @@ func (m *headerModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 //	to = "bar"
 //	header = "include/foo/woodly/doodly.h"
 //	output path = "ndk/sysroot/usr/include/bar/woodly/doodly.h"
-func ndkHeadersFactory() android.Module {
+func NdkHeadersFactory() android.Module {
 	module := &headerModule{}
 	module.AddProperties(&module.properties)
 	android.InitAndroidModule(module)
+	android.InitBazelModule(module)
 	return module
 }
 

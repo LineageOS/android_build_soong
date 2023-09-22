@@ -5183,3 +5183,30 @@ ndk_library {
 	}
 	runCcLibraryTestCase(t, tc)
 }
+
+func TestNdkHeadersConversion(t *testing.T) {
+	tc := Bp2buildTestCase{
+		Description:                "ndk_headers conversion",
+		ModuleTypeUnderTest:        "ndk_headers",
+		ModuleTypeUnderTestFactory: cc.NdkHeadersFactory,
+		Blueprint: `
+ndk_headers {
+	name: "libfoo_headers",
+	from: "from",
+	to: "to",
+	srcs: ["foo.h", "foo_other.h"]
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTargetNoRestrictions("ndk_headers", "libfoo_headers", AttrNameToString{
+				"strip_import_prefix": `"from"`,
+				"import_prefix":       `"to"`,
+				"hdrs": `[
+        "foo.h",
+        "foo_other.h",
+    ]`,
+			}),
+		},
+	}
+	runCcLibraryTestCase(t, tc)
+}
