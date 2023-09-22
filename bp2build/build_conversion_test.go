@@ -1994,6 +1994,41 @@ func TestAlreadyPresentBuildTarget(t *testing.T) {
 	})
 }
 
+func TestAlreadyPresentOneToManyBuildTarget(t *testing.T) {
+	bp := `
+	custom {
+		name: "foo",
+    one_to_many_prop: true,
+	}
+	custom {
+		name: "bar",
+	}
+	`
+	alreadyPresentBuildFile :=
+		MakeBazelTarget(
+			"custom",
+			// one_to_many_prop ensures that foo generates "foo_proto_library_deps".
+			"foo_proto_library_deps",
+			AttrNameToString{},
+		)
+	expectedBazelTargets := []string{
+		MakeBazelTarget(
+			"custom",
+			"bar",
+			AttrNameToString{},
+		),
+	}
+	registerCustomModule := func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("custom", customModuleFactoryHostAndDevice)
+	}
+	RunBp2BuildTestCase(t, registerCustomModule, Bp2buildTestCase{
+		AlreadyExistingBuildContents: alreadyPresentBuildFile,
+		Blueprint:                    bp,
+		ExpectedBazelTargets:         expectedBazelTargets,
+		Description:                  "Not duplicating work for an already-present BUILD target (different generated name)",
+	})
+}
+
 // Verifies that if a module is defined in pkg1/Android.bp, that a target present
 // in pkg2/BUILD.bazel does not result in the module being labeled "already defined
 // in a BUILD file".
