@@ -110,7 +110,7 @@ func TestConvertAndroidLibraryImport(t *testing.T) {
 				"import.aar": "",
 				"dep.aar":    "",
 			},
-			StubbedBuildDefinitions: []string{"static_lib_dep", "prebuilt_static_import_dep"},
+			StubbedBuildDefinitions: []string{"static_lib_dep", "static_import_dep", "static_import_dep-neverlink"},
 			// Bazel's aar_import can only export *_import targets, so we expect
 			// only "static_import_dep" in exports, but both "static_lib_dep" and
 			// "static_import_dep" in deps
@@ -125,6 +125,7 @@ android_library_import {
 // TODO: b/301007952 - This dep is needed because android_library_import must have aars set.
 android_library_import {
         name: "static_import_dep",
+        aars: ["import.aar"],
 }
 `,
 			ExpectedBazelTargets: []string{

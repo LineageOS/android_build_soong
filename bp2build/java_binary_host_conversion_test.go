@@ -114,7 +114,7 @@ func TestJavaBinaryHostLibs(t *testing.T) {
 	runJavaBinaryHostTestCase(t, Bp2buildTestCase{
 		Description:             "java_binary_host with srcs, libs.",
 		Filesystem:              testFs,
-		StubbedBuildDefinitions: []string{"prebuilt_java-lib-dep-1"},
+		StubbedBuildDefinitions: []string{"java-lib-dep-1", "java-lib-dep-1-neverlink"},
 		Blueprint: `java_binary_host {
     name: "java-binary-host-libs",
     libs: ["java-lib-dep-1"],
