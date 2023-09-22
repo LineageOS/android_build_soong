@@ -1638,6 +1638,15 @@ type bazelAndroidAppAttributes struct {
 	Updatable        *bool
 }
 
+func (b bazelAapt) ConvertJavaResources(ctx android.Bp2buildMutatorContext, javaAttrs *javaCommonAttributes) bool {
+	// TODO (b/300470246) bp2build support for java_resources & java_resource_dirs in android rules
+	hasJavaResources := !javaAttrs.javaResourcesAttributes.Resources.IsEmpty()
+	if hasJavaResources {
+		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_UNSUPPORTED, "(b/300470246) java resources in android_* module")
+	}
+	return hasJavaResources
+}
+
 func convertWithBp2build(ctx android.Bp2buildMutatorContext, a *AndroidApp) (bool, android.CommonAttributes, *bazelAndroidAppAttributes) {
 	aapt, supported := a.convertAaptAttrsWithBp2Build(ctx)
 	if !supported {
@@ -1712,6 +1721,10 @@ func convertWithBp2build(ctx android.Bp2buildMutatorContext, a *AndroidApp) (boo
 	if !supported {
 		return false, android.CommonAttributes{}, &bazelAndroidAppAttributes{}
 	}
+	if hasJavaResources := aapt.ConvertJavaResources(ctx, commonAttrs); hasJavaResources {
+		return false, android.CommonAttributes{}, &bazelAndroidAppAttributes{}
+	}
+
 	depLabels := bp2BuildInfo.DepLabels
 
 	deps := depLabels.Deps
