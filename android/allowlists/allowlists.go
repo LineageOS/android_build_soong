@@ -971,6 +971,7 @@ var (
 		"license",
 		"linker_config",
 		"ndk_library",
+		"ndk_headers",
 		"sysprop_library",
 		"xsd_config",
 		// go/keep-sorted end
