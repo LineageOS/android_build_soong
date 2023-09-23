@@ -28,17 +28,6 @@ import (
 	"android/soong/shared"
 )
 
-var (
-	pctx_ruleBuilderTest           = NewPackageContext("android/soong/rule_builder")
-	pctx_ruleBuilderTestSubContext = NewPackageContext("android/soong/rule_builder/config")
-)
-
-func init() {
-	pctx_ruleBuilderTest.Import("android/soong/rule_builder/config")
-	pctx_ruleBuilderTest.StaticVariable("cmdFlags", "${config.ConfigFlags}")
-	pctx_ruleBuilderTestSubContext.StaticVariable("ConfigFlags", "--some-clang-flag")
-}
-
 func builderContext() BuilderContext {
 	return BuilderContextForTesting(TestConfig("out", nil, "", map[string][]byte{
 		"ld":      nil,
@@ -507,13 +496,11 @@ func testRuleBuilderFactory() Module {
 type testRuleBuilderModule struct {
 	ModuleBase
 	properties struct {
-		Srcs  []string
-		Flags []string
+		Srcs []string
 
-		Restat              bool
-		Sbox                bool
-		Sbox_inputs         bool
-		Unescape_ninja_vars bool
+		Restat      bool
+		Sbox        bool
+		Sbox_inputs bool
 	}
 }
 
@@ -531,9 +518,8 @@ func (t *testRuleBuilderModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	rspFileContents2 := PathsForSource(ctx, []string{"rsp_in2"})
 	manifestPath := PathForModuleOut(ctx, "sbox.textproto")
 
-	testRuleBuilder_Build(ctx, in, implicit, orderOnly, validation, t.properties.Flags,
-		out, outDep, outDir,
-		manifestPath, t.properties.Restat, t.properties.Sbox, t.properties.Sbox_inputs, t.properties.Unescape_ninja_vars,
+	testRuleBuilder_Build(ctx, in, implicit, orderOnly, validation, out, outDep, outDir,
+		manifestPath, t.properties.Restat, t.properties.Sbox, t.properties.Sbox_inputs,
 		rspFile, rspFileContents, rspFile2, rspFileContents2)
 }
 
@@ -557,18 +543,17 @@ func (t *testRuleBuilderSingleton) GenerateBuildActions(ctx SingletonContext) {
 	rspFileContents2 := PathsForSource(ctx, []string{"rsp_in2"})
 	manifestPath := PathForOutput(ctx, "singleton/sbox.textproto")
 
-	testRuleBuilder_Build(ctx, in, implicit, orderOnly, validation, nil, out, outDep, outDir,
-		manifestPath, true, false, false, false,
+	testRuleBuilder_Build(ctx, in, implicit, orderOnly, validation, out, outDep, outDir,
+		manifestPath, true, false, false,
 		rspFile, rspFileContents, rspFile2, rspFileContents2)
 }
 
 func testRuleBuilder_Build(ctx BuilderContext, in Paths, implicit, orderOnly, validation Path,
-	flags []string,
 	out, outDep, outDir, manifestPath WritablePath,
-	restat, sbox, sboxInputs, unescapeNinjaVars bool,
+	restat, sbox, sboxInputs bool,
 	rspFile WritablePath, rspFileContents Paths, rspFile2 WritablePath, rspFileContents2 Paths) {
 
-	rule := NewRuleBuilder(pctx_ruleBuilderTest, ctx)
+	rule := NewRuleBuilder(pctx, ctx)
 
 	if sbox {
 		rule.Sbox(outDir, manifestPath)
@@ -579,7 +564,6 @@ func testRuleBuilder_Build(ctx BuilderContext, in Paths, implicit, orderOnly, va
 
 	rule.Command().
 		Tool(PathForSource(ctx, "cp")).
-		Flags(flags).
 		Inputs(in).
 		Implicit(implicit).
 		OrderOnly(orderOnly).
@@ -593,11 +577,7 @@ func testRuleBuilder_Build(ctx BuilderContext, in Paths, implicit, orderOnly, va
 		rule.Restat()
 	}
 
-	if unescapeNinjaVars {
-		rule.BuildWithUnescapedNinjaVars("rule", "desc")
-	} else {
-		rule.Build("rule", "desc")
-	}
+	rule.Build("rule", "desc")
 }
 
 var prepareForRuleBuilderTest = FixtureRegisterWithContext(func(ctx RegistrationContext) {
@@ -811,48 +791,4 @@ func TestRuleBuilderHashInputs(t *testing.T) {
 			})
 		})
 	}
-}
-
-func TestRuleBuilderWithNinjaVarEscaping(t *testing.T) {
-	bp := `
-		rule_builder_test {
-			name: "foo_sbox_escaped_ninja",
-			flags: ["${cmdFlags}"],
-			sbox: true,
-			sbox_inputs: true,
-		}
-		rule_builder_test {
-			name: "foo_sbox",
-			flags: ["${cmdFlags}"],
-			sbox: true,
-			sbox_inputs: true,
-			unescape_ninja_vars: true,
-		}
-	`
-	result := GroupFixturePreparers(
-		prepareForRuleBuilderTest,
-		FixtureWithRootAndroidBp(bp),
-	).RunTest(t)
-
-	escapedNinjaMod := result.ModuleForTests("foo_sbox_escaped_ninja", "").Rule("writeFile")
-	AssertStringDoesContain(
-		t,
-		"",
-		escapedNinjaMod.BuildParams.Args["content"],
-		"$${cmdFlags}",
-	)
-
-	unescapedNinjaMod := result.ModuleForTests("foo_sbox", "").Rule("unescapedWriteFile")
-	AssertStringDoesContain(
-		t,
-		"",
-		unescapedNinjaMod.BuildParams.Args["content"],
-		"${cmdFlags}",
-	)
-	AssertStringDoesNotContain(
-		t,
-		"",
-		unescapedNinjaMod.BuildParams.Args["content"],
-		"$${cmdFlags}",
-	)
 }
