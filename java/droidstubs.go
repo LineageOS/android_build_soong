@@ -24,7 +24,6 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/bazel"
 	"android/soong/java/config"
 	"android/soong/remoteexec"
 )
@@ -853,34 +852,6 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 		rule.Build("nullabilityWarningsCheck", "nullability warnings check")
 	}
-}
-
-var _ android.ApiProvider = (*Droidstubs)(nil)
-
-type bazelJavaApiContributionAttributes struct {
-	Api         bazel.LabelAttribute
-	Api_surface *string
-}
-
-func (d *Droidstubs) ConvertWithApiBp2build(ctx android.TopDownMutatorContext) {
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "java_api_contribution",
-		Bzl_load_location: "//build/bazel/rules/apis:java_api_contribution.bzl",
-	}
-	apiFile := d.properties.Check_api.Current.Api_file
-	// Do not generate a target if check_api is not set
-	if apiFile == nil {
-		return
-	}
-	attrs := &bazelJavaApiContributionAttributes{
-		Api: *bazel.MakeLabelAttribute(
-			android.BazelLabelForModuleSrcSingle(ctx, proptools.String(apiFile)).Label,
-		),
-		Api_surface: proptools.StringPtr(bazelApiSurfaceName(d.Name())),
-	}
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{
-		Name: android.ApiContributionTargetName(ctx.ModuleName()),
-	}, attrs)
 }
 
 func (d *Droidstubs) createApiContribution(ctx android.DefaultableHookContext) {

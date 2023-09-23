@@ -289,7 +289,7 @@ func Bp2buildProtoProperties(ctx Bp2buildMutatorContext, m *ModuleBase, srcs baz
 				attrs.Strip_import_prefix = proptools.StringPtr("")
 			}
 
-			tags := ApexAvailableTagsWithoutTestApexes(ctx.(TopDownMutatorContext), ctx.Module())
+			tags := ApexAvailableTagsWithoutTestApexes(ctx, ctx.Module())
 
 			moduleDir := ctx.ModuleDir()
 			if !canonicalPathFromRoot {
