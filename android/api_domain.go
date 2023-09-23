@@ -107,24 +107,3 @@ func contributionBazelAttributes(ctx TopDownMutatorContext, contributions []stri
 	bazelLabels := BazelLabelForModuleDepsWithFn(ctx, contributions, addSuffix)
 	return bazel.MakeLabelListAttribute(bazelLabels)
 }
-
-type bazelApiDomainAttributes struct {
-	Cc_api_contributions   bazel.LabelListAttribute
-	Java_api_contributions bazel.LabelListAttribute
-}
-
-var _ ApiProvider = (*apiDomain)(nil)
-
-func (a *apiDomain) ConvertWithApiBp2build(ctx TopDownMutatorContext) {
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "api_domain",
-		Bzl_load_location: "//build/bazel/rules/apis:api_domain.bzl",
-	}
-	attrs := &bazelApiDomainAttributes{
-		Cc_api_contributions:   contributionBazelAttributes(ctx, a.properties.Cc_api_contributions),
-		Java_api_contributions: contributionBazelAttributes(ctx, a.properties.Java_api_contributions),
-	}
-	ctx.CreateBazelTargetModule(props, CommonAttributes{
-		Name: ctx.ModuleName(),
-	}, attrs)
-}
