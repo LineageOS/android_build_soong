@@ -50,11 +50,11 @@ func TestRustAconfigLibrary(t *testing.T) {
 	}
 
 	for _, variant := range variants {
-		android.AssertStringListContains(
+		android.AssertStringEquals(
 			t,
 			"dylib variant builds from generated rust code",
-			variant.Rule("rustc").Implicits.RelativeToTop().Strings(),
 			"out/soong/.intermediates/libmy_rust_aconfig_library/android_arm64_armv8-a_source/gen/src/lib.rs",
+			variant.Rule("rustc").Inputs[0].RelativeToTop().String(),
 		)
 	}
 }
