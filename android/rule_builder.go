@@ -756,13 +756,9 @@ func (r *RuleBuilder) build(name string, desc string, ninjaEscapeCommandString b
 		pool = localPool
 	}
 
-	if ninjaEscapeCommandString {
-		commandString = proptools.NinjaEscape(commandString)
-	}
-
 	r.ctx.Build(r.pctx, BuildParams{
 		Rule: r.ctx.Rule(r.pctx, name, blueprint.RuleParams{
-			Command:        commandString,
+			Command:        proptools.NinjaEscape(commandString),
 			CommandDeps:    proptools.NinjaEscapeList(tools.Strings()),
 			Restat:         r.restat,
 			Rspfile:        proptools.NinjaEscape(rspFile),
