@@ -485,28 +485,11 @@ func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) F
 	return flags
 }
 
-func (library *libraryDecorator) compilationSourcesAndData(ctx ModuleContext) android.Paths {
-	var extraSrcs android.Paths
-	if library.rlib() {
-		extraSrcs = android.PathsForModuleSrc(ctx, library.Properties.Rlib.Srcs)
-	} else if library.dylib() {
-		extraSrcs = android.PathsForModuleSrc(ctx, library.Properties.Dylib.Srcs)
-	} else if library.static() {
-		extraSrcs = android.PathsForModuleSrc(ctx, library.Properties.Static.Srcs)
-	} else if library.shared() {
-		extraSrcs = android.PathsForModuleSrc(ctx, library.Properties.Shared.Srcs)
-	}
-	return android.Concat(
-		library.baseCompiler.compilationSourcesAndData(ctx),
-		extraSrcs,
-	)
-}
-
 func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput {
 	var outputFile android.ModuleOutPath
 	var ret buildOutput
 	var fileName string
-	crateRootPath := library.crateRootPath(ctx, deps)
+	srcPath := library.srcPath(ctx, deps)
 
 	if library.sourceProvider != nil {
 		deps.srcProviderFiles = append(deps.srcProviderFiles, library.sourceProvider.Srcs()...)
@@ -542,6 +525,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.depLinkFlags...)
+	flags.LinkFlags = append(flags.LinkFlags, deps.linkObjects.Strings()...)
 
 	if library.dylib() {
 		// We need prefer-dynamic for now to avoid linking in the static stdlib. See:
@@ -552,13 +536,13 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 
 	// Call the appropriate builder for this library type
 	if library.rlib() {
-		ret.kytheFile = TransformSrctoRlib(ctx, library, crateRootPath, deps, flags, outputFile).kytheFile
+		ret.kytheFile = TransformSrctoRlib(ctx, srcPath, deps, flags, outputFile).kytheFile
 	} else if library.dylib() {
-		ret.kytheFile = TransformSrctoDylib(ctx, library, crateRootPath, deps, flags, outputFile).kytheFile
+		ret.kytheFile = TransformSrctoDylib(ctx, srcPath, deps, flags, outputFile).kytheFile
 	} else if library.static() {
-		ret.kytheFile = TransformSrctoStatic(ctx, library, crateRootPath, deps, flags, outputFile).kytheFile
+		ret.kytheFile = TransformSrctoStatic(ctx, srcPath, deps, flags, outputFile).kytheFile
 	} else if library.shared() {
-		ret.kytheFile = TransformSrctoShared(ctx, library, crateRootPath, deps, flags, outputFile).kytheFile
+		ret.kytheFile = TransformSrctoShared(ctx, srcPath, deps, flags, outputFile).kytheFile
 	}
 
 	if library.rlib() || library.dylib() {
@@ -601,15 +585,13 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	return ret
 }
 
-func (library *libraryDecorator) crateRootPath(ctx ModuleContext, _ PathDeps) android.Path {
+func (library *libraryDecorator) srcPath(ctx ModuleContext, _ PathDeps) android.Path {
 	if library.sourceProvider != nil {
 		// Assume the first source from the source provider is the library entry point.
 		return library.sourceProvider.Srcs()[0]
-	} else if library.baseCompiler.Properties.Crate_root == nil {
+	} else {
 		path, _ := srcPathFromModuleSrcs(ctx, library.baseCompiler.Properties.Srcs)
 		return path
-	} else {
-		return android.PathForModuleSrc(ctx, *library.baseCompiler.Properties.Crate_root)
 	}
 }
 
@@ -624,7 +606,7 @@ func (library *libraryDecorator) rustdoc(ctx ModuleContext, flags Flags,
 		return android.OptionalPath{}
 	}
 
-	return android.OptionalPathForPath(Rustdoc(ctx, library.crateRootPath(ctx, deps),
+	return android.OptionalPathForPath(Rustdoc(ctx, library.srcPath(ctx, deps),
 		deps, flags))
 }
 

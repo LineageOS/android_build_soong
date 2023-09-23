@@ -2026,10 +2026,9 @@ func (c *config) LogMixedBuild(ctx BaseModuleContext, useBazel bool) {
 	}
 }
 
-func (c *config) HasBazelBuildTargetInSource(ctx BaseModuleContext) bool {
-	moduleName := ctx.Module().Name()
-	for _, buildTarget := range c.bazelTargetsByDir[ctx.ModuleDir()] {
-		if moduleName == buildTarget {
+func (c *config) HasBazelBuildTargetInSource(dir string, target string) bool {
+	for _, existingTarget := range c.bazelTargetsByDir[dir] {
+		if target == existingTarget {
 			return true
 		}
 	}

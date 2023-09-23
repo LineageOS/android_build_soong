@@ -36,9 +36,9 @@ func TestFeaturesToFlags(t *testing.T) {
 
 	libfooDylib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_dylib").Rule("rustc")
 
-	if !strings.Contains(libfooDylib.RuleParams.Command, "cfg 'feature=\"fizz\"'") ||
-		!strings.Contains(libfooDylib.RuleParams.Command, "cfg 'feature=\"buzz\"'") {
-		t.Fatalf("missing fizz and buzz feature flags for libfoo dylib, command: %#v", libfooDylib.RuleParams.Command)
+	if !strings.Contains(libfooDylib.Args["rustcFlags"], "cfg 'feature=\"fizz\"'") ||
+		!strings.Contains(libfooDylib.Args["rustcFlags"], "cfg 'feature=\"buzz\"'") {
+		t.Fatalf("missing fizz and buzz feature flags for libfoo dylib, rustcFlags: %#v", libfooDylib.Args["rustcFlags"])
 	}
 }
 
@@ -57,9 +57,9 @@ func TestCfgsToFlags(t *testing.T) {
 
 	libfooDylib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_dylib").Rule("rustc")
 
-	if !strings.Contains(libfooDylib.RuleParams.Command, "cfg 'std'") ||
-		!strings.Contains(libfooDylib.RuleParams.Command, "cfg 'cfg1=\"one\"'") {
-		t.Fatalf("missing std and cfg1 flags for libfoo dylib, rustcFlags: %#v", libfooDylib.RuleParams.Command)
+	if !strings.Contains(libfooDylib.Args["rustcFlags"], "cfg 'std'") ||
+		!strings.Contains(libfooDylib.Args["rustcFlags"], "cfg 'cfg1=\"one\"'") {
+		t.Fatalf("missing std and cfg1 flags for libfoo dylib, rustcFlags: %#v", libfooDylib.Args["rustcFlags"])
 	}
 }
 
@@ -146,14 +146,14 @@ func TestCargoCompat(t *testing.T) {
 
 	fizz := ctx.ModuleForTests("fizz", "android_arm64_armv8-a").Rule("rustc")
 
-	if !strings.Contains(fizz.RuleParams.Command, "CARGO_BIN_NAME=fizz") {
-		t.Fatalf("expected 'CARGO_BIN_NAME=fizz' in envVars, actual command: %#v", fizz.RuleParams.Command)
+	if !strings.Contains(fizz.Args["envVars"], "CARGO_BIN_NAME=fizz") {
+		t.Fatalf("expected 'CARGO_BIN_NAME=fizz' in envVars, actual envVars: %#v", fizz.Args["envVars"])
 	}
-	if !strings.Contains(fizz.RuleParams.Command, "CARGO_CRATE_NAME=foo") {
-		t.Fatalf("expected 'CARGO_CRATE_NAME=foo' in envVars, actual command: %#v", fizz.RuleParams.Command)
+	if !strings.Contains(fizz.Args["envVars"], "CARGO_CRATE_NAME=foo") {
+		t.Fatalf("expected 'CARGO_CRATE_NAME=foo' in envVars, actual envVars: %#v", fizz.Args["envVars"])
 	}
-	if !strings.Contains(fizz.RuleParams.Command, "CARGO_PKG_VERSION=1.0.0") {
-		t.Fatalf("expected 'CARGO_PKG_VERSION=1.0.0' in envVars, actual command: %#v", fizz.RuleParams.Command)
+	if !strings.Contains(fizz.Args["envVars"], "CARGO_PKG_VERSION=1.0.0") {
+		t.Fatalf("expected 'CARGO_PKG_VERSION=1.0.0' in envVars, actual envVars: %#v", fizz.Args["envVars"])
 	}
 }
 
@@ -230,13 +230,13 @@ func TestLints(t *testing.T) {
 			).RunTest(t)
 
 			r := result.ModuleForTests("libfoo", "android_arm64_armv8-a_dylib").MaybeRule("rustc")
-			android.AssertStringDoesContain(t, "libfoo flags", r.RuleParams.Command, tc.fooFlags)
+			android.AssertStringDoesContain(t, "libfoo flags", r.Args["rustcFlags"], tc.fooFlags)
 
 			r = result.ModuleForTests("libbar", "android_arm64_armv8-a_dylib").MaybeRule("rustc")
-			android.AssertStringDoesContain(t, "libbar flags", r.RuleParams.Command, "${config.RustDefaultLints}")
+			android.AssertStringDoesContain(t, "libbar flags", r.Args["rustcFlags"], "${config.RustDefaultLints}")
 
 			r = result.ModuleForTests("libfoobar", "android_arm64_armv8-a_dylib").MaybeRule("rustc")
-			android.AssertStringDoesContain(t, "libfoobar flags", r.RuleParams.Command, "${config.RustAllowAllLints}")
+			android.AssertStringDoesContain(t, "libfoobar flags", r.Args["rustcFlags"], "${config.RustAllowAllLints}")
 		})
 	}
 }

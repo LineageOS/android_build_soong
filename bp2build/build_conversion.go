@@ -713,27 +713,32 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 
 		switch ctx.Mode() {
 		case Bp2Build:
-			// There are two main ways of converting a Soong module to Bazel:
-			// 1) Manually handcrafting a Bazel target and associating the module with its label
-			// 2) Automatically generating with bp2build converters
-			//
-			// bp2build converters are used for the majority of modules.
-			if b, ok := m.(android.Bazelable); ok && b.HasHandcraftedLabel() {
-				if aModule, ok := m.(android.Module); ok && aModule.IsConvertedByBp2build() {
-					panic(fmt.Errorf("module %q [%s] [%s] was both converted with bp2build and has a handcrafted label", bpCtx.ModuleName(m), moduleType, dir))
-				}
-				// Handle modules converted to handcrafted targets.
-				//
-				// Since these modules are associated with some handcrafted
-				// target in a BUILD file, we don't autoconvert them.
+			if aModule, ok := m.(android.Module); ok {
+				reason := aModule.GetUnconvertedReason()
+				if reason != nil {
+					// If this module was force-enabled, cause an error.
+					if _, ok := ctx.Config().BazelModulesForceEnabledByFlag()[m.Name()]; ok && m.Name() != "" {
+						err := fmt.Errorf("Force Enabled Module %s not converted", m.Name())
+						errs = append(errs, err)
+					}
 
-				// Log the module.
-				metrics.AddUnconvertedModule(m, moduleType, dir,
-					android.UnconvertedReason{
-						ReasonType: int(bp2build_metrics_proto.UnconvertedReasonType_DEFINED_IN_BUILD_FILE),
-					})
-			} else if aModule, ok := m.(android.Module); ok && aModule.IsConvertedByBp2build() {
+					// Log the module isn't to be converted by bp2build.
+					// TODO: b/291598248 - Log handcrafted modules differently than other unconverted modules.
+					metrics.AddUnconvertedModule(m, moduleType, dir, *reason)
+					return
+				}
+				if len(aModule.Bp2buildTargets()) == 0 {
+					panic(fmt.Errorf("illegal bp2build invariant: module '%s' was neither converted nor marked unconvertible", aModule.Name()))
+				}
+
 				// Handle modules converted to generated targets.
+				targets, targetErrs = generateBazelTargets(bpCtx, aModule)
+				errs = append(errs, targetErrs...)
+				for _, t := range targets {
+					// A module can potentially generate more than 1 Bazel
+					// target, each of a different rule class.
+					metrics.IncrementRuleClassCount(t.ruleClass)
+				}
 
 				// Log the module.
 				metrics.AddConvertedModule(aModule, moduleType, dir)
@@ -761,24 +766,6 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 						return
 					}
 				}
-				targets, targetErrs = generateBazelTargets(bpCtx, aModule)
-				errs = append(errs, targetErrs...)
-				for _, t := range targets {
-					// A module can potentially generate more than 1 Bazel
-					// target, each of a different rule class.
-					metrics.IncrementRuleClassCount(t.ruleClass)
-				}
-			} else if _, ok := ctx.Config().BazelModulesForceEnabledByFlag()[m.Name()]; ok && m.Name() != "" {
-				err := fmt.Errorf("Force Enabled Module %s not converted", m.Name())
-				errs = append(errs, err)
-			} else if aModule, ok := m.(android.Module); ok {
-				reason := aModule.GetUnconvertedReason()
-				if reason == nil {
-					panic(fmt.Errorf("module '%s' was neither converted nor marked unconvertible with bp2build", aModule.Name()))
-				} else {
-					metrics.AddUnconvertedModule(m, moduleType, dir, *reason)
-				}
-				return
 			} else if glib, ok := m.(*bootstrap.GoPackage); ok {
 				targets, targetErrs = generateBazelTargetsGoPackage(bpCtx, glib, nameToGoLibMap)
 				errs = append(errs, targetErrs...)

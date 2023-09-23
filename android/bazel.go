@@ -600,17 +600,10 @@ func bp2buildDefaultTrueRecursively(packagePath string, config allowlists.Bp2Bui
 }
 
 func registerBp2buildConversionMutator(ctx RegisterMutatorsContext) {
-	ctx.TopDown("bp2build_conversion", bp2buildConversionMutator).Parallel()
+	ctx.BottomUp("bp2build_conversion", bp2buildConversionMutator).Parallel()
 }
 
-func bp2buildConversionMutator(ctx TopDownMutatorContext) {
-	if ctx.Config().HasBazelBuildTargetInSource(ctx) {
-		// Defer to the BUILD target. Generating an additional target would
-		// cause a BUILD file conflict.
-		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_DEFINED_IN_BUILD_FILE, "")
-		return
-	}
-
+func bp2buildConversionMutator(ctx BottomUpMutatorContext) {
 	bModule, ok := ctx.Module().(Bazelable)
 	if !ok {
 		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "")
@@ -634,21 +627,23 @@ func bp2buildConversionMutator(ctx TopDownMutatorContext) {
 		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_UNSUPPORTED, "")
 		return
 	}
+	if ctx.Module().base().GetUnconvertedReason() != nil {
+		return
+	}
+
 	bModule.ConvertWithBp2build(ctx)
 
-	if !ctx.Module().base().IsConvertedByBp2build() && ctx.Module().base().GetUnconvertedReason() == nil {
+	if len(ctx.Module().base().Bp2buildTargets()) == 0 && ctx.Module().base().GetUnconvertedReason() == nil {
 		panic(fmt.Errorf("illegal bp2build invariant: module '%s' was neither converted nor marked unconvertible", ctx.ModuleName()))
 	}
-}
 
-func registerApiBp2buildConversionMutator(ctx RegisterMutatorsContext) {
-	ctx.TopDown("apiBp2build_conversion", convertWithApiBp2build).Parallel()
-}
-
-// Generate API contribution targets if the Soong module provides APIs
-func convertWithApiBp2build(ctx TopDownMutatorContext) {
-	if m, ok := ctx.Module().(ApiProvider); ok {
-		m.ConvertWithApiBp2build(ctx)
+	for _, targetInfo := range ctx.Module().base().Bp2buildTargets() {
+		if ctx.Config().HasBazelBuildTargetInSource(targetInfo.TargetPackage(), targetInfo.TargetName()) {
+			// Defer to the BUILD target. Generating an additional target would
+			// cause a BUILD file conflict.
+			ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_DEFINED_IN_BUILD_FILE, targetInfo.TargetName())
+			return
+		}
 	}
 }
 
