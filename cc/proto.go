@@ -246,7 +246,7 @@ func bp2buildProto(ctx android.Bp2buildMutatorContext, m *Module, protoSrcs baze
 	protoAttrs.Min_sdk_version = m.Properties.Min_sdk_version
 
 	name := m.Name() + suffix
-	tags := android.ApexAvailableTagsWithoutTestApexes(ctx.(android.TopDownMutatorContext), m)
+	tags := android.ApexAvailableTagsWithoutTestApexes(ctx, m)
 	ctx.CreateBazelTargetModule(
 		bazel.BazelTargetModuleProperties{
 			Rule_class:        rule_class,

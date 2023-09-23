@@ -86,12 +86,6 @@ type bazelAidlLibraryAttributes struct {
 	Strip_import_prefix *string
 }
 
-// api srcs can be contained in filegroups.
-// this should be generated in api_bp2build workspace as well.
-func (fg *fileGroup) ConvertWithApiBp2build(ctx TopDownMutatorContext) {
-	fg.ConvertWithBp2build(ctx)
-}
-
 // ConvertWithBp2build performs bp2build conversion of filegroup
 func (fg *fileGroup) ConvertWithBp2build(ctx Bp2buildMutatorContext) {
 	srcs := bazel.MakeLabelListAttribute(
