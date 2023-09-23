@@ -53,9 +53,9 @@ func createProductConfigFiles(
 		return res, err
 	}
 
-	currentProductFolder := fmt.Sprintf("build/bazel/products/%s-%s", targetProduct, targetBuildVariant)
+	currentProductFolder := fmt.Sprintf("build/bazel/products/%s", targetProduct)
 	if len(productVariables.PartitionVars.ProductDirectory) > 0 {
-		currentProductFolder = fmt.Sprintf("%s%s-%s", productVariables.PartitionVars.ProductDirectory, targetProduct, targetBuildVariant)
+		currentProductFolder = fmt.Sprintf("%s%s", productVariables.PartitionVars.ProductDirectory, targetProduct)
 	}
 
 	productReplacer := strings.NewReplacer(
@@ -73,7 +73,7 @@ func createProductConfigFiles(
 	}
 
 	productLabelsToVariables := make(map[string]*android.ProductVariables)
-	productLabelsToVariables[productReplacer.Replace("@//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}")] = &productVariables
+	productLabelsToVariables[productReplacer.Replace("@//{PRODUCT_FOLDER}:{PRODUCT}")] = &productVariables
 	for product, productVariablesStarlark := range productsForTestingMap {
 		productVariables, err := starlarkMapToProductVariables(productVariablesStarlark)
 		if err != nil {
@@ -84,10 +84,10 @@ func createProductConfigFiles(
 
 	res.bp2buildTargets = make(map[string]BazelTargets)
 	res.bp2buildTargets[currentProductFolder] = append(res.bp2buildTargets[currentProductFolder], BazelTarget{
-		name:        productReplacer.Replace("{PRODUCT}-{VARIANT}"),
+		name:        productReplacer.Replace("{PRODUCT}"),
 		packageName: currentProductFolder,
 		content: productReplacer.Replace(`android_product(
-    name = "{PRODUCT}-{VARIANT}",
+    name = "{PRODUCT}",
     soong_variables = _soong_variables,
 )`),
 		ruleClass: "android_product",
@@ -134,7 +134,7 @@ load("@//build/bazel/product_config:android_product.bzl", "android_product")
 # extra rebuilding, make mixed builds always use a single platform so that the bazel artifacts
 # are always under the same path.
 android_product(
-    name = "mixed_builds_product-{VARIANT}",
+    name = "mixed_builds_product",
     soong_variables = _soong_variables,
     extra_constraints = ["@//build/bazel/platforms:mixed_builds"],
 )
@@ -148,34 +148,35 @@ android_product(
 # TODO: When we start generating the platforms for more than just the
 # currently lunched product, they should all be listed here
 product_labels = [
-  "@soong_injection//product_config_platforms:mixed_builds_product-{VARIANT}",
-  "@//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}",
+  "@soong_injection//product_config_platforms:mixed_builds_product",
+  "@//{PRODUCT_FOLDER}:{PRODUCT}",
 `)+strings.Join(productsForTesting, "\n")+"\n]\n"),
 		newFile(
 			"product_config_platforms",
 			"common.bazelrc",
 			productReplacer.Replace(`
 build --platform_mappings=platform_mappings
-build --platforms @//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_x86_64
+build --platforms @//{PRODUCT_FOLDER}:{PRODUCT}_linux_x86_64
+build --//build/bazel/product_config:target_build_variant={VARIANT}
 
-build:android --platforms=@//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}
-build:linux_x86 --platforms=@//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_x86
-build:linux_x86_64 --platforms=@//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_x86_64
-build:linux_bionic_x86_64 --platforms=@//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_bionic_x86_64
-build:linux_musl_x86 --platforms=@//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_musl_x86
-build:linux_musl_x86_64 --platforms=@//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_musl_x86_64
+build:android --platforms=@//{PRODUCT_FOLDER}:{PRODUCT}
+build:linux_x86 --platforms=@//{PRODUCT_FOLDER}:{PRODUCT}_linux_x86
+build:linux_x86_64 --platforms=@//{PRODUCT_FOLDER}:{PRODUCT}_linux_x86_64
+build:linux_bionic_x86_64 --platforms=@//{PRODUCT_FOLDER}:{PRODUCT}_linux_bionic_x86_64
+build:linux_musl_x86 --platforms=@//{PRODUCT_FOLDER}:{PRODUCT}_linux_musl_x86
+build:linux_musl_x86_64 --platforms=@//{PRODUCT_FOLDER}:{PRODUCT}_linux_musl_x86_64
 `)),
 		newFile(
 			"product_config_platforms",
 			"linux.bazelrc",
 			productReplacer.Replace(`
-build --host_platform @//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_linux_x86_64
+build --host_platform @//{PRODUCT_FOLDER}:{PRODUCT}_linux_x86_64
 `)),
 		newFile(
 			"product_config_platforms",
 			"darwin.bazelrc",
 			productReplacer.Replace(`
-build --host_platform @//{PRODUCT_FOLDER}:{PRODUCT}-{VARIANT}_darwin_x86_64
+build --host_platform @//{PRODUCT_FOLDER}:{PRODUCT}_darwin_x86_64
 `)),
 	}
 	res.bp2buildFiles = []BazelFile{
@@ -237,12 +238,6 @@ func platformMappingSingleProduct(
 	soongConfigDefinitions soongconfig.Bp2BuildSoongConfigDefinitions,
 	convertedModulePathMap map[string]string,
 	result *strings.Builder) {
-	targetBuildVariant := "user"
-	if proptools.Bool(productVariables.Eng) {
-		targetBuildVariant = "eng"
-	} else if proptools.Bool(productVariables.Debuggable) {
-		targetBuildVariant = "userdebug"
-	}
 
 	platform_sdk_version := -1
 	if productVariables.Platform_sdk_version != nil {
@@ -270,7 +265,6 @@ func platformMappingSingleProduct(
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:cfi_exclude_paths=%s\n", strings.Join(productVariables.CFIExcludePaths, ",")))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:cfi_include_paths=%s\n", strings.Join(productVariables.CFIIncludePaths, ",")))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:compressed_apex=%t\n", proptools.Bool(productVariables.CompressedApex)))
-		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:debuggable=%t\n", proptools.Bool(productVariables.Debuggable)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:default_app_certificate=%s\n", proptools.String(productVariables.DefaultAppCertificate)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:default_app_certificate_filegroup=%s\n", defaultAppCertificateFilegroup))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:device_abi=%s\n", strings.Join(productVariables.DeviceAbi, ",")))
@@ -281,7 +275,6 @@ func platformMappingSingleProduct(
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:device_platform=%s\n", label))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:enable_cfi=%t\n", proptools.BoolDefault(productVariables.EnableCFI, true)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:enforce_vintf_manifest=%t\n", proptools.Bool(productVariables.Enforce_vintf_manifest)))
-		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:eng=%t\n", proptools.Bool(productVariables.Eng)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:malloc_not_svelte=%t\n", proptools.Bool(productVariables.Malloc_not_svelte)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:malloc_pattern_fill_contents=%t\n", proptools.Bool(productVariables.Malloc_pattern_fill_contents)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:malloc_zero_contents=%t\n", proptools.Bool(productVariables.Malloc_zero_contents)))
@@ -290,6 +283,7 @@ func platformMappingSingleProduct(
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:memtag_heap_sync_include_paths=%s\n", strings.Join(productVariables.MemtagHeapSyncIncludePaths, ",")))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:manifest_package_name_overrides=%s\n", strings.Join(productVariables.ManifestPackageNameOverrides, ",")))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:native_coverage=%t\n", proptools.Bool(productVariables.Native_coverage)))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:platform_sdk_final=%t\n", proptools.Bool(productVariables.Platform_sdk_final)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:platform_version_name=%s\n", proptools.String(productVariables.Platform_version_name)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:product_brand=%s\n", productVariables.ProductBrand))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:product_manufacturer=%s\n", productVariables.ProductManufacturer))
@@ -301,7 +295,6 @@ func platformMappingSingleProduct(
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:release_version=%s\n", productVariables.ReleaseVersion))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:platform_sdk_version=%d\n", platform_sdk_version))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:safestack=%t\n", proptools.Bool(productVariables.Safestack)))
-		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:target_build_variant=%s\n", targetBuildVariant))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:treble_linker_namespaces=%t\n", proptools.Bool(productVariables.Treble_linker_namespaces)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:tidy_checks=%s\n", proptools.String(productVariables.TidyChecks)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:uml=%t\n", proptools.Bool(productVariables.Uml)))

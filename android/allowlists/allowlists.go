@@ -196,6 +196,7 @@ var (
 		"external/openscreen":                    Bp2BuildDefaultTrueRecursively,
 		"external/ow2-asm":                       Bp2BuildDefaultTrueRecursively,
 		"external/pcre":                          Bp2BuildDefaultTrueRecursively,
+		"external/perfmark/api":                  Bp2BuildDefaultTrueRecursively,
 		"external/protobuf":                      Bp2BuildDefaultTrueRecursively,
 		"external/python/pyyaml/lib/yaml":        Bp2BuildDefaultTrueRecursively,
 		"external/python/six":                    Bp2BuildDefaultTrueRecursively,
@@ -244,7 +245,6 @@ var (
 		"frameworks/hardware/interfaces/stats/aidl":          Bp2BuildDefaultTrue,
 		"frameworks/libs/modules-utils/build":                Bp2BuildDefaultTrueRecursively,
 		"frameworks/libs/modules-utils/java":                 Bp2BuildDefaultTrue,
-		"frameworks/libs/net/common/native":                  Bp2BuildDefaultTrueRecursively, // TODO(b/296014682): Remove this path
 		"frameworks/native":                                  Bp2BuildDefaultTrue,
 		"frameworks/native/libs/adbd_auth":                   Bp2BuildDefaultTrueRecursively,
 		"frameworks/native/libs/arect":                       Bp2BuildDefaultTrueRecursively,
@@ -925,6 +925,28 @@ var (
 		"libdexmakerjvmtiagent",
 		"libopenjdkjvmti_headers",
 		"libstaticjvmtiagent",
+
+		// tradefed deps
+		"tradefed-protos",
+		"grpc-java",
+		"grpc-java-api",
+		"grpc-java-auth",
+		"grpc-java-context",
+		"grpc-java-core",
+		"grpc-java-core-inprocess",
+		"grpc-java-core-internal",
+		"grpc-java-core-util",
+		"grpc-java-protobuf",
+		"grpc-java-protobuf-lite",
+		"grpc-java-stub",
+		"grpc-java-annotation-stubs",
+		"grpc-java-annotation-stubs-srcjar",
+		"gen_annotations",
+		"opencensus-java-contrib-grpc-metrics",
+		"opencensus-java-api",
+		"gson",
+		"GsonBuildConfig.java",
+		"gson_version_generator",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
@@ -948,6 +970,7 @@ var (
 		"license",
 		"linker_config",
 		"ndk_library",
+		"ndk_headers",
 		"sysprop_library",
 		"xsd_config",
 		// go/keep-sorted end
@@ -1026,7 +1049,6 @@ var (
 		"conscrypt-for-host",               // TODO(b/210751803), we don't handle path property for filegroups
 		"host-libprotobuf-java-full",       // TODO(b/210751803), we don't handle path property for filegroups
 		"libprotobuf-internal-python-srcs", // TODO(b/210751803), we don't handle path property for filegroups
-		"libprotobuf-java-util-full",       // TODO(b/210751803), we don't handle path property for filegroups
 
 		// go deps:
 		"analyze_bcpf",              // depends on bpmodify a blueprint_go_binary.

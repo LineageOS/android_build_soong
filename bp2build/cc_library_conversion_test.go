@@ -1857,7 +1857,6 @@ func TestCcLibrary_SystemSharedLibsBionicEmpty(t *testing.T) {
 		Blueprint: soongCcLibraryPreamble + `
 cc_library {
 	name: "libc_musl",
-	bazel_module: { bp2build_available: false },
 }
 
 cc_library {
@@ -1912,10 +1911,10 @@ func TestCcLibrary_SystemSharedLibsLinuxMuslEmpty(t *testing.T) {
 		Description:                "cc_library system_shared_lib empty for linux_musl variant",
 		ModuleTypeUnderTest:        "cc_library",
 		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		StubbedBuildDefinitions:    []string{"libc_musl"},
 		Blueprint: soongCcLibraryPreamble + `
 cc_library {
 		name: "libc_musl",
-		bazel_module: { bp2build_available: false },
 }
 
 cc_library {
@@ -5178,6 +5177,33 @@ ndk_library {
         "S",
         "Tiramisu",
         "current",
+    ]`,
+			}),
+		},
+	}
+	runCcLibraryTestCase(t, tc)
+}
+
+func TestNdkHeadersConversion(t *testing.T) {
+	tc := Bp2buildTestCase{
+		Description:                "ndk_headers conversion",
+		ModuleTypeUnderTest:        "ndk_headers",
+		ModuleTypeUnderTestFactory: cc.NdkHeadersFactory,
+		Blueprint: `
+ndk_headers {
+	name: "libfoo_headers",
+	from: "from",
+	to: "to",
+	srcs: ["foo.h", "foo_other.h"]
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTargetNoRestrictions("ndk_headers", "libfoo_headers", AttrNameToString{
+				"strip_import_prefix": `"from"`,
+				"import_prefix":       `"to"`,
+				"hdrs": `[
+        "foo.h",
+        "foo_other.h",
     ]`,
 			}),
 		},
