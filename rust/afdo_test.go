@@ -54,8 +54,8 @@ func TestAfdoEnabled(t *testing.T) {
 
 	expectedCFlag := fmt.Sprintf(afdoFlagFormat, "afdo_profiles_package/foo.afdo")
 
-	if !strings.Contains(foo.RuleParams.Command, expectedCFlag) {
-		t.Errorf("Expected 'foo' to enable afdo, but did not find %q in command %q", expectedCFlag, foo.RuleParams.Command)
+	if !strings.Contains(foo.Args["rustcFlags"], expectedCFlag) {
+		t.Errorf("Expected 'foo' to enable afdo, but did not find %q in cflags %q", expectedCFlag, foo.Args["rustcFlags"])
 	}
 }
 
@@ -96,17 +96,17 @@ func TestAfdoEnabledWithMultiArchs(t *testing.T) {
 		rustMockedFiles.AddToFixture(),
 	).RunTestWithBp(t, bp)
 
-	fooArm := result.ModuleForTests("foo", "android_arm_armv7-a-neon").Description("rustc")
-	fooArm64 := result.ModuleForTests("foo", "android_arm64_armv8-a").Description("rustc")
+	fooArm := result.ModuleForTests("foo", "android_arm_armv7-a-neon").Rule("rustc")
+	fooArm64 := result.ModuleForTests("foo", "android_arm64_armv8-a").Rule("rustc")
 
 	expectedCFlagArm := fmt.Sprintf(afdoFlagFormat, "afdo_profiles_package/foo_arm.afdo")
 	expectedCFlagArm64 := fmt.Sprintf(afdoFlagFormat, "afdo_profiles_package/foo_arm64.afdo")
 
-	if !strings.Contains(fooArm.RuleParams.Command, expectedCFlagArm) {
-		t.Errorf("Expected 'fooArm' to enable afdo, but did not find %q in command %q", expectedCFlagArm, fooArm.RuleParams.Command)
+	if !strings.Contains(fooArm.Args["rustcFlags"], expectedCFlagArm) {
+		t.Errorf("Expected 'fooArm' to enable afdo, but did not find %q in cflags %q", expectedCFlagArm, fooArm.Args["rustcFlags"])
 	}
 
-	if !strings.Contains(fooArm64.RuleParams.Command, expectedCFlagArm64) {
-		t.Errorf("Expected 'fooArm64' to enable afdo, but did not find %q in command %q", expectedCFlagArm64, fooArm.RuleParams.Command)
+	if !strings.Contains(fooArm64.Args["rustcFlags"], expectedCFlagArm64) {
+		t.Errorf("Expected 'fooArm64' to enable afdo, but did not find %q in cflags %q", expectedCFlagArm64, fooArm64.Args["rustcFlags"])
 	}
 }
