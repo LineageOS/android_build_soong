@@ -48,23 +48,23 @@ func TestLibraryVariants(t *testing.T) {
 	staticCrateType := "staticlib"
 
 	// Test crate type for rlib is correct.
-	if !strings.Contains(libfooRlib.RuleParams.Command, "crate-type="+rlibCrateType) {
-		t.Errorf("missing crate-type for static variant, expecting %#v, rustcFlags: %#v", rlibCrateType, libfooRlib.RuleParams.Command)
+	if !strings.Contains(libfooRlib.Args["rustcFlags"], "crate-type="+rlibCrateType) {
+		t.Errorf("missing crate-type for static variant, expecting %#v, rustcFlags: %#v", rlibCrateType, libfooRlib.Args["rustcFlags"])
 	}
 
 	// Test crate type for dylib is correct.
-	if !strings.Contains(libfooDylib.RuleParams.Command, "crate-type="+dylibCrateType) {
-		t.Errorf("missing crate-type for static variant, expecting %#v, rustcFlags: %#v", dylibCrateType, libfooDylib.RuleParams.Command)
+	if !strings.Contains(libfooDylib.Args["rustcFlags"], "crate-type="+dylibCrateType) {
+		t.Errorf("missing crate-type for static variant, expecting %#v, rustcFlags: %#v", dylibCrateType, libfooDylib.Args["rustcFlags"])
 	}
 
 	// Test crate type for C static libraries is correct.
-	if !strings.Contains(libfooStatic.RuleParams.Command, "crate-type="+staticCrateType) {
-		t.Errorf("missing crate-type for static variant, expecting %#v, rustcFlags: %#v", staticCrateType, libfooStatic.RuleParams.Command)
+	if !strings.Contains(libfooStatic.Args["rustcFlags"], "crate-type="+staticCrateType) {
+		t.Errorf("missing crate-type for static variant, expecting %#v, rustcFlags: %#v", staticCrateType, libfooStatic.Args["rustcFlags"])
 	}
 
 	// Test crate type for C shared libraries is correct.
-	if !strings.Contains(libfooShared.RuleParams.Command, "crate-type="+sharedCrateType) {
-		t.Errorf("missing crate-type for shared variant, expecting %#v, got rustcFlags: %#v", sharedCrateType, libfooShared.RuleParams.Command)
+	if !strings.Contains(libfooShared.Args["rustcFlags"], "crate-type="+sharedCrateType) {
+		t.Errorf("missing crate-type for shared variant, expecting %#v, got rustcFlags: %#v", sharedCrateType, libfooShared.Args["rustcFlags"])
 	}
 
 }
@@ -78,10 +78,10 @@ func TestDylibPreferDynamic(t *testing.T) {
 			crate_name: "foo",
 		}`)
 
-	libfooDylib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_dylib").Description("rustc")
+	libfooDylib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_dylib").Rule("rustc")
 
-	if !strings.Contains(libfooDylib.RuleParams.Command, "prefer-dynamic") {
-		t.Errorf("missing prefer-dynamic flag for libfoo dylib, rustcFlags: %#v", libfooDylib.RuleParams.Command)
+	if !strings.Contains(libfooDylib.Args["rustcFlags"], "prefer-dynamic") {
+		t.Errorf("missing prefer-dynamic flag for libfoo dylib, rustcFlags: %#v", libfooDylib.Args["rustcFlags"])
 	}
 }
 
@@ -94,10 +94,10 @@ func TestAndroidDylib(t *testing.T) {
 			crate_name: "foo",
 		}`)
 
-	libfooDylib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_dylib").Description("rustc")
+	libfooDylib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_dylib").Rule("rustc")
 
-	if !strings.Contains(libfooDylib.RuleParams.Command, "--cfg 'android_dylib'") {
-		t.Errorf("missing android_dylib cfg flag for libfoo dylib, rustcFlags: %#v", libfooDylib.RuleParams.Command)
+	if !strings.Contains(libfooDylib.Args["rustcFlags"], "--cfg 'android_dylib'") {
+		t.Errorf("missing android_dylib cfg flag for libfoo dylib, rustcFlags: %#v", libfooDylib.Args["rustcFlags"])
 	}
 }
 
@@ -148,10 +148,10 @@ func TestSharedLibrary(t *testing.T) {
 
 	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared")
 
-	libfooOutput := libfoo.Rule("rustc")
-	if !strings.Contains(libfooOutput.RuleParams.Command, "-Wl,-soname=libfoo.so") {
+	libfooOutput := libfoo.Rule("rustLink")
+	if !strings.Contains(libfooOutput.Args["linkFlags"], "-Wl,-soname=libfoo.so") {
 		t.Errorf("missing expected -Wl,-soname linker flag for libfoo shared lib, linkFlags: %#v",
-			libfooOutput.RuleParams.Command)
+			libfooOutput.Args["linkFlags"])
 	}
 
 	if !android.InList("libstd", libfoo.Module().(*Module).Properties.AndroidMkDylibs) {
@@ -237,21 +237,19 @@ func TestNativeDependencyOfRlib(t *testing.T) {
 	// The build system assumes the  cc deps will be at the final linkage (either a shared library or binary)
 	// Hence, these flags are no-op
 	// TODO: We could consider removing these flags
-	expectedSharedFlag := "-L out/soong/.intermediates/shared_cc_dep/android_arm64_armv8-a_shared"
-	expectedStaticFlag := "-L out/soong/.intermediates/static_cc_dep/android_arm64_armv8-a_static"
 	for _, module := range modules {
-		if !strings.Contains(module.Rule("rustc").RuleParams.Command, expectedSharedFlag) {
+		if !strings.Contains(module.Rule("rustc").Args["libFlags"],
+			"-L out/soong/.intermediates/shared_cc_dep/android_arm64_armv8-a_shared/") {
 			t.Errorf(
-				"expected to find shared library linkdir flag %q, rustcFlags: %#v",
-				expectedSharedFlag,
-				rustRlibRlibStd.Rule("rustc").RuleParams.Command,
+				"missing -L flag for shared_cc_dep, rustcFlags: %#v",
+				rustRlibRlibStd.Rule("rustc").Args["libFlags"],
 			)
 		}
-		if !strings.Contains(module.Rule("rustc").RuleParams.Command, expectedStaticFlag) {
+		if !strings.Contains(module.Rule("rustc").Args["libFlags"],
+			"-L out/soong/.intermediates/static_cc_dep/android_arm64_armv8-a_static/") {
 			t.Errorf(
-				"expected to find static library linkdir flag %q, rustcFlags: %#v",
-				expectedStaticFlag,
-				rustRlibRlibStd.Rule("rustc").RuleParams.Command,
+				"missing -L flag for static_cc_dep, rustcFlags: %#v",
+				rustRlibRlibStd.Rule("rustc").Args["libFlags"],
 			)
 		}
 	}
