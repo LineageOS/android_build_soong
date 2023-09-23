@@ -571,23 +571,6 @@ func (m *customModule) createConfigSetting(ctx android.Bp2buildMutatorContext) {
 	)
 }
 
-var _ android.ApiProvider = (*customModule)(nil)
-
-func (c *customModule) ConvertWithApiBp2build(ctx android.TopDownMutatorContext) {
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class: "custom_api_contribution",
-	}
-	apiAttribute := bazel.MakeLabelAttribute(
-		android.BazelLabelForModuleSrcSingle(ctx, proptools.String(c.props.Api)).Label,
-	)
-	attrs := &customBazelModuleAttributes{
-		Api: *apiAttribute,
-	}
-	ctx.CreateBazelTargetModule(props,
-		android.CommonAttributes{Name: c.Name()},
-		attrs)
-}
-
 // A bp2build mutator that uses load statements and creates a 1:M mapping from
 // module to target.
 func customBp2buildOneToMany(ctx android.Bp2buildMutatorContext, m *customModule) {
