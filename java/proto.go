@@ -151,11 +151,17 @@ type protoAttributes struct {
 	// a specific .proto file module explicitly.
 	Transitive_deps bazel.LabelListAttribute
 
+	// This is the libs and the static_libs of the original java_library module.
+	// On the bazel side, after proto sources are generated in java_*_proto_library, a java_library
+	// will compile them. The libs and static_libs from the original java_library module need
+	// to be linked because they are necessary in compile-time classpath.
+	Additional_proto_deps bazel.LabelListAttribute
+
 	Sdk_version  bazel.StringAttribute
 	Java_version bazel.StringAttribute
 }
 
-func bp2buildProto(ctx android.Bp2buildMutatorContext, m *Module, protoSrcs bazel.LabelListAttribute) *bazel.Label {
+func bp2buildProto(ctx android.Bp2buildMutatorContext, m *Module, protoSrcs bazel.LabelListAttribute, AdditionalProtoDeps bazel.LabelListAttribute) *bazel.Label {
 	protoInfo, ok := android.Bp2buildProtoProperties(ctx, &m.ModuleBase, protoSrcs)
 	if !ok {
 		return nil
@@ -184,10 +190,11 @@ func bp2buildProto(ctx android.Bp2buildMutatorContext, m *Module, protoSrcs baze
 	}
 
 	protoAttrs := &protoAttributes{
-		Deps:            bazel.MakeLabelListAttribute(protoInfo.Proto_libs),
-		Transitive_deps: bazel.MakeLabelListAttribute(protoInfo.Transitive_proto_libs),
-		Java_version:    bazel.StringAttribute{Value: m.properties.Java_version},
-		Sdk_version:     bazel.StringAttribute{Value: m.deviceProperties.Sdk_version},
+		Deps:                  bazel.MakeLabelListAttribute(protoInfo.Proto_libs),
+		Transitive_deps:       bazel.MakeLabelListAttribute(protoInfo.Transitive_proto_libs),
+		Additional_proto_deps: AdditionalProtoDeps,
+		Java_version:          bazel.StringAttribute{Value: m.properties.Java_version},
+		Sdk_version:           bazel.StringAttribute{Value: m.deviceProperties.Sdk_version},
 	}
 
 	name := m.Name() + suffix
