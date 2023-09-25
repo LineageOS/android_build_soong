@@ -485,11 +485,55 @@ type ProductVariables struct {
 
 	CheckVendorSeappViolations *bool `json:",omitempty"`
 
-	// PartitionsVars are extra variables that are used to define the partition images. They should
-	// not be read from soong modules.
-	PartitionVars struct {
-		ProductDirectory string `json:",omitempty"`
-	} `json:",omitempty"`
+	// PartitionVarsForBazelMigrationOnlyDoNotUse are extra variables that are used to define the
+	// partition images. They should not be read from soong modules.
+	PartitionVarsForBazelMigrationOnlyDoNotUse PartitionVariables `json:",omitempty"`
+}
+
+type PartitionVariables struct {
+	ProductDirectory            string `json:",omitempty"`
+	PartitionQualifiedVariables map[string]struct {
+		BuildingImage               bool   `json:",omitempty"`
+		BoardErofsCompressor        string `json:",omitempty"`
+		BoardErofsCompressHints     string `json:",omitempty"`
+		BoardErofsPclusterSize      string `json:",omitempty"`
+		BoardExtfsInodeCount        string `json:",omitempty"`
+		BoardExtfsRsvPct            string `json:",omitempty"`
+		BoardF2fsSloadCompressFlags string `json:",omitempty"`
+		BoardFileSystemCompress     string `json:",omitempty"`
+		BoardFileSystemType         string `json:",omitempty"`
+		BoardJournalSize            string `json:",omitempty"`
+		BoardPartitionReservedSize  string `json:",omitempty"`
+		BoardPartitionSize          string `json:",omitempty"`
+		BoardSquashfsBlockSize      string `json:",omitempty"`
+		BoardSquashfsCompressor     string `json:",omitempty"`
+		BoardSquashfsCompressorOpt  string `json:",omitempty"`
+		BoardSquashfsDisable4kAlign string `json:",omitempty"`
+		ProductBaseFsPath           string `json:",omitempty"`
+		ProductHeadroom             string `json:",omitempty"`
+		ProductVerityPartition      string `json:",omitempty"`
+	}
+	TargetUserimagesUseExt2 bool `json:",omitempty"`
+	TargetUserimagesUseExt3 bool `json:",omitempty"`
+	TargetUserimagesUseExt4 bool `json:",omitempty"`
+
+	TargetUserimagesSparseExtDisabled      bool `json:",omitempty"`
+	TargetUserimagesSparseErofsDisabled    bool `json:",omitempty"`
+	TargetUserimagesSparseSquashfsDisabled bool `json:",omitempty"`
+	TargetUserimagesSparseF2fsDisabled     bool `json:",omitempty"`
+
+	BoardErofsCompressor                 string `json:",omitempty"`
+	BoardErofsCompressorHints            string `json:",omitempty"`
+	BoardErofsPclusterSize               string `json:",omitempty"`
+	BoardErofsShareDupBlocks             string `json:",omitempty"`
+	BoardErofsUseLegacyCompression       string `json:",omitempty"`
+	BoardExt4ShareDupBlocks              string `json:",omitempty"`
+	BoardFlashLogicalBlockSize           string `json:",omitempty"`
+	BoardFlashEraseBlockSize             string `json:",omitempty"`
+	BoardUsesRecoveryAsBoot              bool   `json:",omitempty"`
+	BoardBuildGkiBootImageWithoutRamdisk bool   `json:",omitempty"`
+	ProductUseDynamicPartitionSize       bool   `json:",omitempty"`
+	CopyImagesForTargetFilesZip          bool   `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
