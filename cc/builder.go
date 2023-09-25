@@ -875,7 +875,8 @@ func transformObjToDynamicBinary(ctx android.ModuleContext,
 // into a single .ldump sAbi dump file
 func transformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Paths, soFile android.Path,
 	baseName, exportedHeaderFlags string, symbolFile android.OptionalPath,
-	excludedSymbolVersions, excludedSymbolTags []string) android.OptionalPath {
+	excludedSymbolVersions, excludedSymbolTags []string,
+	api string) android.OptionalPath {
 
 	outputFile := android.PathForModuleOut(ctx, baseName+".lsdump")
 
@@ -892,6 +893,11 @@ func transformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Path
 	for _, tag := range excludedSymbolTags {
 		symbolFilterStr += " --exclude-symbol-tag " + tag
 	}
+	apiLevelsJson := android.GetApiLevelsJson(ctx)
+	implicits = append(implicits, apiLevelsJson)
+	symbolFilterStr += " --api-map " + apiLevelsJson.String()
+	symbolFilterStr += " --api " + api
+
 	rule := sAbiLink
 	args := map[string]string{
 		"symbolFilter":        symbolFilterStr,
