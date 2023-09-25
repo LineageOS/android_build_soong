@@ -33,10 +33,10 @@ import (
 	"android/soong/shared"
 	"android/soong/starlark_import"
 
+	"android/soong/bazel"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/metrics"
-
-	"android/soong/bazel"
 )
 
 var (
@@ -1048,39 +1048,46 @@ var (
 	allBazelCommands = []bazelCommand{aqueryCmd, cqueryCmd, buildCmd}
 )
 
+// This can't be part of bp2build_product_config.go because it would create a circular go package dependency
+func getLabelsForBazelSandwichPartitions(variables *ProductVariables) []string {
+	targetProduct := "unknown"
+	if variables.DeviceProduct != nil {
+		targetProduct = *variables.DeviceProduct
+	}
+	currentProductFolder := fmt.Sprintf("build/bazel/products/%s", targetProduct)
+	if len(variables.PartitionVarsForBazelMigrationOnlyDoNotUse.ProductDirectory) > 0 {
+		currentProductFolder = fmt.Sprintf("%s%s", variables.PartitionVarsForBazelMigrationOnlyDoNotUse.ProductDirectory, targetProduct)
+	}
+	var ret []string
+	if variables.PartitionVarsForBazelMigrationOnlyDoNotUse.PartitionQualifiedVariables["system"].BuildingImage {
+		ret = append(ret, "@//"+currentProductFolder+":system_image")
+		ret = append(ret, "@//"+currentProductFolder+":run_system_image_test")
+	}
+	return ret
+}
+
 func GetBazelSandwichCqueryRequests(config Config) ([]cqueryKey, error) {
-	result := make([]cqueryKey, 0, len(allowlists.BazelSandwichTargets))
+	partitionLabels := getLabelsForBazelSandwichPartitions(&config.productVariables)
+	result := make([]cqueryKey, 0, len(partitionLabels))
 	labelRegex := regexp.MustCompile("^@?//([a-zA-Z0-9/_-]+):[a-zA-Z0-9_-]+$")
 	// Note that bazel "targets" are different from soong "targets", the bazel targets are
 	// synonymous with soong modules, and soong targets are a configuration a module is built in.
-	for _, target := range allowlists.BazelSandwichTargets {
-		match := labelRegex.FindStringSubmatch(target.Label)
+	for _, target := range partitionLabels {
+		match := labelRegex.FindStringSubmatch(target)
 		if match == nil {
-			return nil, fmt.Errorf("invalid label, must match `^@?//([a-zA-Z0-9/_-]+):[a-zA-Z0-9_-]+$`: %s", target.Label)
-		}
-		if _, err := os.Stat(absolutePath(match[1])); err != nil {
-			if os.IsNotExist(err) {
-				// Ignore bazel sandwich targets that don't exist.
-				continue
-			} else {
-				return nil, err
-			}
+			return nil, fmt.Errorf("invalid label, must match `^@?//([a-zA-Z0-9/_-]+):[a-zA-Z0-9_-]+$`: %s", target)
 		}
 
-		var soongTarget Target
-		if target.Host {
-			soongTarget = config.BuildOSTarget
-		} else {
-			soongTarget = config.AndroidCommonTarget
-			if soongTarget.Os.Class != Device {
-				// kernel-build-tools seems to set the AndroidCommonTarget to a linux host
-				// target for some reason, disable device builds in that case.
-				continue
-			}
+		// change this to config.BuildOSTarget if we add host targets
+		soongTarget := config.AndroidCommonTarget
+		if soongTarget.Os.Class != Device {
+			// kernel-build-tools seems to set the AndroidCommonTarget to a linux host
+			// target for some reason, disable device builds in that case.
+			continue
 		}
 
 		result = append(result, cqueryKey{
-			label:       target.Label,
+			label:       target,
 			requestType: cquery.GetOutputFiles,
 			configKey: configKey{
 				arch:   soongTarget.Arch.String(),
