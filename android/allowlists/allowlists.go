@@ -80,9 +80,9 @@ var (
 		"build/soong/scripts":                Bp2BuildDefaultTrueRecursively,
 
 		"cts/common/device-side/nativetesthelper/jni": Bp2BuildDefaultTrueRecursively,
-		"cts/libs/json":                          Bp2BuildDefaultTrueRecursively,
-		"cts/tests/tests/gesture":                Bp2BuildDefaultTrueRecursively,
-		"platform_testing/libraries/annotations": Bp2BuildDefaultTrueRecursively,
+		"cts/flags/cc_tests":                          Bp2BuildDefaultTrueRecursively,
+		"cts/libs/json":                               Bp2BuildDefaultTrueRecursively,
+		"cts/tests/tests/gesture":                     Bp2BuildDefaultTrueRecursively,
 
 		"dalvik/tools/dexdeps": Bp2BuildDefaultTrueRecursively,
 
@@ -335,7 +335,9 @@ var (
 		"packages/screensavers/Basic":                        Bp2BuildDefaultTrue,
 		"packages/services/Car/tests/SampleRearViewCamera":   Bp2BuildDefaultFalse, // TODO(b/242834321)
 
-		"platform_testing/tests/example": Bp2BuildDefaultTrueRecursively,
+		"platform_testing/libraries/annotations":              Bp2BuildDefaultTrueRecursively,
+		"platform_testing/libraries/flag-helpers/libflagtest": Bp2BuildDefaultTrueRecursively,
+		"platform_testing/tests/example":                      Bp2BuildDefaultTrueRecursively,
 
 		"prebuilts/clang/host/linux-x86":                   Bp2BuildDefaultTrueRecursively,
 		"prebuilts/gradle-plugin":                          Bp2BuildDefaultTrueRecursively,
