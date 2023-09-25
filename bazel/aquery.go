@@ -18,13 +18,15 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
-	analysis_v2_proto "prebuilts/bazel/common/proto/analysis_v2"
 	"reflect"
 	"sort"
 	"strings"
 	"sync"
+
+	analysis_v2_proto "prebuilts/bazel/common/proto/analysis_v2"
 
 	"github.com/google/blueprint/metrics"
 	"github.com/google/blueprint/proptools"
@@ -374,9 +376,14 @@ func AqueryBuildStatements(aqueryJsonProto []byte, eventHandler *metrics.EventHa
 		for i, actionEntry := range aqueryProto.Actions {
 			wg.Add(1)
 			go func(i int, actionEntry *analysis_v2_proto.Action) {
-				buildStatement, aErr := aqueryHandler.actionToBuildStatement(actionEntry)
-				if aErr != nil {
+				if buildStatement, aErr := aqueryHandler.actionToBuildStatement(actionEntry); aErr != nil {
 					errOnce.Do(func() {
+						for _, t := range aqueryProto.Targets {
+							if t.GetId() == actionEntry.GetTargetId() {
+								aErr = fmt.Errorf("%s: [%s] [%s]", aErr.Error(), actionEntry.GetMnemonic(), t.GetLabel())
+								break
+							}
+						}
 						err = aErr
 					})
 				} else {
@@ -782,7 +789,7 @@ func (a *aqueryArtifactHandler) actionToBuildStatement(actionEntry *analysis_v2_
 	}
 
 	if len(actionEntry.Arguments) < 1 {
-		return nil, fmt.Errorf("received action with no command: [%s]", actionEntry.Mnemonic)
+		return nil, errors.New("received action with no command")
 	}
 	return a.normalActionBuildStatement(actionEntry)
 
