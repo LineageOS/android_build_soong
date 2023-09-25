@@ -1779,18 +1779,4 @@ var (
 		"art_":        DEFAULT_PRIORITIZED_WEIGHT,
 		"ndk_library": DEFAULT_PRIORITIZED_WEIGHT,
 	}
-
-	BazelSandwichTargets = []struct {
-		Label string
-		Host  bool
-	}{
-		{
-			Label: "//build/bazel/examples/partitions:system_image",
-			Host:  false,
-		},
-		{
-			Label: "//build/bazel/examples/partitions:run_test",
-			Host:  false,
-		},
-	}
 )
