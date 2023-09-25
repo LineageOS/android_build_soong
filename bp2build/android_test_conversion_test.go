@@ -47,7 +47,40 @@ android_test {
 		name: "TestApp",
 		srcs: ["app.java"],
 		sdk_version: "current",
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("android_test", "TestApp", AttrNameToString{
+				"srcs":           `["app.java"]`,
+				"manifest":       `"AndroidManifest.xml"`,
+				"resource_files": `["res/res.png"]`,
+				"sdk_version":    `"current"`,
+				"assets":         `["assets/asset.png"]`,
+				"assets_dir":     `"assets"`,
+				// no need for optimize = False because it's false for
+				// android_test by default
+			}),
+		}})
+}
+
+func TestAndroidTest_OptimizationEnabled(t *testing.T) {
+	runAndroidAppTestCase(t, Bp2buildTestCase{
+		Description:                "Android test - simple example",
+		ModuleTypeUnderTest:        "android_test",
+		ModuleTypeUnderTestFactory: java.AndroidTestFactory,
+		Filesystem: map[string]string{
+			"app.java":            "",
+			"res/res.png":         "",
+			"AndroidManifest.xml": "",
+			"assets/asset.png":    "",
+		},
+		Blueprint: `
+android_test {
+		name: "TestApp",
+		srcs: ["app.java"],
+		sdk_version: "current",
 		optimize: {
+			enabled: true,
 			shrink: true,
 			optimize: true,
 			obfuscate: true,
@@ -62,6 +95,9 @@ android_test {
 				"sdk_version":    `"current"`,
 				"assets":         `["assets/asset.png"]`,
 				"assets_dir":     `"assets"`,
+				// optimize = True because it's false for android_test by
+				// default
+				"optimize": `True`,
 			}),
 		}})
 }
@@ -98,6 +134,45 @@ android_test_helper_app {
 				"assets":         `["assets/asset.png"]`,
 				"assets_dir":     `"assets"`,
 				"testonly":       `True`,
+				// no need for optimize = True because it's true for
+				// android_test_helper_app by default
+			}),
+		}})
+}
+
+func TestAndroidTestHelperApp_OptimizationDisabled(t *testing.T) {
+	runAndroidAppTestCase(t, Bp2buildTestCase{
+		Description:                "Android test helper app - simple example",
+		ModuleTypeUnderTest:        "android_test_helper_app",
+		ModuleTypeUnderTestFactory: java.AndroidTestHelperAppFactory,
+		Filesystem: map[string]string{
+			"app.java":            "",
+			"res/res.png":         "",
+			"AndroidManifest.xml": "",
+			"assets/asset.png":    "",
+		},
+		Blueprint: `
+android_test_helper_app {
+		name: "TestApp",
+		srcs: ["app.java"],
+		sdk_version: "current",
+		optimize: {
+			enabled: false,
+		},
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("android_binary", "TestApp", AttrNameToString{
+				"srcs":           `["app.java"]`,
+				"manifest":       `"AndroidManifest.xml"`,
+				"resource_files": `["res/res.png"]`,
+				"sdk_version":    `"current"`,
+				"assets":         `["assets/asset.png"]`,
+				"assets_dir":     `"assets"`,
+				"testonly":       `True`,
+				// optimize = False because it's true for
+				// android_test_helper_app by default
+				"optimize": `False`,
 			}),
 		}})
 }
