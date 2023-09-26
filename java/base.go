@@ -1343,10 +1343,17 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 					jars = append(jars, classes)
 				}
 			}
+			// Assume approximately 5 sources per srcjar.
+			// For framework-minus-apex in AOSP at the time this was written, there are 266 srcjars, with a mean
+			// of 5.8 sources per srcjar, but a median of 1, a standard deviation of 10, and a max of 48 source files.
 			if len(srcJars) > 0 {
-				classes := j.compileJavaClasses(ctx, jarName, len(shardSrcs),
-					nil, srcJars, flags, extraJarDeps)
-				jars = append(jars, classes)
+				startIdx := len(shardSrcs)
+				shardSrcJarsList := android.ShardPaths(srcJars, shardSize/5)
+				for idx, shardSrcJars := range shardSrcJarsList {
+					classes := j.compileJavaClasses(ctx, jarName, startIdx+idx,
+						nil, shardSrcJars, flags, extraJarDeps)
+					jars = append(jars, classes)
+				}
 			}
 		} else {
 			classes := j.compileJavaClasses(ctx, jarName, -1, uniqueJavaFiles, srcJars, flags, extraJarDeps)
