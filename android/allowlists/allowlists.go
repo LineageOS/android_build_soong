@@ -373,6 +373,7 @@ var (
 		"system/core/libprocessgroup/cgrouprc":                   Bp2BuildDefaultTrue,
 		"system/core/libprocessgroup/cgrouprc_format":            Bp2BuildDefaultTrue,
 		"system/core/libsparse":                                  Bp2BuildDefaultTrueRecursively,
+		"system/core/libstats/expresslog":                        Bp2BuildDefaultTrueRecursively,
 		"system/core/libsuspend":                                 Bp2BuildDefaultTrue,
 		"system/core/libsystem":                                  Bp2BuildDefaultTrueRecursively,
 		"system/core/libsysutils":                                Bp2BuildDefaultTrueRecursively,
