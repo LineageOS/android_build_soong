@@ -1378,10 +1378,10 @@ func (la *linkerAttributes) bp2buildForAxisAndConfig(ctx android.Bp2buildMutator
 		// having stubs or not, so Bazel select() statement can be used to choose
 		// source/stub variants of them.
 		apexAvailable := module.ApexAvailable()
-		SetStubsForDynamicDeps(ctx, axis, config, apexAvailable, sharedDeps.export, &la.dynamicDeps, 0, false)
-		SetStubsForDynamicDeps(ctx, axis, config, apexAvailable, sharedDeps.implementation, &la.implementationDynamicDeps, 1, false)
+		SetStubsForDynamicDeps(ctx, axis, config, apexAvailable, sharedDeps.export, &la.dynamicDeps, &la.deps, 0, false)
+		SetStubsForDynamicDeps(ctx, axis, config, apexAvailable, sharedDeps.implementation, &la.implementationDynamicDeps, &la.deps, 1, false)
 		if len(systemSharedLibs) > 0 {
-			SetStubsForDynamicDeps(ctx, axis, config, apexAvailable, bazelLabelForSharedDeps(ctx, systemSharedLibs), &la.systemDynamicDeps, 2, true)
+			SetStubsForDynamicDeps(ctx, axis, config, apexAvailable, bazelLabelForSharedDeps(ctx, systemSharedLibs), &la.systemDynamicDeps, &la.deps, 2, true)
 		}
 	}
 
@@ -1588,7 +1588,7 @@ func hasNdkStubs(ctx android.BazelConversionPathContext, c *Module) bool {
 }
 
 func SetStubsForDynamicDeps(ctx android.Bp2buildMutatorContext, axis bazel.ConfigurationAxis,
-	config string, apexAvailable []string, dynamicLibs bazel.LabelList, dynamicDeps *bazel.LabelListAttribute, ind int, buildNonApexWithStubs bool) {
+	config string, apexAvailable []string, dynamicLibs bazel.LabelList, dynamicDeps *bazel.LabelListAttribute, deps *bazel.LabelListAttribute, ind int, buildNonApexWithStubs bool) {
 
 	// Create a config_setting for each apex_available.
 	// This will be used to select impl of a dep if dep is available to the same apex.
@@ -1669,8 +1669,20 @@ func SetStubsForDynamicDeps(ctx android.Bp2buildMutatorContext, axis bazel.Confi
 			existingValue.Append(bazel.MakeLabelList([]bazel.Label{label}))
 			dynamicDeps.SetSelectValue(bazel.OsAndInApexAxis, "unbundled_app", bazel.FirstUniqueBazelLabelList(existingValue))
 		}
+
+		// Add ndk_sysroot to deps.
+		// ndk_sysroot has a dependency edge on all ndk_headers, and will provide the .h files of _every_ ndk library
+		existingValue := deps.SelectValue(bazel.OsAndInApexAxis, "unbundled_app")
+		existingValue.Append(bazel.MakeLabelList([]bazel.Label{ndkSysrootLabel}))
+		deps.SetSelectValue(bazel.OsAndInApexAxis, "unbundled_app", bazel.FirstUniqueBazelLabelList(existingValue))
 	}
 }
+
+var (
+	ndkSysrootLabel = bazel.Label{
+		Label: "//build/bazel/rules/cc:ndk_sysroot",
+	}
+)
 
 func (la *linkerAttributes) convertStripProps(ctx android.BazelConversionPathContext, module *Module) {
 	bp2BuildPropParseHelper(ctx, module, &StripProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
