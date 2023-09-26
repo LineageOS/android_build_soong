@@ -98,6 +98,11 @@ func isSnapshotAware(cfg android.DeviceConfig, m LinkableInterface, inProprietar
 			if !sanitizable.Shared() && sanitizable.IsSanitizerEnabled(scs) {
 				return false
 			}
+			// cfi and hwasan cannot be enabled at the same time.
+			// Skip variants that have both cfi and hwasan enabled.
+			if sanitizable.IsSanitizerEnabled(cfi) && sanitizable.IsSanitizerEnabled(Hwasan) {
+				return false
+			}
 			// cfi and hwasan also export both variants. But for static, we capture both.
 			// This is because cfi static libraries can't be linked from non-cfi modules,
 			// and vice versa.
