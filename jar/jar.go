@@ -166,10 +166,23 @@ func JavaPackage(r io.Reader, src string) (string, error) {
 	}
 	s.IsIdentRune = javaIdentRune
 
-	tok := s.Scan()
-	if sErr != nil {
-		return "", sErr
+	var tok rune
+	for {
+		tok = s.Scan()
+		if sErr != nil {
+			return "", sErr
+		}
+		// If the first token is an annotation, it could be annotating a package declaration, so consume them.
+		// Note that this does not support "complex" annotations with attributes, e.g. @Foo(x=y).
+		if tok != '@' {
+			break
+		}
+		tok = s.Scan()
+		if tok != scanner.Ident || sErr != nil {
+			return "", fmt.Errorf("expected annotation identifier, got @%v", tok)
+		}
 	}
+
 	if tok == scanner.Ident {
 		switch s.TokenText() {
 		case "package":
@@ -189,9 +202,6 @@ func JavaPackage(r io.Reader, src string) (string, error) {
 		default:
 			return "", fmt.Errorf(`expected first token of java file to be "package", got %q`, s.TokenText())
 		}
-	} else if tok == '@' {
-		// File has no package statement, first token is an annotation
-		return "", nil
 	} else if tok == scanner.EOF {
 		// File no package statement, it has no non-whitespace non-comment tokens
 		return "", nil
