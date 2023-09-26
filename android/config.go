@@ -2080,3 +2080,7 @@ func (c *config) Bp2buildMode() bool {
 func (c *deviceConfig) CheckVendorSeappViolations() bool {
 	return Bool(c.config.productVariables.CheckVendorSeappViolations)
 }
+
+func (c *deviceConfig) NextReleaseHideFlaggedApi() bool {
+	return Bool(c.config.productVariables.NextReleaseHideFlaggedApi)
+}
