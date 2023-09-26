@@ -242,6 +242,8 @@ var (
 		"frameworks/base/tools/codegen":                      Bp2BuildDefaultTrueRecursively,
 		"frameworks/base/tools/locked_region_code_injection": Bp2BuildDefaultTrueRecursively,
 		"frameworks/base/tools/streaming_proto":              Bp2BuildDefaultTrueRecursively,
+		"frameworks/hardware/interfaces":                     Bp2BuildDefaultTrue,
+		"frameworks/hardware/interfaces/displayservice":      Bp2BuildDefaultTrueRecursively,
 		"frameworks/hardware/interfaces/stats/aidl":          Bp2BuildDefaultTrue,
 		"frameworks/libs/modules-utils/build":                Bp2BuildDefaultTrueRecursively,
 		"frameworks/libs/modules-utils/java":                 Bp2BuildDefaultTrue,
@@ -307,6 +309,9 @@ var (
 		"hardware/interfaces/neuralnetworks/1.2/vts":              Bp2BuildDefaultFalseRecursively,
 		"hardware/interfaces/neuralnetworks/1.3/vts":              Bp2BuildDefaultFalseRecursively,
 		"hardware/interfaces/neuralnetworks/1.4/vts":              Bp2BuildDefaultFalseRecursively,
+		"hardware/interfaces/tests":                               Bp2BuildDefaultTrueRecursively,
+		"hardware/interfaces/tests/extension":                     Bp2BuildDefaultFalseRecursively, // missing deps
+		"hardware/interfaces/tests/msgq":                          Bp2BuildDefaultFalseRecursively, // missing deps
 
 		"libnativehelper": Bp2BuildDefaultTrueRecursively,
 
@@ -399,8 +404,7 @@ var (
 		"system/libhidl/transport/manager/1.0":                   Bp2BuildDefaultTrue,
 		"system/libhidl/transport/manager/1.1":                   Bp2BuildDefaultTrue,
 		"system/libhidl/transport/manager/1.2":                   Bp2BuildDefaultTrue,
-		"system/libhidl/transport/memory/1.0":                    Bp2BuildDefaultTrue,
-		"system/libhidl/transport/memory/token/1.0":              Bp2BuildDefaultTrue,
+		"system/libhidl/transport/memory":                        Bp2BuildDefaultTrueRecursively,
 		"system/libhidl/transport/safe_union/1.0":                Bp2BuildDefaultTrue,
 		"system/libhidl/transport/token/1.0":                     Bp2BuildDefaultTrue,
 		"system/libhidl/transport/token/1.0/utils":               Bp2BuildDefaultTrue,
@@ -410,14 +414,14 @@ var (
 		"system/libziparchive":                                   Bp2BuildDefaultTrueRecursively,
 		"system/logging":                                         Bp2BuildDefaultTrueRecursively,
 		"system/media":                                           Bp2BuildDefaultTrue,
-		"system/media/audio":                                     Bp2BuildDefaultTrueRecursively,
 		"system/media/alsa_utils":                                Bp2BuildDefaultTrueRecursively,
+		"system/media/audio":                                     Bp2BuildDefaultTrueRecursively,
 		"system/media/audio_utils":                               Bp2BuildDefaultTrueRecursively,
 		"system/media/camera":                                    Bp2BuildDefaultTrueRecursively,
 		"system/memory/libion":                                   Bp2BuildDefaultTrueRecursively,
 		"system/memory/libmemunreachable":                        Bp2BuildDefaultTrueRecursively,
-		"system/sepolicy/apex":                                   Bp2BuildDefaultTrueRecursively,
 		"system/security/fsverity":                               Bp2BuildDefaultTrueRecursively,
+		"system/sepolicy/apex":                                   Bp2BuildDefaultTrueRecursively,
 		"system/testing/gtest_extras":                            Bp2BuildDefaultTrueRecursively,
 		"system/timezone/apex":                                   Bp2BuildDefaultTrueRecursively,
 		"system/timezone/output_data":                            Bp2BuildDefaultTrueRecursively,
@@ -425,12 +429,13 @@ var (
 		"system/timezone/testing":                                Bp2BuildDefaultTrueRecursively,
 		"system/tools/aidl/build/tests_bp2build":                 Bp2BuildDefaultTrue,
 		"system/tools/aidl/metadata":                             Bp2BuildDefaultTrue,
-		"system/tools/hidl/metadata":                             Bp2BuildDefaultTrue,
-		"system/tools/hidl/utils":                                Bp2BuildDefaultTrue,
+		"system/tools/hidl":                                      Bp2BuildDefaultTrueRecursively,
 		"system/tools/mkbootimg":                                 Bp2BuildDefaultTrueRecursively,
 		"system/tools/sysprop":                                   Bp2BuildDefaultTrue,
 		"system/tools/xsdc/utils":                                Bp2BuildDefaultTrueRecursively,
 		"system/unwinding/libunwindstack":                        Bp2BuildDefaultTrueRecursively,
+
+		"test/vts/vts_hal_hidl_target": Bp2BuildDefaultTrueRecursively,
 
 		"tools/apifinder":                             Bp2BuildDefaultTrue,
 		"tools/apksig":                                Bp2BuildDefaultTrue,
@@ -1063,20 +1068,22 @@ var (
 		"libtombstoned_client_rust_bridge_code", "libtombstoned_client_wrapper", // rust conversions are not supported
 
 		// unconverted deps
-		"CarHTMLViewer",                                              // depends on unconverted modules android.car-stubs, car-ui-lib
-		"adb",                                                        // depends on unconverted modules: AdbWinApi, libandroidfw, libopenscreen-discovery, libopenscreen-platform-impl, libusb, bin2c_fastdeployagent, AdbWinUsbApi
-		"android_icu4j_srcgen",                                       // depends on unconverted modules: currysrc
-		"android_icu4j_srcgen_binary",                                // depends on unconverted modules: android_icu4j_srcgen, currysrc
-		"apex_compression_test",                                      // depends on unconverted modules: soong_zip, com.android.example.apex
-		"apex_manifest_proto_java",                                   // b/210751803, depends on libprotobuf-java-full
-		"apexer_with_DCLA_preprocessing_test",                        // depends on unconverted modules: apexer_test_host_tools, com.android.example.apex
-		"art-script",                                                 // depends on unconverted modules: dalvikvm, dex2oat
-		"bin2c_fastdeployagent",                                      // depends on unconverted modules: deployagent
-		"com.android.runtime",                                        // depends on unconverted modules: bionic-linker-config, linkerconfig
-		"currysrc",                                                   // depends on unconverted modules: currysrc_org.eclipse, guavalib, jopt-simple-4.9
-		"dex2oat-script",                                             // depends on unconverted modules: dex2oat
-		"generated_android_icu4j_resources",                          // depends on unconverted modules: android_icu4j_srcgen_binary
-		"generated_android_icu4j_test_resources",                     // depends on unconverted modules: android_icu4j_srcgen_binary
+		"CarHTMLViewer",                          // depends on unconverted modules android.car-stubs, car-ui-lib
+		"adb",                                    // depends on unconverted modules: AdbWinApi, libandroidfw, libopenscreen-discovery, libopenscreen-platform-impl, libusb, bin2c_fastdeployagent, AdbWinUsbApi
+		"android_icu4j_srcgen",                   // depends on unconverted modules: currysrc
+		"android_icu4j_srcgen_binary",            // depends on unconverted modules: android_icu4j_srcgen, currysrc
+		"apex_compression_test",                  // depends on unconverted modules: soong_zip, com.android.example.apex
+		"apex_manifest_proto_java",               // b/210751803, depends on libprotobuf-java-full
+		"apexer_with_DCLA_preprocessing_test",    // depends on unconverted modules: apexer_test_host_tools, com.android.example.apex
+		"art-script",                             // depends on unconverted modules: dalvikvm, dex2oat
+		"bin2c_fastdeployagent",                  // depends on unconverted modules: deployagent
+		"com.android.runtime",                    // depends on unconverted modules: bionic-linker-config, linkerconfig
+		"currysrc",                               // depends on unconverted modules: currysrc_org.eclipse, guavalib, jopt-simple-4.9
+		"dex2oat-script",                         // depends on unconverted modules: dex2oat
+		"generated_android_icu4j_resources",      // depends on unconverted modules: android_icu4j_srcgen_binary
+		"generated_android_icu4j_test_resources", // depends on unconverted modules: android_icu4j_srcgen_binary
+		"hidl_system_api_test",
+		"hidl_test_java",
 		"host-libprotobuf-java-nano",                                 // b/220869005, depends on libprotobuf-java-nano
 		"jacoco-stubs",                                               // b/245767077, depends on droidstubs
 		"libapexutil",                                                // depends on unconverted modules: apex-info-list-tinyxml
@@ -1659,6 +1666,7 @@ var (
 
 		// python_test_host with test data
 		"sbom_writers_test",
+		"hidl_test",
 
 		// TODO(B/283193845): tradefed and its java_test_host dependents
 		"tradefed",
