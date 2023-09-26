@@ -287,9 +287,9 @@ func (r conversionResults) BuildDirToTargets() map[string]BazelTargets {
 	return r.buildFileToTargets
 }
 
-// struct to store state of go bazel targets
+// struct to store state of b bazel targets (e.g. go targets which do not implement android.Module)
 // this implements bp2buildModule interface and is passed to generateBazelTargets
-type goBazelTarget struct {
+type bTarget struct {
 	targetName            string
 	targetPackage         string
 	bazelRuleClass        string
@@ -297,26 +297,26 @@ type goBazelTarget struct {
 	bazelAttributes       []interface{}
 }
 
-var _ bp2buildModule = (*goBazelTarget)(nil)
+var _ bp2buildModule = (*bTarget)(nil)
 
-func (g goBazelTarget) TargetName() string {
-	return g.targetName
+func (b bTarget) TargetName() string {
+	return b.targetName
 }
 
-func (g goBazelTarget) TargetPackage() string {
-	return g.targetPackage
+func (b bTarget) TargetPackage() string {
+	return b.targetPackage
 }
 
-func (g goBazelTarget) BazelRuleClass() string {
-	return g.bazelRuleClass
+func (b bTarget) BazelRuleClass() string {
+	return b.bazelRuleClass
 }
 
-func (g goBazelTarget) BazelRuleLoadLocation() string {
-	return g.bazelRuleLoadLocation
+func (b bTarget) BazelRuleLoadLocation() string {
+	return b.bazelRuleLoadLocation
 }
 
-func (g goBazelTarget) BazelAttributes() []interface{} {
-	return g.bazelAttributes
+func (b bTarget) BazelAttributes() []interface{} {
+	return b.bazelAttributes
 }
 
 // Creates a target_compatible_with entry that is *not* compatible with android
@@ -421,7 +421,7 @@ func generateBazelTargetsGoTest(ctx *android.Context, goModulesMap nameToGoLibra
 		Target_compatible_with: targetNotCompatibleWithAndroid(),
 	}
 
-	libTest := goBazelTarget{
+	libTest := bTarget{
 		targetName:            gp.name,
 		targetPackage:         gp.dir,
 		bazelRuleClass:        "go_test",
@@ -514,7 +514,7 @@ func generateBazelTargetsGoPackage(ctx *android.Context, g *bootstrap.GoPackage,
 		Target_compatible_with: targetNotCompatibleWithAndroid(),
 	}
 
-	lib := goBazelTarget{
+	lib := bTarget{
 		targetName:            g.Name(),
 		targetPackage:         ctx.ModuleDir(g),
 		bazelRuleClass:        "go_library",
@@ -555,23 +555,35 @@ type goLibraryModule struct {
 	Deps []string
 }
 
+type buildConversionMetadata struct {
+	nameToGoLibraryModule nameToGoLibraryModule
+	ndkHeaders            []blueprint.Module
+}
+
 type nameToGoLibraryModule map[string]goLibraryModule
 
-// Visit each module in the graph
+// Visit each module in the graph, and collect metadata about the build graph
 // If a module is of type `bootstrap_go_package`, return a map containing metadata like its dir and deps
-func createGoLibraryModuleMap(ctx *android.Context) nameToGoLibraryModule {
-	ret := nameToGoLibraryModule{}
+// If a module is of type `ndk_headers`, add it to a list and return the list
+func createBuildConversionMetadata(ctx *android.Context) buildConversionMetadata {
+	goMap := nameToGoLibraryModule{}
+	ndkHeaders := []blueprint.Module{}
 	ctx.VisitAllModules(func(m blueprint.Module) {
 		moduleType := ctx.ModuleType(m)
 		// We do not need to store information about blueprint_go_binary since it does not have any rdeps
 		if moduleType == "bootstrap_go_package" {
-			ret[m.Name()] = goLibraryModule{
+			goMap[m.Name()] = goLibraryModule{
 				Dir:  ctx.ModuleDir(m),
 				Deps: m.(*bootstrap.GoPackage).Deps(),
 			}
+		} else if moduleType == "ndk_headers" {
+			ndkHeaders = append(ndkHeaders, m)
 		}
 	})
-	return ret
+	return buildConversionMetadata{
+		nameToGoLibraryModule: goMap,
+		ndkHeaders:            ndkHeaders,
+	}
 }
 
 // Returns the deps in the transitive closure of a go target
@@ -620,7 +632,7 @@ func generateBazelTargetsGoBinary(ctx *android.Context, g *bootstrap.GoBinary, g
 			Deps:                   goDepLabels(transitiveDeps, goModulesMap),
 			Target_compatible_with: targetNotCompatibleWithAndroid(),
 		}
-		libTestSource := goBazelTarget{
+		libTestSource := bTarget{
 			targetName:            goSource,
 			targetPackage:         ctx.ModuleDir(g),
 			bazelRuleClass:        "go_source",
@@ -669,7 +681,7 @@ func generateBazelTargetsGoBinary(ctx *android.Context, g *bootstrap.GoBinary, g
 		ga.Srcs = goSrcLabels(ctx.Config(), ctx.ModuleDir(g), g.Srcs(), g.LinuxSrcs(), g.DarwinSrcs())
 	}
 
-	bin := goBazelTarget{
+	bin := bTarget{
 		targetName:            g.Name(),
 		targetPackage:         ctx.ModuleDir(g),
 		bazelRuleClass:        "go_binary",
@@ -700,7 +712,9 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 
 	// Visit go libraries in a pre-run and store its state in a map
 	// The time complexity remains O(N), and this does not add significant wall time.
-	nameToGoLibMap := createGoLibraryModuleMap(ctx.Context())
+	meta := createBuildConversionMetadata(ctx.Context())
+	nameToGoLibMap := meta.nameToGoLibraryModule
+	ndkHeaders := meta.ndkHeaders
 
 	bpCtx := ctx.Context()
 	bpCtx.VisitAllModules(func(m blueprint.Module) {
@@ -804,6 +818,39 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 			buildFileToTargets[targetDir] = append(buildFileToTargets[targetDir], target)
 		}
 	})
+
+	// Create an ndk_sysroot target that has a dependency edge on every target corresponding to Soong's ndk_headers
+	// This root target will provide headers to sdk variants of jni libraries
+	if ctx.Mode() == Bp2Build {
+		var depLabels bazel.LabelList
+		for _, ndkHeader := range ndkHeaders {
+			depLabel := bazel.Label{
+				Label: "//" + bpCtx.ModuleDir(ndkHeader) + ":" + ndkHeader.Name(),
+			}
+			depLabels.Add(&depLabel)
+		}
+		a := struct {
+			Deps                bazel.LabelListAttribute
+			System_dynamic_deps bazel.LabelListAttribute
+		}{
+			Deps:                bazel.MakeLabelListAttribute(bazel.UniqueSortedBazelLabelList(depLabels)),
+			System_dynamic_deps: bazel.MakeLabelListAttribute(bazel.MakeLabelList([]bazel.Label{})),
+		}
+		ndkSysroot := bTarget{
+			targetName:            "ndk_sysroot",
+			targetPackage:         "build/bazel/rules/cc", // The location is subject to change, use build/bazel for now
+			bazelRuleClass:        "cc_library_headers",
+			bazelRuleLoadLocation: "//build/bazel/rules/cc:cc_library_headers.bzl",
+			bazelAttributes:       []interface{}{&a},
+		}
+
+		if t, err := generateBazelTarget(bpCtx, ndkSysroot); err == nil {
+			dir := ndkSysroot.targetPackage
+			buildFileToTargets[dir] = append(buildFileToTargets[dir], t)
+		} else {
+			errs = append(errs, err)
+		}
+	}
 
 	if len(errs) > 0 {
 		return conversionResults{}, errs
