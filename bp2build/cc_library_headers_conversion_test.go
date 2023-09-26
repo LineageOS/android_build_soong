@@ -118,6 +118,10 @@ cc_library_headers {
     ]`,
 				"sdk_version":     `"current"`,
 				"min_sdk_version": `"29"`,
+				"deps": `select({
+        "//build/bazel/rules/apex:unbundled_app": ["//build/bazel/rules/cc:ndk_sysroot"],
+        "//conditions:default": [],
+    })`,
 			}),
 		},
 	})

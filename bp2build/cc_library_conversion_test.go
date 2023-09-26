@@ -159,6 +159,10 @@ cc_library {
 			"min_sdk_version":    `"29"`,
 			"use_version_lib":    `True`,
 			"whole_archive_deps": `["//build/soong/cc/libbuildversion:libbuildversion"]`,
+			"deps": `select({
+        "//build/bazel/rules/apex:unbundled_app": ["//build/bazel/rules/cc:ndk_sysroot"],
+        "//conditions:default": [],
+    })`,
 		}),
 	})
 }
