@@ -424,30 +424,80 @@ func gatherRequiredDepsForTest() string {
 		`, extra)
 	}
 
-	extraApiLibraryModules := map[string]string{
-		"android_stubs_current.from-text":                  "api/current.txt",
-		"android_system_stubs_current.from-text":           "api/system-current.txt",
-		"android_test_stubs_current.from-text":             "api/test-current.txt",
-		"android_module_lib_stubs_current.from-text":       "api/module-lib-current.txt",
-		"android_module_lib_stubs_current_full.from-text":  "api/module-lib-current.txt",
-		"android_system_server_stubs_current.from-text":    "api/system-server-current.txt",
-		"core.current.stubs.from-text":                     "api/current.txt",
-		"legacy.core.platform.api.stubs.from-text":         "api/current.txt",
-		"stable.core.platform.api.stubs.from-text":         "api/current.txt",
-		"core-lambda-stubs.from-text":                      "api/current.txt",
-		"android-non-updatable.stubs.from-text":            "api/current.txt",
-		"android-non-updatable.stubs.system.from-text":     "api/system-current.txt",
-		"android-non-updatable.stubs.test.from-text":       "api/test-current.txt",
-		"android-non-updatable.stubs.module_lib.from-text": "api/module-lib-current.txt",
+	type apiContributionStruct struct {
+		name       string
+		apiSurface string
+		apiFile    string
 	}
 
-	for libName, apiFile := range extraApiLibraryModules {
+	var publicApiContribution = apiContributionStruct{
+		name:       "api-stubs-docs-non-updatable.api.contribution",
+		apiSurface: "public",
+		apiFile:    "api/current.txt",
+	}
+	var systemApiContribution = apiContributionStruct{
+		name:       "system-api-stubs-docs-non-updatable.api.contribution",
+		apiSurface: "system",
+		apiFile:    "api/system-current.txt",
+	}
+	var testApiContribution = apiContributionStruct{
+		name:       "test-api-stubs-docs-non-updatable.api.contribution",
+		apiSurface: "test",
+		apiFile:    "api/test-current.txt",
+	}
+	var moduleLibApiContribution = apiContributionStruct{
+		name:       "module-lib-api-stubs-docs-non-updatable.api.contribution",
+		apiSurface: "module-lib",
+		apiFile:    "api/module-lib-current.txt",
+	}
+	var systemServerApiContribution = apiContributionStruct{
+		// This module does not exist but is named this way for consistency
+		name:       "system-server-api-stubs-docs-non-updatable.api.contribution",
+		apiSurface: "system-server",
+		apiFile:    "api/system-server-current.txt",
+	}
+	var apiContributionStructs = []apiContributionStruct{
+		publicApiContribution,
+		systemApiContribution,
+		testApiContribution,
+		moduleLibApiContribution,
+		systemServerApiContribution,
+	}
+
+	extraApiLibraryModules := map[string]apiContributionStruct{
+		"android_stubs_current.from-text":                  publicApiContribution,
+		"android_system_stubs_current.from-text":           systemApiContribution,
+		"android_test_stubs_current.from-text":             testApiContribution,
+		"android_module_lib_stubs_current.from-text":       moduleLibApiContribution,
+		"android_module_lib_stubs_current_full.from-text":  moduleLibApiContribution,
+		"android_system_server_stubs_current.from-text":    systemServerApiContribution,
+		"core.current.stubs.from-text":                     publicApiContribution,
+		"legacy.core.platform.api.stubs.from-text":         publicApiContribution,
+		"stable.core.platform.api.stubs.from-text":         publicApiContribution,
+		"core-lambda-stubs.from-text":                      publicApiContribution,
+		"android-non-updatable.stubs.from-text":            publicApiContribution,
+		"android-non-updatable.stubs.system.from-text":     systemApiContribution,
+		"android-non-updatable.stubs.test.from-text":       testApiContribution,
+		"android-non-updatable.stubs.module_lib.from-text": moduleLibApiContribution,
+	}
+
+	for _, apiContribution := range apiContributionStructs {
+		bp += fmt.Sprintf(`
+			java_api_contribution {
+				name: "%s",
+				api_surface: "%s",
+				api_file: "%s",
+			}
+		`, apiContribution.name, apiContribution.apiSurface, apiContribution.apiFile)
+	}
+
+	for libName, apiContribution := range extraApiLibraryModules {
 		bp += fmt.Sprintf(`
             java_api_library {
                 name: "%s",
-                api_files: ["%s"],
+                api_contributions: ["%s"],
             }
-        `, libName, apiFile)
+        `, libName, apiContribution.name)
 	}
 
 	bp += `

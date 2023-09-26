@@ -1667,11 +1667,6 @@ type JavaApiLibraryProperties struct {
 	// This is a list of Soong modules
 	Api_contributions []string
 
-	// list of api.txt files relative to this directory that contribute to the
-	// API surface.
-	// This is a list of relative paths
-	Api_files []string `android:"path"`
-
 	// List of flags to be passed to the javac compiler to generate jar file
 	Javacflags []string
 
@@ -1819,37 +1814,22 @@ func (al *ApiLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
-// API signature file names sorted from
-// the narrowest api scope to the widest api scope
-var scopeOrderedSourceFileNames = allApiScopes.Strings(
-	func(s *apiScope) string { return s.apiFilePrefix + "current.txt" })
+// Map where key is the api scope name and value is the int value
+// representing the order of the api scope, narrowest to the widest
+var scopeOrderMap = allApiScopes.MapToIndex(
+	func(s *apiScope) string { return s.name })
 
-func (al *ApiLibrary) sortApiFilesByApiScope(ctx android.ModuleContext, srcFilesInfo []JavaApiImportInfo, apiFiles android.Paths) android.Paths {
-	var sortedSrcFiles android.Paths
-
-	for i, apiScope := range allApiScopes {
-		for _, srcFileInfo := range srcFilesInfo {
-			if srcFileInfo.ApiFile.Base() == scopeOrderedSourceFileNames[i] || srcFileInfo.ApiSurface == apiScope.name {
-				sortedSrcFiles = append(sortedSrcFiles, android.PathForSource(ctx, srcFileInfo.ApiFile.String()))
-			}
-		}
-		// TODO: b/300964421 - Remove when api_files property is removed
-		for _, apiFileName := range apiFiles {
-			if apiFileName.Base() == scopeOrderedSourceFileNames[i] {
-				sortedSrcFiles = append(sortedSrcFiles, apiFileName)
-			}
+func (al *ApiLibrary) sortApiFilesByApiScope(ctx android.ModuleContext, srcFilesInfo []JavaApiImportInfo) []JavaApiImportInfo {
+	for _, srcFileInfo := range srcFilesInfo {
+		if srcFileInfo.ApiSurface == "" {
+			ctx.ModuleErrorf("Api surface not defined for the associated api file %s", srcFileInfo.ApiFile)
 		}
 	}
+	sort.Slice(srcFilesInfo, func(i, j int) bool {
+		return scopeOrderMap[srcFilesInfo[i].ApiSurface] < scopeOrderMap[srcFilesInfo[j].ApiSurface]
+	})
 
-	if len(srcFilesInfo)+len(apiFiles) != len(sortedSrcFiles) {
-		var srcFiles android.Paths
-		for _, srcFileInfo := range srcFilesInfo {
-			srcFiles = append(srcFiles, srcFileInfo.ApiFile)
-		}
-		ctx.ModuleErrorf("Unrecognizable source file found within %s", append(srcFiles, apiFiles...))
-	}
-
-	return sortedSrcFiles
+	return srcFilesInfo
 }
 
 func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -1892,15 +1872,11 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 	})
 
-	// Add the api_files inputs
-	// These are api files in the module subdirectory, which are not provided by
-	// java_api_contribution but provided directly as module property.
-	var apiFiles android.Paths
-	for _, api := range al.properties.Api_files {
-		apiFiles = append(apiFiles, android.PathForModuleSrc(ctx, api))
+	srcFilesInfo = al.sortApiFilesByApiScope(ctx, srcFilesInfo)
+	var srcFiles android.Paths
+	for _, srcFileInfo := range srcFilesInfo {
+		srcFiles = append(srcFiles, android.PathForSource(ctx, srcFileInfo.ApiFile.String()))
 	}
-
-	srcFiles := al.sortApiFilesByApiScope(ctx, srcFilesInfo, apiFiles)
 
 	if srcFiles == nil && !ctx.Config().AllowMissingDependencies() {
 		ctx.ModuleErrorf("Error: %s has an empty api file.", ctx.ModuleName())

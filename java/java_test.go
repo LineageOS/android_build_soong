@@ -1885,7 +1885,6 @@ func TestJavaApiLibraryAndProviderLink(t *testing.T) {
 			name: "bar2",
 			api_surface: "system",
 			api_contributions: ["foo1", "foo2"],
-			api_files: ["api1/current.txt", "api2/current.txt"]
 		}
 		`,
 		map[string][]byte{
@@ -1903,7 +1902,7 @@ func TestJavaApiLibraryAndProviderLink(t *testing.T) {
 		},
 		{
 			moduleName:         "bar2",
-			sourceTextFileDirs: []string{"a/current.txt", "b/current.txt", "api1/current.txt", "api2/current.txt"},
+			sourceTextFileDirs: []string{"a/current.txt", "b/current.txt"},
 		},
 	}
 	for _, c := range testcases {
@@ -1975,7 +1974,6 @@ func TestJavaApiLibraryAndDefaultsLink(t *testing.T) {
 			api_surface: "system",
 			defaults:["baz1", "baz2"],
 			api_contributions: ["foo4"],
-			api_files: ["api1/current.txt", "api2/current.txt"]
 		}
 		`,
 		map[string][]byte{
@@ -2000,7 +1998,7 @@ func TestJavaApiLibraryAndDefaultsLink(t *testing.T) {
 		{
 			moduleName: "bar3",
 			// API text files need to be sorted from the narrower api scope to the wider api scope
-			sourceTextFileDirs: []string{"a/current.txt", "b/current.txt", "api1/current.txt", "api2/current.txt", "c/system-current.txt", "d/system-current.txt"},
+			sourceTextFileDirs: []string{"a/current.txt", "b/current.txt", "c/system-current.txt", "d/system-current.txt"},
 		},
 	}
 	for _, c := range testcases {
@@ -2265,29 +2263,6 @@ func TestJavaApiLibraryFullApiSurfaceStub(t *testing.T) {
 	android.AssertStringDoesContain(t, "Command expected to contain full_api_surface_stub output jar", manifestCommand, "lib1.jar")
 }
 
-func TestJavaApiLibraryFilegroupInput(t *testing.T) {
-	ctx, _ := testJavaWithFS(t, `
-	    filegroup {
-			name: "default_current.txt",
-			srcs: ["current.txt"],
-		}
-
-		java_api_library {
-			name: "foo",
-			api_files: [":default_current.txt"],
-		}
-		`,
-		map[string][]byte{
-			"current.txt": nil,
-		})
-
-	m := ctx.ModuleForTests("foo", "android_common")
-	outputs := fmt.Sprint(m.AllOutputs())
-	if !strings.Contains(outputs, "foo/foo.jar") {
-		t.Errorf("Module output does not contain expected jar %s", "foo/foo.jar")
-	}
-}
-
 func TestTradefedOptions(t *testing.T) {
 	result := PrepareForTestWithJavaBuildComponents.RunTestWithBp(t, `
 java_test_host {
@@ -2422,4 +2397,31 @@ func TestJavaApiContributionImport(t *testing.T) {
 	manifestCommand := sboxProto.Commands[0].GetCommand()
 	sourceFilesFlag := "--source-files current.txt"
 	android.AssertStringDoesContain(t, "source text files not present", manifestCommand, sourceFilesFlag)
+}
+
+func TestJavaApiLibraryApiFilesSorting(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_api_library {
+			name: "foo",
+			api_contributions: [
+				"system-server-api-stubs-docs-non-updatable.api.contribution",
+				"test-api-stubs-docs-non-updatable.api.contribution",
+				"system-api-stubs-docs-non-updatable.api.contribution",
+				"module-lib-api-stubs-docs-non-updatable.api.contribution",
+				"api-stubs-docs-non-updatable.api.contribution",
+			],
+		}
+	`)
+	m := ctx.ModuleForTests("foo", "android_common")
+	manifest := m.Output("metalava.sbox.textproto")
+	sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
+	manifestCommand := sboxProto.Commands[0].GetCommand()
+
+	// Api files are sorted from the narrowest api scope to the widest api scope.
+	// test api and module lib api surface do not have subset/superset relationship,
+	// but they will never be passed as inputs at the same time.
+	sourceFilesFlag := "--source-files default/java/api/current.txt " +
+		"default/java/api/system-current.txt default/java/api/test-current.txt " +
+		"default/java/api/module-lib-current.txt default/java/api/system-server-current.txt"
+	android.AssertStringDoesContain(t, "source text files not in api scope order", manifestCommand, sourceFilesFlag)
 }
