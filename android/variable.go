@@ -488,6 +488,8 @@ type ProductVariables struct {
 	// PartitionVarsForBazelMigrationOnlyDoNotUse are extra variables that are used to define the
 	// partition images. They should not be read from soong modules.
 	PartitionVarsForBazelMigrationOnlyDoNotUse PartitionVariables `json:",omitempty"`
+
+	NextReleaseHideFlaggedApi *bool `json:",omitempty"`
 }
 
 type PartitionVariables struct {
