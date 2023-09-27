@@ -373,17 +373,24 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	}
 
 	rustcOutputFile := outputFile
+	var rustcImplicitOutputs android.WritablePaths
 	usesLinker := crateType == "bin" || crateType == "dylib" || crateType == "cdylib" || crateType == "proc-macro"
 	if usesLinker {
 		rustcOutputFile = android.PathForModuleOut(ctx, outputFile.Base()+".rsp")
+		rustcImplicitOutputs = android.WritablePaths{
+			android.PathForModuleOut(ctx, rustcOutputFile.Base()+".whole.a"),
+			android.PathForModuleOut(ctx, rustcOutputFile.Base()+".a"),
+		}
+
 	}
 
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        rustc,
-		Description: "rustc " + main.Rel(),
-		Output:      rustcOutputFile,
-		Inputs:      inputs,
-		Implicits:   implicits,
+		Rule:            rustc,
+		Description:     "rustc " + main.Rel(),
+		Output:          rustcOutputFile,
+		Inputs:          inputs,
+		Implicits:       implicits,
+		ImplicitOutputs: rustcImplicitOutputs,
 		Args: map[string]string{
 			"rustcFlags": strings.Join(rustcFlags, " "),
 			"libFlags":   strings.Join(libFlags, " "),
