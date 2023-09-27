@@ -442,6 +442,9 @@ func getOtherModuleLabel(ctx BazelConversionPathContext, dep, tag string,
 	otherLabel := labelFromModule(ctx, m)
 
 	// TODO(b/165114590): Convert tag (":name{.tag}") to corresponding Bazel implicit output targets.
+	if tag != "" && m.Name() == "framework-res" {
+		otherLabel += tag
+	}
 
 	if samePackage(label, otherLabel) {
 		otherLabel = bazelShortLabel(otherLabel)
