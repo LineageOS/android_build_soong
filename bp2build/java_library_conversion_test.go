@@ -567,12 +567,20 @@ filegroup {
 		"b.aidl",
 	],
 }
+filegroup {
+	name: "aidls_files",
+	srcs: [
+		"a.aidl",
+		"b.aidl",
+	],
+}
 java_library {
 	name: "example_lib",
 	srcs: [
 		"a.java",
 		"b.java",
 		":aidl_files",
+		":aidls_files",
 		":random_other_files",
 	],
 	sdk_version: "current",
@@ -586,8 +594,18 @@ java_library {
     ]`,
 				"tags": `["apex_available=//apex_available:anyapex"]`,
 			}),
+			MakeBazelTargetNoRestrictions("aidl_library", "aidls_files", AttrNameToString{
+				"srcs": `[
+        "a.aidl",
+        "b.aidl",
+    ]`,
+				"tags": `["apex_available=//apex_available:anyapex"]`,
+			}),
 			MakeBazelTarget("java_aidl_library", "example_lib_java_aidl_library", AttrNameToString{
-				"deps": `[":aidl_files"]`,
+				"deps": `[
+        ":aidl_files",
+        ":aidls_files",
+    ]`,
 			}),
 			MakeBazelTarget("java_library", "example_lib", AttrNameToString{
 				"deps":    `[":example_lib_java_aidl_library"]`,
