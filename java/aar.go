@@ -1278,6 +1278,10 @@ func (a *aapt) convertAaptAttrsWithBp2Build(ctx android.Bp2buildMutatorContext) 
 }
 
 func (a *AARImport) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
+	if len(a.properties.Aars) == 0 {
+		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_PROPERTY_UNSUPPORTED, "aars can't be empty")
+		return
+	}
 	aars := android.BazelLabelForModuleSrcExcludes(ctx, a.properties.Aars, []string{})
 	exportableStaticLibs := []string{}
 	// TODO(b/240716882): investigate and handle static_libs deps that are not imports. They are not supported for export by Bazel.
