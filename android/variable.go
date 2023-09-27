@@ -512,6 +512,12 @@ type PartitionVariables struct {
 		ProductBaseFsPath           string `json:",omitempty"`
 		ProductHeadroom             string `json:",omitempty"`
 		ProductVerityPartition      string `json:",omitempty"`
+
+		BoardAvbAddHashtreeFooterArgs string `json:",omitempty"`
+		BoardAvbKeyPath               string `json:",omitempty"`
+		BoardAvbAlgorithm             string `json:",omitempty"`
+		BoardAvbRollbackIndex         string `json:",omitempty"`
+		BoardAvbRollbackIndexLocation string `json:",omitempty"`
 	}
 	TargetUserimagesUseExt2 bool `json:",omitempty"`
 	TargetUserimagesUseExt3 bool `json:",omitempty"`
@@ -534,6 +540,8 @@ type PartitionVariables struct {
 	BoardBuildGkiBootImageWithoutRamdisk bool   `json:",omitempty"`
 	ProductUseDynamicPartitionSize       bool   `json:",omitempty"`
 	CopyImagesForTargetFilesZip          bool   `json:",omitempty"`
+
+	BoardAvbEnable bool `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
