@@ -1113,12 +1113,15 @@ func (sanitize *sanitize) isSanitizerExplicitlyDisabled(t SanitizerType) bool {
 // indirectly (via a mutator) sets the bool ptr to true, and you can't
 // distinguish between the cases. It isn't needed though - both cases can be
 // treated identically.
-func (sanitize *sanitize) isSanitizerEnabled(t SanitizerType) bool {
-	if sanitize == nil {
+func (s *sanitize) isSanitizerEnabled(t SanitizerType) bool {
+	if s == nil {
+		return false
+	}
+	if proptools.Bool(s.Properties.SanitizeMutated.Never) {
 		return false
 	}
 
-	sanitizerVal := sanitize.getSanitizerBoolPtr(t)
+	sanitizerVal := s.getSanitizerBoolPtr(t)
 	return sanitizerVal != nil && *sanitizerVal == true
 }
 
