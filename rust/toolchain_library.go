@@ -18,9 +18,12 @@ package rust
 
 import (
 	"path"
+	"path/filepath"
 
 	"android/soong/android"
 	"android/soong/rust/config"
+
+	"github.com/google/blueprint/proptools"
 )
 
 // This module is used to compile the rust toolchain libraries
@@ -33,6 +36,8 @@ func init() {
 		rustToolchainLibraryRlibFactory)
 	android.RegisterModuleType("rust_toolchain_library_dylib",
 		rustToolchainLibraryDylibFactory)
+	android.RegisterModuleType("rust_toolchain_rustc_prebuilt",
+		rustToolchainRustcPrebuiltFactory)
 }
 
 type toolchainLibraryProperties struct {
@@ -82,7 +87,7 @@ func initToolchainLibrary(module *Module, library *libraryDecorator) android.Mod
 
 func rustSetToolchainSource(ctx android.LoadHookContext) {
 	if toolchainLib, ok := ctx.Module().(*Module).compiler.(*toolchainLibraryDecorator); ok {
-		prefix := "linux-x86/" + GetRustPrebuiltVersion(ctx)
+		prefix := filepath.Join(config.HostPrebuiltTag(ctx.Config()), GetRustPrebuiltVersion(ctx))
 		newSrcs := []string{path.Join(prefix, android.String(toolchainLib.Properties.Toolchain_src))}
 
 		type props struct {
@@ -100,4 +105,48 @@ func rustSetToolchainSource(ctx android.LoadHookContext) {
 // GetRustPrebuiltVersion returns the RUST_PREBUILTS_VERSION env var, or the default version if it is not defined.
 func GetRustPrebuiltVersion(ctx android.LoadHookContext) string {
 	return ctx.AConfig().GetenvWithDefault("RUST_PREBUILTS_VERSION", config.RustDefaultVersion)
+}
+
+type toolchainRustcPrebuiltProperties struct {
+	// path to rustc prebuilt, relative to the top of the toolchain source
+	Toolchain_prebuilt_src *string
+	// path to deps, relative to the top of the toolchain source
+	Toolchain_deps []string
+	// path to deps, relative to module directory
+	Deps []string
+}
+
+func rustToolchainRustcPrebuiltFactory() android.Module {
+	module := android.NewPrebuiltBuildTool()
+	module.AddProperties(&toolchainRustcPrebuiltProperties{})
+	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
+		var toolchainProps *toolchainRustcPrebuiltProperties
+		for _, p := range ctx.Module().GetProperties() {
+			toolchainProperties, ok := p.(*toolchainRustcPrebuiltProperties)
+			if ok {
+				toolchainProps = toolchainProperties
+			}
+		}
+
+		if toolchainProps.Toolchain_prebuilt_src == nil {
+			ctx.PropertyErrorf("toolchain_prebuilt_src", "must set path to rustc prebuilt")
+		}
+
+		prefix := filepath.Join(config.HostPrebuiltTag(ctx.Config()), GetRustPrebuiltVersion(ctx))
+		deps := make([]string, 0, len(toolchainProps.Toolchain_deps)+len(toolchainProps.Deps))
+		for _, d := range toolchainProps.Toolchain_deps {
+			deps = append(deps, path.Join(prefix, d))
+		}
+		deps = append(deps, toolchainProps.Deps...)
+
+		props := struct {
+			Src  *string
+			Deps []string
+		}{
+			Src:  proptools.StringPtr(path.Join(prefix, *toolchainProps.Toolchain_prebuilt_src)),
+			Deps: deps,
+		}
+		ctx.AppendProperties(&props)
+	})
+	return module
 }
