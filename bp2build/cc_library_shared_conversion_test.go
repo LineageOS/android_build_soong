@@ -175,6 +175,10 @@ cc_library_shared {
     ]`,
 				"sdk_version":     `"current"`,
 				"min_sdk_version": `"29"`,
+				"deps": `select({
+        "//build/bazel/rules/apex:unbundled_app": ["//build/bazel/rules/cc:ndk_sysroot"],
+        "//conditions:default": [],
+    })`,
 			}),
 		},
 	})
@@ -1642,6 +1646,10 @@ ndk_library {
     })`,
 				"local_includes": `["."]`,
 				"sdk_version":    `"current"`,
+				"deps": `select({
+        "//build/bazel/rules/apex:unbundled_app": ["//build/bazel/rules/cc:ndk_sysroot"],
+        "//conditions:default": [],
+    })`,
 			}),
 		},
 	})
