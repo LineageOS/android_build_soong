@@ -783,13 +783,13 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 			} else if glib, ok := m.(*bootstrap.GoPackage); ok {
 				targets, targetErrs = generateBazelTargetsGoPackage(bpCtx, glib, nameToGoLibMap)
 				errs = append(errs, targetErrs...)
-				metrics.IncrementRuleClassCount("go_library")
-				metrics.AddConvertedModule(glib, "go_library", dir)
+				metrics.IncrementRuleClassCount("bootstrap_go_package")
+				metrics.AddConvertedModule(glib, "bootstrap_go_package", dir)
 			} else if gbin, ok := m.(*bootstrap.GoBinary); ok {
 				targets, targetErrs = generateBazelTargetsGoBinary(bpCtx, gbin, nameToGoLibMap)
 				errs = append(errs, targetErrs...)
-				metrics.IncrementRuleClassCount("go_binary")
-				metrics.AddConvertedModule(gbin, "go_binary", dir)
+				metrics.IncrementRuleClassCount("blueprint_go_binary")
+				metrics.AddConvertedModule(gbin, "blueprint_go_binary", dir)
 			} else {
 				metrics.AddUnconvertedModule(m, moduleType, dir, android.UnconvertedReason{
 					ReasonType: int(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED),
