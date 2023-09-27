@@ -3088,10 +3088,7 @@ func TestProductVariant(t *testing.T) {
 			apex_available: ["myapex"],
 			srcs: ["foo.cpp"],
 		}
-	`, android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
-		variables.ProductVndkVersion = proptools.StringPtr("current")
-	}),
-	)
+	`)
 
 	cflags := strings.Fields(
 		ctx.ModuleForTests("foo", "android_product.29_arm64_armv8-a_myapex").Rule("cc").Args["cFlags"])
@@ -10521,6 +10518,7 @@ func TestTrimmedApex(t *testing.T) {
 			min_sdk_version: "29",
 			recovery_available: true,
 			vendor_available: true,
+			product_available: true,
 		}
 		api_imports {
 			name: "api_imports",

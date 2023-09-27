@@ -115,12 +115,7 @@ func TestVndkApexUsesVendorVariant(t *testing.T) {
 	})
 
 	t.Run("VNDK APEX gathers only vendor variants even if product variants are available", func(t *testing.T) {
-		ctx := testApex(t, bp,
-			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
-				// Now product variant is available
-				variables.ProductVndkVersion = proptools.StringPtr("current")
-			}),
-		)
+		ctx := testApex(t, bp)
 
 		files := getFiles(t, ctx, "com.android.vndk.current", "android_common")
 		ensureFileSrc(t, files, "lib/libfoo.so", "libfoo/android_vendor.29_arm_armv7-a-neon_shared/libfoo.so")

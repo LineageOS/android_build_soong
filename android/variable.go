@@ -418,8 +418,6 @@ type ProductVariables struct {
 	ProductPublicSepolicyDirs  []string `json:",omitempty"`
 	ProductPrivateSepolicyDirs []string `json:",omitempty"`
 
-	ProductVndkVersion *string `json:",omitempty"`
-
 	TargetFSConfigGen []string `json:",omitempty"`
 
 	EnforceProductPartitionInterface *bool `json:",omitempty"`

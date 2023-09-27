@@ -40,7 +40,6 @@ var prepareForRustTest = android.GroupFixturePreparers(
 	PrepareForTestWithRustIncludeVndk,
 	android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 		variables.DeviceVndkVersion = StringPtr("current")
-		variables.ProductVndkVersion = StringPtr("current")
 		variables.Platform_vndk_version = StringPtr("29")
 	}),
 )
@@ -105,7 +104,6 @@ func testRustVndkFsVersions(t *testing.T, bp string, fs android.MockFS, device_v
 		android.FixtureModifyProductVariables(
 			func(variables android.FixtureProductVariables) {
 				variables.DeviceVndkVersion = StringPtr(device_version)
-				variables.ProductVndkVersion = StringPtr(product_version)
 				variables.Platform_vndk_version = StringPtr(vndk_version)
 			},
 		),
@@ -173,7 +171,6 @@ func testRustVndkFsError(t *testing.T, pattern string, bp string, fs android.Moc
 		android.FixtureModifyProductVariables(
 			func(variables android.FixtureProductVariables) {
 				variables.DeviceVndkVersion = StringPtr("current")
-				variables.ProductVndkVersion = StringPtr("current")
 				variables.Platform_vndk_version = StringPtr("VER")
 			},
 		),
