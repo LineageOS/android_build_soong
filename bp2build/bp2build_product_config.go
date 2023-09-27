@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 
 	"android/soong/android"
@@ -26,6 +27,22 @@ type bazelLabel struct {
 	repo   string
 	pkg    string
 	target string
+}
+
+func (l *bazelLabel) Less(other *bazelLabel) bool {
+	if l.repo < other.repo {
+		return true
+	}
+	if l.repo > other.repo {
+		return false
+	}
+	if l.pkg < other.pkg {
+		return true
+	}
+	if l.pkg > other.pkg {
+		return false
+	}
+	return l.target < other.target
 }
 
 func (l *bazelLabel) String() string {
@@ -229,9 +246,16 @@ func platformMappingContent(
 		mergedConvertedModulePathMap[k] = v
 	}
 
+	productLabels := make([]bazelLabel, 0, len(productLabelToVariables))
+	for k := range productLabelToVariables {
+		productLabels = append(productLabels, k)
+	}
+	sort.Slice(productLabels, func(i, j int) bool {
+		return productLabels[i].Less(&productLabels[j])
+	})
 	result.WriteString("platforms:\n")
-	for productLabel, productVariables := range productLabelToVariables {
-		platformMappingSingleProduct(productLabel, productVariables, soongConfigDefinitions, mergedConvertedModulePathMap, &result)
+	for _, productLabel := range productLabels {
+		platformMappingSingleProduct(productLabel, productLabelToVariables[productLabel], soongConfigDefinitions, mergedConvertedModulePathMap, &result)
 	}
 	return result.String(), nil
 }
@@ -328,8 +352,9 @@ func platformMappingSingleProduct(
 			}
 		}
 
-		for namespace, namespaceContents := range productVariables.VendorVars {
-			for variable, value := range namespaceContents {
+		for _, namespace := range android.SortedKeys(productVariables.VendorVars) {
+			for _, variable := range android.SortedKeys(productVariables.VendorVars[namespace]) {
+				value := productVariables.VendorVars[namespace][variable]
 				key := namespace + "__" + variable
 				_, hasBool := soongConfigDefinitions.BoolVars[key]
 				_, hasString := soongConfigDefinitions.StringVars[key]
