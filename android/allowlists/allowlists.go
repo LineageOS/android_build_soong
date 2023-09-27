@@ -237,6 +237,7 @@ var (
 		"frameworks/base/libs/androidfw":                     Bp2BuildDefaultTrue,
 		"frameworks/base/libs/services":                      Bp2BuildDefaultTrue,
 		"frameworks/base/media/tests/MediaDump":              Bp2BuildDefaultTrue,
+		"frameworks/base/mime":                               Bp2BuildDefaultTrueRecursively,
 		"frameworks/base/proto":                              Bp2BuildDefaultTrue,
 		"frameworks/base/services/tests/servicestests/aidl":  Bp2BuildDefaultTrue,
 		"frameworks/base/startop/apps/test":                  Bp2BuildDefaultTrue,
@@ -574,7 +575,6 @@ var (
 
 		// framework-minus-apex
 		"ImmutabilityAnnotationProcessor",
-		"android.mime.types.minimized",
 		"debian.mime.types.minimized",
 		"framework-javastream-protos",
 		"libview-inspector-annotation-processor",
