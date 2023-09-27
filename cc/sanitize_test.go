@@ -16,6 +16,7 @@ package cc
 
 import (
 	"fmt"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -1271,5 +1272,124 @@ func TestCfi(t *testing.T) {
 	bazLibCflags := staticWithCfiLib.Rule("cc").Args["cFlags"]
 	if strings.Contains(bazLibCflags, "-fsanitize-cfi-cross-dso") {
 		t.Errorf("non-CFI variant of baz not expected to contain CFI flags ")
+	}
+}
+
+func TestHwasan(t *testing.T) {
+	t.Parallel()
+
+	bp := `
+	cc_library_shared {
+		name: "shared_with_hwaddress",
+		static_libs: [
+			"static_dep_with_hwaddress",
+			"static_dep_no_hwaddress",
+		],
+		sanitize: {
+			hwaddress: true,
+		},
+		sdk_version: "current",
+			stl: "c++_shared",
+	}
+
+	cc_library_static {
+		name: "static_dep_with_hwaddress",
+		sanitize: {
+			hwaddress: true,
+		},
+		sdk_version: "current",
+			stl: "c++_shared",
+	}
+
+	cc_library_static {
+		name: "static_dep_no_hwaddress",
+		sdk_version: "current",
+			stl: "c++_shared",
+	}
+`
+
+	androidArm := "android_arm_armv7-a-neon"
+	androidArm64 := "android_arm64_armv8-a"
+	androidX86 := "android_x86_silvermont"
+	sharedSuffix := "_shared"
+	hwasanSuffix := "_hwasan"
+	staticSuffix := "_static"
+	sdkSuffix := "_sdk"
+
+	sharedWithHwasanVariant := sharedSuffix + hwasanSuffix
+	sharedWithSdkVariant := sdkSuffix + sharedSuffix
+	staticWithHwasanVariant := staticSuffix + hwasanSuffix
+	staticWithSdkVariant := sdkSuffix + staticSuffix
+
+	testCases := []struct {
+		buildOs          string
+		extraPreparer    android.FixturePreparer
+		expectedVariants map[string][]string
+	}{
+		{
+			buildOs: androidArm64,
+			expectedVariants: map[string][]string{
+				"shared_with_hwaddress": []string{
+					androidArm64 + sharedWithHwasanVariant,
+					androidArm64 + sharedWithSdkVariant,
+					androidArm + sharedSuffix,
+					androidArm + sharedWithSdkVariant,
+				},
+				"static_dep_with_hwaddress": []string{
+					androidArm64 + staticSuffix,
+					androidArm64 + staticWithHwasanVariant,
+					androidArm64 + staticWithSdkVariant,
+					androidArm + staticSuffix,
+					androidArm + staticWithSdkVariant,
+				},
+				"static_dep_no_hwaddress": []string{
+					androidArm64 + staticSuffix,
+					androidArm64 + staticWithHwasanVariant,
+					androidArm64 + staticWithSdkVariant,
+					androidArm + staticSuffix,
+					androidArm + staticWithSdkVariant,
+				},
+			},
+		},
+		{
+			buildOs: androidX86,
+			extraPreparer: android.FixtureModifyConfig(func(config android.Config) {
+				config.Targets[android.Android] = []android.Target{
+					{
+						android.Android,
+						android.Arch{
+							ArchType: android.X86, ArchVariant: "silvermont", Abi: []string{"armeabi-v7a"}}, android.NativeBridgeDisabled, "", "", false},
+				}
+			}),
+			expectedVariants: map[string][]string{
+				"shared_with_hwaddress": []string{
+					androidX86 + sharedSuffix,
+					androidX86 + sharedWithSdkVariant,
+				},
+				"static_dep_with_hwaddress": []string{
+					androidX86 + staticSuffix,
+					androidX86 + staticWithSdkVariant,
+				},
+				"static_dep_no_hwaddress": []string{
+					androidX86 + staticSuffix,
+					androidX86 + staticWithSdkVariant,
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		preparer := android.GroupFixturePreparers(
+			prepareForCcTest,
+			android.OptionalFixturePreparer(tc.extraPreparer),
+		)
+		result := preparer.RunTestWithBp(t, bp)
+
+		for m, v := range tc.expectedVariants {
+			variants := result.ModuleVariantsForTests(m)
+			if !reflect.DeepEqual(variants, v) {
+				t.Errorf("Expected variants of %q to be %q, but got %q", m, v, variants)
+			}
+		}
 	}
 }
