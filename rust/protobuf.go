@@ -20,6 +20,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/bazel"
+	"android/soong/cc"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -59,14 +60,18 @@ type ProtobufProperties struct {
 	// Use protobuf version 3.x. This will be deleted once we migrate all current users
 	// of protobuf off of 2.x.
 	Use_protobuf3 *bool
+
+	// List of exported include paths containing proto files for dependent rust_protobuf modules.
+	Exported_include_dirs []string
 }
 
 type protobufDecorator struct {
 	*BaseSourceProvider
 
-	Properties ProtobufProperties
-	protoNames []string
-	grpcNames  []string
+	Properties       ProtobufProperties
+	protoNames       []string
+	additionalCrates []string
+	grpcNames        []string
 
 	grpcProtoFlags android.ProtoFlags
 	protoFlags     android.ProtoFlags
@@ -184,6 +189,10 @@ func (proto *protobufDecorator) GenerateSource(ctx ModuleContext, deps PathDeps)
 	// stemFile must be first here as the first path in BaseSourceProvider.OutputFiles is the library entry-point.
 	proto.BaseSourceProvider.OutputFiles = append(android.Paths{stemFile}, outputs.Paths()...)
 
+	ctx.SetProvider(cc.FlagExporterInfoProvider, cc.FlagExporterInfo{
+		IncludeDirs: android.PathsForModuleSrc(ctx, proto.Properties.Exported_include_dirs),
+	})
+
 	// mod_stem.rs is the entry-point for our library modules, so this is what we return.
 	return stemFile
 }
@@ -192,8 +201,14 @@ func (proto *protobufDecorator) genModFileContents() string {
 	lines := []string{
 		"// @Soong generated Source",
 	}
+
 	for _, protoName := range proto.protoNames {
 		lines = append(lines, fmt.Sprintf("pub mod %s;", protoName))
+	}
+
+	for _, crate := range proto.additionalCrates {
+		lines = append(lines, fmt.Sprintf("pub use %s::*;", crate))
+
 	}
 
 	for _, grpcName := range proto.grpcNames {
