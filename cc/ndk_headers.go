@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 	"android/soong/bazel"
@@ -151,6 +152,7 @@ type bazelNdkHeadersAttributes struct {
 	Strip_import_prefix *string
 	Import_prefix       *string
 	Hdrs                bazel.LabelListAttribute
+	Run_versioner       *bool
 }
 
 func (h *headerModule) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
@@ -217,6 +219,7 @@ type versionedHeaderProperties struct {
 // Note that this is really only built to handle bionic/libc/include.
 type versionedHeaderModule struct {
 	android.ModuleBase
+	android.BazelModuleBase
 
 	properties versionedHeaderProperties
 
@@ -253,6 +256,25 @@ func (m *versionedHeaderModule) GenerateAndroidBuildActions(ctx android.ModuleCo
 	}
 
 	processHeadersWithVersioner(ctx, fromSrcPath, toOutputPath, m.srcPaths, installPaths)
+}
+
+func (h *versionedHeaderModule) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "ndk_headers",
+		Bzl_load_location: "//build/bazel/rules/cc:ndk_headers.bzl",
+	}
+	globPattern := headerGlobPattern(proptools.String(h.properties.From))
+	attrs := &bazelNdkHeadersAttributes{
+		Strip_import_prefix: h.properties.From,
+		Import_prefix:       h.properties.To,
+		Run_versioner:       proptools.BoolPtr(true),
+		Hdrs:                bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, []string{globPattern})),
+	}
+	ctx.CreateBazelTargetModule(
+		props,
+		android.CommonAttributes{Name: h.Name()},
+		attrs,
+	)
 }
 
 func processHeadersWithVersioner(ctx android.ModuleContext, srcDir, outDir android.Path,
@@ -298,12 +320,13 @@ func processHeadersWithVersioner(ctx android.ModuleContext, srcDir, outDir andro
 // Unlike the ndk_headers soong module, versioned_ndk_headers operates on a
 // directory level specified in `from` property. This is only used to process
 // the bionic/libc/include directory.
-func versionedNdkHeadersFactory() android.Module {
+func VersionedNdkHeadersFactory() android.Module {
 	module := &versionedHeaderModule{}
 
 	module.AddProperties(&module.properties)
 
 	android.InitAndroidModule(module)
+	android.InitBazelModule(module)
 
 	return module
 }

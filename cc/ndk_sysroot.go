@@ -64,7 +64,7 @@ func init() {
 func RegisterNdkModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("ndk_headers", NdkHeadersFactory)
 	ctx.RegisterModuleType("ndk_library", NdkLibraryFactory)
-	ctx.RegisterModuleType("versioned_ndk_headers", versionedNdkHeadersFactory)
+	ctx.RegisterModuleType("versioned_ndk_headers", VersionedNdkHeadersFactory)
 	ctx.RegisterModuleType("preprocessed_ndk_headers", preprocessedNdkHeadersFactory)
 	ctx.RegisterParallelSingletonType("ndk", NdkSingleton)
 }
