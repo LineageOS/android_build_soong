@@ -267,11 +267,22 @@ func platformMappingSingleProduct(
 		defaultAppCertificateFilegroup = "@//" + filepath.Dir(proptools.String(productVariables.DefaultAppCertificate)) + ":generated_android_certificate_directory"
 	}
 
+	// TODO: b/301598690 - commas can't be escaped in a string-list passed in a platform mapping,
+	// so commas are switched for ":" here, and must be back-substituted into commas
+	// wherever the AAPTCharacteristics product config variable is used.
+	AAPTConfig := []string{}
+	for _, conf := range productVariables.AAPTConfig {
+		AAPTConfig = append(AAPTConfig, strings.Replace(conf, ",", ":", -1))
+	}
+
 	for _, suffix := range bazelPlatformSuffixes {
 		result.WriteString("  ")
 		result.WriteString(label.String())
 		result.WriteString(suffix)
 		result.WriteString("\n")
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:aapt_characteristics=%s\n", proptools.String(productVariables.AAPTCharacteristics)))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:aapt_config=%s\n", strings.Join(AAPTConfig, ",")))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:aapt_preferred_config=%s\n", proptools.String(productVariables.AAPTPreferredConfig)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:always_use_prebuilt_sdks=%t\n", proptools.Bool(productVariables.Always_use_prebuilt_sdks)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:arc=%t\n", proptools.Bool(productVariables.Arc)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:apex_global_min_sdk_version_override=%s\n", proptools.String(productVariables.ApexGlobalMinSdkVersionOverride)))
