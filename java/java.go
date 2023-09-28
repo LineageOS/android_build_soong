@@ -278,6 +278,9 @@ type JavaInfo struct {
 	// SrcJarDeps is a list of paths to depend on when packaging the sources of this module.
 	SrcJarDeps android.Paths
 
+	// The source files of this module and all its transitive static dependencies.
+	TransitiveSrcFiles *android.DepSet[android.Path]
+
 	// ExportedPlugins is a list of paths that should be used as annotation processors for any
 	// module that depends on this module.
 	ExportedPlugins android.Paths
