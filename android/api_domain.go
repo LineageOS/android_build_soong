@@ -14,12 +14,6 @@
 
 package android
 
-import (
-	"github.com/google/blueprint"
-
-	"android/soong/bazel"
-)
-
 func init() {
 	RegisterApiDomainBuildComponents(InitRegistrationContext)
 }
@@ -96,14 +90,4 @@ const (
 // A suffix is necessary to prevent a name collision with the base target in the same bp2build bazel package
 func ApiContributionTargetName(moduleName string) string {
 	return moduleName + apiContributionSuffix
-}
-
-// For each contributing cc_library, format the name to its corresponding contribution bazel target in the bp2build workspace
-func contributionBazelAttributes(ctx TopDownMutatorContext, contributions []string) bazel.LabelListAttribute {
-	addSuffix := func(ctx BazelConversionPathContext, module blueprint.Module) string {
-		baseLabel := BazelModuleLabel(ctx, module)
-		return ApiContributionTargetName(baseLabel)
-	}
-	bazelLabels := BazelLabelForModuleDepsWithFn(ctx, contributions, addSuffix)
-	return bazel.MakeLabelListAttribute(bazelLabels)
 }
