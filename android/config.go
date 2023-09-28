@@ -2092,7 +2092,3 @@ func (c *deviceConfig) NextReleaseHideFlaggedApi() bool {
 func (c *deviceConfig) ReleaseExposeFlaggedApi() bool {
 	return Bool(c.config.productVariables.ReleaseExposeFlaggedApi)
 }
-
-func (c *deviceConfig) HideFlaggedApis() bool {
-	return c.NextReleaseHideFlaggedApi() && !c.ReleaseExposeFlaggedApi()
-}
