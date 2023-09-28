@@ -86,7 +86,7 @@ android_library {
 func TestConvertAndroidLibraryWithNoSources(t *testing.T) {
 	t.Helper()
 	RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {}, Bp2buildTestCase{
-		Description:                "Android Library - modules with deps must have sources",
+		Description:                "Android Library - modules will deps when there are no sources",
 		ModuleTypeUnderTest:        "android_library",
 		ModuleTypeUnderTestFactory: java.AndroidLibraryFactory,
 		Filesystem: map[string]string{
@@ -102,7 +102,18 @@ android_library {
 	sdk_version: "current",
 }
 `,
-		ExpectedBazelTargets: []string{},
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget(
+				"android_library",
+				"TestLib",
+				AttrNameToString{
+					"manifest":       `"AndroidManifest.xml"`,
+					"resource_files": `["res/res.png"]`,
+					"sdk_version":    `"current"`, // use as default
+				},
+			),
+			MakeNeverlinkDuplicateTarget("android_library", "TestLib"),
+		},
 	})
 }
 
