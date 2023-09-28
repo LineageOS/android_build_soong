@@ -1356,10 +1356,12 @@ func (a *AndroidLibrary) ConvertWithBp2build(ctx android.Bp2buildMutatorContext)
 	if !commonAttrs.Srcs.IsEmpty() {
 		deps.Append(depLabels.StaticDeps) // we should only append these if there are sources to use them
 	} else if !depLabels.Deps.IsEmpty() {
-		ctx.MarkBp2buildUnconvertible(
-			bp2build_metrics_proto.UnconvertedReasonType_UNSUPPORTED,
-			"Module has direct dependencies but no sources. Bazel will not allow this.")
-		return
+		// android_library does not accept deps when there are no srcs because
+		// there is no compilation happening, but it accepts exports.
+		// The non-empty deps here are unnecessary as deps on the android_library
+		// since they aren't being propagated to any dependencies.
+		// So we can drop deps here.
+		deps = bazel.LabelListAttribute{}
 	}
 	name := a.Name()
 	props := AndroidLibraryBazelTargetModuleProperties()
