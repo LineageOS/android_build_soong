@@ -1683,6 +1683,13 @@ func convertWithBp2build(ctx android.Bp2buildMutatorContext, a *AndroidApp) (boo
 		Updatable:        a.appProperties.Updatable,
 	}
 
+	// As framework-res has no sources, no deps in the Bazel sense, and java compilation, dexing and optimization is skipped by
+	// Soong specifically for it, return early here before any of the conversion work for the above is attempted.
+	if ctx.ModuleName() == "framework-res" {
+		appAttrs.bazelAapt = aapt
+		return true, android.CommonAttributes{Name: a.Name(), SkipData: proptools.BoolPtr(true)}, appAttrs
+	}
+
 	// Optimization is..
 	// - enabled by default for android_app, android_test_helper_app
 	// - disabled by default for android_test
@@ -1784,11 +1791,18 @@ func convertWithBp2build(ctx android.Bp2buildMutatorContext, a *AndroidApp) (boo
 // ConvertWithBp2build is used to convert android_app to Bazel.
 func (a *AndroidApp) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	if ok, commonAttrs, appAttrs := convertWithBp2build(ctx, a); ok {
-		props := bazel.BazelTargetModuleProperties{
-			Rule_class:        "android_binary",
-			Bzl_load_location: "//build/bazel/rules/android:android_binary.bzl",
+		var props bazel.BazelTargetModuleProperties
+		if ctx.ModuleName() == "framework-res" {
+			props = bazel.BazelTargetModuleProperties{
+				Rule_class:        "framework_resources",
+				Bzl_load_location: "//build/bazel/rules/android:framework_resources.bzl",
+			}
+		} else {
+			props = bazel.BazelTargetModuleProperties{
+				Rule_class:        "android_binary",
+				Bzl_load_location: "//build/bazel/rules/android:android_binary.bzl",
+			}
 		}
-
 		ctx.CreateBazelTargetModule(props, commonAttrs, appAttrs)
 	}
 
