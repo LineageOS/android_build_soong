@@ -267,6 +267,15 @@ func (mod *Module) Dylib() bool {
 	return false
 }
 
+func (mod *Module) Source() bool {
+	if mod.compiler != nil {
+		if library, ok := mod.compiler.(libraryInterface); ok && mod.sourceProvider != nil {
+			return library.source()
+		}
+	}
+	return false
+}
+
 func (mod *Module) RlibStd() bool {
 	if mod.compiler != nil {
 		if library, ok := mod.compiler.(libraryInterface); ok && library.rlib() {
@@ -1156,6 +1165,13 @@ func rustMakeLibName(ctx android.ModuleContext, c cc.LinkableInterface, dep cc.L
 	return cc.MakeLibName(ctx, c, dep, depName)
 }
 
+func collectIncludedProtos(mod *Module, dep *Module) {
+	if protoMod, ok := mod.sourceProvider.(*protobufDecorator); ok {
+		if _, ok := dep.sourceProvider.(*protobufDecorator); ok {
+			protoMod.additionalCrates = append(protoMod.additionalCrates, dep.CrateName())
+		}
+	}
+}
 func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	var depPaths PathDeps
 
@@ -1268,6 +1284,11 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			case procMacroDepTag:
 				directProcMacroDeps = append(directProcMacroDeps, rustDep)
 				mod.Properties.AndroidMkProcMacroLibs = append(mod.Properties.AndroidMkProcMacroLibs, makeLibName)
+
+			case sourceDepTag:
+				if _, ok := mod.sourceProvider.(*protobufDecorator); ok {
+					collectIncludedProtos(mod, rustDep)
+				}
 			}
 
 			transitiveAndroidMkSharedLibs = append(transitiveAndroidMkSharedLibs, rustDep.transitiveAndroidMkSharedLibs)
@@ -1308,7 +1329,14 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					lib.exportLinkDirs(linkDir)
 				}
 			}
-
+			if depTag == sourceDepTag {
+				if _, ok := mod.sourceProvider.(*protobufDecorator); ok && mod.Source() {
+					if _, ok := rustDep.sourceProvider.(*protobufDecorator); ok {
+						exportedInfo := ctx.OtherModuleProvider(dep, cc.FlagExporterInfoProvider).(cc.FlagExporterInfo)
+						depPaths.depIncludePaths = append(depPaths.depIncludePaths, exportedInfo.IncludeDirs...)
+					}
+				}
+			}
 		} else if ccDep, ok := dep.(cc.LinkableInterface); ok {
 			//Handle C dependencies
 			makeLibName := cc.MakeLibName(ctx, mod, ccDep, depName)
@@ -1572,30 +1600,43 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	}
 
 	// rustlibs
-	if deps.Rustlibs != nil && !mod.compiler.Disabled() {
-		autoDep := mod.compiler.(autoDeppable).autoDep(ctx)
-		for _, lib := range deps.Rustlibs {
-			if autoDep.depTag == rlibDepTag {
-				// Handle the rlib deptag case
-				addRlibDependency(actx, lib, mod, &snapshotInfo, rlibDepVariations)
-			} else {
-				// autoDep.depTag is a dylib depTag. Not all rustlibs may be available as a dylib however.
-				// Check for the existence of the dylib deptag variant. Select it if available,
-				// otherwise select the rlib variant.
-				autoDepVariations := append(commonDepVariations,
-					blueprint.Variation{Mutator: "rust_libraries", Variation: autoDep.variation})
-
-				replacementLib := cc.GetReplaceModuleName(lib, cc.GetSnapshot(mod, &snapshotInfo, actx).Dylibs)
-
-				if actx.OtherModuleDependencyVariantExists(autoDepVariations, replacementLib) {
-					addDylibDependency(actx, lib, mod, &snapshotInfo, autoDepVariations, autoDep.depTag)
-				} else {
-					// If there's no dylib dependency available, try to add the rlib dependency instead.
+	if deps.Rustlibs != nil {
+		if !mod.compiler.Disabled() {
+			for _, lib := range deps.Rustlibs {
+				autoDep := mod.compiler.(autoDeppable).autoDep(ctx)
+				if autoDep.depTag == rlibDepTag {
+					// Handle the rlib deptag case
 					addRlibDependency(actx, lib, mod, &snapshotInfo, rlibDepVariations)
+				} else {
+					// autoDep.depTag is a dylib depTag. Not all rustlibs may be available as a dylib however.
+					// Check for the existence of the dylib deptag variant. Select it if available,
+					// otherwise select the rlib variant.
+					autoDepVariations := append(commonDepVariations,
+						blueprint.Variation{Mutator: "rust_libraries", Variation: autoDep.variation})
+
+					replacementLib := cc.GetReplaceModuleName(lib, cc.GetSnapshot(mod, &snapshotInfo, actx).Dylibs)
+
+					if actx.OtherModuleDependencyVariantExists(autoDepVariations, replacementLib) {
+						addDylibDependency(actx, lib, mod, &snapshotInfo, autoDepVariations, autoDep.depTag)
+					} else {
+						// If there's no dylib dependency available, try to add the rlib dependency instead.
+						addRlibDependency(actx, lib, mod, &snapshotInfo, rlibDepVariations)
+					}
+				}
+			}
+		} else if _, ok := mod.sourceProvider.(*protobufDecorator); ok {
+			for _, lib := range deps.Rustlibs {
+				replacementLib := cc.GetReplaceModuleName(lib, cc.GetSnapshot(mod, &snapshotInfo, actx).Dylibs)
+				srcProviderVariations := append(commonDepVariations,
+					blueprint.Variation{Mutator: "rust_libraries", Variation: "source"})
+
+				if actx.OtherModuleDependencyVariantExists(srcProviderVariations, replacementLib) {
+					actx.AddVariationDependencies(srcProviderVariations, sourceDepTag, lib)
 				}
 			}
 		}
 	}
+
 	// stdlibs
 	if deps.Stdlibs != nil {
 		if mod.compiler.stdLinkage(ctx) == RlibLinkage {
