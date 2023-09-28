@@ -432,6 +432,9 @@ type Module struct {
 	srcJarArgs []string
 	srcJarDeps android.Paths
 
+	// the source files of this module and all its static dependencies
+	transitiveSrcFiles *android.DepSet[android.Path]
+
 	// jar file containing implementation classes and resources including static library
 	// dependencies
 	implementationAndResourcesJar android.Path
@@ -1694,6 +1697,8 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		j.linter.lint(ctx)
 	}
 
+	j.collectTransitiveSrcFiles(ctx, srcFiles)
+
 	ctx.CheckbuildFile(outputFile)
 
 	j.collectTransitiveAconfigFiles(ctx)
@@ -1708,6 +1713,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		AidlIncludeDirs:                j.exportAidlIncludeDirs,
 		SrcJarArgs:                     j.srcJarArgs,
 		SrcJarDeps:                     j.srcJarDeps,
+		TransitiveSrcFiles:             j.transitiveSrcFiles,
 		ExportedPlugins:                j.exportedPluginJars,
 		ExportedPluginClasses:          j.exportedPluginClasses,
 		ExportedPluginDisableTurbine:   j.exportedDisableTurbine,
@@ -2030,6 +2036,21 @@ func (j *Module) Stem() string {
 
 func (j *Module) JacocoReportClassesFile() android.Path {
 	return j.jacocoReportClassesFile
+}
+
+func (j *Module) collectTransitiveSrcFiles(ctx android.ModuleContext, mine android.Paths) {
+	var fromDeps []*android.DepSet[android.Path]
+	ctx.VisitDirectDeps(func(module android.Module) {
+		tag := ctx.OtherModuleDependencyTag(module)
+		if tag == staticLibTag {
+			depInfo := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
+			if depInfo.TransitiveSrcFiles != nil {
+				fromDeps = append(fromDeps, depInfo.TransitiveSrcFiles)
+			}
+		}
+	})
+
+	j.transitiveSrcFiles = android.NewDepSet(android.POSTORDER, mine, fromDeps)
 }
 
 func (j *Module) IsInstallable() bool {
