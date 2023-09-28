@@ -5161,7 +5161,6 @@ func TestNdkLibraryConversion(t *testing.T) {
 		Blueprint: `
 cc_library {
 	name: "libfoo",
-	bazel_module: { bp2build_available: false },
 }
 ndk_library {
 	name: "libfoo",
@@ -5169,6 +5168,7 @@ ndk_library {
 	symbol_file: "libfoo.map.txt",
 }
 `,
+		StubbedBuildDefinitions: []string{"libfoo"},
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_stub_suite", "libfoo.ndk_stub_libs", AttrNameToString{
 				"api_surface":          `"publicapi"`,
