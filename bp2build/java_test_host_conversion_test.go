@@ -97,14 +97,13 @@ java_test_host {
 
 java_library {
     name: "lib_a",
-    bazel_module: { bp2build_available: false },
 }
 
 java_library {
     name: "static_libs_a",
-    bazel_module: { bp2build_available: false },
 }
 `,
+		StubbedBuildDefinitions: []string{"lib_a", "static_libs_a"},
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("java_test", "java_test_host-1", AttrNameToString{
 				"runtime_deps": `[
