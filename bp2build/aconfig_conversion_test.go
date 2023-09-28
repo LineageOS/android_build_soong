@@ -105,7 +105,6 @@ func TestCcAconfigLibrary(t *testing.T) {
 	cc_library {
 			name: "server_configurable_flags",
 			srcs: ["bar.cc"],
-			bazel_module: { bp2build_available: false },
 	}
 	cc_aconfig_library {
 			name: "foo",
@@ -131,7 +130,8 @@ func TestCcAconfigLibrary(t *testing.T) {
 			},
 		)}
 	RunBp2BuildTestCase(t, registerAconfigModuleTypes, Bp2buildTestCase{
-		Blueprint:            bp,
-		ExpectedBazelTargets: expectedBazelTargets,
+		Blueprint:               bp,
+		ExpectedBazelTargets:    expectedBazelTargets,
+		StubbedBuildDefinitions: []string{"server_configurable_flags"},
 	})
 }
