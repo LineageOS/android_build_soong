@@ -2263,6 +2263,28 @@ func TestJavaApiLibraryFullApiSurfaceStub(t *testing.T) {
 	android.AssertStringDoesContain(t, "Command expected to contain full_api_surface_stub output jar", manifestCommand, "lib1.jar")
 }
 
+func TestTransitiveSrcFiles(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_library {
+			name: "a",
+			srcs: ["a.java"],
+		}
+		java_library {
+			name: "b",
+			srcs: ["b.java"],
+		}
+		java_library {
+			name: "c",
+			srcs: ["c.java"],
+			libs: ["a"],
+			static_libs: ["b"],
+		}
+	`)
+	c := ctx.ModuleForTests("c", "android_common").Module()
+	transitiveSrcFiles := android.Paths(ctx.ModuleProvider(c, JavaInfoProvider).(JavaInfo).TransitiveSrcFiles.ToList())
+	android.AssertArrayString(t, "unexpected jar deps", []string{"b.java", "c.java"}, transitiveSrcFiles.Strings())
+}
+
 func TestTradefedOptions(t *testing.T) {
 	result := PrepareForTestWithJavaBuildComponents.RunTestWithBp(t, `
 java_test_host {
