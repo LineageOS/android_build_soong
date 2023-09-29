@@ -15,13 +15,11 @@
 package build
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
 	"text/template"
-	"time"
 
 	"android/soong/ui/metrics"
 )
@@ -58,31 +56,6 @@ func SetupOutDir(ctx Context, config Config) {
 	} else {
 		ctx.Fatalln("Missing BUILD_DATETIME_FILE")
 	}
-
-	// BUILD_NUMBER should be set to the source control value that
-	// represents the current state of the source code.  E.g., a
-	// perforce changelist number or a git hash.  Can be an arbitrary string
-	// (to allow for source control that uses something other than numbers),
-	// but must be a single word and a valid file name.
-	//
-	// If no BUILD_NUMBER is set, create a useful "I am an engineering build
-	// from this date/time" value.  Make it start with a non-digit so that
-	// anyone trying to parse it as an integer will probably get "0".
-	buildNumber, ok := config.environ.Get("BUILD_NUMBER")
-	if ok {
-		writeValueIfChanged(ctx, config, config.OutDir(), "file_name_tag.txt", buildNumber)
-	} else {
-		var username string
-		if username, ok = config.environ.Get("BUILD_USERNAME"); !ok {
-			ctx.Fatalln("Missing BUILD_USERNAME")
-		}
-		buildNumber = fmt.Sprintf("eng.%.6s.%s", username, time.Now().Format("20060102.150405" /* YYYYMMDD.HHMMSS */))
-		writeValueIfChanged(ctx, config, config.OutDir(), "file_name_tag.txt", username)
-	}
-	// Write the build number to a file so it can be read back in
-	// without changing the command line every time.  Avoids rebuilds
-	// when using ninja.
-	writeValueIfChanged(ctx, config, config.SoongOutDir(), "build_number.txt", buildNumber)
 }
 
 var combinedBuildNinjaTemplate = template.Must(template.New("combined").Parse(`
