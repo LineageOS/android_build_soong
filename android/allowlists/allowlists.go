@@ -142,6 +142,7 @@ var (
 		"external/bzip2":                         Bp2BuildDefaultTrueRecursively,
 		"external/clang/lib":                     Bp2BuildDefaultTrue,
 		"external/conscrypt":                     Bp2BuildDefaultTrue,
+		"external/dexmaker":                      Bp2BuildDefaultTrueRecursively,
 		"external/e2fsprogs":                     Bp2BuildDefaultTrueRecursively,
 		"external/eigen":                         Bp2BuildDefaultTrueRecursively,
 		"external/erofs-utils":                   Bp2BuildDefaultTrueRecursively,
@@ -194,6 +195,7 @@ var (
 		"external/lzma/C":                        Bp2BuildDefaultTrueRecursively,
 		"external/mdnsresponder":                 Bp2BuildDefaultTrueRecursively,
 		"external/minijail":                      Bp2BuildDefaultTrueRecursively,
+		"external/mockito":                       Bp2BuildDefaultTrueRecursively,
 		"external/musl":                          Bp2BuildDefaultTrueRecursively,
 		"external/objenesis":                     Bp2BuildDefaultTrueRecursively,
 		"external/openscreen":                    Bp2BuildDefaultTrueRecursively,
@@ -234,9 +236,11 @@ var (
 		"frameworks/av/services/minijail":                    Bp2BuildDefaultTrueRecursively,
 		"frameworks/base/apex/jobscheduler/service/jni":      Bp2BuildDefaultTrueRecursively,
 		"frameworks/base/core/java":                          Bp2BuildDefaultTrue,
+		"frameworks/base/core/res":                           Bp2BuildDefaultTrueRecursively,
 		"frameworks/base/libs/androidfw":                     Bp2BuildDefaultTrue,
 		"frameworks/base/libs/services":                      Bp2BuildDefaultTrue,
 		"frameworks/base/media/tests/MediaDump":              Bp2BuildDefaultTrue,
+		"frameworks/base/mime":                               Bp2BuildDefaultTrueRecursively,
 		"frameworks/base/proto":                              Bp2BuildDefaultTrue,
 		"frameworks/base/services/tests/servicestests/aidl":  Bp2BuildDefaultTrue,
 		"frameworks/base/startop/apps/test":                  Bp2BuildDefaultTrue,
@@ -450,6 +454,7 @@ var (
 		"tools/metalava":                              Bp2BuildDefaultTrueRecursively,
 		"tools/platform-compat/java/android/compat":   Bp2BuildDefaultTrueRecursively,
 		"tools/platform-compat/java/androidprocessor": Bp2BuildDefaultTrueRecursively,
+		"tools/tradefederation/core/util_apps":        Bp2BuildDefaultTrueRecursively,
 		"tools/tradefederation/prebuilts/filegroups":  Bp2BuildDefaultTrueRecursively,
 	}
 
@@ -475,6 +480,7 @@ var (
 		"external/bazelbuild-rules_go":/* recursive = */ true,
 		"external/bazelbuild-rules_python":/* recursive = */ true,
 		"external/bazelbuild-rules_rust":/* recursive = */ true,
+		"external/bazelbuild-rules_testing":/* recursive = */ true,
 		"external/bazelbuild-kotlin-rules":/* recursive = */ true,
 		"external/bazel-skylib":/* recursive = */ true,
 		"external/protobuf":/* recursive = */ false,
@@ -568,13 +574,8 @@ var (
 		// ext
 		"tagsoup",
 
-		// framework-res
-		"remote-color-resources-compile-public",
-		"remote-color-resources-compile-colors",
-
 		// framework-minus-apex
 		"ImmutabilityAnnotationProcessor",
-		"android.mime.types.minimized",
 		"debian.mime.types.minimized",
 		"framework-javastream-protos",
 		"libview-inspector-annotation-processor",
@@ -583,7 +584,6 @@ var (
 		"apache-commons-math",
 		"cbor-java",
 		"icu4j_calendar_astronomer",
-		"remote-color-resources-compile-public",
 		"statslog-art-java-gen",
 
 		"AndroidCommonLint",
@@ -935,9 +935,7 @@ var (
 		"androidx.test.annotation-nodeps",
 
 		// jni deps of an internal android_test (b/297405812)
-		"libdexmakerjvmtiagent",
 		"libopenjdkjvmti_headers",
-		"libstaticjvmtiagent",
 
 		// tradefed deps
 		"tradefed-protos",
@@ -1756,6 +1754,13 @@ var (
 		"MtsTimeZoneDataTestCases",
 		"NanoAndroidTest",
 		"MtsLibnativehelperTestCases",
+
+		// Depends on androidx.test.rules
+		"DexmakerTests",
+		"dexmaker-tests-lib",
+		"dexmaker-mockmaker-tests",
+		"dexmaker-inline-mockmaker-tests",
+		"dexmaker-extended-mockmaker-tests",
 
 		// android_test_helper_app from allowlisted packages, but with unconverted deps
 		"SharedLibraryInfoTestApp",

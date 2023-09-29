@@ -57,6 +57,9 @@ type platformBootclasspathModule struct {
 
 	// Path to the monolithic hiddenapi-unsupported.csv file.
 	hiddenAPIMetadataCSV android.OutputPath
+
+	// Path to a srcjar containing all the transitive sources of the bootclasspath.
+	srcjar android.OutputPath
 }
 
 type platformBootclasspathProperties struct {
@@ -95,6 +98,8 @@ func (b *platformBootclasspathModule) OutputFiles(tag string) (android.Paths, er
 		return android.Paths{b.hiddenAPIIndexCSV}, nil
 	case "hiddenapi-metadata.csv":
 		return android.Paths{b.hiddenAPIMetadataCSV}, nil
+	case ".srcjar":
+		return android.Paths{b.srcjar}, nil
 	}
 
 	return nil, fmt.Errorf("unknown tag %s", tag)
@@ -172,6 +177,18 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 	allModules = append(allModules, platformModules...)
 	allModules = append(allModules, apexModules...)
 	b.configuredModules = allModules
+
+	var transitiveSrcFiles android.Paths
+	for _, module := range allModules {
+		depInfo := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
+		if depInfo.TransitiveSrcFiles != nil {
+			transitiveSrcFiles = append(transitiveSrcFiles, depInfo.TransitiveSrcFiles.ToList()...)
+		}
+	}
+	jarArgs := resourcePathsToJarArgs(transitiveSrcFiles)
+	jarArgs = append(jarArgs, "-srcjar") // Move srcfiles to the right package
+	b.srcjar = android.PathForModuleOut(ctx, ctx.ModuleName()+"-transitive.srcjar").OutputPath
+	TransformResourcesToJar(ctx, b.srcjar, jarArgs, transitiveSrcFiles)
 
 	// Gather all the fragments dependencies.
 	b.fragments = gatherApexModulePairDepsWithTag(ctx, bootclasspathFragmentDepTag)

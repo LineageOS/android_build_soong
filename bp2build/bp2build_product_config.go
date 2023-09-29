@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 
 	"android/soong/android"
@@ -26,6 +27,22 @@ type bazelLabel struct {
 	repo   string
 	pkg    string
 	target string
+}
+
+func (l *bazelLabel) Less(other *bazelLabel) bool {
+	if l.repo < other.repo {
+		return true
+	}
+	if l.repo > other.repo {
+		return false
+	}
+	if l.pkg < other.pkg {
+		return true
+	}
+	if l.pkg > other.pkg {
+		return false
+	}
+	return l.target < other.target
 }
 
 func (l *bazelLabel) String() string {
@@ -229,9 +246,16 @@ func platformMappingContent(
 		mergedConvertedModulePathMap[k] = v
 	}
 
+	productLabels := make([]bazelLabel, 0, len(productLabelToVariables))
+	for k := range productLabelToVariables {
+		productLabels = append(productLabels, k)
+	}
+	sort.Slice(productLabels, func(i, j int) bool {
+		return productLabels[i].Less(&productLabels[j])
+	})
 	result.WriteString("platforms:\n")
-	for productLabel, productVariables := range productLabelToVariables {
-		platformMappingSingleProduct(productLabel, productVariables, soongConfigDefinitions, mergedConvertedModulePathMap, &result)
+	for _, productLabel := range productLabels {
+		platformMappingSingleProduct(productLabel, productLabelToVariables[productLabel], soongConfigDefinitions, mergedConvertedModulePathMap, &result)
 	}
 	return result.String(), nil
 }
@@ -267,11 +291,22 @@ func platformMappingSingleProduct(
 		defaultAppCertificateFilegroup = "@//" + filepath.Dir(proptools.String(productVariables.DefaultAppCertificate)) + ":generated_android_certificate_directory"
 	}
 
+	// TODO: b/301598690 - commas can't be escaped in a string-list passed in a platform mapping,
+	// so commas are switched for ":" here, and must be back-substituted into commas
+	// wherever the AAPTCharacteristics product config variable is used.
+	AAPTConfig := []string{}
+	for _, conf := range productVariables.AAPTConfig {
+		AAPTConfig = append(AAPTConfig, strings.Replace(conf, ",", ":", -1))
+	}
+
 	for _, suffix := range bazelPlatformSuffixes {
 		result.WriteString("  ")
 		result.WriteString(label.String())
 		result.WriteString(suffix)
 		result.WriteString("\n")
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:aapt_characteristics=%s\n", proptools.String(productVariables.AAPTCharacteristics)))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:aapt_config=%s\n", strings.Join(AAPTConfig, ",")))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:aapt_preferred_config=%s\n", proptools.String(productVariables.AAPTPreferredConfig)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:always_use_prebuilt_sdks=%t\n", proptools.Bool(productVariables.Always_use_prebuilt_sdks)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:arc=%t\n", proptools.Bool(productVariables.Arc)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:apex_global_min_sdk_version_override=%s\n", proptools.String(productVariables.ApexGlobalMinSdkVersionOverride)))
@@ -302,6 +337,8 @@ func platformMappingSingleProduct(
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:manifest_package_name_overrides=%s\n", strings.Join(productVariables.ManifestPackageNameOverrides, ",")))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:native_coverage=%t\n", proptools.Bool(productVariables.Native_coverage)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:platform_sdk_final=%t\n", proptools.Bool(productVariables.Platform_sdk_final)))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:platform_security_patch=%s\n", proptools.String(productVariables.Platform_security_patch)))
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:platform_version_last_stable=%s\n", proptools.String(productVariables.Platform_version_last_stable)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:platform_version_name=%s\n", proptools.String(productVariables.Platform_version_name)))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:product_brand=%s\n", productVariables.ProductBrand))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:product_manufacturer=%s\n", productVariables.ProductManufacturer))
@@ -328,8 +365,9 @@ func platformMappingSingleProduct(
 			}
 		}
 
-		for namespace, namespaceContents := range productVariables.VendorVars {
-			for variable, value := range namespaceContents {
+		for _, namespace := range android.SortedKeys(productVariables.VendorVars) {
+			for _, variable := range android.SortedKeys(productVariables.VendorVars[namespace]) {
+				value := productVariables.VendorVars[namespace][variable]
 				key := namespace + "__" + variable
 				_, hasBool := soongConfigDefinitions.BoolVars[key]
 				_, hasString := soongConfigDefinitions.StringVars[key]
@@ -442,6 +480,7 @@ func starlarkMapToProductVariables(in map[string]starlark.Value) (android.Produc
 
 func createTargets(productLabelsToVariables map[bazelLabel]*android.ProductVariables, res map[string]BazelTargets) {
 	createGeneratedAndroidCertificateDirectories(productLabelsToVariables, res)
+	createAvbKeyFilegroups(productLabelsToVariables, res)
 	for label, variables := range productLabelsToVariables {
 		createSystemPartition(label, &variables.PartitionVarsForBazelMigrationOnlyDoNotUse, res)
 	}
@@ -476,10 +515,39 @@ func createGeneratedAndroidCertificateDirectories(productLabelsToVariables map[b
 	}
 }
 
+func createAvbKeyFilegroups(productLabelsToVariables map[bazelLabel]*android.ProductVariables, targets map[string]BazelTargets) {
+	var allAvbKeys []string
+	for _, productVariables := range productLabelsToVariables {
+		for _, partitionVariables := range productVariables.PartitionVarsForBazelMigrationOnlyDoNotUse.PartitionQualifiedVariables {
+			if partitionVariables.BoardAvbKeyPath != "" {
+				if !android.InList(partitionVariables.BoardAvbKeyPath, allAvbKeys) {
+					allAvbKeys = append(allAvbKeys, partitionVariables.BoardAvbKeyPath)
+				}
+			}
+		}
+	}
+	for _, key := range allAvbKeys {
+		dir := filepath.Dir(key)
+		name := filepath.Base(key)
+		content := fmt.Sprintf(`filegroup(
+    name = "%s_filegroup",
+    srcs = ["%s"],
+    visibility = ["//visibility:public"],
+)`, name, name)
+		targets[dir] = append(targets[dir], BazelTarget{
+			name:        name + "_filegroup",
+			packageName: dir,
+			content:     content,
+			ruleClass:   "filegroup",
+		})
+	}
+}
+
 func createSystemPartition(platformLabel bazelLabel, variables *android.PartitionVariables, targets map[string]BazelTargets) {
 	if !variables.PartitionQualifiedVariables["system"].BuildingImage {
 		return
 	}
+	qualifiedVariables := variables.PartitionQualifiedVariables["system"]
 
 	imageProps := generateImagePropDictionary(variables, "system")
 	imageProps["skip_fsck"] = "true"
@@ -492,6 +560,19 @@ func createSystemPartition(platformLabel bazelLabel, variables *android.Partitio
 		properties.WriteRune('\n')
 	}
 
+	var extraProperties strings.Builder
+	if variables.BoardAvbEnable {
+		extraProperties.WriteString("    avb_enable = True,\n")
+		extraProperties.WriteString(fmt.Sprintf("    avb_add_hashtree_footer_args = %q,\n", qualifiedVariables.BoardAvbAddHashtreeFooterArgs))
+		keypath := qualifiedVariables.BoardAvbKeyPath
+		if keypath != "" {
+			extraProperties.WriteString(fmt.Sprintf("    avb_key = \"//%s:%s\",\n", filepath.Dir(keypath), filepath.Base(keypath)+"_filegroup"))
+			extraProperties.WriteString(fmt.Sprintf("    avb_algorithm = %q,\n", qualifiedVariables.BoardAvbAlgorithm))
+			extraProperties.WriteString(fmt.Sprintf("    avb_rollback_index = %s,\n", qualifiedVariables.BoardAvbRollbackIndex))
+			extraProperties.WriteString(fmt.Sprintf("    avb_rollback_index_location = %s,\n", qualifiedVariables.BoardAvbRollbackIndexLocation))
+		}
+	}
+
 	targets[platformLabel.pkg] = append(targets[platformLabel.pkg], BazelTarget{
 		name:        "system_image",
 		packageName: platformLabel.pkg,
@@ -500,11 +581,13 @@ func createSystemPartition(platformLabel bazelLabel, variables *android.Partitio
     base_staging_dir = "//build/bazel/bazel_sandwich:system_staging_dir",
     base_staging_dir_file_list = "//build/bazel/bazel_sandwich:system_staging_dir_file_list",
     root_dir = "//build/bazel/bazel_sandwich:root_staging_dir",
+    selinux_file_contexts = "//build/bazel/bazel_sandwich:selinux_file_contexts",
     image_properties = """
 %s
 """,
+%s
     type = "system",
-)`, properties.String()),
+)`, properties.String(), extraProperties.String()),
 		ruleClass: "partition",
 		loads: []BazelLoad{{
 			file: "//build/bazel/rules/partitions:partition.bzl",

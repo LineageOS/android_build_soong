@@ -1225,6 +1225,7 @@ func AARImportFactory() android.Module {
 type bazelAapt struct {
 	Manifest       bazel.Label
 	Resource_files bazel.LabelListAttribute
+	Resource_zips  bazel.LabelListAttribute
 	Assets_dir     bazel.StringAttribute
 	Assets         bazel.LabelListAttribute
 }
@@ -1269,9 +1270,20 @@ func (a *aapt) convertAaptAttrsWithBp2Build(ctx android.Bp2buildMutatorContext) 
 		assets = bazel.MakeLabelList(android.RootToModuleRelativePaths(ctx, androidResourceGlob(ctx, dir)))
 
 	}
+	var resourceZips bazel.LabelList
+	if len(a.aaptProperties.Resource_zips) > 0 {
+		if ctx.ModuleName() == "framework-res" {
+			resourceZips = android.BazelLabelForModuleSrc(ctx, a.aaptProperties.Resource_zips)
+		} else {
+			//TODO: b/301593550 - Implement support for this
+			ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_PROPERTY_UNSUPPORTED, "resource_zips")
+			return &bazelAapt{}, false
+		}
+	}
 	return &bazelAapt{
 		android.BazelLabelForModuleSrcSingle(ctx, manifest),
 		bazel.MakeLabelListAttribute(resourceFiles),
+		bazel.MakeLabelListAttribute(resourceZips),
 		assetsDir,
 		bazel.MakeLabelListAttribute(assets),
 	}, true
@@ -1346,10 +1358,12 @@ func (a *AndroidLibrary) ConvertWithBp2build(ctx android.Bp2buildMutatorContext)
 	if !commonAttrs.Srcs.IsEmpty() {
 		deps.Append(depLabels.StaticDeps) // we should only append these if there are sources to use them
 	} else if !depLabels.Deps.IsEmpty() {
-		ctx.MarkBp2buildUnconvertible(
-			bp2build_metrics_proto.UnconvertedReasonType_UNSUPPORTED,
-			"Module has direct dependencies but no sources. Bazel will not allow this.")
-		return
+		// android_library does not accept deps when there are no srcs because
+		// there is no compilation happening, but it accepts exports.
+		// The non-empty deps here are unnecessary as deps on the android_library
+		// since they aren't being propagated to any dependencies.
+		// So we can drop deps here.
+		deps = bazel.LabelListAttribute{}
 	}
 	name := a.Name()
 	props := AndroidLibraryBazelTargetModuleProperties()
