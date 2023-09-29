@@ -285,6 +285,7 @@ var (
 		"hardware/interfaces/configstore/1.0":                     Bp2BuildDefaultTrue,
 		"hardware/interfaces/configstore/1.1":                     Bp2BuildDefaultTrue,
 		"hardware/interfaces/configstore/utils":                   Bp2BuildDefaultTrue,
+		"hardware/interfaces/contexthub/aidl":                     Bp2BuildDefaultTrue,
 		"hardware/interfaces/graphics/allocator/2.0":              Bp2BuildDefaultTrue,
 		"hardware/interfaces/graphics/allocator/3.0":              Bp2BuildDefaultTrue,
 		"hardware/interfaces/graphics/allocator/4.0":              Bp2BuildDefaultTrue,
@@ -907,7 +908,6 @@ var (
 		"libRSDispatch",
 
 		// hal_unit_tests and deps
-		"android.hardware.contexthub_interface", // created implicitly by android.hardware.contexthub
 		"chre_flatbuffers",
 		"event_logger",
 		"hal_unit_tests",
