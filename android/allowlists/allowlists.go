@@ -502,6 +502,7 @@ var (
 		"prebuilts/clang-tools":/* recursive = */ true,
 		"prebuilts/gcc":/* recursive = */ true,
 		"prebuilts/build-tools":/* recursive = */ true,
+		"prebuilts/jdk/jdk8":/* recursive = */ true,
 		"prebuilts/jdk/jdk17":/* recursive = */ true,
 		"prebuilts/misc":/* recursive = */ false, // not recursive because we need bp2build converted build files in prebuilts/misc/common/asm
 		"prebuilts/sdk":/* recursive = */ false,
@@ -938,6 +939,7 @@ var (
 		"libopenjdkjvmti_headers",
 
 		// tradefed deps
+		"apache-commons-compress",
 		"tradefed-protos",
 		"grpc-java",
 		"grpc-java-api",
