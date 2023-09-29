@@ -372,18 +372,20 @@ func AqueryBuildStatements(aqueryJsonProto []byte, eventHandler *metrics.EventHa
 		defer eventHandler.End("build_statements")
 		wg := sync.WaitGroup{}
 		var errOnce sync.Once
-
+		id2targets := make(map[uint32]string, len(aqueryProto.Targets))
+		for _, t := range aqueryProto.Targets {
+			id2targets[t.GetId()] = t.GetLabel()
+		}
 		for i, actionEntry := range aqueryProto.Actions {
 			wg.Add(1)
 			go func(i int, actionEntry *analysis_v2_proto.Action) {
-				if buildStatement, aErr := aqueryHandler.actionToBuildStatement(actionEntry); aErr != nil {
+				if strings.HasPrefix(id2targets[actionEntry.TargetId], "@bazel_tools//") {
+					// bazel_tools are removed depsets in `populateDepsetMaps()` so skipping
+					// conversion to build statements as well
+					buildStatements[i] = nil
+				} else if buildStatement, aErr := aqueryHandler.actionToBuildStatement(actionEntry); aErr != nil {
 					errOnce.Do(func() {
-						for _, t := range aqueryProto.Targets {
-							if t.GetId() == actionEntry.GetTargetId() {
-								aErr = fmt.Errorf("%s: [%s] [%s]", aErr.Error(), actionEntry.GetMnemonic(), t.GetLabel())
-								break
-							}
-						}
+						aErr = fmt.Errorf("%s: [%s] [%s]", aErr.Error(), actionEntry.GetMnemonic(), id2targets[actionEntry.TargetId])
 						err = aErr
 					})
 				} else {
