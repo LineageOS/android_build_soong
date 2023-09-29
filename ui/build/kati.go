@@ -15,6 +15,8 @@
 package build
 
 import (
+	"android/soong/ui/metrics"
+	"android/soong/ui/status"
 	"crypto/md5"
 	"fmt"
 	"io/ioutil"
@@ -22,10 +24,6 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
-	"time"
-
-	"android/soong/ui/metrics"
-	"android/soong/ui/status"
 )
 
 var spaceSlashReplacer = strings.NewReplacer("/", "_", " ", "_")
@@ -198,32 +196,14 @@ func runKati(ctx Context, config Config, extraSuffix string, args []string, envF
 		}
 	}
 	writeValueIfChanged(ctx, config, config.SoongOutDir(), "build_hostname.txt", hostname)
-
-	// BUILD_NUMBER should be set to the source control value that
-	// represents the current state of the source code.  E.g., a
-	// perforce changelist number or a git hash.  Can be an arbitrary string
-	// (to allow for source control that uses something other than numbers),
-	// but must be a single word and a valid file name.
-	//
-	// If no BUILD_NUMBER is set, create a useful "I am an engineering build
-	// from this date/time" value.  Make it start with a non-digit so that
-	// anyone trying to parse it as an integer will probably get "0".
-	cmd.Environment.Unset("HAS_BUILD_NUMBER")
-	buildNumber, ok := cmd.Environment.Get("BUILD_NUMBER")
+	_, ok = cmd.Environment.Get("BUILD_NUMBER")
 	// Unset BUILD_NUMBER during kati run to avoid kati rerun, kati will use BUILD_NUMBER from a file.
 	cmd.Environment.Unset("BUILD_NUMBER")
 	if ok {
 		cmd.Environment.Set("HAS_BUILD_NUMBER", "true")
-		writeValueIfChanged(ctx, config, config.OutDir(), "file_name_tag.txt", buildNumber)
 	} else {
-		buildNumber = fmt.Sprintf("eng.%.6s.%s", username, time.Now().Format("20060102.150405" /* YYYYMMDD.HHMMSS */))
 		cmd.Environment.Set("HAS_BUILD_NUMBER", "false")
-		writeValueIfChanged(ctx, config, config.OutDir(), "file_name_tag.txt", username)
 	}
-	// Write the build number to a file so it can be read back in
-	// without changing the command line every time.  Avoids rebuilds
-	// when using ninja.
-	writeValueIfChanged(ctx, config, config.SoongOutDir(), "build_number.txt", buildNumber)
 
 	// Apply the caller's function closure to mutate the environment variables.
 	envFunc(cmd.Environment)
