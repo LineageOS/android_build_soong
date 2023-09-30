@@ -218,6 +218,28 @@ func InitBazelModule(module BazelModule) {
 	module.bazelProps().Bazel_module.CanConvertToBazel = true
 }
 
+// BazelHandcraftedHook is a load hook to possibly register the current module as
+// a "handcrafted" Bazel target of a given name. If the current module should be
+// registered in this way, the hook function should return the target name. If
+// it should not be registered in this way, this function should return the empty string.
+type BazelHandcraftedHook func(ctx LoadHookContext) string
+
+// AddBazelHandcraftedHook adds a load hook to (maybe) mark the given module so that
+// it is treated by bp2build as if it has a handcrafted Bazel target.
+func AddBazelHandcraftedHook(module BazelModule, hook BazelHandcraftedHook) {
+	AddLoadHook(module, func(ctx LoadHookContext) {
+		var targetName string = hook(ctx)
+		if len(targetName) > 0 {
+			moduleDir := ctx.ModuleDir()
+			if moduleDir == Bp2BuildTopLevel {
+				moduleDir = ""
+			}
+			label := fmt.Sprintf("//%s:%s", moduleDir, targetName)
+			module.bazelProps().Bazel_module.Label = &label
+		}
+	})
+}
+
 // bazelProps returns the Bazel properties for the given BazelModuleBase.
 func (b *BazelModuleBase) bazelProps() *properties {
 	return &b.bazelProperties
