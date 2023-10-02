@@ -22,7 +22,6 @@ import (
 	"android/soong/bazel"
 	"android/soong/bazel/cquery"
 	"android/soong/ui/metrics/bp2build_metrics_proto"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
@@ -106,8 +105,10 @@ func (fg *fileGroup) ConvertWithBp2build(ctx Bp2buildMutatorContext) {
 		if f.Label == fg.Name() {
 			if len(srcs.Value.Includes) > 1 {
 				ctx.ModuleErrorf("filegroup '%s' cannot contain a file with the same name", fg.Name())
+				ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_SRC_NAME_COLLISION, "")
+			} else {
+				panic("This situation should have been handled by FileGroupFactory's call to InitBazelModuleAsHandcrafted")
 			}
-			ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_SRC_NAME_COLLISION, "")
 			return
 		}
 	}
@@ -253,6 +254,16 @@ func FileGroupFactory() Module {
 	module.AddProperties(&module.properties)
 	InitAndroidModule(module)
 	InitBazelModule(module)
+	AddBazelHandcraftedHook(module, func(ctx LoadHookContext) string {
+		// If there is a single src with the same name as the filegroup module name,
+		// then don't generate this filegroup. It will be OK for other targets
+		// to depend on this source file by name directly.
+		fg := ctx.Module().(*fileGroup)
+		if len(fg.properties.Srcs) == 1 && fg.Name() == fg.properties.Srcs[0] {
+			return fg.Name()
+		}
+		return ""
+	})
 	InitDefaultableModule(module)
 	return module
 }

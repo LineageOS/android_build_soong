@@ -40,7 +40,9 @@ filegroup {
     srcs: ["foo"],
 }
 `,
-		ExpectedBazelTargets: []string{}})
+		ExpectedBazelTargets:       []string{},
+		ExpectedHandcraftedModules: []string{"foo"}},
+	)
 }
 
 func TestFilegroupSameNameAsFile_MultipleFiles(t *testing.T) {
