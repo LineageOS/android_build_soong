@@ -339,7 +339,7 @@ func canDumpAbi(config android.Config) bool {
 
 // Feature flag to disable diffing against prebuilts.
 func canDiffAbi() bool {
-	return true
+	return false
 }
 
 func (this *stubDecorator) dumpAbi(ctx ModuleContext, symbolList android.Path) {
