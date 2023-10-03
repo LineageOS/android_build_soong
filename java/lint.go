@@ -66,6 +66,10 @@ type LintProperties struct {
 		// This will be true by default for test module types, false otherwise.
 		// If soong gets support for testonly, this flag should be replaced with that.
 		Test *bool
+
+		// Whether to ignore the exit code of Android lint. This is the --exit_code
+		// option. Defaults to false.
+		Suppress_exit_code *bool
 	}
 }
 
@@ -504,7 +508,8 @@ func (l *linter) lint(ctx android.ModuleContext) {
 	rule.Temporary(lintPaths.projectXML)
 	rule.Temporary(lintPaths.configXML)
 
-	if exitCode := ctx.Config().Getenv("ANDROID_LINT_SUPPRESS_EXIT_CODE"); exitCode == "" {
+	suppressExitCode := BoolDefault(l.properties.Lint.Suppress_exit_code, false)
+	if exitCode := ctx.Config().Getenv("ANDROID_LINT_SUPPRESS_EXIT_CODE"); exitCode == "" && !suppressExitCode {
 		cmd.Flag("--exitcode")
 	}
 

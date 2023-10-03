@@ -641,6 +641,11 @@ func (j *Module) OutputFiles(tag string) (android.Paths, error) {
 		return nil, fmt.Errorf("%q was requested, but no output file was found.", tag)
 	case ".generated_srcjars":
 		return j.properties.Generated_srcjars, nil
+	case ".lint":
+		if j.linter.outputs.xml != nil {
+			return android.Paths{j.linter.outputs.xml}, nil
+		}
+		return nil, fmt.Errorf("%q was requested, but no output file was found.", tag)
 	default:
 		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 	}
