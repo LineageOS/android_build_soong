@@ -540,6 +540,10 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 	// See b/285312164 for more information.
 	cmd.FlagWithArg("--format-defaults ", "overloaded-method-order=source")
 
+	if ctx.DeviceConfig().HideFlaggedApis() {
+		cmd.FlagWithArg("--hide-annotation ", "android.annotation.FlaggedApi")
+	}
+
 	return cmd
 }
 
