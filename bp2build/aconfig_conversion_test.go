@@ -20,11 +20,13 @@ import (
 	"android/soong/aconfig"
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/java"
 )
 
 func registerAconfigModuleTypes(ctx android.RegistrationContext) {
 	aconfig.RegisterBuildComponents(ctx)
 	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
+	ctx.RegisterModuleType("java_library", java.LibraryFactory)
 }
 
 func TestAconfigDeclarations(t *testing.T) {
@@ -133,5 +135,103 @@ func TestCcAconfigLibrary(t *testing.T) {
 		Blueprint:               bp,
 		ExpectedBazelTargets:    expectedBazelTargets,
 		StubbedBuildDefinitions: []string{"server_configurable_flags"},
+	})
+}
+
+func TestJavaAconfigLibrary(t *testing.T) {
+	bp := `
+	aconfig_declarations {
+		name: "foo_aconfig_declarations",
+		srcs: [
+			"foo1.aconfig",
+		],
+		package: "com.android.foo",
+	}
+	java_aconfig_library {
+			name: "foo",
+			aconfig_declarations: "foo_aconfig_declarations",
+			test: true,
+	}
+	`
+	expectedBazelTargets := []string{
+		MakeBazelTargetNoRestrictions(
+			"aconfig_declarations",
+			"foo_aconfig_declarations",
+			AttrNameToString{
+				"srcs":    `["foo1.aconfig"]`,
+				"package": `"com.android.foo"`,
+			},
+		),
+		MakeBazelTargetNoRestrictions(
+			"java_aconfig_library",
+			"foo",
+			AttrNameToString{
+				"aconfig_declarations":   `":foo_aconfig_declarations"`,
+				"test":                   `True`,
+				"sdk_version":            `"system_current"`,
+				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+			},
+		)}
+	RunBp2BuildTestCase(t, registerAconfigModuleTypes, Bp2buildTestCase{
+		Blueprint:            bp,
+		ExpectedBazelTargets: expectedBazelTargets,
+	})
+}
+
+func TestJavaAconfigLibraryAsTaggedOutput(t *testing.T) {
+	bp := `
+	aconfig_declarations {
+		name: "foo_aconfig_declarations",
+		srcs: [
+			"foo.aconfig",
+		],
+		package: "com.android.foo",
+	}
+	java_library {
+			name: "foo_library",
+			srcs: [":foo_aconfig_library{.generated_srcjars}"],
+			sdk_version: "current",
+			bazel_module: { bp2build_available: true },
+	}
+	java_aconfig_library {
+			name: "foo_aconfig_library",
+			aconfig_declarations: "foo_aconfig_declarations",
+			test: true,
+	}
+	`
+	expectedBazelTargets := []string{
+		MakeBazelTargetNoRestrictions(
+			"aconfig_declarations",
+			"foo_aconfig_declarations",
+			AttrNameToString{
+				"srcs":    `["foo.aconfig"]`,
+				"package": `"com.android.foo"`,
+			},
+		),
+		MakeBazelTargetNoRestrictions(
+			"java_aconfig_library",
+			"foo_aconfig_library",
+			AttrNameToString{
+				"aconfig_declarations":   `":foo_aconfig_declarations"`,
+				"test":                   `True`,
+				"sdk_version":            `"system_current"`,
+				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+			},
+		),
+		MakeBazelTargetNoRestrictions(
+			"java_library",
+			"foo_library",
+			AttrNameToString{
+				"srcs":                   `[":foo_aconfig_library.generated_srcjars"]`,
+				"sdk_version":            `"current"`,
+				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+			},
+		),
+		MakeNeverlinkDuplicateTarget("java_library", "foo_library"),
+	}
+
+	RunBp2BuildTestCase(t, registerAconfigModuleTypes, Bp2buildTestCase{
+		Blueprint:            bp,
+		ExpectedBazelTargets: expectedBazelTargets,
 	})
 }

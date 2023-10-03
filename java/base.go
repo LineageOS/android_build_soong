@@ -719,6 +719,10 @@ func (j *Module) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel 
 	return j.SdkVersion(ctx).ApiLevel
 }
 
+func (j *Module) GetDeviceProperties() *DeviceProperties {
+	return &j.deviceProperties
+}
+
 func (j *Module) MaxSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
 	if j.deviceProperties.Max_sdk_version != nil {
 		return android.ApiLevelFrom(ctx, *j.deviceProperties.Max_sdk_version)
