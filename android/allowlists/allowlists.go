@@ -524,6 +524,7 @@ var (
 	}
 
 	Bp2buildModuleAlwaysConvertList = []string{
+		"AconfigJavaHostTest",
 		// aconfig
 		"libonce_cell",
 		"libanyhow",
@@ -1009,6 +1010,7 @@ var (
 		"cc_prebuilt_library_static",
 		"combined_apis",
 		"droiddoc_exported_dir",
+		"java_aconfig_library",
 		"java_import",
 		"java_import_host",
 		"java_sdk_library",
