@@ -22,6 +22,8 @@ import (
 	"testing"
 
 	"android/soong/android"
+
+	"github.com/google/blueprint/proptools"
 )
 
 func TestDroidstubs(t *testing.T) {
@@ -402,4 +404,36 @@ func TestGeneratedApiContributionVisibilityTest(t *testing.T) {
 	)
 
 	ctx.ModuleForTests("bar", "android_common")
+}
+
+func TestDroidstubsHideFlaggedApi(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.NextReleaseHideFlaggedApi = proptools.BoolPtr(true)
+			variables.Release_expose_flagged_api = proptools.BoolPtr(false)
+		}),
+		android.FixtureMergeMockFs(map[string][]byte{
+			"a/A.java":      nil,
+			"a/current.txt": nil,
+			"a/removed.txt": nil,
+		}),
+	).RunTestWithBp(t, `
+	droidstubs {
+		name: "foo",
+		srcs: ["a/A.java"],
+		api_surface: "public",
+		check_api: {
+			current: {
+				api_file: "a/current.txt",
+				removed_api_file: "a/removed.txt",
+			}
+		},
+	}
+	`)
+
+	m := result.ModuleForTests("foo", "android_common")
+	manifest := m.Output("metalava.sbox.textproto")
+	cmdline := String(android.RuleBuilderSboxProtoForTests(t, manifest).Commands[0].Command)
+	android.AssertStringDoesContain(t, "flagged api hide command not included", cmdline, "--hide-annotation android.annotation.FlaggedApi")
 }
