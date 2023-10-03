@@ -72,7 +72,8 @@ func (fp *fdoProfile) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 
 	ctx.CreateBazelTargetModuleWithRestrictions(
 		bazel.BazelTargetModuleProperties{
-			Rule_class: "fdo_profile",
+			Bzl_load_location: "//build/bazel/rules/fdo:fdo_profile.bzl",
+			Rule_class:        "fdo_profile",
 		},
 		android.CommonAttributes{
 			Name: fp.Name(),
