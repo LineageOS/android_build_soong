@@ -211,8 +211,6 @@ var (
 	hostGlobalLldflags = commonGlobalLldflags
 
 	commonGlobalCppflags = []string{
-		"-Wsign-promo",
-
 		// -Wimplicit-fallthrough is not enabled by -Wall.
 		"-Wimplicit-fallthrough",
 
