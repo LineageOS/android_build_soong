@@ -994,6 +994,7 @@ var (
 		"tradefed-result-interfaces",
 		"tradefed-device-build-interfaces",
 		"tradefed-invocation-interfaces",
+		"tradefed-lib-core",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
