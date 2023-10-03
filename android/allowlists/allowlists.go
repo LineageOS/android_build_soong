@@ -988,6 +988,11 @@ var (
 		"platformprotos",
 		"perfetto_metrics-full",
 		"test-services-normalized.apk",
+		"tradefed-common-util",
+		"tradefed-clearcut-client",
+		"tradefed-result-interfaces",
+		"tradefed-device-build-interfaces",
+		"tradefed-invocation-interfaces",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
