@@ -490,6 +490,8 @@ type ProductVariables struct {
 	PartitionVarsForBazelMigrationOnlyDoNotUse PartitionVariables `json:",omitempty"`
 
 	NextReleaseHideFlaggedApi *bool `json:",omitempty"`
+
+	Release_expose_flagged_api *bool `json:",omitempty"`
 }
 
 type PartitionVariables struct {
