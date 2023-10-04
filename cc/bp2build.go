@@ -99,7 +99,7 @@ type tidyAttributes struct {
 	Tidy_timeout_srcs     bazel.LabelListAttribute
 }
 
-func (m *Module) convertTidyAttributes(ctx android.BaseMutatorContext, moduleAttrs *tidyAttributes) {
+func (m *Module) convertTidyAttributes(ctx android.Bp2buildMutatorContext, moduleAttrs *tidyAttributes) {
 	for _, f := range m.features {
 		if tidy, ok := f.(*tidyFeature); ok {
 			var tidyAttr *string
@@ -246,9 +246,9 @@ type depsPartition struct {
 	implementation bazel.LabelList
 }
 
-type bazelLabelForDepsFn func(android.BazelConversionPathContext, []string) bazel.LabelList
+type bazelLabelForDepsFn func(android.Bp2buildMutatorContext, []string) bazel.LabelList
 
-func maybePartitionExportedAndImplementationsDeps(ctx android.BazelConversionPathContext, exportsDeps bool, allDeps, exportedDeps []string, fn bazelLabelForDepsFn) depsPartition {
+func maybePartitionExportedAndImplementationsDeps(ctx android.Bp2buildMutatorContext, exportsDeps bool, allDeps, exportedDeps []string, fn bazelLabelForDepsFn) depsPartition {
 	if !exportsDeps {
 		return depsPartition{
 			implementation: fn(ctx, allDeps),
@@ -263,9 +263,9 @@ func maybePartitionExportedAndImplementationsDeps(ctx android.BazelConversionPat
 	}
 }
 
-type bazelLabelForDepsExcludesFn func(android.BazelConversionPathContext, []string, []string) bazel.LabelList
+type bazelLabelForDepsExcludesFn func(android.Bp2buildMutatorContext, []string, []string) bazel.LabelList
 
-func maybePartitionExportedAndImplementationsDepsExcludes(ctx android.BazelConversionPathContext, exportsDeps bool, allDeps, excludes, exportedDeps []string, fn bazelLabelForDepsExcludesFn) depsPartition {
+func maybePartitionExportedAndImplementationsDepsExcludes(ctx android.Bp2buildMutatorContext, exportsDeps bool, allDeps, excludes, exportedDeps []string, fn bazelLabelForDepsExcludesFn) depsPartition {
 	if !exportsDeps {
 		return depsPartition{
 			implementation: fn(ctx, allDeps, excludes),
@@ -352,7 +352,7 @@ type prebuiltAttributes struct {
 	Enabled bazel.BoolAttribute
 }
 
-func parseSrc(ctx android.BazelConversionPathContext, srcLabelAttribute *bazel.LabelAttribute, axis bazel.ConfigurationAxis, config string, srcs []string) {
+func parseSrc(ctx android.Bp2buildMutatorContext, srcLabelAttribute *bazel.LabelAttribute, axis bazel.ConfigurationAxis, config string, srcs []string) {
 	srcFileError := func() {
 		ctx.ModuleErrorf("parseSrc: Expected at most one source file for %s %s\n", axis, config)
 	}
@@ -370,7 +370,7 @@ func parseSrc(ctx android.BazelConversionPathContext, srcLabelAttribute *bazel.L
 }
 
 // NOTE: Used outside of Soong repo project, in the clangprebuilts.go bootstrap_go_package
-func Bp2BuildParsePrebuiltLibraryProps(ctx android.BazelConversionPathContext, module *Module, isStatic bool) prebuiltAttributes {
+func Bp2BuildParsePrebuiltLibraryProps(ctx android.Bp2buildMutatorContext, module *Module, isStatic bool) prebuiltAttributes {
 
 	var srcLabelAttribute bazel.LabelAttribute
 	bp2BuildPropParseHelper(ctx, module, &prebuiltLinkerProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
@@ -407,7 +407,7 @@ func Bp2BuildParsePrebuiltLibraryProps(ctx android.BazelConversionPathContext, m
 	}
 }
 
-func bp2BuildParsePrebuiltBinaryProps(ctx android.BazelConversionPathContext, module *Module) prebuiltAttributes {
+func bp2BuildParsePrebuiltBinaryProps(ctx android.Bp2buildMutatorContext, module *Module) prebuiltAttributes {
 	var srcLabelAttribute bazel.LabelAttribute
 	bp2BuildPropParseHelper(ctx, module, &prebuiltLinkerProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
 		if props, ok := props.(*prebuiltLinkerProperties); ok {
@@ -420,7 +420,7 @@ func bp2BuildParsePrebuiltBinaryProps(ctx android.BazelConversionPathContext, mo
 	}
 }
 
-func bp2BuildParsePrebuiltObjectProps(ctx android.BazelConversionPathContext, module *Module) prebuiltAttributes {
+func bp2BuildParsePrebuiltObjectProps(ctx android.Bp2buildMutatorContext, module *Module) prebuiltAttributes {
 	var srcLabelAttribute bazel.LabelAttribute
 	bp2BuildPropParseHelper(ctx, module, &prebuiltObjectProperties{}, func(axis bazel.ConfigurationAxis, config string, props interface{}) {
 		if props, ok := props.(*prebuiltObjectProperties); ok {
@@ -555,7 +555,7 @@ func parseCommandLineFlags(soongFlags []string, filterOut ...filterOutFn) []stri
 	return result
 }
 
-func (ca *compilerAttributes) bp2buildForAxisAndConfig(ctx android.BazelConversionPathContext, axis bazel.ConfigurationAxis, config string, props *BaseCompilerProperties) {
+func (ca *compilerAttributes) bp2buildForAxisAndConfig(ctx android.Bp2buildMutatorContext, axis bazel.ConfigurationAxis, config string, props *BaseCompilerProperties) {
 	// If there's arch specific srcs or exclude_srcs, generate a select entry for it.
 	// TODO(b/186153868): do this for OS specific srcs and exclude_srcs too.
 	srcsList, ok := parseSrcs(ctx, props)
@@ -680,7 +680,7 @@ func (ca *compilerAttributes) finalize(ctx android.BazelConversionPathContext, i
 }
 
 // Parse srcs from an arch or OS's props value.
-func parseSrcs(ctx android.BazelConversionPathContext, props *BaseCompilerProperties) (bazel.LabelList, bool) {
+func parseSrcs(ctx android.Bp2buildMutatorContext, props *BaseCompilerProperties) (bazel.LabelList, bool) {
 	anySrcs := false
 	// Add srcs-like dependencies such as generated files.
 	// First create a LabelList containing these dependencies, then merge the values with srcs.
@@ -1265,7 +1265,7 @@ var (
 
 // resolveTargetApex re-adds the shared and static libs in target.apex.exclude_shared|static_libs props to non-apex variant
 // since all libs are already excluded by default
-func (la *linkerAttributes) resolveTargetApexProp(ctx android.BazelConversionPathContext, props *BaseLinkerProperties) {
+func (la *linkerAttributes) resolveTargetApexProp(ctx android.Bp2buildMutatorContext, props *BaseLinkerProperties) {
 	excludeSharedLibs := bazelLabelForSharedDeps(ctx, props.Target.Apex.Exclude_shared_libs)
 	sharedExcludes := bazel.LabelList{Excludes: excludeSharedLibs.Includes}
 	sharedExcludesLabelList := bazel.LabelListAttribute{}
@@ -1696,7 +1696,7 @@ func (la *linkerAttributes) convertStripProps(ctx android.BazelConversionPathCon
 	})
 }
 
-func (la *linkerAttributes) convertProductVariables(ctx android.BazelConversionPathContext, productVariableProps android.ProductConfigProperties) {
+func (la *linkerAttributes) convertProductVariables(ctx android.Bp2buildMutatorContext, productVariableProps android.ProductConfigProperties) {
 
 	type productVarDep struct {
 		// the name of the corresponding excludes field, if one exists
@@ -1704,7 +1704,7 @@ func (la *linkerAttributes) convertProductVariables(ctx android.BazelConversionP
 		// reference to the bazel attribute that should be set for the given product variable config
 		attribute *bazel.LabelListAttribute
 
-		depResolutionFunc func(ctx android.BazelConversionPathContext, modules, excludes []string) bazel.LabelList
+		depResolutionFunc func(ctx android.Bp2buildMutatorContext, modules, excludes []string) bazel.LabelList
 	}
 
 	// an intermediate attribute that holds Header_libs info, and will be appended to
@@ -1762,7 +1762,7 @@ func (la *linkerAttributes) convertProductVariables(ctx android.BazelConversionP
 	la.implementationDeps.Append(headerDeps)
 }
 
-func (la *linkerAttributes) finalize(ctx android.BazelConversionPathContext) {
+func (la *linkerAttributes) finalize(ctx android.Bp2buildMutatorContext) {
 	// if system dynamic deps have the default value, any use of a system dynamic library used will
 	// result in duplicate library errors for bionic OSes. Here, we explicitly exclude those libraries
 	// from bionic OSes and the no config case as these libraries only build for bionic OSes.
@@ -1903,39 +1903,39 @@ func xsdConfigCppTarget(xsd android.XsdConfigBp2buildTargets) string {
 	return xsd.CppBp2buildTargetName()
 }
 
-func bazelLabelForWholeDeps(ctx android.BazelConversionPathContext, modules []string) bazel.LabelList {
-	return android.BazelLabelForModuleDepsWithFn(ctx, modules, bazelLabelForStaticWholeModuleDeps)
+func bazelLabelForWholeDeps(ctx android.Bp2buildMutatorContext, modules []string) bazel.LabelList {
+	return android.BazelLabelForModuleDepsWithFn(ctx, modules, bazelLabelForStaticWholeModuleDeps, true)
 }
 
-func bazelLabelForWholeDepsExcludes(ctx android.BazelConversionPathContext, modules, excludes []string) bazel.LabelList {
+func bazelLabelForWholeDepsExcludes(ctx android.Bp2buildMutatorContext, modules, excludes []string) bazel.LabelList {
 	return android.BazelLabelForModuleDepsExcludesWithFn(ctx, modules, excludes, bazelLabelForStaticWholeModuleDeps)
 }
 
-func bazelLabelForStaticDepsExcludes(ctx android.BazelConversionPathContext, modules, excludes []string) bazel.LabelList {
+func bazelLabelForStaticDepsExcludes(ctx android.Bp2buildMutatorContext, modules, excludes []string) bazel.LabelList {
 	return android.BazelLabelForModuleDepsExcludesWithFn(ctx, modules, excludes, bazelLabelForStaticModule)
 }
 
-func bazelLabelForStaticDeps(ctx android.BazelConversionPathContext, modules []string) bazel.LabelList {
-	return android.BazelLabelForModuleDepsWithFn(ctx, modules, bazelLabelForStaticModule)
+func bazelLabelForStaticDeps(ctx android.Bp2buildMutatorContext, modules []string) bazel.LabelList {
+	return android.BazelLabelForModuleDepsWithFn(ctx, modules, bazelLabelForStaticModule, true)
 }
 
-func bazelLabelForSharedDeps(ctx android.BazelConversionPathContext, modules []string) bazel.LabelList {
-	return android.BazelLabelForModuleDepsWithFn(ctx, modules, bazelLabelForSharedModule)
+func bazelLabelForSharedDeps(ctx android.Bp2buildMutatorContext, modules []string) bazel.LabelList {
+	return android.BazelLabelForModuleDepsWithFn(ctx, modules, bazelLabelForSharedModule, true)
 }
 
-func bazelLabelForHeaderDeps(ctx android.BazelConversionPathContext, modules []string) bazel.LabelList {
+func bazelLabelForHeaderDeps(ctx android.Bp2buildMutatorContext, modules []string) bazel.LabelList {
 	// This is not elegant, but bp2build's shared library targets only propagate
 	// their header information as part of the normal C++ provider.
 	return bazelLabelForSharedDeps(ctx, modules)
 }
 
-func bazelLabelForHeaderDepsExcludes(ctx android.BazelConversionPathContext, modules, excludes []string) bazel.LabelList {
+func bazelLabelForHeaderDepsExcludes(ctx android.Bp2buildMutatorContext, modules, excludes []string) bazel.LabelList {
 	// This is only used when product_variable header_libs is processed, to follow
 	// the pattern of depResolutionFunc
 	return android.BazelLabelForModuleDepsExcludesWithFn(ctx, modules, excludes, bazelLabelForSharedModule)
 }
 
-func bazelLabelForSharedDepsExcludes(ctx android.BazelConversionPathContext, modules, excludes []string) bazel.LabelList {
+func bazelLabelForSharedDepsExcludes(ctx android.Bp2buildMutatorContext, modules, excludes []string) bazel.LabelList {
 	return android.BazelLabelForModuleDepsExcludesWithFn(ctx, modules, excludes, bazelLabelForSharedModule)
 }
 
