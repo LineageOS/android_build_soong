@@ -524,7 +524,6 @@ var (
 	}
 
 	Bp2buildModuleAlwaysConvertList = []string{
-		"AconfigJavaHostTest",
 		// aconfig
 		"libonce_cell",
 		"libanyhow",
