@@ -150,7 +150,7 @@ func TestBootstrap(t *testing.T) {
 			bootstrap: true,
 		}`)
 
-	foo := ctx.ModuleForTests("foo", "android_arm64_armv8-a").Rule("rustLink")
+	foo := ctx.ModuleForTests("foo", "android_arm64_armv8-a").Rule("rustc")
 
 	flag := "-Wl,-dynamic-linker,/system/bin/bootstrap/linker64"
 	if !strings.Contains(foo.Args["linkFlags"], flag) {
@@ -167,11 +167,10 @@ func TestStaticBinaryFlags(t *testing.T) {
 		}`)
 
 	fizzOut := ctx.ModuleForTests("fizz", "android_arm64_armv8-a").Rule("rustc")
-	fizzOutLink := ctx.ModuleForTests("fizz", "android_arm64_armv8-a").Rule("rustLink")
 	fizzMod := ctx.ModuleForTests("fizz", "android_arm64_armv8-a").Module().(*Module)
 
 	flags := fizzOut.Args["rustcFlags"]
-	linkFlags := fizzOutLink.Args["linkFlags"]
+	linkFlags := fizzOut.Args["linkFlags"]
 	if !strings.Contains(flags, "-C relocation-model=static") {
 		t.Errorf("static binary missing '-C relocation-model=static' in rustcFlags, found: %#v", flags)
 	}
@@ -201,7 +200,7 @@ func TestLinkObjects(t *testing.T) {
 			name: "libfoo",
 		}`)
 
-	fizzBuzz := ctx.ModuleForTests("fizz-buzz", "android_arm64_armv8-a").Rule("rustLink")
+	fizzBuzz := ctx.ModuleForTests("fizz-buzz", "android_arm64_armv8-a").Rule("rustc")
 	linkFlags := fizzBuzz.Args["linkFlags"]
 	if !strings.Contains(linkFlags, "/libfoo.so") {
 		t.Errorf("missing shared dependency 'libfoo.so' in linkFlags: %#v", linkFlags)

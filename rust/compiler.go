@@ -328,12 +328,15 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 	}
 
 	if !ctx.toolchain().Bionic() && ctx.Os() != android.LinuxMusl && !ctx.Windows() {
-		// Add -ldl, -lpthread, -lm and -lrt to host builds to match the default behavior of device
+		// Add -lc, -lrt, -ldl, -lpthread, -lm, -lrt and -lgcc_s to host builds to match the default behavior of device
 		// builds. This is irrelevant for the Windows target as these are Posix specific.
 		flags.LinkFlags = append(flags.LinkFlags,
+			"-lc",
+			"-lrt",
 			"-ldl",
 			"-lpthread",
 			"-lm",
+			"-lgcc_s",
 		)
 	}
 	return flags
