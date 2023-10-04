@@ -297,6 +297,10 @@ type config struct {
 	// in tests when a path doesn't exist.
 	TestAllowNonExistentPaths bool
 
+	// If testAllowNonExistentPaths is true then PathForSource and PathForModuleSrc won't error
+	// in tests when a path doesn't exist.
+	Bp2buildDepsMutator bool
+
 	// The list of files that when changed, must invalidate soong_build to
 	// regenerate build.ninja.
 	ninjaFileDepsSet sync.Map

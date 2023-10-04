@@ -547,54 +547,6 @@ func (includes *apiIncludes) addDep(name string) {
 	includes.attrs.Deps.Append(lla)
 }
 
-// includes provided to the module-lib API surface. This API surface is used by apexes.
-func getModuleLibApiIncludes(ctx android.TopDownMutatorContext, c *Module) apiIncludes {
-	flagProps := c.library.(*libraryDecorator).flagExporter.Properties
-	linkProps := c.library.(*libraryDecorator).baseLinker.Properties
-	includes := android.FirstUniqueStrings(flagProps.Export_include_dirs)
-	systemIncludes := android.FirstUniqueStrings(flagProps.Export_system_include_dirs)
-	headerLibs := android.FirstUniqueStrings(linkProps.Export_header_lib_headers)
-	attrs := bazelCcLibraryHeadersAttributes{
-		Export_includes:        bazel.MakeStringListAttribute(includes),
-		Export_system_includes: bazel.MakeStringListAttribute(systemIncludes),
-		Deps:                   bazel.MakeLabelListAttribute(apiHeaderLabels(ctx, headerLibs)),
-	}
-
-	return apiIncludes{
-		name: c.Name() + ".module-libapi.headers",
-		attrs: bazelCcApiLibraryHeadersAttributes{
-			bazelCcLibraryHeadersAttributes: attrs,
-		},
-	}
-}
-
-func getVendorApiIncludes(ctx android.TopDownMutatorContext, c *Module) apiIncludes {
-	baseProps := c.library.(*libraryDecorator).flagExporter.Properties
-	llndkProps := c.library.(*libraryDecorator).Properties.Llndk
-	includes := baseProps.Export_include_dirs
-	systemIncludes := baseProps.Export_system_include_dirs
-	// LLNDK can override the base includes
-	if llndkIncludes := llndkProps.Override_export_include_dirs; llndkIncludes != nil {
-		includes = llndkIncludes
-	}
-	if proptools.Bool(llndkProps.Export_headers_as_system) {
-		systemIncludes = append(systemIncludes, includes...)
-		includes = nil
-	}
-
-	attrs := bazelCcLibraryHeadersAttributes{
-		Export_includes:        bazel.MakeStringListAttribute(includes),
-		Export_system_includes: bazel.MakeStringListAttribute(systemIncludes),
-		Deps:                   bazel.MakeLabelListAttribute(apiHeaderLabels(ctx, llndkProps.Export_llndk_headers)),
-	}
-	return apiIncludes{
-		name: c.Name() + ".vendorapi.headers",
-		attrs: bazelCcApiLibraryHeadersAttributes{
-			bazelCcLibraryHeadersAttributes: attrs,
-		},
-	}
-}
-
 // cc_library creates both static and/or shared libraries for a device and/or
 // host. By default, a cc_library has a single variant that targets the device.
 // Specifying `host_supported: true` also creates a library that targets the

@@ -95,6 +95,7 @@ custom = rule(
         "bool_prop": attr.bool(),
         "bool_ptr_prop": attr.bool(),
         "dir": attr.string(),
+        "does_not_convert_to_bazel": attr.bool(),
         "embedded_prop": attr.string(),
         "int64_ptr_prop": attr.int(),
         # nested_props start
@@ -128,6 +129,7 @@ custom_defaults = rule(
         "bool_prop": attr.bool(),
         "bool_ptr_prop": attr.bool(),
         "dir": attr.string(),
+        "does_not_convert_to_bazel": attr.bool(),
         "embedded_prop": attr.string(),
         "int64_ptr_prop": attr.int(),
         # nested_props start
@@ -161,6 +163,7 @@ custom_test_ = rule(
         "bool_prop": attr.bool(),
         "bool_ptr_prop": attr.bool(),
         "dir": attr.string(),
+        "does_not_convert_to_bazel": attr.bool(),
         "embedded_prop": attr.string(),
         "int64_ptr_prop": attr.int(),
         # nested_props start
