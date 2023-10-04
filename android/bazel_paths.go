@@ -452,12 +452,34 @@ func getOtherModuleLabel(ctx Bp2buildMutatorContext, dep, tag string,
 			Label: ":" + dep + "__BP2BUILD__MISSING__DEP",
 		}
 	}
-	if markAsDep {
+	// Returns true if a dependency from the current module to the target module
+	// should be skipped; doing so is a hack to circumvent certain problematic
+	// scenarios that will be addressed in the future.
+	shouldSkipDep := func(dep string) bool {
 		// Don't count dependencies of "libc". This is a hack to circumvent the
 		// fact that, in a variantless build graph, "libc" has a dependency on itself.
-		if ctx.ModuleName() != "libc" {
-			ctx.AddDependency(ctx.Module(), Bp2buildDepTag, dep)
+		if ctx.ModuleName() == "libc" {
+			return true
 		}
+
+		// TODO: b/303307672: Dependencies on this module happen to "work" because
+		// there is a source file with the same name as this module in the
+		// same directory. We should remove this hack and enforce the underlying
+		// module of this name is the actual one used.
+		if dep == "mke2fs.conf" {
+			return true
+		}
+
+		// TODO: b/303310285: Remove this special-casing once all dependencies of
+		// crtbegin_dynamic are convertible
+		if ctx.ModuleName() == "crtbegin_dynamic" {
+			return true
+		}
+
+		return false
+	}
+	if markAsDep && !shouldSkipDep(dep) {
+		ctx.AddDependency(ctx.Module(), Bp2buildDepTag, dep)
 	}
 	if !convertedToBazel(ctx, m) {
 		ctx.AddUnconvertedBp2buildDep(dep)
