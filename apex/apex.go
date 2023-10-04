@@ -736,7 +736,7 @@ func (a *apexBundle) getImageVariationPair(deviceConfig android.DeviceConfig) (s
 			vndkVersion = deviceConfig.VndkVersion()
 		} else if a.ProductSpecific() {
 			prefix = cc.ProductVariationPrefix
-			vndkVersion = deviceConfig.ProductVndkVersion()
+			vndkVersion = deviceConfig.PlatformVndkVersion()
 		}
 	}
 	if vndkVersion == "current" {
