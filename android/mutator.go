@@ -35,6 +35,9 @@ import (
 // RegisterMutatorsForBazelConversion is a alternate registration pipeline for bp2build. Exported for testing.
 func RegisterMutatorsForBazelConversion(ctx *Context, preArchMutators []RegisterMutatorFunc) {
 	bp2buildMutators := append(preArchMutators, registerBp2buildConversionMutator)
+	if ctx.config.Bp2buildDepsMutator {
+		bp2buildMutators = append(bp2buildMutators, registerBp2buildDepsMutator)
+	}
 	registerMutatorsForBazelConversion(ctx, bp2buildMutators)
 }
 
@@ -226,6 +229,15 @@ type Bp2buildMutatorContext interface {
 	BazelConversionPathContext
 	BaseMutatorContext
 
+	// AddDependency adds a dependency to the given module.  It returns a slice of modules for each
+	// dependency (some entries may be nil).
+	//
+	// If the mutator is parallel (see MutatorHandle.Parallel), this method will pause until the
+	// new dependencies have had the current mutator called on them.  If the mutator is not
+	// parallel this method does not affect the ordering of the current mutator pass, but will
+	// be ordered correctly for all future mutator passes.
+	AddDependency(module blueprint.Module, tag blueprint.DependencyTag, name ...string) []blueprint.Module
+
 	// CreateBazelTargetModule creates a BazelTargetModule by calling the
 	// factory method, just like in CreateModule, but also requires
 	// BazelTargetModuleProperties containing additional metadata for the
@@ -293,15 +305,6 @@ type BottomUpMutator func(BottomUpMutatorContext)
 type BottomUpMutatorContext interface {
 	BaseMutatorContext
 	Bp2buildMutatorContext
-
-	// AddDependency adds a dependency to the given module.  It returns a slice of modules for each
-	// dependency (some entries may be nil).
-	//
-	// If the mutator is parallel (see MutatorHandle.Parallel), this method will pause until the
-	// new dependencies have had the current mutator called on them.  If the mutator is not
-	// parallel this method does not affect the ordering of the current mutator pass, but will
-	// be ordered correctly for all future mutator passes.
-	AddDependency(module blueprint.Module, tag blueprint.DependencyTag, name ...string) []blueprint.Module
 
 	// AddReverseDependency adds a dependency from the destination to the given module.
 	// Does not affect the ordering of the current mutator pass, but will be ordered
