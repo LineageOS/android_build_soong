@@ -35,14 +35,15 @@ function cleanup {
 }
 
 function run_soong {
-  target_product="$1";shift
-  out_dir="$1"; shift
-  targets="$1"; shift
+  local out_dir="$1"; shift
+  local targets="$1"; shift
   if [ "$#" -ge 1 ]; then
-    apps=$1; shift
-    TARGET_PRODUCT="${target_product}" TARGET_BUILD_VARIANT=userdebug OUT_DIR="${out_dir}" TARGET_BUILD_UNBUNDLED=true TARGET_BUILD_APPS=$apps build/soong/soong_ui.bash --make-mode ${targets}
+    local apps=$1; shift
+    TARGET_PRODUCT="${target_product}" TARGET_RELEASE="${target_release}" TARGET_BUILD_VARIANT="${target_build_variant}" OUT_DIR="${out_dir}" TARGET_BUILD_UNBUNDLED=true TARGET_BUILD_APPS=$apps \
+        build/soong/soong_ui.bash --make-mode ${targets}
   else
-    TARGET_PRODUCT="${target_product}" TARGET_BUILD_VARIANT=userdebug OUT_DIR="${out_dir}" build/soong/soong_ui.bash --make-mode ${targets}
+    TARGET_PRODUCT="${target_product}" TARGET_RELEASE="${target_release}" TARGET_BUILD_VARIANT="${target_build_variant}" OUT_DIR="${out_dir}" \
+        build/soong/soong_ui.bash --make-mode ${targets}
   fi
 }
 
@@ -67,7 +68,7 @@ function test_sbom_aosp_cf_x86_64_phone {
 
   # Test
   # m droid, build sbom later in case additional dependencies might be built and included in partition images.
-  run_soong "aosp_cf_x86_64_phone" "${out_dir}" "droid dump.erofs lz4"
+  run_soong "${out_dir}" "droid dump.erofs lz4"
 
   product_out=$out_dir/target/product/vsoc_x86_64
   sbom_test=$product_out/sbom_test
@@ -75,7 +76,7 @@ function test_sbom_aosp_cf_x86_64_phone {
   cp $product_out/*.img $sbom_test
 
   # m sbom
-  run_soong "aosp_cf_x86_64_phone" "${out_dir}" sbom
+  run_soong "${out_dir}" sbom
 
   # Generate installed file list from .img files in PRODUCT_OUT
   dump_erofs=$out_dir/host/linux-x86/bin/dump.erofs
@@ -217,7 +218,7 @@ function test_sbom_unbundled_apex {
   out_dir="$(setup)"
 
   # run_soong to build com.android.adbd.apex
-  run_soong "module_arm64" "${out_dir}" "sbom deapexer" "com.android.adbd"
+  run_soong "${out_dir}" "sbom deapexer" "com.android.adbd"
 
   deapexer=${out_dir}/host/linux-x86/bin/deapexer
   debugfs=${out_dir}/host/linux-x86/bin/debugfs_static
@@ -249,7 +250,7 @@ function test_sbom_unbundled_apk {
   out_dir="$(setup)"
 
   # run_soong to build Browser2.apk
-  run_soong "module_arm64" "${out_dir}" "sbom" "Browser2"
+  run_soong "${out_dir}" "sbom" "Browser2"
 
   sbom_file=${out_dir}/target/product/module_arm64/system/product/app/Browser2/Browser2.apk.spdx.json
   echo "============ Diffing files in Browser2.apk and SBOM"
@@ -271,6 +272,41 @@ function test_sbom_unbundled_apk {
   cleanup "${out_dir}"
 }
 
-test_sbom_aosp_cf_x86_64_phone
-test_sbom_unbundled_apex
-test_sbom_unbundled_apk
+target_product=aosp_cf_x86_64_phone
+target_release=trunk_staging
+target_build_variant=userdebug
+for i in "$@"; do
+  case $i in
+    TARGET_PRODUCT=*)
+      target_product=${i#*=}
+      shift
+      ;;
+    TARGET_RELEASE=*)
+      target_release=${i#*=}
+      shift
+      ;;
+    TARGET_BUILD_VARIANT=*)
+      target_build_variant=${i#*=}
+      shift
+      ;;
+    *)
+      echo "Unknown command line arguments: $i"
+      exit 1
+      ;;
+  esac
+done
+
+echo "target product: $target_product, target_release: $target_release, target build variant: $target_build_variant"
+case $target_product in
+  aosp_cf_x86_64_phone)
+    test_sbom_aosp_cf_x86_64_phone
+    ;;
+  module_arm64)
+    test_sbom_unbundled_apex
+    test_sbom_unbundled_apk
+    ;;
+  *)
+    echo "Unknown TARGET_PRODUCT: $target_product"
+    exit 1
+    ;;
+esac

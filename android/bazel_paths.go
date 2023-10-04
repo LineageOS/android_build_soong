@@ -16,6 +16,7 @@ package android
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -228,10 +229,18 @@ func BazelLabelForSrcPatternExcludes(ctx BazelConversionPathContext, dir, patter
 //  2. An Android.bp doesn't exist, but a checked-in BUILD/BUILD.bazel file exists, and that file
 //     is allowlisted by the bp2build configuration to be merged into the symlink forest workspace.
 func isPackageBoundary(config Config, prefix string, components []string, componentIndex int) bool {
+	isSymlink := func(c Config, path string) bool {
+		f, err := c.fs.Lstat(path)
+		if err != nil {
+			// The file does not exist
+			return false
+		}
+		return f.Mode()&os.ModeSymlink == os.ModeSymlink
+	}
 	prefix = filepath.Join(prefix, filepath.Join(components[:componentIndex+1]...))
 	if exists, _, _ := config.fs.Exists(filepath.Join(prefix, "Android.bp")); exists {
 		return true
-	} else if config.Bp2buildPackageConfig.ShouldKeepExistingBuildFileForDir(prefix) {
+	} else if config.Bp2buildPackageConfig.ShouldKeepExistingBuildFileForDir(prefix) || isSymlink(config, prefix) {
 		if exists, _, _ := config.fs.Exists(filepath.Join(prefix, "BUILD")); exists {
 			return true
 		} else if exists, _, _ := config.fs.Exists(filepath.Join(prefix, "BUILD.bazel")); exists {
@@ -442,7 +451,8 @@ func getOtherModuleLabel(ctx BazelConversionPathContext, dep, tag string,
 	otherLabel := labelFromModule(ctx, m)
 
 	// TODO(b/165114590): Convert tag (":name{.tag}") to corresponding Bazel implicit output targets.
-	if tag != "" && m.Name() == "framework-res" {
+	if (tag != "" && m.Name() == "framework-res") ||
+		(tag == ".generated_srcjars" && ctx.OtherModuleType(m) == "java_aconfig_library") {
 		otherLabel += tag
 	}
 

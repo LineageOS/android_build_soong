@@ -503,6 +503,7 @@ var (
 		"prebuilts/clang-tools":/* recursive = */ true,
 		"prebuilts/gcc":/* recursive = */ true,
 		"prebuilts/build-tools":/* recursive = */ true,
+		"prebuilts/jdk/jdk8":/* recursive = */ true,
 		"prebuilts/jdk/jdk17":/* recursive = */ true,
 		"prebuilts/misc":/* recursive = */ false, // not recursive because we need bp2build converted build files in prebuilts/misc/common/asm
 		"prebuilts/sdk":/* recursive = */ false,
@@ -523,6 +524,7 @@ var (
 	}
 
 	Bp2buildModuleAlwaysConvertList = []string{
+		"AconfigJavaHostTest",
 		// aconfig
 		"libonce_cell",
 		"libanyhow",
@@ -938,6 +940,7 @@ var (
 		"libopenjdkjvmti_headers",
 
 		// tradefed deps
+		"apache-commons-compress",
 		"tradefed-protos",
 		"grpc-java",
 		"grpc-java-api",
@@ -986,6 +989,11 @@ var (
 		"platformprotos",
 		"perfetto_metrics-full",
 		"test-services-normalized.apk",
+		"tradefed-common-util",
+		"tradefed-clearcut-client",
+		"tradefed-result-interfaces",
+		"tradefed-device-build-interfaces",
+		"tradefed-invocation-interfaces",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
@@ -1002,6 +1010,7 @@ var (
 		"cc_prebuilt_library_static",
 		"combined_apis",
 		"droiddoc_exported_dir",
+		"java_aconfig_library",
 		"java_import",
 		"java_import_host",
 		"java_sdk_library",
