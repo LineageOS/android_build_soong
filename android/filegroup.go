@@ -50,7 +50,7 @@ var (
 	// ignoring case, checks for proto or protos as an independent word in the name, whether at the
 	// beginning, end, or middle. e.g. "proto.foo", "bar-protos", "baz_proto_srcs" would all match
 	filegroupLikelyProtoPattern = regexp.MustCompile("(?i)(^|[^a-z])proto(s)?([^a-z]|$)")
-	filegroupLikelyAidlPattern  = regexp.MustCompile("(?i)(^|[^a-z])aidl([^a-z]|$)")
+	filegroupLikelyAidlPattern  = regexp.MustCompile("(?i)(^|[^a-z])aidl(s)?([^a-z]|$)")
 
 	ProtoSrcLabelPartition = bazel.LabelPartition{
 		Extensions:  []string{".proto"},
