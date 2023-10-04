@@ -42,6 +42,7 @@ func test(t *testing.T, bp string) *android.TestResult {
 		cc_library_headers {
 			name: "libbase_headers",
 			vendor_available: true,
+			product_available: true,
 			recovery_available: true,
 		}
 
@@ -250,6 +251,16 @@ func TestSyspropLibrary(t *testing.T) {
 		result.ModuleForTests("libsysprop-odm", variant)
 	}
 
+	// product variant of vendor-owned sysprop_library
+	for _, variant := range []string{
+		"android_product.29_arm_armv7-a-neon_shared",
+		"android_product.29_arm_armv7-a-neon_static",
+		"android_product.29_arm64_armv8-a_shared",
+		"android_product.29_arm64_armv8-a_static",
+	} {
+		result.ModuleForTests("libsysprop-vendor-on-product", variant)
+	}
+
 	for _, variant := range []string{
 		"android_arm_armv7-a-neon_shared",
 		"android_arm_armv7-a-neon_static",
@@ -259,9 +270,6 @@ func TestSyspropLibrary(t *testing.T) {
 		library := result.ModuleForTests("libsysprop-platform", variant).Module().(*cc.Module)
 		expectedApexAvailableOnLibrary := []string{"//apex_available:platform"}
 		android.AssertDeepEquals(t, "apex available property on libsysprop-platform", expectedApexAvailableOnLibrary, library.ApexProperties.Apex_available)
-
-		// product variant of vendor-owned sysprop_library
-		result.ModuleForTests("libsysprop-vendor-on-product", variant)
 	}
 
 	result.ModuleForTests("sysprop-platform", "android_common")
@@ -272,15 +280,15 @@ func TestSyspropLibrary(t *testing.T) {
 	// Check for exported includes
 	coreVariant := "android_arm64_armv8-a_static"
 	vendorVariant := "android_vendor.29_arm64_armv8-a_static"
+	productVariant := "android_product.29_arm64_armv8-a_static"
 
 	platformInternalPath := "libsysprop-platform/android_arm64_armv8-a_static/gen/sysprop/include"
-	platformPublicCorePath := "libsysprop-platform/android_arm64_armv8-a_static/gen/sysprop/public/include"
 	platformPublicVendorPath := "libsysprop-platform/android_vendor.29_arm64_armv8-a_static/gen/sysprop/public/include"
 
-	platformOnProductPath := "libsysprop-platform-on-product/android_arm64_armv8-a_static/gen/sysprop/public/include"
+	platformOnProductPath := "libsysprop-platform-on-product/android_product.29_arm64_armv8-a_static/gen/sysprop/public/include"
 
 	vendorInternalPath := "libsysprop-vendor/android_vendor.29_arm64_armv8-a_static/gen/sysprop/include"
-	vendorPublicPath := "libsysprop-vendor-on-product/android_arm64_armv8-a_static/gen/sysprop/public/include"
+	vendorOnProductPath := "libsysprop-vendor-on-product/android_product.29_arm64_armv8-a_static/gen/sysprop/public/include"
 
 	platformClient := result.ModuleForTests("cc-client-platform", coreVariant)
 	platformFlags := platformClient.Rule("cc").Args["cFlags"]
@@ -294,14 +302,14 @@ func TestSyspropLibrary(t *testing.T) {
 	// platform-static should use platform's internal header
 	android.AssertStringDoesContain(t, "flags for platform-static", platformStaticFlags, platformInternalPath)
 
-	productClient := result.ModuleForTests("cc-client-product", coreVariant)
+	productClient := result.ModuleForTests("cc-client-product", productVariant)
 	productFlags := productClient.Rule("cc").Args["cFlags"]
 
 	// Product should use platform's and vendor's public headers
 	if !strings.Contains(productFlags, platformOnProductPath) ||
-		!strings.Contains(productFlags, vendorPublicPath) {
+		!strings.Contains(productFlags, vendorOnProductPath) {
 		t.Errorf("flags for product must contain %#v and %#v, but was %#v.",
-			platformPublicCorePath, vendorPublicPath, productFlags)
+			platformOnProductPath, vendorOnProductPath, productFlags)
 	}
 
 	vendorClient := result.ModuleForTests("cc-client-vendor", vendorVariant)
