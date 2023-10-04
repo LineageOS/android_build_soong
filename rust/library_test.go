@@ -148,7 +148,7 @@ func TestSharedLibrary(t *testing.T) {
 
 	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared")
 
-	libfooOutput := libfoo.Rule("rustLink")
+	libfooOutput := libfoo.Rule("rustc")
 	if !strings.Contains(libfooOutput.Args["linkFlags"], "-Wl,-soname=libfoo.so") {
 		t.Errorf("missing expected -Wl,-soname linker flag for libfoo shared lib, linkFlags: %#v",
 			libfooOutput.Args["linkFlags"])
