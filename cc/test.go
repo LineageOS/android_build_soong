@@ -799,7 +799,7 @@ func testBinaryBp2build(ctx android.Bp2buildMutatorContext, m *Module) {
 
 // cc_test that builds using gtest needs some additional deps
 // addImplicitGtestDeps makes these deps explicit in the generated BUILD files
-func addImplicitGtestDeps(ctx android.BazelConversionPathContext, attrs *testBinaryAttributes, gtest, gtestIsolated bool) {
+func addImplicitGtestDeps(ctx android.Bp2buildMutatorContext, attrs *testBinaryAttributes, gtest, gtestIsolated bool) {
 	addDepsAndDedupe := func(lla *bazel.LabelListAttribute, modules []string) {
 		moduleLabels := android.BazelLabelForModuleDeps(ctx, modules)
 		lla.Value.Append(moduleLabels)
