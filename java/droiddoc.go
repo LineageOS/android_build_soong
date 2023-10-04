@@ -136,6 +136,9 @@ type DroiddocProperties struct {
 	// At some point, this might be improved to show more warnings.
 	Todo_file *string `android:"path"`
 
+	// A file containing a baseline for allowed lint errors.
+	Lint_baseline *string `android:"path"`
+
 	// directory under current module source that provide additional resources (images).
 	Resourcesdir *string
 
@@ -663,6 +666,10 @@ func (d *Droiddoc) doclavaDocsFlags(ctx android.ModuleContext, cmd *android.Rule
 		// the non-standard doclet will get the full path relative to "-o".
 		cmd.FlagWithArg("-todo ", String(d.properties.Todo_file)).
 			ImplicitOutput(android.PathForModuleOut(ctx, String(d.properties.Todo_file)))
+	}
+
+	if String(d.properties.Lint_baseline) != "" {
+		cmd.FlagWithInput("-lintbaseline ", android.PathForModuleSrc(ctx, String(d.properties.Lint_baseline)))
 	}
 
 	if String(d.properties.Resourcesdir) != "" {
