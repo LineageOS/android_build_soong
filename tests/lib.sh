@@ -158,6 +158,7 @@ function create_mock_bazel {
   symlink_directory external/bazelbuild-rules_python
   symlink_directory external/bazelbuild-rules_java
   symlink_directory external/bazelbuild-rules_rust
+  symlink_directory external/bazelbuild-rules_testing
   symlink_directory external/rust/crates/tinyjson
 
   symlink_file WORKSPACE
