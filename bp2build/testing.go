@@ -124,25 +124,37 @@ type Bp2buildTestCase struct {
 	// be merged with the generated BUILD file. This allows custom BUILD targets
 	// to be used in tests, or use BUILD files to draw package boundaries.
 	KeepBuildFileForDirs []string
+
+	// If true, the bp2build_deps mutator is used for this test. This is an
+	// experimental mutator that will disable modules which have transitive
+	// dependencies with no bazel definition.
+	// TODO: b/285631638 - Enable this feature by default.
+	DepsMutator bool
 }
 
 func RunBp2BuildTestCaseExtraContext(t *testing.T, registerModuleTypes func(ctx android.RegistrationContext), modifyContext func(ctx *android.TestContext), tc Bp2buildTestCase) {
 	t.Helper()
-	bp2buildSetup := android.GroupFixturePreparers(
+	preparers := []android.FixturePreparer{
 		android.FixtureRegisterWithContext(registerModuleTypes),
-		android.FixtureModifyContext(modifyContext),
-		SetBp2BuildTestRunner,
+	}
+	if modifyContext != nil {
+		preparers = append(preparers, android.FixtureModifyContext(modifyContext))
+	}
+	if tc.DepsMutator {
+		preparers = append(preparers, android.FixtureModifyConfig(func(cfg android.Config) {
+			cfg.Bp2buildDepsMutator = true
+		}))
+	}
+	preparers = append(preparers, SetBp2BuildTestRunner)
+	bp2buildSetup := android.GroupFixturePreparers(
+		preparers...,
 	)
 	runBp2BuildTestCaseWithSetup(t, bp2buildSetup, tc)
 }
 
 func RunBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.RegistrationContext), tc Bp2buildTestCase) {
 	t.Helper()
-	bp2buildSetup := android.GroupFixturePreparers(
-		android.FixtureRegisterWithContext(registerModuleTypes),
-		SetBp2BuildTestRunner,
-	)
-	runBp2BuildTestCaseWithSetup(t, bp2buildSetup, tc)
+	RunBp2BuildTestCaseExtraContext(t, registerModuleTypes, nil, tc)
 }
 
 func runBp2BuildTestCaseWithSetup(t *testing.T, extraPreparer android.FixturePreparer, tc Bp2buildTestCase) {
@@ -400,6 +412,10 @@ type customProps struct {
 	// Prop used to indicate this conversion should be 1 module -> multiple targets
 	One_to_many_prop *bool
 
+	// Prop used to simulate an unsupported property in bp2build conversion. If this
+	// is true, this module should be treated as "unconvertible" via bp2build.
+	Does_not_convert_to_bazel *bool
+
 	Api *string // File describing the APIs of this module
 
 	Test_config_setting *bool // Used to test generation of config_setting targets
@@ -535,6 +551,10 @@ func (m *customModule) dir() *string {
 }
 
 func (m *customModule) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
+	if p := m.props.Does_not_convert_to_bazel; p != nil && *p {
+		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_PROPERTY_UNSUPPORTED, "")
+		return
+	}
 	if p := m.props.One_to_many_prop; p != nil && *p {
 		customBp2buildOneToMany(ctx, m)
 		return

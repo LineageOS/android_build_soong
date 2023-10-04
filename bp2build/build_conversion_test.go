@@ -2101,3 +2101,219 @@ func TestCreateBazelTargetInDifferentDir(t *testing.T) {
 	})
 
 }
+
+func TestBp2buildDepsMutator_missingTransitiveDep(t *testing.T) {
+	bp := `
+	custom {
+		name: "foo",
+	}
+
+	custom {
+		name: "has_deps",
+	  arch_paths: [":has_missing_dep", ":foo"],
+	}
+
+	custom {
+		name: "has_missing_dep",
+	  arch_paths: [":missing"],
+	}
+	`
+	expectedBazelTargets := []string{
+		MakeBazelTarget(
+			"custom",
+			"foo",
+			AttrNameToString{},
+		),
+	}
+	registerCustomModule := func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("custom", customModuleFactoryHostAndDevice)
+	}
+	RunBp2BuildTestCase(t, registerCustomModule, Bp2buildTestCase{
+		Blueprint:            bp,
+		ExpectedBazelTargets: expectedBazelTargets,
+		Description:          "Skipping conversion of a target with missing transitive dep",
+		DepsMutator:          true,
+	})
+}
+
+func TestBp2buildDepsMutator_missingDirectDep(t *testing.T) {
+	bp := `
+	custom {
+		name: "foo",
+	  arch_paths: [":exists"],
+	}
+	custom {
+		name: "exists",
+	}
+
+	custom {
+		name: "has_missing_dep",
+	  arch_paths: [":missing"],
+	}
+	`
+	expectedBazelTargets := []string{
+		MakeBazelTarget(
+			"custom",
+			"foo",
+			AttrNameToString{"arch_paths": `[":exists"]`},
+		),
+		MakeBazelTarget(
+			"custom",
+			"exists",
+			AttrNameToString{},
+		),
+	}
+	registerCustomModule := func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("custom", customModuleFactoryHostAndDevice)
+	}
+	RunBp2BuildTestCase(t, registerCustomModule, Bp2buildTestCase{
+		Blueprint:            bp,
+		ExpectedBazelTargets: expectedBazelTargets,
+		Description:          "Skipping conversion of a target with missing direct dep",
+		DepsMutator:          true,
+	})
+}
+
+func TestBp2buildDepsMutator_unconvertedDirectDep(t *testing.T) {
+	bp := `
+	custom {
+		name: "has_unconverted_dep",
+	  arch_paths: [":unconvertible"],
+	}
+
+	custom {
+		name: "unconvertible",
+		does_not_convert_to_bazel: true
+	}
+	`
+	registerCustomModule := func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("custom", customModuleFactoryHostAndDevice)
+	}
+	RunBp2BuildTestCase(t, registerCustomModule, Bp2buildTestCase{
+		Blueprint:            bp,
+		ExpectedBazelTargets: []string{},
+		Description:          "Skipping conversion of a target with unconverted direct dep",
+		DepsMutator:          true,
+	})
+}
+
+func TestBp2buildDepsMutator_unconvertedTransitiveDep(t *testing.T) {
+	bp := `
+	custom {
+		name: "foo",
+	  arch_paths: [":has_unconverted_dep", ":bar"],
+	}
+
+	custom {
+		name: "bar",
+	}
+
+	custom {
+		name: "has_unconverted_dep",
+	  arch_paths: [":unconvertible"],
+	}
+
+	custom {
+		name: "unconvertible",
+		does_not_convert_to_bazel: true
+	}
+	`
+	expectedBazelTargets := []string{
+		MakeBazelTarget(
+			"custom",
+			"bar",
+			AttrNameToString{},
+		),
+	}
+	registerCustomModule := func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("custom", customModuleFactoryHostAndDevice)
+	}
+	RunBp2BuildTestCase(t, registerCustomModule, Bp2buildTestCase{
+		Blueprint:            bp,
+		ExpectedBazelTargets: expectedBazelTargets,
+		Description:          "Skipping conversion of a target with unconverted transitive dep",
+		DepsMutator:          true,
+	})
+}
+
+func TestBp2buildDepsMutator_alreadyExistsBuildDeps(t *testing.T) {
+	bp := `
+	custom {
+		name: "foo",
+	  arch_paths: [":bar"],
+	}
+	custom {
+		name: "bar",
+	  arch_paths: [":checked_in"],
+	}
+	custom {
+		name: "checked_in",
+	  arch_paths: [":checked_in"],
+		does_not_convert_to_bazel: true
+	}
+	`
+	expectedBazelTargets := []string{
+		MakeBazelTarget(
+			"custom",
+			"foo",
+			AttrNameToString{"arch_paths": `[":bar"]`},
+		),
+		MakeBazelTarget(
+			"custom",
+			"bar",
+			AttrNameToString{"arch_paths": `[":checked_in"]`},
+		),
+	}
+	registerCustomModule := func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("custom", customModuleFactoryHostAndDevice)
+	}
+	RunBp2BuildTestCase(t, registerCustomModule, Bp2buildTestCase{
+		StubbedBuildDefinitions: []string{"checked_in"},
+		Blueprint:               bp,
+		ExpectedBazelTargets:    expectedBazelTargets,
+		Description:             "Convert target with already-existing build dep",
+		DepsMutator:             true,
+	})
+}
+
+// Tests that deps of libc are always considered valid for libc. This circumvents
+// an issue that, in a variantless graph (such as bp2build's), libc has the
+// unique predicament that it depends on itself.
+func TestBp2buildDepsMutator_depOnLibc(t *testing.T) {
+	bp := `
+	custom {
+		name: "foo",
+	  arch_paths: [":libc"],
+	}
+	custom {
+		name: "libc",
+	  arch_paths: [":libc_dep"],
+	}
+	custom {
+		name: "libc_dep",
+		does_not_convert_to_bazel: true
+	}
+	`
+	expectedBazelTargets := []string{
+		MakeBazelTarget(
+			"custom",
+			"foo",
+			AttrNameToString{"arch_paths": `[":libc"]`},
+		),
+		MakeBazelTarget(
+			"custom",
+			"libc",
+			AttrNameToString{"arch_paths": `[":libc_dep"]`},
+		),
+	}
+	registerCustomModule := func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("custom", customModuleFactoryHostAndDevice)
+	}
+	RunBp2BuildTestCase(t, registerCustomModule, Bp2buildTestCase{
+		StubbedBuildDefinitions: []string{"checked_in"},
+		Blueprint:               bp,
+		ExpectedBazelTargets:    expectedBazelTargets,
+		Description:             "Convert target with dep on libc",
+		DepsMutator:             true,
+	})
+}

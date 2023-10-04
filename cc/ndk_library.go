@@ -580,15 +580,6 @@ type bazelCcApiContributionAttributes struct {
 	Library_name string
 }
 
-// Names of the cc_api_header targets in the bp2build workspace
-func apiHeaderLabels(ctx android.TopDownMutatorContext, hdrLibs []string) bazel.LabelList {
-	addSuffix := func(ctx android.BazelConversionPathContext, module blueprint.Module) string {
-		label := android.BazelModuleLabel(ctx, module)
-		return android.ApiContributionTargetName(label)
-	}
-	return android.BazelLabelForModuleDepsWithFn(ctx, hdrLibs, addSuffix)
-}
-
 func ndkLibraryBp2build(ctx android.Bp2buildMutatorContext, c *Module) {
 	ndk, _ := c.linker.(*stubDecorator)
 	props := bazel.BazelTargetModuleProperties{
