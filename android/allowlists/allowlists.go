@@ -634,7 +634,6 @@ var (
 		"libneuralnetworks",
 		"libneuralnetworks_static",
 		"libgraphicsenv",
-		"libhardware",
 		"libhardware_headers",
 		"libnativeloader-headers",
 		"libnativewindow_headers",
@@ -1046,6 +1045,8 @@ var (
 		"libminijail_sys",
 		"libfsverity_rs",
 		"libtombstoned_client_rust",
+
+		"libhardware", //Depends on unconverted libapexsupport
 
 		// TODO(b/263326760): Failed already.
 		"minijail_compiler_unittest",
