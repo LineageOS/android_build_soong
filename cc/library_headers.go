@@ -161,18 +161,3 @@ func libraryHeadersBp2Build(ctx android.Bp2buildMutatorContext, module *Module) 
 		Tags: tags,
 	}, attrs)
 }
-
-// Append .contribution suffix to input labels
-func apiBazelTargets(ll bazel.LabelList) bazel.LabelList {
-	labels := make([]bazel.Label, 0)
-	for _, l := range ll.Includes {
-		labels = append(labels, bazel.Label{
-			Label: android.ApiContributionTargetName(l.Label),
-		})
-	}
-	return bazel.MakeLabelList(labels)
-}
-
-var (
-	allArches = []string{"arm", "arm64", "x86", "x86_64"}
-)
