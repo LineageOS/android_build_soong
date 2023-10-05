@@ -693,15 +693,27 @@ func bp2buildDepsMutator(ctx BottomUpMutatorContext) {
 
 	if len(ctx.Module().GetMissingBp2buildDeps()) > 0 {
 		exampleDep := ctx.Module().GetMissingBp2buildDeps()[0]
-		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_UNCONVERTED_DEP, exampleDep)
+		ctx.MarkBp2buildUnconvertible(
+			bp2build_metrics_proto.UnconvertedReasonType_UNCONVERTED_DEP, exampleDep)
 	}
 
+	// Transitively mark modules unconvertible with the following set of conditions.
 	ctx.VisitDirectDeps(func(dep Module) {
-		if dep.base().GetUnconvertedReason() != nil &&
-			dep.base().GetUnconvertedReason().ReasonType != int(bp2build_metrics_proto.UnconvertedReasonType_DEFINED_IN_BUILD_FILE) &&
-			ctx.OtherModuleDependencyTag(dep) == Bp2buildDepTag {
-			ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_UNCONVERTED_DEP, dep.Name())
+		if dep.base().GetUnconvertedReason() == nil {
+			return
 		}
+
+		if dep.base().GetUnconvertedReason().ReasonType ==
+			int(bp2build_metrics_proto.UnconvertedReasonType_DEFINED_IN_BUILD_FILE) {
+			return
+		}
+
+		if ctx.OtherModuleDependencyTag(dep) != Bp2buildDepTag {
+			return
+		}
+
+		ctx.MarkBp2buildUnconvertible(
+			bp2build_metrics_proto.UnconvertedReasonType_UNCONVERTED_DEP, dep.Name())
 	})
 }
 
