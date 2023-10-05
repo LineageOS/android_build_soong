@@ -102,6 +102,7 @@ android_library {
 	sdk_version: "current",
 }
 `,
+		StubbedBuildDefinitions: []string{"lib_dep"},
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget(
 				"android_library",
