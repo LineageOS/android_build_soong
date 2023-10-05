@@ -635,7 +635,7 @@ func TestJavaLibraryAidlNonAdjacentAidlFilegroup(t *testing.T) {
 		Description:                "java_library with non adjacent aidl filegroup",
 		ModuleTypeUnderTest:        "java_library",
 		ModuleTypeUnderTestFactory: java.LibraryFactory,
-		StubbedBuildDefinitions:    []string{"A_aidl"},
+		StubbedBuildDefinitions:    []string{"//path/to/A:A_aidl"},
 		Filesystem: map[string]string{
 			"path/to/A/Android.bp": `
 filegroup {

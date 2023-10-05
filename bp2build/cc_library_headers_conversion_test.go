@@ -70,10 +70,6 @@ func TestCcLibraryHeadersSimple(t *testing.T) {
 	runCcLibraryHeadersTestCase(t, Bp2buildTestCase{
 		Description: "cc_library_headers test",
 		Filesystem: map[string]string{
-			"lib-1/lib1a.h":                        "",
-			"lib-1/lib1b.h":                        "",
-			"lib-2/lib2a.h":                        "",
-			"lib-2/lib2b.h":                        "",
 			"dir-1/dir1a.h":                        "",
 			"dir-1/dir1b.h":                        "",
 			"dir-2/dir2a.h":                        "",
@@ -86,7 +82,6 @@ func TestCcLibraryHeadersSimple(t *testing.T) {
 cc_library_headers {
     name: "foo_headers",
     export_include_dirs: ["dir-1", "dir-2"],
-    header_libs: ["lib-1", "lib-2"],
 
     arch: {
         arm64: {
@@ -322,7 +317,7 @@ func TestCcLibraryHeadersExportedStaticLibHeadersReexported(t *testing.T) {
 	runCcLibraryHeadersTestCase(t, Bp2buildTestCase{
 		Description:             "cc_library_headers exported_static_lib_headers is reexported",
 		Filesystem:              map[string]string{},
-		StubbedBuildDefinitions: []string{"foo_export"},
+		StubbedBuildDefinitions: []string{"foo_export", "foo_no_reexport"},
 		Blueprint: soongCcLibraryHeadersPreamble + `
 cc_library_headers {
 		name: "foo_headers",
@@ -330,7 +325,8 @@ cc_library_headers {
 		static_libs: ["foo_export", "foo_no_reexport"],
     bazel_module: { bp2build_available: true },
 }
-` + simpleModule("cc_library_headers", "foo_export"),
+` + simpleModule("cc_library_headers", "foo_export") +
+			simpleModule("cc_library_headers", "foo_no_reexport"),
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
 				"deps": `[":foo_export"]`,
@@ -343,7 +339,7 @@ func TestCcLibraryHeadersExportedSharedLibHeadersReexported(t *testing.T) {
 	runCcLibraryHeadersTestCase(t, Bp2buildTestCase{
 		Description:             "cc_library_headers exported_shared_lib_headers is reexported",
 		Filesystem:              map[string]string{},
-		StubbedBuildDefinitions: []string{"foo_export"},
+		StubbedBuildDefinitions: []string{"foo_export", "foo_no_reexport"},
 		Blueprint: soongCcLibraryHeadersPreamble + `
 cc_library_headers {
 		name: "foo_headers",
@@ -351,7 +347,8 @@ cc_library_headers {
 		shared_libs: ["foo_export", "foo_no_reexport"],
     bazel_module: { bp2build_available: true },
 }
-` + simpleModule("cc_library_headers", "foo_export"),
+` + simpleModule("cc_library_headers", "foo_export") +
+			simpleModule("cc_library_headers", "foo_no_reexport"),
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
 				"deps": `[":foo_export"]`,
@@ -364,7 +361,7 @@ func TestCcLibraryHeadersExportedHeaderLibHeadersReexported(t *testing.T) {
 	runCcLibraryHeadersTestCase(t, Bp2buildTestCase{
 		Description:             "cc_library_headers exported_header_lib_headers is reexported",
 		Filesystem:              map[string]string{},
-		StubbedBuildDefinitions: []string{"foo_export"},
+		StubbedBuildDefinitions: []string{"foo_export", "foo_no_reexport"},
 		Blueprint: soongCcLibraryHeadersPreamble + `
 cc_library_headers {
 		name: "foo_headers",
@@ -372,7 +369,8 @@ cc_library_headers {
 		header_libs: ["foo_export", "foo_no_reexport"],
     bazel_module: { bp2build_available: true },
 }
-` + simpleModule("cc_library_headers", "foo_export"),
+` + simpleModule("cc_library_headers", "foo_export") +
+			simpleModule("cc_library_headers", "foo_no_reexport"),
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_headers", "foo_headers", AttrNameToString{
 				"deps": `[":foo_export"]`,
@@ -426,7 +424,7 @@ cc_prebuilt_library_headers {
 func TestPrebuiltCcLibraryHeadersPreferredRdepUpdated(t *testing.T) {
 	runCcLibraryHeadersTestCase(t, Bp2buildTestCase{
 		Description:             "cc_library_headers prebuilt preferred is used as rdep",
-		StubbedBuildDefinitions: []string{"foo_export"},
+		StubbedBuildDefinitions: []string{"foo_export", "//foo/bar:foo_headers"},
 		Filesystem: map[string]string{
 			"foo/bar/Android.bp": simpleModule("cc_library_headers", "foo_headers"),
 		},
@@ -458,7 +456,7 @@ cc_library_shared {
 func TestPrebuiltCcLibraryHeadersRdepUpdated(t *testing.T) {
 	runCcLibraryHeadersTestCase(t, Bp2buildTestCase{
 		Description:             "cc_library_headers not preferred is not used for rdep",
-		StubbedBuildDefinitions: []string{"foo_export"},
+		StubbedBuildDefinitions: []string{"foo_export", "//foo/bar:foo_headers"},
 		Filesystem: map[string]string{
 			"foo/bar/Android.bp": simpleModule("cc_library_headers", "foo_headers"),
 		},
