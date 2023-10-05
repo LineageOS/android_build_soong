@@ -1904,7 +1904,7 @@ func xsdConfigCppTarget(xsd android.XsdConfigBp2buildTargets) string {
 }
 
 func bazelLabelForWholeDeps(ctx android.Bp2buildMutatorContext, modules []string) bazel.LabelList {
-	return android.BazelLabelForModuleDepsWithFn(ctx, modules, bazelLabelForStaticWholeModuleDeps, true)
+	return android.BazelLabelForModuleDepsWithFn(ctx, modules, bazelLabelForStaticWholeModuleDeps, /*markAsDeps=*/true)
 }
 
 func bazelLabelForWholeDepsExcludes(ctx android.Bp2buildMutatorContext, modules, excludes []string) bazel.LabelList {
@@ -1916,11 +1916,11 @@ func bazelLabelForStaticDepsExcludes(ctx android.Bp2buildMutatorContext, modules
 }
 
 func bazelLabelForStaticDeps(ctx android.Bp2buildMutatorContext, modules []string) bazel.LabelList {
-	return android.BazelLabelForModuleDepsWithFn(ctx, modules, bazelLabelForStaticModule, true)
+	return android.BazelLabelForModuleDepsWithFn(ctx, modules, bazelLabelForStaticModule, /*markAsDeps=*/true)
 }
 
 func bazelLabelForSharedDeps(ctx android.Bp2buildMutatorContext, modules []string) bazel.LabelList {
-	return android.BazelLabelForModuleDepsWithFn(ctx, modules, bazelLabelForSharedModule, true)
+	return android.BazelLabelForModuleDepsWithFn(ctx, modules, bazelLabelForSharedModule, /*markAsDeps=*/true)
 }
 
 func bazelLabelForHeaderDeps(ctx android.Bp2buildMutatorContext, modules []string) bazel.LabelList {

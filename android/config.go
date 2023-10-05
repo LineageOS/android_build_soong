@@ -297,8 +297,7 @@ type config struct {
 	// in tests when a path doesn't exist.
 	TestAllowNonExistentPaths bool
 
-	// If testAllowNonExistentPaths is true then PathForSource and PathForModuleSrc won't error
-	// in tests when a path doesn't exist.
+	// If true, register the "bp2build_deps" mutator in the mutator pipeline.
 	Bp2buildDepsMutator bool
 
 	// The list of files that when changed, must invalidate soong_build to
