@@ -148,7 +148,7 @@ func AssertStringMatches(t *testing.T, message, s, expectedRex string) {
 		return
 	}
 	if !ok {
-		t.Errorf("%s does not match regular expression %s", s, expectedRex)
+		t.Errorf("%s: %s does not match regular expression %s", message, s, expectedRex)
 	}
 }
 
