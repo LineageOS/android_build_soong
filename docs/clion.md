@@ -3,6 +3,10 @@
 Soong can generate CLion projects. This is intended for source code editing
 only. Build should still be done via make/m/mm(a)/mmm(a).
 
+Note: alternatively, you can use
+[aidegen to generate a Clion or VSCode project](https://android.googlesource.com/platform/tools/asuite/+/refs/heads/master/aidegen/README.md)
+with a single command, using the `-i c` flag.
+
 CMakeLists.txt project file generation is enabled via environment variable:
 
 ```bash
