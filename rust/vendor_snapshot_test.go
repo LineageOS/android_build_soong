@@ -1051,7 +1051,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 	ctx := testRustVndkFsVersions(t, "", mockFS, "30", "current", "31")
 
 	// libclient uses libvndk.vndk.30.arm64, libvendor.vendor_static.30.arm64, libvendor_without_snapshot
-	libclientLdFlags := ctx.ModuleForTests("libclient", sharedVariant).Rule("rustLink").Args["linkFlags"]
+	libclientLdFlags := ctx.ModuleForTests("libclient", sharedVariant).Rule("rustc").Args["linkFlags"]
 	for _, input := range [][]string{
 		[]string{sharedVariant, "libvndk.vndk.30.arm64"},
 		[]string{staticVariant, "libvendor.vendor_static.30.arm64"},
@@ -1119,7 +1119,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		t.Errorf("Unexpected rust rlib name in AndroidMk: %q, expected: %q\n", rustVendorBinMkDylibName, expectedRustVendorSnapshotName)
 	}
 
-	binWithoutSnapshotLdFlags := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Rule("rustLink").Args["linkFlags"]
+	binWithoutSnapshotLdFlags := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Rule("rustc").Args["linkFlags"]
 	libVndkStaticOutputPaths := cc.GetOutputPaths(ctx, staticVariant, []string{"libvndk.vendor_static.30.arm64"})
 	if !strings.Contains(binWithoutSnapshotLdFlags, libVndkStaticOutputPaths[0].String()) {
 		t.Errorf("libflags for bin_without_snapshot must contain %#v, but was %#v",

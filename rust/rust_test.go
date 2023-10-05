@@ -40,7 +40,6 @@ var prepareForRustTest = android.GroupFixturePreparers(
 	PrepareForTestWithRustIncludeVndk,
 	android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 		variables.DeviceVndkVersion = StringPtr("current")
-		variables.ProductVndkVersion = StringPtr("current")
 		variables.Platform_vndk_version = StringPtr("29")
 	}),
 )
@@ -105,7 +104,6 @@ func testRustVndkFsVersions(t *testing.T, bp string, fs android.MockFS, device_v
 		android.FixtureModifyProductVariables(
 			func(variables android.FixtureProductVariables) {
 				variables.DeviceVndkVersion = StringPtr(device_version)
-				variables.ProductVndkVersion = StringPtr(product_version)
 				variables.Platform_vndk_version = StringPtr(vndk_version)
 			},
 		),
@@ -173,7 +171,6 @@ func testRustVndkFsError(t *testing.T, pattern string, bp string, fs android.Moc
 		android.FixtureModifyProductVariables(
 			func(variables android.FixtureProductVariables) {
 				variables.DeviceVndkVersion = StringPtr("current")
-				variables.ProductVndkVersion = StringPtr("current")
 				variables.Platform_vndk_version = StringPtr("VER")
 			},
 		),
@@ -256,7 +253,6 @@ func TestDepsTracking(t *testing.T) {
 	`)
 	module := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Module().(*Module)
 	rustc := ctx.ModuleForTests("librlib", "linux_glibc_x86_64_rlib_rlib-std").Rule("rustc")
-	rustLink := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Rule("rustLink")
 
 	// Since dependencies are added to AndroidMk* properties, we can check these to see if they've been picked up.
 	if !android.InList("librlib.rlib-std", module.Properties.AndroidMkRlibs) {
@@ -279,16 +275,16 @@ func TestDepsTracking(t *testing.T) {
 		t.Errorf("-lstatic flag not being passed to rustc for static library %#v", rustc.Args["rustcFlags"])
 	}
 
-	if !strings.Contains(rustLink.Args["linkFlags"], "cc_stubs_dep.so") {
-		t.Errorf("shared cc_library not being passed to rustc linkFlags %#v", rustLink.Args["linkFlags"])
+	if !strings.Contains(rustc.Args["linkFlags"], "cc_stubs_dep.so") {
+		t.Errorf("shared cc_library not being passed to rustc linkFlags %#v", rustc.Args["linkFlags"])
 	}
 
-	if !android.SuffixInList(rustLink.OrderOnly.Strings(), "cc_stubs_dep.so") {
-		t.Errorf("shared cc dep not being passed as order-only to rustc %#v", rustLink.OrderOnly.Strings())
+	if !android.SuffixInList(rustc.OrderOnly.Strings(), "cc_stubs_dep.so") {
+		t.Errorf("shared cc dep not being passed as order-only to rustc %#v", rustc.OrderOnly.Strings())
 	}
 
-	if !android.SuffixInList(rustLink.Implicits.Strings(), "cc_stubs_dep.so.toc") {
-		t.Errorf("shared cc dep TOC not being passed as implicit to rustc %#v", rustLink.Implicits.Strings())
+	if !android.SuffixInList(rustc.Implicits.Strings(), "cc_stubs_dep.so.toc") {
+		t.Errorf("shared cc dep TOC not being passed as implicit to rustc %#v", rustc.Implicits.Strings())
 	}
 }
 

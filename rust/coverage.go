@@ -65,7 +65,7 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 			"-C instrument-coverage", "-g")
 		flags.LinkFlags = append(flags.LinkFlags,
 			profileInstrFlag, "-g", coverage.OutputFile().Path().String(), "-Wl,--wrap,open")
-		deps.LibDeps = append(deps.LibDeps, coverage.OutputFile().Path())
+		deps.StaticLibs = append(deps.StaticLibs, coverage.OutputFile().Path())
 
 		// no_std modules are missing libprofiler_builtins which provides coverage, so we need to add it as a dependency.
 		if rustModule, ok := ctx.Module().(*Module); ok && rustModule.compiler.noStdlibs() {
