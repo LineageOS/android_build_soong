@@ -18,6 +18,7 @@ bootstrap_go_package {
         "soong-genrule",
         "soong-multitree",
         "soong-snapshot",
+        "soong-sysprop-bp2build",
         "soong-tradefed",
     ],
     srcs: [
@@ -49,7 +50,6 @@ bootstrap_go_package {
         "snapshot_utils.go",
         "stl.go",
         "strip.go",
-        "sysprop.go",
         "tidy.go",
         "util.go",
         "vendor_snapshot.go",
