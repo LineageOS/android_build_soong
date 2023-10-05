@@ -181,8 +181,7 @@ func NewContext(config Config) *Context {
 	return ctx
 }
 
-// Helper function to register the module types used in bp2build and
-// api_bp2build.
+// Helper function to register the module types used in bp2build.
 func registerModuleTypes(ctx *Context) {
 	for _, t := range moduleTypes {
 		t.register(ctx)
