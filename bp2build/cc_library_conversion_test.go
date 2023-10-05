@@ -5198,7 +5198,7 @@ ndk_headers {
 	name: "libfoo_headers",
 	from: "from",
 	to: "to",
-	srcs: ["foo.h", "foo_other.h"]
+	srcs: ["from/foo.h", "from/foo_other.h"]
 }
 `,
 		ExpectedBazelTargets: []string{
@@ -5206,9 +5206,40 @@ ndk_headers {
 				"strip_import_prefix": `"from"`,
 				"import_prefix":       `"to"`,
 				"hdrs": `[
-        "foo.h",
-        "foo_other.h",
+        "from/foo.h",
+        "from/foo_other.h",
     ]`,
+			}),
+		},
+	}
+	runCcLibraryTestCase(t, tc)
+}
+
+func TestVersionedNdkHeadersConversion(t *testing.T) {
+	tc := Bp2buildTestCase{
+		Description:                "versioned_ndk_headers conversion",
+		ModuleTypeUnderTest:        "versioned_ndk_headers",
+		ModuleTypeUnderTestFactory: cc.VersionedNdkHeadersFactory,
+		Blueprint: `
+versioned_ndk_headers {
+	name: "libfoo_headers",
+	from: "from",
+	to: "to",
+}
+`,
+		Filesystem: map[string]string{
+			"from/foo.h":       "",
+			"from/foo_other.h": "",
+		},
+		ExpectedBazelTargets: []string{
+			MakeBazelTargetNoRestrictions("ndk_headers", "libfoo_headers", AttrNameToString{
+				"strip_import_prefix": `"from"`,
+				"import_prefix":       `"to"`,
+				"hdrs": `[
+        "from/foo.h",
+        "from/foo_other.h",
+    ]`,
+				"run_versioner": "True",
 			}),
 		},
 	}
