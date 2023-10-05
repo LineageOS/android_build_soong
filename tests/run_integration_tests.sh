@@ -23,4 +23,4 @@ TEST_BAZEL=true extra_build_params=--bazel-mode-staging "$TOP/build/soong/tests/
 "$TOP/build/soong/tests/apex_cc_module_arch_variant_tests.sh" "aosp_cf_arm64_phone" "armv8-a" "cortex-a53"
 
 "$TOP/build/bazel/ci/b_test.sh"
-
+"$TOP/build/soong/tests/symlinks_path_test.sh"
