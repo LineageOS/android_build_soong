@@ -1019,6 +1019,7 @@ var (
 		"ndk_headers",
 		"ndk_library",
 		"sysprop_library",
+		"versioned_ndk_headers",
 		"xsd_config",
 		// go/keep-sorted end
 	}
