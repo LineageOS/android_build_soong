@@ -58,13 +58,18 @@ sysprop_library {
 				bp2build.AttrNameToString{
 					"dep": `":sysprop_foo"`,
 				}),
+			bp2build.MakeBazelTargetNoRestrictions("java_sysprop_library",
+				"sysprop_foo_java_library",
+				bp2build.AttrNameToString{
+					"dep": `":sysprop_foo"`,
+				}),
 		},
 	})
 }
 
 func TestSyspropLibraryCppMinSdkVersion(t *testing.T) {
 	bp2build.RunBp2BuildTestCaseSimple(t, bp2build.Bp2buildTestCase{
-		Description:                "sysprop_library with min_sdk_version",
+		Description:                "sysprop_library with cpp min_sdk_version",
 		ModuleTypeUnderTest:        "sysprop_library",
 		ModuleTypeUnderTestFactory: syspropLibraryFactory,
 		Filesystem: map[string]string{
@@ -105,6 +110,86 @@ sysprop_library {
 					"dep":             `":sysprop_foo"`,
 					"min_sdk_version": `"5"`,
 				}),
+			bp2build.MakeBazelTargetNoRestrictions("java_sysprop_library",
+				"sysprop_foo_java_library",
+				bp2build.AttrNameToString{
+					"dep": `":sysprop_foo"`,
+				}),
 		},
+	})
+}
+
+func TestSyspropLibraryJavaMinSdkVersion(t *testing.T) {
+	bp2build.RunBp2BuildTestCaseSimple(t, bp2build.Bp2buildTestCase{
+		Description:                "sysprop_library with java min_sdk_version",
+		ModuleTypeUnderTest:        "sysprop_library",
+		ModuleTypeUnderTestFactory: syspropLibraryFactory,
+		Filesystem: map[string]string{
+			"foo.sysprop": "",
+			"bar.sysprop": "",
+		},
+		Blueprint: `
+sysprop_library {
+	name: "sysprop_foo",
+	srcs: [
+		"foo.sysprop",
+		"bar.sysprop",
+	],
+	java: {
+		min_sdk_version: "5",
+	},
+	property_owner: "Platform",
+}
+`,
+		ExpectedBazelTargets: []string{
+			bp2build.MakeBazelTargetNoRestrictions("sysprop_library",
+				"sysprop_foo",
+				bp2build.AttrNameToString{
+					"srcs": `[
+        "foo.sysprop",
+        "bar.sysprop",
+    ]`,
+				}),
+			bp2build.MakeBazelTargetNoRestrictions("cc_sysprop_library_shared",
+				"libsysprop_foo",
+				bp2build.AttrNameToString{
+					"dep": `":sysprop_foo"`,
+				}),
+			bp2build.MakeBazelTargetNoRestrictions("cc_sysprop_library_static",
+				"libsysprop_foo_bp2build_cc_library_static",
+				bp2build.AttrNameToString{
+					"dep": `":sysprop_foo"`,
+				}),
+			bp2build.MakeBazelTargetNoRestrictions("java_sysprop_library",
+				"sysprop_foo_java_library",
+				bp2build.AttrNameToString{
+					"dep":             `":sysprop_foo"`,
+					"min_sdk_version": `"5"`,
+				}),
+		},
+	})
+}
+
+func TestSyspropLibraryOwnerNotPlatformUnconvertible(t *testing.T) {
+	bp2build.RunBp2BuildTestCaseSimple(t, bp2build.Bp2buildTestCase{
+		Description:                "sysprop_library simple",
+		ModuleTypeUnderTest:        "sysprop_library",
+		ModuleTypeUnderTestFactory: syspropLibraryFactory,
+		Filesystem: map[string]string{
+			"foo.sysprop": "",
+			"bar.sysprop": "",
+		},
+		Blueprint: `
+sysprop_library {
+	name: "sysprop_foo",
+	srcs: [
+		"foo.sysprop",
+		"bar.sysprop",
+	],
+	property_owner: "Vendor",
+	device_specific: true,
+}
+`,
+		ExpectedBazelTargets: []string{},
 	})
 }

@@ -20,6 +20,7 @@ import (
 
 	"android/soong/aidl_library"
 	"android/soong/bazel"
+	"android/soong/sysprop/bp2build"
 
 	"github.com/google/blueprint"
 
@@ -240,12 +241,13 @@ func genSysprop(ctx android.ModuleContext, syspropFile android.Path) (android.Pa
 }
 
 func bp2buildCcSysprop(ctx android.Bp2buildMutatorContext, moduleName string, minSdkVersion *string, srcs bazel.LabelListAttribute) *bazel.LabelAttribute {
-	labels := SyspropLibraryLabels{
-		SyspropLibraryLabel: moduleName + "_sysprop_library",
-		StaticLibraryLabel:  moduleName + "_cc_sysprop_library_static",
+	labels := bp2build.SyspropLibraryLabels{
+		SyspropLibraryLabel:  moduleName + "_sysprop_library",
+		CcStaticLibraryLabel: moduleName + "_cc_sysprop_library_static",
 	}
-	Bp2buildSysprop(ctx, labels, srcs, minSdkVersion)
-	return createLabelAttributeCorrespondingToSrcs(":"+labels.StaticLibraryLabel, srcs)
+	bp2build.Bp2buildBaseSyspropLibrary(ctx, labels.SyspropLibraryLabel, srcs)
+	bp2build.Bp2buildSyspropCc(ctx, labels, minSdkVersion)
+	return createLabelAttributeCorrespondingToSrcs(":"+labels.CcStaticLibraryLabel, srcs)
 }
 
 // Creates a LabelAttribute for a given label where the value is only set for

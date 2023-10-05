@@ -12,6 +12,7 @@ bootstrap_go_package {
         "soong-bp2build",
         "soong-cc",
         "soong-java",
+        "soong-sysprop-bp2build",
     ],
     srcs: [
         "sysprop_library.go",
