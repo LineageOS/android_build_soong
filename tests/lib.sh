@@ -16,7 +16,7 @@ function make_mock_top {
 if [[ -n "$HARDWIRED_MOCK_TOP" ]]; then
   MOCK_TOP="$HARDWIRED_MOCK_TOP"
 else
-  MOCK_TOP=$(mktemp -t -d st.XXXXX)
+  MOCK_TOP=$(make_mock_top)
   trap cleanup_mock_top EXIT
 fi
 
