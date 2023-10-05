@@ -15,16 +15,22 @@
 package bp2build
 
 import (
+	"testing"
+
 	"android/soong/android"
 	"android/soong/genrule"
-	"testing"
 )
+
+func registerModulesForGensrcsTests(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
+}
 
 func TestGensrcs(t *testing.T) {
 	testcases := []struct {
-		name               string
-		bp                 string
-		expectedBazelAttrs AttrNameToString
+		name                    string
+		bp                      string
+		expectedBazelAttrs      AttrNameToString
+		stubbedBuildDefinitions []string
 	}{
 		{
 			name: "gensrcs with common usage of properties",
@@ -37,18 +43,22 @@ func TestGensrcs(t *testing.T) {
                 data: ["foo/file.txt", ":external_files"],
                 output_extension: "out",
                 bazel_module: { bp2build_available: true },
+			}
+      filegroup {
+                name: "external_files",
 			}`,
+			stubbedBuildDefinitions: []string{"external_files"},
 			expectedBazelAttrs: AttrNameToString{
 				"srcs": `[
         "test/input.txt",
-        ":external_files__BP2BUILD__MISSING__DEP",
+        ":external_files",
     ]`,
 				"tools":            `["program.py"]`,
 				"output_extension": `"out"`,
-				"cmd":              `"$(location program.py) $(SRC) $(OUT) $(location foo/file.txt) $(location :external_files__BP2BUILD__MISSING__DEP)"`,
+				"cmd":              `"$(location program.py) $(SRC) $(OUT) $(location foo/file.txt) $(location :external_files)"`,
 				"data": `[
         "foo/file.txt",
-        ":external_files__BP2BUILD__MISSING__DEP",
+        ":external_files",
     ]`,
 			},
 		},
@@ -73,12 +83,13 @@ func TestGensrcs(t *testing.T) {
 			MakeBazelTargetNoRestrictions("gensrcs", "foo", test.expectedBazelAttrs),
 		}
 		t.Run(test.name, func(t *testing.T) {
-			RunBp2BuildTestCase(t, func(ctx android.RegistrationContext) {},
+			RunBp2BuildTestCase(t, registerModulesForGensrcsTests,
 				Bp2buildTestCase{
 					ModuleTypeUnderTest:        "gensrcs",
 					ModuleTypeUnderTestFactory: genrule.GenSrcsFactory,
 					Blueprint:                  test.bp,
 					ExpectedBazelTargets:       expectedBazelTargets,
+					StubbedBuildDefinitions:    test.stubbedBuildDefinitions,
 				})
 		})
 	}
