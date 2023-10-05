@@ -1059,6 +1059,10 @@ func (j *JavaTestImport) InstallInTestcases() bool {
 	return true
 }
 
+func (j *TestHost) IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool {
+	return ctx.DeviceConfig().NativeCoverageEnabled()
+}
+
 func (j *TestHost) addDataDeviceBinsDeps(ctx android.BottomUpMutatorContext) {
 	if len(j.testHostProperties.Data_device_bins_first) > 0 {
 		deviceVariations := ctx.Config().AndroidFirstDeviceTarget.Variations()
