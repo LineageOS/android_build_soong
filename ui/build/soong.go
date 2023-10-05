@@ -16,10 +16,13 @@ package build
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"android/soong/bazel"
 	"android/soong/ui/metrics"
@@ -48,6 +51,13 @@ const (
 	// incompatible changes, for example when moving the location of the bpglob binary that is
 	// executed during bootstrap before the primary builder has had a chance to update the path.
 	bootstrapEpoch = 1
+)
+
+var (
+	// Used during parallel update of symlinks in out directory to reflect new
+	// TOP dir.
+	symlinkWg            sync.WaitGroup
+	numFound, numUpdated uint32
 )
 
 func writeEnvironmentFile(_ Context, envFile string, envDeps map[string]string) error {
@@ -465,9 +475,117 @@ func checkEnvironmentFile(ctx Context, currentEnv *Environment, envFile string) 
 	}
 }
 
+func updateSymlinks(ctx Context, dir, prevCWD, cwd string) error {
+	defer symlinkWg.Done()
+
+	visit := func(path string, d fs.DirEntry, err error) error {
+		if d.IsDir() && path != dir {
+			symlinkWg.Add(1)
+			go updateSymlinks(ctx, path, prevCWD, cwd)
+			return filepath.SkipDir
+		}
+		f, err := d.Info()
+		if err != nil {
+			return err
+		}
+		// If the file is not a symlink, we don't have to update it.
+		if f.Mode()&os.ModeSymlink != os.ModeSymlink {
+			return nil
+		}
+
+		atomic.AddUint32(&numFound, 1)
+		target, err := os.Readlink(path)
+		if err != nil {
+			return err
+		}
+		if strings.HasPrefix(target, prevCWD) &&
+			(len(target) == len(prevCWD) || target[len(prevCWD)] == '/') {
+			target = filepath.Join(cwd, target[len(prevCWD):])
+			if err := os.Remove(path); err != nil {
+				return err
+			}
+			if err := os.Symlink(target, path); err != nil {
+				return err
+			}
+			atomic.AddUint32(&numUpdated, 1)
+		}
+		return nil
+	}
+
+	if err := filepath.WalkDir(dir, visit); err != nil {
+		return err
+	}
+	return nil
+}
+
+func fixOutDirSymlinks(ctx Context, config Config, outDir string) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	// Record the .top as the very last thing in the function.
+	tf := filepath.Join(outDir, ".top")
+	defer func() {
+		if err := os.WriteFile(tf, []byte(cwd), 0644); err != nil {
+			fmt.Fprintf(os.Stderr, fmt.Sprintf("Unable to log CWD: %v", err))
+		}
+	}()
+
+	// Find the previous working directory if it was recorded.
+	var prevCWD string
+	pcwd, err := os.ReadFile(tf)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// No previous working directory recorded, nothing to do.
+			return nil
+		}
+		return err
+	}
+	prevCWD = strings.Trim(string(pcwd), "\n")
+
+	if prevCWD == cwd {
+		// We are in the same source dir, nothing to update.
+		return nil
+	}
+
+	symlinkWg.Add(1)
+	if err := updateSymlinks(ctx, outDir, prevCWD, cwd); err != nil {
+		return err
+	}
+	symlinkWg.Wait()
+	ctx.Println(fmt.Sprintf("Updated %d/%d symlinks in dir %v", numUpdated, numFound, outDir))
+	return nil
+}
+
+func migrateOutputSymlinks(ctx Context, config Config) error {
+	// Figure out the real out directory ("out" could be a symlink).
+	outDir := config.OutDir()
+	s, err := os.Lstat(outDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// No out dir exists, no symlinks to migrate.
+			return nil
+		}
+		return err
+	}
+	if s.Mode()&os.ModeSymlink == os.ModeSymlink {
+		target, err := filepath.EvalSymlinks(outDir)
+		if err != nil {
+			return err
+		}
+		outDir = target
+	}
+	return fixOutDirSymlinks(ctx, config, outDir)
+}
+
 func runSoong(ctx Context, config Config) {
 	ctx.BeginTrace(metrics.RunSoong, "soong")
 	defer ctx.EndTrace()
+
+	if err := migrateOutputSymlinks(ctx, config); err != nil {
+		ctx.Fatalf("failed to migrate output directory to current TOP dir: %v", err)
+	}
 
 	// We have two environment files: .available is the one with every variable,
 	// .used with the ones that were actually used. The latter is used to
