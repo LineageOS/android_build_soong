@@ -193,3 +193,46 @@ java_library_static {
 		},
 	})
 }
+
+func TestJavaProtoPlugin(t *testing.T) {
+	runJavaProtoTestCase(t, Bp2buildTestCase{
+		Description:             "java_library proto plugin",
+		StubbedBuildDefinitions: []string{"protoc-gen-test-plugin"},
+		Blueprint: `java_library_static {
+    name: "java-protos",
+    srcs: ["a.proto"],
+    proto: {
+        plugin: "test-plugin",
+    },
+    sdk_version: "current",
+}
+
+java_library_static {
+    name: "protoc-gen-test-plugin",
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("proto_library", "java-protos_proto", AttrNameToString{
+				"srcs": `["a.proto"]`,
+			}),
+			MakeBazelTarget(
+				"java_lite_proto_library",
+				"java-protos_java_proto_lite",
+				AttrNameToString{
+					"deps":        `[":java-protos_proto"]`,
+					"plugin":      `":protoc-gen-test-plugin"`,
+					"sdk_version": `"current"`,
+				}),
+			MakeBazelTarget("java_library", "java-protos", AttrNameToString{
+				"exports":     `[":java-protos_java_proto_lite"]`,
+				"sdk_version": `"current"`,
+			}),
+			MakeNeverlinkDuplicateTargetWithAttrs(
+				"java_library",
+				"java-protos",
+				AttrNameToString{
+					"sdk_version": `"current"`,
+				}),
+		},
+	})
+}
