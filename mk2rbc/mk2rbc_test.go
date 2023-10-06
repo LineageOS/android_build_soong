@@ -193,6 +193,31 @@ def init(g, handle):
 	},
 
 	{
+		desc:   "Include with trailing whitespace",
+		mkname: "product.mk",
+		in: `
+# has a trailing whitespace after cfg.mk
+include vendor/$(foo)/cfg.mk 
+`,
+		expected: `# has a trailing whitespace after cfg.mk
+load("//build/make/core:product_config.rbc", "rblf")
+load("//vendor/foo1:cfg.star|init", _cfg_init = "init")
+load("//vendor/bar/baz:cfg.star|init", _cfg1_init = "init")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  _entry = {
+    "vendor/foo1/cfg.mk": ("vendor/foo1/cfg", _cfg_init),
+    "vendor/bar/baz/cfg.mk": ("vendor/bar/baz/cfg", _cfg1_init),
+  }.get("vendor/%s/cfg.mk" % _foo)
+  (_varmod, _varmod_init) = _entry if _entry else (None, None)
+  if not _varmod_init:
+    rblf.mkerror("product.mk", "Cannot find %s" % ("vendor/%s/cfg.mk" % _foo))
+  _varmod_init(g, handle)
+`,
+	},
+
+	{
 		desc:   "Synonymous inherited configurations",
 		mkname: "path/product.mk",
 		in: `

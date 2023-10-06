@@ -941,6 +941,8 @@ func (p *inheritProductCallParser) parse(ctx *parseContext, v mkparser.Node, arg
 
 func (ctx *parseContext) handleInclude(v *mkparser.Directive) []starlarkNode {
 	loadAlways := v.Name[0] != '-'
+	v.Args.TrimRightSpaces()
+	v.Args.TrimLeftSpaces()
 	return ctx.handleSubConfig(v, ctx.parseMakeString(v, v.Args), loadAlways, func(im inheritedModule) starlarkNode {
 		return &includeNode{im, loadAlways}
 	})
