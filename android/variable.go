@@ -481,8 +481,6 @@ type ProductVariables struct {
 
 	ReleaseAconfigFlagDefaultPermission string `json:",omitempty"`
 
-	ReleaseDefaultModuleBuildFromSource *bool `json:",omitempty"`
-
 	KeepVndk *bool `json:",omitempty"`
 
 	CheckVendorSeappViolations *bool `json:",omitempty"`
