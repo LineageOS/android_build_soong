@@ -672,6 +672,7 @@ var (
 
 		// prebuilts
 		"prebuilt_stats-log-api-gen",
+		"prebuilt_aapt2",
 
 		// fastboot
 		"fastboot",
