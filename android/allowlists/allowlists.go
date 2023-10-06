@@ -578,6 +578,7 @@ var (
 		"tagsoup",
 
 		// framework-minus-apex
+		"AndroidFrameworkLintChecker",
 		"ImmutabilityAnnotationProcessor",
 		"debian.mime.types.minimized",
 		"framework-javastream-protos",
