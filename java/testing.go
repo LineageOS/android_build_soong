@@ -410,6 +410,7 @@ func gatherRequiredDepsForTest() string {
 		"stub-annotations",
 
 		"aconfig-annotations-lib",
+		"unsupportedappusage",
 	}
 
 	for _, extra := range extraModules {
