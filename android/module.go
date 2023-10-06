@@ -1272,6 +1272,22 @@ func InitCommonOSAndroidMultiTargetsArchModule(m Module, hod HostOrDeviceSupport
 	m.base().commonProperties.CreateCommonOSVariant = true
 }
 
+func (attrs *CommonAttributes) getRequiredWithoutCycles(ctx *bottomUpMutatorContext, props *commonProperties) []string {
+	// Treat `required` as if it's empty if data should be skipped for this target,
+	// as `required` is only used for the `data` attribute at this time, and we want
+	// to avoid lookups of labels that won't actually be dependencies of this target.
+	// TODO: b/202299295 - Refactor this to use `required` dependencies, once they
+	// are handled other than passing to `data`.
+	if proptools.Bool(attrs.SkipData) {
+		return []string{}
+	}
+	// The required property can contain the module itself. This causes a cycle
+	// when generated as the 'data' label list attribute in Bazel. Remove it if
+	// it exists. See b/247985196.
+	_, requiredWithoutCycles := RemoveFromList(ctx.ModuleName(), props.Required)
+	return FirstUniqueStrings(requiredWithoutCycles)
+}
+
 func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *bottomUpMutatorContext,
 	enabledPropertyOverrides bazel.BoolAttribute) constraintAttributes {
 
@@ -1340,18 +1356,13 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *bottomUpMutato
 
 	attrs.Applicable_licenses = bazel.MakeLabelListAttribute(BazelLabelForModuleDeps(ctx, mod.commonProperties.Licenses))
 
-	// The required property can contain the module itself. This causes a cycle
-	// when generated as the 'data' label list attribute in Bazel. Remove it if
-	// it exists. See b/247985196.
-	_, requiredWithoutCycles := RemoveFromList(ctx.ModuleName(), mod.commonProperties.Required)
-	requiredWithoutCycles = FirstUniqueStrings(requiredWithoutCycles)
+	requiredWithoutCycles := attrs.getRequiredWithoutCycles(ctx, &mod.commonProperties)
 	required := depsToLabelList(requiredWithoutCycles)
 	archVariantProps := mod.GetArchVariantProperties(ctx, &commonProperties{})
 	for axis, configToProps := range archVariantProps {
 		for config, _props := range configToProps {
 			if archProps, ok := _props.(*commonProperties); ok {
-				_, requiredWithoutCycles := RemoveFromList(ctx.ModuleName(), archProps.Required)
-				requiredWithoutCycles = FirstUniqueStrings(requiredWithoutCycles)
+				requiredWithoutCycles := attrs.getRequiredWithoutCycles(ctx, archProps)
 				required.SetSelectValue(axis, config, depsToLabelList(requiredWithoutCycles).Value)
 				if !neitherHostNorDevice {
 					if archProps.Enabled != nil {
@@ -1408,9 +1419,8 @@ func (attrs *CommonAttributes) fillCommonBp2BuildModuleAttrs(ctx *bottomUpMutato
 		platformEnabledAttribute.Add(&l)
 	}
 
-	if !proptools.Bool(attrs.SkipData) {
-		attrs.Data.Append(required)
-	}
+	attrs.Data.Append(required)
+
 	// SkipData is not an attribute of any Bazel target
 	// Set this to nil so that it does not appear in the generated build file
 	attrs.SkipData = nil
