@@ -17,6 +17,7 @@ package python
 import (
 	"fmt"
 
+	"android/soong/testing"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -159,6 +160,7 @@ func (p *PythonTestModule) GenerateAndroidBuildActions(ctx android.ModuleContext
 			p.data = append(p.data, android.DataPath{SrcPath: javaDataSrcPath})
 		}
 	}
+	ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 }
 
 func (p *PythonTestModule) AndroidMkEntries() []android.AndroidMkEntries {

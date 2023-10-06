@@ -15,6 +15,7 @@ bootstrap_go_package {
         "soong-dexpreopt",
         "soong-genrule",
         "soong-java-config",
+        "soong-testing",
         "soong-provenance",
         "soong-python",
         "soong-remoteexec",

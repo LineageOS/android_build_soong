@@ -23,6 +23,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/dexpreopt"
+	"android/soong/testing"
 
 	"github.com/google/blueprint/proptools"
 
@@ -564,6 +565,7 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 	if ctx.Module() != ctx.FinalModule() {
 		b.HideFromMake()
 	}
+	ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 }
 
 // shouldCopyBootFilesToPredefinedLocations determines whether the current module should copy boot
