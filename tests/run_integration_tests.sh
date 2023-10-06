@@ -10,6 +10,7 @@ TOP="$(readlink -f "$(dirname "$0")"/../../..)"
 "$TOP/build/soong/tests/persistent_bazel_test.sh"
 "$TOP/build/soong/tests/soong_test.sh"
 "$TOP/build/soong/tests/stale_metrics_files_test.sh"
+"$TOP/build/soong/tests/symlink_forest_rerun_test.sh"
 "$TOP/prebuilts/build-tools/linux-x86/bin/py3-cmd" "$TOP/build/bazel/ci/rbc_dashboard.py" aosp_arm64-userdebug
 
 # The following tests build against the full source tree and don't rely on the
