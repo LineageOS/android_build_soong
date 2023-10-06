@@ -576,7 +576,7 @@ func createBuildConversionMetadata(ctx *android.Context) buildConversionMetadata
 				Dir:  ctx.ModuleDir(m),
 				Deps: m.(*bootstrap.GoPackage).Deps(),
 			}
-		} else if moduleType == "ndk_headers" {
+		} else if moduleType == "ndk_headers" || moduleType == "versioned_ndk_headers" {
 			ndkHeaders = append(ndkHeaders, m)
 		}
 	})

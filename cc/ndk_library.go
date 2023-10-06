@@ -61,7 +61,7 @@ var (
 			// because we don't want to spam the build output with "nothing
 			// changed" messages, so redirect output message to $out, and if
 			// changes were detected print the output and fail.
-			Command:     "$stgdiff $args --stg $in -o $out || (cat $out && false)",
+			Command:     "$stgdiff $args --stg $in -o $out || (cat $out && false; echo 'Run $$ANDROID_BUILD_TOP/development/tools/ndk/update_ndk_abi.sh to update the ABI dumps.')",
 			CommandDeps: []string{"$stgdiff"},
 		}, "args")
 
@@ -578,15 +578,6 @@ type bazelCcApiContributionAttributes struct {
 	Api_surfaces bazel.StringListAttribute
 	Hdrs         bazel.LabelListAttribute
 	Library_name string
-}
-
-// Names of the cc_api_header targets in the bp2build workspace
-func apiHeaderLabels(ctx android.TopDownMutatorContext, hdrLibs []string) bazel.LabelList {
-	addSuffix := func(ctx android.BazelConversionPathContext, module blueprint.Module) string {
-		label := android.BazelModuleLabel(ctx, module)
-		return android.ApiContributionTargetName(label)
-	}
-	return android.BazelLabelForModuleDepsWithFn(ctx, hdrLibs, addSuffix)
 }
 
 func ndkLibraryBp2build(ctx android.Bp2buildMutatorContext, c *Module) {

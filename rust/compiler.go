@@ -330,14 +330,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 	if ctx.Os() == android.Linux {
 		// Add -lc, -lrt, -ldl, -lpthread, -lm and -lgcc_s to glibc builds to match
 		// the default behavior of device builds.
-		flags.LinkFlags = append(flags.LinkFlags,
-			"-lc",
-			"-lrt",
-			"-ldl",
-			"-lpthread",
-			"-lm",
-			"-lgcc_s",
-		)
+		flags.LinkFlags = append(flags.LinkFlags, config.LinuxHostGlobalLinkFlags...)
 	} else if ctx.Os() == android.Darwin {
 		// Add -lc, -ldl, -lpthread and -lm to glibc darwin builds to match the default
 		// behavior of device builds.
