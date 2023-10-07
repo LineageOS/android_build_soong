@@ -468,12 +468,16 @@ func libraryBp2Build(ctx android.Bp2buildMutatorContext, m *Module) {
 		android.CommonAttributes{
 			Name: m.Name() + "_bp2build_cc_library_static",
 			Tags: tagsForStaticVariant,
+			// TODO: b/303307456 - Remove this when data is properly supported in cc rules.
+			SkipData: proptools.BoolPtr(true),
 		},
 		staticTargetAttrs, staticAttrs.Enabled)
 	ctx.CreateBazelTargetModuleWithRestrictions(sharedProps,
 		android.CommonAttributes{
 			Name: m.Name(),
 			Tags: tagsForSharedVariant,
+			// TODO: b/303307456 - Remove this when data is properly supported in cc rules.
+			SkipData: proptools.BoolPtr(true),
 		},
 		sharedTargetAttrs, sharedAttrs.Enabled)
 
@@ -496,8 +500,11 @@ func createStubsBazelTargetIfNeeded(ctx android.Bp2buildMutatorContext, m *Modul
 			Deps:                 baseAttributes.deps,
 			Api_surface:          proptools.StringPtr("module-libapi"),
 		}
-		ctx.CreateBazelTargetModule(stubSuitesProps,
-			android.CommonAttributes{Name: m.Name() + "_stub_libs"},
+		ctx.CreateBazelTargetModule(stubSuitesProps, android.CommonAttributes{
+			Name: m.Name() + "_stub_libs",
+			// TODO: b/303307456 - Remove this when data is properly supported in cc rules.
+			SkipData: proptools.BoolPtr(true),
+		},
 			stubSuitesAttrs)
 
 		// Add alias for the stub shared_library in @api_surfaces repository
@@ -2935,7 +2942,12 @@ func sharedOrStaticLibraryBp2Build(ctx android.Bp2buildMutatorContext, module *M
 
 	tags := android.ApexAvailableTagsWithoutTestApexes(ctx, module)
 
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name(), Tags: tags}, attrs)
+	ctx.CreateBazelTargetModule(props, android.CommonAttributes{
+		Name: module.Name(),
+		Tags: tags,
+		// TODO: b/303307456 - Remove this when data is properly supported in cc rules.
+		SkipData: proptools.BoolPtr(true),
+	}, attrs)
 }
 
 type includesAttributes struct {
