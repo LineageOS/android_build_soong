@@ -5251,3 +5251,57 @@ versioned_ndk_headers {
 	}
 	runCcLibraryTestCase(t, tc)
 }
+
+// Regression test for b/303307456.
+// TODO: b/202299295 - Remove this test when cc rules have proper support
+// for the `required` property
+func TestCcModules_requiredProperty(t *testing.T) {
+	runCcLibrarySharedTestCase(t, Bp2buildTestCase{
+		Description: "cc modules do not use the required property",
+		Filesystem: map[string]string{
+			"foo.c": "",
+			"bar.c": "",
+		},
+		Blueprint: soongCcLibraryPreamble + `
+cc_library {
+    name: "foo_both",
+    srcs: ["foo.c"],
+    include_build_directory: false,
+    required: ["bar"],
+}
+cc_library_shared {
+    name: "foo_shared",
+    srcs: ["foo.c"],
+    include_build_directory: false,
+    required: ["bar"],
+}
+cc_library_static {
+    name: "foo_static",
+    srcs: ["foo.c"],
+    include_build_directory: false,
+    required: ["bar"],
+}
+cc_library_static {
+    name: "bar",
+    srcs: ["bar.c"],
+    include_build_directory: false,
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "foo_both_bp2build_cc_library_static", AttrNameToString{
+				"srcs_c": `["foo.c"]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "foo_both", AttrNameToString{
+				"srcs_c": `["foo.c"]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
+				"srcs_c": `["foo.c"]`,
+			}),
+			MakeBazelTarget("cc_library_static", "foo_static", AttrNameToString{
+				"srcs_c": `["foo.c"]`,
+			}),
+			MakeBazelTarget("cc_library_static", "bar", AttrNameToString{
+				"srcs_c": `["bar.c"]`,
+			}),
+		},
+	})
+}

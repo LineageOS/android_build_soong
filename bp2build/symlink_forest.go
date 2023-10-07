@@ -22,7 +22,6 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -32,18 +31,11 @@ import (
 )
 
 // A tree structure that describes what to do at each directory in the created
-// symlink tree. Currently it is used to enumerate which files/directories
+// symlink tree. Currently, it is used to enumerate which files/directories
 // should be excluded from symlinking. Each instance of "node" represents a file
 // or a directory. If excluded is true, then that file/directory should be
 // excluded from symlinking. Otherwise, the node is not excluded, but one of its
 // descendants is (otherwise the node in question would not exist)
-
-// This is a version int written to a file called symlink_forest_version at the root of the
-// symlink forest. If the version here does not match the version in the file, then we'll
-// clean the whole symlink forest and recreate it. This number can be bumped whenever there's
-// an incompatible change to the forest layout or a bug in incrementality that needs to be fixed
-// on machines that may still have the bug present in their forest.
-const symlinkForestVersion = 2
 
 type instructionsNode struct {
 	name     string
@@ -193,7 +185,7 @@ func symlinkIntoForest(topdir, dst, src string) uint64 {
 	srcPath := shared.JoinPath(topdir, src)
 	dstPath := shared.JoinPath(topdir, dst)
 
-	// Check if a symlink already exists.
+	// Check whether a symlink already exists.
 	if dstInfo, err := os.Lstat(dstPath); err != nil {
 		if !os.IsNotExist(err) {
 			fmt.Fprintf(os.Stderr, "Failed to lstat '%s': %s", dst, err)
@@ -240,44 +232,49 @@ func isDir(path string, fi os.FileInfo) bool {
 	return false
 }
 
-// maybeCleanSymlinkForest will remove the whole symlink forest directory if the version recorded
-// in the symlink_forest_version file is not equal to symlinkForestVersion.
-func maybeCleanSymlinkForest(topdir, forest string, verbose bool) error {
-	versionFilePath := shared.JoinPath(topdir, forest, "symlink_forest_version")
-	versionFileContents, err := os.ReadFile(versionFilePath)
-	if err != nil && !os.IsNotExist(err) {
-		return err
+// Returns the mtime of the soong_build binary to determine whether we should
+// force symlink_forest to re-execute
+func getSoongBuildMTime() (int64, error) {
+	binaryPath, err := os.Executable()
+	if err != nil {
+		return 0, err
 	}
-	versionFileString := strings.TrimSpace(string(versionFileContents))
-	symlinkForestVersionString := strconv.Itoa(symlinkForestVersion)
-	if err != nil || versionFileString != symlinkForestVersionString {
-		if verbose {
-			fmt.Fprintf(os.Stderr, "Old symlink_forest_version was %q, current is %q. Cleaning symlink forest before recreating...\n", versionFileString, symlinkForestVersionString)
-		}
-		err = os.RemoveAll(shared.JoinPath(topdir, forest))
-		if err != nil {
-			return err
-		}
+
+	info, err := os.Stat(binaryPath)
+	if err != nil {
+		return 0, err
 	}
-	return nil
+
+	return info.ModTime().UnixMilli(), nil
 }
 
-// maybeWriteVersionFile will write the symlink_forest_version file containing symlinkForestVersion
-// if it doesn't exist already. If it exists we know it must contain symlinkForestVersion because
-// we checked for that already in maybeCleanSymlinkForest
-func maybeWriteVersionFile(topdir, forest string) error {
-	versionFilePath := shared.JoinPath(topdir, forest, "symlink_forest_version")
-	_, err := os.Stat(versionFilePath)
+// cleanSymlinkForest will remove the whole symlink forest directory
+func cleanSymlinkForest(topdir, forest string) error {
+	return os.RemoveAll(shared.JoinPath(topdir, forest))
+}
+
+// This returns whether symlink forest should clean and replant symlinks.
+// It compares the mtime of this executable with the mtime of the last-run
+// soong_build binary. If they differ, then we should clean and replant.
+func shouldCleanSymlinkForest(topdir string, forest string, soongBuildMTime int64) (bool, error) {
+	mtimeFilePath := shared.JoinPath(topdir, forest, "soong_build_mtime")
+	mtimeFileContents, err := os.ReadFile(mtimeFilePath)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-		err = os.WriteFile(versionFilePath, []byte(strconv.Itoa(symlinkForestVersion)+"\n"), 0666)
-		if err != nil {
-			return err
+		if os.IsNotExist(err) {
+			// This is likely the first time this has run with this functionality - clean away!
+			return true, nil
+		} else {
+			return false, err
 		}
 	}
-	return nil
+	return strconv.FormatInt(soongBuildMTime, 10) != string(mtimeFileContents), nil
+}
+
+func writeSoongBuildMTimeFile(topdir, forest string, mtime int64) error {
+	mtimeFilePath := shared.JoinPath(topdir, forest, "soong_build_mtime")
+	contents := []byte(strconv.FormatInt(mtime, 10))
+
+	return os.WriteFile(mtimeFilePath, contents, 0666)
 }
 
 // Recursively plants a symlink forest at forestDir. The symlink tree will
@@ -473,10 +470,24 @@ func PlantSymlinkForest(verbose bool, topdir string, forest string, buildFiles s
 		symlinkCount: atomic.Uint64{},
 	}
 
-	err := maybeCleanSymlinkForest(topdir, forest, verbose)
+	// Check whether soong_build has been modified since the last run
+	soongBuildMTime, err := getSoongBuildMTime()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
+	}
+
+	shouldClean, err := shouldCleanSymlinkForest(topdir, forest, soongBuildMTime)
+
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	} else if shouldClean {
+		err = cleanSymlinkForest(topdir, forest)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	}
 
 	instructions := instructionsFromExcludePathList(exclude)
@@ -491,11 +502,10 @@ func PlantSymlinkForest(verbose bool, topdir string, forest string, buildFiles s
 		deps = append(deps, dep)
 	}
 
-	err = maybeWriteVersionFile(topdir, forest)
+	err = writeSoongBuildMTimeFile(topdir, forest, soongBuildMTime)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-
 	return deps, context.mkdirCount.Load(), context.symlinkCount.Load()
 }
