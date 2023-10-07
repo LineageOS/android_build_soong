@@ -58,6 +58,8 @@ func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) DepsMutator(module *ja
 
 	// Add aconfig-annotations-lib as a dependency for the optimization / code stripping annotations
 	module.AddSharedLibrary("aconfig-annotations-lib")
+	// TODO(b/303773055): Remove the annotation after access issue is resolved.
+	module.AddSharedLibrary("unsupportedappusage")
 }
 
 func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) GenerateSourceJarBuildActions(module *java.GeneratedJavaLibraryModule, ctx android.ModuleContext) android.Path {
