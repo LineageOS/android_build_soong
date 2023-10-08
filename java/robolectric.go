@@ -34,7 +34,7 @@ func init() {
 
 var robolectricDefaultLibs = []string{
 	"mockito-robolectric-prebuilt",
-	"truth-prebuilt",
+	"truth",
 	// TODO(ccross): this is not needed at link time
 	"junitxml",
 }
