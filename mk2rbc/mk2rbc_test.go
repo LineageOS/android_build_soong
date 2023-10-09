@@ -923,8 +923,6 @@ def init(g, handle):
   cfg["PRODUCT_LIST2"] += ["a"]
   cfg["PRODUCT_LIST1"] += ["b"]
   cfg["PRODUCT_LIST2"] += ["b"]
-  if cfg.get("PRODUCT_LIST3") == None:
-    cfg["PRODUCT_LIST3"] = ["a"]
   cfg["PRODUCT_LIST1"] = ["c"]
   g.setdefault("PLATFORM_LIST", [])
   g["PLATFORM_LIST"] += ["x"]
@@ -966,9 +964,10 @@ PRODUCT_LIST1 = a $(PRODUCT_LIST1)
 PRODUCT_LIST2 ?= a $(PRODUCT_LIST2)
 PRODUCT_LIST3 += a
 
-# Now doing them again should not have a setdefault because they've already been set
+# Now doing them again should not have a setdefault because they've already been set, except 2
+# which did not emit an assignment before
 PRODUCT_LIST1 = a $(PRODUCT_LIST1)
-PRODUCT_LIST2 ?= a $(PRODUCT_LIST2)
+PRODUCT_LIST2 = a $(PRODUCT_LIST2)
 PRODUCT_LIST3 += a
 `,
 		expected: `# All of these should have a setdefault because they're self-referential and not defined before
@@ -979,18 +978,15 @@ def init(g, handle):
   rblf.setdefault(handle, "PRODUCT_LIST1")
   cfg["PRODUCT_LIST1"] = (["a"] +
       cfg.get("PRODUCT_LIST1", []))
-  if cfg.get("PRODUCT_LIST2") == None:
-    rblf.setdefault(handle, "PRODUCT_LIST2")
-    cfg["PRODUCT_LIST2"] = (["a"] +
-        cfg.get("PRODUCT_LIST2", []))
   rblf.setdefault(handle, "PRODUCT_LIST3")
   cfg["PRODUCT_LIST3"] += ["a"]
-  # Now doing them again should not have a setdefault because they've already been set
+  # Now doing them again should not have a setdefault because they've already been set, except 2
+  # which did not emit an assignment before
   cfg["PRODUCT_LIST1"] = (["a"] +
       cfg["PRODUCT_LIST1"])
-  if cfg.get("PRODUCT_LIST2") == None:
-    cfg["PRODUCT_LIST2"] = (["a"] +
-        cfg["PRODUCT_LIST2"])
+  rblf.setdefault(handle, "PRODUCT_LIST2")
+  cfg["PRODUCT_LIST2"] = (["a"] +
+      cfg.get("PRODUCT_LIST2", []))
   cfg["PRODUCT_LIST3"] += ["a"]
 `,
 	},
