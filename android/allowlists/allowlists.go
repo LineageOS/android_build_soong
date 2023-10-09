@@ -854,6 +854,7 @@ var (
 		"kotlinx_coroutines",
 		"kotlinx_coroutines-device",
 		"kotlinx_coroutines-host",
+		"kotlinx_coroutines_android",
 
 		// for building com.android.neuralnetworks
 		"libimapper_stablec",
