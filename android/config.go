@@ -1455,7 +1455,7 @@ func (c *deviceConfig) ExtraVndkVersions() []string {
 }
 
 func (c *deviceConfig) VndkUseCoreVariant() bool {
-	return Bool(c.config.productVariables.VndkUseCoreVariant)
+	return Bool(c.config.productVariables.VndkUseCoreVariant) && Bool(c.config.productVariables.KeepVndk)
 }
 
 func (c *deviceConfig) SystemSdkVersions() []string {
