@@ -86,7 +86,7 @@ var (
 	memtagStackCommonFlags = []string{"-march=armv8-a+memtag", "-mllvm", "-dom-tree-reachability-max-bbs-to-explore=128"}
 
 	hostOnlySanitizeFlags   = []string{"-fno-sanitize-recover=all"}
-	deviceOnlySanitizeFlags = []string{"-fsanitize-trap=all", "-ftrap-function=abort"}
+	deviceOnlySanitizeFlags = []string{"-fsanitize-trap=all"}
 
 	noSanitizeLinkRuntimeFlag = "-fno-sanitize-link-runtime"
 )
