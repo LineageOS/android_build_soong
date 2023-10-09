@@ -124,18 +124,20 @@ func (b *bindgenDecorator) getStdVersion(ctx ModuleContext, src android.Path) (s
 		ctx.PropertyErrorf("c_std", "c_std and cpp_std cannot both be defined at the same time.")
 	}
 
-	if String(b.ClangProperties.Cpp_std) != "" {
+	if b.ClangProperties.Cpp_std != nil {
+		isCpp = true
 		if String(b.ClangProperties.Cpp_std) == "experimental" {
 			stdVersion = cc_config.ExperimentalCppStdVersion
-		} else if String(b.ClangProperties.Cpp_std) == "default" {
+		} else if String(b.ClangProperties.Cpp_std) == "default" || String(b.ClangProperties.Cpp_std) == "" {
 			stdVersion = cc_config.CppStdVersion
 		} else {
 			stdVersion = String(b.ClangProperties.Cpp_std)
 		}
 	} else if b.ClangProperties.C_std != nil {
+		isCpp = false
 		if String(b.ClangProperties.C_std) == "experimental" {
 			stdVersion = cc_config.ExperimentalCStdVersion
-		} else if String(b.ClangProperties.C_std) == "default" {
+		} else if String(b.ClangProperties.C_std) == "default" || String(b.ClangProperties.C_std) == "" {
 			stdVersion = cc_config.CStdVersion
 		} else {
 			stdVersion = String(b.ClangProperties.C_std)
