@@ -574,7 +574,7 @@ func gatherRequiredDepsForTest() string {
 	return bp
 }
 
-func CheckModuleDependencies(t *testing.T, ctx *android.TestContext, name, variant string, expected []string) {
+func getModuleDependencies(t *testing.T, ctx *android.TestContext, name, variant string) []string {
 	t.Helper()
 	module := ctx.ModuleForTests(name, variant).Module()
 	deps := []string{}
@@ -583,9 +583,27 @@ func CheckModuleDependencies(t *testing.T, ctx *android.TestContext, name, varia
 	})
 	sort.Strings(deps)
 
+	return deps
+}
+
+// CheckModuleDependencies checks if the expected dependencies of the module are
+// identical to the actual dependencies.
+func CheckModuleDependencies(t *testing.T, ctx *android.TestContext, name, variant string, expected []string) {
+	deps := getModuleDependencies(t, ctx, name, variant)
+
 	if actual := deps; !reflect.DeepEqual(expected, actual) {
 		t.Errorf("expected %#q, found %#q", expected, actual)
 	}
+}
+
+// CheckModuleHasDependency returns true if the module depends on the expected dependency.
+func CheckModuleHasDependency(t *testing.T, ctx *android.TestContext, name, variant string, expected string) bool {
+	for _, dep := range getModuleDependencies(t, ctx, name, variant) {
+		if dep == expected {
+			return true
+		}
+	}
+	return false
 }
 
 // CheckPlatformBootclasspathModules returns the apex:module pair for the modules depended upon by
