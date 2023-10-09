@@ -677,6 +677,7 @@ func TestVndkUsingCoreVariant(t *testing.T) {
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
 	config.TestProductVariables.VndkUseCoreVariant = BoolPtr(true)
+	config.TestProductVariables.KeepVndk = BoolPtr(true)
 
 	setVndkMustUseVendorVariantListForTest(config, []string{"libvndk"})
 
