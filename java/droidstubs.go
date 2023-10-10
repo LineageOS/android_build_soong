@@ -540,7 +540,9 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 
 	// Force metalava to sort overloaded methods by their order in the source code.
 	// See b/285312164 for more information.
-	cmd.FlagWithArg("--format-defaults ", "overloaded-method-order=source")
+	// And add concrete overrides of abstract methods, see b/299366704 for more
+	// information.
+	cmd.FlagWithArg("--format-defaults ", "overloaded-method-order=source,add-additional-overrides=yes")
 
 	return cmd
 }
