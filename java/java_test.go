@@ -2447,3 +2447,39 @@ func TestJavaApiLibraryApiFilesSorting(t *testing.T) {
 		"default/java/api/module-lib-current.txt default/java/api/system-server-current.txt"
 	android.AssertStringDoesContain(t, "source text files not in api scope order", manifestCommand, sourceFilesFlag)
 }
+
+func TestSdkLibraryProvidesSystemModulesToApiLibrary(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("foo"),
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.SetApiLibraries([]string{"foo"})
+		}),
+		android.FixtureMergeMockFs(
+			map[string][]byte{
+				"A.java": nil,
+			},
+		),
+	).RunTestWithBp(t, `
+		java_library {
+			name: "bar",
+			srcs: ["a.java"],
+		}
+		java_system_modules {
+			name: "baz",
+			libs: ["bar"],
+		}
+		java_sdk_library {
+			name: "foo",
+			srcs: ["A.java"],
+			system_modules: "baz",
+		}
+	`)
+	m := result.ModuleForTests(apiScopePublic.apiLibraryModuleName("foo"), "android_common")
+	manifest := m.Output("metalava.sbox.textproto")
+	sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
+	manifestCommand := sboxProto.Commands[0].GetCommand()
+	classPathFlag := "--classpath __SBOX_SANDBOX_DIR__/out/.intermediates/bar/android_common/turbine-combined/bar.jar"
+	android.AssertStringDoesContain(t, "command expected to contain classpath flag", manifestCommand, classPathFlag)
+}
