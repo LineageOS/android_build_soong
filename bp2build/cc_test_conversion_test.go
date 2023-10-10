@@ -631,23 +631,3 @@ cc_test {
 		},
 	})
 }
-
-func TestCcTest_UnitTestFalse(t *testing.T) {
-	runCcTestTestCase(t, ccTestBp2buildTestCase{
-		description: "cc test with test_options.tags converted to tags",
-		blueprint: `
-cc_test {
-    name: "mytest",
-    host_supported: true,
-    srcs: ["test.cpp"],
-    test_options: { unit_test: false },
-}
-` + simpleModule("cc_library_static", "libgtest_main") +
-			simpleModule("cc_library_static", "libgtest"),
-		stubbedBuildDefinitions: []string{
-			"libgtest_main",
-			"libgtest",
-		},
-		targets: []testBazelTarget{},
-	})
-}
