@@ -21,6 +21,13 @@ import (
 	"testing"
 )
 
+func runJavaImportTestCaseWithRegistrationCtxFunc(t *testing.T, tc Bp2buildTestCase, registrationCtxFunc func(ctx android.RegistrationContext)) {
+	t.Helper()
+	(&tc).ModuleTypeUnderTest = "java_import"
+	(&tc).ModuleTypeUnderTestFactory = java.ImportFactory
+	RunBp2BuildTestCase(t, registrationCtxFunc, tc)
+}
+
 func runJavaImportTestCase(t *testing.T, tc Bp2buildTestCase) {
 	t.Helper()
 	RunBp2BuildTestCase(t, registerJavaImportModuleTypes, tc)
@@ -119,4 +126,32 @@ java_import_host {
 				"sdk_version": `"none"`,
 			}),
 		}})
+}
+
+func TestJavaImportSameNameAsJavaLibrary(t *testing.T) {
+	runJavaImportTestCaseWithRegistrationCtxFunc(t, Bp2buildTestCase{
+		Description: "java_import has the same name as other package java_library's",
+		Filesystem: map[string]string{
+			"foo/bar/Android.bp": simpleModule("java_library", "test_lib"),
+			"test.jar":           "",
+		},
+		Blueprint: `java_import {
+    name: "test_lib",
+    jars: ["test.jar"],
+    bazel_module: { bp2build_available: true },
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("java_import", "test_lib", AttrNameToString{
+				"jars": `["test.jar"]`,
+			}),
+			MakeBazelTarget("java_library", "test_lib-neverlink", AttrNameToString{
+				"exports":     `[":test_lib"]`,
+				"neverlink":   `True`,
+				"sdk_version": `"none"`,
+			}),
+		},
+	}, func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("java_library", java.LibraryFactory)
+	})
 }
