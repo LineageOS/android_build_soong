@@ -68,7 +68,7 @@ func (lto *lto) props() []interface{} {
 
 func (lto *lto) begin(ctx BaseModuleContext) {
 	// First, determine the module independent default LTO mode.
-	ltoDefault := GlobalThinLTO(ctx)
+	ltoDefault := true
 	if ctx.Config().IsEnvTrue("DISABLE_LTO") {
 		ltoDefault = false
 	} else if lto.Never() {
@@ -163,10 +163,6 @@ func (lto *lto) Never() bool {
 	return lto != nil && proptools.Bool(lto.Properties.Lto.Never)
 }
 
-func GlobalThinLTO(ctx android.BaseModuleContext) bool {
-	return !ctx.Config().IsEnvFalse("GLOBAL_THINLTO")
-}
-
 // Propagate lto requirements down from binaries
 func ltoDepsMutator(mctx android.TopDownMutatorContext) {
 	if m, ok := mctx.Module().(*Module); ok {
@@ -205,8 +201,6 @@ func ltoDepsMutator(mctx android.TopDownMutatorContext) {
 
 // Create lto variants for modules that need them
 func ltoMutator(mctx android.BottomUpMutatorContext) {
-	globalThinLTO := GlobalThinLTO(mctx)
-
 	if m, ok := mctx.Module().(*Module); ok && m.lto != nil {
 		// Create variations for LTO types required as static
 		// dependencies
@@ -218,10 +212,10 @@ func ltoMutator(mctx android.BottomUpMutatorContext) {
 			variationNames = append(variationNames, "lto-none")
 		}
 
-		if globalThinLTO && !m.lto.Properties.LtoEnabled {
+		if !m.lto.Properties.LtoEnabled {
 			mctx.SetDependencyVariation("lto-none")
 		}
-		if !globalThinLTO && m.lto.Properties.LtoEnabled {
+		if m.lto.Properties.LtoEnabled {
 			mctx.SetDependencyVariation("lto-thin")
 		}
 
