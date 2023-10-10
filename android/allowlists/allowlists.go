@@ -440,6 +440,8 @@ var (
 
 		// TODO(b/266459895): remove this and the placeholder BUILD file after re-enabling libunwindstack
 		"external/rust/crates/rustc-demangle-capi":/* recursive = */ false,
+
+		"vendor/lineage-priv/keys":/* recursive = */ false,
 	}
 
 	Bp2buildModuleAlwaysConvertList = []string{
