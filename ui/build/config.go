@@ -1370,6 +1370,19 @@ func (c *configImpl) rbeProxyLogsDir() string {
 			return v
 		}
 	}
+	return c.rbeTmpDir()
+}
+
+func (c *configImpl) rbeDownloadTmpDir() string {
+    for _, f := range []string{"RBE_download_tmp_dir", "FLAG_download_tmp_dir"} {
+		if v, ok := c.environ.Get(f); ok {
+			return v
+		}
+	}
+	return c.rbeTmpDir()
+}
+
+func (c *configImpl) rbeTmpDir() string {
 	buildTmpDir := shared.TempDirForOutDir(c.SoongOutDir())
 	return filepath.Join(buildTmpDir, "rbe")
 }
