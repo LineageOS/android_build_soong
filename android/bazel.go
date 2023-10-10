@@ -549,7 +549,8 @@ func (b *BazelModuleBase) shouldConvertWithBp2build(ctx shouldConvertModuleConte
 	// the same name are both allowlisted. This cannot be applied to all the *_import
 	// module types. For example, android_library_import has to use original module
 	// name here otherwise the *-nodeps targets cannot be handled correctly.
-	if strings.HasPrefix(p.moduleType, "java_import") {
+	// TODO(b/304385140): remove this special casing
+	if p.moduleType == "java_import" || p.moduleType == "java_import_host" {
 		moduleName = module.Name()
 	}
 
