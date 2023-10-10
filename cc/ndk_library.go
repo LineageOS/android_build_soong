@@ -594,9 +594,10 @@ func ndkLibraryBp2build(ctx android.Bp2buildMutatorContext, c *Module) {
 	symbolFileLabel := android.BazelLabelForModuleSrcSingle(ctx, proptools.String(ndk.properties.Symbol_file))
 	attrs := &bazelCcStubSuiteAttributes{
 		// TODO - b/300504837 Add ndk headers
-		Symbol_file: proptools.StringPtr(symbolFileLabel.Label),
-		Soname:      proptools.StringPtr(sourceLibraryName + ".so"),
-		Api_surface: proptools.StringPtr(android.PublicApi.String()),
+		Symbol_file:     proptools.StringPtr(symbolFileLabel.Label),
+		Soname:          proptools.StringPtr(sourceLibraryName + ".so"),
+		Api_surface:     proptools.StringPtr(android.PublicApi.String()),
+		Included_in_ndk: proptools.BoolPtr(true),
 	}
 	if sourceLibrary, exists := ctx.ModuleFromName(sourceLibraryName); exists {
 		// the source library might not exist in minimal/unbuildable branches like kernel-build-tools.
