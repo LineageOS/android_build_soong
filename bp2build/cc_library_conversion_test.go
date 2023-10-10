@@ -5178,6 +5178,7 @@ ndk_library {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_stub_suite", "libfoo.ndk_stub_libs", AttrNameToString{
 				"api_surface":          `"publicapi"`,
+				"included_in_ndk":      `True`,
 				"soname":               `"libfoo.so"`,
 				"source_library_label": `"//:libfoo"`,
 				"symbol_file":          `"libfoo.map.txt"`,
@@ -5304,4 +5305,62 @@ cc_library_static {
 			}),
 		},
 	})
+}
+
+func TestPropertiesIfStubLibraryIsInNdk(t *testing.T) {
+	tc := Bp2buildTestCase{
+		Description:                "If an equivalent ndk_library exists, set included_in_ndk=true for module-libapi stubs",
+		ModuleTypeUnderTest:        "cc_library",
+		ModuleTypeUnderTestFactory: cc.LibraryFactory,
+		Blueprint: `
+// libfoo is an ndk library and contributes to module-libapi
+cc_library {
+	name: "libfoo",
+	stubs: {symbol_file: "libfoo.map.txt"},
+}
+ndk_library {
+	name: "libfoo",
+	first_version: "29",
+	symbol_file: "libfoo.map.txt",
+}
+// libbar is not an ndk library, but contributes to module-libapi
+cc_library {
+	name: "libbar",
+	stubs: {symbol_file: "libbar.map.txt"},
+}
+`,
+		StubbedBuildDefinitions: []string{"libfoo.ndk"},
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("cc_library_static", "libfoo_bp2build_cc_library_static", AttrNameToString{
+				"local_includes": `["."]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "libfoo", AttrNameToString{
+				"local_includes":    `["."]`,
+				"stubs_symbol_file": `"libfoo.map.txt"`,
+			}),
+			MakeBazelTarget("cc_stub_suite", "libfoo_stub_libs", AttrNameToString{
+				"api_surface":          `"module-libapi"`,
+				"soname":               `"libfoo.so"`,
+				"source_library_label": `"//:libfoo"`,
+				"symbol_file":          `"libfoo.map.txt"`,
+				"versions":             `["current"]`,
+				"included_in_ndk":      `True`,
+			}),
+			MakeBazelTarget("cc_library_static", "libbar_bp2build_cc_library_static", AttrNameToString{
+				"local_includes": `["."]`,
+			}),
+			MakeBazelTarget("cc_library_shared", "libbar", AttrNameToString{
+				"local_includes":    `["."]`,
+				"stubs_symbol_file": `"libbar.map.txt"`,
+			}),
+			MakeBazelTarget("cc_stub_suite", "libbar_stub_libs", AttrNameToString{
+				"api_surface":          `"module-libapi"`,
+				"soname":               `"libbar.so"`,
+				"source_library_label": `"//:libbar"`,
+				"symbol_file":          `"libbar.map.txt"`,
+				"versions":             `["current"]`,
+			}),
+		},
+	}
+	runCcLibraryTestCase(t, tc)
 }
