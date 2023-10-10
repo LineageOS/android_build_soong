@@ -17,6 +17,7 @@ package genrule
 var (
 	DepfileAllowList = []string{
 		"depfile_allowed_for_test",
+		"tflite_support_metadata_schema",
 		"tflite_support_spm_config",
 		"tflite_support_spm_encoder_config",
 		"gen_uwb_core_proto",
@@ -249,6 +250,13 @@ var (
 		"ue_unittest_erofs_imgs",
 		"vts_vndk_abi_dump_zip",
 		"atest_integration_fake_src",
+		"VehicleServerProtoStub_cc@2.0-grpc-trout",
+		"VehicleServerProtoStub_cc@default-grpc",
+		"VehicleServerProtoStub_h@default-grpc",
+		"VehicleServerProtoStub_h@2.0-grpc-trout",
+		"chre_atoms_log.h",
+		"checkIn-service-stub-lite",
+		"seller-frontend-service-stub-lite",
 	}
 
 	SandboxingDenyPathList = []string{
