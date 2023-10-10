@@ -500,6 +500,10 @@ func createStubsBazelTargetIfNeeded(ctx android.Bp2buildMutatorContext, m *Modul
 			Deps:                 baseAttributes.deps,
 			Api_surface:          proptools.StringPtr("module-libapi"),
 		}
+		if _, isNdk := ctx.ModuleFromName(m.Name() + ".ndk"); isNdk {
+			stubSuitesAttrs.Included_in_ndk = proptools.BoolPtr(true)
+		}
+
 		ctx.CreateBazelTargetModule(stubSuitesProps, android.CommonAttributes{
 			Name: m.Name() + "_stub_libs",
 			// TODO: b/303307456 - Remove this when data is properly supported in cc rules.
@@ -3023,6 +3027,13 @@ type bazelCcStubSuiteAttributes struct {
 	Soname               *string
 	Deps                 bazel.LabelListAttribute
 	Api_surface          *string
+
+	// Unless the library is in the NDK, module-libapi stubs should *not* include the public symbols
+	// Soong uses a global variable to determine if the library is in the NDK
+	// Since Bazel does not have global analysis, create an explicit property
+	// This property is only relevant if `api_surface = module-libapi`
+	// https://cs.android.com/android/_/android/platform/build/soong/+/main:cc/library.go;l=1214-1219;drc=7123cc5370a38983ee6325b5f5f6df19f4e4f10b;bpv=1;bpt=0
+	Included_in_ndk *bool
 }
 
 type bazelCcHeaderAbiCheckerAttributes struct {
