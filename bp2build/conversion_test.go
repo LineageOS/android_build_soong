@@ -107,10 +107,6 @@ func TestCreateBazelFiles_Bp2Build_CreatesDefaultFiles(t *testing.T) {
 		},
 		{
 			dir:      "cc_toolchain",
-			basename: "ndk_libs.bzl",
-		},
-		{
-			dir:      "cc_toolchain",
 			basename: "sanitizer_constants.bzl",
 		},
 		{
