@@ -575,12 +575,12 @@ type bazelShBinaryAttributes struct {
 }
 
 type bazelShTestAttributes struct {
-	Srcs                 bazel.LabelListAttribute
-	Data                 bazel.LabelListAttribute
-	Tags                 bazel.StringListAttribute
-	Test_config          *string
-	Test_config_template *string
-	Auto_gen_config      *bool
+	Srcs      bazel.LabelListAttribute
+	Data      bazel.LabelListAttribute
+	Data_bins bazel.LabelListAttribute
+	Tags      bazel.StringListAttribute
+	Runs_on   bazel.StringListAttribute
+	tradefed.TestConfigAttributes
 }
 
 func (m *ShBinary) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
@@ -615,28 +615,42 @@ func (m *ShTest) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	srcs := bazel.MakeLabelListAttribute(
 		android.BazelLabelForModuleSrc(ctx, []string{*m.properties.Src}))
 
-	combinedData := append(m.testProperties.Data, m.testProperties.Data_bins...)
-	combinedData = append(combinedData, m.testProperties.Data_libs...)
+	dataBins := bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, m.testProperties.Data_bins))
 
-	data := bazel.MakeLabelListAttribute(
-		android.BazelLabelForModuleSrc(ctx, combinedData))
+	var combinedData bazel.LabelList
+	combinedData.Append(android.BazelLabelForModuleSrc(ctx, m.testProperties.Data))
+	combinedData.Append(android.BazelLabelForModuleDeps(ctx, m.testProperties.Data_bins))
+	combinedData.Append(android.BazelLabelForModuleDeps(ctx, m.testProperties.Data_libs))
+	data := bazel.MakeLabelListAttribute(combinedData)
 
 	tags := bazel.MakeStringListAttribute(
 		m.testProperties.Test_options.Tags)
 
-	test_config := m.testProperties.Test_config
+	testConfigAttributes := tradefed.GetTestConfigAttributes(
+		ctx,
+		m.testProperties.Test_config,
+		[]string{},
+		m.testProperties.Auto_gen_config,
+		m.testProperties.Test_suites,
+		m.testProperties.Test_config_template,
+		nil,
+		nil,
+	)
 
-	test_config_template := m.testProperties.Test_config_template
+	unitTest := m.testProperties.Test_options.Unit_test
 
-	auto_gen_config := m.testProperties.Auto_gen_config
+	runs_on := bazel.MakeStringListAttribute(android.RunsOn(
+		m.ModuleBase.HostSupported(),
+		m.ModuleBase.DeviceSupported(),
+		(unitTest != nil && *unitTest)))
 
 	attrs := &bazelShTestAttributes{
 		Srcs:                 srcs,
 		Data:                 data,
+		Data_bins:            dataBins,
 		Tags:                 tags,
-		Test_config:          test_config,
-		Test_config_template: test_config_template,
-		Auto_gen_config:      auto_gen_config,
+		Runs_on:              runs_on,
+		TestConfigAttributes: testConfigAttributes,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
