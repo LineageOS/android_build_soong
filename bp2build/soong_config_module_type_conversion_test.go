@@ -1207,13 +1207,13 @@ cc_binary {
     local_includes = ["."],
     srcs = ["main.cc"],
     target_compatible_with = select({
-        "//build/bazel/platforms/os_arch:android_x86_64": ["@platforms//:incompatible"],
-        "//build/bazel/platforms/os_arch:darwin_arm64": ["@platforms//:incompatible"],
-        "//build/bazel/platforms/os_arch:darwin_x86_64": ["@platforms//:incompatible"],
-        "//build/bazel/platforms/os_arch:linux_bionic_x86_64": ["@platforms//:incompatible"],
-        "//build/bazel/platforms/os_arch:linux_glibc_x86_64": ["@platforms//:incompatible"],
-        "//build/bazel/platforms/os_arch:linux_musl_x86_64": ["@platforms//:incompatible"],
-        "//build/bazel/platforms/os_arch:windows_x86_64": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os_arch:android_x86_64": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os_arch:darwin_arm64": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os_arch:darwin_x86_64": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os_arch:linux_bionic_x86_64": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os_arch:linux_glibc_x86_64": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os_arch:linux_musl_x86_64": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os_arch:windows_x86_64": ["@platforms//:incompatible"],
         "//conditions:default": [],
     }) + select({
         "//build/bazel/product_config/config_settings:alphabet_module__special_build": [],
@@ -1423,7 +1423,7 @@ cc_binary {
 		ExpectedBazelTargets: []string{`cc_binary(
     name = "my_binary",
     copts = select({
-        "//build/bazel/platforms/os:android": ["-DFOO"],
+        "//build/bazel_common_rules/platforms/os:android": ["-DFOO"],
         "//conditions:default": [],
     }) + select({
         "//build/bazel/product_config/config_settings:my_namespace__my_bool_variable__android": ["-DBAR"],
@@ -1440,7 +1440,7 @@ cc_binary {
     }),
     local_includes = ["."],
     srcs = ["main.cc"],
-    target_compatible_with = ["//build/bazel/platforms/os:android"],
+    target_compatible_with = ["//build/bazel_common_rules/platforms/os:android"],
 )`}})
 }
 

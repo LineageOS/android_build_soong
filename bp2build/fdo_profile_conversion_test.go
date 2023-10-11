@@ -50,8 +50,8 @@ fdo_profile {
 }`,
 			expectedBazelAttrs: AttrNameToString{
 				"profile": `select({
-        "//build/bazel/platforms/arch:arm": "foo_arm.afdo",
-        "//build/bazel/platforms/arch:arm64": "foo_arm64.afdo",
+        "//build/bazel_common_rules/platforms/arch:arm": "foo_arm.afdo",
+        "//build/bazel_common_rules/platforms/arch:arm64": "foo_arm64.afdo",
         "//conditions:default": None,
     })`,
 			},

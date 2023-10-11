@@ -117,26 +117,26 @@ cc_test_library {
         ":libgtest_main",
         ":libgtest",
     ] + select({
-        "//build/bazel/platforms/os:darwin": [":hostlib"],
-        "//build/bazel/platforms/os:linux_bionic": [":hostlib"],
-        "//build/bazel/platforms/os:linux_glibc": [":hostlib"],
-        "//build/bazel/platforms/os:linux_musl": [":hostlib"],
-        "//build/bazel/platforms/os:windows": [":hostlib"],
+        "//build/bazel_common_rules/platforms/os:darwin": [":hostlib"],
+        "//build/bazel_common_rules/platforms/os:linux_bionic": [":hostlib"],
+        "//build/bazel_common_rules/platforms/os:linux_glibc": [":hostlib"],
+        "//build/bazel_common_rules/platforms/os:linux_musl": [":hostlib"],
+        "//build/bazel_common_rules/platforms/os:windows": [":hostlib"],
         "//conditions:default": [],
     })`,
 				"local_includes": `["."]`,
 				"dynamic_deps": `[":cc_test_lib2"] + select({
-        "//build/bazel/platforms/os:android": [":foolib"],
+        "//build/bazel_common_rules/platforms/os:android": [":foolib"],
         "//conditions:default": [],
     })`,
 				"srcs": `["test.cpp"] + select({
-        "//build/bazel/platforms/os:android": [
+        "//build/bazel_common_rules/platforms/os:android": [
             "linux.cpp",
             "android.cpp",
         ],
-        "//build/bazel/platforms/os:linux_bionic": ["linux.cpp"],
-        "//build/bazel/platforms/os:linux_glibc": ["linux.cpp"],
-        "//build/bazel/platforms/os:linux_musl": ["linux.cpp"],
+        "//build/bazel_common_rules/platforms/os:linux_bionic": ["linux.cpp"],
+        "//build/bazel_common_rules/platforms/os:linux_glibc": ["linux.cpp"],
+        "//build/bazel_common_rules/platforms/os:linux_musl": ["linux.cpp"],
         "//conditions:default": [],
     })`,
 				"runs_on": `[
@@ -144,7 +144,7 @@ cc_test_library {
         "device",
     ]`,
 				"features": `select({
-        "//build/bazel/platforms/os_arch:android_arm64": [
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": [
             "memtag_heap",
             "diag_memtag_heap",
         ],
@@ -178,7 +178,7 @@ cc_test {
         "device",
     ]`,
 				"features": `select({
-        "//build/bazel/platforms/os_arch:android_arm64": [
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": [
             "memtag_heap",
             "diag_memtag_heap",
         ],
@@ -217,7 +217,7 @@ cc_test {
         "device",
     ]`,
 				"features": `select({
-        "//build/bazel/platforms/os_arch:android_arm64": [
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": [
             "memtag_heap",
             "diag_memtag_heap",
         ],
@@ -248,7 +248,7 @@ cc_test {
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
 				"srcs":                   `["test.cpp"]`,
-				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 				"test_config":            `"test_config.xml"`,
 				"deps": `[
         ":libgtest_main",
@@ -256,7 +256,7 @@ cc_test {
     ]`,
 				"runs_on": `["device"]`,
 				"features": `select({
-        "//build/bazel/platforms/os_arch:android_arm64": [
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": [
             "memtag_heap",
             "diag_memtag_heap",
         ],
@@ -287,7 +287,7 @@ cc_test {
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
 				"srcs":                   `["test.cpp"]`,
-				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 				"test_config":            `"AndroidTest.xml"`,
 				"dynamic_config":         `"DynamicConfig.xml"`,
 				"deps": `[
@@ -296,7 +296,7 @@ cc_test {
     ]`,
 				"runs_on": `["device"]`,
 				"features": `select({
-        "//build/bazel/platforms/os_arch:android_arm64": [
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": [
             "memtag_heap",
             "diag_memtag_heap",
         ],
@@ -330,7 +330,7 @@ cc_test {
 				"auto_generate_test_config": "True",
 				"local_includes":            `["."]`,
 				"srcs":                      `["test.cpp"]`,
-				"target_compatible_with":    `["//build/bazel/platforms/os:android"]`,
+				"target_compatible_with":    `["//build/bazel_common_rules/platforms/os:android"]`,
 				"template_configs": `[
         "'<target_preparer class=\"com.android.tradefed.targetprep.RootTargetPreparer\">\\n        <option name=\"force-root\" value=\"false\" />\\n    </target_preparer>'",
         "'<option name=\"not-shardable\" value=\"true\" />'",
@@ -341,7 +341,7 @@ cc_test {
 				"dynamic_deps":          `[":liblog"]`,
 				"runs_on":               `["device"]`,
 				"features": `select({
-        "//build/bazel/platforms/os_arch:android_arm64": [
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": [
             "memtag_heap",
             "diag_memtag_heap",
         ],
@@ -369,14 +369,14 @@ cc_test {
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
 				"srcs":                   `["test.cpp"]`,
-				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 				"deps": `[
         ":libgtest",
         ":libgtest_main",
     ]`,
 				"runs_on": `["device"]`,
 				"features": `select({
-        "//build/bazel/platforms/os_arch:android_arm64": [
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": [
             "memtag_heap",
             "diag_memtag_heap",
         ],
@@ -405,12 +405,12 @@ cc_test {
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
 				"srcs":                   `["test.cpp"]`,
-				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 				"deps":                   `[":libgtest_isolated_main"]`,
 				"dynamic_deps":           `[":liblog"]`,
 				"runs_on":                `["device"]`,
 				"features": `select({
-        "//build/bazel/platforms/os_arch:android_arm64": [
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": [
             "memtag_heap",
             "diag_memtag_heap",
         ],
@@ -446,10 +446,10 @@ cc_test {
         ":libgtest",
     ]`,
 				"gtest":                  "True",
-				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 				"runs_on":                `["device"]`,
 				"features": `select({
-        "//build/bazel/platforms/os_arch:android_arm64": [
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": [
             "memtag_heap",
             "diag_memtag_heap",
         ],
@@ -460,10 +460,10 @@ cc_test {
 			{"cc_test", "mytest_with_no_gtest", AttrNameToString{
 				"local_includes":         `["."]`,
 				"gtest":                  "False",
-				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 				"runs_on":                `["device"]`,
 				"features": `select({
-        "//build/bazel/platforms/os_arch:android_arm64": [
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": [
             "memtag_heap",
             "diag_memtag_heap",
         ],
@@ -495,12 +495,12 @@ cc_test {
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
 				"srcs":                   `["test.cpp"]`,
-				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 				"deps":                   `[":libgtest_isolated_main"]`,
 				"dynamic_deps":           `[":liblog"]`,
 				"runs_on":                `["device"]`,
 				"features": `["android_cfi"] + select({
-        "//build/bazel/platforms/os_arch:android_arm64": ["-memtag_heap"],
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": ["-memtag_heap"],
         "//conditions:default": [],
     })`,
 			},
@@ -532,12 +532,12 @@ cc_test {
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
 				"srcs":                   `["test.cpp"]`,
-				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 				"deps":                   `[":libgtest_isolated_main"]`,
 				"dynamic_deps":           `[":liblog"]`,
 				"runs_on":                `["device"]`,
 				"features": `select({
-        "//build/bazel/platforms/os_arch:android_arm64": ["-memtag_heap"],
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": ["-memtag_heap"],
         "//conditions:default": [],
     })`,
 			},
@@ -569,12 +569,12 @@ cc_test {
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
 				"srcs":                   `["test.cpp"]`,
-				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 				"deps":                   `[":libgtest_isolated_main"]`,
 				"dynamic_deps":           `[":liblog"]`,
 				"runs_on":                `["device"]`,
 				"features": `select({
-        "//build/bazel/platforms/os_arch:android_arm64": [
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": [
             "memtag_heap",
             "diag_memtag_heap",
         ],
@@ -615,12 +615,12 @@ cc_test {
 			{"cc_test", "mytest", AttrNameToString{
 				"local_includes":         `["."]`,
 				"srcs":                   `["test.cpp"]`,
-				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 				"deps":                   `[":libgtest_isolated_main"]`,
 				"dynamic_deps":           `[":liblog"]`,
 				"runs_on":                `["device"]`,
 				"features": `select({
-        "//build/bazel/platforms/os_arch:android_arm64": [
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": [
             "-memtag_heap",
             "-diag_memtag_heap",
         ],

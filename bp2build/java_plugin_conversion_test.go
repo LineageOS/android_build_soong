@@ -55,7 +55,7 @@ java_library {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("java_plugin", "java-plug-1", AttrNameToString{
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 				"deps": `[
@@ -95,7 +95,7 @@ java_library {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("java_plugin", "java-plug-1", AttrNameToString{
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 				"deps": `[

@@ -410,11 +410,11 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo_static", AttrNameToString{
 				"implementation_deps": `select({
-        "//build/bazel/platforms/arch:arm64": [":static_dep"],
+        "//build/bazel_common_rules/platforms/arch:arm64": [":static_dep"],
         "//conditions:default": [],
     })`,
 				"whole_archive_deps": `select({
-        "//build/bazel/platforms/arch:arm64": [":static_dep2"],
+        "//build/bazel_common_rules/platforms/arch:arm64": [":static_dep2"],
         "//conditions:default": [],
     })`,
 			}),
@@ -442,11 +442,11 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo_static", AttrNameToString{
 				"implementation_deps": `select({
-        "//build/bazel/platforms/os:android": [":static_dep"],
+        "//build/bazel_common_rules/platforms/os:android": [":static_dep"],
         "//conditions:default": [],
     })`,
 				"whole_archive_deps": `select({
-        "//build/bazel/platforms/os:android": [":static_dep2"],
+        "//build/bazel_common_rules/platforms/os:android": [":static_dep2"],
         "//conditions:default": [],
     })`,
 			}),
@@ -484,10 +484,10 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo_static", AttrNameToString{
 				"implementation_deps": `[":static_dep"] + select({
-        "//build/bazel/platforms/arch:arm64": [":static_dep4"],
+        "//build/bazel_common_rules/platforms/arch:arm64": [":static_dep4"],
         "//conditions:default": [],
     }) + select({
-        "//build/bazel/platforms/os:android": [":static_dep3"],
+        "//build/bazel_common_rules/platforms/os:android": [":static_dep3"],
         "//conditions:default": [],
     })`,
 				"whole_archive_deps": `[":static_dep2"]`,
@@ -539,7 +539,7 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo_static", AttrNameToString{
 				"srcs_c": `["common.c"] + select({
-        "//build/bazel/platforms/arch:arm": ["foo-arm.c"],
+        "//build/bazel_common_rules/platforms/arch:arm": ["foo-arm.c"],
         "//conditions:default": [],
     })`,
 			}),
@@ -569,7 +569,7 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo_static", AttrNameToString{
 				"srcs_c": `["common.c"] + select({
-        "//build/bazel/platforms/arch:arm": ["for-arm.c"],
+        "//build/bazel_common_rules/platforms/arch:arm": ["for-arm.c"],
         "//conditions:default": ["not-for-arm.c"],
     })`,
 			}),
@@ -601,11 +601,11 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo_static", AttrNameToString{
 				"srcs_c": `["common.c"] + select({
-        "//build/bazel/platforms/arch:arm": [
+        "//build/bazel_common_rules/platforms/arch:arm": [
             "not-for-x86.c",
             "for-arm.c",
         ],
-        "//build/bazel/platforms/arch:x86": [
+        "//build/bazel_common_rules/platforms/arch:x86": [
             "not-for-arm.c",
             "for-x86.c",
         ],
@@ -650,25 +650,25 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo_static", AttrNameToString{
 				"srcs_c": `["common.c"] + select({
-        "//build/bazel/platforms/arch:arm": [
+        "//build/bazel_common_rules/platforms/arch:arm": [
             "not-for-arm64.c",
             "not-for-x86.c",
             "not-for-x86_64.c",
             "for-arm.c",
         ],
-        "//build/bazel/platforms/arch:arm64": [
+        "//build/bazel_common_rules/platforms/arch:arm64": [
             "not-for-arm.c",
             "not-for-x86.c",
             "not-for-x86_64.c",
             "for-arm64.c",
         ],
-        "//build/bazel/platforms/arch:x86": [
+        "//build/bazel_common_rules/platforms/arch:x86": [
             "not-for-arm.c",
             "not-for-arm64.c",
             "not-for-x86_64.c",
             "for-x86.c",
         ],
-        "//build/bazel/platforms/arch:x86_64": [
+        "//build/bazel_common_rules/platforms/arch:x86_64": [
             "not-for-arm.c",
             "not-for-arm64.c",
             "not-for-x86.c",
@@ -707,7 +707,7 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo_static", AttrNameToString{
 				"srcs": `["common.cc"] + select({
-        "//build/bazel/platforms/arch:arm": [],
+        "//build/bazel_common_rules/platforms/arch:arm": [],
         "//conditions:default": ["foo-no-arm.cc"],
     })`,
 			}),
@@ -738,8 +738,8 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo_static", AttrNameToString{
 				"srcs": `["common.cc"] + select({
-        "//build/bazel/platforms/arch:arm": [],
-        "//build/bazel/platforms/arch:x86": [
+        "//build/bazel_common_rules/platforms/arch:arm": [],
+        "//build/bazel_common_rules/platforms/arch:x86": [
             "foo-no-arm.cc",
             "x86-only.cc",
         ],
@@ -792,8 +792,8 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo_static", AttrNameToString{
 				"srcs_c": `["common.c"] + select({
-        "//build/bazel/platforms/arch:arm": ["for-lib32.c"],
-        "//build/bazel/platforms/arch:x86": ["for-lib32.c"],
+        "//build/bazel_common_rules/platforms/arch:arm": ["for-lib32.c"],
+        "//build/bazel_common_rules/platforms/arch:x86": ["for-lib32.c"],
         "//conditions:default": ["not-for-lib32.c"],
     })`,
 			}),
@@ -824,23 +824,23 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo_static", AttrNameToString{
 				"srcs_c": `["common.c"] + select({
-        "//build/bazel/platforms/arch:arm": [
+        "//build/bazel_common_rules/platforms/arch:arm": [
             "not-for-lib64.c",
             "for-lib32.c",
         ],
-        "//build/bazel/platforms/arch:arm64": [
+        "//build/bazel_common_rules/platforms/arch:arm64": [
             "not-for-lib32.c",
             "for-lib64.c",
         ],
-        "//build/bazel/platforms/arch:riscv64": [
+        "//build/bazel_common_rules/platforms/arch:riscv64": [
             "not-for-lib32.c",
             "for-lib64.c",
         ],
-        "//build/bazel/platforms/arch:x86": [
+        "//build/bazel_common_rules/platforms/arch:x86": [
             "not-for-lib64.c",
             "for-lib32.c",
         ],
-        "//build/bazel/platforms/arch:x86_64": [
+        "//build/bazel_common_rules/platforms/arch:x86_64": [
             "not-for-lib32.c",
             "for-lib64.c",
         ],
@@ -895,7 +895,7 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo_static", AttrNameToString{
 				"srcs_c": `["common.c"] + select({
-        "//build/bazel/platforms/arch:arm": [
+        "//build/bazel_common_rules/platforms/arch:arm": [
             "not-for-arm64.c",
             "not-for-lib64.c",
             "not-for-riscv64.c",
@@ -904,7 +904,7 @@ cc_library_static {
             "for-arm.c",
             "for-lib32.c",
         ],
-        "//build/bazel/platforms/arch:arm64": [
+        "//build/bazel_common_rules/platforms/arch:arm64": [
             "not-for-arm.c",
             "not-for-lib32.c",
             "not-for-riscv64.c",
@@ -913,7 +913,7 @@ cc_library_static {
             "for-arm64.c",
             "for-lib64.c",
         ],
-        "//build/bazel/platforms/arch:riscv64": [
+        "//build/bazel_common_rules/platforms/arch:riscv64": [
             "not-for-arm.c",
             "not-for-arm64.c",
             "not-for-lib32.c",
@@ -922,7 +922,7 @@ cc_library_static {
             "for-riscv64.c",
             "for-lib64.c",
         ],
-        "//build/bazel/platforms/arch:x86": [
+        "//build/bazel_common_rules/platforms/arch:x86": [
             "not-for-arm.c",
             "not-for-arm64.c",
             "not-for-lib64.c",
@@ -931,7 +931,7 @@ cc_library_static {
             "for-x86.c",
             "for-lib32.c",
         ],
-        "//build/bazel/platforms/arch:x86_64": [
+        "//build/bazel_common_rules/platforms/arch:x86_64": [
             "not-for-arm.c",
             "not-for-arm64.c",
             "not-for-lib32.c",
@@ -1089,20 +1089,20 @@ cc_library_static {
         "//dep:generated_src_other_pkg",
         ":generated_hdr",
     ] + select({
-        "//build/bazel/platforms/arch:x86": ["for-x86.cpp"],
+        "//build/bazel_common_rules/platforms/arch:x86": ["for-x86.cpp"],
         "//conditions:default": [
             "not-for-x86.cpp",
             ":generated_src_not_x86",
         ],
     }) + select({
-        "//build/bazel/platforms/os:android": [":generated_src_android"],
+        "//build/bazel_common_rules/platforms/os:android": [":generated_src_android"],
         "//conditions:default": [],
     })`,
 				"hdrs": `select({
-        "//build/bazel/platforms/os:android": ["//dep:generated_hdr_other_pkg_android"],
+        "//build/bazel_common_rules/platforms/os:android": ["//dep:generated_hdr_other_pkg_android"],
         "//conditions:default": [],
     }) + select({
-        "//build/bazel/platforms/arch:x86": ["//dep:generated_hdr_other_pkg_x86"],
+        "//build/bazel_common_rules/platforms/arch:x86": ["//dep:generated_hdr_other_pkg_x86"],
         "//conditions:default": [],
     }) + ["//dep:generated_hdr_other_pkg"]`,
 				"local_includes":           `["."]`,
@@ -1147,15 +1147,15 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo_static", AttrNameToString{
 				"srcs_c": `select({
-        "//build/bazel/platforms/os:android": ["android_src.c"],
+        "//build/bazel_common_rules/platforms/os:android": ["android_src.c"],
         "//conditions:default": [],
     }) + select({
-        "//build/bazel/platforms/os_arch:android_arm": ["android_arm_src.c"],
-        "//build/bazel/platforms/os_arch:android_arm64": ["android_arm64_src.c"],
-        "//build/bazel/platforms/os_arch:android_x86": ["android_x86_src.c"],
-        "//build/bazel/platforms/os_arch:android_x86_64": ["android_x86_64_src.c"],
-        "//build/bazel/platforms/os_arch:linux_bionic_arm64": ["linux_bionic_arm64_src.c"],
-        "//build/bazel/platforms/os_arch:linux_bionic_x86_64": ["linux_bionic_x86_64_src.c"],
+        "//build/bazel_common_rules/platforms/os_arch:android_arm": ["android_arm_src.c"],
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": ["android_arm64_src.c"],
+        "//build/bazel_common_rules/platforms/os_arch:android_x86": ["android_x86_src.c"],
+        "//build/bazel_common_rules/platforms/os_arch:android_x86_64": ["android_x86_64_src.c"],
+        "//build/bazel_common_rules/platforms/os_arch:linux_bionic_arm64": ["linux_bionic_arm64_src.c"],
+        "//build/bazel_common_rules/platforms/os_arch:linux_bionic_x86_64": ["linux_bionic_x86_64_src.c"],
         "//conditions:default": [],
     })`,
 			}),
@@ -1358,7 +1358,7 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "target_bionic_empty", AttrNameToString{
 				"system_dynamic_deps": `select({
-        "//build/bazel/platforms/os:linux_musl": [":libc_musl"],
+        "//build/bazel_common_rules/platforms/os:linux_musl": [":libc_musl"],
         "//conditions:default": [],
     })`,
 			}),
@@ -1392,7 +1392,7 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "target_linux_bionic_empty", AttrNameToString{
 				"system_dynamic_deps": `select({
-        "//build/bazel/platforms/os:linux_musl": [":libc_musl"],
+        "//build/bazel_common_rules/platforms/os:linux_musl": [":libc_musl"],
         "//conditions:default": [],
     })`,
 			}),
@@ -1477,9 +1477,9 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "target_bionic", AttrNameToString{
 				"system_dynamic_deps": `select({
-        "//build/bazel/platforms/os:android": [":libc"],
-        "//build/bazel/platforms/os:linux_bionic": [":libc"],
-        "//build/bazel/platforms/os:linux_musl": [":libc_musl"],
+        "//build/bazel_common_rules/platforms/os:android": [":libc"],
+        "//build/bazel_common_rules/platforms/os:linux_bionic": [":libc"],
+        "//build/bazel_common_rules/platforms/os:linux_musl": [":libc_musl"],
         "//conditions:default": [],
     })`,
 			}),
@@ -1512,8 +1512,8 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "target_linux_bionic", AttrNameToString{
 				"system_dynamic_deps": `[":libc"] + select({
-        "//build/bazel/platforms/os:linux_bionic": [":libm"],
-        "//build/bazel/platforms/os:linux_musl": [":libc_musl"],
+        "//build/bazel_common_rules/platforms/os:linux_bionic": [":libm"],
+        "//build/bazel_common_rules/platforms/os:linux_musl": [":libc_musl"],
         "//conditions:default": [],
     })`,
 			}),
@@ -1837,7 +1837,7 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("sysprop_library", "foo_sysprop_library", AttrNameToString{
 				"srcs": `select({
-        "//build/bazel/platforms/os:android": ["bar.sysprop"],
+        "//build/bazel_common_rules/platforms/os:android": ["bar.sysprop"],
         "//conditions:default": [],
     })`,
 			}),
@@ -1850,7 +1850,7 @@ cc_library_static {
 				"local_includes":  `["."]`,
 				"min_sdk_version": `"5"`,
 				"whole_archive_deps": `select({
-        "//build/bazel/platforms/os:android": [":foo_cc_sysprop_library_static"],
+        "//build/bazel_common_rules/platforms/os:android": [":foo_cc_sysprop_library_static"],
         "//conditions:default": [],
     })`,
 			}),
@@ -1930,8 +1930,8 @@ cc_library_static {
         "ubsan_undefined",
         "ubsan_nullability",
     ] + select({
-        "//build/bazel/platforms/os:android": ["ubsan_alignment"],
-        "//build/bazel/platforms/os:linux_glibc": ["ubsan_integer_overflow"],
+        "//build/bazel_common_rules/platforms/os:android": ["ubsan_alignment"],
+        "//build/bazel_common_rules/platforms/os:linux_glibc": ["ubsan_integer_overflow"],
         "//conditions:default": [],
     })`,
 				"local_includes": `["."]`,
@@ -2032,11 +2032,11 @@ cc_library_static {
 			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
 				"local_includes": `["."]`,
 				"features": `select({
-        "//build/bazel/platforms/os_arch:android_arm": ["android_thin_lto"],
-        "//build/bazel/platforms/os_arch:android_arm64": ["android_thin_lto"],
-        "//build/bazel/platforms/os_arch:android_riscv64": ["-android_thin_lto"],
-        "//build/bazel/platforms/os_arch:android_x86": ["android_thin_lto"],
-        "//build/bazel/platforms/os_arch:android_x86_64": ["android_thin_lto"],
+        "//build/bazel_common_rules/platforms/os_arch:android_arm": ["android_thin_lto"],
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": ["android_thin_lto"],
+        "//build/bazel_common_rules/platforms/os_arch:android_riscv64": ["-android_thin_lto"],
+        "//build/bazel_common_rules/platforms/os_arch:android_x86": ["android_thin_lto"],
+        "//build/bazel_common_rules/platforms/os_arch:android_x86_64": ["android_thin_lto"],
         "//conditions:default": [],
     })`}),
 		},
@@ -2065,7 +2065,7 @@ cc_library_static {
 			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
 				"local_includes": `["."]`,
 				"features": `select({
-        "//build/bazel/platforms/os:android": ["android_thin_lto"],
+        "//build/bazel_common_rules/platforms/os:android": ["android_thin_lto"],
         "//conditions:default": ["-android_thin_lto"],
     })`,
 			}),
@@ -2129,7 +2129,7 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
 				"features": `select({
-        "//build/bazel/platforms/os:android": ["visibility_hidden"],
+        "//build/bazel_common_rules/platforms/os:android": ["visibility_hidden"],
         "//conditions:default": [],
     })`,
 				"local_includes": `["."]`,
@@ -2174,7 +2174,7 @@ cc_library_static {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_static", "foo", AttrNameToString{
 				"features": `select({
-        "//build/bazel/platforms/os:android": ["android_cfi"],
+        "//build/bazel_common_rules/platforms/os:android": ["android_cfi"],
         "//conditions:default": [],
     })`,
 				"local_includes": `["."]`,
