@@ -35,9 +35,6 @@ import (
 // RegisterMutatorsForBazelConversion is a alternate registration pipeline for bp2build. Exported for testing.
 func RegisterMutatorsForBazelConversion(ctx *Context, preArchMutators []RegisterMutatorFunc) {
 	bp2buildMutators := append(preArchMutators, registerBp2buildConversionMutator)
-	if ctx.config.Bp2buildDepsMutator {
-		bp2buildMutators = append(bp2buildMutators, registerBp2buildDepsMutator)
-	}
 	registerMutatorsForBazelConversion(ctx, bp2buildMutators)
 }
 

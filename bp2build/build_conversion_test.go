@@ -1058,50 +1058,6 @@ func TestModuleTypeBp2Build(t *testing.T) {
 				}),
 			},
 		},
-		{
-			Description:                "depends_on_other_unconverted_module_error",
-			ModuleTypeUnderTest:        "filegroup",
-			ModuleTypeUnderTestFactory: android.FileGroupFactory,
-			UnconvertedDepsMode:        errorModulesUnconvertedDeps,
-			Blueprint: `filegroup {
-    name: "foobar",
-    srcs: [
-        ":foo",
-        "c",
-    ],
-    bazel_module: { bp2build_available: true },
-}`,
-			ExpectedErr: fmt.Errorf(`filegroup .:foobar depends on unconverted modules: foo`),
-			Filesystem: map[string]string{
-				"other/Android.bp": `filegroup {
-    name: "foo",
-    srcs: ["a", "b"],
-}`,
-			},
-		},
-		{
-			Description:                "depends_on_other_missing_module_error",
-			ModuleTypeUnderTest:        "filegroup",
-			ModuleTypeUnderTestFactory: android.FileGroupFactory,
-			UnconvertedDepsMode:        errorModulesUnconvertedDeps,
-			Blueprint: `filegroup {
-    name: "foobar",
-    srcs: [
-        "c",
-        "//other:foo",
-        "//other:goo",
-    ],
-    bazel_module: { bp2build_available: true },
-}`,
-			ExpectedErr: fmt.Errorf(`filegroup .:foobar depends on missing modules: //other:goo`),
-			Filesystem: map[string]string{"other/Android.bp": `filegroup {
-    name: "foo",
-    srcs: ["a"],
-    bazel_module: { bp2build_available: true },
-}
-`,
-			},
-		},
 	}
 
 	for _, testCase := range testCases {
@@ -2119,7 +2075,6 @@ func TestBp2buildDepsMutator_missingTransitiveDep(t *testing.T) {
 		Blueprint:            bp,
 		ExpectedBazelTargets: expectedBazelTargets,
 		Description:          "Skipping conversion of a target with missing transitive dep",
-		DepsMutator:          true,
 	})
 }
 
@@ -2157,7 +2112,6 @@ func TestBp2buildDepsMutator_missingDirectDep(t *testing.T) {
 		Blueprint:            bp,
 		ExpectedBazelTargets: expectedBazelTargets,
 		Description:          "Skipping conversion of a target with missing direct dep",
-		DepsMutator:          true,
 	})
 }
 
@@ -2180,7 +2134,6 @@ func TestBp2buildDepsMutator_unconvertedDirectDep(t *testing.T) {
 		Blueprint:            bp,
 		ExpectedBazelTargets: []string{},
 		Description:          "Skipping conversion of a target with unconverted direct dep",
-		DepsMutator:          true,
 	})
 }
 
@@ -2219,7 +2172,6 @@ func TestBp2buildDepsMutator_unconvertedTransitiveDep(t *testing.T) {
 		Blueprint:            bp,
 		ExpectedBazelTargets: expectedBazelTargets,
 		Description:          "Skipping conversion of a target with unconverted transitive dep",
-		DepsMutator:          true,
 	})
 }
 
@@ -2259,7 +2211,6 @@ func TestBp2buildDepsMutator_alreadyExistsBuildDeps(t *testing.T) {
 		Blueprint:               bp,
 		ExpectedBazelTargets:    expectedBazelTargets,
 		Description:             "Convert target with already-existing build dep",
-		DepsMutator:             true,
 	})
 }
 
@@ -2301,6 +2252,5 @@ func TestBp2buildDepsMutator_depOnLibc(t *testing.T) {
 		Blueprint:               bp,
 		ExpectedBazelTargets:    expectedBazelTargets,
 		Description:             "Convert target with dep on libc",
-		DepsMutator:             true,
 	})
 }
