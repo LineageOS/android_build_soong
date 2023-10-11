@@ -203,6 +203,11 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Address = nil
 	}
 
+	// TODO: Remove once b/304507701 is resolved
+	if Bool(s.Address) && ctx.Host() {
+		s.Address = nil
+	}
+
 	// Memtag_heap is only implemented on AArch64.
 	if ctx.Arch().ArchType != android.Arm64 || !ctx.Os().Bionic() {
 		s.Memtag_heap = nil
