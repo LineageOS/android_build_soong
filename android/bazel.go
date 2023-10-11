@@ -634,9 +634,6 @@ func bp2buildDefaultTrueRecursively(packagePath string, config allowlists.Bp2Bui
 
 func registerBp2buildConversionMutator(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("bp2build_conversion", bp2buildConversionMutator).Parallel()
-}
-
-func registerBp2buildDepsMutator(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("bp2build_deps", bp2buildDepsMutator).Parallel()
 }
 
