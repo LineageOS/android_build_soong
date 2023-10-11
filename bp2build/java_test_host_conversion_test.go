@@ -34,7 +34,7 @@ func TestJavaTestHostGeneral(t *testing.T) {
 	runJavaTestHostTestCase(t, Bp2buildTestCase{
 		Description:             "java_test_host general",
 		Filesystem:              map[string]string{},
-		StubbedBuildDefinitions: []string{"lib_a", "lib_b"},
+		StubbedBuildDefinitions: []string{"lib_a", "static_libs_a"},
 		Blueprint: `
 java_test_host {
     name: "java_test_host-1",
