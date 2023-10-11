@@ -1842,6 +1842,7 @@ func (module *SdkLibrary) createApiLibrary(mctx android.DefaultableHookContext, 
 		Libs                  []string
 		Static_libs           []string
 		Full_api_surface_stub *string
+		System_modules        *string
 	}{}
 
 	props.Name = proptools.StringPtr(module.apiLibraryModuleName(apiScope))
@@ -1880,6 +1881,8 @@ func (module *SdkLibrary) createApiLibrary(mctx android.DefaultableHookContext, 
 	if apiScope.kind == android.SdkModule {
 		props.Full_api_surface_stub = proptools.StringPtr(apiScope.kind.DefaultJavaLibraryName() + "_full.from-text")
 	}
+
+	props.System_modules = module.deviceProperties.System_modules
 
 	mctx.CreateModule(ApiLibraryFactory, &props)
 }
