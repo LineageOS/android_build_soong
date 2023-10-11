@@ -453,6 +453,7 @@ var (
 
 		"test/vts/vts_hal_hidl_target": Bp2BuildDefaultTrueRecursively,
 
+		"toolchain/pgo-profiles":                      Bp2BuildDefaultTrueRecursively,
 		"tools/apifinder":                             Bp2BuildDefaultTrue,
 		"tools/apksig":                                Bp2BuildDefaultTrue,
 		"tools/dexter/slicer":                         Bp2BuildDefaultTrueRecursively,
