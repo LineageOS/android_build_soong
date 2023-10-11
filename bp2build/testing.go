@@ -124,12 +124,6 @@ type Bp2buildTestCase struct {
 	// be merged with the generated BUILD file. This allows custom BUILD targets
 	// to be used in tests, or use BUILD files to draw package boundaries.
 	KeepBuildFileForDirs []string
-
-	// If true, the bp2build_deps mutator is used for this test. This is an
-	// experimental mutator that will disable modules which have transitive
-	// dependencies with no bazel definition.
-	// TODO: b/285631638 - Enable this feature by default.
-	DepsMutator bool
 }
 
 func RunBp2BuildTestCaseExtraContext(t *testing.T, registerModuleTypes func(ctx android.RegistrationContext), modifyContext func(ctx *android.TestContext), tc Bp2buildTestCase) {
@@ -139,11 +133,6 @@ func RunBp2BuildTestCaseExtraContext(t *testing.T, registerModuleTypes func(ctx 
 	}
 	if modifyContext != nil {
 		preparers = append(preparers, android.FixtureModifyContext(modifyContext))
-	}
-	if tc.DepsMutator {
-		preparers = append(preparers, android.FixtureModifyConfig(func(cfg android.Config) {
-			cfg.Bp2buildDepsMutator = true
-		}))
 	}
 	preparers = append(preparers, SetBp2BuildTestRunner)
 	bp2buildSetup := android.GroupFixturePreparers(
