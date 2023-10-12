@@ -316,6 +316,60 @@ func TestBootclasspathFragment_StubLibs(t *testing.T) {
 	android.AssertPathsRelativeToTopEquals(t, "widest dex stubs jar", expectedWidestPaths, info.TransitiveStubDexJarsByScope.StubDexJarsForWidestAPIScope())
 }
 
+func TestFromTextWidestApiScope(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForTestWithBootclasspathFragment,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.SetBuildFromTextStub(true)
+		}),
+		FixtureWithLastReleaseApis("mysdklibrary", "android-non-updatable"),
+		FixtureConfigureApexBootJars("someapex:mysdklibrary"),
+	).RunTestWithBp(t, `
+		bootclasspath_fragment {
+			name: "myfragment",
+			contents: ["mysdklibrary"],
+			additional_stubs: [
+				"android-non-updatable",
+			],
+			hidden_api: {
+				split_packages: ["*"],
+			},
+		}
+		java_sdk_library {
+			name: "mysdklibrary",
+			srcs: ["a.java"],
+			shared_library: false,
+			public: {enabled: true},
+			system: {enabled: true},
+		}
+		java_sdk_library {
+			name: "android-non-updatable",
+			srcs: ["b.java"],
+			compile_dex: true,
+			public: {
+				enabled: true,
+			},
+			system: {
+				enabled: true,
+			},
+			test: {
+				enabled: true,
+			},
+			module_lib: {
+				enabled: true,
+			},
+		}
+	`)
+
+	fragment := result.ModuleForTests("myfragment", "android_common")
+	dependencyStubDexFlag := "--dependency-stub-dex=out/soong/.intermediates/default/java/android-non-updatable.stubs.test_module_lib/android_common/dex/android-non-updatable.stubs.test_module_lib.jar"
+	stubFlagsCommand := fragment.Output("modular-hiddenapi/stub-flags.csv").RuleParams.Command
+	android.AssertStringDoesContain(t,
+		"Stub flags generating command does not include the expected dependency stub dex file",
+		stubFlagsCommand, dependencyStubDexFlag)
+}
+
 func TestSnapshotWithBootclasspathFragment_HiddenAPI(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForTestWithBootclasspathFragment,
