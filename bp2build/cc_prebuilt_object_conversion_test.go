@@ -71,8 +71,8 @@ cc_prebuilt_object {
 }`, ExpectedBazelTargets: []string{
 				MakeBazelTarget("cc_prebuilt_object", "objtest", AttrNameToString{
 					"src": `select({
-        "//build/bazel/platforms/arch:arm": "objb.o",
-        "//build/bazel/platforms/arch:arm64": "obja.o",
+        "//build/bazel_common_rules/platforms/arch:arm": "objb.o",
+        "//build/bazel_common_rules/platforms/arch:arm64": "obja.o",
         "//conditions:default": None,
     })`,
 				}),

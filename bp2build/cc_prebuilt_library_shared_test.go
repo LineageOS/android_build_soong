@@ -52,8 +52,8 @@ cc_prebuilt_library_shared {
 			ExpectedBazelTargets: []string{
 				MakeBazelTarget("cc_prebuilt_library_shared", "libtest", AttrNameToString{
 					"shared_library": `select({
-        "//build/bazel/platforms/arch:arm": "libg.so",
-        "//build/bazel/platforms/arch:arm64": "libf.so",
+        "//build/bazel_common_rules/platforms/arch:arm": "libg.so",
+        "//build/bazel_common_rules/platforms/arch:arm64": "libf.so",
         "//conditions:default": None,
     })`,
 				}),

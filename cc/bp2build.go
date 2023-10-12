@@ -1514,7 +1514,7 @@ func createInApexConfigSetting(ctx android.Bp2buildMutatorContext, apexName stri
 		Constraint_values: bazel.MakeLabelListAttribute(
 			bazel.MakeLabelList(
 				[]bazel.Label{
-					bazel.Label{Label: "//build/bazel/platforms/os:android"},
+					bazel.Label{Label: "//build/bazel_common_rules/platforms/os:android"},
 				},
 			),
 		),
