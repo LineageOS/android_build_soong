@@ -58,6 +58,7 @@ var (
 		"BlueberryFacadeGeneratedStub_h",
 		"BluetoothGeneratedDumpsysBinarySchema_bfbs",
 		"BluetoothGeneratedDumpsysDataSchema_h",
+		"CompilationTestCases_package-dex-usage",
 		"ControlEnvProxyServerProto_cc",
 		"ControlEnvProxyServerProto_h",
 		"CtsApkVerityTestDebugFiles",
