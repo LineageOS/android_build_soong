@@ -146,7 +146,13 @@ func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleC
 		aaptLinkFlags = append(aaptLinkFlags,
 			"--rename-overlay-category "+*r.overridableProperties.Category)
 	}
-	r.aapt.buildActions(ctx, r, nil, nil, false, aaptLinkFlags...)
+	r.aapt.buildActions(ctx,
+		aaptBuildActionOptions{
+			sdkContext:                     r,
+			enforceDefaultTargetSdkVersion: false,
+			extraLinkFlags:                 aaptLinkFlags,
+		},
+	)
 
 	// Sign the built package
 	_, _, certificates := collectAppDeps(ctx, r, false, false)

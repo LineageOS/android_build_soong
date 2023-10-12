@@ -481,8 +481,15 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 	if a.Updatable() {
 		a.aapt.defaultManifestVersion = android.DefaultUpdatableModuleVersion
 	}
-	a.aapt.buildActions(ctx, android.SdkContext(a), a.classLoaderContexts,
-		a.usesLibraryProperties.Exclude_uses_libs, a.enforceDefaultTargetSdkVersion(), aaptLinkFlags...)
+	a.aapt.buildActions(ctx,
+		aaptBuildActionOptions{
+			android.SdkContext(a),
+			a.classLoaderContexts,
+			a.usesLibraryProperties.Exclude_uses_libs,
+			a.enforceDefaultTargetSdkVersion(),
+			aaptLinkFlags,
+		},
+	)
 
 	// apps manifests are handled by aapt, don't let Module see them
 	a.properties.Manifest = nil
