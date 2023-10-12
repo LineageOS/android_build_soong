@@ -121,8 +121,8 @@ prebuilt_etc_xml {
 				"filename_from_src": `True`,
 				"dir":               `"etc"`,
 				"src": `select({
-        "//build/bazel/platforms/arch:arm": "barSrc",
-        "//build/bazel/platforms/arch:arm64": "bazSrc",
+        "//build/bazel_common_rules/platforms/arch:arm": "barSrc",
+        "//build/bazel_common_rules/platforms/arch:arm64": "bazSrc",
         "//conditions:default": None,
     })`,
 			})}})

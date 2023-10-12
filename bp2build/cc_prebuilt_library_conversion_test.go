@@ -76,21 +76,21 @@ cc_prebuilt_library {
 			ExpectedBazelTargets: []string{
 				MakeBazelTarget("cc_prebuilt_library_static", "libtest_bp2build_cc_library_static", AttrNameToString{
 					"static_library": `select({
-        "//build/bazel/platforms/arch:arm": "libg.so",
-        "//build/bazel/platforms/arch:arm64": "libf.so",
+        "//build/bazel_common_rules/platforms/arch:arm": "libg.so",
+        "//build/bazel_common_rules/platforms/arch:arm64": "libf.so",
         "//conditions:default": None,
     })`}),
 				MakeBazelTarget("cc_prebuilt_library_static", "libtest_bp2build_cc_library_static_alwayslink", AttrNameToString{
 					"alwayslink": "True",
 					"static_library": `select({
-        "//build/bazel/platforms/arch:arm": "libg.so",
-        "//build/bazel/platforms/arch:arm64": "libf.so",
+        "//build/bazel_common_rules/platforms/arch:arm": "libg.so",
+        "//build/bazel_common_rules/platforms/arch:arm64": "libf.so",
         "//conditions:default": None,
     })`}),
 				MakeBazelTarget("cc_prebuilt_library_shared", "libtest", AttrNameToString{
 					"shared_library": `select({
-        "//build/bazel/platforms/arch:arm": "libg.so",
-        "//build/bazel/platforms/arch:arm64": "libf.so",
+        "//build/bazel_common_rules/platforms/arch:arm": "libg.so",
+        "//build/bazel_common_rules/platforms/arch:arm64": "libf.so",
         "//conditions:default": None,
     })`,
 				}),
@@ -289,16 +289,16 @@ cc_prebuilt_library {
 			MakeBazelTarget("cc_prebuilt_library_shared", "libtest", AttrNameToString{
 				"shared_library": `"libf.so"`,
 				"export_includes": `select({
-        "//build/bazel/platforms/arch:arm": ["testdir/1/"],
-        "//build/bazel/platforms/arch:arm64": ["testdir/2/"],
+        "//build/bazel_common_rules/platforms/arch:arm": ["testdir/1/"],
+        "//build/bazel_common_rules/platforms/arch:arm64": ["testdir/2/"],
         "//conditions:default": [],
     })`,
 			}),
 			MakeBazelTarget("cc_prebuilt_library_static", "libtest_bp2build_cc_library_static", AttrNameToString{
 				"static_library": `"libf.so"`,
 				"export_includes": `select({
-        "//build/bazel/platforms/arch:arm": ["testdir/1/"],
-        "//build/bazel/platforms/arch:arm64": ["testdir/2/"],
+        "//build/bazel_common_rules/platforms/arch:arm": ["testdir/1/"],
+        "//build/bazel_common_rules/platforms/arch:arm64": ["testdir/2/"],
         "//conditions:default": [],
     })`,
 			}),
@@ -306,8 +306,8 @@ cc_prebuilt_library {
 				"alwayslink":     "True",
 				"static_library": `"libf.so"`,
 				"export_includes": `select({
-        "//build/bazel/platforms/arch:arm": ["testdir/1/"],
-        "//build/bazel/platforms/arch:arm64": ["testdir/2/"],
+        "//build/bazel_common_rules/platforms/arch:arm": ["testdir/1/"],
+        "//build/bazel_common_rules/platforms/arch:arm64": ["testdir/2/"],
         "//conditions:default": [],
     })`,
 			}),
@@ -336,16 +336,16 @@ cc_prebuilt_library {
 			MakeBazelTarget("cc_prebuilt_library_shared", "libtest", AttrNameToString{
 				"shared_library": `"libf.so"`,
 				"export_system_includes": `select({
-        "//build/bazel/platforms/arch:arm": ["testdir/1/"],
-        "//build/bazel/platforms/arch:arm64": ["testdir/2/"],
+        "//build/bazel_common_rules/platforms/arch:arm": ["testdir/1/"],
+        "//build/bazel_common_rules/platforms/arch:arm64": ["testdir/2/"],
         "//conditions:default": [],
     })`,
 			}),
 			MakeBazelTarget("cc_prebuilt_library_static", "libtest_bp2build_cc_library_static", AttrNameToString{
 				"static_library": `"libf.so"`,
 				"export_system_includes": `select({
-        "//build/bazel/platforms/arch:arm": ["testdir/1/"],
-        "//build/bazel/platforms/arch:arm64": ["testdir/2/"],
+        "//build/bazel_common_rules/platforms/arch:arm": ["testdir/1/"],
+        "//build/bazel_common_rules/platforms/arch:arm64": ["testdir/2/"],
         "//conditions:default": [],
     })`,
 			}),
@@ -353,8 +353,8 @@ cc_prebuilt_library {
 				"alwayslink":     "True",
 				"static_library": `"libf.so"`,
 				"export_system_includes": `select({
-        "//build/bazel/platforms/arch:arm": ["testdir/1/"],
-        "//build/bazel/platforms/arch:arm64": ["testdir/2/"],
+        "//build/bazel_common_rules/platforms/arch:arm": ["testdir/1/"],
+        "//build/bazel_common_rules/platforms/arch:arm64": ["testdir/2/"],
         "//conditions:default": [],
     })`,
 			}),
@@ -381,11 +381,11 @@ ndk_prebuilt_shared_stl {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_prebuilt_library_static", "ndk_libfoo_static", AttrNameToString{
 				"static_library": `select({
-        "//build/bazel/platforms/os_arch:android_arm": "current/sources/cxx-stl/llvm-libc++/libs/armeabi-v7a/libfoo_static.a",
-        "//build/bazel/platforms/os_arch:android_arm64": "current/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libfoo_static.a",
-        "//build/bazel/platforms/os_arch:android_riscv64": "current/sources/cxx-stl/llvm-libc++/libs/riscv64/libfoo_static.a",
-        "//build/bazel/platforms/os_arch:android_x86": "current/sources/cxx-stl/llvm-libc++/libs/x86/libfoo_static.a",
-        "//build/bazel/platforms/os_arch:android_x86_64": "current/sources/cxx-stl/llvm-libc++/libs/x86_64/libfoo_static.a",
+        "//build/bazel_common_rules/platforms/os_arch:android_arm": "current/sources/cxx-stl/llvm-libc++/libs/armeabi-v7a/libfoo_static.a",
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": "current/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libfoo_static.a",
+        "//build/bazel_common_rules/platforms/os_arch:android_riscv64": "current/sources/cxx-stl/llvm-libc++/libs/riscv64/libfoo_static.a",
+        "//build/bazel_common_rules/platforms/os_arch:android_x86": "current/sources/cxx-stl/llvm-libc++/libs/x86/libfoo_static.a",
+        "//build/bazel_common_rules/platforms/os_arch:android_x86_64": "current/sources/cxx-stl/llvm-libc++/libs/x86_64/libfoo_static.a",
         "//conditions:default": None,
     })`,
 				"export_system_includes": `[
@@ -395,11 +395,11 @@ ndk_prebuilt_shared_stl {
 			}),
 			MakeBazelTarget("cc_prebuilt_library_shared", "ndk_libfoo_shared", AttrNameToString{
 				"shared_library": `select({
-        "//build/bazel/platforms/os_arch:android_arm": "current/sources/cxx-stl/llvm-libc++/libs/armeabi-v7a/libfoo_shared.so",
-        "//build/bazel/platforms/os_arch:android_arm64": "current/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libfoo_shared.so",
-        "//build/bazel/platforms/os_arch:android_riscv64": "current/sources/cxx-stl/llvm-libc++/libs/riscv64/libfoo_shared.so",
-        "//build/bazel/platforms/os_arch:android_x86": "current/sources/cxx-stl/llvm-libc++/libs/x86/libfoo_shared.so",
-        "//build/bazel/platforms/os_arch:android_x86_64": "current/sources/cxx-stl/llvm-libc++/libs/x86_64/libfoo_shared.so",
+        "//build/bazel_common_rules/platforms/os_arch:android_arm": "current/sources/cxx-stl/llvm-libc++/libs/armeabi-v7a/libfoo_shared.so",
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": "current/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libfoo_shared.so",
+        "//build/bazel_common_rules/platforms/os_arch:android_riscv64": "current/sources/cxx-stl/llvm-libc++/libs/riscv64/libfoo_shared.so",
+        "//build/bazel_common_rules/platforms/os_arch:android_x86": "current/sources/cxx-stl/llvm-libc++/libs/x86/libfoo_shared.so",
+        "//build/bazel_common_rules/platforms/os_arch:android_x86_64": "current/sources/cxx-stl/llvm-libc++/libs/x86_64/libfoo_shared.so",
         "//conditions:default": None,
     })`,
 				"export_system_includes": `[

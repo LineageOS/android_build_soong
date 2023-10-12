@@ -49,7 +49,7 @@ apex_key {
 		ExpectedBazelTargets: []string{MakeBazelTargetNoRestrictions("apex_key", "com.android.apogee.key", AttrNameToString{
 			"private_key":            `"com.android.apogee.pem"`,
 			"public_key":             `"com.android.apogee.avbpubkey"`,
-			"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+			"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 		}),
 		}})
 }
@@ -72,7 +72,7 @@ apex_key {
 		ExpectedBazelTargets: []string{MakeBazelTargetNoRestrictions("apex_key", "com.android.apogee.key", AttrNameToString{
 			"private_key_name":       `"com.android.apogee.pem"`,
 			"public_key_name":        `"com.android.apogee.avbpubkey"`,
-			"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+			"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 		}),
 		}})
 }
@@ -95,7 +95,7 @@ apex_key {
 		ExpectedBazelTargets: []string{MakeBazelTargetNoRestrictions("apex_key", "com.android.apogee.key", AttrNameToString{
 			"private_key":            `":com.android.apogee.pem"`,
 			"public_key":             `":com.android.apogee.avbpubkey"`,
-			"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+			"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 		}),
 		}})
 }

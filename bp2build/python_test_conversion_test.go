@@ -58,7 +58,7 @@ func TestPythonTestHostSimple(t *testing.T) {
         "b/d.py",
     ]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),

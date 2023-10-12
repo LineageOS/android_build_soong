@@ -128,7 +128,7 @@ func TestCcAconfigLibrary(t *testing.T) {
 			AttrNameToString{
 				"aconfig_declarations":   `":foo_aconfig_declarations"`,
 				"dynamic_deps":           `[":server_configurable_flags"]`,
-				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 			},
 		)}
 	RunBp2BuildTestCase(t, registerAconfigModuleTypes, Bp2buildTestCase{
@@ -169,7 +169,7 @@ func TestJavaAconfigLibrary(t *testing.T) {
 				"aconfig_declarations":   `":foo_aconfig_declarations"`,
 				"test":                   `True`,
 				"sdk_version":            `"system_current"`,
-				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 			},
 		)}
 	RunBp2BuildTestCase(t, registerAconfigModuleTypes, Bp2buildTestCase{
@@ -215,7 +215,7 @@ func TestJavaAconfigLibraryAsTaggedOutput(t *testing.T) {
 				"aconfig_declarations":   `":foo_aconfig_declarations"`,
 				"test":                   `True`,
 				"sdk_version":            `"system_current"`,
-				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 			},
 		),
 		MakeBazelTargetNoRestrictions(
@@ -224,7 +224,7 @@ func TestJavaAconfigLibraryAsTaggedOutput(t *testing.T) {
 			AttrNameToString{
 				"srcs":                   `[":foo_aconfig_library.generated_srcjars"]`,
 				"sdk_version":            `"current"`,
-				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 			},
 		),
 		MakeNeverlinkDuplicateTarget("java_library", "foo_library"),
