@@ -38,9 +38,13 @@ type HiddenAPIScope struct {
 	// The option needed to passed to "hiddenapi list".
 	hiddenAPIListOption string
 
-	// The name sof the source stub library modules that contain the API provided by the platform,
+	// The names of the source stub library modules that contain the API provided by the platform,
 	// i.e. by modules that are not in an APEX.
 	nonUpdatableSourceModule string
+
+	// The names of from-text stub library modules that contain the API provided by the platform,
+	// i.e. by modules that are not in an APEX.
+	nonUpdatableFromTextModule string
 
 	// The names of the prebuilt stub library modules that contain the API provided by the platform,
 	// i.e. by modules that are not in an APEX.
@@ -86,6 +90,9 @@ func (l *HiddenAPIScope) scopeSpecificStubModule(ctx android.BaseModuleContext, 
 		if ctx.Config().AlwaysUsePrebuiltSdks() {
 			return l.nonUpdatablePrebuiltModule
 		} else {
+			if l.nonUpdatableFromTextModule != "" && ctx.Config().BuildFromTextStub() {
+				return l.nonUpdatableFromTextModule
+			}
 			return l.nonUpdatableSourceModule
 		}
 	} else {
@@ -117,8 +124,9 @@ var (
 		hiddenAPIListOption: "--test-stub-classpath",
 	})
 	ModuleLibHiddenAPIScope = initHiddenAPIScope(&HiddenAPIScope{
-		name:    "module-lib",
-		sdkKind: android.SdkModule,
+		name:                       "module-lib",
+		sdkKind:                    android.SdkModule,
+		nonUpdatableFromTextModule: "android-non-updatable.stubs.test_module_lib",
 	})
 	CorePlatformHiddenAPIScope = initHiddenAPIScope(&HiddenAPIScope{
 		name:                "core-platform",
@@ -647,7 +655,7 @@ func (s StubDexJarsByModule) addStubDexJar(ctx android.ModuleContext, module and
 	// public version is provided by the art.module.public.api module. In those cases it is necessary
 	// to treat all those modules as they were the same name, otherwise it will result in multiple
 	// definitions of a single class being passed to hidden API processing which will cause an error.
-	if name == scope.nonUpdatablePrebuiltModule || name == scope.nonUpdatableSourceModule {
+	if name == scope.nonUpdatablePrebuiltModule || name == scope.nonUpdatableSourceModule || name == scope.nonUpdatableFromTextModule {
 		// Treat all *android-non-updatable* modules as if they were part of an android-non-updatable
 		// java_sdk_library.
 		// TODO(b/192067200): Remove once android-non-updatable is a java_sdk_library or equivalent.
