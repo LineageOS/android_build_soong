@@ -192,6 +192,45 @@ func TestJavaLibraryJavaVersion(t *testing.T) {
 	})
 }
 
+func TestJavaLibraryOpenjdk9(t *testing.T) {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Blueprint: `java_library {
+			name: "java-lib-1",
+		srcs: ["a.java"],
+		exclude_srcs: ["b.java"],
+		javacflags: ["flag"],
+		target: {
+			android: {
+				srcs: ["android.java"],
+			},
+		},
+		openjdk9: {
+			srcs: ["b.java", "foo.java"],
+			javacflags: ["extraflag"],
+		},
+		sdk_version: "current",
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+				"srcs": `[
+        "a.java",
+        "foo.java",
+    ] + select({
+        "//build/bazel_common_rules/platforms/os:android": ["android.java"],
+        "//conditions:default": [],
+    })`,
+				"sdk_version": `"current"`,
+				"javacopts": `[
+        "flag",
+        "extraflag",
+    ]`,
+			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
+		},
+	})
+
+}
+
 func TestJavaLibraryErrorproneEnabledManually(t *testing.T) {
 	runJavaLibraryTestCaseWithRegistrationCtxFunc(t, Bp2buildTestCase{
 		StubbedBuildDefinitions: []string{"plugin2"},
