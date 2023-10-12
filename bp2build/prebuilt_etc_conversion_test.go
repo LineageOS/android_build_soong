@@ -80,8 +80,8 @@ prebuilt_etc {
 				"filename":    `"tz_version"`,
 				"installable": `False`,
 				"src": `select({
-        "//build/bazel/platforms/arch:arm": "arm",
-        "//build/bazel/platforms/arch:arm64": "arm64",
+        "//build/bazel_common_rules/platforms/arch:arm": "arm",
+        "//build/bazel_common_rules/platforms/arch:arm64": "arm64",
         "//conditions:default": "version/tz_version",
     })`,
 				"dir": `"etc/tz"`,
@@ -119,11 +119,11 @@ prebuilt_etc {
 				"filename":    `"tz_version"`,
 				"installable": `False`,
 				"src": `select({
-        "//build/bazel/platforms/os_arch:android_arm": "arm",
-        "//build/bazel/platforms/os_arch:android_arm64": "darwin_or_arm64",
-        "//build/bazel/platforms/os_arch:darwin_arm64": "darwin_or_arm64",
-        "//build/bazel/platforms/os_arch:darwin_x86_64": "darwin_or_arm64",
-        "//build/bazel/platforms/os_arch:linux_bionic_arm64": "darwin_or_arm64",
+        "//build/bazel_common_rules/platforms/os_arch:android_arm": "arm",
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": "darwin_or_arm64",
+        "//build/bazel_common_rules/platforms/os_arch:darwin_arm64": "darwin_or_arm64",
+        "//build/bazel_common_rules/platforms/os_arch:darwin_x86_64": "darwin_or_arm64",
+        "//build/bazel_common_rules/platforms/os_arch:linux_bionic_arm64": "darwin_or_arm64",
         "//conditions:default": "version/tz_version",
     })`,
 				"dir": `"etc/tz"`,
@@ -270,8 +270,8 @@ prebuilt_etc {
 				"filename_from_src": `True`,
 				"dir":               `"etc"`,
 				"src": `select({
-        "//build/bazel/platforms/arch:arm": "barSrc",
-        "//build/bazel/platforms/arch:arm64": "bazSrc",
+        "//build/bazel_common_rules/platforms/arch:arm": "barSrc",
+        "//build/bazel_common_rules/platforms/arch:arm64": "bazSrc",
         "//conditions:default": None,
     })`,
 			})}})
@@ -317,8 +317,8 @@ prebuilt_etc {
 				"filename": `"fooFilename"`,
 				"dir":      `"etc"`,
 				"src": `select({
-        "//build/bazel/platforms/arch:arm": "armSrc",
         "//build/bazel/product_config/config_settings:native_coverage-arm": "nativeCoverageArmSrc",
+        "//build/bazel_common_rules/platforms/arch:arm": "armSrc",
         "//conditions:default": None,
     })`,
 			})}})

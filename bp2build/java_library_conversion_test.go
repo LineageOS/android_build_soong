@@ -780,7 +780,7 @@ android_library {
 				AttrNameToString{
 					"srcs": `["lib.java"] + select({
         "//build/bazel/platforms/arch/variants:arm-neon": [],
-        "//build/bazel/platforms/arch:arm": ["arm_non_neon.java"],
+        "//build/bazel_common_rules/platforms/arch:arm": ["arm_non_neon.java"],
         "//conditions:default": [],
     })`,
 					"manifest":       `"manifest/AndroidManifest.xml"`,
@@ -899,11 +899,11 @@ func TestJavaLibraryArchVariantDeps(t *testing.T) {
 			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"srcs": `["a.java"]`,
 				"exports": `select({
-        "//build/bazel/platforms/os:android": [":java-lib-4"],
+        "//build/bazel_common_rules/platforms/os:android": [":java-lib-4"],
         "//conditions:default": [],
     })`,
 				"deps": `[":java-lib-2-neverlink"] + select({
-        "//build/bazel/platforms/os:android": [
+        "//build/bazel_common_rules/platforms/os:android": [
             ":java-lib-3-neverlink",
             ":java-lib-4",
         ],
@@ -934,7 +934,7 @@ func TestJavaLibraryArchVariantSrcsWithExcludes(t *testing.T) {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
 				"srcs": `["b.java"] + select({
-        "//build/bazel/platforms/os:android": [],
+        "//build/bazel_common_rules/platforms/os:android": [],
         "//conditions:default": ["a.java"],
     })`,
 				"sdk_version": `"current"`,

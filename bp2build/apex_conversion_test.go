@@ -158,22 +158,22 @@ apex {
 				"manifest":        `"apogee_manifest.json"`,
 				"min_sdk_version": `"29"`,
 				"native_shared_libs_32": `select({
-        "//build/bazel/platforms/arch:arm": [
+        "//build/bazel_common_rules/platforms/arch:arm": [
             ":native_shared_lib_1",
             ":native_shared_lib_2",
         ],
-        "//build/bazel/platforms/arch:x86": [
+        "//build/bazel_common_rules/platforms/arch:x86": [
             ":native_shared_lib_1",
             ":native_shared_lib_2",
         ],
         "//conditions:default": [],
     })`,
 				"native_shared_libs_64": `select({
-        "//build/bazel/platforms/arch:arm64": [
+        "//build/bazel_common_rules/platforms/arch:arm64": [
             ":native_shared_lib_1",
             ":native_shared_lib_2",
         ],
-        "//build/bazel/platforms/arch:x86_64": [
+        "//build/bazel_common_rules/platforms/arch:x86_64": [
             ":native_shared_lib_1",
             ":native_shared_lib_2",
         ],
@@ -293,18 +293,18 @@ filegroup {
         ":native_shared_lib_for_both",
         ":native_shared_lib_for_lib32",
     ] + select({
-        "//build/bazel/platforms/arch:arm": [":native_shared_lib_for_first"],
-        "//build/bazel/platforms/arch:x86": [":native_shared_lib_for_first"],
+        "//build/bazel_common_rules/platforms/arch:arm": [":native_shared_lib_for_first"],
+        "//build/bazel_common_rules/platforms/arch:x86": [":native_shared_lib_for_first"],
         "//conditions:default": [],
     })`,
 				"native_shared_libs_64": `select({
-        "//build/bazel/platforms/arch:arm64": [
+        "//build/bazel_common_rules/platforms/arch:arm64": [
             ":unnested_native_shared_lib",
             ":native_shared_lib_for_both",
             ":native_shared_lib_for_lib64",
             ":native_shared_lib_for_first",
         ],
-        "//build/bazel/platforms/arch:x86_64": [
+        "//build/bazel_common_rules/platforms/arch:x86_64": [
             ":unnested_native_shared_lib",
             ":native_shared_lib_for_both",
             ":native_shared_lib_for_lib64",
@@ -322,13 +322,13 @@ func TestApexBundleCompileMultilibFirstAndDefaultValue(t *testing.T) {
 	expectedBazelTargets := []string{
 		MakeBazelTarget("apex", "com.android.apogee", AttrNameToString{
 			"native_shared_libs_32": `select({
-        "//build/bazel/platforms/arch:arm": [
+        "//build/bazel_common_rules/platforms/arch:arm": [
             ":unnested_native_shared_lib",
             ":native_shared_lib_for_both",
             ":native_shared_lib_for_lib32",
             ":native_shared_lib_for_first",
         ],
-        "//build/bazel/platforms/arch:x86": [
+        "//build/bazel_common_rules/platforms/arch:x86": [
             ":unnested_native_shared_lib",
             ":native_shared_lib_for_both",
             ":native_shared_lib_for_lib32",
@@ -337,13 +337,13 @@ func TestApexBundleCompileMultilibFirstAndDefaultValue(t *testing.T) {
         "//conditions:default": [],
     })`,
 			"native_shared_libs_64": `select({
-        "//build/bazel/platforms/arch:arm64": [
+        "//build/bazel_common_rules/platforms/arch:arm64": [
             ":unnested_native_shared_lib",
             ":native_shared_lib_for_both",
             ":native_shared_lib_for_lib64",
             ":native_shared_lib_for_first",
         ],
-        "//build/bazel/platforms/arch:x86_64": [
+        "//build/bazel_common_rules/platforms/arch:x86_64": [
             ":unnested_native_shared_lib",
             ":native_shared_lib_for_both",
             ":native_shared_lib_for_lib64",
@@ -405,8 +405,8 @@ filegroup {
         ":native_shared_lib_for_both",
         ":native_shared_lib_for_lib32",
     ] + select({
-        "//build/bazel/platforms/arch:arm": [":native_shared_lib_for_first"],
-        "//build/bazel/platforms/arch:x86": [":native_shared_lib_for_first"],
+        "//build/bazel_common_rules/platforms/arch:arm": [":native_shared_lib_for_first"],
+        "//build/bazel_common_rules/platforms/arch:x86": [":native_shared_lib_for_first"],
         "//conditions:default": [],
     })`,
 				"file_contexts": `"//system/sepolicy/apex:com.android.apogee-file_contexts"`,
@@ -433,13 +433,13 @@ filegroup {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("apex", "com.android.apogee", AttrNameToString{
 				"native_shared_libs_64": `select({
-        "//build/bazel/platforms/arch:arm64": [
+        "//build/bazel_common_rules/platforms/arch:arm64": [
             ":unnested_native_shared_lib",
             ":native_shared_lib_for_both",
             ":native_shared_lib_for_lib64",
             ":native_shared_lib_for_first",
         ],
-        "//build/bazel/platforms/arch:x86_64": [
+        "//build/bazel_common_rules/platforms/arch:x86_64": [
             ":unnested_native_shared_lib",
             ":native_shared_lib_for_both",
             ":native_shared_lib_for_lib64",
@@ -671,22 +671,22 @@ override_apex {
 				"manifest":        `"apogee_manifest.json"`,
 				"min_sdk_version": `"29"`,
 				"native_shared_libs_32": `select({
-        "//build/bazel/platforms/arch:arm": [
+        "//build/bazel_common_rules/platforms/arch:arm": [
             ":native_shared_lib_1",
             ":native_shared_lib_2",
         ],
-        "//build/bazel/platforms/arch:x86": [
+        "//build/bazel_common_rules/platforms/arch:x86": [
             ":native_shared_lib_1",
             ":native_shared_lib_2",
         ],
         "//conditions:default": [],
     })`,
 				"native_shared_libs_64": `select({
-        "//build/bazel/platforms/arch:arm64": [
+        "//build/bazel_common_rules/platforms/arch:arm64": [
             ":native_shared_lib_1",
             ":native_shared_lib_2",
         ],
-        "//build/bazel/platforms/arch:x86_64": [
+        "//build/bazel_common_rules/platforms/arch:x86_64": [
             ":native_shared_lib_1",
             ":native_shared_lib_2",
         ],
@@ -796,13 +796,13 @@ override_apex {
 				"manifest":        `"apogee_manifest.json"`,
 				"min_sdk_version": `"29"`,
 				"native_shared_libs_32": `select({
-        "//build/bazel/platforms/arch:arm": [":native_shared_lib_1"],
-        "//build/bazel/platforms/arch:x86": [":native_shared_lib_1"],
+        "//build/bazel_common_rules/platforms/arch:arm": [":native_shared_lib_1"],
+        "//build/bazel_common_rules/platforms/arch:x86": [":native_shared_lib_1"],
         "//conditions:default": [],
     })`,
 				"native_shared_libs_64": `select({
-        "//build/bazel/platforms/arch:arm64": [":native_shared_lib_1"],
-        "//build/bazel/platforms/arch:x86_64": [":native_shared_lib_1"],
+        "//build/bazel_common_rules/platforms/arch:arm64": [":native_shared_lib_1"],
+        "//build/bazel_common_rules/platforms/arch:x86_64": [":native_shared_lib_1"],
         "//conditions:default": [],
     })`,
 				"testonly":     "True",
@@ -1298,13 +1298,13 @@ apex {
 				"manifest":      `"myapex_manifest.json"`,
 				"binaries":      `[":bar"]`,
 				"native_shared_libs_32": `select({
-        "//build/bazel/platforms/arch:arm": [":foo"],
-        "//build/bazel/platforms/arch:x86": [":foo"],
+        "//build/bazel_common_rules/platforms/arch:arm": [":foo"],
+        "//build/bazel_common_rules/platforms/arch:x86": [":foo"],
         "//conditions:default": [],
     })`,
 				"native_shared_libs_64": `select({
-        "//build/bazel/platforms/arch:arm64": [":foo"],
-        "//build/bazel/platforms/arch:x86_64": [":foo"],
+        "//build/bazel_common_rules/platforms/arch:arm64": [":foo"],
+        "//build/bazel_common_rules/platforms/arch:x86_64": [":foo"],
         "//conditions:default": [],
     })`,
 			}),

@@ -88,8 +88,8 @@ java_import {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("java_import", "example_import", AttrNameToString{
 				"jars": `select({
-        "//build/bazel/platforms/os:android": ["android.jar"],
-        "//build/bazel/platforms/os:linux_glibc": ["linux.jar"],
+        "//build/bazel_common_rules/platforms/os:android": ["android.jar"],
+        "//build/bazel_common_rules/platforms/os:linux_glibc": ["linux.jar"],
         "//conditions:default": [],
     })`,
 			}),

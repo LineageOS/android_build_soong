@@ -50,7 +50,7 @@ java_library_host {
 				"srcs": `["a.java"]`,
 				"deps": `[":java-lib-host-2-neverlink"]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -58,7 +58,7 @@ java_library_host {
 				"exports":   `[":java-lib-host-1"]`,
 				"neverlink": `True`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -66,7 +66,7 @@ java_library_host {
 				"java_version": `"9"`,
 				"srcs":         `["c.java"]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -74,7 +74,7 @@ java_library_host {
 				"exports":   `[":java-lib-host-2"]`,
 				"neverlink": `True`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 				"java_version": `"9"`,

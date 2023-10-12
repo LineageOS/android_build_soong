@@ -120,7 +120,7 @@ func TestShTestHostSimple(t *testing.T) {
     ]`,
 				"tags": `["no-remote"]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			})},
@@ -164,7 +164,7 @@ func TestShTestAutogen(t *testing.T) {
 				"srcs":                      `["empty.sh"]`,
 				"runs_on":                   `["device"]`,
 				"auto_generate_test_config": "True",
-				"target_compatible_with":    `["//build/bazel/platforms/os:android"]`,
+				"target_compatible_with":    `["//build/bazel_common_rules/platforms/os:android"]`,
 				"template_test_config":      `":art-run-test-target-template"`,
 				"data": `[
         "android.hardware.bluetooth@1.1-service.sim.rc",
@@ -220,7 +220,7 @@ func TestShTestHostAutogen(t *testing.T) {
 				"runs_on":                   `["host_without_device"]`,
 				"auto_generate_test_config": "True",
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 				"template_test_config": `":art-run-test-target-template"`,
@@ -332,7 +332,7 @@ func TestShTestHostSimpleUnset(t *testing.T) {
     ]`,
 				"tags": `["no-remote"]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			})},

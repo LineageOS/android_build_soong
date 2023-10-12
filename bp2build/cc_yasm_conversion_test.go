@@ -126,14 +126,14 @@ cc_library {
 			MakeBazelTarget("yasm", "foo_yasm", map[string]string{
 				"include_dirs": `["."]`,
 				"srcs": `select({
-        "//build/bazel/platforms/arch:x86": ["myfile.asm"],
+        "//build/bazel_common_rules/platforms/arch:x86": ["myfile.asm"],
         "//conditions:default": [],
     })`,
 			}),
 		}, makeCcLibraryTargets("foo", map[string]string{
 			"local_includes": `["."]`,
 			"srcs": `["main.cpp"] + select({
-        "//build/bazel/platforms/arch:x86": [":foo_yasm"],
+        "//build/bazel_common_rules/platforms/arch:x86": [":foo_yasm"],
         "//conditions:default": [],
     })`,
 		})...),
@@ -164,7 +164,7 @@ cc_library {
 			MakeBazelTarget("yasm", "foo_yasm", map[string]string{
 				"include_dirs": `["."]`,
 				"srcs": `["myfile.asm"] + select({
-        "//build/bazel/platforms/arch:x86": ["mysecondfile.asm"],
+        "//build/bazel_common_rules/platforms/arch:x86": ["mysecondfile.asm"],
         "//conditions:default": [],
     })`,
 			}),
