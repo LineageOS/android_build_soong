@@ -618,13 +618,13 @@ cc_library {
 			{"cc_library_static", "bar_bp2build_cc_library_static", AttrNameToString{
 				"local_includes":         `["."]`,
 				"srcs":                   `["b.cc"]`,
-				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 			},
 			},
 			{"cc_library_shared", "bar", AttrNameToString{
 				"local_includes":         `["."]`,
 				"srcs":                   `["b.cc"]`,
-				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 			},
 			},
 			{"cc_binary", "foo", AttrNameToString{
@@ -653,7 +653,7 @@ func TestCcBinaryWithInstructionSet(t *testing.T) {
 		targets: []testBazelTarget{
 			{"cc_binary", "foo", AttrNameToString{
 				"features": `select({
-        "//build/bazel/platforms/arch:arm": ["arm_isa_arm"],
+        "//build/bazel_common_rules/platforms/arch:arm": ["arm_isa_arm"],
         "//conditions:default": [],
     })`,
 				"local_includes": `["."]`,
@@ -713,8 +713,8 @@ func TestCcArchVariantBinarySuffix(t *testing.T) {
 			{"cc_binary", "foo", AttrNameToString{
 				"local_includes": `["."]`,
 				"suffix": `select({
-        "//build/bazel/platforms/arch:arm": "-32",
-        "//build/bazel/platforms/arch:arm64": "-64",
+        "//build/bazel_common_rules/platforms/arch:arm": "-32",
+        "//build/bazel_common_rules/platforms/arch:arm64": "-64",
         "//conditions:default": None,
     })`,
 			}},
@@ -775,7 +775,7 @@ func TestCcBinaryWithSyspropSrcsSomeConfigs(t *testing.T) {
 		targets: []testBazelTarget{
 			{"sysprop_library", "foo_sysprop_library", AttrNameToString{
 				"srcs": `select({
-        "//build/bazel/platforms/os:android": ["bar.sysprop"],
+        "//build/bazel_common_rules/platforms/os:android": ["bar.sysprop"],
         "//conditions:default": [],
     })`,
 			}},
@@ -788,7 +788,7 @@ func TestCcBinaryWithSyspropSrcsSomeConfigs(t *testing.T) {
 				"local_includes":  `["."]`,
 				"min_sdk_version": `"5"`,
 				"whole_archive_deps": `select({
-        "//build/bazel/platforms/os:android": [":foo_cc_sysprop_library_static"],
+        "//build/bazel_common_rules/platforms/os:android": [":foo_cc_sysprop_library_static"],
         "//conditions:default": [],
     })`,
 			}},
@@ -866,8 +866,8 @@ func TestCcBinaryWithUBSanPropertiesArchSpecific(t *testing.T) {
         "ubsan_undefined",
         "ubsan_nullability",
     ] + select({
-        "//build/bazel/platforms/os:android": ["ubsan_alignment"],
-        "//build/bazel/platforms/os:linux_glibc": ["ubsan_integer_overflow"],
+        "//build/bazel_common_rules/platforms/os:android": ["ubsan_alignment"],
+        "//build/bazel_common_rules/platforms/os:linux_glibc": ["ubsan_integer_overflow"],
         "//conditions:default": [],
     })`,
 			}},
@@ -964,11 +964,11 @@ func TestCcBinaryWithThinLtoArchSpecific(t *testing.T) {
 			{"cc_binary", "foo", AttrNameToString{
 				"local_includes": `["."]`,
 				"features": `select({
-        "//build/bazel/platforms/os_arch:android_arm": ["android_thin_lto"],
-        "//build/bazel/platforms/os_arch:android_arm64": ["android_thin_lto"],
-        "//build/bazel/platforms/os_arch:android_riscv64": ["-android_thin_lto"],
-        "//build/bazel/platforms/os_arch:android_x86": ["android_thin_lto"],
-        "//build/bazel/platforms/os_arch:android_x86_64": ["android_thin_lto"],
+        "//build/bazel_common_rules/platforms/os_arch:android_arm": ["android_thin_lto"],
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": ["android_thin_lto"],
+        "//build/bazel_common_rules/platforms/os_arch:android_riscv64": ["-android_thin_lto"],
+        "//build/bazel_common_rules/platforms/os_arch:android_x86": ["android_thin_lto"],
+        "//build/bazel_common_rules/platforms/os_arch:android_x86_64": ["android_thin_lto"],
         "//conditions:default": [],
     })`,
 			}},
@@ -998,7 +998,7 @@ func TestCcBinaryWithThinLtoDisabledDefaultEnabledVariant(t *testing.T) {
 			{"cc_binary", "foo", AttrNameToString{
 				"local_includes": `["."]`,
 				"features": `select({
-        "//build/bazel/platforms/os:android": ["android_thin_lto"],
+        "//build/bazel_common_rules/platforms/os:android": ["android_thin_lto"],
         "//conditions:default": ["-android_thin_lto"],
     })`,
 			}},
@@ -1062,7 +1062,7 @@ func TestCcBinaryHiddenVisibilityConvertedToFeatureOsSpecific(t *testing.T) {
 			{"cc_binary", "foo", AttrNameToString{
 				"local_includes": `["."]`,
 				"features": `select({
-        "//build/bazel/platforms/os:android": ["visibility_hidden"],
+        "//build/bazel_common_rules/platforms/os:android": ["visibility_hidden"],
         "//conditions:default": [],
     })`,
 			}},
@@ -1106,7 +1106,7 @@ func TestCcBinaryWithCfiOsSpecific(t *testing.T) {
 		targets: []testBazelTarget{
 			{"cc_binary", "foo", AttrNameToString{
 				"features": `select({
-        "//build/bazel/platforms/os:android": ["android_cfi"],
+        "//build/bazel_common_rules/platforms/os:android": ["android_cfi"],
         "//conditions:default": [],
     })`,
 				"local_includes": `["."]`,
@@ -1187,8 +1187,8 @@ cc_binary {
 			}},
 			{"cc_binary", "foo_with_arch_variant_stem", AttrNameToString{
 				"stem": `select({
-        "//build/bazel/platforms/arch:arm": "foo-arm",
-        "//build/bazel/platforms/arch:arm64": "foo-arm64",
+        "//build/bazel_common_rules/platforms/arch:arm": "foo-arm",
+        "//build/bazel_common_rules/platforms/arch:arm64": "foo-arm64",
         "//conditions:default": None,
     })`,
 				"local_includes": `["."]`,

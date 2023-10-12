@@ -25,7 +25,7 @@ type pythonLibBp2BuildTestCase struct {
 func convertPythonLibTestCaseToBp2build_Host(tc pythonLibBp2BuildTestCase) Bp2buildTestCase {
 	for i := range tc.expectedBazelTargets {
 		tc.expectedBazelTargets[i].attrs["target_compatible_with"] = `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`
 	}
@@ -296,8 +296,8 @@ func TestPythonArchVariance(t *testing.T) {
 				name: "foo",
 				attrs: AttrNameToString{
 					"srcs": `select({
-        "//build/bazel/platforms/arch:arm": ["arm.py"],
-        "//build/bazel/platforms/arch:x86": ["x86.py"],
+        "//build/bazel_common_rules/platforms/arch:arm": ["arm.py"],
+        "//build/bazel_common_rules/platforms/arch:x86": ["x86.py"],
         "//conditions:default": [],
     })`,
 					"srcs_version": `"PY3"`,

@@ -682,11 +682,11 @@ func makeBazelTargetHostOrDevice(typ, name string, attrs AttrNameToString, hod a
 		switch hod {
 		case android.HostSupported:
 			attrs["target_compatible_with"] = `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`
 		case android.DeviceSupported:
-			attrs["target_compatible_with"] = `["//build/bazel/platforms/os:android"]`
+			attrs["target_compatible_with"] = `["//build/bazel_common_rules/platforms/os:android"]`
 		}
 	}
 
