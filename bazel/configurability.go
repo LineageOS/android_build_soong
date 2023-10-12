@@ -133,7 +133,7 @@ func createPlatformArchMap() map[string]string {
 	}
 	result := make(map[string]string)
 	for arch, allFeatures := range archFeatures {
-		result[arch] = "//build/bazel/platforms/arch:" + arch
+		result[arch] = "//build/bazel_common_rules/platforms/arch:" + arch
 		// Sometimes we want to select on multiple features being active, so
 		// add the power set of all possible features to the map. More details
 		// in android.ModuleBase.GetArchVariantProperties
@@ -160,33 +160,33 @@ var (
 	// A map of target operating systems to the Bazel label of the
 	// constraint_value for the @platforms//os:os constraint_setting
 	platformOsMap = map[string]string{
-		OsAndroid:                  "//build/bazel/platforms/os:android",
-		OsDarwin:                   "//build/bazel/platforms/os:darwin",
-		OsLinux:                    "//build/bazel/platforms/os:linux_glibc",
-		osLinuxMusl:                "//build/bazel/platforms/os:linux_musl",
-		osLinuxBionic:              "//build/bazel/platforms/os:linux_bionic",
-		OsWindows:                  "//build/bazel/platforms/os:windows",
+		OsAndroid:                  "//build/bazel_common_rules/platforms/os:android",
+		OsDarwin:                   "//build/bazel_common_rules/platforms/os:darwin",
+		OsLinux:                    "//build/bazel_common_rules/platforms/os:linux_glibc",
+		osLinuxMusl:                "//build/bazel_common_rules/platforms/os:linux_musl",
+		osLinuxBionic:              "//build/bazel_common_rules/platforms/os:linux_bionic",
+		OsWindows:                  "//build/bazel_common_rules/platforms/os:windows",
 		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey, // The default condition of an os select map.
 	}
 
 	platformOsArchMap = map[string]string{
-		osArchAndroidArm:           "//build/bazel/platforms/os_arch:android_arm",
-		OsArchAndroidArm64:         "//build/bazel/platforms/os_arch:android_arm64",
-		osArchAndroidRiscv64:       "//build/bazel/platforms/os_arch:android_riscv64",
-		osArchAndroidX86:           "//build/bazel/platforms/os_arch:android_x86",
-		osArchAndroidX86_64:        "//build/bazel/platforms/os_arch:android_x86_64",
-		osArchDarwinArm64:          "//build/bazel/platforms/os_arch:darwin_arm64",
-		osArchDarwinX86_64:         "//build/bazel/platforms/os_arch:darwin_x86_64",
-		osArchLinuxX86:             "//build/bazel/platforms/os_arch:linux_glibc_x86",
-		osArchLinuxX86_64:          "//build/bazel/platforms/os_arch:linux_glibc_x86_64",
-		osArchLinuxMuslArm:         "//build/bazel/platforms/os_arch:linux_musl_arm",
-		osArchLinuxMuslArm64:       "//build/bazel/platforms/os_arch:linux_musl_arm64",
-		osArchLinuxMuslX86:         "//build/bazel/platforms/os_arch:linux_musl_x86",
-		osArchLinuxMuslX86_64:      "//build/bazel/platforms/os_arch:linux_musl_x86_64",
-		osArchLinuxBionicArm64:     "//build/bazel/platforms/os_arch:linux_bionic_arm64",
-		osArchLinuxBionicX86_64:    "//build/bazel/platforms/os_arch:linux_bionic_x86_64",
-		osArchWindowsX86:           "//build/bazel/platforms/os_arch:windows_x86",
-		osArchWindowsX86_64:        "//build/bazel/platforms/os_arch:windows_x86_64",
+		osArchAndroidArm:           "//build/bazel_common_rules/platforms/os_arch:android_arm",
+		OsArchAndroidArm64:         "//build/bazel_common_rules/platforms/os_arch:android_arm64",
+		osArchAndroidRiscv64:       "//build/bazel_common_rules/platforms/os_arch:android_riscv64",
+		osArchAndroidX86:           "//build/bazel_common_rules/platforms/os_arch:android_x86",
+		osArchAndroidX86_64:        "//build/bazel_common_rules/platforms/os_arch:android_x86_64",
+		osArchDarwinArm64:          "//build/bazel_common_rules/platforms/os_arch:darwin_arm64",
+		osArchDarwinX86_64:         "//build/bazel_common_rules/platforms/os_arch:darwin_x86_64",
+		osArchLinuxX86:             "//build/bazel_common_rules/platforms/os_arch:linux_glibc_x86",
+		osArchLinuxX86_64:          "//build/bazel_common_rules/platforms/os_arch:linux_glibc_x86_64",
+		osArchLinuxMuslArm:         "//build/bazel_common_rules/platforms/os_arch:linux_musl_arm",
+		osArchLinuxMuslArm64:       "//build/bazel_common_rules/platforms/os_arch:linux_musl_arm64",
+		osArchLinuxMuslX86:         "//build/bazel_common_rules/platforms/os_arch:linux_musl_x86",
+		osArchLinuxMuslX86_64:      "//build/bazel_common_rules/platforms/os_arch:linux_musl_x86_64",
+		osArchLinuxBionicArm64:     "//build/bazel_common_rules/platforms/os_arch:linux_bionic_arm64",
+		osArchLinuxBionicX86_64:    "//build/bazel_common_rules/platforms/os_arch:linux_bionic_x86_64",
+		osArchWindowsX86:           "//build/bazel_common_rules/platforms/os_arch:windows_x86",
+		osArchWindowsX86_64:        "//build/bazel_common_rules/platforms/os_arch:windows_x86_64",
 		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey, // The default condition of an os select map.
 	}
 
@@ -209,11 +209,11 @@ var (
 		AndroidAndInApex:           "//build/bazel/rules/apex:android-in_apex",
 		AndroidPlatform:            "//build/bazel/rules/apex:system",
 		Unbundled_app:              "//build/bazel/rules/apex:unbundled_app",
-		OsDarwin:                   "//build/bazel/platforms/os:darwin",
-		OsLinux:                    "//build/bazel/platforms/os:linux_glibc",
-		osLinuxMusl:                "//build/bazel/platforms/os:linux_musl",
-		osLinuxBionic:              "//build/bazel/platforms/os:linux_bionic",
-		OsWindows:                  "//build/bazel/platforms/os:windows",
+		OsDarwin:                   "//build/bazel_common_rules/platforms/os:darwin",
+		OsLinux:                    "//build/bazel_common_rules/platforms/os:linux_glibc",
+		osLinuxMusl:                "//build/bazel_common_rules/platforms/os:linux_musl",
+		osLinuxBionic:              "//build/bazel_common_rules/platforms/os:linux_bionic",
+		OsWindows:                  "//build/bazel_common_rules/platforms/os:windows",
 		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey,
 	}
 

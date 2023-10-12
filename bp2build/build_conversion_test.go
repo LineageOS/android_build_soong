@@ -270,8 +270,8 @@ func TestGenerateBazelTargetModules(t *testing.T) {
 			ExpectedBazelTargets: []string{
 				MakeBazelTarget("custom", "foo", AttrNameToString{
 					"string_literal_prop": `select({
-        "//build/bazel/platforms/arch:arm": "ARM",
-        "//build/bazel/platforms/arch:arm64": "ARM64",
+        "//build/bazel_common_rules/platforms/arch:arm": "ARM",
+        "//build/bazel_common_rules/platforms/arch:arm64": "ARM64",
         "//conditions:default": None,
     })`,
 				}),
@@ -382,60 +382,60 @@ custom {
 			ExpectedBazelTargets: []string{
 				MakeBazelTarget("custom", "arch_paths", AttrNameToString{
 					"arch_paths": `select({
-        "//build/bazel/platforms/arch:arm": [
+        "//build/bazel_common_rules/platforms/arch:arm": [
             "arm.txt",
             "lib32.txt",
         ],
-        "//build/bazel/platforms/arch:arm64": [
+        "//build/bazel_common_rules/platforms/arch:arm64": [
             "arm64.txt",
             "lib64.txt",
         ],
-        "//build/bazel/platforms/arch:riscv64": [
+        "//build/bazel_common_rules/platforms/arch:riscv64": [
             "riscv64.txt",
             "lib64.txt",
         ],
-        "//build/bazel/platforms/arch:x86": [
+        "//build/bazel_common_rules/platforms/arch:x86": [
             "x86.txt",
             "lib32.txt",
         ],
-        "//build/bazel/platforms/arch:x86_64": [
+        "//build/bazel_common_rules/platforms/arch:x86_64": [
             "x86_64.txt",
             "lib64.txt",
         ],
         "//conditions:default": [],
     }) + select({
-        "//build/bazel/platforms/os:android": [
+        "//build/bazel_common_rules/platforms/os:android": [
             "linux.txt",
             "bionic.txt",
             "android.txt",
         ],
-        "//build/bazel/platforms/os:darwin": [
+        "//build/bazel_common_rules/platforms/os:darwin": [
             "host.txt",
             "darwin.txt",
             "not_windows.txt",
         ],
-        "//build/bazel/platforms/os:linux_bionic": [
+        "//build/bazel_common_rules/platforms/os:linux_bionic": [
             "host.txt",
             "linux.txt",
             "bionic.txt",
             "linux_bionic.txt",
             "not_windows.txt",
         ],
-        "//build/bazel/platforms/os:linux_glibc": [
+        "//build/bazel_common_rules/platforms/os:linux_glibc": [
             "host.txt",
             "linux.txt",
             "glibc.txt",
             "linux_glibc.txt",
             "not_windows.txt",
         ],
-        "//build/bazel/platforms/os:linux_musl": [
+        "//build/bazel_common_rules/platforms/os:linux_musl": [
             "host.txt",
             "linux.txt",
             "musl.txt",
             "linux_musl.txt",
             "not_windows.txt",
         ],
-        "//build/bazel/platforms/os:windows": [
+        "//build/bazel_common_rules/platforms/os:windows": [
             "host.txt",
             "windows.txt",
         ],
@@ -467,7 +467,7 @@ custom {
 				}),
 				MakeBazelTarget("custom", "has_dep", AttrNameToString{
 					"arch_paths": `select({
-        "//build/bazel/platforms/arch:x86": [":dep"],
+        "//build/bazel_common_rules/platforms/arch:x86": [":dep"],
         "//conditions:default": [],
     })`,
 				}),
@@ -1768,8 +1768,8 @@ python_library {
 			ExpectedBazelTargets: []string{
 				MakeBazelTarget("py_library", "fg_foo", map[string]string{
 					"data": `select({
-        "//build/bazel/platforms/arch:arm": [":reqdarm"],
-        "//build/bazel/platforms/arch:x86": [":reqdx86"],
+        "//build/bazel_common_rules/platforms/arch:arm": [":reqdarm"],
+        "//build/bazel_common_rules/platforms/arch:x86": [":reqdx86"],
         "//conditions:default": [],
     })`,
 					"srcs_version": `"PY3"`,

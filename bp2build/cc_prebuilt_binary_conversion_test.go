@@ -95,8 +95,8 @@ cc_prebuilt_binary {
 }`, ExpectedBazelTargets: []string{
 				MakeBazelTarget("cc_prebuilt_binary", "bintest", AttrNameToString{
 					"src": `select({
-        "//build/bazel/platforms/arch:arm": "binb",
-        "//build/bazel/platforms/arch:arm64": "bina",
+        "//build/bazel_common_rules/platforms/arch:arm": "binb",
+        "//build/bazel_common_rules/platforms/arch:arm64": "bina",
         "//conditions:default": None,
     })`,
 				}),
