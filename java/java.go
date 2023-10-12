@@ -2775,7 +2775,7 @@ func addCLCFromDep(ctx android.ModuleContext, depModule android.Module,
 type javaResourcesAttributes struct {
 	Resources             bazel.LabelListAttribute
 	Resource_strip_prefix *string
-	Additional_resources  bazel.LabelListAttribute
+	Additional_resources  bazel.LabelListAttribute `blueprint:"mutated"`
 }
 
 func (m *Library) getResourceFilegroupStripPrefix(ctx android.Bp2buildMutatorContext, resourceFilegroup string) (*string, bool) {
@@ -3052,9 +3052,11 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.Bp2buildMutatorContext
 		javacopts.Append(bazel.MakeStringListAttribute([]string{"-XepDisableAllChecks"}))
 	}
 
+	resourcesAttrs := m.convertJavaResourcesAttributes(ctx)
+
 	commonAttrs := &javaCommonAttributes{
 		Srcs:                    javaSrcs,
-		javaResourcesAttributes: m.convertJavaResourcesAttributes(ctx),
+		javaResourcesAttributes: resourcesAttrs,
 		Plugins:                 plugins,
 		Javacopts:               javacopts,
 		Java_version:            bazel.StringAttribute{Value: m.properties.Java_version},
@@ -3077,6 +3079,7 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.Bp2buildMutatorContext
 	}
 
 	depLabels := &javaDependencyLabels{}
+	deps.Append(resourcesAttrs.Additional_resources)
 	depLabels.Deps = deps
 
 	for axis, configToProps := range archVariantProps {
