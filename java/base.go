@@ -1024,7 +1024,12 @@ func (j *Module) collectJavacFlags(
 
 	if flags.javaVersion.usesJavaModules() {
 		javacFlags = append(javacFlags, j.properties.Openjdk9.Javacflags...)
+	} else if len(j.properties.Openjdk9.Javacflags) > 0 {
+		// java version defaults higher than openjdk 9, these conditionals should no longer be necessary
+		ctx.PropertyErrorf("openjdk9.javacflags", "JDK version defaults to higher than 9")
+	}
 
+	if flags.javaVersion.usesJavaModules() {
 		if j.properties.Patch_module != nil {
 			// Manually specify build directory in case it is not under the repo root.
 			// (javac doesn't seem to expand into symbolic links when searching for patch-module targets, so
@@ -1101,6 +1106,9 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 
 	if flags.javaVersion.usesJavaModules() {
 		j.properties.Srcs = append(j.properties.Srcs, j.properties.Openjdk9.Srcs...)
+	} else if len(j.properties.Openjdk9.Javacflags) > 0 {
+		// java version defaults higher than openjdk 9, these conditionals should no longer be necessary
+		ctx.PropertyErrorf("openjdk9.srcs", "JDK version defaults to higher than 9")
 	}
 
 	srcFiles := android.PathsForModuleSrcExcludes(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
