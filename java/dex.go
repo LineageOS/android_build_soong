@@ -106,15 +106,12 @@ func (d *dexer) effectiveOptimizeEnabled() bool {
 var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-			`mkdir -p $$(dirname $tmpJar) && ` +
-			`${config.Zip2ZipCmd} -i $in -o $tmpJar -x '**/*.dex' && ` +
-			`$d8Template${config.D8Cmd} ${config.D8Flags} --output $outDir $d8Flags $tmpJar && ` +
+			`$d8Template${config.D8Cmd} ${config.D8Flags} --output $outDir $d8Flags --no-dex-input-jar $in && ` +
 			`$zipTemplate${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $mergeZipsFlags $out $outDir/classes.dex.jar $in && ` +
-			`rm -f "$tmpJar" "$outDir/classes*.dex" "$outDir/classes.dex.jar"`,
+			`rm -f "$outDir/classes*.dex" "$outDir/classes.dex.jar"`,
 		CommandDeps: []string{
 			"${config.D8Cmd}",
-			"${config.Zip2ZipCmd}",
 			"${config.SoongZipCmd}",
 			"${config.MergeZipsCmd}",
 		},
@@ -133,7 +130,7 @@ var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
 			ExecStrategy: "${config.RED8ExecStrategy}",
 			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 		},
-	}, []string{"outDir", "d8Flags", "zipFlags", "tmpJar", "mergeZipsFlags"}, nil)
+	}, []string{"outDir", "d8Flags", "zipFlags", "mergeZipsFlags"}, nil)
 
 var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 	blueprint.RuleParams{
@@ -157,7 +154,6 @@ var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 		Deps:    blueprint.DepsGCC,
 		CommandDeps: []string{
 			"${config.R8Cmd}",
-			"${config.Zip2ZipCmd}",
 			"${config.SoongZipCmd}",
 			"${config.MergeZipsCmd}",
 		},
@@ -424,7 +420,6 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 			Args:      args,
 		})
 	} else {
-		tmpJar := android.PathForModuleOut(ctx, "withres-withoutdex", dexParams.jarName)
 		d8Flags, d8Deps := d8Flags(dexParams.flags)
 		d8Deps = append(d8Deps, commonDeps...)
 		rule := d8
@@ -441,7 +436,6 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 				"d8Flags":        strings.Join(append(commonFlags, d8Flags...), " "),
 				"zipFlags":       zipFlags,
 				"outDir":         outDir.String(),
-				"tmpJar":         tmpJar.String(),
 				"mergeZipsFlags": mergeZipsFlags,
 			},
 		})
