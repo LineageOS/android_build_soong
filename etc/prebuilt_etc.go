@@ -508,6 +508,7 @@ func PrebuiltRootHostFactory() android.Module {
 	// This module is host-only
 	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
+	android.InitBazelModule(module)
 	return module
 }
 
@@ -759,7 +760,7 @@ func (module *PrebuiltEtc) Bp2buildHelper(ctx android.Bp2buildMutatorContext) (*
 		filename = *moduleProps.Filename
 	} else if moduleProps.Filename_from_src != nil && *moduleProps.Filename_from_src {
 		if moduleProps.Src != nil {
-			filename = *moduleProps.Src
+			filename = android.BazelLabelForModuleSrcSingle(ctx, *moduleProps.Src).Label
 		}
 		filenameFromSrc = true
 	} else {
@@ -767,8 +768,8 @@ func (module *PrebuiltEtc) Bp2buildHelper(ctx android.Bp2buildMutatorContext) (*
 	}
 
 	var dir = module.installDirBase
-	if subDir := module.subdirProperties.Sub_dir; subDir != nil {
-		dir = dir + "/" + *subDir
+	if module.SubDir() != "" {
+		dir = dir + "/" + module.SubDir()
 	}
 
 	var installable bazel.BoolAttribute
@@ -796,8 +797,9 @@ func (module *PrebuiltEtc) Bp2buildHelper(ctx android.Bp2buildMutatorContext) (*
 // which we treat as *PrebuiltFile*
 func (module *PrebuiltEtc) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 	var dir = module.installDirBase
-	// prebuilt_file supports only `etc` or `usr/share`
-	if !(dir == "etc" || dir == "usr/share") {
+	// prebuilt_file only supports "etc" or "usr/share" or "." as module installDirBase
+	if !(dir == "etc" || dir == "usr/share" || dir == ".") {
+		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "")
 		return
 	}
 
