@@ -88,6 +88,7 @@ bootstrap_go_package {
         "singleton.go",
         "singleton_module.go",
         "soong_config_modules.go",
+        "source_file_provider.go",
         "test_asserts.go",
         "test_suites.go",
         "testing.go",

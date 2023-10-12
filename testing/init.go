@@ -28,6 +28,8 @@ func init() {
 }
 
 func RegisterBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("code_metadata", CodeMetadataFactory)
 	ctx.RegisterModuleType("test_spec", TestSpecFactory)
 	ctx.RegisterSingletonType("all_test_specs", AllTestSpecsFactory)
+	ctx.RegisterSingletonType("all_code_metadata", AllCodeMetadataFactory)
 }

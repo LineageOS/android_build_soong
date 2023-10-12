@@ -1404,6 +1404,7 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		}
 	}
 	ctx.SetProvider(android.AdditionalSdkInfoProvider, android.AdditionalSdkInfo{additionalSdkInfo})
+	ctx.SetProvider(android.SrcsFileProviderKey, android.SrcsFileProviderData{SrcPaths: module.uniqueSrcFiles})
 }
 
 func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {

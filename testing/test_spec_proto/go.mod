@@ -1,2 +1,3 @@
-module test_spec_proto
+module android/soong/testing/test_spec_proto
+
 go 1.18
