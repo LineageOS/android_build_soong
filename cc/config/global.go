@@ -248,7 +248,6 @@ var (
 		"-Werror=fortify-source",
 
 		"-Werror=address-of-temporary",
-		"-Werror=incompatible-function-pointer-types",
 		"-Werror=null-dereference",
 		"-Werror=return-type",
 
@@ -325,6 +324,10 @@ var (
 		"-fcommon",
 		// http://b/191699019
 		"-Wno-format-insufficient-args",
+		// http://b/296321145
+		// Indicates potential memory or stack corruption, so should be changed
+		// to a hard error. Currently triggered by some vendor code.
+		"-Wno-incompatible-function-pointer-types",
 		// http://b/296321508
 		// Introduced in response to a critical security vulnerability and
 		// should be a hard error - it requires only whitespace changes to fix.
