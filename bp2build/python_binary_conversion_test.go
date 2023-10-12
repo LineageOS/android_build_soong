@@ -56,7 +56,7 @@ func TestPythonBinaryHostSimple(t *testing.T) {
         "b/d.py",
     ]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -90,7 +90,7 @@ func TestPythonBinaryHostPy2(t *testing.T) {
 				"imports":        `["."]`,
 				"srcs":           `["a.py"]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -124,7 +124,7 @@ func TestPythonBinaryHostPy3(t *testing.T) {
 				"imports": `["."]`,
 				"srcs":    `["a.py"]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -156,12 +156,12 @@ func TestPythonBinaryHostArchVariance(t *testing.T) {
 			MakeBazelTarget("py_binary", "foo-arm", AttrNameToString{
 				"imports": `["."]`,
 				"srcs": `select({
-        "//build/bazel/platforms/arch:arm": ["arm.py"],
-        "//build/bazel/platforms/arch:x86": ["x86.py"],
+        "//build/bazel_common_rules/platforms/arch:arm": ["arm.py"],
+        "//build/bazel_common_rules/platforms/arch:x86": ["x86.py"],
         "//conditions:default": [],
     })`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -183,7 +183,7 @@ func TestPythonBinaryMainIsNotSpecified(t *testing.T) {
 			MakeBazelTarget("py_binary", "foo", AttrNameToString{
 				"imports": `["."]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -212,7 +212,7 @@ genrule {
 				"main":    `":a"`,
 				"imports": `["."]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -241,7 +241,7 @@ func TestPythonBinaryMainIsSubpackageFile(t *testing.T) {
 				"main":    `"//a:b.py"`,
 				"imports": `["."]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -269,7 +269,7 @@ func TestPythonBinaryMainIsSubDirFile(t *testing.T) {
 				"main":    `"a/b.py"`,
 				"imports": `["."]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -311,7 +311,7 @@ python_defaults {
         ":r2",
     ]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),

@@ -204,11 +204,11 @@ cc_library_shared {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
 				"implementation_dynamic_deps": `select({
-        "//build/bazel/platforms/arch:arm64": [":shared_dep"],
+        "//build/bazel_common_rules/platforms/arch:arm64": [":shared_dep"],
         "//conditions:default": [],
     })`,
 				"whole_archive_deps": `select({
-        "//build/bazel/platforms/arch:arm64": [":static_dep"],
+        "//build/bazel_common_rules/platforms/arch:arm64": [":static_dep"],
         "//conditions:default": [],
     })`,
 			}),
@@ -233,7 +233,7 @@ cc_library_shared {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
 				"implementation_dynamic_deps": `select({
-        "//build/bazel/platforms/os:android": [":shared_dep"],
+        "//build/bazel_common_rules/platforms/os:android": [":shared_dep"],
         "//conditions:default": [],
     })`,
 			}),
@@ -266,10 +266,10 @@ cc_library_shared {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
 				"implementation_dynamic_deps": `[":shared_dep"] + select({
-        "//build/bazel/platforms/arch:arm64": [":shared_dep3"],
+        "//build/bazel_common_rules/platforms/arch:arm64": [":shared_dep3"],
         "//conditions:default": [],
     }) + select({
-        "//build/bazel/platforms/os:android": [":shared_dep2"],
+        "//build/bazel_common_rules/platforms/os:android": [":shared_dep2"],
         "//conditions:default": [],
     })`,
 			}),
@@ -472,7 +472,7 @@ cc_library_shared {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
 				"features": `select({
-        "//build/bazel/platforms/arch:arm": ["-link_crt"],
+        "//build/bazel_common_rules/platforms/arch:arm": ["-link_crt"],
         "//conditions:default": [],
     })`,
 				"srcs": `["impl.cpp"]`,
@@ -1006,8 +1006,8 @@ cc_library_shared {
 			MakeBazelTarget("cc_library_shared", "foo_shared", AttrNameToString{
 				"srcs_c": `["foo.c"]`,
 				"suffix": `select({
-        "//build/bazel/platforms/arch:arm": "-32",
-        "//build/bazel/platforms/arch:arm64": "-64",
+        "//build/bazel_common_rules/platforms/arch:arm": "-32",
+        "//build/bazel_common_rules/platforms/arch:arm64": "-64",
         "//conditions:default": None,
     })`,
 			}),
@@ -1068,7 +1068,7 @@ cc_library_shared {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("sysprop_library", "foo_sysprop_library", AttrNameToString{
 				"srcs": `select({
-        "//build/bazel/platforms/os:android": ["bar.sysprop"],
+        "//build/bazel_common_rules/platforms/os:android": ["bar.sysprop"],
         "//conditions:default": [],
     })`,
 			}),
@@ -1081,7 +1081,7 @@ cc_library_shared {
 				"local_includes":  `["."]`,
 				"min_sdk_version": `"5"`,
 				"whole_archive_deps": `select({
-        "//build/bazel/platforms/os:android": [":foo_cc_sysprop_library_static"],
+        "//build/bazel_common_rules/platforms/os:android": [":foo_cc_sysprop_library_static"],
         "//conditions:default": [],
     })`,
 			}),
@@ -1201,8 +1201,8 @@ cc_library_shared {
         "ubsan_undefined",
         "ubsan_nullability",
     ] + select({
-        "//build/bazel/platforms/os:android": ["ubsan_alignment"],
-        "//build/bazel/platforms/os:linux_glibc": ["ubsan_integer_overflow"],
+        "//build/bazel_common_rules/platforms/os:android": ["ubsan_alignment"],
+        "//build/bazel_common_rules/platforms/os:linux_glibc": ["ubsan_integer_overflow"],
         "//conditions:default": [],
     })`,
 				"local_includes": `["."]`,
@@ -1303,11 +1303,11 @@ cc_library_shared {
 			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"local_includes": `["."]`,
 				"features": `select({
-        "//build/bazel/platforms/os_arch:android_arm": ["android_thin_lto"],
-        "//build/bazel/platforms/os_arch:android_arm64": ["android_thin_lto"],
-        "//build/bazel/platforms/os_arch:android_riscv64": ["-android_thin_lto"],
-        "//build/bazel/platforms/os_arch:android_x86": ["android_thin_lto"],
-        "//build/bazel/platforms/os_arch:android_x86_64": ["android_thin_lto"],
+        "//build/bazel_common_rules/platforms/os_arch:android_arm": ["android_thin_lto"],
+        "//build/bazel_common_rules/platforms/os_arch:android_arm64": ["android_thin_lto"],
+        "//build/bazel_common_rules/platforms/os_arch:android_riscv64": ["-android_thin_lto"],
+        "//build/bazel_common_rules/platforms/os_arch:android_x86": ["android_thin_lto"],
+        "//build/bazel_common_rules/platforms/os_arch:android_x86_64": ["android_thin_lto"],
         "//conditions:default": [],
     })`}),
 		},
@@ -1336,7 +1336,7 @@ cc_library_shared {
 			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"local_includes": `["."]`,
 				"features": `select({
-        "//build/bazel/platforms/os:android": ["android_thin_lto"],
+        "//build/bazel_common_rules/platforms/os:android": ["android_thin_lto"],
         "//conditions:default": ["-android_thin_lto"],
     })`,
 			}),
@@ -1400,7 +1400,7 @@ cc_library_shared{
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"features": `select({
-        "//build/bazel/platforms/os:android": ["visibility_hidden"],
+        "//build/bazel_common_rules/platforms/os:android": ["visibility_hidden"],
         "//conditions:default": [],
     })`,
 				"local_includes": `["."]`,
@@ -1510,7 +1510,7 @@ cc_library_shared {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("cc_library_shared", "foo", AttrNameToString{
 				"features": `select({
-        "//build/bazel/platforms/os:android": ["android_cfi"],
+        "//build/bazel_common_rules/platforms/os:android": ["android_cfi"],
         "//conditions:default": [],
     })`,
 				"local_includes": `["."]`,

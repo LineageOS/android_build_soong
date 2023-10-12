@@ -84,8 +84,8 @@ bootstrap_go_package {
         "foo1.go",
         "foo2.go",
     ] + select({
-        "//build/bazel/platforms/os:darwin": ["foo_darwin.go"],
-        "//build/bazel/platforms/os:linux_glibc": ["foo_linux.go"],
+        "//build/bazel_common_rules/platforms/os:darwin": ["foo_darwin.go"],
+        "//build/bazel_common_rules/platforms/os:linux_glibc": ["foo_linux.go"],
         "//conditions:default": [],
     })`,
 			},
@@ -98,8 +98,8 @@ bootstrap_go_package {
         "foo1_test.go",
         "foo2_test.go",
     ] + select({
-        "//build/bazel/platforms/os:darwin": ["foo_darwin_test.go"],
-        "//build/bazel/platforms/os:linux_glibc": ["foo_linux_test.go"],
+        "//build/bazel_common_rules/platforms/os:darwin": ["foo_darwin_test.go"],
+        "//build/bazel_common_rules/platforms/os:linux_glibc": ["foo_linux_test.go"],
         "//conditions:default": [],
     })`,
 				},

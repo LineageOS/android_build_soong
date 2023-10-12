@@ -681,11 +681,11 @@ func TestCcGenruleArchAndExcludeSrcs(t *testing.T) {
 
 	expectedBazelAttrs := AttrNameToString{
 		"srcs": `["foo1.in"] + select({
-        "//build/bazel/platforms/arch:arm": ["foo1_arch.in"],
+        "//build/bazel_common_rules/platforms/arch:arm": ["foo1_arch.in"],
         "//conditions:default": [],
     })`,
 		"cmd":                    `"cat $(SRCS) > $(OUTS)"`,
-		"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+		"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 	}
 
 	expectedBazelTargets := []string{

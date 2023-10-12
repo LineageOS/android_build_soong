@@ -69,8 +69,8 @@ android_library {
 				"TestLib",
 				AttrNameToString{
 					"srcs": `["lib.java"] + select({
-        "//build/bazel/platforms/arch:arm": ["arm.java"],
-        "//build/bazel/platforms/arch:x86": ["x86.java"],
+        "//build/bazel_common_rules/platforms/arch:arm": ["arm.java"],
+        "//build/bazel_common_rules/platforms/arch:x86": ["x86.java"],
         "//conditions:default": [],
     })`,
 					"manifest":       `"manifest/AndroidManifest.xml"`,
