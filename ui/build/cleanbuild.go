@@ -218,6 +218,50 @@ func installCleanIfNecessary(ctx Context, config Config) {
 	writeConfig()
 }
 
+// Writes out/partitions_were_clean_at_start_of_build.txt.
+// This file will contain "true" if there were no partition staging directories at the start of
+// the build (most likely from having just run `m installclean`) and "false" otherwise.
+// It's used to make a test that the staging directories are correct. That test can only be
+// correctly run directly after `m installclean`, and this is how we check for that.
+func checkForCleanPartitions(ctx Context, config Config) {
+	productOutPath := config.ProductOut()
+	productOut := func(path string) string {
+		return filepath.Join(productOutPath, path)
+	}
+
+	notExists := func(path string) bool {
+		_, err := os.Stat(path)
+		return os.IsNotExist(err)
+	}
+
+	clean := notExists(productOut("ramdisk")) &&
+		notExists(productOut("ramdisk_16k")) &&
+		notExists(productOut("debug_ramdisk")) &&
+		notExists(productOut("vendor_ramdisk")) &&
+		notExists(productOut("vendor_debug_ramdisk")) &&
+		notExists(productOut("vendor_kernel_ramdisk")) &&
+		notExists(productOut("test_harness_ramdisk")) &&
+		notExists(productOut("data")) &&
+		notExists(productOut("recovery")) &&
+		notExists(productOut("root")) &&
+		notExists(productOut("system")) &&
+		notExists(productOut("system_dlkm")) &&
+		notExists(productOut("system_other")) &&
+		notExists(productOut("vendor")) &&
+		notExists(productOut("vendor_dlkm")) &&
+		notExists(productOut("product")) &&
+		notExists(productOut("system_ext")) &&
+		notExists(productOut("oem")) &&
+		notExists(productOut("breakpad")) &&
+		notExists(productOut("cache")) &&
+		notExists(productOut("coverage")) &&
+		notExists(productOut("installer")) &&
+		notExists(productOut("odm")) &&
+		notExists(productOut("odm_dlkm"))
+
+	writeValueIfChanged(ctx, config, config.OutDir(), "partitions_were_clean_at_start_of_build.txt", fmt.Sprintf("%t\n", clean))
+}
+
 // cleanOldFiles takes an input file (with all paths relative to basePath), and removes files from
 // the filesystem if they were removed from the input file since the last execution.
 func cleanOldFiles(ctx Context, basePath, newFile string) {
