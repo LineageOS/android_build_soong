@@ -389,7 +389,7 @@ prebuilt_root_host {
 				"src":      `"prh.dat"`,
 				"dir":      `"./test/install/path"`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			})}})
