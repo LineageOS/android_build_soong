@@ -491,6 +491,7 @@ func gatherRequiredDepsForTest() string {
 		"android-non-updatable.stubs.system.from-text":     systemDroidstubs,
 		"android-non-updatable.stubs.test.from-text":       testDroidstubs,
 		"android-non-updatable.stubs.module_lib.from-text": moduleLibDroidstubs,
+		"android-non-updatable.stubs.test_module_lib":      moduleLibDroidstubs,
 	}
 
 	for _, droidstubs := range droidstubsStructs {
