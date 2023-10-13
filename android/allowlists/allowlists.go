@@ -203,6 +203,7 @@ var (
 		"external/pcre":                          Bp2BuildDefaultTrueRecursively,
 		"external/perfmark/api":                  Bp2BuildDefaultTrueRecursively,
 		"external/protobuf":                      Bp2BuildDefaultTrueRecursively,
+		"external/python/pyfakefs/pyfakefs":      Bp2BuildDefaultTrueRecursively,
 		"external/python/pyyaml/lib/yaml":        Bp2BuildDefaultTrueRecursively,
 		"external/python/six":                    Bp2BuildDefaultTrueRecursively,
 		"external/python/jinja/src":              Bp2BuildDefaultTrueRecursively,
