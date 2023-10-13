@@ -103,10 +103,8 @@ func testForDanglingRules(ctx Context, config Config) {
 	// treated as an source file.
 	dexpreoptConfigFilePath := filepath.Join(outDir, "soong", "dexpreopt.config")
 
-	// These files are written by soong_ui at the beginning of every build.
-	// Ninja considers them "source files"
+	// out/build_date.txt is considered a "source file"
 	buildDatetimeFilePath := filepath.Join(outDir, "build_date.txt")
-	cleanPartitionsFilePath := filepath.Join(outDir, "partitions_were_clean_at_start_of_build.txt")
 
 	// bpglob is built explicitly using Microfactory
 	bpglob := filepath.Join(config.SoongOutDir(), "bpglob")
@@ -124,7 +122,6 @@ func testForDanglingRules(ctx Context, config Config) {
 			line == variablesFilePath ||
 			line == dexpreoptConfigFilePath ||
 			line == buildDatetimeFilePath ||
-			line == cleanPartitionsFilePath ||
 			line == bpglob {
 			// Leaf node is in one of Soong's bootstrap directories, which do not have
 			// full build rules in the primary build.ninja file.
