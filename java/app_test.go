@@ -722,10 +722,13 @@ func TestAppJavaResources(t *testing.T) {
 
 func TestAndroidResourceProcessor(t *testing.T) {
 	testCases := []struct {
-		name                string
-		appUsesRP           bool
-		directLibUsesRP     bool
-		transitiveLibUsesRP bool
+		name                            string
+		appUsesRP                       bool
+		directLibUsesRP                 bool
+		transitiveLibUsesRP             bool
+		sharedLibUsesRP                 bool
+		sharedTransitiveStaticLibUsesRP bool
+		sharedTransitiveSharedLibUsesRP bool
 
 		dontVerifyApp bool
 		appResources  []string
@@ -760,6 +763,14 @@ func TestAndroidResourceProcessor(t *testing.T) {
 		transitiveImportResources  []string
 		transitiveImportOverlays   []string
 		transitiveImportImports    []string
+
+		dontVerifyShared bool
+		sharedResources  []string
+		sharedOverlays   []string
+		sharedImports    []string
+		sharedSrcJars    []string
+		sharedClasspath  []string
+		sharedCombined   []string
 	}{
 		{
 			// Test with all modules set to use_resource_processor: false (except android_library_import modules,
@@ -779,10 +790,14 @@ func TestAndroidResourceProcessor(t *testing.T) {
 				"out/soong/.intermediates/direct_import/android_common/package-res.apk",
 				"out/soong/.intermediates/app/android_common/aapt2/app/res/values_strings.arsc.flat",
 			},
-			appImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
+			appImports: []string{
+				"out/soong/.intermediates/shared/android_common/package-res.apk",
+				"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk",
+			},
 			appSrcJars: []string{"out/soong/.intermediates/app/android_common/gen/android/R.srcjar"},
 			appClasspath: []string{
 				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/shared/android_common/turbine-combined/shared.jar",
 				"out/soong/.intermediates/direct/android_common/turbine-combined/direct.jar",
 				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
 			},
@@ -819,6 +834,26 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			transitiveClasspath: []string{"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar"},
 			transitiveCombined:  nil,
 
+			sharedResources: nil,
+			sharedOverlays: []string{
+				"out/soong/.intermediates/shared_transitive_static/android_common/package-res.apk",
+				"out/soong/.intermediates/shared/android_common/aapt2/shared/res/values_strings.arsc.flat",
+			},
+			sharedImports: []string{
+				"out/soong/.intermediates/shared_transitive_shared/android_common/package-res.apk",
+				"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk",
+			},
+			sharedSrcJars: []string{"out/soong/.intermediates/shared/android_common/gen/android/R.srcjar"},
+			sharedClasspath: []string{
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/shared_transitive_shared/android_common/turbine-combined/shared_transitive_shared.jar",
+				"out/soong/.intermediates/shared_transitive_static/android_common/turbine-combined/shared_transitive_static.jar",
+			},
+			sharedCombined: []string{
+				"out/soong/.intermediates/shared/android_common/javac/shared.jar",
+				"out/soong/.intermediates/shared_transitive_static/android_common/javac/shared_transitive_static.jar",
+			},
+
 			directImportResources: nil,
 			directImportOverlays:  []string{"out/soong/.intermediates/direct_import/android_common/flat-res/gen_res.flata"},
 			directImportImports: []string{
@@ -835,10 +870,13 @@ func TestAndroidResourceProcessor(t *testing.T) {
 		},
 		{
 			// Test with all modules set to use_resource_processor: true.
-			name:                "resource_processor",
-			appUsesRP:           true,
-			directLibUsesRP:     true,
-			transitiveLibUsesRP: true,
+			name:                            "resource_processor",
+			appUsesRP:                       true,
+			directLibUsesRP:                 true,
+			transitiveLibUsesRP:             true,
+			sharedLibUsesRP:                 true,
+			sharedTransitiveSharedLibUsesRP: true,
+			sharedTransitiveStaticLibUsesRP: true,
 
 			appResources: nil,
 			appOverlays: []string{
@@ -850,11 +888,15 @@ func TestAndroidResourceProcessor(t *testing.T) {
 				"out/soong/.intermediates/direct_import/android_common/package-res.apk",
 				"out/soong/.intermediates/app/android_common/aapt2/app/res/values_strings.arsc.flat",
 			},
-			appImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
+			appImports: []string{
+				"out/soong/.intermediates/shared/android_common/package-res.apk",
+				"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk",
+			},
 			appSrcJars: nil,
 			appClasspath: []string{
 				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
 				"out/soong/.intermediates/app/android_common/busybox/R.jar",
+				"out/soong/.intermediates/shared/android_common/turbine-combined/shared.jar",
 				"out/soong/.intermediates/direct/android_common/turbine-combined/direct.jar",
 				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
 			},
@@ -899,6 +941,27 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			},
 			transitiveCombined: nil,
 
+			sharedResources: nil,
+			sharedOverlays:  []string{"out/soong/.intermediates/shared/android_common/aapt2/shared/res/values_strings.arsc.flat"},
+			sharedImports: []string{
+				"out/soong/.intermediates/shared_transitive_shared/android_common/package-res.apk",
+				"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk",
+				"out/soong/.intermediates/shared_transitive_static/android_common/package-res.apk",
+			},
+			sharedSrcJars: nil,
+			sharedClasspath: []string{
+				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/shared_transitive_static/android_common/busybox/R.jar",
+				"out/soong/.intermediates/shared_transitive_shared/android_common/busybox/R.jar",
+				"out/soong/.intermediates/shared/android_common/busybox/R.jar",
+				"out/soong/.intermediates/shared_transitive_shared/android_common/turbine-combined/shared_transitive_shared.jar",
+				"out/soong/.intermediates/shared_transitive_static/android_common/turbine-combined/shared_transitive_static.jar",
+			},
+			sharedCombined: []string{
+				"out/soong/.intermediates/shared/android_common/javac/shared.jar",
+				"out/soong/.intermediates/shared_transitive_static/android_common/javac/shared_transitive_static.jar",
+			},
+
 			directImportResources: nil,
 			directImportOverlays:  []string{"out/soong/.intermediates/direct_import/android_common/flat-res/gen_res.flata"},
 			directImportImports: []string{
@@ -930,12 +993,16 @@ func TestAndroidResourceProcessor(t *testing.T) {
 				"out/soong/.intermediates/direct_import/android_common/package-res.apk",
 				"out/soong/.intermediates/app/android_common/aapt2/app/res/values_strings.arsc.flat",
 			},
-			appImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
+			appImports: []string{
+				"out/soong/.intermediates/shared/android_common/package-res.apk",
+				"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk",
+			},
 			appSrcJars: nil,
 			appClasspath: []string{
 				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
 				// R.jar has to come before direct.jar
 				"out/soong/.intermediates/app/android_common/busybox/R.jar",
+				"out/soong/.intermediates/shared/android_common/turbine-combined/shared.jar",
 				"out/soong/.intermediates/direct/android_common/turbine-combined/direct.jar",
 				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
 			},
@@ -948,6 +1015,7 @@ func TestAndroidResourceProcessor(t *testing.T) {
 
 			dontVerifyDirect:           true,
 			dontVerifyTransitive:       true,
+			dontVerifyShared:           true,
 			dontVerifyDirectImport:     true,
 			dontVerifyTransitiveImport: true,
 		},
@@ -968,10 +1036,14 @@ func TestAndroidResourceProcessor(t *testing.T) {
 				"out/soong/.intermediates/direct_import/android_common/package-res.apk",
 				"out/soong/.intermediates/app/android_common/aapt2/app/res/values_strings.arsc.flat",
 			},
-			appImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
+			appImports: []string{
+				"out/soong/.intermediates/shared/android_common/package-res.apk",
+				"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk",
+			},
 			appSrcJars: []string{"out/soong/.intermediates/app/android_common/gen/android/R.srcjar"},
 			appClasspath: []string{
 				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/shared/android_common/turbine-combined/shared.jar",
 				"out/soong/.intermediates/direct/android_common/turbine-combined/direct.jar",
 				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
 			},
@@ -1005,6 +1077,7 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			},
 
 			dontVerifyTransitive:       true,
+			dontVerifyShared:           true,
 			dontVerifyDirectImport:     true,
 			dontVerifyTransitiveImport: true,
 		},
@@ -1025,10 +1098,14 @@ func TestAndroidResourceProcessor(t *testing.T) {
 				"out/soong/.intermediates/direct_import/android_common/package-res.apk",
 				"out/soong/.intermediates/app/android_common/aapt2/app/res/values_strings.arsc.flat",
 			},
-			appImports: []string{"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk"},
+			appImports: []string{
+				"out/soong/.intermediates/shared/android_common/package-res.apk",
+				"out/soong/.intermediates/default/java/framework-res/android_common/package-res.apk",
+			},
 			appSrcJars: []string{"out/soong/.intermediates/app/android_common/gen/android/R.srcjar"},
 			appClasspath: []string{
 				"out/soong/.intermediates/default/java/android_stubs_current/android_common/turbine-combined/android_stubs_current.jar",
+				"out/soong/.intermediates/shared/android_common/turbine-combined/shared.jar",
 				"out/soong/.intermediates/direct/android_common/turbine-combined/direct.jar",
 				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
 			},
@@ -1068,6 +1145,7 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			},
 			transitiveCombined: nil,
 
+			dontVerifyShared:           true,
 			dontVerifyDirectImport:     true,
 			dontVerifyTransitiveImport: true,
 		},
@@ -1082,6 +1160,7 @@ func TestAndroidResourceProcessor(t *testing.T) {
 					srcs: ["app/app.java"],
 					resource_dirs: ["app/res"],
 					manifest: "app/AndroidManifest.xml",
+					libs: ["shared"],
 					static_libs: ["direct", "direct_import"],
 					use_resource_processor: %v,
 				}
@@ -1102,6 +1181,35 @@ func TestAndroidResourceProcessor(t *testing.T) {
 					srcs: ["transitive/transitive.java"],
 					resource_dirs: ["transitive/res"],
 					manifest: "transitive/AndroidManifest.xml",
+					use_resource_processor: %v,
+				}
+
+				android_library {
+					name: "shared",
+					sdk_version: "current",
+					srcs: ["shared/shared.java"],
+					resource_dirs: ["shared/res"],
+					manifest: "shared/AndroidManifest.xml",
+					use_resource_processor: %v,
+					libs: ["shared_transitive_shared"],
+					static_libs: ["shared_transitive_static"],
+				}
+
+				android_library {
+					name: "shared_transitive_shared",
+					sdk_version: "current",
+					srcs: ["shared_transitive_shared/shared_transitive_shared.java"],
+					resource_dirs: ["shared_transitive_shared/res"],
+					manifest: "shared_transitive_shared/AndroidManifest.xml",
+					use_resource_processor: %v,
+				}
+
+				android_library {
+					name: "shared_transitive_static",
+					sdk_version: "current",
+					srcs: ["shared_transitive_static/shared.java"],
+					resource_dirs: ["shared_transitive_static/res"],
+					manifest: "shared_transitive_static/AndroidManifest.xml",
 					use_resource_processor: %v,
 				}
 
@@ -1130,12 +1238,16 @@ func TestAndroidResourceProcessor(t *testing.T) {
 					sdk_version: "current",
 					aars: ["transitive_import_dep.aar"],
 				}
-			`, testCase.appUsesRP, testCase.directLibUsesRP, testCase.transitiveLibUsesRP)
+			`, testCase.appUsesRP, testCase.directLibUsesRP, testCase.transitiveLibUsesRP,
+				testCase.sharedLibUsesRP, testCase.sharedTransitiveSharedLibUsesRP, testCase.sharedTransitiveStaticLibUsesRP)
 
 			fs := android.MockFS{
-				"app/res/values/strings.xml":        nil,
-				"direct/res/values/strings.xml":     nil,
-				"transitive/res/values/strings.xml": nil,
+				"app/res/values/strings.xml":                      nil,
+				"direct/res/values/strings.xml":                   nil,
+				"transitive/res/values/strings.xml":               nil,
+				"shared/res/values/strings.xml":                   nil,
+				"shared_transitive_static/res/values/strings.xml": nil,
+				"shared_transitive_shared/res/values/strings.xml": nil,
 			}
 
 			result := android.GroupFixturePreparers(
@@ -1182,6 +1294,7 @@ func TestAndroidResourceProcessor(t *testing.T) {
 			app := getAaptInfo("app")
 			direct := getAaptInfo("direct")
 			transitive := getAaptInfo("transitive")
+			shared := getAaptInfo("shared")
 			directImport := getAaptInfo("direct_import")
 			transitiveImport := getAaptInfo("transitive_import")
 
@@ -1210,6 +1323,15 @@ func TestAndroidResourceProcessor(t *testing.T) {
 				android.AssertPathsRelativeToTopEquals(t, "transitive srcjars", testCase.transitiveSrcJars, transitive.srcJars)
 				android.AssertPathsRelativeToTopEquals(t, "transitive classpath", testCase.transitiveClasspath, transitive.classpath)
 				android.AssertPathsRelativeToTopEquals(t, "transitive combined", testCase.transitiveCombined, transitive.combined)
+			}
+
+			if !testCase.dontVerifyShared {
+				android.AssertPathsRelativeToTopEquals(t, "shared resources", testCase.sharedResources, shared.resources)
+				android.AssertPathsRelativeToTopEquals(t, "shared overlays", testCase.sharedOverlays, shared.overlays)
+				android.AssertPathsRelativeToTopEquals(t, "shared imports", testCase.sharedImports, shared.imports)
+				android.AssertPathsRelativeToTopEquals(t, "shared srcjars", testCase.sharedSrcJars, shared.srcJars)
+				android.AssertPathsRelativeToTopEquals(t, "shared classpath", testCase.sharedClasspath, shared.classpath)
+				android.AssertPathsRelativeToTopEquals(t, "shared combined", testCase.sharedCombined, shared.combined)
 			}
 
 			if !testCase.dontVerifyDirectImport {
