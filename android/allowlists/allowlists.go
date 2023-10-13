@@ -1007,6 +1007,8 @@ var (
 
 		"libandroid_net_connectivity_com_android_net_module_util_jni",
 		"libservice-connectivity",
+
+		"mainline_modules_sdks_test",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
