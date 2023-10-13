@@ -74,8 +74,8 @@ func (module *DeclarationsModule) DepsMutator(ctx android.BottomUpMutatorContext
 	// RELEASE_ACONFIG_VALUE_SETS, and add any aconfig_values that
 	// match our package.
 	valuesFromConfig := ctx.Config().ReleaseAconfigValueSets()
-	if valuesFromConfig != "" {
-		ctx.AddDependency(ctx.Module(), implicitValuesTag, valuesFromConfig)
+	if len(valuesFromConfig) > 0 {
+		ctx.AddDependency(ctx.Module(), implicitValuesTag, valuesFromConfig...)
 	}
 }
 
