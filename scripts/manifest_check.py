@@ -187,18 +187,17 @@ def extract_uses_libs_apk(badging):
     return required, optional, tags
 
 
-def extract_uses_libs_xml(xml): #pylint: disable=inconsistent-return-statements
+def extract_uses_libs_xml(xml):
     """Extract <uses-library> tags from the manifest."""
 
     manifest = parse_manifest(xml)
     elems = get_children_with_tag(manifest, 'application')
-    application = elems[0] if len(elems) == 1 else None
-    if len(elems) > 1: #pylint: disable=no-else-raise
+    if len(elems) > 1:
         raise RuntimeError('found multiple <application> tags')
-    elif not elems:
-        if uses_libraries or optional_uses_libraries: #pylint: disable=undefined-variable
-            raise ManifestMismatchError('no <application> tag found')
-        return
+    if not elems:
+        return [], [], []
+
+    application = elems[0]
 
     libs = get_children_with_tag(application, 'uses-library')
 
