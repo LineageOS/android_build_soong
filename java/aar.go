@@ -303,23 +303,29 @@ var extractAssetsRule = pctx.AndroidStaticRule("extractAssets",
 		CommandDeps: []string{"${config.Zip2ZipCmd}"},
 	})
 
-func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext android.SdkContext,
-	classLoaderContexts dexpreopt.ClassLoaderContextMap, excludedLibs []string,
-	enforceDefaultTargetSdkVersion bool, extraLinkFlags ...string) {
+type aaptBuildActionOptions struct {
+	sdkContext                     android.SdkContext
+	classLoaderContexts            dexpreopt.ClassLoaderContextMap
+	excludedLibs                   []string
+	enforceDefaultTargetSdkVersion bool
+	extraLinkFlags                 []string
+}
+
+func (a *aapt) buildActions(ctx android.ModuleContext, opts aaptBuildActionOptions) {
 
 	staticResourcesNodesDepSet, staticRRODirsDepSet, staticManifestsDepSet, sharedDeps, libFlags :=
-		aaptLibs(ctx, sdkContext, classLoaderContexts)
+		aaptLibs(ctx, opts.sdkContext, opts.classLoaderContexts)
 
 	// Exclude any libraries from the supplied list.
-	classLoaderContexts = classLoaderContexts.ExcludeLibs(excludedLibs)
+	opts.classLoaderContexts = opts.classLoaderContexts.ExcludeLibs(opts.excludedLibs)
 
 	// App manifest file
 	manifestFile := proptools.StringDefault(a.aaptProperties.Manifest, "AndroidManifest.xml")
 	manifestSrcPath := android.PathForModuleSrc(ctx, manifestFile)
 
 	manifestPath := ManifestFixer(ctx, manifestSrcPath, ManifestFixerParams{
-		SdkContext:                     sdkContext,
-		ClassLoaderContexts:            classLoaderContexts,
+		SdkContext:                     opts.sdkContext,
+		ClassLoaderContexts:            opts.classLoaderContexts,
 		IsLibrary:                      a.isLibrary,
 		DefaultManifestVersion:         a.defaultManifestVersion,
 		UseEmbeddedNativeLibs:          a.useEmbeddedNativeLibs,
@@ -327,7 +333,7 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext android.SdkCon
 		UseEmbeddedDex:                 a.useEmbeddedDex,
 		HasNoCode:                      a.hasNoCode,
 		LoggingParent:                  a.LoggingParent,
-		EnforceDefaultTargetSdkVersion: enforceDefaultTargetSdkVersion,
+		EnforceDefaultTargetSdkVersion: opts.enforceDefaultTargetSdkVersion,
 	})
 
 	staticDeps := transitiveAarDeps(staticResourcesNodesDepSet.ToList())
@@ -343,7 +349,10 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext android.SdkCon
 	transitiveManifestPaths = append(transitiveManifestPaths, staticManifestsDepSet.ToList()...)
 
 	if len(transitiveManifestPaths) > 1 && !Bool(a.aaptProperties.Dont_merge_manifests) {
-		a.mergedManifestFile = manifestMerger(ctx, transitiveManifestPaths[0], transitiveManifestPaths[1:], a.isLibrary)
+		manifestMergerParams := ManifestMergerParams{
+			staticLibManifests: transitiveManifestPaths[1:],
+			isLibrary:          a.isLibrary}
+		a.mergedManifestFile = manifestMerger(ctx, transitiveManifestPaths[0], manifestMergerParams)
 		if !a.isLibrary {
 			// Only use the merged manifest for applications.  For libraries, the transitive closure of manifests
 			// will be propagated to the final application and merged there.  The merged manifest for libraries is
@@ -354,12 +363,12 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext android.SdkCon
 		a.mergedManifestFile = manifestPath
 	}
 
-	compileFlags, linkFlags, linkDeps, resDirs, overlayDirs, rroDirs, resZips := a.aapt2Flags(ctx, sdkContext, manifestPath)
+	compileFlags, linkFlags, linkDeps, resDirs, overlayDirs, rroDirs, resZips := a.aapt2Flags(ctx, opts.sdkContext, manifestPath)
 
 	linkFlags = append(linkFlags, libFlags...)
 	linkDeps = append(linkDeps, sharedDeps...)
 	linkDeps = append(linkDeps, staticDeps.resPackages()...)
-	linkFlags = append(linkFlags, extraLinkFlags...)
+	linkFlags = append(linkFlags, opts.extraLinkFlags...)
 	if a.isLibrary {
 		linkFlags = append(linkFlags, "--static-lib")
 	}
@@ -731,7 +740,13 @@ func (a *AndroidLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.aapt.isLibrary = true
 	a.classLoaderContexts = a.usesLibrary.classLoaderContextForUsesLibDeps(ctx)
-	a.aapt.buildActions(ctx, android.SdkContext(a), a.classLoaderContexts, nil, false)
+	a.aapt.buildActions(ctx,
+		aaptBuildActionOptions{
+			sdkContext:                     android.SdkContext(a),
+			classLoaderContexts:            a.classLoaderContexts,
+			enforceDefaultTargetSdkVersion: false,
+		},
+	)
 
 	a.hideApexVariantFromMake = !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform()
 

@@ -68,8 +68,8 @@ cc_prebuilt_library_shared {
 			ExpectedBazelTargets: []string{
 				MakeBazelTarget("cc_prebuilt_library_shared", "libtest", AttrNameToString{
 					"shared_library": `select({
-        "//build/bazel/platforms/arch:arm": "libg.so",
-        "//build/bazel/platforms/arch:arm64": "libf.so",
+        "//build/bazel_common_rules/platforms/arch:arm": "libg.so",
+        "//build/bazel_common_rules/platforms/arch:arm64": "libf.so",
         "//conditions:default": None,
     })`,
 				}),
@@ -125,8 +125,8 @@ cc_prebuilt_library_shared {
 			MakeBazelTarget("cc_prebuilt_library_shared", "libtest", AttrNameToString{
 				"shared_library": `"libf.so"`,
 				"export_includes": `select({
-        "//build/bazel/platforms/arch:arm": ["testdir/1/"],
-        "//build/bazel/platforms/arch:arm64": ["testdir/2/"],
+        "//build/bazel_common_rules/platforms/arch:arm": ["testdir/1/"],
+        "//build/bazel_common_rules/platforms/arch:arm64": ["testdir/2/"],
         "//conditions:default": [],
     })`,
 			}),
@@ -155,8 +155,8 @@ cc_prebuilt_library_shared {
 			MakeBazelTarget("cc_prebuilt_library_shared", "libtest", AttrNameToString{
 				"shared_library": `"libf.so"`,
 				"export_system_includes": `select({
-        "//build/bazel/platforms/arch:arm": ["testdir/1/"],
-        "//build/bazel/platforms/arch:arm64": ["testdir/2/"],
+        "//build/bazel_common_rules/platforms/arch:arm": ["testdir/1/"],
+        "//build/bazel_common_rules/platforms/arch:arm64": ["testdir/2/"],
         "//conditions:default": [],
     })`,
 			}),

@@ -167,8 +167,8 @@ android_app {
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("android_binary", "TestApp", AttrNameToString{
 				"srcs": `select({
-        "//build/bazel/platforms/arch:arm": ["arm.java"],
-        "//build/bazel/platforms/arch:x86": ["x86.java"],
+        "//build/bazel_common_rules/platforms/arch:arm": ["arm.java"],
+        "//build/bazel_common_rules/platforms/arch:x86": ["x86.java"],
         "//conditions:default": [],
     })`,
 				"manifest":       `"AndroidManifest.xml"`,
@@ -508,7 +508,7 @@ filegroup {
 				"manifest":               `"AndroidManifest.xml"`,
 				"resource_files":         `["res/values/attrs.xml"]`,
 				"resource_zips":          `["resource_zip.zip"]`,
-				"target_compatible_with": `["//build/bazel/platforms/os:android"]`,
+				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 			}),
 			MakeBazelTargetNoRestrictions("filegroup", "framework-res-package-jar", AttrNameToString{
 				"srcs": `[":framework-res.export-package.apk"]`,

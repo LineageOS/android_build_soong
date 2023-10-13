@@ -73,10 +73,15 @@ var prepareForTestWithFrameworkDeps = android.GroupFixturePreparers(
 		// Needed for various deps defined in GatherRequiredDepsForTest()
 		defaultJavaDir + "/a.java":                        nil,
 		defaultJavaDir + "/api/current.txt":               nil,
+		defaultJavaDir + "/api/removed.txt":               nil,
 		defaultJavaDir + "/api/system-current.txt":        nil,
+		defaultJavaDir + "/api/system-removed.txt":        nil,
 		defaultJavaDir + "/api/test-current.txt":          nil,
+		defaultJavaDir + "/api/test-removed.txt":          nil,
 		defaultJavaDir + "/api/module-lib-current.txt":    nil,
+		defaultJavaDir + "/api/module-lib-removed.txt":    nil,
 		defaultJavaDir + "/api/system-server-current.txt": nil,
+		defaultJavaDir + "/api/system-server-removed.txt": nil,
 
 		// Needed for R8 rules on apps
 		"build/make/core/proguard.flags":             nil,
@@ -425,80 +430,96 @@ func gatherRequiredDepsForTest() string {
 		`, extra)
 	}
 
-	type apiContributionStruct struct {
-		name       string
-		apiSurface string
-		apiFile    string
+	type droidstubsStruct struct {
+		name        string
+		apiSurface  string
+		apiFile     string
+		removedFile string
 	}
 
-	var publicApiContribution = apiContributionStruct{
-		name:       "api-stubs-docs-non-updatable.api.contribution",
-		apiSurface: "public",
-		apiFile:    "api/current.txt",
+	var publicDroidstubs = droidstubsStruct{
+		name:        "api-stubs-docs-non-updatable",
+		apiSurface:  "public",
+		apiFile:     "api/current.txt",
+		removedFile: "api/removed.txt",
 	}
-	var systemApiContribution = apiContributionStruct{
-		name:       "system-api-stubs-docs-non-updatable.api.contribution",
-		apiSurface: "system",
-		apiFile:    "api/system-current.txt",
+	var systemDroidstubs = droidstubsStruct{
+		name:        "system-api-stubs-docs-non-updatable",
+		apiSurface:  "system",
+		apiFile:     "api/system-current.txt",
+		removedFile: "api/system-removed.txt",
 	}
-	var testApiContribution = apiContributionStruct{
-		name:       "test-api-stubs-docs-non-updatable.api.contribution",
-		apiSurface: "test",
-		apiFile:    "api/test-current.txt",
+	var testDroidstubs = droidstubsStruct{
+		name:        "test-api-stubs-docs-non-updatable",
+		apiSurface:  "test",
+		apiFile:     "api/test-current.txt",
+		removedFile: "api/test-removed.txt",
 	}
-	var moduleLibApiContribution = apiContributionStruct{
-		name:       "module-lib-api-stubs-docs-non-updatable.api.contribution",
-		apiSurface: "module-lib",
-		apiFile:    "api/module-lib-current.txt",
+	var moduleLibDroidstubs = droidstubsStruct{
+		name:        "module-lib-api-stubs-docs-non-updatable",
+		apiSurface:  "module-lib",
+		apiFile:     "api/module-lib-current.txt",
+		removedFile: "api/module-lib-removed.txt",
 	}
-	var systemServerApiContribution = apiContributionStruct{
+	var systemServerDroidstubs = droidstubsStruct{
 		// This module does not exist but is named this way for consistency
-		name:       "system-server-api-stubs-docs-non-updatable.api.contribution",
-		apiSurface: "system-server",
-		apiFile:    "api/system-server-current.txt",
+		name:        "system-server-api-stubs-docs-non-updatable",
+		apiSurface:  "system-server",
+		apiFile:     "api/system-server-current.txt",
+		removedFile: "api/system-server-removed.txt",
 	}
-	var apiContributionStructs = []apiContributionStruct{
-		publicApiContribution,
-		systemApiContribution,
-		testApiContribution,
-		moduleLibApiContribution,
-		systemServerApiContribution,
-	}
-
-	extraApiLibraryModules := map[string]apiContributionStruct{
-		"android_stubs_current.from-text":                  publicApiContribution,
-		"android_system_stubs_current.from-text":           systemApiContribution,
-		"android_test_stubs_current.from-text":             testApiContribution,
-		"android_module_lib_stubs_current.from-text":       moduleLibApiContribution,
-		"android_module_lib_stubs_current_full.from-text":  moduleLibApiContribution,
-		"android_system_server_stubs_current.from-text":    systemServerApiContribution,
-		"core.current.stubs.from-text":                     publicApiContribution,
-		"legacy.core.platform.api.stubs.from-text":         publicApiContribution,
-		"stable.core.platform.api.stubs.from-text":         publicApiContribution,
-		"core-lambda-stubs.from-text":                      publicApiContribution,
-		"android-non-updatable.stubs.from-text":            publicApiContribution,
-		"android-non-updatable.stubs.system.from-text":     systemApiContribution,
-		"android-non-updatable.stubs.test.from-text":       testApiContribution,
-		"android-non-updatable.stubs.module_lib.from-text": moduleLibApiContribution,
+	var droidstubsStructs = []droidstubsStruct{
+		publicDroidstubs,
+		systemDroidstubs,
+		testDroidstubs,
+		moduleLibDroidstubs,
+		systemServerDroidstubs,
 	}
 
-	for _, apiContribution := range apiContributionStructs {
+	extraApiLibraryModules := map[string]droidstubsStruct{
+		"android_stubs_current.from-text":                  publicDroidstubs,
+		"android_system_stubs_current.from-text":           systemDroidstubs,
+		"android_test_stubs_current.from-text":             testDroidstubs,
+		"android_module_lib_stubs_current.from-text":       moduleLibDroidstubs,
+		"android_module_lib_stubs_current_full.from-text":  moduleLibDroidstubs,
+		"android_system_server_stubs_current.from-text":    systemServerDroidstubs,
+		"core.current.stubs.from-text":                     publicDroidstubs,
+		"legacy.core.platform.api.stubs.from-text":         publicDroidstubs,
+		"stable.core.platform.api.stubs.from-text":         publicDroidstubs,
+		"core-lambda-stubs.from-text":                      publicDroidstubs,
+		"android-non-updatable.stubs.from-text":            publicDroidstubs,
+		"android-non-updatable.stubs.system.from-text":     systemDroidstubs,
+		"android-non-updatable.stubs.test.from-text":       testDroidstubs,
+		"android-non-updatable.stubs.module_lib.from-text": moduleLibDroidstubs,
+	}
+
+	for _, droidstubs := range droidstubsStructs {
 		bp += fmt.Sprintf(`
-			java_api_contribution {
+			droidstubs {
 				name: "%s",
 				api_surface: "%s",
-				api_file: "%s",
+				check_api: {
+					current: {
+						api_file: "%s",
+						removed_api_file: "%s",
+					}
+				}
 			}
-		`, apiContribution.name, apiContribution.apiSurface, apiContribution.apiFile)
+		`,
+			droidstubs.name,
+			droidstubs.apiSurface,
+			droidstubs.apiFile,
+			droidstubs.removedFile,
+		)
 	}
 
-	for libName, apiContribution := range extraApiLibraryModules {
+	for libName, droidstubs := range extraApiLibraryModules {
 		bp += fmt.Sprintf(`
             java_api_library {
                 name: "%s",
                 api_contributions: ["%s"],
             }
-        `, libName, apiContribution.name)
+        `, libName, droidstubs.name+".api.contribution")
 	}
 
 	bp += `
@@ -553,7 +574,7 @@ func gatherRequiredDepsForTest() string {
 	return bp
 }
 
-func CheckModuleDependencies(t *testing.T, ctx *android.TestContext, name, variant string, expected []string) {
+func getModuleDependencies(t *testing.T, ctx *android.TestContext, name, variant string) []string {
 	t.Helper()
 	module := ctx.ModuleForTests(name, variant).Module()
 	deps := []string{}
@@ -562,9 +583,27 @@ func CheckModuleDependencies(t *testing.T, ctx *android.TestContext, name, varia
 	})
 	sort.Strings(deps)
 
+	return deps
+}
+
+// CheckModuleDependencies checks if the expected dependencies of the module are
+// identical to the actual dependencies.
+func CheckModuleDependencies(t *testing.T, ctx *android.TestContext, name, variant string, expected []string) {
+	deps := getModuleDependencies(t, ctx, name, variant)
+
 	if actual := deps; !reflect.DeepEqual(expected, actual) {
 		t.Errorf("expected %#q, found %#q", expected, actual)
 	}
+}
+
+// CheckModuleHasDependency returns true if the module depends on the expected dependency.
+func CheckModuleHasDependency(t *testing.T, ctx *android.TestContext, name, variant string, expected string) bool {
+	for _, dep := range getModuleDependencies(t, ctx, name, variant) {
+		if dep == expected {
+			return true
+		}
+	}
+	return false
 }
 
 // CheckPlatformBootclasspathModules returns the apex:module pair for the modules depended upon by

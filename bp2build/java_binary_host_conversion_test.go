@@ -63,7 +63,7 @@ func TestJavaBinaryHost(t *testing.T) {
 				"java_version": `"8"`,
 				"javacopts":    `["-Xdoclint:all/protected"]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -71,7 +71,7 @@ func TestJavaBinaryHost(t *testing.T) {
 				"main_class": `"com.android.test.MainClass"`,
 				"jvm_flags":  `["-Djava.library.path=$${RUNPATH}other/jni-lib-1"]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 				"runtime_deps": `[":java-binary-host-1_lib"]`,
@@ -102,7 +102,7 @@ java_library {
 				"main_class":   `"com.android.test.MainClass"`,
 				"runtime_deps": `[":java-dep-1"]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -132,14 +132,14 @@ java_import_host{
 				"srcs": `["a.java"]`,
 				"deps": `[":java-lib-dep-1-neverlink"]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
 			MakeBazelTarget("java_binary", "java-binary-host-libs", AttrNameToString{
 				"main_class": `"com.android.test.MainClass"`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 				"runtime_deps": `[":java-binary-host-libs_lib"]`,
@@ -165,7 +165,7 @@ func TestJavaBinaryHostKotlinSrcs(t *testing.T) {
         "b.kt",
     ]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -173,7 +173,7 @@ func TestJavaBinaryHostKotlinSrcs(t *testing.T) {
 				"main_class":   `"com.android.test.MainClass"`,
 				"runtime_deps": `[":java-binary-host_lib"]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -197,7 +197,7 @@ func TestJavaBinaryHostKotlinCommonSrcs(t *testing.T) {
 				"srcs":        `["a.java"]`,
 				"common_srcs": `["b.kt"]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -205,7 +205,7 @@ func TestJavaBinaryHostKotlinCommonSrcs(t *testing.T) {
 				"main_class":   `"com.android.test.MainClass"`,
 				"runtime_deps": `[":java-binary-host_lib"]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -240,7 +240,7 @@ func TestJavaBinaryHostKotlinWithResourceDir(t *testing.T) {
     ]`,
 				"resource_strip_prefix": `"res"`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -248,7 +248,7 @@ func TestJavaBinaryHostKotlinWithResourceDir(t *testing.T) {
 				"main_class":   `"com.android.test.MainClass"`,
 				"runtime_deps": `[":java-binary-host_lib"]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -286,7 +286,7 @@ func TestJavaBinaryHostKotlinWithResources(t *testing.T) {
     ]`,
 				"resource_strip_prefix": `"adir"`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -294,7 +294,7 @@ func TestJavaBinaryHostKotlinWithResources(t *testing.T) {
 				"main_class":   `"com.android.test.MainClass"`,
 				"runtime_deps": `[":java-binary-host_lib"]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -321,7 +321,7 @@ func TestJavaBinaryHostKotlinCflags(t *testing.T) {
         "-flag2",
     ]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
@@ -329,7 +329,7 @@ func TestJavaBinaryHostKotlinCflags(t *testing.T) {
 				"main_class":   `"com.android.test.MainClass"`,
 				"runtime_deps": `[":java-binary-host_lib"]`,
 				"target_compatible_with": `select({
-        "//build/bazel/platforms/os:android": ["@platforms//:incompatible"],
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
         "//conditions:default": [],
     })`,
 			}),
