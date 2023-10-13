@@ -44,7 +44,6 @@ var (
 	GlobalRustFlags = []string{
 		"-Z stack-protector=strong",
 		"-Z remap-cwd-prefix=.",
-		"-C codegen-units=1",
 		"-C debuginfo=2",
 		"-C opt-level=3",
 		"-C relocation-model=pic",
@@ -55,7 +54,7 @@ var (
 		// This flag requires to have no space so that when it's exported to bazel
 		// it can be removed. See aosp/2768339
 		"--color=always",
-		"-Zdylib-lto",
+		"-Z dylib-lto",
 		"-Z link-native-libraries=no",
 	}
 
