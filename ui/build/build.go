@@ -298,8 +298,6 @@ func Build(ctx Context, config Config) {
 		runMakeProductConfig(ctx, config)
 	}
 
-	checkForCleanPartitions(ctx, config)
-
 	// Everything below here depends on product config.
 
 	if inList("installclean", config.Arguments()) ||
