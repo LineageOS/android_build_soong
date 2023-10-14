@@ -539,6 +539,8 @@ var (
 	}
 
 	Bp2buildModuleAlwaysConvertList = []string{
+		"aconfig.test.cpp",
+		"AconfigJavaHostTest",
 		// aconfig
 		"libonce_cell",
 		"libanyhow",
