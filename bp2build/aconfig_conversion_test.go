@@ -147,9 +147,15 @@ func TestJavaAconfigLibrary(t *testing.T) {
 		],
 		package: "com.android.foo",
 	}
+	java_library {
+			name: "foo_java_library",
+			srcs: ["foo.java"],
+			sdk_version: "current",
+	}
 	java_aconfig_library {
 			name: "foo",
 			aconfig_declarations: "foo_aconfig_declarations",
+			libs: ["foo_java_library"],
 			test: true,
 	}
 	`
@@ -163,10 +169,21 @@ func TestJavaAconfigLibrary(t *testing.T) {
 			},
 		),
 		MakeBazelTargetNoRestrictions(
+			"java_library",
+			"foo_java_library",
+			AttrNameToString{
+				"srcs":                   `["foo.java"]`,
+				"sdk_version":            `"current"`,
+				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
+			},
+		),
+		MakeNeverlinkDuplicateTarget("java_library", "foo_java_library"),
+		MakeBazelTargetNoRestrictions(
 			"java_aconfig_library",
 			"foo",
 			AttrNameToString{
 				"aconfig_declarations":   `":foo_aconfig_declarations"`,
+				"libs":                   `[":foo_java_library-neverlink"]`,
 				"test":                   `True`,
 				"sdk_version":            `"system_current"`,
 				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
