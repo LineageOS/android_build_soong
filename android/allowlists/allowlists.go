@@ -1007,6 +1007,8 @@ var (
 		"libservice-connectivity",
 
 		"mainline_modules_sdks_test",
+
+		"fake_device_config",
 	}
 
 	Bp2buildModuleTypeAlwaysConvertList = []string{
