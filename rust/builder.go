@@ -278,7 +278,9 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	if ctx.Config().IsEnvTrue("SOONG_RUSTC_INCREMENTAL") {
 		incrementalPath := android.PathForOutput(ctx, "rustc").String()
 
-		rustcFlags = append(rustcFlags, "-Cincremental="+incrementalPath)
+		rustcFlags = append(rustcFlags, "-C incremental="+incrementalPath)
+	} else {
+		rustcFlags = append(rustcFlags, "-C codegen-units=1")
 	}
 
 	// Disallow experimental features
