@@ -2775,7 +2775,7 @@ func addCLCFromDep(ctx android.ModuleContext, depModule android.Module,
 type javaResourcesAttributes struct {
 	Resources             bazel.LabelListAttribute
 	Resource_strip_prefix *string
-	Additional_resources  bazel.LabelListAttribute
+	Additional_resources  bazel.LabelListAttribute `blueprint:"mutated"`
 }
 
 func (m *Library) getResourceFilegroupStripPrefix(ctx android.Bp2buildMutatorContext, resourceFilegroup string) (*string, bool) {
@@ -2935,8 +2935,8 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.Bp2buildMutatorContext
 
 	archVariantProps := m.GetArchVariantProperties(ctx, &CommonProperties{})
 	for axis, configToProps := range archVariantProps {
-		for config, _props := range configToProps {
-			if archProps, ok := _props.(*CommonProperties); ok {
+		for config, p := range configToProps {
+			if archProps, ok := p.(*CommonProperties); ok {
 				archSrcs := android.BazelLabelForModuleSrcExcludes(ctx, archProps.Srcs, archProps.Exclude_srcs)
 				srcs.SetSelectValue(axis, config, archSrcs)
 				if archProps.Jarjar_rules != nil {
@@ -2946,6 +2946,11 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.Bp2buildMutatorContext
 			}
 		}
 	}
+	srcs.Append(
+		bazel.MakeLabelListAttribute(
+			android.BazelLabelForModuleSrcExcludes(ctx,
+				m.properties.Openjdk9.Srcs,
+				m.properties.Exclude_srcs)))
 	srcs.ResolveExcludes()
 
 	javaSrcPartition := "java"
@@ -3029,8 +3034,9 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.Bp2buildMutatorContext
 	plugins := bazel.MakeLabelListAttribute(
 		android.BazelLabelForModuleDeps(ctx, m.properties.Plugins),
 	)
-	if m.properties.Javacflags != nil {
-		javacopts = bazel.MakeStringListAttribute(m.properties.Javacflags)
+	if m.properties.Javacflags != nil || m.properties.Openjdk9.Javacflags != nil {
+		javacopts = bazel.MakeStringListAttribute(
+			append(append([]string{}, m.properties.Javacflags...), m.properties.Openjdk9.Javacflags...))
 	}
 
 	epEnabled := m.properties.Errorprone.Enabled
@@ -3046,9 +3052,11 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.Bp2buildMutatorContext
 		javacopts.Append(bazel.MakeStringListAttribute([]string{"-XepDisableAllChecks"}))
 	}
 
+	resourcesAttrs := m.convertJavaResourcesAttributes(ctx)
+
 	commonAttrs := &javaCommonAttributes{
 		Srcs:                    javaSrcs,
-		javaResourcesAttributes: m.convertJavaResourcesAttributes(ctx),
+		javaResourcesAttributes: resourcesAttrs,
 		Plugins:                 plugins,
 		Javacopts:               javacopts,
 		Java_version:            bazel.StringAttribute{Value: m.properties.Java_version},
@@ -3071,6 +3079,7 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.Bp2buildMutatorContext
 	}
 
 	depLabels := &javaDependencyLabels{}
+	deps.Append(resourcesAttrs.Additional_resources)
 	depLabels.Deps = deps
 
 	for axis, configToProps := range archVariantProps {

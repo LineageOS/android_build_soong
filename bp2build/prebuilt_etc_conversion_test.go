@@ -26,10 +26,17 @@ func runPrebuiltEtcTestCase(t *testing.T, tc Bp2buildTestCase) {
 	t.Helper()
 	(&tc).ModuleTypeUnderTest = "prebuilt_etc"
 	(&tc).ModuleTypeUnderTestFactory = etc.PrebuiltEtcFactory
-	RunBp2BuildTestCase(t, registerPrebuiltEtcModuleTypes, tc)
+	RunBp2BuildTestCase(t, registerPrebuiltModuleTypes, tc)
 }
 
-func registerPrebuiltEtcModuleTypes(ctx android.RegistrationContext) {
+func runPrebuiltRootHostTestCase(t *testing.T, tc Bp2buildTestCase) {
+	t.Helper()
+	(&tc).ModuleTypeUnderTest = "prebuilt_root_host"
+	(&tc).ModuleTypeUnderTestFactory = etc.PrebuiltRootHostFactory
+	RunBp2BuildTestCase(t, registerPrebuiltModuleTypes, tc)
+}
+
+func registerPrebuiltModuleTypes(ctx android.RegistrationContext) {
 }
 
 func TestPrebuiltEtcSimple(t *testing.T) {
@@ -160,7 +167,7 @@ func runPrebuiltUsrShareTestCase(t *testing.T, tc Bp2buildTestCase) {
 	t.Helper()
 	(&tc).ModuleTypeUnderTest = "prebuilt_usr_share"
 	(&tc).ModuleTypeUnderTestFactory = etc.PrebuiltUserShareFactory
-	RunBp2BuildTestCase(t, registerPrebuiltEtcModuleTypes, tc)
+	RunBp2BuildTestCase(t, registerPrebuiltModuleTypes, tc)
 }
 
 func registerPrebuiltUsrShareModuleTypes(ctx android.RegistrationContext) {
@@ -359,4 +366,31 @@ prebuilt_etc {
 }`,
 		ExpectedBazelTargets: []string{},
 	})
+}
+
+func TestPrebuiltRootHostWithWildCardInSrc(t *testing.T) {
+	runPrebuiltRootHostTestCase(t, Bp2buildTestCase{
+		Description: "prebuilt_root_host - src string has wild card",
+		Filesystem: map[string]string{
+			"prh.dat": "",
+		},
+		Blueprint: `
+prebuilt_root_host {
+    name: "prh_test",
+    src: "*.dat",
+    filename_from_src: true,
+    relative_install_path: "test/install/path",
+    bazel_module: { bp2build_available: true },
+}
+`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("prebuilt_file", "prh_test", AttrNameToString{
+				"filename": `"prh.dat"`,
+				"src":      `"prh.dat"`,
+				"dir":      `"./test/install/path"`,
+				"target_compatible_with": `select({
+        "//build/bazel_common_rules/platforms/os:android": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    })`,
+			})}})
 }

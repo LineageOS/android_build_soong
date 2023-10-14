@@ -192,6 +192,45 @@ func TestJavaLibraryJavaVersion(t *testing.T) {
 	})
 }
 
+func TestJavaLibraryOpenjdk9(t *testing.T) {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Blueprint: `java_library {
+			name: "java-lib-1",
+		srcs: ["a.java"],
+		exclude_srcs: ["b.java"],
+		javacflags: ["flag"],
+		target: {
+			android: {
+				srcs: ["android.java"],
+			},
+		},
+		openjdk9: {
+			srcs: ["b.java", "foo.java"],
+			javacflags: ["extraflag"],
+		},
+		sdk_version: "current",
+}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
+				"srcs": `[
+        "a.java",
+        "foo.java",
+    ] + select({
+        "//build/bazel_common_rules/platforms/os:android": ["android.java"],
+        "//conditions:default": [],
+    })`,
+				"sdk_version": `"current"`,
+				"javacopts": `[
+        "flag",
+        "extraflag",
+    ]`,
+			}),
+			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
+		},
+	})
+
+}
+
 func TestJavaLibraryErrorproneEnabledManually(t *testing.T) {
 	runJavaLibraryTestCaseWithRegistrationCtxFunc(t, Bp2buildTestCase{
 		StubbedBuildDefinitions: []string{"plugin2"},
@@ -424,6 +463,7 @@ func TestJavaLibraryResourcesWithMultipleDirs(t *testing.T) {
 		},
 		Blueprint: `java_library {
 	name: "java-lib-1",
+	srcs: ["foo.java"],
 	java_resource_dirs: ["res", "res1"],
 	sdk_version: "current",
 }`,
@@ -433,9 +473,10 @@ func TestJavaLibraryResourcesWithMultipleDirs(t *testing.T) {
 				"resources":             `["res1/b.res"]`,
 			}),
 			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
-				"additional_resources":  `["java-lib-1_resource_dir_res1"]`,
+				"deps":                  `["java-lib-1_resource_dir_res1"]`,
 				"resources":             `["res/a.res"]`,
 				"resource_strip_prefix": `"res"`,
+				"srcs":                  `["foo.java"]`,
 				"sdk_version":           `"current"`,
 			}),
 			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
@@ -453,6 +494,7 @@ func TestJavaLibraryJavaResourcesAndResourceDirs(t *testing.T) {
 		java_resources: ["res1", "res2"],
 		java_resource_dirs: ["resdir"],
 		sdk_version: "current",
+		srcs: ["foo.java"],
 }`,
 		ExpectedBazelTargets: []string{
 			MakeBazelTarget("java_resources", "java-lib-1_resource_dir_resdir", AttrNameToString{
@@ -460,12 +502,13 @@ func TestJavaLibraryJavaResourcesAndResourceDirs(t *testing.T) {
 				"resources":             `["resdir/a.res"]`,
 			}),
 			MakeBazelTarget("java_library", "java-lib-1", AttrNameToString{
-				"additional_resources":  `["java-lib-1_resource_dir_resdir"]`,
+				"deps":                  `["java-lib-1_resource_dir_resdir"]`,
 				"resource_strip_prefix": `"."`,
 				"resources": `[
         "res1",
         "res2",
     ]`,
+				"srcs":        `["foo.java"]`,
 				"sdk_version": `"current"`,
 			}),
 			MakeNeverlinkDuplicateTarget("java_library", "java-lib-1"),
@@ -1025,7 +1068,7 @@ filegroup {
 				"srcs":                  `["a.java"]`,
 				"resources":             `["a.res"]`,
 				"resource_strip_prefix": `"."`,
-				"additional_resources": `[
+				"deps": `[
         "java-lib-1_filegroup_resources_filegroup1",
         "java-lib-1_filegroup_resources_filegroup2",
     ]`,
