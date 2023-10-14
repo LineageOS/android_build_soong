@@ -29,6 +29,8 @@ type bazelLabel struct {
 	target string
 }
 
+const releaseAconfigValueSetsName = "release_aconfig_value_sets"
+
 func (l *bazelLabel) Less(other *bazelLabel) bool {
 	if l.repo < other.repo {
 		return true
@@ -343,10 +345,11 @@ func platformMappingSingleProduct(
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:product_brand=%s\n", productVariables.ProductBrand))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:product_manufacturer=%s\n", productVariables.ProductManufacturer))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:release_aconfig_flag_default_permission=%s\n", productVariables.ReleaseAconfigFlagDefaultPermission))
-		// Empty string can't be used as label_flag on the bazel side
+		releaseAconfigValueSets := "//build/bazel/product_config:empty_aconfig_value_sets"
 		if len(productVariables.ReleaseAconfigValueSets) > 0 {
-			result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:release_aconfig_value_sets=%s\n", productVariables.ReleaseAconfigValueSets))
+			releaseAconfigValueSets = "@//" + label.pkg + ":" + releaseAconfigValueSetsName + "_" + label.target
 		}
+		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:release_aconfig_value_sets=%s\n", releaseAconfigValueSets))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:release_version=%s\n", productVariables.ReleaseVersion))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:platform_sdk_version=%d\n", platform_sdk_version))
 		result.WriteString(fmt.Sprintf("    --//build/bazel/product_config:safestack=%t\n", proptools.Bool(productVariables.Safestack)))
@@ -481,6 +484,7 @@ func starlarkMapToProductVariables(in map[string]starlark.Value) (android.Produc
 func createTargets(productLabelsToVariables map[bazelLabel]*android.ProductVariables, res map[string]BazelTargets) {
 	createGeneratedAndroidCertificateDirectories(productLabelsToVariables, res)
 	createAvbKeyFilegroups(productLabelsToVariables, res)
+	createReleaseAconfigValueSetsFilegroup(productLabelsToVariables, res)
 	for label, variables := range productLabelsToVariables {
 		createSystemPartition(label, &variables.PartitionVarsForBazelMigrationOnlyDoNotUse, res)
 	}
@@ -512,6 +516,40 @@ func createGeneratedAndroidCertificateDirectories(productLabelsToVariables map[b
 			content:     content,
 			ruleClass:   "filegroup",
 		})
+	}
+}
+
+func createReleaseAconfigValueSetsFilegroup(productLabelsToVariables map[bazelLabel]*android.ProductVariables, targets map[string]BazelTargets) {
+	for label, productVariables := range productLabelsToVariables {
+		if len(productVariables.ReleaseAconfigValueSets) > 0 {
+			key := label.target
+			dir := label.pkg
+			var value_sets strings.Builder
+			for _, value_set := range productVariables.ReleaseAconfigValueSets {
+				value_sets.WriteString("        \"" + value_set + "\",\n")
+			}
+
+			name := releaseAconfigValueSetsName + "_" + key
+			content := "aconfig_value_sets(\n" +
+				"    name = \"" + name + "\",\n" +
+				"    value_sets = [\n" +
+				value_sets.String() +
+				"    ],\n" +
+				"    visibility = [\"//visibility:public\"],\n" +
+				")"
+			targets[dir] = append(targets[dir], BazelTarget{
+				name:        name,
+				packageName: dir,
+				content:     content,
+				ruleClass:   "aconfig_value_sets",
+				loads: []BazelLoad{{
+					file: "//build/bazel/rules/aconfig:aconfig_value_sets.bzl",
+					symbols: []BazelLoadSymbol{{
+						symbol: "aconfig_value_sets",
+					}},
+				}},
+			})
+		}
 	}
 }
 
