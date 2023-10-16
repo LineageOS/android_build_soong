@@ -101,8 +101,7 @@ rust_library_host {
 `,
 		},
 		ExpectedBazelTargets: []string{
-			// TODO(b/290790800): Remove the restriction when rust toolchain for android is implemented
-			makeBazelTargetHostOrDevice("rust_library", "libfoo", expectedAttrs, android.HostSupported),
+			MakeBazelTargetNoRestrictions("rust_library", "libfoo", expectedAttrs),
 			makeBazelTargetHostOrDevice("rust_library", "libfoo_host", expectedAttrs, android.HostSupported),
 		},
 	},

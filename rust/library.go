@@ -865,11 +865,7 @@ func libraryBp2build(ctx android.Bp2buildMutatorContext, m *Module) {
 		},
 	}
 
-	// TODO(b/290790800): Remove the restriction when rust toolchain for android is implemented
-	var restriction bazel.BoolAttribute
-	restriction.SetSelectValue(bazel.OsConfigurationAxis, "android", proptools.BoolPtr(false))
-
-	ctx.CreateBazelTargetModuleWithRestrictions(
+	ctx.CreateBazelTargetModule(
 		bazel.BazelTargetModuleProperties{
 			Rule_class:        "rust_library",
 			Bzl_load_location: "@rules_rust//rust:defs.bzl",
@@ -878,7 +874,6 @@ func libraryBp2build(ctx android.Bp2buildMutatorContext, m *Module) {
 			Name: m.Name(),
 		},
 		attrs,
-		restriction,
 	)
 }
 
