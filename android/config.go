@@ -2059,8 +2059,15 @@ func (c *config) ApiSurfacesDir(s ApiSurface, version string) string {
 		version)
 }
 
+func (c *config) JavaCoverageEnabled() bool {
+	return c.IsEnvTrue("EMMA_INSTRUMENT") || c.IsEnvTrue("EMMA_INSTRUMENT_STATIC") || c.IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK")
+}
+
 func (c *config) BuildFromTextStub() bool {
-	return c.buildFromTextStub
+	// TODO: b/302320354 - Remove the coverage build specific logic once the
+	// robust solution for handling native properties in from-text stub build
+	// is implemented.
+	return c.buildFromTextStub && !c.JavaCoverageEnabled()
 }
 
 func (c *config) SetBuildFromTextStub(b bool) {
