@@ -392,7 +392,7 @@ func TestGeneratedApiContributionVisibilityTest(t *testing.T) {
 						removed_api_file: "A/removed.txt",
 					}
 				},
-				visibility: ["//a"],
+				visibility: ["//a", "//b"],
 			}
 		`,
 		map[string][]byte{

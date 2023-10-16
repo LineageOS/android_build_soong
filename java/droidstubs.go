@@ -171,6 +171,10 @@ type ApiStubsProvider interface {
 	ApiStubsSrcProvider
 }
 
+type currentApiTimestampProvider interface {
+	CurrentApiTimestamp() android.Path
+}
+
 // droidstubs passes sources files through Metalava to generate stub .java files that only contain the API to be
 // documented, filtering out hidden classes and methods.  The resulting .java files are intended to be passed to
 // a droiddoc module to generate documentation.
@@ -238,10 +242,15 @@ func (d *Droidstubs) StubsSrcJar() android.Path {
 	return d.stubsSrcJar
 }
 
+func (d *Droidstubs) CurrentApiTimestamp() android.Path {
+	return d.checkCurrentApiTimestamp
+}
+
 var metalavaMergeAnnotationsDirTag = dependencyTag{name: "metalava-merge-annotations-dir"}
 var metalavaMergeInclusionAnnotationsDirTag = dependencyTag{name: "metalava-merge-inclusion-annotations-dir"}
 var metalavaAPILevelsAnnotationsDirTag = dependencyTag{name: "metalava-api-levels-annotations-dir"}
 var metalavaAPILevelsModuleTag = dependencyTag{name: "metalava-api-levels-module-tag"}
+var metalavaCurrentApiTimestampTag = dependencyTag{name: "metalava-current-api-timestamp-tag"}
 
 func (d *Droidstubs) DepsMutator(ctx android.BottomUpMutatorContext) {
 	d.Javadoc.addDeps(ctx)
