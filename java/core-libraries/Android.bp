@@ -66,6 +66,7 @@ java_api_library {
     libs: [
         "stub-annotations",
     ],
+    enable_validation: false,
 }
 
 java_library {
