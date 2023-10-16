@@ -1838,6 +1838,7 @@ func (module *SdkLibrary) createApiLibrary(mctx android.DefaultableHookContext, 
 		Static_libs           []string
 		Full_api_surface_stub *string
 		System_modules        *string
+		Enable_validation     *bool
 	}{}
 
 	props.Name = proptools.StringPtr(module.apiLibraryModuleName(apiScope))
@@ -1876,7 +1877,16 @@ func (module *SdkLibrary) createApiLibrary(mctx android.DefaultableHookContext, 
 		props.Full_api_surface_stub = proptools.StringPtr(apiScope.kind.DefaultJavaLibraryName() + "_full.from-text")
 	}
 
+	// java_sdk_library modules that set sdk_version as none does not depend on other api
+	// domains. Therefore, java_api_library created from such modules should not depend on
+	// full_api_surface_stubs but create and compile stubs by the java_api_library module
+	// itself.
+	if module.SdkVersion(mctx).Kind == android.SdkNone {
+		props.Full_api_surface_stub = nil
+	}
+
 	props.System_modules = module.deviceProperties.System_modules
+	props.Enable_validation = proptools.BoolPtr(true)
 
 	mctx.CreateModule(ApiLibraryFactory, &props)
 }
