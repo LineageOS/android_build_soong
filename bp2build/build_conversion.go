@@ -830,11 +830,9 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 			depLabels.Add(&depLabel)
 		}
 		a := struct {
-			Deps                bazel.LabelListAttribute
-			System_dynamic_deps bazel.LabelListAttribute
+			Deps bazel.LabelListAttribute
 		}{
-			Deps:                bazel.MakeLabelListAttribute(bazel.UniqueSortedBazelLabelList(depLabels)),
-			System_dynamic_deps: bazel.MakeLabelListAttribute(bazel.MakeLabelList([]bazel.Label{})),
+			Deps: bazel.MakeLabelListAttribute(bazel.UniqueSortedBazelLabelList(depLabels)),
 		}
 		ndkSysroot := bTarget{
 			targetName:            "ndk_sysroot",
