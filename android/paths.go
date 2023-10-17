@@ -480,7 +480,7 @@ func (p OutputPaths) Strings() []string {
 
 // PathForGoBinary returns the path to the installed location of a bootstrap_go_binary module.
 func PathForGoBinary(ctx PathContext, goBinary bootstrap.GoBinaryTool) Path {
-	goBinaryInstallDir := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "bin", false)
+	goBinaryInstallDir := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "bin")
 	rel := Rel(ctx, goBinaryInstallDir.String(), goBinary.InstallPath())
 	return goBinaryInstallDir.Join(ctx, rel)
 }
@@ -1684,19 +1684,19 @@ func (p InstallPath) ToMakePath() InstallPath {
 func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string) InstallPath {
 	os, arch := osAndArch(ctx)
 	partition := modulePartition(ctx, os)
-	return pathForInstall(ctx, os, arch, partition, ctx.Debug(), pathComponents...)
+	return pathForInstall(ctx, os, arch, partition, pathComponents...)
 }
 
 // PathForHostDexInstall returns an InstallPath representing the install path for the
 // module appended with paths...
 func PathForHostDexInstall(ctx ModuleInstallPathContext, pathComponents ...string) InstallPath {
-	return pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "", ctx.Debug(), pathComponents...)
+	return pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "", pathComponents...)
 }
 
 // PathForModuleInPartitionInstall is similar to PathForModuleInstall but partition is provided by the caller
 func PathForModuleInPartitionInstall(ctx ModuleInstallPathContext, partition string, pathComponents ...string) InstallPath {
 	os, arch := osAndArch(ctx)
-	return pathForInstall(ctx, os, arch, partition, ctx.Debug(), pathComponents...)
+	return pathForInstall(ctx, os, arch, partition, pathComponents...)
 }
 
 func osAndArch(ctx ModuleInstallPathContext) (OsType, ArchType) {
@@ -1712,7 +1712,7 @@ func osAndArch(ctx ModuleInstallPathContext) (OsType, ArchType) {
 	return os, arch
 }
 
-func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string, debug bool,
+func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 	pathComponents ...string) InstallPath {
 
 	var partitionPaths []string
@@ -1741,9 +1741,6 @@ func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 			archName = "x86"
 		}
 		partitionPaths = []string{"host", osName + "-" + archName, partition}
-	}
-	if debug {
-		partitionPaths = append([]string{"debug"}, partitionPaths...)
 	}
 
 	partitionPath, err := validatePath(partitionPaths...)
