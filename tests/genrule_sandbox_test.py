@@ -61,8 +61,7 @@ def _find_outputs_for_modules(modules, out_dir, target_product):
   module_path = os.path.join(out_dir, "soong", "module-actions.json")
 
   if not os.path.exists(module_path):
-    # Use GENRULE_SANDBOXING=false so that we don't cause re-analysis later when we do the no-sandboxing build
-    _build_with_soong(["json-module-graph"], target_product, extra_env={"GENRULE_SANDBOXING": "false"})
+    _build_with_soong(["json-module-graph"], target_product)
 
   with open(module_path) as f:
     action_graph = json.load(f)
@@ -132,7 +131,7 @@ def main():
   all_outs = list(set.union(*module_to_outs.values()))
 
   print("building without sandboxing...")
-  _build_with_soong(all_outs, args.target_product, extra_env={"GENRULE_SANDBOXING": "false"})
+  _build_with_soong(all_outs, args.target_product)
   with tempfile.TemporaryDirectory() as tempdir:
     for f in all_outs:
       subprocess.check_call(["cp", "--parents", f, tempdir])
