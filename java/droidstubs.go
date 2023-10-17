@@ -122,7 +122,7 @@ type DroidstubsProperties struct {
 	Generate_stubs *bool
 
 	// if set to true, provides a hint to the build system that this rule uses a lot of memory,
-	// whicih can be used for scheduling purposes
+	// which can be used for scheduling purposes
 	High_mem *bool
 
 	// if set to true, Metalava will allow framework SDK to contain API levels annotations.
