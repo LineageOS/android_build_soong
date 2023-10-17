@@ -1891,6 +1891,8 @@ func (m *Module) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 		binaryBp2build(ctx, m)
 	} else if ctx.ModuleType() == "rust_protobuf_host" || ctx.ModuleType() == "rust_protobuf" {
 		protoLibraryBp2build(ctx, m)
+	} else if ctx.ModuleType() == "rust_ffi_static" {
+		ffiStaticBp2build(ctx, m)
 	} else {
 		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "")
 	}
