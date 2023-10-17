@@ -37,19 +37,6 @@ type artifactId int
 type depsetId int
 type pathFragmentId int
 
-// artifact contains relevant portions of Bazel's aquery proto, Artifact.
-// Represents a single artifact, whether it's a source file or a derived output file.
-type artifact struct {
-	Id             artifactId
-	PathFragmentId pathFragmentId
-}
-
-type pathFragment struct {
-	Id       pathFragmentId
-	Label    string
-	ParentId pathFragmentId
-}
-
 // KeyValuePair represents Bazel's aquery proto, KeyValuePair.
 type KeyValuePair struct {
 	Key   string
@@ -68,37 +55,6 @@ type AqueryDepset struct {
 	ContentHash            string
 	DirectArtifacts        []string
 	TransitiveDepSetHashes []string
-}
-
-// depSetOfFiles contains relevant portions of Bazel's aquery proto, DepSetOfFiles.
-// Represents a data structure containing one or more files. Depsets in Bazel are an efficient
-// data structure for storing large numbers of file paths.
-type depSetOfFiles struct {
-	Id                  depsetId
-	DirectArtifactIds   []artifactId
-	TransitiveDepSetIds []depsetId
-}
-
-// action contains relevant portions of Bazel's aquery proto, Action.
-// Represents a single command line invocation in the Bazel build graph.
-type action struct {
-	Arguments            []string
-	EnvironmentVariables []KeyValuePair
-	InputDepSetIds       []depsetId
-	Mnemonic             string
-	OutputIds            []artifactId
-	TemplateContent      string
-	Substitutions        []KeyValuePair
-	FileContents         string
-}
-
-// actionGraphContainer contains relevant portions of Bazel's aquery proto, ActionGraphContainer.
-// An aquery response from Bazel contains a single ActionGraphContainer proto.
-type actionGraphContainer struct {
-	Artifacts     []artifact
-	Actions       []action
-	DepSetOfFiles []depSetOfFiles
-	PathFragments []pathFragment
 }
 
 // BuildStatement contains information to register a build statement corresponding (one to one)
