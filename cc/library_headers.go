@@ -122,8 +122,6 @@ type bazelCcLibraryHeadersAttributes struct {
 	Export_absolute_includes bazel.StringListAttribute
 	Export_system_includes   bazel.StringListAttribute
 	Deps                     bazel.LabelListAttribute
-	Implementation_deps      bazel.LabelListAttribute
-	System_dynamic_deps      bazel.LabelListAttribute
 	sdkAttributes
 }
 
@@ -139,7 +137,6 @@ func libraryHeadersBp2Build(ctx android.Bp2buildMutatorContext, module *Module) 
 		Export_absolute_includes: exportedIncludes.AbsoluteIncludes,
 		Export_system_includes:   exportedIncludes.SystemIncludes,
 		Deps:                     linkerAttrs.deps,
-		System_dynamic_deps:      linkerAttrs.systemDynamicDeps,
 		Hdrs:                     baseAttributes.hdrs,
 		sdkAttributes:            bp2BuildParseSdkAttributes(module),
 	}
