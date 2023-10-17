@@ -698,12 +698,6 @@ func registerDepsMutator(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("deps", depsMutator).Parallel()
 }
 
-func registerDepsMutatorBp2Build(ctx RegisterMutatorsContext) {
-	// TODO(b/179313531): Consider a separate mutator that only runs depsMutator for modules that are
-	// being converted to build targets.
-	ctx.BottomUp("deps", depsMutator).Parallel()
-}
-
 func (t *bottomUpMutatorContext) CreateBazelTargetModule(
 	bazelProps bazel.BazelTargetModuleProperties,
 	commonAttrs CommonAttributes,
