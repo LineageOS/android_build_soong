@@ -66,6 +66,9 @@ type aaptProperties struct {
 	// ones.
 	Aapt_include_all_resources *bool
 
+	// list of files to use as assets.
+	Assets []string `android:"path"`
+
 	// list of directories relative to the Blueprints file containing assets.
 	// Defaults to ["assets"] if a directory called assets exists.  Set to []
 	// to disable the default.
@@ -194,6 +197,11 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext android.SdkConte
 	linkFlags = append(linkFlags, "--enable-compact-entries")
 
 	// Find implicit or explicit asset and resource dirs
+	assets := android.PathsRelativeToModuleSourceDir(android.SourceInput{
+		Context:     ctx,
+		Paths:       a.aaptProperties.Assets,
+		IncludeDirs: false,
+	})
 	assetDirs := android.PathsWithOptionalDefaultForModuleSrc(ctx, a.aaptProperties.Asset_dirs, "assets")
 	resourceDirs := android.PathsWithOptionalDefaultForModuleSrc(ctx, a.aaptProperties.Resource_dirs, "res")
 	resourceZips := android.PathsForModuleSrc(ctx, a.aaptProperties.Resource_zips)
@@ -227,6 +235,28 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext android.SdkConte
 	if a.noticeFile.Valid() {
 		assetDirStrings = append(assetDirStrings, filepath.Dir(a.noticeFile.Path().String()))
 		assetDeps = append(assetDeps, a.noticeFile.Path())
+	}
+	if len(assets) > 0 {
+		// aapt2 doesn't support adding individual asset files. Create a temp directory to hold asset
+		// files and pass it to aapt2.
+		tmpAssetDir := android.PathForModuleOut(ctx, "tmp_asset_dir")
+
+		rule := android.NewRuleBuilder(pctx, ctx)
+		rule.Command().
+			Text("rm -rf").Text(tmpAssetDir.String()).
+			Text("&&").
+			Text("mkdir -p").Text(tmpAssetDir.String())
+
+		for _, asset := range assets {
+			output := tmpAssetDir.Join(ctx, asset.Rel())
+			assetDeps = append(assetDeps, output)
+			rule.Command().Text("mkdir -p").Text(filepath.Dir(output.String()))
+			rule.Command().Text("cp").Input(asset).Output(output)
+		}
+
+		rule.Build("tmp_asset_dir", "tmp_asset_dir")
+
+		assetDirStrings = append(assetDirStrings, tmpAssetDir.String())
 	}
 
 	linkFlags = append(linkFlags, "--manifest "+manifestPath.String())

@@ -608,6 +608,15 @@ func TestLibraryAssets(t *testing.T) {
 				asset_dirs: ["assets_b"],
 			}
 
+			android_library {
+				name: "lib5",
+				sdk_version: "current",
+				assets: [
+					"path/to/asset_file_1",
+					"path/to/asset_file_2",
+				],
+			}
+
 			android_library_import {
 				name: "import",
 				sdk_version: "current",
@@ -616,9 +625,11 @@ func TestLibraryAssets(t *testing.T) {
 		`
 
 	testCases := []struct {
-		name          string
-		assetFlag     string
-		assetPackages []string
+		name               string
+		assetFlag          string
+		assetPackages      []string
+		tmpAssetDirInputs  []string
+		tmpAssetDirOutputs []string
 	}{
 		{
 			name: "foo",
@@ -643,6 +654,18 @@ func TestLibraryAssets(t *testing.T) {
 		{
 			name:      "lib4",
 			assetFlag: "-A assets_b",
+		},
+		{
+			name:      "lib5",
+			assetFlag: "-A out/soong/.intermediates/lib5/android_common/tmp_asset_dir",
+			tmpAssetDirInputs: []string{
+				"path/to/asset_file_1",
+				"path/to/asset_file_2",
+			},
+			tmpAssetDirOutputs: []string{
+				"out/soong/.intermediates/lib5/android_common/tmp_asset_dir/path/to/asset_file_1",
+				"out/soong/.intermediates/lib5/android_common/tmp_asset_dir/path/to/asset_file_2",
+			},
 		},
 	}
 	ctx := testApp(t, bp)
@@ -670,6 +693,14 @@ func TestLibraryAssets(t *testing.T) {
 			if len(test.assetPackages) > 0 {
 				mergeAssets := m.Output("package-res.apk")
 				android.AssertPathsRelativeToTopEquals(t, "mergeAssets inputs", test.assetPackages, mergeAssets.Inputs)
+			}
+
+			if len(test.tmpAssetDirInputs) > 0 {
+				rule := m.Rule("tmp_asset_dir")
+				inputs := rule.Implicits
+				outputs := append(android.WritablePaths{rule.Output}, rule.ImplicitOutputs...).Paths()
+				android.AssertPathsRelativeToTopEquals(t, "tmp_asset_dir inputs", test.tmpAssetDirInputs, inputs)
+				android.AssertPathsRelativeToTopEquals(t, "tmp_asset_dir outputs", test.tmpAssetDirOutputs, outputs)
 			}
 		})
 	}
