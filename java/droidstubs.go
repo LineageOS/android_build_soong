@@ -322,9 +322,7 @@ func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuil
 
 func (d *Droidstubs) annotationsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand) {
 	if Bool(d.properties.Annotations_enabled) {
-		cmd.Flag("--include-annotations")
-
-		cmd.FlagWithArg("--exclude-annotation ", "androidx.annotation.RequiresApi")
+		cmd.Flag(config.MetalavaAnnotationsFlags)
 
 		validatingNullability :=
 			strings.Contains(String(d.Javadoc.properties.Args), "--validate-nullability-from-merged-stubs") ||
@@ -352,14 +350,7 @@ func (d *Droidstubs) annotationsFlags(ctx android.ModuleContext, cmd *android.Ru
 			d.mergeAnnoDirFlags(ctx, cmd)
 		}
 
-		// TODO(tnorbye): find owners to fix these warnings when annotation was enabled.
-		cmd.FlagWithArg("--hide ", "HiddenTypedefConstant").
-			FlagWithArg("--hide ", "SuperfluousPrefix").
-			FlagWithArg("--hide ", "AnnotationExtraction").
-			// b/222738070
-			FlagWithArg("--hide ", "BannedThrow").
-			// b/223382732
-			FlagWithArg("--hide ", "ChangedDefault")
+		cmd.Flag(config.MetalavaAnnotationsWarningsFlags)
 	}
 }
 
@@ -519,7 +510,7 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 
 	cmd.BuiltTool("metalava").ImplicitTool(ctx.Config().HostJavaToolPath(ctx, "metalava.jar")).
 		Flag(config.JavacVmFlags).
-		Flag("-J--add-opens=java.base/java.util=ALL-UNNAMED").
+		Flag(config.MetalavaAddOpens).
 		FlagWithArg("--java-source ", javaVersion.String()).
 		FlagWithRspFileInputList("@", android.PathForModuleOut(ctx, "metalava.rsp"), srcs).
 		FlagWithInput("@", srcJarList)
@@ -532,27 +523,9 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 		cmd.FlagWithInputList("--classpath ", combinedPaths, ":")
 	}
 
-	cmd.Flag("--color").
-		Flag("--quiet").
-		Flag("--format=v2").
-		FlagWithArg("--repeat-errors-max ", "10").
-		FlagWithArg("--hide ", "UnresolvedImport").
-		FlagWithArg("--hide ", "InvalidNullabilityOverride").
-		// b/223382732
-		FlagWithArg("--hide ", "ChangedDefault")
-
-	// Force metalava to ignore classes on the classpath when an API file contains missing classes.
-	// See b/285140653 for more information.
-	cmd.FlagWithArg("--api-class-resolution ", "api")
-
-	// Force metalava to sort overloaded methods by their order in the source code.
-	// See b/285312164 for more information.
-	// And add concrete overrides of abstract methods, see b/299366704 for more
-	// information.
-	cmd.FlagWithArg("--format-defaults ", "overloaded-method-order=source,add-additional-overrides=yes")
-
+	cmd.Flag(config.MetalavaFlags)
 	if ctx.DeviceConfig().HideFlaggedApis() {
-		cmd.FlagWithArg("--hide-annotation ", "android.annotation.FlaggedApi")
+		cmd.Flag(config.MetalavaHideFlaggedApis)
 	}
 
 	return cmd
