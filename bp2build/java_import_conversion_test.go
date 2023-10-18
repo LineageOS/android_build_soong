@@ -52,13 +52,15 @@ java_import {
 }
 `,
 		ExpectedBazelTargets: []string{
-			MakeBazelTarget("java_import", "example_import", AttrNameToString{
-				"jars": `["import.jar"]`,
+			MakeBazelTarget("filegroup", "example_import-jars", AttrNameToString{
+				"srcs": `["import.jar"]`,
 			}),
-			MakeBazelTarget("java_library", "example_import-neverlink", AttrNameToString{
-				"exports":     `[":example_import"]`,
-				"neverlink":   `True`,
-				"sdk_version": `"none"`,
+			MakeBazelTarget("java_import", "example_import", AttrNameToString{
+				"jars": `[":example_import-jars"]`,
+			}),
+			MakeBazelTarget("java_import", "example_import-neverlink", AttrNameToString{
+				"jars":      `[":example_import-jars"]`,
+				"neverlink": `True`,
 			}),
 		}})
 }
@@ -86,17 +88,19 @@ java_import {
 }
 `,
 		ExpectedBazelTargets: []string{
-			MakeBazelTarget("java_import", "example_import", AttrNameToString{
-				"jars": `select({
+			MakeBazelTarget("filegroup", "example_import-jars", AttrNameToString{
+				"srcs": `select({
         "//build/bazel_common_rules/platforms/os:android": ["android.jar"],
         "//build/bazel_common_rules/platforms/os:linux_glibc": ["linux.jar"],
         "//conditions:default": [],
     })`,
 			}),
-			MakeBazelTarget("java_library", "example_import-neverlink", AttrNameToString{
-				"exports":     `[":example_import"]`,
-				"neverlink":   `True`,
-				"sdk_version": `"none"`,
+			MakeBazelTarget("java_import", "example_import", AttrNameToString{
+				"jars": `[":example_import-jars"]`,
+			}),
+			MakeBazelTarget("java_import", "example_import-neverlink", AttrNameToString{
+				"jars":      `[":example_import-jars"]`,
+				"neverlink": `True`,
 			}),
 		}})
 }
@@ -117,13 +121,15 @@ java_import_host {
 }
 `,
 		ExpectedBazelTargets: []string{
-			MakeBazelTarget("java_import", "example_import", AttrNameToString{
-				"jars": `["import.jar"]`,
+			MakeBazelTarget("filegroup", "example_import-jars", AttrNameToString{
+				"srcs": `["import.jar"]`,
 			}),
-			MakeBazelTarget("java_library", "example_import-neverlink", AttrNameToString{
-				"exports":     `[":example_import"]`,
-				"neverlink":   `True`,
-				"sdk_version": `"none"`,
+			MakeBazelTarget("java_import", "example_import", AttrNameToString{
+				"jars": `[":example_import-jars"]`,
+			}),
+			MakeBazelTarget("java_import", "example_import-neverlink", AttrNameToString{
+				"jars":      `[":example_import-jars"]`,
+				"neverlink": `True`,
 			}),
 		}})
 }
@@ -142,13 +148,15 @@ func TestJavaImportSameNameAsJavaLibrary(t *testing.T) {
 }
 `,
 		ExpectedBazelTargets: []string{
-			MakeBazelTarget("java_import", "test_lib", AttrNameToString{
-				"jars": `["test.jar"]`,
+			MakeBazelTarget("filegroup", "test_lib-jars", AttrNameToString{
+				"srcs": `["test.jar"]`,
 			}),
-			MakeBazelTarget("java_library", "test_lib-neverlink", AttrNameToString{
-				"exports":     `[":test_lib"]`,
-				"neverlink":   `True`,
-				"sdk_version": `"none"`,
+			MakeBazelTarget("java_import", "test_lib", AttrNameToString{
+				"jars": `[":test_lib-jars"]`,
+			}),
+			MakeBazelTarget("java_import", "test_lib-neverlink", AttrNameToString{
+				"jars":      `[":test_lib-jars"]`,
+				"neverlink": `True`,
 			}),
 		},
 	}, func(ctx android.RegistrationContext) {
