@@ -849,6 +849,17 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	}
 }
 
+func (a *AndroidLibrary) IDEInfo(dpInfo *android.IdeInfo) {
+	a.Library.IDEInfo(dpInfo)
+	a.aapt.IDEInfo(dpInfo)
+}
+
+func (a *aapt) IDEInfo(dpInfo *android.IdeInfo) {
+	if a.useResourceProcessorBusyBox() {
+		dpInfo.Jars = append(dpInfo.Jars, a.rJar.String())
+	}
+}
+
 // android_library builds and links sources into a `.jar` file for the device along with Android resources.
 //
 // An android_library has a single variant that produces a `.jar` file containing `.class` files that were
