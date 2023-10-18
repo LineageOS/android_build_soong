@@ -1109,3 +1109,23 @@ func TestJavaLibrarySameNameAsPrebuilt(t *testing.T) {
 		ctx.RegisterModuleType("java_import", java.ImportFactory)
 	})
 }
+
+func TestJavaLibrarySharding(t *testing.T) {
+	runJavaLibraryTestCase(t, Bp2buildTestCase{
+		Description: "java library with sharded compilation",
+		Blueprint: `java_library {
+			name: "lib1",
+			srcs: ["a.java"],
+			javac_shard_size: 3,
+			sdk_version: "current",
+		}`,
+		ExpectedBazelTargets: []string{
+			MakeBazelTarget("java_library", "lib1", AttrNameToString{
+				"srcs":             `["a.java"]`,
+				"sdk_version":      `"current"`,
+				"javac_shard_size": "3",
+			}),
+			MakeNeverlinkDuplicateTarget("java_library", "lib1"),
+		},
+	})
+}
