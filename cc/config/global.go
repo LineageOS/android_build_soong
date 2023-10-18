@@ -170,9 +170,6 @@ var (
 
 		// Emit additional debug info for AutoFDO
 		"-fdebug-info-for-profiling",
-
-		// Enable Hot Cold splitting optimization.
-		"-mllvm -hot-cold-split=true",
 	}
 
 	commonGlobalLldflags = []string{
