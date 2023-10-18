@@ -201,7 +201,7 @@ func (m ExportedStringVariables) asBazel(config Config,
 			panic(fmt.Errorf("error expanding config variable %s: %s", k, err))
 		}
 		if len(expandedVar) > 1 {
-			panic(fmt.Errorf("%s expands to more than one string value: %s", variableValue, expandedVar))
+			panic(fmt.Errorf("%q expands to more than one string value: %q", variableValue, expandedVar))
 		}
 		ret = append(ret, bazelConstant{
 			variableName:       k,
