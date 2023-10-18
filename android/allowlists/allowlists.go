@@ -394,6 +394,7 @@ var (
 		"system/apex/tools":                                      Bp2BuildDefaultTrueRecursively,
 		"system/core/debuggerd":                                  Bp2BuildDefaultTrueRecursively,
 		"system/core/diagnose_usb":                               Bp2BuildDefaultTrueRecursively,
+		"system/core/fs_mgr":                                     Bp2BuildDefaultTrueRecursively,
 		"system/core/healthd":                                    Bp2BuildDefaultTrue,
 		"system/core/healthd/testdata":                           Bp2BuildDefaultTrue,
 		"system/core/libasyncio":                                 Bp2BuildDefaultTrue,
@@ -697,8 +698,6 @@ var (
 		// fastboot
 		"fastboot",
 		"libfastboot",
-		"liblp",
-		"libstorage_literals_headers",
 
 		"PluginCoreLib",
 		"dagger2",
@@ -754,14 +753,6 @@ var (
 		//system/chre
 		"chre_api",
 
-		//system/core/fs_mgr/libdm
-		"libdm",
-
-		//system/core/fs_mgr/libfiemap
-		"libfiemap_headers",
-		"libfiemap_passthrough_srcs",
-		"libfiemap_srcs",
-
 		//system/gsid
 		"libgsi",
 		"libgsi_headers",
@@ -778,17 +769,8 @@ var (
 		//system/extras/libfscrypt
 		"libfscrypt",
 
-		//system/core/fs_mgr
-		"libfstab",
-
 		//bootable/recovery/fuse_sideload
 		"libfusesideload",
-
-		//system/core/fs_mgr/libfs_avb
-		"libfs_avb",
-
-		//system/core/fs_mgr
-		"libfs_mgr",
 
 		"libcodec2_aidl",
 		"libcodec2_hidl@1.0",
@@ -897,7 +879,6 @@ var (
 		"binderRpcWireProtocolTest",
 		"binderUnitTest",
 		"cpu_features-bit_utils_test",
-		"liblp_test",
 		"android.hardware.audio.common.test.utility_tests",
 		"HalAudioStreamWorkerTest",
 		"libjavacore-unit-tests",
