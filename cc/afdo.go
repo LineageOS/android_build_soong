@@ -84,7 +84,10 @@ func (afdo *afdo) flags(ctx ModuleContext, flags Flags) Flags {
 		// 3. Make the profile searchable by the build system. So it's used the next time the binary
 		//	  is built.
 		flags.Local.CFlags = append([]string{"-funique-internal-linkage-names"}, flags.Local.CFlags...)
+		// Flags for Flow Sensitive AutoFDO
 		flags.Local.CFlags = append([]string{"-mllvm", "-enable-fs-discriminator=true"}, flags.Local.CFlags...)
+		// TODO(b/266595187): Remove the following feature once it is enabled in LLVM by default.
+		flags.Local.CFlags = append([]string{"-mllvm", "-improved-fs-discriminator=true"}, flags.Local.CFlags...)
 	}
 	if path := afdo.Properties.FdoProfilePath; path != nil {
 		// The flags are prepended to allow overriding.
