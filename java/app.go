@@ -1073,6 +1073,11 @@ func (a *AndroidApp) EnableCoverageIfNeeded() {}
 
 var _ cc.Coverage = (*AndroidApp)(nil)
 
+func (a *AndroidApp) IDEInfo(dpInfo *android.IdeInfo) {
+	a.Library.IDEInfo(dpInfo)
+	a.aapt.IDEInfo(dpInfo)
+}
+
 // android_app compiles sources and Android resources into an Android application package `.apk` file.
 func AndroidAppFactory() android.Module {
 	module := &AndroidApp{}
