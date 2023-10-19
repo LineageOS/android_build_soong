@@ -801,6 +801,10 @@ func (l *libraryDecorator) collectHeadersForSnapshot(ctx android.ModuleContext, 
 }
 
 type rustLibraryAttributes struct {
+	commonLibraryAttrs
+}
+
+type commonLibraryAttrs struct {
 	Srcs            bazel.LabelListAttribute
 	Compile_data    bazel.LabelListAttribute
 	Crate_name      bazel.StringAttribute
@@ -811,7 +815,7 @@ type rustLibraryAttributes struct {
 	Proc_macro_deps bazel.LabelListAttribute
 }
 
-func libraryBp2build(ctx android.Bp2buildMutatorContext, m *Module) {
+func commonLibraryAttrsBp2build(ctx android.Bp2buildMutatorContext, m *Module) *commonLibraryAttrs {
 	lib := m.compiler.(*libraryDecorator)
 
 	srcs, compileData := srcsAndCompileDataAttrs(ctx, *lib.baseCompiler)
@@ -835,7 +839,7 @@ func libraryBp2build(ctx android.Bp2buildMutatorContext, m *Module) {
 		rustcFLags = append(rustcFLags, fmt.Sprintf("--cfg=%s", cfg))
 	}
 
-	attrs := &rustLibraryAttributes{
+	return &commonLibraryAttrs{
 		Srcs: bazel.MakeLabelListAttribute(
 			srcs,
 		),
@@ -865,6 +869,9 @@ func libraryBp2build(ctx android.Bp2buildMutatorContext, m *Module) {
 		},
 	}
 
+}
+
+func libraryBp2build(ctx android.Bp2buildMutatorContext, m *Module) {
 	ctx.CreateBazelTargetModule(
 		bazel.BazelTargetModuleProperties{
 			Rule_class:        "rust_library",
@@ -873,7 +880,7 @@ func libraryBp2build(ctx android.Bp2buildMutatorContext, m *Module) {
 		android.CommonAttributes{
 			Name: m.Name(),
 		},
-		attrs,
+		commonLibraryAttrsBp2build(ctx, m),
 	)
 }
 
@@ -945,4 +952,31 @@ func cargoBuildScriptBp2build(ctx android.Bp2buildMutatorContext, m *Module) *st
 	)
 
 	return &name
+}
+
+type ffiStaticAttributes struct {
+	commonLibraryAttrs
+	Export_includes bazel.StringListAttribute
+}
+
+func ffiStaticBp2build(ctx android.Bp2buildMutatorContext, m *Module) {
+	lib := m.compiler.(*libraryDecorator)
+
+	attrs := &ffiStaticAttributes{
+		Export_includes: bazel.StringListAttribute{
+			Value: lib.Properties.Include_dirs,
+		},
+		commonLibraryAttrs: *commonLibraryAttrsBp2build(ctx, m),
+	}
+
+	ctx.CreateBazelTargetModule(
+		bazel.BazelTargetModuleProperties{
+			Rule_class:        "rust_ffi_static",
+			Bzl_load_location: "//build/bazel/rules/rust:rust_ffi_static.bzl",
+		},
+		android.CommonAttributes{
+			Name: m.Name(),
+		},
+		attrs,
+	)
 }
