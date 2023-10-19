@@ -82,7 +82,7 @@ func Codegen(ctx *CodegenContext) *CodegenMetrics {
 		os.Exit(1)
 	}
 	var bp2buildFiles []BazelFile
-	productConfig, err := createProductConfigFiles(ctx, res.metrics)
+	productConfig, err := createProductConfigFiles(ctx, res.moduleNameToPartition, res.metrics.convertedModulePathMap)
 	ctx.Context().EventHandler.Do("CreateBazelFile", func() {
 		allTargets := make(map[string]BazelTargets)
 		for k, v := range res.buildFileToTargets {

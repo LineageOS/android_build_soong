@@ -245,6 +245,55 @@ type noopBazelContext struct{}
 
 var _ BazelContext = noopBazelContext{}
 
+func (n noopBazelContext) QueueBazelRequest(_ string, _ cqueryRequest, _ configKey) {
+	panic("unimplemented")
+}
+
+func (n noopBazelContext) QueueBazelSandwichCqueryRequests(config Config) error {
+	panic("unimplemented")
+}
+
+func (n noopBazelContext) GetOutputFiles(_ string, _ configKey) ([]string, error) {
+	panic("unimplemented")
+}
+
+func (n noopBazelContext) GetCcInfo(_ string, _ configKey) (cquery.CcInfo, error) {
+	panic("unimplemented")
+}
+
+func (n noopBazelContext) GetApexInfo(_ string, _ configKey) (cquery.ApexInfo, error) {
+	panic("unimplemented")
+}
+
+func (n noopBazelContext) GetCcUnstrippedInfo(_ string, _ configKey) (cquery.CcUnstrippedInfo, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (n noopBazelContext) GetPrebuiltFileInfo(_ string, _ configKey) (cquery.PrebuiltFileInfo, error) {
+	panic("implement me")
+}
+
+func (n noopBazelContext) InvokeBazel(_ Config, _ invokeBazelContext) error {
+	panic("unimplemented")
+}
+
+func (m noopBazelContext) OutputBase() string {
+	return ""
+}
+
+func (n noopBazelContext) IsModuleNameAllowed(_ string, _ bool) bool {
+	return false
+}
+
+func (m noopBazelContext) BuildStatementsToRegister() []*bazel.BuildStatement {
+	return []*bazel.BuildStatement{}
+}
+
+func (m noopBazelContext) AqueryDepsets() []bazel.AqueryDepset {
+	return []bazel.AqueryDepset{}
+}
+
 // A bazel context to use for tests.
 type MockBazelContext struct {
 	OutputBaseDir string
@@ -425,55 +474,6 @@ func (bazelCtx *mixedBuildBazelContext) GetPrebuiltFileInfo(label string, cfgKey
 		return cquery.GetPrebuiltFileInfo.ParseResult(strings.TrimSpace(rawString))
 	}
 	return cquery.PrebuiltFileInfo{}, fmt.Errorf("no bazel response for %s", key)
-}
-
-func (n noopBazelContext) QueueBazelRequest(_ string, _ cqueryRequest, _ configKey) {
-	panic("unimplemented")
-}
-
-func (n noopBazelContext) QueueBazelSandwichCqueryRequests(config Config) error {
-	panic("unimplemented")
-}
-
-func (n noopBazelContext) GetOutputFiles(_ string, _ configKey) ([]string, error) {
-	panic("unimplemented")
-}
-
-func (n noopBazelContext) GetCcInfo(_ string, _ configKey) (cquery.CcInfo, error) {
-	panic("unimplemented")
-}
-
-func (n noopBazelContext) GetApexInfo(_ string, _ configKey) (cquery.ApexInfo, error) {
-	panic("unimplemented")
-}
-
-func (n noopBazelContext) GetCcUnstrippedInfo(_ string, _ configKey) (cquery.CcUnstrippedInfo, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n noopBazelContext) GetPrebuiltFileInfo(_ string, _ configKey) (cquery.PrebuiltFileInfo, error) {
-	panic("implement me")
-}
-
-func (n noopBazelContext) InvokeBazel(_ Config, _ invokeBazelContext) error {
-	panic("unimplemented")
-}
-
-func (m noopBazelContext) OutputBase() string {
-	return ""
-}
-
-func (n noopBazelContext) IsModuleNameAllowed(_ string, _ bool) bool {
-	return false
-}
-
-func (m noopBazelContext) BuildStatementsToRegister() []*bazel.BuildStatement {
-	return []*bazel.BuildStatement{}
-}
-
-func (m noopBazelContext) AqueryDepsets() []bazel.AqueryDepset {
-	return []bazel.AqueryDepset{}
 }
 
 func AddToStringSet(set map[string]bool, items []string) {

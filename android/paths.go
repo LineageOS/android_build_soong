@@ -116,6 +116,48 @@ type ModuleInstallPathContext interface {
 
 var _ ModuleInstallPathContext = ModuleContext(nil)
 
+type baseModuleContextToModuleInstallPathContext struct {
+	BaseModuleContext
+}
+
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallInData() bool {
+	return ctx.Module().InstallInData()
+}
+
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallInTestcases() bool {
+	return ctx.Module().InstallInTestcases()
+}
+
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallInSanitizerDir() bool {
+	return ctx.Module().InstallInSanitizerDir()
+}
+
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallInRamdisk() bool {
+	return ctx.Module().InstallInRamdisk()
+}
+
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallInVendorRamdisk() bool {
+	return ctx.Module().InstallInVendorRamdisk()
+}
+
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallInDebugRamdisk() bool {
+	return ctx.Module().InstallInDebugRamdisk()
+}
+
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallInRecovery() bool {
+	return ctx.Module().InstallInRecovery()
+}
+
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallInRoot() bool {
+	return ctx.Module().InstallInRoot()
+}
+
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallForceOS() (*OsType, *ArchType) {
+	return ctx.Module().InstallForceOS()
+}
+
+var _ ModuleInstallPathContext = (*baseModuleContextToModuleInstallPathContext)(nil)
+
 // errorfContext is the interface containing the Errorf method matching the
 // Errorf method in blueprint.SingletonContext.
 type errorfContext interface {
@@ -1683,7 +1725,7 @@ func (p InstallPath) ToMakePath() InstallPath {
 // module appended with paths...
 func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string) InstallPath {
 	os, arch := osAndArch(ctx)
-	partition := modulePartition(ctx, os)
+	partition := modulePartition(ctx, os.Class == Device)
 	return pathForInstall(ctx, os, arch, partition, pathComponents...)
 }
 
@@ -1785,12 +1827,12 @@ func InstallPathToOnDevicePath(ctx PathContext, path InstallPath) string {
 	return "/" + rel
 }
 
-func modulePartition(ctx ModuleInstallPathContext, os OsType) string {
+func modulePartition(ctx ModuleInstallPathContext, device bool) string {
 	var partition string
 	if ctx.InstallInTestcases() {
 		// "testcases" install directory can be used for host or device modules.
 		partition = "testcases"
-	} else if os.Class == Device {
+	} else if device {
 		if ctx.InstallInData() {
 			partition = "data"
 		} else if ctx.InstallInRamdisk() {
