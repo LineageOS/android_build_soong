@@ -628,7 +628,7 @@ func generateBootImage(ctx android.ModuleContext, imageConfig *bootImageConfig) 
 }
 
 type apexJarModulePair struct {
-	apex string
+	apex      string
 	jarModule android.Module
 }
 
@@ -640,7 +640,7 @@ func getModulesForImage(ctx android.ModuleContext, imageConfig *bootImageConfig)
 			name := android.RemoveOptionalPrebuiltPrefix(module.Name())
 			if name == imageConfig.modules.Jar(i) {
 				modules = append(modules, apexJarModulePair{
-					apex: imageConfig.modules.Apex(i),
+					apex:      imageConfig.modules.Apex(i),
 					jarModule: module,
 				})
 				found = true
@@ -1178,7 +1178,7 @@ func dumpOatRules(ctx android.ModuleContext, image *bootImageConfig) {
 		Rule:        android.Phony,
 		Output:      phony,
 		Inputs:      allPhonies,
-		Description: "dump-oat-"+name,
+		Description: "dump-oat-" + name,
 	})
 }
 
