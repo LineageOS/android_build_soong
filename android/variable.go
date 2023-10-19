@@ -494,38 +494,40 @@ type ProductVariables struct {
 	Release_expose_flagged_api *bool `json:",omitempty"`
 }
 
+type PartitionQualifiedVariablesType struct {
+	BuildingImage               bool   `json:",omitempty"`
+	BoardErofsCompressor        string `json:",omitempty"`
+	BoardErofsCompressHints     string `json:",omitempty"`
+	BoardErofsPclusterSize      string `json:",omitempty"`
+	BoardExtfsInodeCount        string `json:",omitempty"`
+	BoardExtfsRsvPct            string `json:",omitempty"`
+	BoardF2fsSloadCompressFlags string `json:",omitempty"`
+	BoardFileSystemCompress     string `json:",omitempty"`
+	BoardFileSystemType         string `json:",omitempty"`
+	BoardJournalSize            string `json:",omitempty"`
+	BoardPartitionReservedSize  string `json:",omitempty"`
+	BoardPartitionSize          string `json:",omitempty"`
+	BoardSquashfsBlockSize      string `json:",omitempty"`
+	BoardSquashfsCompressor     string `json:",omitempty"`
+	BoardSquashfsCompressorOpt  string `json:",omitempty"`
+	BoardSquashfsDisable4kAlign string `json:",omitempty"`
+	ProductBaseFsPath           string `json:",omitempty"`
+	ProductHeadroom             string `json:",omitempty"`
+	ProductVerityPartition      string `json:",omitempty"`
+
+	BoardAvbAddHashtreeFooterArgs string `json:",omitempty"`
+	BoardAvbKeyPath               string `json:",omitempty"`
+	BoardAvbAlgorithm             string `json:",omitempty"`
+	BoardAvbRollbackIndex         string `json:",omitempty"`
+	BoardAvbRollbackIndexLocation string `json:",omitempty"`
+}
+
 type PartitionVariables struct {
 	ProductDirectory            string `json:",omitempty"`
-	PartitionQualifiedVariables map[string]struct {
-		BuildingImage               bool   `json:",omitempty"`
-		BoardErofsCompressor        string `json:",omitempty"`
-		BoardErofsCompressHints     string `json:",omitempty"`
-		BoardErofsPclusterSize      string `json:",omitempty"`
-		BoardExtfsInodeCount        string `json:",omitempty"`
-		BoardExtfsRsvPct            string `json:",omitempty"`
-		BoardF2fsSloadCompressFlags string `json:",omitempty"`
-		BoardFileSystemCompress     string `json:",omitempty"`
-		BoardFileSystemType         string `json:",omitempty"`
-		BoardJournalSize            string `json:",omitempty"`
-		BoardPartitionReservedSize  string `json:",omitempty"`
-		BoardPartitionSize          string `json:",omitempty"`
-		BoardSquashfsBlockSize      string `json:",omitempty"`
-		BoardSquashfsCompressor     string `json:",omitempty"`
-		BoardSquashfsCompressorOpt  string `json:",omitempty"`
-		BoardSquashfsDisable4kAlign string `json:",omitempty"`
-		ProductBaseFsPath           string `json:",omitempty"`
-		ProductHeadroom             string `json:",omitempty"`
-		ProductVerityPartition      string `json:",omitempty"`
-
-		BoardAvbAddHashtreeFooterArgs string `json:",omitempty"`
-		BoardAvbKeyPath               string `json:",omitempty"`
-		BoardAvbAlgorithm             string `json:",omitempty"`
-		BoardAvbRollbackIndex         string `json:",omitempty"`
-		BoardAvbRollbackIndexLocation string `json:",omitempty"`
-	}
-	TargetUserimagesUseExt2 bool `json:",omitempty"`
-	TargetUserimagesUseExt3 bool `json:",omitempty"`
-	TargetUserimagesUseExt4 bool `json:",omitempty"`
+	PartitionQualifiedVariables map[string]PartitionQualifiedVariablesType
+	TargetUserimagesUseExt2     bool `json:",omitempty"`
+	TargetUserimagesUseExt3     bool `json:",omitempty"`
+	TargetUserimagesUseExt4     bool `json:",omitempty"`
 
 	TargetUserimagesSparseExtDisabled      bool `json:",omitempty"`
 	TargetUserimagesSparseErofsDisabled    bool `json:",omitempty"`
@@ -546,6 +548,8 @@ type PartitionVariables struct {
 	CopyImagesForTargetFilesZip          bool   `json:",omitempty"`
 
 	BoardAvbEnable bool `json:",omitempty"`
+
+	ProductPackages []string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
