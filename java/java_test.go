@@ -2599,3 +2599,33 @@ func TestApiLibraryDroidstubsDependency(t *testing.T) {
 		currentApiTimestampPath,
 	)
 }
+
+func TestDisableFromTextStubForCoverageBuild(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		PrepareForTestWithJacocoInstrumentation,
+		FixtureWithLastReleaseApis("foo"),
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.SetApiLibraries([]string{"foo"})
+			config.SetBuildFromTextStub(true)
+		}),
+		android.FixtureModifyEnv(func(env map[string]string) {
+			env["EMMA_INSTRUMENT"] = "true"
+		}),
+	).RunTestWithBp(t, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["A.java"],
+		}
+	`)
+	android.AssertBoolEquals(t, "stub module expected to depend on from-source stub",
+		true, CheckModuleHasDependency(t, result.TestContext,
+			apiScopePublic.stubsLibraryModuleName("foo"), "android_common",
+			apiScopePublic.sourceStubLibraryModuleName("foo")))
+
+	android.AssertBoolEquals(t, "stub module expected to not depend on from-text stub",
+		false, CheckModuleHasDependency(t, result.TestContext,
+			apiScopePublic.stubsLibraryModuleName("foo"), "android_common",
+			apiScopePublic.apiLibraryModuleName("foo")))
+}
