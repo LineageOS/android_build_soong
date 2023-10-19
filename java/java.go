@@ -2971,10 +2971,6 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.Bp2buildMutatorContext
 		// TODO(b/297356582): handle core_platform in bp2build
 		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_PROPERTY_UNSUPPORTED, "sdk_version core_platform")
 		return &javaCommonAttributes{}, &bp2BuildJavaInfo{}, false
-	} else if proptools.String(m.deviceProperties.Sdk_version) == "none" {
-		// TODO(b/297356703): handle system_modules
-		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_PROPERTY_UNSUPPORTED, "sdk_version none")
-		return &javaCommonAttributes{}, &bp2BuildJavaInfo{}, false
 	}
 
 	archVariantProps := m.GetArchVariantProperties(ctx, &CommonProperties{})
@@ -3409,14 +3405,9 @@ func createLibraryTarget(ctx android.Bp2buildMutatorContext, libInfo libraryCrea
 	return libName
 }
 
-type importAttributes struct {
-	Jars      bazel.LabelListAttribute
-	Exports   bazel.LabelListAttribute
-	Neverlink *bool
-}
-
-type filegroupAttrs struct {
-	Srcs bazel.LabelListAttribute
+type bazelJavaImportAttributes struct {
+	Jars    bazel.LabelListAttribute
+	Exports bazel.LabelListAttribute
 }
 
 // java_import bp2Build converter.
@@ -3432,36 +3423,28 @@ func (i *Import) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
 		}
 	}
 
-	name := android.RemoveOptionalPrebuiltPrefix(i.Name())
-	filegroupTargetName := name + "-jars"
-
-	ctx.CreateBazelTargetModule(
-		bazel.BazelTargetModuleProperties{
-			Rule_class:        "filegroup",
-			Bzl_load_location: "//build/bazel/rules:filegroup.bzl",
-		},
-		android.CommonAttributes{Name: filegroupTargetName},
-		&filegroupAttrs{
-			Srcs: jars,
-		},
-	)
-
-	attrs := &importAttributes{
-		Jars: bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + filegroupTargetName}),
+	attrs := &bazelJavaImportAttributes{
+		Jars: jars,
 	}
 	props := bazel.BazelTargetModuleProperties{
 		Rule_class:        "java_import",
 		Bzl_load_location: "//build/bazel/rules/java:import.bzl",
 	}
 
+	name := android.RemoveOptionalPrebuiltPrefix(i.Name())
+
 	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name}, attrs)
 
-	neverlinkAttrs := &importAttributes{
-		Jars:      attrs.Jars,
-		Neverlink: proptools.BoolPtr(true),
+	neverlink := true
+	neverlinkAttrs := &javaLibraryAttributes{
+		Neverlink: bazel.BoolAttribute{Value: &neverlink},
+		Exports:   bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + name}),
+		javaCommonAttributes: &javaCommonAttributes{
+			Sdk_version: bazel.StringAttribute{Value: proptools.StringPtr("none")},
+		},
 	}
 	ctx.CreateBazelTargetModule(
-		props,
+		javaLibraryBazelTargetModuleProperties(),
 		android.CommonAttributes{Name: name + "-neverlink"},
 		neverlinkAttrs)
 }
