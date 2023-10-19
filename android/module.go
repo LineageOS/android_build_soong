@@ -572,6 +572,7 @@ type Module interface {
 	Bp2buildTargets() []bp2buildInfo
 	GetUnconvertedBp2buildDeps() []string
 	GetMissingBp2buildDeps() []string
+	GetPartitionForBp2build() string
 
 	BuildParamsForTests() []BuildParams
 	RuleParamsForTests() map[blueprint.Rule]blueprint.RuleParams
@@ -1651,6 +1652,10 @@ func (m *ModuleBase) addBp2buildInfo(info bp2buildInfo) {
 	m.commonProperties.BazelConversionStatus.Bp2buildInfo = append(m.commonProperties.BazelConversionStatus.Bp2buildInfo, info)
 }
 
+func (m *ModuleBase) setPartitionForBp2build(partition string) {
+	m.commonProperties.BazelConversionStatus.Partition = partition
+}
+
 func (m *ModuleBase) setBp2buildUnconvertible(reasonType bp2build_metrics_proto.UnconvertedReasonType, detail string) {
 	m.commonProperties.BazelConversionStatus.UnconvertedReason = &UnconvertedReason{
 		ReasonType: int(reasonType),
@@ -1665,6 +1670,11 @@ func (m *ModuleBase) GetUnconvertedReason() *UnconvertedReason {
 // Bp2buildTargets returns the Bazel targets bp2build generated for this module.
 func (m *ModuleBase) Bp2buildTargets() []bp2buildInfo {
 	return m.commonProperties.BazelConversionStatus.Bp2buildInfo
+}
+
+// Bp2buildTargets returns the Bazel targets bp2build generated for this module.
+func (m *ModuleBase) GetPartitionForBp2build() string {
+	return m.commonProperties.BazelConversionStatus.Partition
 }
 
 // AddUnconvertedBp2buildDep stores module name of a dependency that was not converted to Bazel.
