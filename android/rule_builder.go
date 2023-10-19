@@ -871,7 +871,7 @@ func (c *RuleBuilderCommand) PathForOutput(path WritablePath) string {
 
 func sboxPathForToolRel(ctx BuilderContext, path Path) string {
 	// Errors will be handled in RuleBuilder.Build where we have a context to report them
-	toolDir := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "", false)
+	toolDir := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "")
 	relOutSoong, isRelOutSoong, _ := maybeRelErr(toolDir.String(), path.String())
 	if isRelOutSoong {
 		// The tool is in the Soong output directory, it will be copied to __SBOX_OUT_DIR__/tools/out
