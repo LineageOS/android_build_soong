@@ -782,7 +782,7 @@ func (b *BootclasspathFragmentModule) produceBootImageProfileFromSource(ctx andr
 	dexLocations := make([]string, 0, len(contents))
 	for _, module := range contents {
 		dexPaths = append(dexPaths, modules[module.Name()])
-		dexLocations = append(dexLocations, filepath.Join("/", "apex", apex, "javalib", module.Name() + ".jar"))
+		dexLocations = append(dexLocations, filepath.Join("/", "apex", apex, "javalib", module.Name()+".jar"))
 	}
 
 	// Build a profile for the modules in this fragment.

@@ -103,7 +103,7 @@ type BazelConversionPathContext interface {
 // or ":<module>") and returns a Bazel-compatible label which corresponds to dependencies on the
 // module within the given ctx.
 func BazelLabelForModuleDeps(ctx Bp2buildMutatorContext, modules []string) bazel.LabelList {
-	return BazelLabelForModuleDepsWithFn(ctx, modules, BazelModuleLabel, /*markAsDeps=*/true)
+	return BazelLabelForModuleDepsWithFn(ctx, modules, BazelModuleLabel, true)
 }
 
 // BazelLabelForModuleWholeDepsExcludes expects two lists: modules (containing modules to include in
@@ -154,11 +154,11 @@ func BazelLabelForModuleDepsWithFn(ctx Bp2buildMutatorContext, modules []string,
 // the excluded dependencies.
 func BazelLabelForModuleDepsExcludesWithFn(ctx Bp2buildMutatorContext, modules, excludes []string,
 	moduleToLabelFn func(BazelConversionPathContext, blueprint.Module) string) bazel.LabelList {
-	moduleLabels := BazelLabelForModuleDepsWithFn(ctx, RemoveListFromList(modules, excludes), moduleToLabelFn, /*markAsDeps=*/true)
+	moduleLabels := BazelLabelForModuleDepsWithFn(ctx, RemoveListFromList(modules, excludes), moduleToLabelFn, true)
 	if len(excludes) == 0 {
 		return moduleLabels
 	}
-	excludeLabels := BazelLabelForModuleDepsWithFn(ctx, excludes, moduleToLabelFn, /*markAsDeps=*/false)
+	excludeLabels := BazelLabelForModuleDepsWithFn(ctx, excludes, moduleToLabelFn, false)
 	return bazel.LabelList{
 		Includes: moduleLabels.Includes,
 		Excludes: excludeLabels.Includes,
