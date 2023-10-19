@@ -89,6 +89,7 @@ bootstrap_go_package {
         "python_library_conversion_test.go",
         "python_test_conversion_test.go",
         "rust_binary_conversion_test.go",
+        "rust_ffi_conversion_test.go",
         "rust_library_conversion_test.go",
         "rust_proc_macro_conversion_test.go",
         "rust_protobuf_conversion_test.go",
