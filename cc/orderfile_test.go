@@ -15,8 +15,8 @@
 package cc
 
 import (
-	"testing"
 	"strings"
+	"testing"
 
 	"android/soong/android"
 )
@@ -193,8 +193,8 @@ func TestOrderfileProfilePropagateStaticDeps(t *testing.T) {
 	}
 
 	// Check cFlags of orderfile variant static libraries
-	libFooOfVariant  := result.ModuleForTests("libFoo", "android_arm64_armv8-a_static_orderfile")
-	libBarOfVariant  := result.ModuleForTests("libBar", "android_arm64_armv8-a_static_orderfile")
+	libFooOfVariant := result.ModuleForTests("libFoo", "android_arm64_armv8-a_static_orderfile")
+	libBarOfVariant := result.ModuleForTests("libBar", "android_arm64_armv8-a_static_orderfile")
 
 	cFlags = libFooOfVariant.Rule("cc").Args["cFlags"]
 	if !strings.Contains(cFlags, expectedCFlag) {
@@ -216,8 +216,8 @@ func TestOrderfileProfilePropagateStaticDeps(t *testing.T) {
 	}
 
 	// Check cFlags of the non-orderfile variant static libraries
-	libFoo  := result.ModuleForTests("libFoo", "android_arm64_armv8-a_static")
-	libBar  := result.ModuleForTests("libBar", "android_arm64_armv8-a_static")
+	libFoo := result.ModuleForTests("libFoo", "android_arm64_armv8-a_static")
+	libBar := result.ModuleForTests("libBar", "android_arm64_armv8-a_static")
 
 	cFlags = libFoo.Rule("cc").Args["cFlags"]
 	if strings.Contains(cFlags, expectedCFlag) {
@@ -281,8 +281,8 @@ func TestOrderfileLoadPropagateStaticDeps(t *testing.T) {
 		t.Errorf("Expected 'libTest' to load orderfile, but did not find %q in ldFlags %q", expectedCFlag, ldFlags)
 	}
 
-	libFoo  := result.ModuleForTests("libFoo", "android_arm64_armv8-a_static")
-	libBar  := result.ModuleForTests("libBar", "android_arm64_armv8-a_static")
+	libFoo := result.ModuleForTests("libFoo", "android_arm64_armv8-a_static")
+	libBar := result.ModuleForTests("libBar", "android_arm64_armv8-a_static")
 
 	// Check dependency edge from orderfile-enabled module to non-orderfile variant static libraries
 	if !hasDirectDep(result, libTest.Module(), libFoo.Module()) {
@@ -351,8 +351,8 @@ func TestOrderfileProfilePropagateSharedDeps(t *testing.T) {
 	}
 
 	// Check cFlags of the static and shared libraries
-	libFoo  := result.ModuleForTests("libFoo", "android_arm64_armv8-a_shared")
-	libBar  := result.ModuleForTests("libBar", "android_arm64_armv8-a_static")
+	libFoo := result.ModuleForTests("libFoo", "android_arm64_armv8-a_shared")
+	libBar := result.ModuleForTests("libBar", "android_arm64_armv8-a_static")
 
 	cFlags = libFoo.Rule("cc").Args["cFlags"]
 	if strings.Contains(cFlags, expectedCFlag) {
@@ -431,8 +431,8 @@ func TestOrderfileProfileStaticLibrary(t *testing.T) {
 	}
 
 	// Check cFlags of the static libraries
-	libFoo  := result.ModuleForTests("libFoo", "android_arm64_armv8-a_static")
-	libBar  := result.ModuleForTests("libBar", "android_arm64_armv8-a_static")
+	libFoo := result.ModuleForTests("libFoo", "android_arm64_armv8-a_static")
+	libBar := result.ModuleForTests("libBar", "android_arm64_armv8-a_static")
 
 	cFlags = libFoo.Rule("cc").Args["cFlags"]
 	if strings.Contains(cFlags, expectedCFlag) {
