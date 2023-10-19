@@ -278,7 +278,7 @@ func getDexpreoptDirName(ctx android.PathContext) string {
 	prefix := "dexpreopt_"
 	targets := ctx.Config().Targets[android.Android]
 	if len(targets) > 0 {
-		return prefix+targets[0].Arch.ArchType.String()
+		return prefix + targets[0].Arch.ArchType.String()
 	}
-	return prefix+"unknown_target"
+	return prefix + "unknown_target"
 }

@@ -77,7 +77,7 @@ var ApexBootJarDexJarPaths = []string{
 
 func PrepareApexBootJarModule(apexName string, moduleName string) android.FixturePreparer {
 	moduleSourceDir := fmt.Sprintf("packages/modules/%s", apexName)
-	fragmentName := apexName+"-bootclasspath-fragment"
+	fragmentName := apexName + "-bootclasspath-fragment"
 	imageNameProp := ""
 	if apexName == "com.android.art" {
 		fragmentName = "art-bootclasspath-fragment"
