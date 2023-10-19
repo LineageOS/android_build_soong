@@ -58,17 +58,17 @@ func recordMissingOrderfile(ctx BaseModuleContext, missing string) {
 
 type OrderfileProperties struct {
 	Orderfile struct {
-		Instrumentation    *bool
-		Order_file_path    *string `android:"arch_variant"`
-		Load_order_file    *bool `android:"arch_variant"`
+		Instrumentation *bool
+		Order_file_path *string `android:"arch_variant"`
+		Load_order_file *bool   `android:"arch_variant"`
 		// Additional compiler flags to use when building this module
 		// for orderfile profiling.
 		Cflags []string `android:"arch_variant"`
 	} `android:"arch_variant"`
 
-	ShouldProfileModule 	  bool `blueprint:"mutated"`
-	OrderfileLoad             bool `blueprint:"mutated"`
-	OrderfileInstrLink        bool `blueprint:"mutated"`
+	ShouldProfileModule bool `blueprint:"mutated"`
+	OrderfileLoad       bool `blueprint:"mutated"`
+	OrderfileInstrLink  bool `blueprint:"mutated"`
 }
 
 type orderfile struct {
@@ -127,7 +127,6 @@ func (props *OrderfileProperties) addInstrumentationProfileGatherFlags(ctx Modul
 	flags.Local.LdFlags = append(flags.Local.LdFlags, orderfileProfileFlag)
 	return flags
 }
-
 
 func (props *OrderfileProperties) loadOrderfileFlags(ctx ModuleContext, file string) []string {
 	flags := []string{fmt.Sprintf(orderfileUseFormat, file)}
@@ -217,7 +216,7 @@ func orderfileDepsMutator(mctx android.TopDownMutatorContext) {
 
 			if dep, ok := dep.(*Module); ok {
 				if m.orderfile.Properties.OrderfileInstrLink {
-					dep.orderfile.Properties.OrderfileInstrLink = true;
+					dep.orderfile.Properties.OrderfileInstrLink = true
 				}
 			}
 
