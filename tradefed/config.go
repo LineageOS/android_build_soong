@@ -33,6 +33,7 @@ func init() {
 	pctx.SourcePathVariable("NativeTestConfigTemplate", "build/make/core/native_test_config_template.xml")
 	pctx.SourcePathVariable("PythonBinaryHostMoblyTestConfigTemplate", "build/make/core/python_binary_host_mobly_test_config_template.xml")
 	pctx.SourcePathVariable("PythonBinaryHostTestConfigTemplate", "build/make/core/python_binary_host_test_config_template.xml")
+	pctx.SourcePathVariable("RavenwoodTestConfigTemplate", "build/make/core/ravenwood_test_config_template.xml")
 	pctx.SourcePathVariable("RustDeviceTestConfigTemplate", "build/make/core/rust_device_test_config_template.xml")
 	pctx.SourcePathVariable("RustHostTestConfigTemplate", "build/make/core/rust_host_test_config_template.xml")
 	pctx.SourcePathVariable("RustDeviceBenchmarkConfigTemplate", "build/make/core/rust_device_benchmark_config_template.xml")
