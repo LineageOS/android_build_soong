@@ -53,10 +53,6 @@ var (
 		"--gcc-toolchain=${LinuxBionicGccRoot}",
 	}
 
-	linuxBionicLldflags = append(linuxBionicLdflags,
-		"-Wl,--compress-debug-sections=zstd",
-	)
-
 	// Embed the linker into host bionic binaries. This is needed to support host bionic,
 	// as the linux kernel requires that the ELF interpreter referenced by PT_INTERP be
 	// either an absolute path, or relative from CWD. To work around this, we extract
@@ -75,7 +71,7 @@ const (
 func init() {
 	exportedVars.ExportStringListStaticVariable("LinuxBionicCflags", linuxBionicCflags)
 	exportedVars.ExportStringListStaticVariable("LinuxBionicLdflags", linuxBionicLdflags)
-	exportedVars.ExportStringListStaticVariable("LinuxBionicLldflags", linuxBionicLldflags)
+	exportedVars.ExportStringListStaticVariable("LinuxBionicLldflags", linuxBionicLdflags)
 
 	// Use the device gcc toolchain for now
 	exportedVars.ExportStringStaticVariable("LinuxBionicGccVersion", x86_64GccVersion)

@@ -59,10 +59,6 @@ var (
 		"--gcc-toolchain=${LinuxGccRoot}",
 	}
 
-	linuxLldflags = append(linuxLdflags,
-		"-Wl,--compress-debug-sections=zstd",
-	)
-
 	linuxGlibcLdflags = []string{
 		"--sysroot ${LinuxGccRoot}/sysroot",
 	}
@@ -142,7 +138,7 @@ func init() {
 
 	exportedVars.ExportStringListStaticVariable("LinuxCflags", linuxCflags)
 	exportedVars.ExportStringListStaticVariable("LinuxLdflags", linuxLdflags)
-	exportedVars.ExportStringListStaticVariable("LinuxLldflags", linuxLldflags)
+	exportedVars.ExportStringListStaticVariable("LinuxLldflags", linuxLdflags)
 	exportedVars.ExportStringListStaticVariable("LinuxGlibcCflags", linuxGlibcCflags)
 	exportedVars.ExportStringListStaticVariable("LinuxGlibcLdflags", linuxGlibcLdflags)
 	exportedVars.ExportStringListStaticVariable("LinuxGlibcLldflags", linuxGlibcLdflags)
