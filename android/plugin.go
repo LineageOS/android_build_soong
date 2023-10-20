@@ -16,8 +16,6 @@ package android
 
 import (
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -72,28 +70,31 @@ var allowedPluginsByName = map[string]bool{
 	"xsdc-soong-rules":                       true,
 }
 
-const (
-	internalPluginsPath = "vendor/google/build/soong/internal_plugins.json"
-)
+var internalPluginsPaths = []string{
+	"vendor/google/build/soong/internal_plugins.json",
+	"vendor/google_clockwork/build/internal_plugins.json",
+}
 
 type pluginProvider interface {
 	IsPluginFor(string) bool
 }
 
 func maybeAddInternalPluginsToAllowlist(ctx SingletonContext) {
-	if path := ExistentPathForSource(ctx, internalPluginsPath); path.Valid() {
-		ctx.AddNinjaFileDeps(path.String())
-		absPath := absolutePath(path.String())
-		var moreAllowed map[string]bool
-		data, err := ioutil.ReadFile(absPath)
-		if err != nil {
-			ctx.Errorf("Failed to open internal plugins path %q %q", internalPluginsPath, err)
-		}
-		if err := json.Unmarshal(data, &moreAllowed); err != nil {
-			fmt.Fprintf(os.Stderr, "Internal plugins file %q did not parse correctly: %q", data, err)
-		}
-		for k, v := range moreAllowed {
-			allowedPluginsByName[k] = v
+	for _, internalPluginsPath := range internalPluginsPaths {
+		if path := ExistentPathForSource(ctx, internalPluginsPath); path.Valid() {
+			ctx.AddNinjaFileDeps(path.String())
+			absPath := absolutePath(path.String())
+			var moreAllowed map[string]bool
+			data, err := os.ReadFile(absPath)
+			if err != nil {
+				ctx.Errorf("Failed to open internal plugins path %q %q", internalPluginsPath, err)
+			}
+			if err := json.Unmarshal(data, &moreAllowed); err != nil {
+				ctx.Errorf("Internal plugins file %q did not parse correctly: %q", data, err)
+			}
+			for k, v := range moreAllowed {
+				allowedPluginsByName[k] = v
+			}
 		}
 	}
 }
