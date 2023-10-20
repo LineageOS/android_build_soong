@@ -98,9 +98,17 @@ do_strip_keep_mini_debug_info_linux() {
     "${CLANG_BIN}/llvm-strip" --strip-all --keep-section=.ARM.attributes --remove-section=.comment "${infile}" -o "${outfile}.tmp" || fail=true
 
     if [ -z $fail ]; then
-        "${CREATE_MINIDEBUGINFO}" "${infile}" "${outfile}.mini_debuginfo.xz"
+        # create_minidebuginfo has issues with compressed debug sections. Just
+        # decompress them for now using objcopy which understands compressed
+        # debug sections.
+        # b/306150780 tracks supporting this directly in create_minidebuginfo
+        decompressed="$(mktemp)"
+        "${CLANG_BIN}/llvm-objcopy" --decompress-debug-sections \
+                "${infile}" "${decompressed}"
+
+        "${CREATE_MINIDEBUGINFO}" "${decompressed}" "${outfile}.mini_debuginfo.xz"
         "${CLANG_BIN}/llvm-objcopy" --add-section .gnu_debugdata="${outfile}.mini_debuginfo.xz" "${outfile}.tmp"
-        rm -f "${outfile}.mini_debuginfo.xz"
+        rm -f "${outfile}.mini_debuginfo.xz" "${decompressed}"
     else
         cp -f "${infile}" "${outfile}.tmp"
     fi
