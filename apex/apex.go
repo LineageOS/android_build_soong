@@ -235,6 +235,9 @@ type ApexNativeDependencies struct {
 	// List of filesystem images that are embedded inside this APEX bundle.
 	Filesystems []string
 
+	// List of prebuilt_etcs that are embedded inside this APEX bundle.
+	Prebuilts []string
+
 	// List of native libraries to exclude from this APEX.
 	Exclude_native_shared_libs []string
 
@@ -252,6 +255,9 @@ type ApexNativeDependencies struct {
 
 	// List of filesystem images to exclude from this APEX bundle.
 	Exclude_filesystems []string
+
+	// List of prebuilt_etcs to exclude from this APEX bundle.
+	Exclude_prebuilts []string
 }
 
 // Merge combines another ApexNativeDependencies into this one
@@ -262,6 +268,7 @@ func (a *ApexNativeDependencies) Merge(b ApexNativeDependencies) {
 	a.Binaries = append(a.Binaries, b.Binaries...)
 	a.Tests = append(a.Tests, b.Tests...)
 	a.Filesystems = append(a.Filesystems, b.Filesystems...)
+	a.Prebuilts = append(a.Prebuilts, b.Prebuilts...)
 
 	a.Exclude_native_shared_libs = append(a.Exclude_native_shared_libs, b.Exclude_native_shared_libs...)
 	a.Exclude_jni_libs = append(a.Exclude_jni_libs, b.Exclude_jni_libs...)
@@ -269,6 +276,7 @@ func (a *ApexNativeDependencies) Merge(b ApexNativeDependencies) {
 	a.Exclude_binaries = append(a.Exclude_binaries, b.Exclude_binaries...)
 	a.Exclude_tests = append(a.Exclude_tests, b.Exclude_tests...)
 	a.Exclude_filesystems = append(a.Exclude_filesystems, b.Exclude_filesystems...)
+	a.Exclude_prebuilts = append(a.Exclude_prebuilts, b.Exclude_prebuilts...)
 }
 
 type apexMultilibProperties struct {
@@ -711,6 +719,8 @@ func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext, nativeM
 		android.RemoveListFromList(nativeModules.Rust_dyn_libs, nativeModules.Exclude_rust_dyn_libs)...)
 	ctx.AddFarVariationDependencies(target.Variations(), fsTag,
 		android.RemoveListFromList(nativeModules.Filesystems, nativeModules.Exclude_filesystems)...)
+	ctx.AddFarVariationDependencies(target.Variations(), prebuiltTag,
+		android.RemoveListFromList(nativeModules.Prebuilts, nativeModules.Exclude_prebuilts)...)
 }
 
 func (a *apexBundle) combineProperties(ctx android.BottomUpMutatorContext) {
