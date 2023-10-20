@@ -51,6 +51,7 @@ bootstrap_go_package {
         "vndk.go",
         "vndk_prebuilt.go",
 
+        "cmake_snapshot.go",
         "cmakelists.go",
         "compdb.go",
         "compiler.go",
@@ -92,6 +93,7 @@ bootstrap_go_package {
         "binary_test.go",
         "cc_test.go",
         "cc_test_only_property_test.go",
+        "cmake_snapshot_test.go",
         "compiler_test.go",
         "gen_test.go",
         "genrule_test.go",
@@ -108,6 +110,13 @@ bootstrap_go_package {
         "test_data_test.go",
         "tidy_test.go",
         "vendor_public_library_test.go",
+    ],
+    embedSrcs: [
+        "cmake_ext_add_aidl_library.txt",
+        "cmake_ext_append_flags.txt",
+        "cmake_main.txt",
+        "cmake_module_aidl.txt",
+        "cmake_module_cc.txt",
     ],
     pluginFor: ["soong_build"],
 }

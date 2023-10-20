@@ -287,6 +287,10 @@ func (linker *baseLinker) linkerProps() []interface{} {
 	return []interface{}{&linker.Properties, &linker.dynamicProperties}
 }
 
+func (linker *baseLinker) baseLinkerProps() BaseLinkerProperties {
+	return linker.Properties
+}
+
 func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.WholeStaticLibs = append(deps.WholeStaticLibs, linker.Properties.Whole_static_libs...)
 	deps.HeaderLibs = append(deps.HeaderLibs, linker.Properties.Header_libs...)

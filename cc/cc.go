@@ -352,6 +352,10 @@ type BaseProperties struct {
 	// for building binaries that are started before APEXes are activated.
 	Bootstrap *bool
 
+	// Allows this module to be included in CMake release snapshots to be built outside of Android
+	// build system and source tree.
+	Cmake_snapshot_supported *bool
+
 	// Even if DeviceConfig().VndkUseCoreVariant() is set, this module must use vendor variant.
 	// see soong/cc/config/vndk.go
 	MustUseVendorVariant bool `blueprint:"mutated"`
@@ -587,6 +591,7 @@ type compiler interface {
 	compilerDeps(ctx DepsContext, deps Deps) Deps
 	compilerFlags(ctx ModuleContext, flags Flags, deps PathDeps) Flags
 	compilerProps() []interface{}
+	baseCompilerProps() BaseCompilerProperties
 
 	appendCflags([]string)
 	appendAsflags([]string)
@@ -601,6 +606,7 @@ type linker interface {
 	linkerDeps(ctx DepsContext, deps Deps) Deps
 	linkerFlags(ctx ModuleContext, flags Flags) Flags
 	linkerProps() []interface{}
+	baseLinkerProps() BaseLinkerProperties
 	useClangLld(actx ModuleContext) bool
 
 	link(ctx ModuleContext, flags Flags, deps PathDeps, objs Objects) android.Path
@@ -2154,6 +2160,10 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 
 	android.SetProvider(ctx, blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: deps.GeneratedSources.Strings()})
+
+	if Bool(c.Properties.Cmake_snapshot_supported) {
+		android.SetProvider(ctx, cmakeSnapshotSourcesProvider, android.GlobFiles(ctx, ctx.ModuleDir()+"/**/*", nil))
+	}
 
 	android.CollectDependencyAconfigFiles(ctx, &c.mergedAconfigFiles)
 

@@ -278,6 +278,10 @@ func (compiler *baseCompiler) compilerProps() []interface{} {
 	return []interface{}{&compiler.Properties, &compiler.Proto}
 }
 
+func (compiler *baseCompiler) baseCompilerProps() BaseCompilerProperties {
+	return compiler.Properties
+}
+
 func includeBuildDirectory(prop *bool) bool {
 	return proptools.BoolDefault(prop, true)
 }
