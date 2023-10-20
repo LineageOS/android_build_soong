@@ -904,6 +904,10 @@ func (c *config) KatiEnabled() bool {
 	return c.katiEnabled
 }
 
+func (c *config) ProductVariables() ProductVariables {
+	return c.productVariables
+}
+
 func (c *config) BuildId() string {
 	return String(c.productVariables.BuildId)
 }
