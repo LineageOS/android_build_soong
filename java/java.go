@@ -2916,6 +2916,7 @@ type javaCommonAttributes struct {
 	Sdk_version             bazel.StringAttribute
 	Java_version            bazel.StringAttribute
 	Errorprone_force_enable bazel.BoolAttribute
+	Javac_shard_size        *int64
 }
 
 type javaDependencyLabels struct {
@@ -3101,6 +3102,7 @@ func (m *Library) convertLibraryAttrsBp2Build(ctx android.Bp2buildMutatorContext
 		Java_version:            bazel.StringAttribute{Value: m.properties.Java_version},
 		Sdk_version:             bazel.StringAttribute{Value: m.deviceProperties.Sdk_version},
 		Errorprone_force_enable: errorproneForceEnable,
+		Javac_shard_size:        m.properties.Javac_shard_size,
 	}
 
 	for axis, configToProps := range archVariantProps {
