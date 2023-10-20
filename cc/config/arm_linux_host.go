@@ -27,16 +27,24 @@ var (
 		"-march=armv7a",
 	}
 
+	linuxArmLldflags = append(linuxArmLdflags,
+		"-Wl,--compress-debug-sections=zstd",
+	)
+
 	linuxArm64Ldflags = []string{}
+
+	linuxArm64Lldflags = append(linuxArm64Ldflags,
+		"-Wl,--compress-debug-sections=zstd",
+	)
 )
 
 func init() {
 	exportedVars.ExportStringListStaticVariable("LinuxArmCflags", linuxArmCflags)
 	exportedVars.ExportStringListStaticVariable("LinuxArm64Cflags", linuxArm64Cflags)
 	exportedVars.ExportStringListStaticVariable("LinuxArmLdflags", linuxArmLdflags)
-	exportedVars.ExportStringListStaticVariable("LinuxArmLldflags", linuxArmLdflags)
+	exportedVars.ExportStringListStaticVariable("LinuxArmLldflags", linuxArmLldflags)
 	exportedVars.ExportStringListStaticVariable("LinuxArm64Ldflags", linuxArm64Ldflags)
-	exportedVars.ExportStringListStaticVariable("LinuxArm64Lldflags", linuxArm64Ldflags)
+	exportedVars.ExportStringListStaticVariable("LinuxArm64Lldflags", linuxArm64Lldflags)
 
 	exportedVars.ExportStringListStaticVariable("LinuxArmYasmFlags", []string{"-f elf32 -m arm"})
 	exportedVars.ExportStringListStaticVariable("LinuxArm64YasmFlags", []string{"-f elf64 -m aarch64"})
