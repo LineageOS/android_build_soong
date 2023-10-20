@@ -133,6 +133,9 @@ var (
 		// Using simple template names reduces the size of debug builds.
 		"-gsimple-template-names",
 
+		// Use zstd to compress debug data.
+		"-gz=zstd",
+
 		// Make paths in deps files relative.
 		"-no-canonical-prefixes",
 	}
@@ -200,7 +203,9 @@ var (
 		"-Wl,-mllvm,-regalloc-enable-advisor=release",
 	}
 
-	deviceGlobalLldflags = append(deviceGlobalLdflags, commonGlobalLldflags...)
+	deviceGlobalLldflags = append(append(deviceGlobalLdflags, commonGlobalLldflags...),
+		"-Wl,--compress-debug-sections=zstd",
+	)
 
 	hostGlobalCflags = []string{}
 
