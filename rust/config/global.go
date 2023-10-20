@@ -65,7 +65,6 @@ var (
 		"-lpthread",
 		"-lm",
 		"-lgcc_s",
-		"-Wl,--compress-debug-sections=zstd",
 	}
 
 	deviceGlobalRustFlags = []string{
@@ -87,7 +86,6 @@ var (
 		"-Wl,--use-android-relr-tags",
 		"-Wl,--no-undefined",
 		"-B${cc_config.ClangBin}",
-		"-Wl,--compress-debug-sections=zstd",
 	}
 )
 
