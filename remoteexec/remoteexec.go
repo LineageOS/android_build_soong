@@ -15,6 +15,7 @@
 package remoteexec
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 )
@@ -84,6 +85,12 @@ type REParams struct {
 	// EnvironmentVariables is a list of environment variables whose values should be passed through
 	// to the remote execution.
 	EnvironmentVariables []string
+	// Boolean indicating whether to compare chosen exec strategy with local execution.
+	Compare bool
+	// Number of times the action should be rerun locally.
+	NumLocalRuns int
+	// Number of times the action should be rerun remotely.
+	NumRemoteRuns int
 }
 
 func init() {
@@ -134,6 +141,10 @@ func (r *REParams) wrapperArgs() string {
 		strategy = defaultExecStrategy
 	}
 	args += " --exec_strategy=" + strategy
+
+	if r.Compare && r.NumLocalRuns >= 0 && r.NumRemoteRuns >= 0 {
+		args += fmt.Sprintf(" --compare=true --num_local_reruns=%d --num_remote_reruns=%d", r.NumLocalRuns, r.NumRemoteRuns)
+	}
 
 	if len(r.Inputs) > 0 {
 		args += " --inputs=" + strings.Join(r.Inputs, ",")
