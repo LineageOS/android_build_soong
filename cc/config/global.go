@@ -133,9 +133,6 @@ var (
 		// Using simple template names reduces the size of debug builds.
 		"-gsimple-template-names",
 
-		// Use zstd to compress debug data.
-		"-gz=zstd",
-
 		// Make paths in deps files relative.
 		"-no-canonical-prefixes",
 	}
