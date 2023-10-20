@@ -832,7 +832,7 @@ func TestBootclasspathFragment_HiddenAPIList(t *testing.T) {
 // TestBootclasspathFragment_AndroidNonUpdatable checks to make sure that setting
 // additional_stubs: ["android-non-updatable"] causes the source android-non-updatable modules to be
 // added to the hiddenapi list tool.
-func TestBootclasspathFragment_AndroidNonUpdatable(t *testing.T) {
+func TestBootclasspathFragment_AndroidNonUpdatable_FromSource(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForTestWithBootclasspathFragment,
 		prepareForTestWithArtApex,
@@ -843,6 +843,9 @@ func TestBootclasspathFragment_AndroidNonUpdatable(t *testing.T) {
 		// Make sure that the frameworks/base/Android.bp file exists as otherwise hidden API encoding
 		// is disabled.
 		android.FixtureAddTextFile("frameworks/base/Android.bp", ""),
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.SetBuildFromTextStub(false)
+		}),
 
 		java.PrepareForTestWithJavaSdkLibraryFiles,
 		java.FixtureWithLastReleaseApis("foo", "android-non-updatable"),
@@ -998,6 +1001,168 @@ func TestBootclasspathFragment_AndroidNonUpdatable(t *testing.T) {
 	android.AssertStringDoesContain(t, "public", command, "--public-stub-classpath="+nonUpdatablePublicStubs)
 	android.AssertStringDoesContain(t, "system", command, "--system-stub-classpath="+nonUpdatableSystemStubs)
 	android.AssertStringDoesContain(t, "test", command, "--test-stub-classpath="+nonUpdatableTestStubs)
+}
+
+func TestBootclasspathFragment_AndroidNonUpdatable_FromText(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForTestWithBootclasspathFragment,
+		prepareForTestWithArtApex,
+		prepareForTestWithMyapex,
+		// Configure bootclasspath jars to ensure that hidden API encoding is performed on them.
+		java.FixtureConfigureBootJars("com.android.art:baz", "com.android.art:quuz"),
+		java.FixtureConfigureApexBootJars("myapex:foo", "myapex:bar"),
+		// Make sure that the frameworks/base/Android.bp file exists as otherwise hidden API encoding
+		// is disabled.
+		android.FixtureAddTextFile("frameworks/base/Android.bp", ""),
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.SetBuildFromTextStub(true)
+		}),
+
+		java.PrepareForTestWithJavaSdkLibraryFiles,
+		java.FixtureWithLastReleaseApis("foo", "android-non-updatable"),
+	).RunTestWithBp(t, `
+		java_sdk_library {
+			name: "android-non-updatable",
+			srcs: ["b.java"],
+			compile_dex: true,
+			public: {
+				enabled: true,
+			},
+			system: {
+				enabled: true,
+			},
+			test: {
+				enabled: true,
+			},
+			module_lib: {
+				enabled: true,
+			},
+		}
+
+		apex {
+			name: "com.android.art",
+			key: "com.android.art.key",
+			bootclasspath_fragments: ["art-bootclasspath-fragment"],
+			updatable: false,
+		}
+
+		apex_key {
+			name: "com.android.art.key",
+			public_key: "com.android.art.avbpubkey",
+			private_key: "com.android.art.pem",
+		}
+
+		java_library {
+			name: "baz",
+			apex_available: [
+				"com.android.art",
+			],
+			srcs: ["b.java"],
+			compile_dex: true,
+		}
+
+		java_library {
+			name: "quuz",
+			apex_available: [
+				"com.android.art",
+			],
+			srcs: ["b.java"],
+			compile_dex: true,
+		}
+
+		bootclasspath_fragment {
+			name: "art-bootclasspath-fragment",
+			image_name: "art",
+			// Must match the "com.android.art:" entries passed to FixtureConfigureBootJars above.
+			contents: ["baz", "quuz"],
+			apex_available: [
+				"com.android.art",
+			],
+			hidden_api: {
+				split_packages: ["*"],
+			},
+		}
+
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			bootclasspath_fragments: [
+				"mybootclasspathfragment",
+			],
+			updatable: false,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_sdk_library {
+			name: "foo",
+			srcs: ["b.java"],
+			shared_library: false,
+			public: {enabled: true},
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		java_library {
+			name: "bar",
+			srcs: ["b.java"],
+			installable: true,
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		bootclasspath_fragment {
+			name: "mybootclasspathfragment",
+			contents: [
+				"foo",
+				"bar",
+			],
+			apex_available: [
+				"myapex",
+			],
+			additional_stubs: ["android-non-updatable"],
+			fragments: [
+				{
+					apex: "com.android.art",
+					module: "art-bootclasspath-fragment",
+				},
+			],
+			hidden_api: {
+				split_packages: ["*"],
+			},
+		}
+	`)
+
+	java.CheckModuleDependencies(t, result.TestContext, "mybootclasspathfragment", "android_common_apex10000", []string{
+		"android-non-updatable.stubs",
+		"android-non-updatable.stubs.system",
+		"android-non-updatable.stubs.test",
+		"android-non-updatable.stubs.test_module_lib",
+		"art-bootclasspath-fragment",
+		"bar",
+		"dex2oatd",
+		"foo",
+	})
+
+	nonUpdatableTestModuleLibStubs := getDexJarPath(result, "android-non-updatable.stubs.test_module_lib")
+
+	// Make sure that the fragment uses the android-non-updatable modules when generating the hidden
+	// API flags.
+	fragment := result.ModuleForTests("mybootclasspathfragment", "android_common_apex10000")
+
+	rule := fragment.Rule("modularHiddenAPIStubFlagsFile")
+	command := rule.RuleParams.Command
+	android.AssertStringDoesContain(t, "check correct rule", command, "hiddenapi list")
+
+	// Make sure that the test_module_lib non-updatable stubs are available for resolving references from
+	// the implementation boot dex jars provided by this module.
+	android.AssertStringDoesContain(t, "android-non-updatable widest", command, "--dependency-stub-dex="+nonUpdatableTestModuleLibStubs)
 }
 
 // TestBootclasspathFragment_AndroidNonUpdatable_AlwaysUsePrebuiltSdks checks to make sure that
