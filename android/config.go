@@ -563,7 +563,7 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 		config: config,
 	}
 
-	config.productVariables.Build_from_text_stub = boolPtr(config.buildFromTextStub)
+	config.productVariables.Build_from_text_stub = boolPtr(config.BuildFromTextStub())
 
 	// Soundness check of the build and source directories. This won't catch strange
 	// configurations with symlinks, but at least checks the obvious case.
