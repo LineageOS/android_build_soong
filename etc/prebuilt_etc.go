@@ -799,7 +799,7 @@ func (module *PrebuiltEtc) ConvertWithBp2build(ctx android.Bp2buildMutatorContex
 	var dir = module.installDirBase
 	// prebuilt_file only supports "etc" or "usr/share" or "." as module installDirBase
 	if !(dir == "etc" || dir == "usr/share" || dir == ".") {
-		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "")
+		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "dir")
 		return
 	}
 

@@ -28,6 +28,7 @@ import (
 	"testing"
 
 	"android/soong/ui/metrics/bp2build_metrics_proto"
+
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -124,26 +125,28 @@ type Bp2buildTestCase struct {
 	// be merged with the generated BUILD file. This allows custom BUILD targets
 	// to be used in tests, or use BUILD files to draw package boundaries.
 	KeepBuildFileForDirs []string
-}
 
-func RunBp2BuildTestCaseExtraContext(t *testing.T, registerModuleTypes func(ctx android.RegistrationContext), modifyContext func(ctx *android.TestContext), tc Bp2buildTestCase) {
-	t.Helper()
-	preparers := []android.FixturePreparer{
-		android.FixtureRegisterWithContext(registerModuleTypes),
-	}
-	if modifyContext != nil {
-		preparers = append(preparers, android.FixtureModifyContext(modifyContext))
-	}
-	preparers = append(preparers, SetBp2BuildTestRunner)
-	bp2buildSetup := android.GroupFixturePreparers(
-		preparers...,
-	)
-	runBp2BuildTestCaseWithSetup(t, bp2buildSetup, tc)
+	// An extra FixturePreparer to use when running the test. If you need multiple extra
+	// FixturePreparers, use android.GroupFixturePreparers()
+	ExtraFixturePreparer android.FixturePreparer
+
+	// If bp2build_product_config.go should run as part of the test.
+	RunBp2buildProductConfig bool
 }
 
 func RunBp2BuildTestCase(t *testing.T, registerModuleTypes func(ctx android.RegistrationContext), tc Bp2buildTestCase) {
 	t.Helper()
-	RunBp2BuildTestCaseExtraContext(t, registerModuleTypes, nil, tc)
+	preparers := []android.FixturePreparer{
+		android.FixtureRegisterWithContext(registerModuleTypes),
+	}
+	if tc.ExtraFixturePreparer != nil {
+		preparers = append(preparers, tc.ExtraFixturePreparer)
+	}
+	preparers = append(preparers, android.FixtureSetTestRunner(&bazelTestRunner{generateProductConfigTargets: tc.RunBp2buildProductConfig}))
+	bp2buildSetup := android.GroupFixturePreparers(
+		preparers...,
+	)
+	runBp2BuildTestCaseWithSetup(t, bp2buildSetup, tc)
 }
 
 func runBp2BuildTestCaseWithSetup(t *testing.T, extraPreparer android.FixturePreparer, tc Bp2buildTestCase) {
@@ -247,11 +250,10 @@ func runBp2BuildTestCaseWithSetup(t *testing.T, extraPreparer android.FixturePre
 	result.CompareAllBazelTargets(t, tc, expectedTargets, true)
 }
 
-// SetBp2BuildTestRunner customizes the test fixture mechanism to run tests in Bp2Build mode.
-var SetBp2BuildTestRunner = android.FixtureSetTestRunner(&bazelTestRunner{})
-
 // bazelTestRunner customizes the test fixture mechanism to run tests of the bp2build build mode.
-type bazelTestRunner struct{}
+type bazelTestRunner struct {
+	generateProductConfigTargets bool
+}
 
 func (b *bazelTestRunner) FinalPreparer(result *android.TestResult) android.CustomTestResult {
 	ctx := result.TestContext
@@ -273,6 +275,16 @@ func (b *bazelTestRunner) PostParseProcessor(result android.CustomTestResult) {
 	res, errs := GenerateBazelTargets(codegenCtx, false)
 	if bazelResult.CollateErrs(errs) {
 		return
+	}
+	if b.generateProductConfigTargets {
+		productConfig, err := createProductConfigFiles(codegenCtx, res.moduleNameToPartition, res.metrics.convertedModulePathMap)
+		if err != nil {
+			bazelResult.CollateErrs([]error{err})
+			return
+		}
+		for k, v := range productConfig.bp2buildTargets {
+			res.buildFileToTargets[k] = append(res.buildFileToTargets[k], v...)
+		}
 	}
 
 	// Store additional data for access by tests.

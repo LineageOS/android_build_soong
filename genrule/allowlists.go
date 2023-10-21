@@ -268,7 +268,6 @@ var (
 		// go/keep-sorted start
 		"art/test",
 		"external/cronet",
-		"external/perfetto",
 		// go/keep-sorted end
 	}
 )
