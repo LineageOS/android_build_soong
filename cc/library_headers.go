@@ -122,7 +122,7 @@ type bazelCcLibraryHeadersAttributes struct {
 	Export_absolute_includes bazel.StringListAttribute
 	Export_system_includes   bazel.StringListAttribute
 	Deps                     bazel.LabelListAttribute
-	sdkAttributes
+	SdkAttributes
 }
 
 func libraryHeadersBp2Build(ctx android.Bp2buildMutatorContext, module *Module) {
@@ -138,7 +138,7 @@ func libraryHeadersBp2Build(ctx android.Bp2buildMutatorContext, module *Module) 
 		Export_system_includes:   exportedIncludes.SystemIncludes,
 		Deps:                     linkerAttrs.deps,
 		Hdrs:                     baseAttributes.hdrs,
-		sdkAttributes:            bp2BuildParseSdkAttributes(module),
+		SdkAttributes:            Bp2BuildParseSdkAttributes(module),
 	}
 
 	props := bazel.BazelTargetModuleProperties{
