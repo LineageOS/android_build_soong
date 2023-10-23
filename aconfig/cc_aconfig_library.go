@@ -143,6 +143,7 @@ func (this *CcAconfigLibraryCallbacks) GeneratorBuildActions(ctx cc.ModuleContex
 }
 
 type bazelCcAconfigLibraryAttributes struct {
+	cc.SdkAttributes
 	Aconfig_declarations bazel.LabelAttribute
 	Dynamic_deps         bazel.LabelListAttribute
 }
@@ -154,12 +155,13 @@ type bazelCcAconfigLibraryAttributes struct {
 // module type returns a cc library and the bp2build conversion is called on the
 // cc library type.
 
-func (this *CcAconfigLibraryCallbacks) GeneratorBp2build(ctx android.Bp2buildMutatorContext) bool {
+func (this *CcAconfigLibraryCallbacks) GeneratorBp2build(ctx android.Bp2buildMutatorContext, module *cc.Module) bool {
 	if ctx.ModuleType() != "cc_aconfig_library" {
 		return false
 	}
 
 	attrs := bazelCcAconfigLibraryAttributes{
+		SdkAttributes:        cc.Bp2BuildParseSdkAttributes(module),
 		Aconfig_declarations: *bazel.MakeLabelAttribute(android.BazelLabelForModuleDepSingle(ctx, this.properties.Aconfig_declarations).Label),
 		Dynamic_deps:         bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, []string{baseLibDep})),
 	}
@@ -168,6 +170,12 @@ func (this *CcAconfigLibraryCallbacks) GeneratorBp2build(ctx android.Bp2buildMut
 		Bzl_load_location: "//build/bazel/rules/cc:cc_aconfig_library.bzl",
 	}
 
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: ctx.ModuleName()}, &attrs)
+	ctx.CreateBazelTargetModule(
+		props,
+		android.CommonAttributes{
+			Name: ctx.ModuleName(),
+			Tags: android.ApexAvailableTagsWithoutTestApexes(ctx, module),
+		},
+		&attrs)
 	return true
 }

@@ -286,7 +286,7 @@ type ccAidlLibraryAttributes struct {
 	Implementation_dynamic_deps bazel.LabelListAttribute
 	Tags                        bazel.StringListAttribute
 
-	sdkAttributes
+	SdkAttributes
 	includesAttributes
 }
 
@@ -347,7 +347,7 @@ func libraryBp2Build(ctx android.Bp2buildMutatorContext, m *Module) {
 		Whole_archive_deps:                *linkerAttrs.wholeArchiveDeps.Clone().Append(staticAttrs.Whole_archive_deps),
 		System_dynamic_deps:               *linkerAttrs.systemDynamicDeps.Clone().Append(staticAttrs.System_dynamic_deps),
 		Runtime_deps:                      linkerAttrs.runtimeDeps,
-		sdkAttributes:                     bp2BuildParseSdkAttributes(m),
+		SdkAttributes:                     Bp2BuildParseSdkAttributes(m),
 		Native_coverage:                   baseAttributes.Native_coverage,
 		Additional_compiler_inputs:        compilerAttrs.additionalCompilerInputs,
 	}
@@ -375,7 +375,7 @@ func libraryBp2Build(ctx android.Bp2buildMutatorContext, m *Module) {
 		Implementation_whole_archive_deps: linkerAttrs.implementationWholeArchiveDeps,
 		System_dynamic_deps:               *linkerAttrs.systemDynamicDeps.Clone().Append(sharedAttrs.System_dynamic_deps),
 		Runtime_deps:                      linkerAttrs.runtimeDeps,
-		sdkAttributes:                     bp2BuildParseSdkAttributes(m),
+		SdkAttributes:                     Bp2BuildParseSdkAttributes(m),
 		Native_coverage:                   baseAttributes.Native_coverage,
 		Additional_compiler_inputs:        compilerAttrs.additionalCompilerInputs,
 	}
@@ -2861,7 +2861,7 @@ func sharedOrStaticLibraryBp2Build(ctx android.Bp2buildMutatorContext, module *M
 		Whole_archive_deps:                linkerAttrs.wholeArchiveDeps,
 		Implementation_whole_archive_deps: linkerAttrs.implementationWholeArchiveDeps,
 		System_dynamic_deps:               linkerAttrs.systemDynamicDeps,
-		sdkAttributes:                     bp2BuildParseSdkAttributes(module),
+		SdkAttributes:                     Bp2BuildParseSdkAttributes(module),
 		Runtime_deps:                      linkerAttrs.runtimeDeps,
 		Native_coverage:                   baseAttributes.Native_coverage,
 		Additional_compiler_inputs:        compilerAttrs.additionalCompilerInputs,
