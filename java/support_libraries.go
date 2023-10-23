@@ -32,7 +32,7 @@ func supportLibrariesMakeVarsProvider(ctx android.MakeVarsContext) {
 		dir := ctx.ModuleDir(module)
 		switch {
 		case strings.HasPrefix(dir, "prebuilts/sdk/current/extras"),
-			dir == "prebuilts/sdk/current/androidx",
+			strings.HasPrefix(dir, "prebuilts/sdk/current/androidx"),
 			dir == "prebuilts/sdk/current/car",
 			dir == "prebuilts/sdk/current/optional",
 			dir == "prebuilts/sdk/current/support":
