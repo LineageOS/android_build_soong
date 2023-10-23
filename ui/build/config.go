@@ -85,7 +85,7 @@ type configImpl struct {
 	searchApiDir             bool // Scan the Android.bp files generated in out/api_surfaces
 	skipMetricsUpload        bool
 	buildStartedTime         int64 // For metrics-upload-only - manually specify a build-started time
-	buildFromTextStub        bool
+	buildFromSourceStub      bool
 	ensureAllowlistIntegrity bool   // For CI builds - make sure modules are mixed-built
 	bazelExitCode            int32  // For b runs - necessary for updating NonZeroExit
 	besId                    string // For b runs, to identify the BuildEventService logs
@@ -808,8 +808,8 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			} else {
 				ctx.Fatalf("unknown option for ninja_weight_source: %s", source)
 			}
-		} else if arg == "--build-from-text-stub" {
-			c.buildFromTextStub = true
+		} else if arg == "--build-from-source-stub" {
+			c.buildFromSourceStub = true
 		} else if strings.HasPrefix(arg, "--build-command=") {
 			buildCmd := strings.TrimPrefix(arg, "--build-command=")
 			// remove quotations
@@ -1157,7 +1157,7 @@ func (c *configImpl) SkipConfig() bool {
 }
 
 func (c *configImpl) BuildFromTextStub() bool {
-	return c.buildFromTextStub
+	return !c.buildFromSourceStub
 }
 
 func (c *configImpl) TargetProduct() string {
