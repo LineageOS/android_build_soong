@@ -683,6 +683,7 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 		"framework-connectivity":            {},
 		"framework-connectivity-t":          {},
 		"framework-graphics":                {},
+		"framework-location":                {},
 		"framework-media":                   {},
 		"framework-mediaprovider":           {},
 		"framework-ondevicepersonalization": {},
