@@ -28,6 +28,7 @@ var legacyCorePlatformApiModules = []string{
 	"FloralClocks",
 	"framework-jobscheduler",
 	"framework-minus-apex",
+	"framework-minus-apex-headers",
 	"framework-minus-apex-intdefs",
 	"FrameworksCoreTests",
 	"HelloOslo",
