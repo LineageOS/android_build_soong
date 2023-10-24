@@ -188,8 +188,8 @@ func (pb PrimaryBuilderFactory) primaryBuilderInvocation() bootstrap.PrimaryBuil
 	if pb.config.multitreeBuild {
 		commonArgs = append(commonArgs, "--multitree-build")
 	}
-	if pb.config.buildFromSourceStub {
-		commonArgs = append(commonArgs, "--build-from-source-stub")
+	if pb.config.buildFromTextStub {
+		commonArgs = append(commonArgs, "--build-from-text-stub")
 	}
 
 	commonArgs = append(commonArgs, "-l", filepath.Join(pb.config.FileListDir(), "Android.bp.list"))
@@ -305,8 +305,8 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	if config.MultitreeBuild() {
 		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--multitree-build")
 	}
-	if config.buildFromSourceStub {
-		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--build-from-source-stub")
+	if config.buildFromTextStub {
+		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--build-from-text-stub")
 	}
 	if config.ensureAllowlistIntegrity {
 		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--ensure-allowlist-integrity")
