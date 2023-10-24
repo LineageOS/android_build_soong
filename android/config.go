@@ -99,7 +99,7 @@ type CmdArgs struct {
 
 	UseBazelProxy bool
 
-	BuildFromSourceStub bool
+	BuildFromTextStub bool
 
 	EnsureAllowlistIntegrity bool
 }
@@ -337,9 +337,9 @@ type config struct {
 	// unix sockets, instead of spawning Bazel as a subprocess.
 	UseBazelProxy bool
 
-	// If buildFromSourceStub is true then the Java API stubs are
-	// built from the source Java files, not the signature text files.
-	buildFromSourceStub bool
+	// If buildFromTextStub is true then the Java API stubs are
+	// built from the signature text files, not the source Java files.
+	buildFromTextStub bool
 
 	// If ensureAllowlistIntegrity is true, then the presence of any allowlisted
 	// modules that aren't mixed-built for at least one variant will cause a build
@@ -556,7 +556,7 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 		MultitreeBuild: cmdArgs.MultitreeBuild,
 		UseBazelProxy:  cmdArgs.UseBazelProxy,
 
-		buildFromSourceStub: cmdArgs.BuildFromSourceStub,
+		buildFromTextStub: cmdArgs.BuildFromTextStub,
 	}
 
 	config.deviceConfig = &deviceConfig{
@@ -2071,11 +2071,11 @@ func (c *config) BuildFromTextStub() bool {
 	// TODO: b/302320354 - Remove the coverage build specific logic once the
 	// robust solution for handling native properties in from-text stub build
 	// is implemented.
-	return !c.buildFromSourceStub && !c.JavaCoverageEnabled()
+	return c.buildFromTextStub && !c.JavaCoverageEnabled()
 }
 
 func (c *config) SetBuildFromTextStub(b bool) {
-	c.buildFromSourceStub = !b
+	c.buildFromTextStub = b
 	c.productVariables.Build_from_text_stub = boolPtr(b)
 }
 
