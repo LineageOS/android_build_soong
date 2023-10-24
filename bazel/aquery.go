@@ -443,26 +443,21 @@ func (a *aqueryArtifactHandler) depsetContentHashes(inputDepsetIds []uint32) ([]
 
 // escapes the args received from aquery and creates a command string
 func commandString(actionEntry *analysis_v2_proto.Action) string {
-	switch actionEntry.Mnemonic {
-	case "GoCompilePkg", "GoStdlib":
-		argsEscaped := []string{}
-		for _, arg := range actionEntry.Arguments {
-			if arg == "" {
-				// If this is an empty string, add ''
-				// And not
-				// 1. (literal empty)
-				// 2. `''\'''\'''` (escaped version of '')
-				//
-				// If we had used (1), then this would appear as a whitespace when we strings.Join
-				argsEscaped = append(argsEscaped, "''")
-			} else {
-				argsEscaped = append(argsEscaped, proptools.ShellEscapeIncludingSpaces(arg))
-			}
+	argsEscaped := make([]string, len(actionEntry.Arguments))
+	for i, arg := range actionEntry.Arguments {
+		if arg == "" {
+			// If this is an empty string, add ''
+			// And not
+			// 1. (literal empty)
+			// 2. `''\'''\'''` (escaped version of '')
+			//
+			// If we had used (1), then this would appear as a whitespace when we strings.Join
+			argsEscaped[i] = "''"
+		} else {
+			argsEscaped[i] = proptools.ShellEscapeIncludingSpaces(arg)
 		}
-		return strings.Join(argsEscaped, " ")
-	default:
-		return strings.Join(proptools.ShellEscapeListIncludingSpaces(actionEntry.Arguments), " ")
 	}
+	return strings.Join(argsEscaped, " ")
 }
 
 func (a *aqueryArtifactHandler) normalActionBuildStatement(actionEntry *analysis_v2_proto.Action) (*BuildStatement, error) {
