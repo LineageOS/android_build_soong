@@ -651,7 +651,7 @@ func binaryBp2buildAttrs(ctx android.Bp2buildMutatorContext, m *Module) binaryAt
 
 		Features: baseAttrs.features,
 
-		sdkAttributes: bp2BuildParseSdkAttributes(m),
+		SdkAttributes: Bp2BuildParseSdkAttributes(m),
 
 		Native_coverage: baseAttrs.Native_coverage,
 	}
@@ -708,7 +708,7 @@ type binaryAttributes struct {
 
 	Features bazel.StringListAttribute
 
-	sdkAttributes
+	SdkAttributes
 
 	tidyAttributes
 

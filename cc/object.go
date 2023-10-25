@@ -151,7 +151,7 @@ type bazelObjectAttributes struct {
 	Stl                 *string
 	Linker_script       bazel.LabelAttribute
 	Crt                 *bool
-	sdkAttributes
+	SdkAttributes
 }
 
 // objectBp2Build is the bp2build converter from cc_object modules to the
@@ -218,7 +218,7 @@ func objectBp2Build(ctx android.Bp2buildMutatorContext, m *Module) {
 		Stl:                 compilerAttrs.stl,
 		Linker_script:       linkerScript,
 		Crt:                 m.linker.(*objectLinker).Properties.Crt,
-		sdkAttributes:       bp2BuildParseSdkAttributes(m),
+		SdkAttributes:       Bp2BuildParseSdkAttributes(m),
 	}
 
 	props := bazel.BazelTargetModuleProperties{
