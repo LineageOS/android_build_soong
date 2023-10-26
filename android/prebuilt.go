@@ -435,6 +435,10 @@ func checkInvariantsForSourceAndPrebuilt(ctx BaseModuleContext, s, p Module) {
 
 // PrebuiltSelectModuleMutator marks prebuilts that are used, either overriding source modules or
 // because the source module doesn't exist.  It also disables installing overridden source modules.
+//
+// If the visited module is the metadata module `all_apex_contributions`, it sets a
+// provider containing metadata about whether source or prebuilt of mainline modules should be used.
+// This logic was added here to prevent the overhead of creating a new mutator.
 func PrebuiltSelectModuleMutator(ctx TopDownMutatorContext) {
 	m := ctx.Module()
 	if p := GetEmbeddedPrebuilt(m); p != nil {
@@ -454,6 +458,11 @@ func PrebuiltSelectModuleMutator(ctx TopDownMutatorContext) {
 				s.ReplacedByPrebuilt()
 			}
 		})
+	}
+	// If this is `all_apex_contributions`, set a provider containing
+	// metadata about source vs prebuilts selection
+	if am, ok := m.(*allApexContributions); ok {
+		am.SetPrebuiltSelectionInfoProvider(ctx)
 	}
 }
 

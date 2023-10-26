@@ -497,7 +497,7 @@ func TestPrebuilts(t *testing.T) {
 	}
 }
 
-func testPrebuiltError(t *testing.T, expectedError, bp string) {
+func testPrebuiltErrorWithFixture(t *testing.T, expectedError, bp string, fixture FixturePreparer) {
 	t.Helper()
 	fs := MockFS{
 		"prebuilt_file": nil,
@@ -508,9 +508,15 @@ func testPrebuiltError(t *testing.T, expectedError, bp string) {
 		PrepareForTestWithOverrides,
 		fs.AddToFixture(),
 		FixtureRegisterWithContext(registerTestPrebuiltModules),
+		OptionalFixturePreparer(fixture),
 	).
 		ExtendWithErrorHandler(FixtureExpectsAtLeastOneErrorMatchingPattern(expectedError)).
 		RunTestWithBp(t, bp)
+
+}
+
+func testPrebuiltError(t *testing.T, expectedError, bp string) {
+	testPrebuiltErrorWithFixture(t, expectedError, bp, nil)
 }
 
 func TestPrebuiltShouldNotChangePartition(t *testing.T) {
@@ -559,6 +565,7 @@ func registerTestPrebuiltModules(ctx RegistrationContext) {
 	ctx.RegisterModuleType("soong_config_module_type", SoongConfigModuleTypeFactory)
 	ctx.RegisterModuleType("soong_config_string_variable", SoongConfigStringVariableDummyFactory)
 	ctx.RegisterModuleType("soong_config_bool_variable", SoongConfigBoolVariableDummyFactory)
+	RegisterApexContributionsBuildComponents(ctx)
 }
 
 type prebuiltModule struct {
@@ -652,4 +659,34 @@ func newOverrideSourceModule() Module {
 	InitAndroidArchModule(m, HostAndDeviceDefault, MultilibCommon)
 	InitOverrideModule(m)
 	return m
+}
+
+func TestPrebuiltErrorCannotListBothSourceAndPrebuiltInContributions(t *testing.T) {
+	selectMainlineModuleContritbutions := GroupFixturePreparers(
+		FixtureModifyProductVariables(func(variables FixtureProductVariables) {
+			variables.BuildFlags = map[string]string{
+				"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES": "my_apex_contributions",
+			}
+		}),
+	)
+	testPrebuiltErrorWithFixture(t, `Cannot use Soong module: prebuilt_foo from apex_contributions: my_apex_contributions because it has been added previously as: foo from apex_contributions: my_apex_contributions`, `
+		source {
+			name: "foo",
+		}
+		prebuilt {
+			name: "foo",
+			srcs: ["prebuilt_file"],
+		}
+		apex_contributions {
+			name: "my_apex_contributions",
+			api_domain: "my_mainline_module",
+			contents: [
+			  "foo",
+			  "prebuilt_foo",
+			],
+		}
+		all_apex_contributions {
+			name: "all_apex_contributions",
+		}
+		`, selectMainlineModuleContritbutions)
 }
