@@ -335,6 +335,78 @@ func TestPrebuilts(t *testing.T) {
 			prebuilt: []OsType{Android, buildOS},
 		},
 		{
+			name: "apex_contributions supersedes any source preferred via use_source_config_var",
+			modules: `
+				source {
+					name: "bar",
+				}
+
+				prebuilt {
+					name: "bar",
+					use_source_config_var: {config_namespace: "acme", var_name: "use_source"},
+					srcs: ["prebuilt_file"],
+				}
+				apex_contributions {
+					name: "my_mainline_module_contribution",
+					api_domain: "apexfoo",
+					// this metadata module contains prebuilt
+					contents: ["prebuilt_bar"],
+				}
+				all_apex_contributions {
+					name: "all_apex_contributions",
+				}
+				`,
+			preparer: FixtureModifyProductVariables(func(variables FixtureProductVariables) {
+				variables.VendorVars = map[string]map[string]string{
+					"acme": {
+						"use_source": "true",
+					},
+				}
+				variables.BuildFlags = map[string]string{
+					"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES": "my_mainline_module_contribution",
+				}
+			}),
+			// use_source_config_var indicates that source should be used
+			// but this is superseded by `my_mainline_module_contribution`
+			prebuilt: []OsType{Android, buildOS},
+		},
+		{
+			name: "apex_contributions supersedes any prebuilt preferred via use_source_config_var",
+			modules: `
+				source {
+					name: "bar",
+				}
+
+				prebuilt {
+					name: "bar",
+					use_source_config_var: {config_namespace: "acme", var_name: "use_source"},
+					srcs: ["prebuilt_file"],
+				}
+				apex_contributions {
+					name: "my_mainline_module_contribution",
+					api_domain: "apexfoo",
+					// this metadata module contains source
+					contents: ["bar"],
+				}
+				all_apex_contributions {
+					name: "all_apex_contributions",
+				}
+				`,
+			preparer: FixtureModifyProductVariables(func(variables FixtureProductVariables) {
+				variables.VendorVars = map[string]map[string]string{
+					"acme": {
+						"use_source": "false",
+					},
+				}
+				variables.BuildFlags = map[string]string{
+					"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES": "my_mainline_module_contribution",
+				}
+			}),
+			// use_source_config_var indicates that prebuilt should be used
+			// but this is superseded by `my_mainline_module_contribution`
+			prebuilt: nil,
+		},
+		{
 			name: "prebuilt use_source_config_var={acme, use_source} - acme_use_source=true",
 			modules: `
 				source {

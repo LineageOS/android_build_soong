@@ -387,7 +387,7 @@ func RegisterPrebuiltsPreArchMutators(ctx RegisterMutatorsContext) {
 
 func RegisterPrebuiltsPostDepsMutators(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("prebuilt_source", PrebuiltSourceDepsMutator).Parallel()
-	ctx.TopDown("prebuilt_select", PrebuiltSelectModuleMutator).Parallel()
+	ctx.BottomUp("prebuilt_select", PrebuiltSelectModuleMutator).Parallel()
 	ctx.BottomUp("prebuilt_postdeps", PrebuiltPostDepsMutator).Parallel()
 }
 
@@ -406,6 +406,8 @@ func PrebuiltRenameMutator(ctx BottomUpMutatorContext) {
 
 // PrebuiltSourceDepsMutator adds dependencies to the prebuilt module from the
 // corresponding source module, if one exists for the same variant.
+// Add a dependency from the prebuilt to `all_apex_contributions`
+// The metadata will be used for source vs prebuilts selection
 func PrebuiltSourceDepsMutator(ctx BottomUpMutatorContext) {
 	m := ctx.Module()
 	// If this module is a prebuilt, is enabled and has not been renamed to source then add a
@@ -416,6 +418,14 @@ func PrebuiltSourceDepsMutator(ctx BottomUpMutatorContext) {
 			ctx.AddReverseDependency(ctx.Module(), PrebuiltDepTag, name)
 			p.properties.SourceExists = true
 		}
+		// Add a dependency from the prebuilt to the `all_apex_contributions`
+		// metadata module
+		// TODO: When all branches contain this singleton module, make this strict
+		// TODO: Add this dependency only for mainline prebuilts and not every prebuilt module
+		if ctx.OtherModuleExists("all_apex_contributions") {
+			ctx.AddDependency(m, acDepTag, "all_apex_contributions")
+		}
+
 	}
 }
 
@@ -439,7 +449,7 @@ func checkInvariantsForSourceAndPrebuilt(ctx BaseModuleContext, s, p Module) {
 // If the visited module is the metadata module `all_apex_contributions`, it sets a
 // provider containing metadata about whether source or prebuilt of mainline modules should be used.
 // This logic was added here to prevent the overhead of creating a new mutator.
-func PrebuiltSelectModuleMutator(ctx TopDownMutatorContext) {
+func PrebuiltSelectModuleMutator(ctx BottomUpMutatorContext) {
 	m := ctx.Module()
 	if p := GetEmbeddedPrebuilt(m); p != nil {
 		if p.srcsSupplier == nil && p.srcsPropertyName == "" {
@@ -448,6 +458,17 @@ func PrebuiltSelectModuleMutator(ctx TopDownMutatorContext) {
 		if !p.properties.SourceExists {
 			p.properties.UsePrebuilt = p.usePrebuilt(ctx, nil, m)
 		}
+		// Propagate the provider received from `all_apex_contributions`
+		// to the source module
+		ctx.VisitDirectDepsWithTag(acDepTag, func(am Module) {
+			if ctx.Config().Bp2buildMode() {
+				// This provider key is not applicable in bp2build
+				return
+			}
+			psi := ctx.OtherModuleProvider(am, PrebuiltSelectionInfoProvider).(PrebuiltSelectionInfoMap)
+			ctx.SetProvider(PrebuiltSelectionInfoProvider, psi)
+		})
+
 	} else if s, ok := ctx.Module().(Module); ok {
 		ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(prebuiltModule Module) {
 			p := GetEmbeddedPrebuilt(prebuiltModule)
@@ -491,7 +512,26 @@ func PrebuiltPostDepsMutator(ctx BottomUpMutatorContext) {
 
 // usePrebuilt returns true if a prebuilt should be used instead of the source module.  The prebuilt
 // will be used if it is marked "prefer" or if the source module is disabled.
-func (p *Prebuilt) usePrebuilt(ctx TopDownMutatorContext, source Module, prebuilt Module) bool {
+func (p *Prebuilt) usePrebuilt(ctx BaseMutatorContext, source Module, prebuilt Module) bool {
+	// Use `all_apex_contributions` for source vs prebuilt selection.
+	psi := PrebuiltSelectionInfoMap{}
+	ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(am Module) {
+		if ctx.OtherModuleHasProvider(am, PrebuiltSelectionInfoProvider) {
+			psi = ctx.OtherModuleProvider(am, PrebuiltSelectionInfoProvider).(PrebuiltSelectionInfoMap)
+		}
+	})
+	// If the source module is explicitly listed in the metadata module, use that
+	if source != nil && psi.IsSelected(source.base().BaseModuleName(), source.Name()) {
+		return false
+	}
+	// If the prebuilt module is explicitly listed in the metadata module, use that
+	if psi.IsSelected(prebuilt.base().BaseModuleName(), prebuilt.Name()) {
+		return true
+	}
+	// If the baseModuleName could not be found in the metadata module,
+	// fall back to the existing source vs prebuilt selection.
+	// TODO: Drop the fallback mechanisms
+
 	if !ctx.Config().Bp2buildMode() {
 		if p.srcsSupplier != nil && len(p.srcsSupplier(ctx, prebuilt)) == 0 {
 			return false
