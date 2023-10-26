@@ -184,6 +184,7 @@ var (
 		"external/libdrm":                          Bp2BuildDefaultTrue,
 		"external/libevent":                        Bp2BuildDefaultTrueRecursively,
 		"external/libgav1":                         Bp2BuildDefaultTrueRecursively,
+		"external/libdav1d":                        Bp2BuildDefaultTrueRecursively,
 		"external/libhevc":                         Bp2BuildDefaultTrueRecursively,
 		"external/libjpeg-turbo":                   Bp2BuildDefaultTrueRecursively,
 		"external/libmpeg2":                        Bp2BuildDefaultTrueRecursively,
@@ -813,6 +814,7 @@ var (
 		"libcodec2_soft_vp8dec",
 		"libcodec2_soft_vp9dec",
 		"libcodec2_soft_av1dec_gav1",
+		"libcodec2_soft_av1dec_dav1d",
 		"libcodec2_soft_vp8enc",
 		"libcodec2_soft_vp9enc",
 		"libcodec2_soft_rawdec",
@@ -1643,10 +1645,11 @@ var (
 		"libneuralnetworks",
 		"libneuralnetworks_static",
 		// M13: media.swcodec launch
-		"com.android.media.swcodec",
-		"test_com.android.media.swcodec",
-		"libstagefright_foundation",
-		"libcodec2_hidl@1.0",
+		// TODO(b/307389608) Relaunch swcodec after fixing rust dependencies
+		// "com.android.media.swcodec",
+		// "test_com.android.media.swcodec",
+		// "libstagefright_foundation",
+		// "libcodec2_hidl@1.0",
 	}
 
 	// Staging-mode allowlist. Modules in this list are only built

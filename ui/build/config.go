@@ -240,6 +240,11 @@ func NewConfig(ctx Context, args ...string) Config {
 		ninjaWeightListSource: DEFAULT,
 	}
 
+	// Skip soong tests by default on Linux
+	if runtime.GOOS == "linux" {
+		ret.skipSoongTests = true
+	}
+
 	// Default matching ninja
 	ret.parallel = runtime.NumCPU() + 2
 	ret.keepGoing = 1
@@ -772,6 +777,8 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			c.skipConfig = true
 		} else if arg == "--skip-soong-tests" {
 			c.skipSoongTests = true
+		} else if arg == "--no-skip-soong-tests" {
+			c.skipSoongTests = false
 		} else if arg == "--skip-metrics-upload" {
 			c.skipMetricsUpload = true
 		} else if arg == "--mk-metrics" {
