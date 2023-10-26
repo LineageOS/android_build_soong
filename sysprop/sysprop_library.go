@@ -172,6 +172,12 @@ type syspropLibraryProperties struct {
 		// Minimum sdk version that the artifact should support when it runs as part of mainline modules(APEX).
 		// Forwarded to cc_library.min_sdk_version
 		Min_sdk_version *string
+
+		// C compiler flags used to build library
+		Cflags []string
+
+		// Linker flags used to build binary
+		Ldflags []string
 	}
 
 	Java struct {
@@ -416,6 +422,8 @@ type ccLibraryProperties struct {
 	Host_supported     *bool
 	Apex_available     []string
 	Min_sdk_version    *string
+	Cflags             []string
+	Ldflags            []string
 	Bazel_module       struct {
 		Label *string
 	}
@@ -511,6 +519,8 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 	ccProps.Host_supported = m.properties.Host_supported
 	ccProps.Apex_available = m.ApexProperties.Apex_available
 	ccProps.Min_sdk_version = m.properties.Cpp.Min_sdk_version
+	ccProps.Cflags = m.properties.Cpp.Cflags
+	ccProps.Ldflags = m.properties.Cpp.Ldflags
 	ccProps.Bazel_module.Label = label
 	ctx.CreateModule(cc.LibraryFactory, &ccProps)
 
