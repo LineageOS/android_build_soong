@@ -57,7 +57,6 @@ var (
 		"deqp_spvtools_update_build_version",
 		"emp_ematch.yacc.c",
 		"emp_ematch.yacc.h",
-		"exercise_type_data_type_config-pb",
 		"fdt_test_tree_empty_memory_range_dtb",
 		"fdt_test_tree_multiple_memory_ranges_dtb",
 		"fdt_test_tree_one_memory_range_dtb",
