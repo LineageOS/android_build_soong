@@ -104,8 +104,6 @@ var (
 		"camera-its",
 		"checkIn-service-stub-lite",
 		"chre_atoms_log.h",
-		"cobalt-registry-binarypb-gen",
-		"cobalt-registry-validated-java",
 		"com.android.apex.apkrollback.test.pem",
 		"com.android.apex.apkrollback.test.pubkey",
 		"com.android.apex.cts.shim.debug.pem",
