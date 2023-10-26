@@ -1755,7 +1755,6 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 		"MissingPermission",
 		"SdkConstant",
 		"Todo",
-		"UnavailableSymbol",
 	}
 	droidstubsArgs = append(droidstubsArgs, android.JoinWithPrefix(disabledWarnings, "--hide "))
 
