@@ -1014,8 +1014,16 @@ func (j *Module) collectJavacFlags(
 	ctx android.ModuleContext, flags javaBuilderFlags, srcFiles android.Paths) javaBuilderFlags {
 	// javac flags.
 	javacFlags := j.properties.Javacflags
+	var needsDebugInfo bool
 
-	if ctx.Config().MinimizeJavaDebugInfo() && !ctx.Host() {
+	needsDebugInfo = false
+	for _, flag := range javacFlags {
+		if strings.HasPrefix(flag, "-g") {
+			needsDebugInfo = true
+		}
+	}
+
+	if ctx.Config().MinimizeJavaDebugInfo() && !ctx.Host() && !needsDebugInfo {
 		// For non-host binaries, override the -g flag passed globally to remove
 		// local variable debug info to reduce disk and memory usage.
 		javacFlags = append(javacFlags, "-g:source,lines")
