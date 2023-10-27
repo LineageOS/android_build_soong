@@ -510,6 +510,42 @@ func PrebuiltPostDepsMutator(ctx BottomUpMutatorContext) {
 	}
 }
 
+// A wrapper around PrebuiltSelectionInfoMap.IsSelected with special handling for java_sdk_library
+// java_sdk_library is a macro that creates
+// 1. top-level impl library
+// 2. stub libraries (suffixed with .stubs...)
+//
+// java_sdk_library_import is a macro that creates
+// 1. top-level "impl" library
+// 2. stub libraries (suffixed with .stubs...)
+//
+// the impl of java_sdk_library_import is a "hook" for hiddenapi and dexpreopt processing. It does not have an impl jar, but acts as a shim
+// to provide the jar deapxed from the prebuilt apex
+//
+// isSelected uses `all_apex_contributions` to supersede source vs prebuilts selection of the stub libraries. It does not supersede the
+// selection of the top-level "impl" library so that this hook can work
+//
+// TODO (b/308174306) - Fix this when we need to support multiple prebuilts in main
+func isSelected(psi PrebuiltSelectionInfoMap, m Module) bool {
+	if sdkLibrary, ok := m.(interface{ SdkLibraryName() *string }); ok && sdkLibrary.SdkLibraryName() != nil {
+		sln := proptools.String(sdkLibrary.SdkLibraryName())
+		// This is the top-level library
+		// Do not supersede the existing prebuilts vs source selection mechanisms
+		if sln == m.base().BaseModuleName() {
+			return false
+		}
+
+		// Stub library created by java_sdk_library_import
+		if p := GetEmbeddedPrebuilt(m); p != nil {
+			return psi.IsSelected(sln, PrebuiltNameFromSource(sln))
+		}
+
+		// Stub library created by java_sdk_library
+		return psi.IsSelected(sln, sln)
+	}
+	return psi.IsSelected(m.base().BaseModuleName(), m.Name())
+}
+
 // usePrebuilt returns true if a prebuilt should be used instead of the source module.  The prebuilt
 // will be used if it is marked "prefer" or if the source module is disabled.
 func (p *Prebuilt) usePrebuilt(ctx BaseMutatorContext, source Module, prebuilt Module) bool {
@@ -520,14 +556,16 @@ func (p *Prebuilt) usePrebuilt(ctx BaseMutatorContext, source Module, prebuilt M
 			psi = ctx.OtherModuleProvider(am, PrebuiltSelectionInfoProvider).(PrebuiltSelectionInfoMap)
 		}
 	})
+
 	// If the source module is explicitly listed in the metadata module, use that
-	if source != nil && psi.IsSelected(source.base().BaseModuleName(), source.Name()) {
+	if source != nil && isSelected(psi, source) {
 		return false
 	}
 	// If the prebuilt module is explicitly listed in the metadata module, use that
-	if psi.IsSelected(prebuilt.base().BaseModuleName(), prebuilt.Name()) {
+	if isSelected(psi, prebuilt) {
 		return true
 	}
+
 	// If the baseModuleName could not be found in the metadata module,
 	// fall back to the existing source vs prebuilt selection.
 	// TODO: Drop the fallback mechanisms
