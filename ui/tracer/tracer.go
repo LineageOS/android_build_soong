@@ -46,6 +46,8 @@ type Tracer interface {
 	End(thread Thread)
 	Complete(name string, thread Thread, begin, end uint64)
 
+	CountersAtTime(name string, thread Thread, time uint64, counters []Counter)
+
 	ImportMicrofactoryLog(filename string)
 
 	StatusTracer() status.StatusOutput
@@ -245,5 +247,50 @@ func (t *tracerImpl) Complete(name string, thread Thread, begin, end uint64) {
 		Dur:   (end - begin) / 1000,
 		Pid:   0,
 		Tid:   uint64(thread),
+	})
+}
+
+type Counter struct {
+	Name  string
+	Value int64
+}
+
+type countersMarshaller []Counter
+
+var _ json.Marshaler = countersMarshaller(nil)
+
+func (counters countersMarshaller) MarshalJSON() ([]byte, error) {
+	// This produces similar output to a map[string]int64, but maintains the order of the slice.
+	buf := bytes.Buffer{}
+	buf.WriteRune('{')
+	for i, counter := range counters {
+		name, err := json.Marshal(counter.Name)
+		if err != nil {
+			return nil, err
+		}
+		buf.Write(name)
+		buf.WriteByte(':')
+		value, err := json.Marshal(counter.Value)
+		if err != nil {
+			return nil, err
+		}
+		buf.Write(value)
+		if i != len(counters)-1 {
+			buf.WriteRune(',')
+		}
+	}
+	buf.WriteRune('}')
+	return buf.Bytes(), nil
+}
+
+// CountersAtTime writes a Counter event at the given timestamp in nanoseconds.
+func (t *tracerImpl) CountersAtTime(name string, thread Thread, time uint64, counters []Counter) {
+	t.writeEvent(&viewerEvent{
+		Name:  name,
+		Phase: "C",
+		Time:  time / 1000,
+		Pid:   0,
+		Tid:   uint64(thread),
+		Arg:   countersMarshaller(counters),
 	})
 }
