@@ -1751,11 +1751,9 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 		"BroadcastBehavior",
 		"DeprecationMismatch",
 		"HiddenSuperclass",
-		"HiddenTypeParameter",
 		"MissingPermission",
 		"SdkConstant",
 		"Todo",
-		"UnavailableSymbol",
 	}
 	droidstubsArgs = append(droidstubsArgs, android.JoinWithPrefix(disabledWarnings, "--hide "))
 
