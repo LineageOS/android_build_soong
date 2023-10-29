@@ -353,7 +353,7 @@ var (
 
 	llvmNextExtraCommonGlobalCflags = []string{
 		// Do not report warnings when testing with the top of trunk LLVM.
-		"-Wno-error",
+		"-Wno-everything",
 	}
 
 	// Flags that must not appear in any command line.
@@ -469,6 +469,7 @@ func init() {
 		flags := noOverrideGlobalCflags
 		if ctx.Config().IsEnvTrue("LLVM_NEXT") {
 			flags = append(noOverrideGlobalCflags, llvmNextExtraCommonGlobalCflags...)
+			IllegalFlags = []string{} // Don't fail build while testing a new compiler.
 		}
 		return strings.Join(flags, " ")
 	})
