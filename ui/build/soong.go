@@ -15,6 +15,7 @@
 package build
 
 import (
+	"android/soong/ui/tracer"
 	"fmt"
 	"io/fs"
 	"os"
@@ -773,6 +774,19 @@ func loadSoongBuildMetrics(ctx Context, config Config, oldTimestamp time.Time) {
 		}
 		ctx.Tracer.Complete(desc, ctx.Thread,
 			event.GetStartTime(), event.GetStartTime()+event.GetRealTime())
+	}
+	for _, event := range soongBuildMetrics.PerfCounters {
+		timestamp := event.GetTime()
+		for _, group := range event.Groups {
+			counters := make([]tracer.Counter, 0, len(group.Counters))
+			for _, counter := range group.Counters {
+				counters = append(counters, tracer.Counter{
+					Name:  counter.GetName(),
+					Value: counter.GetValue(),
+				})
+			}
+			ctx.Tracer.CountersAtTime(group.GetName(), ctx.Thread, timestamp, counters)
+		}
 	}
 }
 
