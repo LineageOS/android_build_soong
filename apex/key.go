@@ -102,6 +102,60 @@ func (m *apexKey) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 }
 
+type apexKeyEntry struct {
+	name                 string
+	presigned            bool
+	publicKey            string
+	privateKey           string
+	containerCertificate string
+	containerPrivateKey  string
+	partition            string
+	signTool             string
+}
+
+func (e apexKeyEntry) String() string {
+	signTool := ""
+	if e.signTool != "" {
+		signTool = fmt.Sprintf(" sign_tool=%q", e.signTool)
+	}
+	format := "name=%q public_key=%q private_key=%q container_certificate=%q container_private_key=%q partition=%q%s\n"
+	if e.presigned {
+		return fmt.Sprintf(format, e.name, "PRESIGNED", "PRESIGNED", "PRESIGNED", "PRESIGNED", e.partition, signTool)
+	} else {
+		return fmt.Sprintf(format, e.name, e.publicKey, e.privateKey, e.containerCertificate, e.containerPrivateKey, e.partition, signTool)
+	}
+}
+
+func apexKeyEntryFor(ctx android.SingletonContext, module android.Module) apexKeyEntry {
+	switch m := module.(type) {
+	case *apexBundle:
+		pem, key := m.getCertificateAndPrivateKey(ctx)
+		return apexKeyEntry{
+			name:                 m.Name() + ".apex",
+			presigned:            false,
+			publicKey:            m.publicKeyFile.String(),
+			privateKey:           m.privateKeyFile.String(),
+			containerCertificate: pem.String(),
+			containerPrivateKey:  key.String(),
+			partition:            m.PartitionTag(ctx.DeviceConfig()),
+			signTool:             proptools.String(m.properties.Custom_sign_tool),
+		}
+	case *Prebuilt:
+		return apexKeyEntry{
+			name:      m.InstallFilename(),
+			presigned: true,
+			partition: m.PartitionTag(ctx.DeviceConfig()),
+		}
+	case *ApexSet:
+		return apexKeyEntry{
+			name:      m.InstallFilename(),
+			presigned: true,
+			partition: m.PartitionTag(ctx.DeviceConfig()),
+		}
+	}
+	panic(fmt.Errorf("unknown type(%t) for apexKeyEntry", module))
+}
+
 // //////////////////////////////////////////////////////////////////////
 // apex_keys_text
 type apexKeysText struct {
@@ -110,43 +164,11 @@ type apexKeysText struct {
 
 func (s *apexKeysText) GenerateBuildActions(ctx android.SingletonContext) {
 	s.output = android.PathForOutput(ctx, "apexkeys.txt")
-	type apexKeyEntry struct {
-		name                 string
-		presigned            bool
-		publicKey            string
-		privateKey           string
-		containerCertificate string
-		containerPrivateKey  string
-		partition            string
-		signTool             string
-	}
-	toString := func(e apexKeyEntry) string {
-		signTool := ""
-		if e.signTool != "" {
-			signTool = fmt.Sprintf(" sign_tool=%q", e.signTool)
-		}
-		format := "name=%q public_key=%q private_key=%q container_certificate=%q container_private_key=%q partition=%q%s\n"
-		if e.presigned {
-			return fmt.Sprintf(format, e.name, "PRESIGNED", "PRESIGNED", "PRESIGNED", "PRESIGNED", e.partition, signTool)
-		} else {
-			return fmt.Sprintf(format, e.name, e.publicKey, e.privateKey, e.containerCertificate, e.containerPrivateKey, e.partition, signTool)
-		}
-	}
 
 	apexKeyMap := make(map[string]apexKeyEntry)
 	ctx.VisitAllModules(func(module android.Module) {
 		if m, ok := module.(*apexBundle); ok && m.Enabled() && m.installable() {
-			pem, key := m.getCertificateAndPrivateKey(ctx)
-			apexKeyMap[m.Name()] = apexKeyEntry{
-				name:                 m.Name() + ".apex",
-				presigned:            false,
-				publicKey:            m.publicKeyFile.String(),
-				privateKey:           m.privateKeyFile.String(),
-				containerCertificate: pem.String(),
-				containerPrivateKey:  key.String(),
-				partition:            m.PartitionTag(ctx.DeviceConfig()),
-				signTool:             proptools.String(m.properties.Custom_sign_tool),
-			}
+			apexKeyMap[m.Name()] = apexKeyEntryFor(ctx, m)
 		}
 	})
 
@@ -154,11 +176,7 @@ func (s *apexKeysText) GenerateBuildActions(ctx android.SingletonContext) {
 	ctx.VisitAllModules(func(module android.Module) {
 		if m, ok := module.(*Prebuilt); ok && m.Enabled() && m.installable() &&
 			m.Prebuilt().UsePrebuilt() {
-			apexKeyMap[m.BaseModuleName()] = apexKeyEntry{
-				name:      m.InstallFilename(),
-				presigned: true,
-				partition: m.PartitionTag(ctx.DeviceConfig()),
-			}
+			apexKeyMap[m.BaseModuleName()] = apexKeyEntryFor(ctx, m)
 		}
 	})
 
@@ -166,12 +184,7 @@ func (s *apexKeysText) GenerateBuildActions(ctx android.SingletonContext) {
 	// so that apex_set are not overridden by prebuilts.
 	ctx.VisitAllModules(func(module android.Module) {
 		if m, ok := module.(*ApexSet); ok && m.Enabled() {
-			entry := apexKeyEntry{
-				name:      m.InstallFilename(),
-				presigned: true,
-				partition: m.PartitionTag(ctx.DeviceConfig()),
-			}
-			apexKeyMap[m.BaseModuleName()] = entry
+			apexKeyMap[m.BaseModuleName()] = apexKeyEntryFor(ctx, m)
 		}
 	})
 
@@ -184,7 +197,7 @@ func (s *apexKeysText) GenerateBuildActions(ctx android.SingletonContext) {
 
 	var filecontent strings.Builder
 	for _, name := range moduleNames {
-		filecontent.WriteString(toString(apexKeyMap[name]))
+		filecontent.WriteString(apexKeyMap[name].String())
 	}
 	android.WriteFileRule(ctx, s.output, filecontent.String())
 }
