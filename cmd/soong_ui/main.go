@@ -91,14 +91,6 @@ var commands = []command{
 		config:      buildActionConfig,
 		stdio:       stdio,
 		run:         runMake,
-	}, {
-		flag:        "--finalize-bazel-metrics",
-		description: "finalize b metrics and upload",
-		config:      build.UploadOnlyConfig,
-		stdio:       stdio,
-		// Finalize-bazel-metrics mode updates metrics files and calls the metrics
-		// uploader. This marks the end of a b invocation.
-		run: finalizeBazelMetrics,
 	},
 }
 
@@ -199,7 +191,6 @@ func main() {
 	soongMetricsFile := filepath.Join(logsDir, c.logsPrefix+"soong_metrics")
 	rbeMetricsFile := filepath.Join(logsDir, c.logsPrefix+"rbe_metrics.pb")
 	bp2buildMetricsFile := filepath.Join(logsDir, c.logsPrefix+"bp2build_metrics.pb")
-	bazelMetricsFile := filepath.Join(logsDir, c.logsPrefix+"bazel_metrics.pb")
 	soongBuildMetricsFile := filepath.Join(logsDir, c.logsPrefix+"soong_build_metrics.pb")
 
 	metricsFiles := []string{
@@ -207,7 +198,6 @@ func main() {
 		rbeMetricsFile,           // high level metrics related to remote build execution.
 		bp2buildMetricsFile,      // high level metrics related to bp2build.
 		soongMetricsFile,         // high level metrics related to this build system.
-		bazelMetricsFile,         // high level metrics related to bazel execution
 		soongBuildMetricsFile,    // high level metrics related to soong build(except bp2build)
 		config.BazelMetricsDir(), // directory that contains a set of bazel metrics.
 	}
@@ -247,10 +237,9 @@ func logAndSymlinkSetup(buildCtx build.Context, config build.Config) {
 	soongMetricsFile := filepath.Join(logsDir, logsPrefix+"soong_metrics")
 	bp2buildMetricsFile := filepath.Join(logsDir, logsPrefix+"bp2build_metrics.pb")
 	soongBuildMetricsFile := filepath.Join(logsDir, logsPrefix+"soong_build_metrics.pb")
-	bazelMetricsFile := filepath.Join(logsDir, logsPrefix+"bazel_metrics.pb")
 
 	//Delete the stale metrics files
-	staleFileSlice := []string{buildErrorFile, rbeMetricsFile, soongMetricsFile, bp2buildMetricsFile, soongBuildMetricsFile, bazelMetricsFile}
+	staleFileSlice := []string{buildErrorFile, rbeMetricsFile, soongMetricsFile, bp2buildMetricsFile, soongBuildMetricsFile}
 	if err := deleteStaleMetrics(staleFileSlice); err != nil {
 		log.Fatalln(err)
 	}
@@ -699,30 +688,5 @@ func setMaxFiles(ctx build.Context) {
 	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &limits)
 	if err != nil {
 		ctx.Println("Failed to increase file limit:", err)
-	}
-}
-
-func finalizeBazelMetrics(ctx build.Context, config build.Config, args []string) {
-	updateTotalRealTime(ctx, config, args)
-
-	logsDir := config.LogsDir()
-	logsPrefix := config.GetLogsPrefix()
-	bazelMetricsFile := filepath.Join(logsDir, logsPrefix+"bazel_metrics.pb")
-	bazelProfileFile := filepath.Join(logsDir, logsPrefix+"analyzed_bazel_profile.txt")
-	build.ProcessBazelMetrics(bazelProfileFile, bazelMetricsFile, ctx, config)
-}
-func updateTotalRealTime(ctx build.Context, config build.Config, args []string) {
-	soongMetricsFile := filepath.Join(config.LogsDir(), "soong_metrics")
-
-	//read file into proto
-	data, err := os.ReadFile(soongMetricsFile)
-	if err != nil {
-		ctx.Fatal(err)
-	}
-	met := ctx.ContextImpl.Metrics
-
-	err = met.UpdateTotalRealTimeAndNonZeroExit(data, config.BazelExitCode())
-	if err != nil {
-		ctx.Fatal(err)
 	}
 }
