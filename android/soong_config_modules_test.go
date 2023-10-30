@@ -376,8 +376,7 @@ func TestNonExistentPropertyInSoongConfigModule(t *testing.T) {
 		prepareForSoongConfigTestModule,
 		FixtureWithRootAndroidBp(bp),
 	).ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern([]string{
-		// TODO(b/171232169): improve the error message for non-existent properties
-		`unrecognized property "soong_config_variables`,
+		`unrecognized property "soong_config_variables.feature1.made_up_property`,
 	})).RunTest(t)
 }
 
