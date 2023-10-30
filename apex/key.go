@@ -16,8 +16,6 @@ package apex
 
 import (
 	"fmt"
-	"sort"
-	"strings"
 
 	"android/soong/android"
 	"android/soong/bazel"
@@ -33,7 +31,6 @@ func init() {
 
 func registerApexKeyBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("apex_key", ApexKeyFactory)
-	ctx.RegisterParallelSingletonType("apex_keys_text", apexKeysTextFactory)
 }
 
 type apexKey struct {
@@ -126,7 +123,7 @@ func (e apexKeyEntry) String() string {
 	}
 }
 
-func apexKeyEntryFor(ctx android.SingletonContext, module android.Module) apexKeyEntry {
+func apexKeyEntryFor(ctx android.ModuleContext, module android.Module) apexKeyEntry {
 	switch m := module.(type) {
 	case *apexBundle:
 		pem, key := m.getCertificateAndPrivateKey(ctx)
@@ -156,58 +153,11 @@ func apexKeyEntryFor(ctx android.SingletonContext, module android.Module) apexKe
 	panic(fmt.Errorf("unknown type(%t) for apexKeyEntry", module))
 }
 
-// //////////////////////////////////////////////////////////////////////
-// apex_keys_text
-type apexKeysText struct {
-	output android.OutputPath
-}
-
-func (s *apexKeysText) GenerateBuildActions(ctx android.SingletonContext) {
-	s.output = android.PathForOutput(ctx, "apexkeys.txt")
-
-	apexKeyMap := make(map[string]apexKeyEntry)
-	ctx.VisitAllModules(func(module android.Module) {
-		if m, ok := module.(*apexBundle); ok && m.Enabled() && m.installable() {
-			apexKeyMap[m.Name()] = apexKeyEntryFor(ctx, m)
-		}
-	})
-
-	// Find prebuilts and let them override apexBundle if they are preferred
-	ctx.VisitAllModules(func(module android.Module) {
-		if m, ok := module.(*Prebuilt); ok && m.Enabled() && m.installable() &&
-			m.Prebuilt().UsePrebuilt() {
-			apexKeyMap[m.BaseModuleName()] = apexKeyEntryFor(ctx, m)
-		}
-	})
-
-	// Find apex_set and let them override apexBundle or prebuilts. This is done in a separate pass
-	// so that apex_set are not overridden by prebuilts.
-	ctx.VisitAllModules(func(module android.Module) {
-		if m, ok := module.(*ApexSet); ok && m.Enabled() {
-			apexKeyMap[m.BaseModuleName()] = apexKeyEntryFor(ctx, m)
-		}
-	})
-
-	// iterating over map does not give consistent ordering in golang
-	var moduleNames []string
-	for key, _ := range apexKeyMap {
-		moduleNames = append(moduleNames, key)
-	}
-	sort.Strings(moduleNames)
-
-	var filecontent strings.Builder
-	for _, name := range moduleNames {
-		filecontent.WriteString(apexKeyMap[name].String())
-	}
-	android.WriteFileRule(ctx, s.output, filecontent.String())
-}
-
-func apexKeysTextFactory() android.Singleton {
-	return &apexKeysText{}
-}
-
-func (s *apexKeysText) MakeVars(ctx android.MakeVarsContext) {
-	ctx.Strict("SOONG_APEX_KEYS_FILE", s.output.String())
+func writeApexKeys(ctx android.ModuleContext, module android.Module) android.WritablePath {
+	path := android.PathForModuleOut(ctx, "apexkeys.txt")
+	entry := apexKeyEntryFor(ctx, module)
+	android.WriteFileRuleVerbatim(ctx, path, entry.String())
+	return path
 }
 
 // For Bazel / bp2build
