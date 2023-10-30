@@ -422,6 +422,7 @@ func main() {
 	metricsDir := availableEnv["LOG_DIR"]
 
 	ctx := newContext(configuration)
+	android.StartBackgroundMetrics(configuration)
 
 	var finalOutputFile string
 
