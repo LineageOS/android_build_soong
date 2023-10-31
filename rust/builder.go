@@ -238,6 +238,10 @@ func rustEnvVars(ctx ModuleContext, deps PathDeps) []string {
 		}
 	}
 
+	if ctx.Darwin() {
+		envVars = append(envVars, "ANDROID_RUST_DARWIN=true")
+	}
+
 	return envVars
 }
 
@@ -344,19 +348,6 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 			},
 		})
 		implicits = append(implicits, outputs.Paths()...)
-	}
-
-	envVars = append(envVars, "ANDROID_RUST_VERSION="+config.GetRustVersion(ctx))
-
-	if ctx.RustModule().compiler.CargoEnvCompat() {
-		if _, ok := ctx.RustModule().compiler.(*binaryDecorator); ok {
-			envVars = append(envVars, "CARGO_BIN_NAME="+strings.TrimSuffix(outputFile.Base(), outputFile.Ext()))
-		}
-		envVars = append(envVars, "CARGO_CRATE_NAME="+ctx.RustModule().CrateName())
-		pkgVersion := ctx.RustModule().compiler.CargoPkgVersion()
-		if pkgVersion != "" {
-			envVars = append(envVars, "CARGO_PKG_VERSION="+pkgVersion)
-		}
 	}
 
 	if flags.Clippy {
