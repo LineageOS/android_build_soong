@@ -51,8 +51,6 @@ var (
 
 	SandboxingDenyModuleList = []string{
 		// go/keep-sorted start
-		"AudioFocusControlProtoStub_cc",
-		"AudioFocusControlProtoStub_h",
 		"CompilationTestCases_package-dex-usage",
 		"ControlEnvProxyServerProto_cc",
 		"ControlEnvProxyServerProto_h",
