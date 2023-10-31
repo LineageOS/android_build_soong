@@ -147,6 +147,12 @@ func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
 			}
 		}
 
+		// For ML training
+		if ctx.Config().IsEnvTrue("THINLTO_EMIT_INDEXES_AND_IMPORTS") {
+			ltoLdFlags = append(ltoLdFlags, "-Wl,--save-temps=import")
+			ltoLdFlags = append(ltoLdFlags, "-Wl,--thinlto-emit-index-files")
+		}
+
 		flags.Local.CFlags = append(flags.Local.CFlags, ltoCFlags...)
 		flags.Local.AsFlags = append(flags.Local.AsFlags, ltoCFlags...)
 		flags.Local.LdFlags = append(flags.Local.LdFlags, ltoCFlags...)
