@@ -203,15 +203,21 @@ func ManifestFixer(ctx android.ModuleContext, manifest android.Path,
 type ManifestMergerParams struct {
 	staticLibManifests android.Paths
 	isLibrary          bool
+	packageName        string
 }
 
 func manifestMerger(ctx android.ModuleContext, manifest android.Path,
 	params ManifestMergerParams) android.Path {
 
-	var args string
+	var args []string
 	if !params.isLibrary {
 		// Follow Gradle's behavior, only pass --remove-tools-declarations when merging app manifests.
-		args = "--remove-tools-declarations"
+		args = append(args, "--remove-tools-declarations")
+	}
+
+	packageName := params.packageName
+	if packageName != "" {
+		args = append(args, "--property PACKAGE="+packageName)
 	}
 
 	mergedManifest := android.PathForModuleOut(ctx, "manifest_merger", "AndroidManifest.xml")
@@ -223,7 +229,7 @@ func manifestMerger(ctx android.ModuleContext, manifest android.Path,
 		Output:      mergedManifest,
 		Args: map[string]string{
 			"libs": android.JoinWithPrefix(params.staticLibManifests.Strings(), "--libs "),
-			"args": args,
+			"args": strings.Join(args, " "),
 		},
 	})
 
