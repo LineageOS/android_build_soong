@@ -15,8 +15,9 @@
 package java
 
 import (
-	"android/soong/android"
 	"testing"
+
+	"android/soong/android"
 )
 
 func TestManifestMerger(t *testing.T) {
@@ -100,4 +101,42 @@ func TestManifestMerger(t *testing.T) {
 
 		},
 		manifestMergerRule.Implicits)
+}
+
+func TestManifestValuesApplicationIdSetsPackageName(t *testing.T) {
+	bp := `
+		android_test {
+			name: "test",
+			sdk_version: "current",
+			srcs: ["app/app.java"],
+			manifest: "test/AndroidManifest.xml",
+			additional_manifests: ["test/AndroidManifest2.xml"],
+			static_libs: ["direct"],
+      test_suites: ["device-tests"],
+      manifest_values:  {
+        applicationId: "new_package_name"
+      },
+		}
+
+		android_library {
+			name: "direct",
+			sdk_version: "current",
+			srcs: ["direct/direct.java"],
+			resource_dirs: ["direct/res"],
+			manifest: "direct/AndroidManifest.xml",
+			additional_manifests: ["direct/AndroidManifest2.xml"],
+		}
+
+	`
+
+	result := android.GroupFixturePreparers(
+		PrepareForTestWithJavaDefaultModules,
+		PrepareForTestWithOverlayBuildComponents,
+	).RunTestWithBp(t, bp)
+
+	manifestMergerRule := result.ModuleForTests("test", "android_common").Rule("manifestMerger")
+	android.AssertStringMatches(t,
+		"manifest merger args",
+		manifestMergerRule.Args["args"],
+		"--property PACKAGE=new_package_name")
 }
