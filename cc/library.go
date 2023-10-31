@@ -1904,17 +1904,19 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 		}
 		exportedHeaderFlags := strings.Join(SourceAbiFlags, " ")
 		headerAbiChecker := library.getHeaderAbiCheckerProperties(ctx)
-		library.sAbiOutputFile = transformDumpToLinkedDump(ctx, objs.sAbiDumpFiles, soFile, fileName, exportedHeaderFlags,
-			android.OptionalPathForModuleSrc(ctx, library.symbolFileForAbiCheck(ctx)),
-			headerAbiChecker.Exclude_symbol_versions,
-			headerAbiChecker.Exclude_symbol_tags)
-
-		addLsdumpPath(classifySourceAbiDump(ctx) + ":" + library.sAbiOutputFile.String())
-
 		// The logic must be consistent with classifySourceAbiDump.
 		isVndk := ctx.useVndk() && ctx.isVndk()
 		isNdk := ctx.isNdk(ctx.Config())
 		isLlndk := ctx.isImplementationForLLNDKPublic()
+		currVersion := currRefAbiDumpVersion(ctx, isVndk)
+		library.sAbiOutputFile = transformDumpToLinkedDump(ctx, objs.sAbiDumpFiles, soFile, fileName, exportedHeaderFlags,
+			android.OptionalPathForModuleSrc(ctx, library.symbolFileForAbiCheck(ctx)),
+			headerAbiChecker.Exclude_symbol_versions,
+			headerAbiChecker.Exclude_symbol_tags,
+			currVersion)
+
+		addLsdumpPath(classifySourceAbiDump(ctx) + ":" + library.sAbiOutputFile.String())
+
 		dumpDir := getRefAbiDumpDir(isNdk, isVndk)
 		binderBitness := ctx.DeviceConfig().BinderBitness()
 		// If NDK or PLATFORM library, check against previous version ABI.
@@ -1930,7 +1932,6 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 			}
 		}
 		// Check against the current version.
-		currVersion := currRefAbiDumpVersion(ctx, isVndk)
 		currDumpDir := filepath.Join(dumpDir, currVersion, binderBitness)
 		currDumpFile := getRefAbiDumpFile(ctx, currDumpDir, fileName)
 		if currDumpFile.Valid() {
