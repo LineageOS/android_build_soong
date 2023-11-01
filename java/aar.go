@@ -811,8 +811,11 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	a.linter.manifest = a.aapt.manifestPath
 	a.linter.resources = a.aapt.resourceFiles
 
-	a.Module.extraProguardFlagFiles = append(a.Module.extraProguardFlagFiles,
-		a.proguardOptionsFile)
+	proguardSpecInfo := a.collectProguardSpecInfo(ctx)
+	ctx.SetProvider(ProguardSpecInfoProvider, proguardSpecInfo)
+	a.exportedProguardFlagFiles = proguardSpecInfo.ProguardFlagsFiles.ToList()
+	a.extraProguardFlagFiles = append(a.extraProguardFlagFiles, a.exportedProguardFlagFiles...)
+	a.extraProguardFlagFiles = append(a.extraProguardFlagFiles, a.proguardOptionsFile)
 
 	var extraSrcJars android.Paths
 	var extraCombinedJars android.Paths
@@ -837,10 +840,6 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		BuildAAR(ctx, a.aarFile, a.outputFile, a.manifestPath, a.rTxt, res)
 		ctx.CheckbuildFile(a.aarFile)
 	}
-
-	proguardSpecInfo := a.collectProguardSpecInfo(ctx)
-	ctx.SetProvider(ProguardSpecInfoProvider, proguardSpecInfo)
-	a.exportedProguardFlagFiles = proguardSpecInfo.ProguardFlagsFiles.ToList()
 
 	prebuiltJniPackages := android.Paths{}
 	ctx.VisitDirectDeps(func(module android.Module) {

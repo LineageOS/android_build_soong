@@ -697,6 +697,11 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	j.stem = proptools.StringDefault(j.overridableDeviceProperties.Stem, ctx.ModuleName())
 
+	proguardSpecInfo := j.collectProguardSpecInfo(ctx)
+	ctx.SetProvider(ProguardSpecInfoProvider, proguardSpecInfo)
+	j.exportedProguardFlagFiles = proguardSpecInfo.ProguardFlagsFiles.ToList()
+	j.extraProguardFlagFiles = append(j.extraProguardFlagFiles, j.exportedProguardFlagFiles...)
+
 	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 	if !apexInfo.IsForPlatform() {
 		j.hideApexVariantFromMake = true
@@ -741,10 +746,6 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 		j.installFile = ctx.InstallFile(installDir, j.Stem()+".jar", j.outputFile, extraInstallDeps...)
 	}
-
-	proguardSpecInfo := j.collectProguardSpecInfo(ctx)
-	ctx.SetProvider(ProguardSpecInfoProvider, proguardSpecInfo)
-	j.exportedProguardFlagFiles = proguardSpecInfo.ProguardFlagsFiles.ToList()
 }
 
 func (j *Library) DepsMutator(ctx android.BottomUpMutatorContext) {
