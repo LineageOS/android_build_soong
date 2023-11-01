@@ -48,6 +48,7 @@ func RegisterStubsBuildComponents(ctx android.RegistrationContext) {
 // Droidstubs
 type Droidstubs struct {
 	Javadoc
+	embeddableInModuleAndImport
 
 	properties              DroidstubsProperties
 	apiFile                 android.Path
@@ -184,6 +185,7 @@ func DroidstubsFactory() android.Module {
 
 	module.AddProperties(&module.properties,
 		&module.Javadoc.properties)
+	module.initModuleAndImport(module)
 
 	InitDroiddocModule(module, android.HostAndDeviceSupported)
 
@@ -930,6 +932,8 @@ type PrebuiltStubsSourcesProperties struct {
 type PrebuiltStubsSources struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
+	embeddableInModuleAndImport
+
 	prebuilt android.Prebuilt
 
 	properties PrebuiltStubsSourcesProperties
@@ -1008,6 +1012,7 @@ func PrebuiltStubsSourcesFactory() android.Module {
 	module := &PrebuiltStubsSources{}
 
 	module.AddProperties(&module.properties)
+	module.initModuleAndImport(module)
 
 	android.InitPrebuiltModule(module, &module.properties.Srcs)
 	InitDroiddocModule(module, android.HostAndDeviceSupported)
