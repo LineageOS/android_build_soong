@@ -15,6 +15,7 @@
 package build
 
 import (
+	"android/soong/ui/tracer"
 	"fmt"
 	"io/fs"
 	"os"
@@ -631,6 +632,10 @@ func runSoong(ctx Context, config Config) {
 
 		if config.BazelBuildEnabled() || config.Bp2Build() {
 			checkEnvironmentFile(ctx, soongBuildEnv, config.UsedEnvFile(bp2buildFilesTag))
+		} else {
+			// Remove bazel files in the event that bazel is disabled for the build.
+			// These files may have been left over from a previous bazel-enabled build.
+			cleanBazelFiles(config)
 		}
 
 		if config.JsonModuleGraph() {
@@ -773,6 +778,31 @@ func loadSoongBuildMetrics(ctx Context, config Config, oldTimestamp time.Time) {
 		}
 		ctx.Tracer.Complete(desc, ctx.Thread,
 			event.GetStartTime(), event.GetStartTime()+event.GetRealTime())
+	}
+	for _, event := range soongBuildMetrics.PerfCounters {
+		timestamp := event.GetTime()
+		for _, group := range event.Groups {
+			counters := make([]tracer.Counter, 0, len(group.Counters))
+			for _, counter := range group.Counters {
+				counters = append(counters, tracer.Counter{
+					Name:  counter.GetName(),
+					Value: counter.GetValue(),
+				})
+			}
+			ctx.Tracer.CountersAtTime(group.GetName(), ctx.Thread, timestamp, counters)
+		}
+	}
+}
+
+func cleanBazelFiles(config Config) {
+	files := []string{
+		shared.JoinPath(config.SoongOutDir(), "bp2build"),
+		shared.JoinPath(config.SoongOutDir(), "workspace"),
+		shared.JoinPath(config.SoongOutDir(), bazel.SoongInjectionDirName),
+		shared.JoinPath(config.OutDir(), "bazel")}
+
+	for _, f := range files {
+		os.RemoveAll(f)
 	}
 }
 
