@@ -21,14 +21,6 @@ import (
 	"android/soong/android"
 )
 
-func init() {
-	registerOverlayBuildComponents(android.InitRegistrationContext)
-}
-
-func registerOverlayBuildComponents(ctx android.RegistrationContext) {
-	ctx.RegisterPreSingletonType("overlay", OverlaySingletonFactory)
-}
-
 var androidResourceIgnoreFilenames = []string{
 	".svn",
 	".git",
@@ -84,7 +76,38 @@ type globbedResourceDir struct {
 func overlayResourceGlob(ctx android.ModuleContext, a *aapt, dir android.Path) (res []globbedResourceDir,
 	rroDirs []rroDir) {
 
-	overlayData := ctx.Config().Get(overlayDataKey).([]overlayGlobResult)
+	overlayData := ctx.Config().Once(overlayDataKey, func() interface{} {
+		var overlayData []overlayGlobResult
+
+		appendOverlayData := func(overlayDirs []string, t overlayType) {
+			for i := range overlayDirs {
+				// Iterate backwards through the list of overlay directories so that the later, lower-priority
+				// directories in the list show up earlier in the command line to aapt2.
+				overlay := overlayDirs[len(overlayDirs)-1-i]
+				var result overlayGlobResult
+				result.dir = overlay
+				result.overlayType = t
+
+				files, err := ctx.GlobWithDeps(filepath.Join(overlay, "**/*"), androidResourceIgnoreFilenames)
+				if err != nil {
+					ctx.ModuleErrorf("failed to glob resource dir %q: %s", overlay, err.Error())
+					continue
+				}
+				var paths android.Paths
+				for _, f := range files {
+					if !strings.HasSuffix(f, "/") {
+						paths = append(paths, android.PathForSource(ctx, f))
+					}
+				}
+				result.paths = android.PathsToDirectorySortedPaths(paths)
+				overlayData = append(overlayData, result)
+			}
+		}
+
+		appendOverlayData(ctx.Config().DeviceResourceOverlays(), device)
+		appendOverlayData(ctx.Config().ProductResourceOverlays(), product)
+		return overlayData
+	}).([]overlayGlobResult)
 
 	// Runtime resource overlays (RRO) may be turned on by the product config for some modules
 	rroEnabled := a.IsRROEnforced(ctx)
@@ -109,45 +132,4 @@ func overlayResourceGlob(ctx android.ModuleContext, a *aapt, dir android.Path) (
 	}
 
 	return res, rroDirs
-}
-
-func OverlaySingletonFactory() android.Singleton {
-	return overlaySingleton{}
-}
-
-type overlaySingleton struct{}
-
-func (overlaySingleton) GenerateBuildActions(ctx android.SingletonContext) {
-	var overlayData []overlayGlobResult
-
-	appendOverlayData := func(overlayDirs []string, t overlayType) {
-		for i := range overlayDirs {
-			// Iterate backwards through the list of overlay directories so that the later, lower-priority
-			// directories in the list show up earlier in the command line to aapt2.
-			overlay := overlayDirs[len(overlayDirs)-1-i]
-			var result overlayGlobResult
-			result.dir = overlay
-			result.overlayType = t
-
-			files, err := ctx.GlobWithDeps(filepath.Join(overlay, "**/*"), androidResourceIgnoreFilenames)
-			if err != nil {
-				ctx.Errorf("failed to glob resource dir %q: %s", overlay, err.Error())
-				continue
-			}
-			var paths android.Paths
-			for _, f := range files {
-				if !strings.HasSuffix(f, "/") {
-					paths = append(paths, android.PathForSource(ctx, f))
-				}
-			}
-			result.paths = android.PathsToDirectorySortedPaths(paths)
-			overlayData = append(overlayData, result)
-		}
-	}
-
-	appendOverlayData(ctx.Config().DeviceResourceOverlays(), device)
-	appendOverlayData(ctx.Config().ProductResourceOverlays(), product)
-	ctx.Config().Once(overlayDataKey, func() interface{} {
-		return overlayData
-	})
 }
