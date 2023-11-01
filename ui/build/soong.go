@@ -759,7 +759,7 @@ func loadSoongBuildMetrics(ctx Context, config Config, oldTimestamp time.Time) {
 		return
 	}
 
-	metricsData, err := os.ReadFile(config.SoongBuildMetrics())
+	metricsData, err := os.ReadFile(soongBuildMetricsFile)
 	if err != nil {
 		ctx.Verbosef("Failed to read %s: %s", soongBuildMetricsFile, err)
 		return
