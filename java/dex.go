@@ -300,6 +300,8 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8Fl
 
 	flagFiles = append(flagFiles, android.PathsForModuleSrc(ctx, opt.Proguard_flags_files)...)
 
+	flagFiles = android.FirstUniquePaths(flagFiles)
+
 	r8Flags = append(r8Flags, android.JoinWithPrefix(flagFiles.Strings(), "-include "))
 	r8Deps = append(r8Deps, flagFiles...)
 
