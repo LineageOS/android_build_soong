@@ -1829,7 +1829,7 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 		}
 	}
 
-	mctx.CreateModule(DroidstubsFactory, &props).(*Droidstubs).CallHookIfAvailable(mctx)
+	mctx.CreateModule(DroidstubsFactory, &props, module.sdkComponentPropertiesForChildLibrary()).(*Droidstubs).CallHookIfAvailable(mctx)
 }
 
 func (module *SdkLibrary) createApiLibrary(mctx android.DefaultableHookContext, apiScope *apiScope, alternativeFullApiSurfaceStub string) {
@@ -1892,7 +1892,7 @@ func (module *SdkLibrary) createApiLibrary(mctx android.DefaultableHookContext, 
 	props.System_modules = module.deviceProperties.System_modules
 	props.Enable_validation = proptools.BoolPtr(true)
 
-	mctx.CreateModule(ApiLibraryFactory, &props)
+	mctx.CreateModule(ApiLibraryFactory, &props, module.sdkComponentPropertiesForChildLibrary())
 }
 
 func (module *SdkLibrary) createTopLevelStubsLibrary(
@@ -2590,7 +2590,7 @@ func (module *SdkLibraryImport) createPrebuiltStubsSources(mctx android.Defaulta
 	// The stubs source is preferred if the java_sdk_library_import is preferred.
 	props.CopyUserSuppliedPropertiesFromPrebuilt(&module.prebuilt)
 
-	mctx.CreateModule(PrebuiltStubsSourcesFactory, &props)
+	mctx.CreateModule(PrebuiltStubsSourcesFactory, &props, module.sdkComponentPropertiesForChildLibrary())
 }
 
 func (module *SdkLibraryImport) createPrebuiltApiContribution(mctx android.DefaultableHookContext, apiScope *apiScope, scopeProperties *sdkLibraryScopeProperties) {
@@ -2609,7 +2609,7 @@ func (module *SdkLibraryImport) createPrebuiltApiContribution(mctx android.Defau
 	props.Api_file = api_file
 	props.Visibility = []string{"//visibility:override", "//visibility:public"}
 
-	mctx.CreateModule(ApiContributionImportFactory, &props)
+	mctx.CreateModule(ApiContributionImportFactory, &props, module.sdkComponentPropertiesForChildLibrary())
 }
 
 // Add the dependencies on the child module in the component deps mutator so that it
