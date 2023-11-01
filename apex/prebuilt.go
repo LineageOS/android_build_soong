@@ -60,6 +60,9 @@ type prebuiltCommon struct {
 	installedFile   android.InstallPath
 	outputApex      android.WritablePath
 
+	// fragment for this apex for apexkeys.txt
+	apexKeysPath android.WritablePath
+
 	// A list of apexFile objects created in prebuiltCommon.initApexFilesForAndroidMk which are used
 	// to create make modules in prebuiltCommon.AndroidMkEntries.
 	apexFilesForAndroidMk []apexFile
@@ -238,6 +241,7 @@ func (p *prebuiltCommon) AndroidMkEntries() []android.AndroidMkEntries {
 					entries.AddStrings("LOCAL_SOONG_INSTALL_SYMLINKS", p.compatSymlinks.Strings()...)
 					entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !p.installable())
 					entries.AddStrings("LOCAL_OVERRIDES_MODULES", p.prebuiltCommonProperties.Overrides...)
+					entries.SetString("LOCAL_APEX_KEY_PATH", p.apexKeysPath.String())
 					p.addRequiredModules(entries)
 				},
 			},
@@ -759,6 +763,7 @@ func (p *Prebuilt) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 }
 
 func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	p.apexKeysPath = writeApexKeys(ctx, p)
 	// TODO(jungjw): Check the key validity.
 	p.inputApex = android.OptionalPathForModuleSrc(ctx, p.prebuiltCommonProperties.Selected_apex).Path()
 	p.installDir = android.PathForModuleInstall(ctx, "apex")
@@ -975,6 +980,7 @@ func (a *ApexSet) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 }
 
 func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	a.apexKeysPath = writeApexKeys(ctx, a)
 	a.installFilename = a.InstallFilename()
 	if !strings.HasSuffix(a.installFilename, imageApexSuffix) && !strings.HasSuffix(a.installFilename, imageCapexSuffix) {
 		ctx.ModuleErrorf("filename should end in %s or %s for apex_set", imageApexSuffix, imageCapexSuffix)

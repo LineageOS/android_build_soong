@@ -454,6 +454,9 @@ type apexBundle struct {
 	// Path where this APEX was installed.
 	installedFile android.InstallPath
 
+	// fragment for this apex for apexkeys.txt
+	apexKeysPath android.WritablePath
+
 	// Installed locations of symlinks for backward compatibility.
 	compatSymlinks android.InstallPaths
 
@@ -1923,6 +1926,7 @@ func (a *apexBundle) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 
 		a.filesInfo = append(a.filesInfo, fileInfo)
 	}
+	a.apexKeysPath = writeApexKeys(ctx, a)
 }
 
 func (a *apexBundle) setCompression(ctx android.ModuleContext) {
