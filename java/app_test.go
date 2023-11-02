@@ -558,7 +558,6 @@ func TestResourceDirs(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			result := android.GroupFixturePreparers(
 				PrepareForTestWithJavaDefaultModules,
-				PrepareForTestWithOverlayBuildComponents,
 				fs.AddToFixture(),
 			).RunTestWithBp(t, fmt.Sprintf(bp, testCase.prop))
 
@@ -1283,7 +1282,6 @@ func TestAndroidResourceProcessor(t *testing.T) {
 
 			result := android.GroupFixturePreparers(
 				PrepareForTestWithJavaDefaultModules,
-				PrepareForTestWithOverlayBuildComponents,
 				fs.AddToFixture(),
 			).RunTestWithBp(t, bp)
 
@@ -1566,7 +1564,6 @@ func TestAndroidResourceOverlays(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			result := android.GroupFixturePreparers(
 				PrepareForTestWithJavaDefaultModules,
-				PrepareForTestWithOverlayBuildComponents,
 				fs.AddToFixture(),
 				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 					variables.DeviceResourceOverlays = deviceResourceOverlays
