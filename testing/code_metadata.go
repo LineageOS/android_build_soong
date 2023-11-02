@@ -128,7 +128,7 @@ func (module *CodeMetadataModule) GenerateAndroidBuildActions(ctx android.Module
 	intermediatePath := android.PathForModuleOut(
 		ctx, "intermediateCodeMetadata.pb",
 	)
-	android.WriteFileRule(ctx, intermediatePath, string(protoData))
+	android.WriteFileRuleVerbatim(ctx, intermediatePath, string(protoData))
 
 	android.SetProvider(ctx,
 		CodeMetadataProviderKey,
