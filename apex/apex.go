@@ -2386,10 +2386,6 @@ func (a *apexBundle) shouldCheckDuplicate(ctx android.ModuleContext) bool {
 	if a.properties.IsCoverageVariant {
 		return false
 	}
-	// TODO(b/263308515) remove this
-	if a.testApex {
-		return false
-	}
 	if ctx.DeviceConfig().DeviceArch() == "" {
 		return false
 	}
