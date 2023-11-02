@@ -104,6 +104,9 @@ type filesystemProperties struct {
 	// When set, passed to mkuserimg_mke2fs --mke2fs_uuid & --mke2fs_hash_seed.
 	// Otherwise, they'll be set as random which might cause indeterministic build output.
 	Uuid *string
+
+	// Mount point for this image. Default is "/"
+	Mount_point *string
 }
 
 // android_filesystem packages a set of modules and their transitive dependencies into a filesystem
@@ -332,7 +335,7 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (propFile android.
 	}
 
 	addStr("fs_type", fsTypeStr(f.fsType(ctx)))
-	addStr("mount_point", "/")
+	addStr("mount_point", proptools.StringDefault(f.properties.Mount_point, "/"))
 	addStr("use_dynamic_partition_size", "true")
 	addPath("ext_mkuserimg", ctx.Config().HostToolPath(ctx, "mkuserimg_mke2fs"))
 	// b/177813163 deps of the host tools have to be added. Remove this.
