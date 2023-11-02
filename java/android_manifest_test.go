@@ -78,10 +78,7 @@ func TestManifestMerger(t *testing.T) {
 		}
 	`
 
-	result := android.GroupFixturePreparers(
-		PrepareForTestWithJavaDefaultModules,
-		PrepareForTestWithOverlayBuildComponents,
-	).RunTestWithBp(t, bp)
+	result := PrepareForTestWithJavaDefaultModules.RunTestWithBp(t, bp)
 
 	manifestMergerRule := result.ModuleForTests("app", "android_common").Rule("manifestMerger")
 	android.AssertPathRelativeToTopEquals(t, "main manifest",
@@ -129,10 +126,7 @@ func TestManifestValuesApplicationIdSetsPackageName(t *testing.T) {
 
 	`
 
-	result := android.GroupFixturePreparers(
-		PrepareForTestWithJavaDefaultModules,
-		PrepareForTestWithOverlayBuildComponents,
-	).RunTestWithBp(t, bp)
+	result := PrepareForTestWithJavaDefaultModules.RunTestWithBp(t, bp)
 
 	manifestMergerRule := result.ModuleForTests("test", "android_common").Rule("manifestMerger")
 	android.AssertStringMatches(t,
