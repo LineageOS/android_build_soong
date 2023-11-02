@@ -37,6 +37,22 @@ var commonValidatePathTestCases = []strsTestCase{
 		out: "",
 	},
 	{
+		in:  []string{"", ""},
+		out: "",
+	},
+	{
+		in:  []string{"a", ""},
+		out: "a",
+	},
+	{
+		in:  []string{"", "a"},
+		out: "a",
+	},
+	{
+		in:  []string{"", "a", ""},
+		out: "a",
+	},
+	{
 		in:  []string{"a/b"},
 		out: "a/b",
 	},
