@@ -1194,3 +1194,58 @@ java_sdk_library_import {
 			expectedSnapshot, expectedCopyRules, expectedStubFlagsInputs, "")
 	})
 }
+
+func TestSnapshotWithEmptyBootClasspathFragment(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForSdkTestWithJava,
+		java.PrepareForTestWithJavaDefaultModules,
+		java.PrepareForTestWithJavaSdkLibraryFiles,
+		java.FixtureWithLastReleaseApis("mysdklibrary", "mynewsdklibrary"),
+		java.FixtureConfigureApexBootJars("myapex:mysdklibrary", "myapex:mynewsdklibrary"),
+		prepareForSdkTestWithApex,
+		// Add a platform_bootclasspath that depends on the fragment.
+		fixtureAddPlatformBootclasspathForBootclasspathFragment("myapex", "mybootclasspathfragment"),
+		android.FixtureMergeEnv(map[string]string{
+			"SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE": "S",
+		}),
+		android.FixtureWithRootAndroidBp(`
+			sdk {
+				name: "mysdk",
+				apexes: ["myapex"],
+			}
+			apex {
+				name: "myapex",
+				key: "myapex.key",
+				min_sdk_version: "S",
+				bootclasspath_fragments: ["mybootclasspathfragment"],
+			}
+			bootclasspath_fragment {
+				name: "mybootclasspathfragment",
+				apex_available: ["myapex"],
+				contents: ["mysdklibrary", "mynewsdklibrary"],
+				hidden_api: {
+					split_packages: [],
+				},
+			}
+			java_sdk_library {
+				name: "mysdklibrary",
+				apex_available: ["myapex"],
+				srcs: ["Test.java"],
+				shared_library: false,
+				public: {enabled: true},
+				min_sdk_version: "Tiramisu",
+			}
+			java_sdk_library {
+				name: "mynewsdklibrary",
+				apex_available: ["myapex"],
+				srcs: ["Test.java"],
+				compile_dex: true,
+				public: {enabled: true},
+				min_sdk_version: "Tiramisu",
+				permitted_packages: ["mynewsdklibrary"],
+			}
+		`),
+	).RunTest(t)
+
+	CheckSnapshot(t, result, "mysdk", "", checkAndroidBpContents(`// This is auto-generated. DO NOT EDIT.`))
+}

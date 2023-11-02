@@ -311,13 +311,15 @@ func (t identityTransformation) transformProperty(_ string, value interface{}, t
 }
 
 func (m *bpModule) deepCopy() *bpModule {
-	return m.transform(deepCopyTransformer)
+	return transformModule(m, deepCopyTransformer)
 }
 
-func (m *bpModule) transform(transformer bpTransformer) *bpModule {
+func transformModule(m *bpModule, transformer bpTransformer) *bpModule {
 	transformedModule := transformer.transformModule(m)
-	// Copy the contents of the returned property set into the module and then transform that.
-	transformedModule.bpPropertySet, _ = transformPropertySet(transformer, "", transformedModule.bpPropertySet, nil)
+	if transformedModule != nil {
+		// Copy the contents of the returned property set into the module and then transform that.
+		transformedModule.bpPropertySet, _ = transformPropertySet(transformer, "", transformedModule.bpPropertySet, nil)
+	}
 	return transformedModule
 }
 
