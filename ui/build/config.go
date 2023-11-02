@@ -120,9 +120,6 @@ type configImpl struct {
 	includeTags    []string
 	sourceRootDirs []string
 
-	productReleaseConfigMaps       string
-	productReleaseConfigMapsLoaded bool
-
 	// Data source to write ninja weight list
 	ninjaWeightListSource NinjaWeightListSource
 }
@@ -928,9 +925,6 @@ func (c *configImpl) configureLocale(ctx Context) {
 }
 
 func (c *configImpl) Environment() *Environment {
-	if c.productReleaseConfigMapsLoaded {
-		c.environ.Set("PRODUCT_RELEASE_CONFIG_MAPS", c.productReleaseConfigMaps)
-	}
 	return c.environ
 }
 
