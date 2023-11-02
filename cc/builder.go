@@ -534,7 +534,7 @@ func transformSourceToObj(ctx ModuleContext, subdir string, srcFiles, noTidySrcs
 		toolingCppflags += " ${config.NoOverride64GlobalCflags}"
 	}
 
-	modulePath := android.PathForModuleSrc(ctx).String()
+	modulePath := ctx.ModuleDir()
 	if android.IsThirdPartyPath(modulePath) {
 		cflags += " ${config.NoOverrideExternalGlobalCflags}"
 		toolingCflags += " ${config.NoOverrideExternalGlobalCflags}"
