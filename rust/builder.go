@@ -288,7 +288,7 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	}
 
 	// Disallow experimental features
-	modulePath := android.PathForModuleSrc(ctx).String()
+	modulePath := ctx.ModuleDir()
 	if !(android.IsThirdPartyPath(modulePath) || strings.HasPrefix(modulePath, "prebuilts")) {
 		rustcFlags = append(rustcFlags, "-Zallow-features=\"\"")
 	}
@@ -436,7 +436,7 @@ func Rustdoc(ctx ModuleContext, main android.Path, deps PathDeps,
 	docTimestampFile := android.PathForModuleOut(ctx, "rustdoc.timestamp")
 
 	// Silence warnings about renamed lints for third-party crates
-	modulePath := android.PathForModuleSrc(ctx).String()
+	modulePath := ctx.ModuleDir()
 	if android.IsThirdPartyPath(modulePath) {
 		rustdocFlags = append(rustdocFlags, " -A warnings")
 	}
