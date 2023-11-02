@@ -135,6 +135,11 @@ type apexBundleProperties struct {
 	// List of filesystem images that are embedded inside this APEX bundle.
 	Filesystems []string
 
+	// List of module names which we don't want to add as transitive deps. This can be used as
+	// a workaround when the current implementation collects more than necessary. For example,
+	// Rust binaries with prefer_rlib:true add unnecessary dependencies.
+	Unwanted_transitive_deps []string
+
 	// The minimum SDK version that this APEX must support at minimum. This is usually set to
 	// the SDK version that the APEX was first introduced.
 	Min_sdk_version *string
@@ -2003,11 +2008,21 @@ type visitorContext struct {
 
 	// if true, raise error on duplicate apexFile
 	checkDuplicate bool
+
+	// visitor skips these from this list of module names
+	unwantedTransitiveDeps []string
 }
 
 func (vctx *visitorContext) normalizeFileInfo(mctx android.ModuleContext) {
 	encountered := make(map[string]apexFile)
 	for _, f := range vctx.filesInfo {
+		// Skips unwanted transitive deps. This happens, for example, with Rust binaries with prefer_rlib:true.
+		// TODO(b/295593640)
+		// Needs additional verification for the resulting APEX to ensure that skipped artifacts don't make problems.
+		// For example, DT_NEEDED modules should be found within the APEX unless they are marked in `requiredNativeLibs`.
+		if f.transitiveDep && f.module != nil && android.InList(mctx.OtherModuleName(f.module), vctx.unwantedTransitiveDeps) {
+			continue
+		}
 		dest := filepath.Join(f.installDir, f.builtFile.Base())
 		if e, ok := encountered[dest]; !ok {
 			encountered[dest] = f
@@ -2371,10 +2386,6 @@ func (a *apexBundle) shouldCheckDuplicate(ctx android.ModuleContext) bool {
 	if a.properties.IsCoverageVariant {
 		return false
 	}
-	// TODO(b/263308515) remove this
-	if a.testApex {
-		return false
-	}
 	if ctx.DeviceConfig().DeviceArch() == "" {
 		return false
 	}
@@ -2401,8 +2412,9 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// TODO(jiyong): do this using WalkPayloadDeps
 	// TODO(jiyong): make this clean!!!
 	vctx := visitorContext{
-		handleSpecialLibs: !android.Bool(a.properties.Ignore_system_library_special_case),
-		checkDuplicate:    a.shouldCheckDuplicate(ctx),
+		handleSpecialLibs:      !android.Bool(a.properties.Ignore_system_library_special_case),
+		checkDuplicate:         a.shouldCheckDuplicate(ctx),
+		unwantedTransitiveDeps: a.properties.Unwanted_transitive_deps,
 	}
 	ctx.WalkDepsBlueprint(func(child, parent blueprint.Module) bool { return a.depVisitor(&vctx, ctx, child, parent) })
 	vctx.normalizeFileInfo(ctx)
