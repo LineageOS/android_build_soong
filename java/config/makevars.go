@@ -34,8 +34,6 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 
 	ctx.Strict("ANDROID_JAVA_HOME", "${JavaHome}")
 	ctx.Strict("ANDROID_JAVA8_HOME", "prebuilts/jdk/jdk8/${hostPrebuiltTag}")
-	ctx.Strict("ANDROID_JAVA9_HOME", "prebuilts/jdk/jdk9/${hostPrebuiltTag}")
-	ctx.Strict("ANDROID_JAVA11_HOME", "prebuilts/jdk/jdk11/${hostPrebuiltTag}")
 	ctx.Strict("ANDROID_JAVA_TOOLCHAIN", "${JavaToolchain}")
 	ctx.Strict("JAVA", "${JavaCmd} ${JavaVmFlags}")
 	ctx.Strict("JAVAC", "${JavacCmd} ${JavacVmFlags}")
