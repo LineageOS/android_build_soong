@@ -385,13 +385,53 @@ func TestProguardFlagsInheritanceStatic(t *testing.T) {
 func TestProguardFlagsInheritance(t *testing.T) {
 	directDepFlagsFileName := "direct_dep.flags"
 	transitiveDepFlagsFileName := "transitive_dep.flags"
-	bp := `
-		android_app {
-			name: "app",
-			static_libs: ["androidlib"], // this must be static_libs to initate dexing
-			platform_apis: true,
-		}
 
+	topLevelModules := []struct {
+		name       string
+		definition string
+	}{
+		{
+			name: "android_app",
+			definition: `
+				android_app {
+					name: "app",
+					static_libs: ["androidlib"], // this must be static_libs to initate dexing
+					platform_apis: true,
+				}
+			`,
+		},
+		{
+			name: "android_library",
+			definition: `
+				android_library {
+					name: "app",
+					static_libs: ["androidlib"], // this must be static_libs to initate dexing
+					installable: true,
+					optimize: {
+						enabled: true,
+						shrink: true,
+					},
+				}
+			`,
+		},
+		{
+			name: "java_library",
+			definition: `
+				java_library {
+					name: "app",
+					static_libs: ["androidlib"], // this must be static_libs to initate dexing
+					srcs: ["Foo.java"],
+					installable: true,
+					optimize: {
+						enabled: true,
+						shrink: true,
+					},
+				}
+			`,
+		},
+	}
+
+	bp := `
 		android_library {
 			name: "androidlib",
 			static_libs: ["app_dep"],
@@ -558,43 +598,46 @@ func TestProguardFlagsInheritance(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testcases {
-		t.Run(tc.name, func(t *testing.T) {
-			result := android.GroupFixturePreparers(
-				PrepareForTestWithJavaDefaultModules,
-				android.FixtureMergeMockFs(android.MockFS{
-					directDepFlagsFileName:     nil,
-					transitiveDepFlagsFileName: nil,
-				}),
-			).RunTestWithBp(t,
-				fmt.Sprintf(
-					bp,
-					tc.depType,
-					tc.transitiveDepType,
-					tc.depExportsFlagsFiles,
-					tc.transitiveDepExportsFlagsFiles,
-				),
-			)
-			appR8 := result.ModuleForTests("app", "android_common").Rule("r8")
+	for _, topLevelModuleDef := range topLevelModules {
+		for _, tc := range testcases {
+			t.Run(topLevelModuleDef.name+"-"+tc.name, func(t *testing.T) {
+				result := android.GroupFixturePreparers(
+					PrepareForTestWithJavaDefaultModules,
+					android.FixtureMergeMockFs(android.MockFS{
+						directDepFlagsFileName:     nil,
+						transitiveDepFlagsFileName: nil,
+					}),
+				).RunTestWithBp(t,
+					topLevelModuleDef.definition+
+						fmt.Sprintf(
+							bp,
+							tc.depType,
+							tc.transitiveDepType,
+							tc.depExportsFlagsFiles,
+							tc.transitiveDepExportsFlagsFiles,
+						),
+				)
+				appR8 := result.ModuleForTests("app", "android_common").Rule("r8")
 
-			shouldHaveDepFlags := android.InList(directDepFlagsFileName, tc.expectedFlagsFiles)
-			if shouldHaveDepFlags {
-				android.AssertStringDoesContain(t, "expected deps's proguard flags",
-					appR8.Args["r8Flags"], directDepFlagsFileName)
-			} else {
-				android.AssertStringDoesNotContain(t, "app did not expect deps's proguard flags",
-					appR8.Args["r8Flags"], directDepFlagsFileName)
-			}
+				shouldHaveDepFlags := android.InList(directDepFlagsFileName, tc.expectedFlagsFiles)
+				if shouldHaveDepFlags {
+					android.AssertStringDoesContain(t, "expected deps's proguard flags",
+						appR8.Args["r8Flags"], directDepFlagsFileName)
+				} else {
+					android.AssertStringDoesNotContain(t, "app did not expect deps's proguard flags",
+						appR8.Args["r8Flags"], directDepFlagsFileName)
+				}
 
-			shouldHaveTransitiveDepFlags := android.InList(transitiveDepFlagsFileName, tc.expectedFlagsFiles)
-			if shouldHaveTransitiveDepFlags {
-				android.AssertStringDoesContain(t, "expected transitive deps's proguard flags",
-					appR8.Args["r8Flags"], transitiveDepFlagsFileName)
-			} else {
-				android.AssertStringDoesNotContain(t, "app did not expect transitive deps's proguard flags",
-					appR8.Args["r8Flags"], transitiveDepFlagsFileName)
-			}
-		})
+				shouldHaveTransitiveDepFlags := android.InList(transitiveDepFlagsFileName, tc.expectedFlagsFiles)
+				if shouldHaveTransitiveDepFlags {
+					android.AssertStringDoesContain(t, "expected transitive deps's proguard flags",
+						appR8.Args["r8Flags"], transitiveDepFlagsFileName)
+				} else {
+					android.AssertStringDoesNotContain(t, "app did not expect transitive deps's proguard flags",
+						appR8.Args["r8Flags"], transitiveDepFlagsFileName)
+				}
+			})
+		}
 	}
 }
 
@@ -604,11 +647,6 @@ func TestProguardFlagsInheritanceAppImport(t *testing.T) {
 			name: "app",
 			static_libs: ["aarimport"], // this must be static_libs to initate dexing
 			platform_apis: true,
-		}
-
-		android_library {
-			name: "androidlib",
-			static_libs: ["aarimport"],
 		}
 
 		android_library_import {

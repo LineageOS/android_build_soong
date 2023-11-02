@@ -697,6 +697,11 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	j.stem = proptools.StringDefault(j.overridableDeviceProperties.Stem, ctx.ModuleName())
 
+	proguardSpecInfo := j.collectProguardSpecInfo(ctx)
+	ctx.SetProvider(ProguardSpecInfoProvider, proguardSpecInfo)
+	j.exportedProguardFlagFiles = proguardSpecInfo.ProguardFlagsFiles.ToList()
+	j.extraProguardFlagFiles = append(j.extraProguardFlagFiles, j.exportedProguardFlagFiles...)
+
 	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 	if !apexInfo.IsForPlatform() {
 		j.hideApexVariantFromMake = true
@@ -741,10 +746,6 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 		j.installFile = ctx.InstallFile(installDir, j.Stem()+".jar", j.outputFile, extraInstallDeps...)
 	}
-
-	proguardSpecInfo := j.collectProguardSpecInfo(ctx)
-	ctx.SetProvider(ProguardSpecInfoProvider, proguardSpecInfo)
-	j.exportedProguardFlagFiles = proguardSpecInfo.ProguardFlagsFiles.ToList()
 }
 
 func (j *Library) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -1612,6 +1613,7 @@ func BinaryHostFactory() android.Module {
 type JavaApiContribution struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
+	embeddableInModuleAndImport
 
 	properties struct {
 		// name of the API surface
@@ -1627,6 +1629,7 @@ func ApiContributionFactory() android.Module {
 	android.InitAndroidModule(module)
 	android.InitDefaultableModule(module)
 	module.AddProperties(&module.properties)
+	module.initModuleAndImport(module)
 	return module
 }
 
@@ -1655,6 +1658,7 @@ type ApiLibrary struct {
 
 	hiddenAPI
 	dexer
+	embeddableInModuleAndImport
 
 	properties JavaApiLibraryProperties
 
@@ -1713,6 +1717,7 @@ func ApiLibraryFactory() android.Module {
 	module := &ApiLibrary{}
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	module.AddProperties(&module.properties)
+	module.initModuleAndImport(module)
 	android.InitDefaultableModule(module)
 	return module
 }
@@ -3512,6 +3517,7 @@ func ApiContributionImportFactory() android.Module {
 	android.InitDefaultableModule(module)
 	android.InitPrebuiltModule(module, &[]string{""})
 	module.AddProperties(&module.properties)
+	module.AddProperties(&module.sdkLibraryComponentProperties)
 	return module
 }
 

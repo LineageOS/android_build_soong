@@ -948,6 +948,8 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 
 	// installed-files.txt is dist'ed
 	a.installedFilesFile = a.buildInstalledFilesFile(ctx, a.outputFile, imageDir)
+
+	a.apexKeysPath = writeApexKeys(ctx, a)
 }
 
 // getCertificateAndPrivateKey retrieves the cert and the private key that will be used to sign

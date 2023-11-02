@@ -260,6 +260,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_SOONG_INSTALL_PAIRS :=", a.outputFile.String()+":"+a.installedFile.String())
 				fmt.Fprintln(w, "LOCAL_SOONG_INSTALL_SYMLINKS := ", strings.Join(a.compatSymlinks.Strings(), " "))
 			}
+			fmt.Fprintln(w, "LOCAL_APEX_KEY_PATH := ", a.apexKeysPath.String())
 
 			// Because apex writes .mk with Custom(), we need to write manually some common properties
 			// which are available via data.Entries
