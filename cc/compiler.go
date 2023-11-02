@@ -339,7 +339,7 @@ func parseCStd(cStdPtr *string) string {
 // per-target values, module type values, and per-module Blueprints properties
 func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps PathDeps) Flags {
 	tc := ctx.toolchain()
-	modulePath := android.PathForModuleSrc(ctx).String()
+	modulePath := ctx.ModuleDir()
 
 	compiler.srcsBeforeGen = android.PathsForModuleSrcExcludes(ctx, compiler.Properties.Srcs, compiler.Properties.Exclude_srcs)
 	compiler.srcsBeforeGen = append(compiler.srcsBeforeGen, deps.GeneratedSources...)
