@@ -207,6 +207,26 @@ java_library {
     ],
 }
 
+java_api_library {
+    name: "core.module_lib.stubs.from-text",
+    api_surface: "module-lib",
+    api_contributions: [
+        "art.module.public.api.stubs.source.api.contribution",
+        "art.module.public.api.stubs.source.system.api.contribution",
+        "art.module.public.api.stubs.source.module_lib.api.contribution",
+
+        // Add the module-lib correspondence when Conscrypt or i18N module
+        // provides @SystemApi(MODULE_LIBRARIES). Currently, assume that only ART module provides
+        // @SystemApi(MODULE_LIBRARIES).
+        "conscrypt.module.public.api.stubs.source.api.contribution",
+        "i18n.module.public.api.stubs.source.api.contribution",
+    ],
+    libs: [
+        "stub-annotations",
+    ],
+    visibility: ["//visibility:private"],
+}
+
 // Produces a dist file that is used by the
 // prebuilts/sdk/update_prebuilts.py script to update the prebuilts/sdk
 // directory.
@@ -504,7 +524,3 @@ java_system_modules {
         "art-module-intra-core-api-stubs-system-modules-lib",
     ],
 }
-
-build = [
-    "TxtStubLibraries.bp",
-]
