@@ -775,6 +775,11 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			`         m %s-update-current-api\n\n`+
 			`      To submit the revised current.txt to the main Android repository,\n`+
 			`      you will need approval.\n`+
+			`If your build failed due to stub validation, you can resolve the errors with\n`+
+			`either of the two choices above and try re-building the target.\n`+
+			`If the mismatch between the stubs and the current.txt is intended,\n`+
+			`you can try re-building the target by executing the following command:\n`+
+			`m DISABLE_STUB_VALIDATION=true <your build target>\n`+
 			`******************************\n`, ctx.ModuleName())
 
 		rule.Command().
