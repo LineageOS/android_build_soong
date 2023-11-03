@@ -303,7 +303,7 @@ func (j *Javadoc) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Op
 	}
 
 	flags = append(flags, android.JoinWithPrefix(aidlIncludes.Strings(), "-I"))
-	flags = append(flags, "-I"+android.PathForModuleSrc(ctx).String())
+	flags = append(flags, "-I"+ctx.ModuleDir())
 	if src := android.ExistentPathForSource(ctx, ctx.ModuleDir(), "src"); src.Valid() {
 		flags = append(flags, "-I"+src.String())
 	}

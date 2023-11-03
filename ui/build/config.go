@@ -120,9 +120,6 @@ type configImpl struct {
 	includeTags    []string
 	sourceRootDirs []string
 
-	productReleaseConfigMaps       string
-	productReleaseConfigMapsLoaded bool
-
 	// Data source to write ninja weight list
 	ninjaWeightListSource NinjaWeightListSource
 }
@@ -385,8 +382,6 @@ func NewConfig(ctx Context, args ...string) Config {
 
 	// Configure Java-related variables, including adding it to $PATH
 	java8Home := filepath.Join("prebuilts/jdk/jdk8", ret.HostPrebuiltTag())
-	java9Home := filepath.Join("prebuilts/jdk/jdk9", ret.HostPrebuiltTag())
-	java11Home := filepath.Join("prebuilts/jdk/jdk11", ret.HostPrebuiltTag())
 	java17Home := filepath.Join("prebuilts/jdk/jdk17", ret.HostPrebuiltTag())
 	javaHome := func() string {
 		if override, ok := ret.environ.Get("OVERRIDE_ANDROID_JAVA_HOME"); ok {
@@ -413,8 +408,6 @@ func NewConfig(ctx Context, args ...string) Config {
 	ret.environ.Set("JAVA_HOME", absJavaHome)
 	ret.environ.Set("ANDROID_JAVA_HOME", javaHome)
 	ret.environ.Set("ANDROID_JAVA8_HOME", java8Home)
-	ret.environ.Set("ANDROID_JAVA9_HOME", java9Home)
-	ret.environ.Set("ANDROID_JAVA11_HOME", java11Home)
 	ret.environ.Set("PATH", strings.Join(newPath, string(filepath.ListSeparator)))
 
 	// b/286885495, https://bugzilla.redhat.com/show_bug.cgi?id=2227130: some versions of Fedora include patches
@@ -928,9 +921,6 @@ func (c *configImpl) configureLocale(ctx Context) {
 }
 
 func (c *configImpl) Environment() *Environment {
-	if c.productReleaseConfigMapsLoaded {
-		c.environ.Set("PRODUCT_RELEASE_CONFIG_MAPS", c.productReleaseConfigMaps)
-	}
 	return c.environ
 }
 

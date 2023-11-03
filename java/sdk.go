@@ -17,8 +17,6 @@ package java
 import (
 	"fmt"
 	"path/filepath"
-	"sort"
-	"strconv"
 
 	"android/soong/android"
 	"android/soong/java/config"
@@ -27,12 +25,10 @@ import (
 )
 
 func init() {
-	android.RegisterPreSingletonType("sdk_versions", sdkPreSingletonFactory)
 	android.RegisterParallelSingletonType("sdk", sdkSingletonFactory)
 	android.RegisterMakeVarsProvider(pctx, sdkMakeVars)
 }
 
-var sdkVersionsKey = android.NewOnceKey("sdkVersionsKey")
 var sdkFrameworkAidlPathKey = android.NewOnceKey("sdkFrameworkAidlPathKey")
 var nonUpdatableFrameworkAidlPathKey = android.NewOnceKey("nonUpdatableFrameworkAidlPathKey")
 var apiFingerprintPathKey = android.NewOnceKey("apiFingerprintPathKey")
@@ -211,44 +207,6 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext)
 	default:
 		panic(fmt.Errorf("invalid sdk %q", sdkVersion.Raw))
 	}
-}
-
-func sdkPreSingletonFactory() android.Singleton {
-	return sdkPreSingleton{}
-}
-
-type sdkPreSingleton struct{}
-
-func (sdkPreSingleton) GenerateBuildActions(ctx android.SingletonContext) {
-	sdkJars, err := ctx.GlobWithDeps("prebuilts/sdk/*/public/android.jar", nil)
-	if err != nil {
-		ctx.Errorf("failed to glob prebuilts/sdk/*/public/android.jar: %s", err.Error())
-	}
-
-	var sdkVersions []int
-	for _, sdkJar := range sdkJars {
-		dir := filepath.Base(filepath.Dir(filepath.Dir(sdkJar)))
-		v, err := strconv.Atoi(dir)
-		if scerr, ok := err.(*strconv.NumError); ok && scerr.Err == strconv.ErrSyntax {
-			continue
-		} else if err != nil {
-			ctx.Errorf("invalid sdk jar %q, %s, %v", sdkJar, err.Error())
-		}
-		sdkVersions = append(sdkVersions, v)
-	}
-
-	sort.Ints(sdkVersions)
-
-	ctx.Config().Once(sdkVersionsKey, func() interface{} { return sdkVersions })
-}
-
-func LatestSdkVersionInt(ctx android.EarlyModuleContext) int {
-	sdkVersions := ctx.Config().Get(sdkVersionsKey).([]int)
-	latestSdkVersion := 0
-	if len(sdkVersions) > 0 {
-		latestSdkVersion = sdkVersions[len(sdkVersions)-1]
-	}
-	return latestSdkVersion
 }
 
 func sdkSingletonFactory() android.Singleton {

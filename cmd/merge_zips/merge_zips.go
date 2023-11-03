@@ -96,7 +96,9 @@ func (ze ZipEntryFromZip) WriteToZip(dest string, zw *zip.Writer) error {
 	if err := ze.inputZip.Open(); err != nil {
 		return err
 	}
-	return zw.CopyFrom(ze.inputZip.Entries()[ze.index], dest)
+	entry := ze.inputZip.Entries()[ze.index]
+	entry.SetModTime(jar.DefaultTime)
+	return zw.CopyFrom(entry, dest)
 }
 
 // a ZipEntryFromBuffer is a ZipEntryContents that pulls its content from a []byte

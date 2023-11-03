@@ -118,8 +118,6 @@ var PrepareForTestWithDexpreoptWithoutFakeDex2oatd = android.GroupFixturePrepare
 	dexpreopt.PrepareForTestByEnablingDexpreopt,
 )
 
-var PrepareForTestWithOverlayBuildComponents = android.FixtureRegisterWithContext(registerOverlayBuildComponents)
-
 // Prepare a fixture to use all java module types, mutators and singletons fully.
 //
 // This should only be used by tests that want to run with as much of the build enabled as possible.

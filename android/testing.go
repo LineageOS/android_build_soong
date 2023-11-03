@@ -186,12 +186,12 @@ type TestContext struct {
 	bp2buildPreArch, bp2buildMutators     []RegisterMutatorFunc
 	NameResolver                          *NameResolver
 
-	// The list of pre-singletons and singletons registered for the test.
-	preSingletons, singletons sortableComponents
+	// The list of singletons registered for the test.
+	singletons sortableComponents
 
-	// The order in which the pre-singletons, mutators and singletons will be run in this test
+	// The order in which the mutators and singletons will be run in this test
 	// context; for debugging.
-	preSingletonOrder, mutatorOrder, singletonOrder []string
+	mutatorOrder, singletonOrder []string
 }
 
 func (ctx *TestContext) PreArchMutators(f RegisterMutatorFunc) {
@@ -397,9 +397,6 @@ type registrationSorter struct {
 	// Used to ensure that this is only created once.
 	once sync.Once
 
-	// The order of pre-singletons
-	preSingletonOrder registeredComponentOrder
-
 	// The order of mutators
 	mutatorOrder registeredComponentOrder
 
@@ -412,9 +409,6 @@ type registrationSorter struct {
 // Only the first call has any effect.
 func (s *registrationSorter) populate() {
 	s.once.Do(func() {
-		// Create an ordering from the globally registered pre-singletons.
-		s.preSingletonOrder = registeredComponentOrderFromExistingOrder("pre-singleton", preSingletons)
-
 		// Created an ordering from the globally registered mutators.
 		globallyRegisteredMutators := collateGloballyRegisteredMutators()
 		s.mutatorOrder = registeredComponentOrderFromExistingOrder("mutator", globallyRegisteredMutators)
@@ -441,11 +435,6 @@ func globallyRegisteredComponentsOrder() *registrationSorter {
 func (ctx *TestContext) Register() {
 	globalOrder := globallyRegisteredComponentsOrder()
 
-	// Ensure that the pre-singletons used in the test are in the same order as they are used at
-	// runtime.
-	globalOrder.preSingletonOrder.enforceOrdering(ctx.preSingletons)
-	ctx.preSingletons.registerAll(ctx.Context)
-
 	mutators := collateRegisteredMutators(ctx.preArch, ctx.preDeps, ctx.postDeps, ctx.finalDeps)
 	// Ensure that the mutators used in the test are in the same order as they are used at runtime.
 	globalOrder.mutatorOrder.enforceOrdering(mutators)
@@ -456,7 +445,6 @@ func (ctx *TestContext) Register() {
 	ctx.singletons.registerAll(ctx.Context)
 
 	// Save the sorted components order away to make them easy to access while debugging.
-	ctx.preSingletonOrder = componentsToNames(preSingletons)
 	ctx.mutatorOrder = componentsToNames(mutators)
 	ctx.singletonOrder = componentsToNames(singletons)
 }
@@ -501,10 +489,6 @@ func (ctx *TestContext) RegisterSingletonType(name string, factory SingletonFact
 
 func (ctx *TestContext) RegisterParallelSingletonType(name string, factory SingletonFactory) {
 	ctx.singletons = append(ctx.singletons, newSingleton(name, factory, true))
-}
-
-func (ctx *TestContext) RegisterPreSingletonType(name string, factory SingletonFactory) {
-	ctx.preSingletons = append(ctx.preSingletons, newPreSingleton(name, factory))
 }
 
 // ModuleVariantForTests selects a specific variant of the module with the given
