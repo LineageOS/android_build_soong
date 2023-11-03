@@ -632,21 +632,6 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 	return output
 }
 
-// retrieveLegacyEncodedBootDexFiles attempts to retrieve the legacy encoded boot dex jar files.
-func retrieveLegacyEncodedBootDexFiles(ctx android.ModuleContext, contents []android.Module) bootDexJarByModule {
-	// If the current bootclasspath_fragment is the active module or a source module then retrieve the
-	// encoded dex files, otherwise return an empty map.
-	//
-	// An inactive (i.e. not preferred) bootclasspath_fragment needs to retrieve the encoded dex jars
-	// as they are still needed by an apex. An inactive prebuilt_bootclasspath_fragment does not need
-	// to do so and may not yet have access to dex boot jars from a prebuilt_apex/apex_set.
-	if isActiveModule(ctx.Module()) || !android.IsModulePrebuilt(ctx.Module()) {
-		return extractEncodedDexJarsFromModules(ctx, contents)
-	} else {
-		return nil
-	}
-}
-
 // createHiddenAPIFlagInput creates a HiddenAPIFlagInput struct and initializes it with information derived
 // from the properties on this module and its dependencies.
 func (b *BootclasspathFragmentModule) createHiddenAPIFlagInput(ctx android.ModuleContext, contents []android.Module, fragments []android.Module) HiddenAPIFlagInput {
