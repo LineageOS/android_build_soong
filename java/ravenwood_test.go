@@ -15,6 +15,7 @@
 package java
 
 import (
+	"runtime"
 	"testing"
 
 	"android/soong/android"
@@ -56,6 +57,10 @@ var prepareRavenwoodRuntime = android.GroupFixturePreparers(
 var installPathPrefix = "out/soong/host/linux-x86/testcases"
 
 func TestRavenwoodRuntime(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("requires linux")
+	}
+
 	ctx := android.GroupFixturePreparers(
 		PrepareForIntegrationTestWithJava,
 		prepareRavenwoodRuntime,
@@ -75,6 +80,10 @@ func TestRavenwoodRuntime(t *testing.T) {
 }
 
 func TestRavenwoodTest(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("requires linux")
+	}
+
 	ctx := android.GroupFixturePreparers(
 		PrepareForIntegrationTestWithJava,
 		prepareRavenwoodRuntime,
