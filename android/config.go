@@ -167,8 +167,7 @@ func (c Config) RunningInsideUnitTest() bool {
 }
 
 // DisableHiddenApiChecks returns true if hiddenapi checks have been disabled.
-// For 'eng' target variant hiddenapi checks are disabled by default for performance optimisation
-// Hiddenapi checks are also disabled when RELEASE_DEFAULT_MODULE_BUILD_FROM_SOURCE is set to false
+// For 'eng' target variant hiddenapi checks are disabled by default for performance optimisation,
 // but can be enabled by setting environment variable ENABLE_HIDDENAPI_FLAGS=true.
 // For other target variants hiddenapi check are enabled by default but can be disabled by
 // setting environment variable UNSAFE_DISABLE_HIDDENAPI_FLAGS=true.
@@ -177,8 +176,16 @@ func (c Config) RunningInsideUnitTest() bool {
 func (c Config) DisableHiddenApiChecks() bool {
 	return !c.IsEnvTrue("ENABLE_HIDDENAPI_FLAGS") &&
 		(c.IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") ||
-			Bool(c.productVariables.Eng) ||
-			!c.ReleaseDefaultModuleBuildFromSource())
+			Bool(c.productVariables.Eng))
+}
+
+// DisableVerifyOverlaps returns true if verify_overlaps is skipped.
+// Mismatch in version of apexes and module SDK is required for mainline prebuilts to work in
+// trunk stable.
+// Thus, verify_overlaps is disabled when RELEASE_DEFAULT_MODULE_BUILD_FROM_SOURCE is set to false.
+// TODO(b/308174018): Re-enable verify_overlaps for both builr from source/mainline prebuilts.
+func (c Config) DisableVerifyOverlaps() bool {
+	return c.IsEnvTrue("DISABLE_VERIFY_OVERLAPS") || !c.ReleaseDefaultModuleBuildFromSource()
 }
 
 // MaxPageSizeSupported returns the max page size supported by the device. This
