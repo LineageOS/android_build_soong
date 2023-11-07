@@ -34,10 +34,10 @@ func (i InstallAlwaysNeededDependencyTag) InstallDepNeeded() bool {
 
 var _ InstallNeededDependencyTag = InstallAlwaysNeededDependencyTag{}
 
-// IsInstallDepNeeded returns true if the dependency tag implements the InstallNeededDependencyTag
+// IsInstallDepNeededTag returns true if the dependency tag implements the InstallNeededDependencyTag
 // interface and the InstallDepNeeded returns true, meaning that the installed files of the parent
 // should depend on the installed files of the child.
-func IsInstallDepNeeded(tag blueprint.DependencyTag) bool {
+func IsInstallDepNeededTag(tag blueprint.DependencyTag) bool {
 	if i, ok := tag.(InstallNeededDependencyTag); ok {
 		return i.InstallDepNeeded()
 	}
