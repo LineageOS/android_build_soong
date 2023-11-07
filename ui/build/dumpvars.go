@@ -191,6 +191,9 @@ func runMakeProductConfig(ctx Context, config Config) {
 		"TARGET_BUILD_APPS",
 		"TARGET_BUILD_UNBUNDLED",
 
+		// Additional release config maps
+		"PRODUCT_RELEASE_CONFIG_MAPS",
+
 		// compiler wrappers set up by make
 		"CC_WRAPPER",
 		"CXX_WRAPPER",
