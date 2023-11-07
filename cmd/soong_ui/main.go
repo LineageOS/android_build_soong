@@ -182,8 +182,12 @@ func main() {
 		CriticalPath: criticalPath,
 	}}
 
-	config := c.config(buildCtx, args...)
-	config.SetLogsPrefix(c.logsPrefix)
+	freshConfig := func() build.Config {
+		config := c.config(buildCtx, args...)
+		config.SetLogsPrefix(c.logsPrefix)
+		return config
+	}
+	config := freshConfig()
 	logsDir := config.LogsDir()
 	buildStarted = config.BuildStartedTimeOrDefault(buildStarted)
 
@@ -213,6 +217,15 @@ func main() {
 		log.Verbosef("  [%d] %s", i, arg)
 	}
 
+	// We need to call preProductConfigSetup before we can do product config, which is how we get
+	// PRODUCT_CONFIG_RELEASE_MAPS set for the final product config for the build.
+	// When product config uses a declarative language, we won't need to rerun product config.
+	preProductConfigSetup(buildCtx, config)
+	if build.SetProductReleaseConfigMaps(buildCtx, config) {
+		log.Verbose("Product release config maps found\n")
+		config = freshConfig()
+	}
+
 	defer func() {
 		stat.Finish()
 		criticalPath.WriteToMetrics(met)
@@ -225,7 +238,9 @@ func main() {
 
 }
 
-func logAndSymlinkSetup(buildCtx build.Context, config build.Config) {
+// This function must not modify config, since product config may cause us to recreate the config,
+// and we won't call this function a second time.
+func preProductConfigSetup(buildCtx build.Context, config build.Config) {
 	log := buildCtx.ContextImpl.Logger
 	logsPrefix := config.GetLogsPrefix()
 	build.SetupOutDir(buildCtx, config)
@@ -311,7 +326,6 @@ func removeBadTargetRename(ctx build.Context, config build.Config) {
 }
 
 func dumpVar(ctx build.Context, config build.Config, args []string) {
-	logAndSymlinkSetup(ctx, config)
 	flags := flag.NewFlagSet("dumpvar", flag.ExitOnError)
 	flags.SetOutput(ctx.Writer)
 
@@ -364,7 +378,6 @@ func dumpVar(ctx build.Context, config build.Config, args []string) {
 }
 
 func dumpVars(ctx build.Context, config build.Config, args []string) {
-	logAndSymlinkSetup(ctx, config)
 
 	flags := flag.NewFlagSet("dumpvars", flag.ExitOnError)
 	flags.SetOutput(ctx.Writer)
@@ -544,7 +557,6 @@ func buildActionConfig(ctx build.Context, args ...string) build.Config {
 }
 
 func runMake(ctx build.Context, config build.Config, _ []string) {
-	logAndSymlinkSetup(ctx, config)
 	logsDir := config.LogsDir()
 	if config.IsVerbose() {
 		writer := ctx.Writer
