@@ -618,6 +618,10 @@ type sdkLibraryProperties struct {
 	Api_lint struct {
 		// Enable api linting.
 		Enabled *bool
+
+		// If API lint is enabled, this flag controls whether a set of legitimate lint errors
+		// are turned off. The default is true.
+		Legacy_errors_allowed *bool
 	}
 
 	// TODO: determines whether to create HTML doc or not
@@ -1747,13 +1751,15 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 			android.JoinWithPrefix(module.sdkLibraryProperties.Hidden_api_packages, " --hide-package "))
 	}
 	droidstubsArgs = append(droidstubsArgs, module.sdkLibraryProperties.Droiddoc_options...)
-	disabledWarnings := []string{
-		"BroadcastBehavior",
-		"DeprecationMismatch",
-		"HiddenSuperclass",
-		"MissingPermission",
-		"SdkConstant",
-		"Todo",
+	disabledWarnings := []string{"HiddenSuperclass"}
+	if proptools.BoolDefault(module.sdkLibraryProperties.Api_lint.Legacy_errors_allowed, true) {
+		disabledWarnings = append(disabledWarnings,
+			"BroadcastBehavior",
+			"DeprecationMismatch",
+			"MissingPermission",
+			"SdkConstant",
+			"Todo",
+		)
 	}
 	droidstubsArgs = append(droidstubsArgs, android.JoinWithPrefix(disabledWarnings, "--hide "))
 
