@@ -1756,7 +1756,6 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 		disabledWarnings = append(disabledWarnings,
 			"BroadcastBehavior",
 			"DeprecationMismatch",
-			"HiddenSuperclass",
 			"MissingPermission",
 			"SdkConstant",
 			"Todo",
