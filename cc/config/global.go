@@ -174,9 +174,6 @@ var (
 		"-Werror=format-security",
 		"-nostdlibinc",
 
-		// Enable MLGO for register allocation.
-		"-mllvm -regalloc-enable-advisor=release",
-
 		// Emit additional debug info for AutoFDO
 		"-fdebug-info-for-profiling",
 	}
@@ -205,8 +202,6 @@ var (
 		"-Wl,--exclude-libs,libgcc_stripped.a",
 		"-Wl,--exclude-libs,libunwind_llvm.a",
 		"-Wl,--exclude-libs,libunwind.a",
-		// Enable MLGO for register allocation.
-		"-Wl,-mllvm,-regalloc-enable-advisor=release",
 	}
 
 	deviceGlobalLldflags = append(append(deviceGlobalLdflags, commonGlobalLldflags...),
