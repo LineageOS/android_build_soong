@@ -79,7 +79,7 @@ func init() {
 	pctx.VariableFunc("macSdkRoot", func(ctx android.PackageVarContext) string {
 		return getMacTools(ctx).sdkRoot
 	})
-	pctx.StaticVariable("macMinVersion", "10.13")
+	pctx.StaticVariable("macMinVersion", "10.14")
 	pctx.VariableFunc("MacArPath", func(ctx android.PackageVarContext) string {
 		return getMacTools(ctx).arPath
 	})
