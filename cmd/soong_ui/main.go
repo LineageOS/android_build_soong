@@ -59,9 +59,6 @@ type command struct {
 
 	// run the command
 	run func(ctx build.Context, config build.Config, args []string)
-
-	// whether to do common setup before calling run.
-	doSetup bool
 }
 
 // list of supported commands (flags) supported by soong ui
@@ -72,7 +69,6 @@ var commands = []command{
 		config:      build.NewConfig,
 		stdio:       stdio,
 		run:         runMake,
-		doSetup:     true,
 	}, {
 		flag:         "--dumpvar-mode",
 		description:  "print the value of the legacy make variable VAR to stdout",
@@ -81,7 +77,6 @@ var commands = []command{
 		config:       dumpVarConfig,
 		stdio:        customStdio,
 		run:          dumpVar,
-		doSetup:      true,
 	}, {
 		flag:         "--dumpvars-mode",
 		description:  "dump the values of one or more legacy make variables, in shell syntax",
@@ -90,7 +85,6 @@ var commands = []command{
 		config:       dumpVarConfig,
 		stdio:        customStdio,
 		run:          dumpVars,
-		doSetup:      true,
 	}, {
 		flag:        "--build-mode",
 		description: "build modules based on the specified build action",
@@ -223,16 +217,15 @@ func main() {
 		log.Verbosef("  [%d] %s", i, arg)
 	}
 
-	if c.doSetup {
-		// We need to call logAndSymlinkSetup before we can do product
-		// config, which is how we get PRODUCT_CONFIG_RELEASE_MAPS set
-		// for the final product config for the build.
-		logAndSymlinkSetup(buildCtx, config)
-		if build.SetProductReleaseConfigMaps(buildCtx, config) {
-			config = freshConfig()
-		}
-
+	// We need to call preProductConfigSetup before we can do product config, which is how we get
+	// PRODUCT_CONFIG_RELEASE_MAPS set for the final product config for the build.
+	// When product config uses a declarative language, we won't need to rerun product config.
+	preProductConfigSetup(buildCtx, config)
+	if build.SetProductReleaseConfigMaps(buildCtx, config) {
+		log.Verbose("Product release config maps found\n")
+		config = freshConfig()
 	}
+
 	defer func() {
 		stat.Finish()
 		criticalPath.WriteToMetrics(met)
@@ -245,7 +238,9 @@ func main() {
 
 }
 
-func logAndSymlinkSetup(buildCtx build.Context, config build.Config) {
+// This function must not modify config, since product config may cause us to recreate the config,
+// and we won't call this function a second time.
+func preProductConfigSetup(buildCtx build.Context, config build.Config) {
 	log := buildCtx.ContextImpl.Logger
 	logsPrefix := config.GetLogsPrefix()
 	build.SetupOutDir(buildCtx, config)
