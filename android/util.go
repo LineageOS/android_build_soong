@@ -61,17 +61,39 @@ func JoinWithPrefix(strs []string, prefix string) string {
 // JoinWithPrefixAndSeparator prepends the prefix to each string in the list and
 // returns them joined together with the given separator.
 func JoinWithPrefixAndSeparator(strs []string, prefix string, sep string) string {
+	return JoinWithPrefixSuffixAndSeparator(strs, prefix, "", sep)
+}
+
+// JoinWithSuffixAndSeparator appends the suffix to each string in the list and
+// returns them joined together with the given separator.
+func JoinWithSuffixAndSeparator(strs []string, suffix string, sep string) string {
+	return JoinWithPrefixSuffixAndSeparator(strs, "", suffix, sep)
+}
+
+// JoinWithPrefixSuffixAndSeparator appends the prefix/suffix to each string in the list and
+// returns them joined together with the given separator.
+func JoinWithPrefixSuffixAndSeparator(strs []string, prefix, suffix, sep string) string {
 	if len(strs) == 0 {
 		return ""
 	}
 
+	// Pre-calculate the length of the result
+	length := 0
+	for _, s := range strs {
+		length += len(s)
+	}
+	length += (len(prefix)+len(suffix))*len(strs) + len(sep)*(len(strs)-1)
+
 	var buf strings.Builder
+	buf.Grow(length)
 	buf.WriteString(prefix)
 	buf.WriteString(strs[0])
+	buf.WriteString(suffix)
 	for i := 1; i < len(strs); i++ {
 		buf.WriteString(sep)
 		buf.WriteString(prefix)
 		buf.WriteString(strs[i])
+		buf.WriteString(suffix)
 	}
 	return buf.String()
 }
