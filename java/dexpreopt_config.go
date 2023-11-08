@@ -210,56 +210,17 @@ func isProfileProviderApex(ctx android.PathContext, apexName string) bool {
 	return false
 }
 
-// Apex boot config allows to access build/install paths of apex boot jars without going
-// through the usual trouble of registering dependencies on those modules and extracting build paths
-// from those dependencies.
-type apexBootConfig struct {
-	// A list of apex boot jars.
-	modules android.ConfiguredJarList
-
-	// A list of predefined build paths to apex boot jars. They are configured very early,
-	// before the modules for these jars are processed and the actual paths are generated, and
-	// later on a singleton adds commands to copy actual jars to the predefined paths.
-	dexPaths android.WritablePaths
-
-	// Map from module name (without prebuilt_ prefix) to the predefined build path.
-	dexPathsByModule map[string]android.WritablePath
-
-	// A list of dex locations (a.k.a. on-device paths) to the boot jars.
-	dexLocations []string
-}
-
-var updatableBootConfigKey = android.NewOnceKey("apexBootConfig")
-
-// Returns apex boot config.
-func GetApexBootConfig(ctx android.PathContext) apexBootConfig {
-	return ctx.Config().Once(updatableBootConfigKey, func() interface{} {
-		apexBootJars := dexpreopt.GetGlobalConfig(ctx).ApexBootJars
-		dir := android.PathForOutput(ctx, getDexpreoptDirName(ctx), "apex_bootjars")
-		dexPaths := apexBootJars.BuildPaths(ctx, dir)
-		dexPathsByModuleName := apexBootJars.BuildPathsByModule(ctx, dir)
-
-		dexLocations := apexBootJars.DevicePaths(ctx.Config(), android.Android)
-
-		return apexBootConfig{apexBootJars, dexPaths, dexPathsByModuleName, dexLocations}
-	}).(apexBootConfig)
-}
-
 // Returns a list of paths and a list of locations for the boot jars used in dexpreopt (to be
 // passed in -Xbootclasspath and -Xbootclasspath-locations arguments for dex2oat).
 func bcpForDexpreopt(ctx android.PathContext, withUpdatable bool) (android.WritablePaths, []string) {
-	// Non-updatable boot jars (they are used both in the boot image and in dexpreopt).
 	bootImage := defaultBootImageConfig(ctx)
+	if withUpdatable {
+		bootImage = mainlineBootImageConfig(ctx)
+	}
+
 	dexPaths := bootImage.dexPathsDeps
 	// The dex locations for all Android variants are identical.
 	dexLocations := bootImage.getAnyAndroidVariant().dexLocationsDeps
-
-	if withUpdatable {
-		// Apex boot jars (they are used only in dexpreopt, but not in the boot image).
-		apexBootConfig := GetApexBootConfig(ctx)
-		dexPaths = append(dexPaths, apexBootConfig.dexPaths...)
-		dexLocations = append(dexLocations, apexBootConfig.dexLocations...)
-	}
 
 	return dexPaths, dexLocations
 }
