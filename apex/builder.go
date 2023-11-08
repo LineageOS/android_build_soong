@@ -75,9 +75,11 @@ func init() {
 	pctx.HostBinToolVariable("apex_sepolicy_tests", "apex_sepolicy_tests")
 	pctx.HostBinToolVariable("deapexer", "deapexer")
 	pctx.HostBinToolVariable("debugfs_static", "debugfs_static")
+	pctx.HostBinToolVariable("fsck_erofs", "fsck.erofs")
 	pctx.SourcePathVariable("genNdkUsedbyApexPath", "build/soong/scripts/gen_ndk_usedby_apex.sh")
 	pctx.HostBinToolVariable("conv_linker_config", "conv_linker_config")
 	pctx.HostBinToolVariable("assemble_vintf", "assemble_vintf")
+	pctx.HostBinToolVariable("apex_elf_checker", "apex_elf_checker")
 }
 
 var (
@@ -237,6 +239,12 @@ var (
 		CommandDeps: []string{"${assemble_vintf}"},
 		Description: "run assemble_vintf",
 	})
+
+	apexElfCheckerUnwantedRule = pctx.StaticRule("apexElfCheckerUnwantedRule", blueprint.RuleParams{
+		Command:     `${apex_elf_checker} --tool_path ${tool_path} --unwanted ${unwanted} ${in} && touch ${out}`,
+		CommandDeps: []string{"${apex_elf_checker}", "${deapexer}", "${debugfs_static}", "${fsck_erofs}", "${config.ClangBin}/llvm-readelf"},
+		Description: "run apex_elf_checker --unwanted",
+	}, "tool_path", "unwanted")
 )
 
 // buildManifest creates buile rules to modify the input apex_manifest.json to add information
@@ -886,6 +894,10 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 	if suffix == imageApexSuffix && ext4 == a.payloadFsType {
 		validations = append(validations, runApexSepolicyTests(ctx, unsignedOutputFile.OutputPath))
 	}
+	if !a.testApex && len(a.properties.Unwanted_transitive_deps) > 0 {
+		validations = append(validations,
+			runApexElfCheckerUnwanted(ctx, unsignedOutputFile.OutputPath, a.properties.Unwanted_transitive_deps))
+	}
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        rule,
 		Description: "signapk",
@@ -1161,6 +1173,20 @@ func runApexSepolicyTests(ctx android.ModuleContext, apexFile android.OutputPath
 		Rule:   apexSepolicyTestsRule,
 		Input:  apexFile,
 		Output: timestamp,
+	})
+	return timestamp
+}
+
+func runApexElfCheckerUnwanted(ctx android.ModuleContext, apexFile android.OutputPath, unwanted []string) android.Path {
+	timestamp := android.PathForModuleOut(ctx, "apex_elf_unwanted.timestamp")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   apexElfCheckerUnwantedRule,
+		Input:  apexFile,
+		Output: timestamp,
+		Args: map[string]string{
+			"unwanted":  android.JoinWithSuffixAndSeparator(unwanted, ".so", ":"),
+			"tool_path": ctx.Config().HostToolPath(ctx, "").String() + ":${config.ClangBin}",
+		},
 	})
 	return timestamp
 }
