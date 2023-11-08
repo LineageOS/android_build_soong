@@ -202,8 +202,6 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 
 	bootDexJarByModule := b.generateHiddenAPIBuildActions(ctx, b.configuredModules, b.fragments)
 	buildRuleForBootJarsPackageCheck(ctx, bootDexJarByModule)
-
-	b.copyApexBootJarsForAppsDexpreopt(ctx, apexModules)
 }
 
 // Generate classpaths.proto config
@@ -414,11 +412,4 @@ func (b *platformBootclasspathModule) generateHiddenApiMakeVars(ctx android.Make
 	}
 	// INTERNAL_PLATFORM_HIDDENAPI_FLAGS is used by Make rules in art/ and cts/.
 	ctx.Strict("INTERNAL_PLATFORM_HIDDENAPI_FLAGS", b.hiddenAPIFlagsCSV.String())
-}
-
-// Copy apex module dex jars to their predefined locations. They will be used for dexpreopt for apps.
-func (b *platformBootclasspathModule) copyApexBootJarsForAppsDexpreopt(ctx android.ModuleContext, apexModules []android.Module) {
-	config := GetApexBootConfig(ctx)
-	apexBootDexJarsByModule := extractEncodedDexJarsFromModules(ctx, apexModules)
-	copyBootJarsToPredefinedLocations(ctx, apexBootDexJarsByModule, config.dexPathsByModule)
 }
