@@ -50,8 +50,6 @@ var (
 		"--hide HiddenTypedefConstant",
 		"--hide SuperfluousPrefix",
 		"--hide AnnotationExtraction",
-		// b/222738070
-		"--hide BannedThrow",
 	}
 
 	MetalavaAnnotationsWarningsFlags = strings.Join(metalavaAnnotationsWarningsFlags, " ")
