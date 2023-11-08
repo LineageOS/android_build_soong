@@ -2127,3 +2127,8 @@ func (c *deviceConfig) ReleaseExposeFlaggedApi() bool {
 func (c *deviceConfig) HideFlaggedApis() bool {
 	return c.NextReleaseHideFlaggedApi() && !c.ReleaseExposeFlaggedApi()
 }
+
+func (c *config) GetBuildFlag(name string) (string, bool) {
+	val, ok := c.productVariables.BuildFlags[name]
+	return val, ok
+}
