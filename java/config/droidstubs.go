@@ -23,7 +23,6 @@ var (
 		"--format=v2",
 		"--repeat-errors-max 10",
 		"--hide UnresolvedImport",
-		"--hide InvalidNullabilityOverride",
 
 		// Force metalava to ignore classes on the classpath when an API file contains missing classes.
 		// See b/285140653 for more information.
