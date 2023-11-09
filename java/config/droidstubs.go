@@ -49,7 +49,6 @@ var (
 		// TODO(tnorbye): find owners to fix these warnings when annotation was enabled.
 		"--hide HiddenTypedefConstant",
 		"--hide SuperfluousPrefix",
-		"--hide AnnotationExtraction",
 	}
 
 	MetalavaAnnotationsWarningsFlags = strings.Join(metalavaAnnotationsWarningsFlags, " ")
