@@ -51,7 +51,6 @@ var (
 
 	SandboxingDenyModuleList = []string{
 		// go/keep-sorted start
-		"CompilationTestCases_package-dex-usage",
 		"ControlEnvProxyServerProto_cc",
 		"ControlEnvProxyServerProto_h",
 		"CtsApkVerityTestDebugFiles",
