@@ -22,6 +22,11 @@ func TestRustAconfigLibrary(t *testing.T) {
 				crate_name: "flags_rust",
 				srcs: ["lib.rs"],
 			}
+			rust_library {
+				name: "liblazy_static", // test mock
+				crate_name: "lazy_static",
+				srcs: ["src/lib.rs"],
+			}
 			aconfig_declarations {
 				name: "my_aconfig_declarations",
 				package: "com.example.package",
