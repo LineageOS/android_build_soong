@@ -811,7 +811,7 @@ func TestReverseSlice(t *testing.T) {
 			if !reflect.DeepEqual(slice, testCase.expected) {
 				t.Errorf("expected %#v, got %#v", testCase.expected, slice)
 			}
-			if slice != nil && unsafe.SliceData(testCase.in) == unsafe.SliceData(slice) {
+			if cap(slice) > 0 && unsafe.SliceData(testCase.in) == unsafe.SliceData(slice) {
 				t.Errorf("expected slices to have different backing arrays")
 			}
 		})
