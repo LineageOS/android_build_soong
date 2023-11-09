@@ -1068,6 +1068,137 @@ func TestJavaSdkLibraryImport_Preferred(t *testing.T) {
 	})
 }
 
+// If a module is listed in `mainline_module_contributions, it should be used
+// It will supersede any other source vs prebuilt selection mechanism like `prefer` attribute
+func TestSdkLibraryImport_MetadataModuleSupersedesPreferred(t *testing.T) {
+	bp := `
+		apex_contributions {
+			name: "my_mainline_module_contributions",
+			api_domain: "my_mainline_module",
+			contents: [
+				// legacy mechanism prefers the prebuilt
+				// mainline_module_contributions supersedes this since source is listed explicitly
+				"sdklib.prebuilt_preferred_using_legacy_flags",
+
+				// legacy mechanism prefers the source
+				// mainline_module_contributions supersedes this since prebuilt is listed explicitly
+				"prebuilt_sdklib.source_preferred_using_legacy_flags",
+			],
+		}
+		all_apex_contributions {
+			name: "all_apex_contributions",
+		}
+		java_sdk_library {
+			name: "sdklib.prebuilt_preferred_using_legacy_flags",
+			srcs: ["a.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			public: {
+				enabled: true,
+			},
+			system: {
+				enabled: true,
+			}
+		}
+		java_sdk_library_import {
+			name: "sdklib.prebuilt_preferred_using_legacy_flags",
+			prefer: true, // prebuilt is preferred using legacy mechanism
+			public: {
+				jars: ["a.jar"],
+				stub_srcs: ["a.java"],
+				current_api: "current.txt",
+				removed_api: "removed.txt",
+				annotations: "annotations.zip",
+			},
+			system: {
+				jars: ["a.jar"],
+				stub_srcs: ["a.java"],
+				current_api: "current.txt",
+				removed_api: "removed.txt",
+				annotations: "annotations.zip",
+			},
+		}
+		java_sdk_library {
+			name: "sdklib.source_preferred_using_legacy_flags",
+			srcs: ["a.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			public: {
+				enabled: true,
+			},
+			system: {
+				enabled: true,
+			}
+		}
+		java_sdk_library_import {
+			name: "sdklib.source_preferred_using_legacy_flags",
+			prefer: false, // source is preferred using legacy mechanism
+			public: {
+				jars: ["a.jar"],
+				stub_srcs: ["a.java"],
+				current_api: "current.txt",
+				removed_api: "removed.txt",
+				annotations: "annotations.zip",
+			},
+			system: {
+				jars: ["a.jar"],
+				stub_srcs: ["a.java"],
+				current_api: "current.txt",
+				removed_api: "removed.txt",
+				annotations: "annotations.zip",
+			},
+		}
+
+		// rdeps
+		java_library {
+			name: "public",
+			srcs: ["a.java"],
+			libs: [
+				// this should get source since source is listed in my_mainline_module_contributions
+				"sdklib.prebuilt_preferred_using_legacy_flags.stubs",
+				"sdklib.prebuilt_preferred_using_legacy_flags.stubs.system",
+
+				// this should get prebuilt since source is listed in my_mainline_module_contributions
+				"sdklib.source_preferred_using_legacy_flags.stubs",
+				"sdklib.source_preferred_using_legacy_flags.stubs.system",
+
+			],
+		}
+	`
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("sdklib.source_preferred_using_legacy_flags", "sdklib.prebuilt_preferred_using_legacy_flags"),
+		android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
+			android.RegisterApexContributionsBuildComponents(ctx)
+		}),
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.BuildFlags = map[string]string{
+				"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES": "my_mainline_module_contributions",
+			}
+		}),
+	).RunTestWithBp(t, bp)
+
+	// Make sure that rdeps get the correct source vs prebuilt based on mainline_module_contributions
+	public := result.ModuleForTests("public", "android_common")
+	rule := public.Output("javac/public.jar")
+	inputs := rule.Implicits.Strings()
+	expectedInputs := []string{
+		// source
+		"out/soong/.intermediates/sdklib.prebuilt_preferred_using_legacy_flags.stubs/android_common/turbine-combined/sdklib.prebuilt_preferred_using_legacy_flags.stubs.jar",
+		"out/soong/.intermediates/sdklib.prebuilt_preferred_using_legacy_flags.stubs.system/android_common/turbine-combined/sdklib.prebuilt_preferred_using_legacy_flags.stubs.system.jar",
+
+		// prebuilt
+		"out/soong/.intermediates/prebuilt_sdklib.source_preferred_using_legacy_flags.stubs/android_common/combined/sdklib.source_preferred_using_legacy_flags.stubs.jar",
+		"out/soong/.intermediates/prebuilt_sdklib.source_preferred_using_legacy_flags.stubs.system/android_common/combined/sdklib.source_preferred_using_legacy_flags.stubs.system.jar",
+	}
+	for _, expected := range expectedInputs {
+		if !android.InList(expected, inputs) {
+			t.Errorf("expected %q to contain %q", inputs, expected)
+		}
+	}
+}
+
 func TestJavaSdkLibraryEnforce(t *testing.T) {
 	partitionToBpOption := func(partition string) string {
 		switch partition {
