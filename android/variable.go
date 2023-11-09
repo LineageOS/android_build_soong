@@ -492,6 +492,8 @@ type ProductVariables struct {
 	NextReleaseHideFlaggedApi *bool `json:",omitempty"`
 
 	Release_expose_flagged_api *bool `json:",omitempty"`
+
+	BuildFlags map[string]string `json:",omitempty"`
 }
 
 type PartitionQualifiedVariablesType struct {
