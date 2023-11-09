@@ -12,6 +12,7 @@ bootstrap_go_package {
 
     ],
     srcs: [
+        "all_test_specs.go",
         "test_spec.go",
         "init.go",
     ],
