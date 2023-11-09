@@ -692,9 +692,11 @@ func setMaxFiles(ctx build.Context) {
 	}
 
 	ctx.Verbosef("Current file limits: %d soft, %d hard", limits.Cur, limits.Max)
-	if limits.Cur == limits.Max {
-		return
-	}
+
+	// Go 1.21 modifies the file limit but restores the original when
+	// execing subprocesses if it hasn't be overridden.  Call Setrlimit
+	// here even if it doesn't appear to be necessary so that the
+	// syscall package considers it set.
 
 	limits.Cur = limits.Max
 	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &limits)
