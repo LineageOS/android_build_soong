@@ -33,6 +33,8 @@ var (
 		"-Wl,--hash-style=gnu",
 	}
 
+	X86_64Lldflags = x86_64Ldflags
+
 	x86_64ArchVariantCflags = map[string][]string{
 		"": []string{
 			"-march=x86-64",
@@ -94,7 +96,12 @@ func init() {
 	exportedVars.ExportStringListStaticVariable("X86_64ToolchainLdflags", []string{"-m64"})
 
 	exportedVars.ExportStringListStaticVariable("X86_64Ldflags", x86_64Ldflags)
-	exportedVars.ExportStringListStaticVariable("X86_64Lldflags", x86_64Ldflags)
+	exportedVars.ExportStringList("X86_64Lldflags", X86_64Lldflags)
+	pctx.VariableFunc("X86_64Lldflags", func(ctx android.PackageVarContext) string {
+		maxPageSizeFlag := "-Wl,-z,max-page-size=" + ctx.Config().MaxPageSizeSupported()
+		flags := append(X86_64Lldflags, maxPageSizeFlag)
+		return strings.Join(flags, " ")
+	})
 
 	// Clang cflags
 	exportedVars.ExportStringListStaticVariable("X86_64Cflags", x86_64Cflags)
