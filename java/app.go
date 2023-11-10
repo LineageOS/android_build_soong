@@ -1584,7 +1584,7 @@ func (u *usesLibrary) verifyUsesLibraries(ctx android.ModuleContext, inputFile a
 	// non-linux build platforms where dexpreopt is generally disabled (the check may fail due to
 	// various unrelated reasons, such as a failure to get manifest from an APK).
 	global := dexpreopt.GetGlobalConfig(ctx)
-	if global.DisablePreopt || global.OnlyPreoptBootImageAndSystemServer {
+	if global.DisablePreopt || global.OnlyPreoptArtBootImage {
 		return inputFile
 	}
 

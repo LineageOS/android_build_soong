@@ -610,7 +610,8 @@ func generateBootImage(ctx android.ModuleContext, imageConfig *bootImageConfig) 
 	profile := bootImageProfileRule(ctx, imageConfig)
 
 	// If dexpreopt of boot image jars should be skipped, stop after generating a profile.
-	if SkipDexpreoptBootJars(ctx) {
+	global := dexpreopt.GetGlobalConfig(ctx)
+	if SkipDexpreoptBootJars(ctx) || (global.OnlyPreoptArtBootImage && imageConfig.name != "art") {
 		return
 	}
 
