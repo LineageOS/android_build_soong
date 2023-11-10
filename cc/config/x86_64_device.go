@@ -104,7 +104,15 @@ func init() {
 	})
 
 	// Clang cflags
-	exportedVars.ExportStringListStaticVariable("X86_64Cflags", x86_64Cflags)
+	exportedVars.ExportStringList("X86_64Cflags", x86_64Cflags)
+	pctx.VariableFunc("X86_64Cflags", func(ctx android.PackageVarContext) string {
+		flags := x86_64Cflags
+		if ctx.Config().PageSizeAgnostic() {
+			flags = append(flags, "-D__BIONIC_NO_PAGE_SIZE_MACRO")
+		}
+		return strings.Join(flags, " ")
+	})
+
 	exportedVars.ExportStringListStaticVariable("X86_64Cppflags", x86_64Cppflags)
 
 	// Yasm flags
