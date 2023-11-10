@@ -149,6 +149,11 @@ def Validate(args):
     else:
         sys.exit(f'Unknown type: {args.type}')
 
+    # Reject contributions field at build time while keeping the runtime behavior for GRF.
+    if getattr(pb, 'contributions'):
+        sys.exit(f"{args.input}: 'contributions' is set. "
+                 "It's deprecated. Instead, make the APEX 'visible' and use android_dlopen_ext().")
+
 
 def ValidateAndWriteAsPbFile(pb, output_path):
     ValidateConfiguration(pb)
