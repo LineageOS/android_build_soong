@@ -51,7 +51,6 @@ var (
 
 	SandboxingDenyModuleList = []string{
 		// go/keep-sorted start
-		"CompilationTestCases_package-dex-usage",
 		"ControlEnvProxyServerProto_cc",
 		"ControlEnvProxyServerProto_h",
 		"CtsApkVerityTestDebugFiles",
@@ -125,20 +124,6 @@ var (
 		"gles31_only_functions_hdr",
 		"gles3_only_functions_hdr",
 		"hci_packets_python3_gen",
-		"hidl2aidl_test_gen_aidl",
-		"hidl2aidl_translate_cpp_test_gen_headers",
-		"hidl2aidl_translate_cpp_test_gen_src",
-		"hidl2aidl_translate_java_test_gen_src",
-		"hidl2aidl_translate_ndk_test_gen_headers",
-		"hidl2aidl_translate_ndk_test_gen_src",
-		"hidl_cpp_impl_test_gen-headers",
-		"hidl_cpp_impl_test_gen-sources",
-		"hidl_error_test_gen",
-		"hidl_export_test_gen-headers",
-		"hidl_format_test_diff",
-		"hidl_hash_test_gen",
-		"hidl_hash_version_gen",
-		"hidl_java_impl_test_gen",
 		"lib-test-profile-text-protos",
 		"libbssl_sys_src_nostd",
 		"libc_musl_sysroot_bits",

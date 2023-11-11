@@ -124,12 +124,7 @@ func dexpreoptDisabled(ctx android.PathContext, global *GlobalConfig, module *Mo
 		return true
 	}
 
-	// If OnlyPreoptBootImageAndSystemServer=true and module is not in boot class path skip
-	// Also preopt system server jars since selinux prevents system server from loading anything from
-	// /data. If we don't do this they will need to be extracted which is not favorable for RAM usage
-	// or performance. If PreoptExtractedApk is true, we ignore the only preopt boot image options.
-	if global.OnlyPreoptBootImageAndSystemServer && !global.BootJars.ContainsJar(module.Name) &&
-		!global.AllSystemServerJars(ctx).ContainsJar(module.Name) && !module.PreoptExtractedApk {
+	if global.OnlyPreoptArtBootImage && !module.PreoptExtractedApk {
 		return true
 	}
 
