@@ -1,10 +1,11 @@
 package aconfig
 
 import (
-	"android/soong/android"
-	"android/soong/rust"
 	"fmt"
 	"testing"
+
+	"android/soong/android"
+	"android/soong/rust"
 )
 
 func TestRustAconfigLibrary(t *testing.T) {
@@ -62,4 +63,99 @@ func TestRustAconfigLibrary(t *testing.T) {
 			variant.Rule("rustc").Inputs[0].RelativeToTop().String(),
 		)
 	}
+}
+
+var rustCodegenModeTestData = []struct {
+	setting, expected string
+}{
+	{"", "production"},
+	{"mode: `production`,", "production"},
+	{"mode: `test`,", "test"},
+	{"mode: `exported`,", "exported"},
+}
+
+func TestRustCodegenMode(t *testing.T) {
+	for _, testData := range rustCodegenModeTestData {
+		testRustCodegenModeHelper(t, testData.setting, testData.expected)
+	}
+}
+
+func testRustCodegenModeHelper(t *testing.T, bpMode string, ruleMode string) {
+	t.Helper()
+	result := android.GroupFixturePreparers(
+		PrepareForTestWithAconfigBuildComponents,
+		rust.PrepareForTestWithRustIncludeVndk).
+		ExtendWithErrorHandler(android.FixtureExpectsNoErrors).
+		RunTestWithBp(t, fmt.Sprintf(`
+			rust_library {
+				name: "libflags_rust", // test mock
+				crate_name: "flags_rust",
+				srcs: ["lib.rs"],
+			}
+			rust_library {
+				name: "liblazy_static", // test mock
+				crate_name: "lazy_static",
+				srcs: ["src/lib.rs"],
+			}
+			aconfig_declarations {
+				name: "my_aconfig_declarations",
+				package: "com.example.package",
+				srcs: ["foo.aconfig"],
+			}
+			rust_aconfig_library {
+				name: "libmy_rust_aconfig_library",
+				crate_name: "my_rust_aconfig_library",
+				aconfig_declarations: "my_aconfig_declarations",
+				%s
+			}
+		`, bpMode))
+
+	module := result.ModuleForTests("libmy_rust_aconfig_library", "android_arm64_armv8-a_source")
+	rule := module.Rule("rust_aconfig_library")
+	android.AssertStringEquals(t, "rule must contain test mode", rule.Args["mode"], ruleMode)
+}
+
+var incorrectRustCodegenModeTestData = []struct {
+	setting, expectedErr string
+}{
+	{"mode: `unsupported`,", "mode: \"unsupported\" is not a supported mode"},
+	// TODO: remove this test case when test prop is removed
+	{"mode: `test`, test: true", "test prop should not be specified when mode prop is set"},
+}
+
+func TestIncorrectRustCodegenMode(t *testing.T) {
+	for _, testData := range incorrectRustCodegenModeTestData {
+		testIncorrectRustCodegenModeHelper(t, testData.setting, testData.expectedErr)
+	}
+}
+
+func testIncorrectRustCodegenModeHelper(t *testing.T, bpMode string, err string) {
+	t.Helper()
+	android.GroupFixturePreparers(
+		PrepareForTestWithAconfigBuildComponents,
+		rust.PrepareForTestWithRustIncludeVndk).
+		ExtendWithErrorHandler(android.FixtureExpectsOneErrorPattern(err)).
+		RunTestWithBp(t, fmt.Sprintf(`
+			rust_library {
+				name: "libflags_rust", // test mock
+				crate_name: "flags_rust",
+				srcs: ["lib.rs"],
+			}
+			rust_library {
+				name: "liblazy_static", // test mock
+				crate_name: "lazy_static",
+				srcs: ["src/lib.rs"],
+			}
+			aconfig_declarations {
+				name: "my_aconfig_declarations",
+				package: "com.example.package",
+				srcs: ["foo.aconfig"],
+			}
+			rust_aconfig_library {
+				name: "libmy_rust_aconfig_library",
+				crate_name: "my_rust_aconfig_library",
+				aconfig_declarations: "my_aconfig_declarations",
+				%s
+			}
+		`, bpMode))
 }
