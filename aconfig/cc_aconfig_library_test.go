@@ -22,16 +22,17 @@ import (
 	"android/soong/cc"
 )
 
-var codegenModeTestData = []struct {
+var ccCodegenModeTestData = []struct {
 	setting, expected string
 }{
 	{"", "production"},
-	{"test: false,", "production"},
-	{"test: true,", "test"},
+	{"mode: `production`,", "production"},
+	{"mode: `test`,", "test"},
+	{"mode: `exported`,", "exported"},
 }
 
 func TestCCCodegenMode(t *testing.T) {
-	for _, testData := range codegenModeTestData {
+	for _, testData := range ccCodegenModeTestData {
 		testCCCodegenModeHelper(t, testData.setting, testData.expected)
 	}
 }
@@ -64,4 +65,44 @@ func testCCCodegenModeHelper(t *testing.T, bpMode string, ruleMode string) {
 	module := result.ModuleForTests("my_cc_aconfig_library", "android_arm64_armv8-a_shared")
 	rule := module.Rule("cc_aconfig_library")
 	android.AssertStringEquals(t, "rule must contain test mode", rule.Args["mode"], ruleMode)
+}
+
+var incorrectCCCodegenModeTestData = []struct {
+	setting, expectedErr string
+}{
+	{"mode: `unsupported`,", "mode: \"unsupported\" is not a supported mode"},
+	// TODO: remove this test case when test prop is removed
+	{"mode: `test`, test: true", "test prop should not be specified when mode prop is set"},
+}
+
+func TestIncorrectCCCodegenMode(t *testing.T) {
+	for _, testData := range incorrectCCCodegenModeTestData {
+		testIncorrectCCCodegenModeHelper(t, testData.setting, testData.expectedErr)
+	}
+}
+
+func testIncorrectCCCodegenModeHelper(t *testing.T, bpMode string, err string) {
+	t.Helper()
+	android.GroupFixturePreparers(
+		PrepareForTestWithAconfigBuildComponents,
+		cc.PrepareForTestWithCcDefaultModules).
+		ExtendWithErrorHandler(android.FixtureExpectsOneErrorPattern(err)).
+		RunTestWithBp(t, fmt.Sprintf(`
+			aconfig_declarations {
+				name: "my_aconfig_declarations",
+				package: "com.example.package",
+				srcs: ["foo.aconfig"],
+			}
+
+			cc_library {
+    		name: "server_configurable_flags",
+    		srcs: ["server_configurable_flags.cc"],
+			}
+
+			cc_aconfig_library {
+				name: "my_cc_aconfig_library",
+				aconfig_declarations: "my_aconfig_declarations",
+				%s
+			}
+		`, bpMode))
 }
