@@ -150,8 +150,9 @@ type PrebuiltEtc struct {
 	sourceFilePath android.Path
 	outputFilePath android.OutputPath
 	// The base install location, e.g. "etc" for prebuilt_etc, "usr/share" for prebuilt_usr_share.
-	installDirBase   string
-	installDirBase64 string
+	installDirBase               string
+	installDirBase64             string
+	installAvoidMultilibConflict bool
 	// The base install location when soc_specific property is set to true, e.g. "firmware" for
 	// prebuilt_firmware.
 	socInstallDirBase      string
@@ -355,6 +356,10 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if p.SocSpecific() && p.socInstallDirBase != "" {
 		installBaseDir = p.socInstallDirBase
 	}
+	if p.installAvoidMultilibConflict && !ctx.Host() && ctx.Config().HasMultilibConflict(ctx.Arch().ArchType) {
+		installBaseDir = filepath.Join(installBaseDir, ctx.Arch().ArchType.String())
+	}
+
 	p.installDirPath = android.PathForModuleInstall(ctx, installBaseDir, p.SubDir())
 
 	// Call InstallFile even when uninstallable to make the module included in the package
@@ -590,6 +595,7 @@ func PrebuiltRenderScriptBitcodeFactory() android.Module {
 	module := &PrebuiltEtc{}
 	module.makeClass = "RENDERSCRIPT_BITCODE"
 	module.installDirBase64 = "lib64"
+	module.installAvoidMultilibConflict = true
 	InitPrebuiltEtcModule(module, "lib")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibBoth)
