@@ -35,7 +35,7 @@ var (
 var afdoProfileProjectsConfigKey = android.NewOnceKey("AfdoProfileProjects")
 
 // This flag needs to be in both CFlags and LdFlags to ensure correct symbol ordering
-const afdoFlagsFormat = "-fprofile-sample-use=%s"
+const afdoFlagsFormat = "-fprofile-sample-use=%s -fprofile-sample-accurate"
 
 func recordMissingAfdoProfileFile(ctx android.BaseModuleContext, missing string) {
 	getNamedMapForConfig(ctx.Config(), modulesMissingProfileFileKey).Store(missing, true)
