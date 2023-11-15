@@ -160,7 +160,7 @@ type BaseCompilerProperties struct {
 	Relative_install_path *string `android:"arch_variant"`
 
 	// whether to suppress inclusion of standard crates - defaults to false
-	No_stdlibs *bool
+	No_stdlibs *bool `android:"arch_variant"`
 
 	// Change the rustlibs linkage to select rlib linkage by default for device targets.
 	// Also link libstd as an rlib as well on device targets.
