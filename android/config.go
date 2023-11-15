@@ -2079,7 +2079,7 @@ func (c *config) BuildFromTextStub() bool {
 	// TODO: b/302320354 - Remove the coverage build specific logic once the
 	// robust solution for handling native properties in from-text stub build
 	// is implemented.
-	return !c.buildFromSourceStub && !c.JavaCoverageEnabled()
+	return !c.buildFromSourceStub && !c.JavaCoverageEnabled() && !c.IsEnvTrue("BUILD_FROM_SOURCE_STUB")
 }
 
 func (c *config) SetBuildFromTextStub(b bool) {
