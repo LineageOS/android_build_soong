@@ -18,7 +18,6 @@ var (
 	DepfileAllowList = []string{
 		// go/keep-sorted start
 		"depfile_allowed_for_test",
-		"gen_uwb_core_proto",
 		"tflite_support_metadata_schema",
 		"tflite_support_spm_config",
 		"tflite_support_spm_encoder_config",
@@ -124,7 +123,6 @@ var (
 		"swiftshader_spvtools_update_build_version",
 		"temp_layoutlib",
 		"ue_unittest_erofs_imgs",
-		"uwb_core_artifacts",
 		"vm-tests-tf-lib",
 		"vndk_abi_dump_zip",
 		"vts_vndk_abi_dump_zip",
