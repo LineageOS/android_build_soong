@@ -36,10 +36,6 @@ type JavaAconfigDeclarationsLibraryProperties struct {
 	// name of the aconfig_declarations module to generate a library for
 	Aconfig_declarations string
 
-	// whether to generate test mode version of the library
-	// TODO: remove "Test" property when "Mode" can be used in all the branches
-	Test *bool
-
 	// default mode is "production", the other accepted modes are:
 	// "test": to generate test mode version of the library
 	// "exported": to generate exported mode version of the library
@@ -82,16 +78,9 @@ func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) GenerateSourceJarBuild
 	// Generate the action to build the srcjar
 	srcJarPath := android.PathForModuleGen(ctx, ctx.ModuleName()+".srcjar")
 
-	if callbacks.properties.Mode != nil && callbacks.properties.Test != nil {
-		ctx.PropertyErrorf("test", "test prop should not be specified when mode prop is set")
-	}
 	mode := proptools.StringDefault(callbacks.properties.Mode, "production")
 	if !isModeSupported(mode) {
 		ctx.PropertyErrorf("mode", "%q is not a supported mode", mode)
-	}
-	// TODO: remove "Test" property
-	if proptools.Bool(callbacks.properties.Test) {
-		mode = "test"
 	}
 
 	ctx.Build(pctx, android.BuildParams{

@@ -119,8 +119,6 @@ var incorrectRustCodegenModeTestData = []struct {
 	setting, expectedErr string
 }{
 	{"mode: `unsupported`,", "mode: \"unsupported\" is not a supported mode"},
-	// TODO: remove this test case when test prop is removed
-	{"mode: `test`, test: true", "test prop should not be specified when mode prop is set"},
 }
 
 func TestIncorrectRustCodegenMode(t *testing.T) {
