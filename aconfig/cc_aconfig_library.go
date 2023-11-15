@@ -38,10 +38,6 @@ type CcAconfigLibraryProperties struct {
 	// name of the aconfig_declarations module to generate a library for
 	Aconfig_declarations string
 
-	// whether to generate test mode version of the library
-	// TODO: remove "Test" property when "Mode" can be used in all the branches
-	Test *bool
-
 	// default mode is "production", the other accepted modes are:
 	// "test": to generate test mode version of the library
 	// "exported": to generate exported mode version of the library
@@ -128,17 +124,11 @@ func (this *CcAconfigLibraryCallbacks) GeneratorBuildActions(ctx cc.ModuleContex
 	}
 	declarations := ctx.OtherModuleProvider(declarationsModules[0], declarationsProviderKey).(declarationsProviderData)
 
-	if this.properties.Mode != nil && this.properties.Test != nil {
-		ctx.PropertyErrorf("test", "test prop should not be specified when mode prop is set")
-	}
 	mode := proptools.StringDefault(this.properties.Mode, "production")
 	if !isModeSupported(mode) {
 		ctx.PropertyErrorf("mode", "%q is not a supported mode", mode)
 	}
-	// TODO: remove "Test" property
-	if proptools.Bool(this.properties.Test) {
-		mode = "test"
-	}
+
 	ctx.Build(pctx, android.BuildParams{
 		Rule:  cppRule,
 		Input: declarations.IntermediatePath,

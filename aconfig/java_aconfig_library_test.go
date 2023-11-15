@@ -217,9 +217,3 @@ func TestExportedMode(t *testing.T) {
 func TestUnsupportedMode(t *testing.T) {
 	testCodegenModeWithError(t, "mode: `unsupported`,", "mode: \"unsupported\" is not a supported mode")
 }
-
-// TODO: remove this test case when test prop is removed
-func TestBothModeAndTestAreSet(t *testing.T) {
-	testCodegenModeWithError(t, "mode: `test`, test: true",
-		"test prop should not be specified when mode prop is set")
-}
