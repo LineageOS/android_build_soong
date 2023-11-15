@@ -3037,59 +3037,6 @@ func makeApexAvailableBaseline() map[string][]string {
 	//
 	// Module separator
 	//
-	m["com.android.appsearch"] = []string{
-		"icing-java-proto-lite",
-	}
-	//
-	// Module separator
-	//
-	m["com.android.btservices"] = []string{
-		// empty
-	}
-	//
-	// Module separator
-	//
-	m["com.android.cellbroadcast"] = []string{}
-	//
-	// Module separator
-	//
-	m["com.android.extservices"] = []string{
-		"ExtServices-core",
-		"libtextclassifier-java",
-		"textclassifier-statsd",
-		"TextClassifierNotificationLibNoManifest",
-		"TextClassifierServiceLibNoManifest",
-	}
-	//
-	// Module separator
-	//
-	m["com.android.neuralnetworks"] = []string{
-		"android.hardware.neuralnetworks@1.0",
-		"android.hardware.neuralnetworks@1.1",
-		"android.hardware.neuralnetworks@1.2",
-		"android.hardware.neuralnetworks@1.3",
-		"android.hidl.allocator@1.0",
-		"android.hidl.memory.token@1.0",
-		"android.hidl.memory@1.0",
-		"android.hidl.safe_union@1.0",
-		"libarect",
-		"libprocpartition",
-	}
-	//
-	// Module separator
-	//
-	m["com.android.media"] = []string{
-		// empty
-	}
-	//
-	// Module separator
-	//
-	m["com.android.media.swcodec"] = []string{
-		// empty
-	}
-	//
-	// Module separator
-	//
 	m["com.android.mediaprovider"] = []string{
 		"MediaProvider",
 		"MediaProviderGoogle",

@@ -178,14 +178,48 @@ func testCodegenMode(t *testing.T, bpMode string, ruleMode string) {
 	android.AssertStringEquals(t, "rule must contain test mode", rule.Args["mode"], ruleMode)
 }
 
+func testCodegenModeWithError(t *testing.T, bpMode string, err string) {
+	android.GroupFixturePreparers(
+		PrepareForTestWithAconfigBuildComponents,
+		java.PrepareForTestWithJavaDefaultModules).
+		ExtendWithErrorHandler(android.FixtureExpectsOneErrorPattern(err)).
+		RunTestWithBp(t, fmt.Sprintf(`
+			aconfig_declarations {
+				name: "my_aconfig_declarations",
+				package: "com.example.package",
+				srcs: ["foo.aconfig"],
+			}
+
+			java_aconfig_library {
+				name: "my_java_aconfig_library",
+				aconfig_declarations: "my_aconfig_declarations",
+				%s
+			}
+		`, bpMode))
+}
+
 func TestDefaultProdMode(t *testing.T) {
 	testCodegenMode(t, "", "production")
 }
 
 func TestProdMode(t *testing.T) {
-	testCodegenMode(t, "test: false,", "production")
+	testCodegenMode(t, "mode: `production`,", "production")
 }
 
 func TestTestMode(t *testing.T) {
-	testCodegenMode(t, "test: true,", "test")
+	testCodegenMode(t, "mode: `test`,", "test")
+}
+
+func TestExportedMode(t *testing.T) {
+	testCodegenMode(t, "mode: `exported`,", "exported")
+}
+
+func TestUnsupportedMode(t *testing.T) {
+	testCodegenModeWithError(t, "mode: `unsupported`,", "mode: \"unsupported\" is not a supported mode")
+}
+
+// TODO: remove this test case when test prop is removed
+func TestBothModeAndTestAreSet(t *testing.T) {
+	testCodegenModeWithError(t, "mode: `test`, test: true",
+		"test prop should not be specified when mode prop is set")
 }
