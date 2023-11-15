@@ -1890,7 +1890,7 @@ func (a *apexBundle) ProcessBazelQueryResponse(ctx android.ModuleContext) {
 		installSuffix = imageCapexSuffix
 	}
 	a.installedFile = ctx.InstallFile(a.installDir, a.Name()+installSuffix, a.outputFile,
-		a.compatSymlinks.Paths()...)
+		a.compatSymlinks...)
 
 	// filesInfo in mixed mode must retrieve all information about the apex's
 	// contents completely from the Starlark providers. It should never rely on

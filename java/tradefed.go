@@ -30,8 +30,8 @@ func tradefedJavaLibraryFactory() android.Module {
 	return module
 }
 
-func tradefedJavaLibraryInstall(ctx android.ModuleContext, path android.Path) android.Paths {
+func tradefedJavaLibraryInstall(ctx android.ModuleContext, path android.Path) android.InstallPaths {
 	installedPath := ctx.InstallFile(android.PathForModuleInstall(ctx, "tradefed"),
 		ctx.ModuleName()+".jar", path)
-	return android.Paths{installedPath}
+	return android.InstallPaths{installedPath}
 }
