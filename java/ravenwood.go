@@ -16,6 +16,7 @@ package java
 import (
 	"android/soong/android"
 	"android/soong/tradefed"
+
 	"github.com/google/blueprint/proptools"
 )
 
@@ -100,7 +101,7 @@ func (r *ravenwoodTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	r.Library.GenerateAndroidBuildActions(ctx)
 
 	// Start by depending on all files installed by dependancies
-	var installDeps android.Paths
+	var installDeps android.InstallPaths
 	for _, dep := range ctx.GetDirectDepsWithTag(ravenwoodTag) {
 		for _, installFile := range dep.FilesToInstall() {
 			installDeps = append(installDeps, installFile)
