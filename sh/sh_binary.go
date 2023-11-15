@@ -17,7 +17,6 @@ package sh
 import (
 	"fmt"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"android/soong/testing"
@@ -174,7 +173,7 @@ type ShTest struct {
 
 	installDir android.InstallPath
 
-	data       android.Paths
+	data       []android.DataPath
 	testConfig android.Path
 
 	dataModules map[string]android.Path
@@ -360,10 +359,21 @@ func (s *ShTest) addToDataModules(ctx android.ModuleContext, relPath string, pat
 		return
 	}
 	s.dataModules[relPath] = path
+	s.data = append(s.data, android.DataPath{SrcPath: path})
 }
 
 func (s *ShTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	s.ShBinary.generateAndroidBuildActions(ctx)
+
+	expandedData := android.PathsForModuleSrc(ctx, s.testProperties.Data)
+	// Emulate the data property for java_data dependencies.
+	for _, javaData := range ctx.GetDirectDepsWithTag(shTestJavaDataTag) {
+		expandedData = append(expandedData, android.OutputFilesForModule(ctx, javaData, "")...)
+	}
+	for _, d := range expandedData {
+		s.data = append(s.data, android.DataPath{SrcPath: d})
+	}
+
 	testDir := "nativetest"
 	if ctx.Target().Arch.ArchType.Multilib == "lib64" {
 		testDir = "nativetest64"
@@ -380,15 +390,6 @@ func (s *ShTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	} else {
 		s.installDir = android.PathForModuleInstall(ctx, testDir, s.Name())
 	}
-	s.installedFile = ctx.InstallExecutable(s.installDir, s.outputFilePath.Base(), s.outputFilePath)
-
-	expandedData := android.PathsForModuleSrc(ctx, s.testProperties.Data)
-
-	// Emulate the data property for java_data dependencies.
-	for _, javaData := range ctx.GetDirectDepsWithTag(shTestJavaDataTag) {
-		expandedData = append(expandedData, android.OutputFilesForModule(ctx, javaData, "")...)
-	}
-	s.data = expandedData
 
 	var configs []tradefed.Config
 	if Bool(s.testProperties.Require_root) {
@@ -437,7 +438,7 @@ func (s *ShTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				if _, exist := s.dataModules[relPath]; exist {
 					return
 				}
-				relocatedLib := android.PathForModuleOut(ctx, "relocated", relPath)
+				relocatedLib := android.PathForModuleOut(ctx, "relocated").Join(ctx, relPath)
 				ctx.Build(pctx, android.BuildParams{
 					Rule:   android.Cp,
 					Input:  cc.OutputFile().Path(),
@@ -453,6 +454,10 @@ func (s *ShTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			ctx.PropertyErrorf(property, "%q of type %q is not supported", dep.Name(), ctx.OtherModuleType(dep))
 		}
 	})
+
+	installedData := ctx.InstallTestData(s.installDir, s.data)
+	s.installedFile = ctx.InstallExecutable(s.installDir, s.outputFilePath.Base(), s.outputFilePath, installedData...)
+
 	ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 }
 
@@ -472,24 +477,6 @@ func (s *ShTest) AndroidMkEntries() []android.AndroidMkEntries {
 				entries.AddCompatibilityTestSuites(s.testProperties.Test_suites...)
 				if s.testConfig != nil {
 					entries.SetPath("LOCAL_FULL_TEST_CONFIG", s.testConfig)
-				}
-				for _, d := range s.data {
-					rel := d.Rel()
-					path := d.String()
-					if !strings.HasSuffix(path, rel) {
-						panic(fmt.Errorf("path %q does not end with %q", path, rel))
-					}
-					path = strings.TrimSuffix(path, rel)
-					entries.AddStrings("LOCAL_TEST_DATA", path+":"+rel)
-				}
-				relPaths := make([]string, 0)
-				for relPath, _ := range s.dataModules {
-					relPaths = append(relPaths, relPath)
-				}
-				sort.Strings(relPaths)
-				for _, relPath := range relPaths {
-					dir := strings.TrimSuffix(s.dataModules[relPath].String(), relPath)
-					entries.AddStrings("LOCAL_TEST_DATA", dir+":"+relPath)
 				}
 				if s.testProperties.Data_bins != nil {
 					entries.AddStrings("LOCAL_TEST_DATA_BINS", s.testProperties.Data_bins...)
