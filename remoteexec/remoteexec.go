@@ -30,7 +30,7 @@ const (
 	// DefaultImage is the default container image used for Android remote execution. The
 	// image was built with the Dockerfile at
 	// https://android.googlesource.com/platform/prebuilts/remoteexecution-client/+/refs/heads/master/docker/Dockerfile
-	DefaultImage = "docker://gcr.io/androidbuild-re-dockerimage/android-build-remoteexec-image@sha256:953fed4a6b2501256a0d17f055dc17884ff71b024e50ade773e0b348a6c303e6"
+	DefaultImage = "docker://gcr.io/androidbuild-re-dockerimage/android-build-remoteexec-image@sha256:1eb7f64b9e17102b970bd7a1af7daaebdb01c3fb777715899ef462d6c6d01a45"
 
 	// DefaultWrapperPath is the default path to the remote execution wrapper.
 	DefaultWrapperPath = "prebuilts/remoteexecution-client/live/rewrapper"
