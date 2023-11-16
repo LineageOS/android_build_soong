@@ -372,12 +372,12 @@ func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) android.Output
 	output := android.PathForModuleOut(ctx, "file_contexts")
 	rule := android.NewRuleBuilder(pctx, ctx)
 
-	forceLabel := "u:object_r:system_file:s0"
+	labelForRoot := "u:object_r:system_file:s0"
+	labelForManifest := "u:object_r:system_file:s0"
 	if a.SocSpecific() && !a.vndkApex {
-		// APEX on /vendor should label ./ and ./apex_manifest.pb as vendor_apex_metadata_file.
-		// The reason why we skip VNDK APEX is that aosp_{pixel device} targets install VNDK APEX on /vendor
-		// even though VNDK APEX is supposed to be installed on /system. (See com.android.vndk.current.on_vendor)
-		forceLabel = "u:object_r:vendor_apex_metadata_file:s0"
+		// APEX on /vendor should label ./ and ./apex_manifest.pb as vendor file.
+		labelForRoot = "u:object_r:vendor_file:s0"
+		labelForManifest = "u:object_r:vendor_apex_metadata_file:s0"
 	}
 	// remove old file
 	rule.Command().Text("rm").FlagWithOutput("-f ", output)
@@ -387,8 +387,8 @@ func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) android.Output
 	rule.Command().Text("echo").Text(">>").Output(output)
 	if !useFileContextsAsIs {
 		// force-label /apex_manifest.pb and /
-		rule.Command().Text("echo").Text("/apex_manifest\\\\.pb").Text(forceLabel).Text(">>").Output(output)
-		rule.Command().Text("echo").Text("/").Text(forceLabel).Text(">>").Output(output)
+		rule.Command().Text("echo").Text("/apex_manifest\\\\.pb").Text(labelForManifest).Text(">>").Output(output)
+		rule.Command().Text("echo").Text("/").Text(labelForRoot).Text(">>").Output(output)
 	}
 
 	rule.Build("file_contexts."+a.Name(), "Generate file_contexts")
