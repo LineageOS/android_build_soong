@@ -15,12 +15,14 @@
 # limitations under the License.
 
 import argparse
+import asyncio
 import collections
 import json
 import os
+import socket
 import subprocess
 import sys
-import tempfile
+import textwrap
 
 def get_top() -> str:
   path = '.'
@@ -30,39 +32,65 @@ def get_top() -> str:
     path = os.path.join(path, '..')
   return os.path.abspath(path)
 
-def _build_with_soong(targets, target_product, *, keep_going = False, extra_env={}):
-  env = {
-      **os.environ,
-      "TARGET_PRODUCT": target_product,
-      "TARGET_BUILD_VARIANT": "userdebug",
-  }
-  env.update(extra_env)
+async def _build_with_soong(out_dir, targets, *, extra_env={}):
+  env = os.environ | extra_env
+
+  # Use nsjail to remap the out_dir to out/, because some genrules write the path to the out
+  # dir into their artifacts, so if the out directories were different it would cause a diff
+  # that doesn't really matter.
   args = [
+      'prebuilts/build-tools/linux-x86/bin/nsjail',
+      '-q',
+      '--cwd',
+      os.getcwd(),
+      '-e',
+      '-B',
+      '/',
+      '-B',
+      f'{os.path.abspath(out_dir)}:{os.path.abspath("out")}',
+      '--time_limit',
+      '0',
+      '--skip_setsid',
+      '--keep_caps',
+      '--disable_clone_newcgroup',
+      '--disable_clone_newnet',
+      '--rlimit_as',
+      'soft',
+      '--rlimit_core',
+      'soft',
+      '--rlimit_cpu',
+      'soft',
+      '--rlimit_fsize',
+      'soft',
+      '--rlimit_nofile',
+      'soft',
+      '--proc_rw',
+      '--hostname',
+      socket.gethostname(),
+      '--',
       "build/soong/soong_ui.bash",
       "--make-mode",
       "--skip-soong-tests",
   ]
-  if keep_going:
-    args.append("-k")
   args.extend(targets)
-  try:
-    subprocess.check_output(
-        args,
-        env=env,
-    )
-  except subprocess.CalledProcessError as e:
-    print(e)
-    print(e.stdout)
-    print(e.stderr)
-    exit(1)
+  process = await asyncio.create_subprocess_exec(
+      *args,
+      stdout=asyncio.subprocess.PIPE,
+      stderr=asyncio.subprocess.PIPE,
+      env=env,
+  )
+  stdout, stderr = await process.communicate()
+  if process.returncode != 0:
+    print(stdout)
+    print(stderr)
+    sys.exit(process.returncode)
 
 
-def _find_outputs_for_modules(modules, out_dir, target_product):
-  module_path = os.path.join(out_dir, "soong", "module-actions.json")
+async def _find_outputs_for_modules(modules):
+  module_path = "out/soong/module-actions.json"
 
   if not os.path.exists(module_path):
-    # Use GENRULE_SANDBOXING=false so that we don't cause re-analysis later when we do the no-sandboxing build
-    _build_with_soong(["json-module-graph"], target_product, extra_env={"GENRULE_SANDBOXING": "false"})
+    await _build_with_soong('out', ["json-module-graph"])
 
   with open(module_path) as f:
     action_graph = json.load(f)
@@ -71,7 +99,7 @@ def _find_outputs_for_modules(modules, out_dir, target_product):
   for mod in action_graph:
     name = mod["Name"]
     if name in modules:
-      for act in mod["Module"]["Actions"]:
+      for act in (mod["Module"]["Actions"] or []):
         if "}generate" in act["Desc"]:
           module_to_outs[name].update(act["Outputs"])
   return module_to_outs
@@ -89,18 +117,17 @@ def _compare_outputs(module_to_outs, tempdir) -> dict[str, list[str]]:
   return different_modules
 
 
-def main():
+async def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument(
-      "--target_product",
-      "-t",
-      default="aosp_cf_arm64_phone",
-      help="optional, target product, always runs as eng",
-  )
   parser.add_argument(
       "modules",
       nargs="+",
       help="modules to compare builds with genrule sandboxing enabled/not",
+  )
+  parser.add_argument(
+      "--check-determinism",
+      action="store_true",
+      help="Don't check for working sandboxing. Instead, run two default builds, and compare their outputs. This is used to check for nondeterminsim, which would also affect the sandboxed test.",
   )
   parser.add_argument(
       "--show-diff",
@@ -117,10 +144,13 @@ def main():
   args = parser.parse_args()
   os.chdir(get_top())
 
-  out_dir = os.environ.get("OUT_DIR", "out")
+  if "TARGET_PRODUCT" not in os.environ:
+    sys.exit("Please run lunch first")
+  if os.environ.get("OUT_DIR", "out") != "out":
+    sys.exit(f"This script expects OUT_DIR to be 'out', got: '{os.environ.get('OUT_DIR')}'")
 
   print("finding output files for the modules...")
-  module_to_outs = _find_outputs_for_modules(set(args.modules), out_dir, args.target_product)
+  module_to_outs = await _find_outputs_for_modules(set(args.modules))
   if not module_to_outs:
     sys.exit("No outputs found")
 
@@ -130,33 +160,48 @@ def main():
     sys.exit(0)
 
   all_outs = list(set.union(*module_to_outs.values()))
+  for i, out in enumerate(all_outs):
+    if not out.startswith("out/"):
+      sys.exit("Expected output file to start with out/, found: " + out)
 
-  print("building without sandboxing...")
-  _build_with_soong(all_outs, args.target_product, extra_env={"GENRULE_SANDBOXING": "false"})
-  with tempfile.TemporaryDirectory() as tempdir:
-    for f in all_outs:
-      subprocess.check_call(["cp", "--parents", f, tempdir])
+  other_out_dir = "out_check_determinism" if args.check_determinism else "out_not_sandboxed"
+  other_env = {"GENRULE_SANDBOXING": "false"}
+  if args.check_determinism:
+    other_env = {}
 
-    print("building with sandboxing...")
-    _build_with_soong(
-        all_outs,
-        args.target_product,
-        # We've verified these build without sandboxing already, so do the sandboxing build
-        # with keep_going = True so that we can find all the genrules that fail to build with
-        # sandboxing.
-        keep_going = True,
-        extra_env={"GENRULE_SANDBOXING": "true"},
-    )
+  # nsjail will complain if the out dir doesn't exist
+  os.makedirs("out", exist_ok=True)
+  os.makedirs(other_out_dir, exist_ok=True)
 
-    diffs = _compare_outputs(module_to_outs, tempdir)
-    if len(diffs) == 0:
-      print("All modules are correct")
-    elif args.show_diff:
-      for m, d in diffs.items():
-        print(f"Module {m} has diffs {d}")
-    else:
-      print(f"Modules {list(diffs.keys())} have diffs")
+  print("building...")
+  await asyncio.gather(
+    _build_with_soong("out", all_outs),
+    _build_with_soong(other_out_dir, all_outs, extra_env=other_env)
+  )
+
+  diffs = collections.defaultdict(dict)
+  for module, outs in module_to_outs.items():
+    for out in outs:
+      try:
+        subprocess.check_output(["diff", os.path.join(other_out_dir, out.removeprefix("out/")), out])
+      except subprocess.CalledProcessError as e:
+        diffs[module][out] = e.stdout
+
+  if len(diffs) == 0:
+    print("All modules are correct")
+  elif args.show_diff:
+    for m, files in diffs.items():
+      print(f"Module {m} has diffs:")
+      for f, d in files.items():
+        print("  "+f+":")
+        print(textwrap.indent(d, "    "))
+  else:
+    print(f"Modules {list(diffs.keys())} have diffs in these files:")
+    all_diff_files = [f for m in diffs.values() for f in m]
+    for f in all_diff_files:
+      print(f)
+
 
 
 if __name__ == "__main__":
-  main()
+  asyncio.run(main())
