@@ -570,8 +570,6 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 		config: config,
 	}
 
-	config.productVariables.Build_from_text_stub = boolPtr(config.BuildFromTextStub())
-
 	// Soundness check of the build and source directories. This won't catch strange
 	// configurations with symlinks, but at least checks the obvious case.
 	absBuildDir, err := filepath.Abs(cmdArgs.SoongOutDir)
@@ -706,6 +704,8 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 		"framework-wifi":                    {},
 		"i18n.module.public.api":            {},
 	}
+
+	config.productVariables.Build_from_text_stub = boolPtr(config.BuildFromTextStub())
 
 	return Config{config}, err
 }
@@ -2075,11 +2075,17 @@ func (c *config) JavaCoverageEnabled() bool {
 	return c.IsEnvTrue("EMMA_INSTRUMENT") || c.IsEnvTrue("EMMA_INSTRUMENT_STATIC") || c.IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK")
 }
 
+func (c *deviceConfig) BuildFromSourceStub() bool {
+	return Bool(c.config.productVariables.BuildFromSourceStub)
+}
+
 func (c *config) BuildFromTextStub() bool {
 	// TODO: b/302320354 - Remove the coverage build specific logic once the
 	// robust solution for handling native properties in from-text stub build
 	// is implemented.
-	return !c.buildFromSourceStub && !c.JavaCoverageEnabled() && !c.IsEnvTrue("BUILD_FROM_SOURCE_STUB")
+	return !c.buildFromSourceStub &&
+		!c.JavaCoverageEnabled() &&
+		!c.deviceConfig.BuildFromSourceStub()
 }
 
 func (c *config) SetBuildFromTextStub(b bool) {
