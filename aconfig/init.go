@@ -40,54 +40,8 @@ var (
 			Restat: true,
 		}, "release_version", "package", "declarations", "values", "default-permission")
 
-	// For java_aconfig_library: Generate java library
-	javaRule = pctx.AndroidStaticRule("java_aconfig_library",
-		blueprint.RuleParams{
-			Command: `rm -rf ${out}.tmp` +
-				` && mkdir -p ${out}.tmp` +
-				` && ${aconfig} create-java-lib` +
-				`    --mode ${mode}` +
-				`    --cache ${in}` +
-				`    --out ${out}.tmp` +
-				` && $soong_zip -write_if_changed -jar -o ${out} -C ${out}.tmp -D ${out}.tmp` +
-				` && rm -rf ${out}.tmp`,
-			CommandDeps: []string{
-				"$aconfig",
-				"$soong_zip",
-			},
-			Restat: true,
-		}, "mode")
-
-	// For cc_aconfig_library: Generate C++ library
-	cppRule = pctx.AndroidStaticRule("cc_aconfig_library",
-		blueprint.RuleParams{
-			Command: `rm -rf ${gendir}` +
-				` && mkdir -p ${gendir}` +
-				` && ${aconfig} create-cpp-lib` +
-				`    --mode ${mode}` +
-				`    --cache ${in}` +
-				`    --out ${gendir}`,
-			CommandDeps: []string{
-				"$aconfig",
-			},
-		}, "gendir", "mode")
-
-	// For rust_aconfig_library: Generate Rust library
-	rustRule = pctx.AndroidStaticRule("rust_aconfig_library",
-		blueprint.RuleParams{
-			Command: `rm -rf ${gendir}` +
-				` && mkdir -p ${gendir}` +
-				` && ${aconfig} create-rust-lib` +
-				`    --mode ${mode}` +
-				`    --cache ${in}` +
-				`    --out ${gendir}`,
-			CommandDeps: []string{
-				"$aconfig",
-			},
-		}, "gendir", "mode")
-
 	// For all_aconfig_declarations: Combine all parsed_flags proto files
-	allDeclarationsRule = pctx.AndroidStaticRule("all_aconfig_declarations_dump",
+	AllDeclarationsRule = pctx.AndroidStaticRule("All_aconfig_declarations_dump",
 		blueprint.RuleParams{
 			Command: `${aconfig} dump --format protobuf --out ${out} ${cache_files}`,
 			CommandDeps: []string{
@@ -106,8 +60,5 @@ func RegisterBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("aconfig_declarations", DeclarationsFactory)
 	ctx.RegisterModuleType("aconfig_values", ValuesFactory)
 	ctx.RegisterModuleType("aconfig_value_set", ValueSetFactory)
-	ctx.RegisterModuleType("cc_aconfig_library", CcAconfigLibraryFactory)
-	ctx.RegisterModuleType("java_aconfig_library", JavaDeclarationsLibraryFactory)
-	ctx.RegisterModuleType("rust_aconfig_library", RustAconfigLibraryFactory)
 	ctx.RegisterParallelSingletonType("all_aconfig_declarations", AllAconfigDeclarationsFactory)
 }
