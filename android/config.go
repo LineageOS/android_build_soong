@@ -2078,11 +2078,17 @@ func (c *config) JavaCoverageEnabled() bool {
 	return c.IsEnvTrue("EMMA_INSTRUMENT") || c.IsEnvTrue("EMMA_INSTRUMENT_STATIC") || c.IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK")
 }
 
+func (c *deviceConfig) BuildFromSourceStub() bool {
+	return Bool(c.config.productVariables.BuildFromSourceStub)
+}
+
 func (c *config) BuildFromTextStub() bool {
 	// TODO: b/302320354 - Remove the coverage build specific logic once the
 	// robust solution for handling native properties in from-text stub build
 	// is implemented.
-	return !c.buildFromSourceStub && !c.JavaCoverageEnabled() && !c.IsEnvTrue("BUILD_FROM_SOURCE_STUB")
+	return !c.buildFromSourceStub &&
+		!c.JavaCoverageEnabled() &&
+		!c.deviceConfig.BuildFromSourceStub()
 }
 
 func (c *config) SetBuildFromTextStub(b bool) {
