@@ -20,10 +20,6 @@ type RustAconfigLibraryProperties struct {
 	// name of the aconfig_declarations module to generate a library for
 	Aconfig_declarations string
 
-	// whether to generate test mode version of the library
-	// TODO: remove "Test" property when "Mode" can be used in all the branches
-	Test *bool
-
 	// default mode is "production", the other accepted modes are:
 	// "test": to generate test mode version of the library
 	// "exported": to generate exported mode version of the library
@@ -70,17 +66,9 @@ func (a *aconfigDecorator) GenerateSource(ctx rust.ModuleContext, deps rust.Path
 	}
 	declarations := ctx.OtherModuleProvider(declarationsModules[0], declarationsProviderKey).(declarationsProviderData)
 
-	if a.Properties.Mode != nil && a.Properties.Test != nil {
-		ctx.PropertyErrorf("test", "test prop should not be specified when mode prop is set")
-	}
 	mode := proptools.StringDefault(a.Properties.Mode, "production")
 	if !isModeSupported(mode) {
 		ctx.PropertyErrorf("mode", "%q is not a supported mode", mode)
-	}
-
-	// TODO: remove "Test" property
-	if proptools.Bool(a.Properties.Test) {
-		mode = "test"
 	}
 
 	ctx.Build(pctx, android.BuildParams{

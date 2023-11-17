@@ -720,9 +720,6 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 	j.compile(ctx, nil, nil, nil)
 
-	// Collect the module directory for IDE info in java/jdeps.go.
-	j.modulePaths = append(j.modulePaths, ctx.ModuleDir())
-
 	exclusivelyForApex := !apexInfo.IsForPlatform()
 	if (Bool(j.properties.Installable) || ctx.Host()) && !exclusivelyForApex {
 		var extraInstallDeps android.Paths
