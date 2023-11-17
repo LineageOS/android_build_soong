@@ -95,6 +95,7 @@ func fuzzMutatorDeps(mctx android.TopDownMutatorContext) {
 // your device, or $ANDROID_PRODUCT_OUT/data/fuzz in your build tree.
 func LibFuzzFactory() android.Module {
 	module := NewFuzzer(android.HostAndDeviceSupported)
+	module.testModule = true
 	return module.Init()
 }
 

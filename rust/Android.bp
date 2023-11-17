@@ -12,6 +12,7 @@ bootstrap_go_package {
         "soong-cc",
         "soong-rust-config",
         "soong-snapshot",
+        "soong-testing",
     ],
     srcs: [
         "afdo.go",
