@@ -694,6 +694,7 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 		"framework-location":                {},
 		"framework-media":                   {},
 		"framework-mediaprovider":           {},
+		"framework-nfc":                     {},
 		"framework-ondevicepersonalization": {},
 		"framework-pdf":                     {},
 		"framework-permission":              {},
