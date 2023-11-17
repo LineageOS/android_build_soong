@@ -343,10 +343,15 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 			Disabled: true,
 		}}
 	}
+	var required []string
+	if proptools.Bool(app.appProperties.Generate_product_characteristics_rro) {
+		required = []string{app.productCharacteristicsRROPackageName()}
+	}
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "APPS",
 		OutputFile: android.OptionalPathForPath(app.outputFile),
 		Include:    "$(BUILD_SYSTEM)/soong_app_prebuilt.mk",
+		Required:   required,
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				// App module names can be overridden.
