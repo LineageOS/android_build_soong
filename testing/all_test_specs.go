@@ -21,10 +21,10 @@ func (this *allTestSpecsSingleton) GenerateBuildActions(ctx android.SingletonCon
 	var intermediateMetadataPaths android.Paths
 
 	ctx.VisitAllModules(func(module android.Module) {
-		if !ctx.ModuleHasProvider(module, testSpecProviderKey) {
+		if !ctx.ModuleHasProvider(module, TestSpecProviderKey) {
 			return
 		}
-		intermediateMetadataPaths = append(intermediateMetadataPaths, ctx.ModuleProvider(module, testSpecProviderKey).(testSpecProviderData).IntermediatePath)
+		intermediateMetadataPaths = append(intermediateMetadataPaths, ctx.ModuleProvider(module, TestSpecProviderKey).(TestSpecProviderData).IntermediatePath)
 	})
 
 	rspFile := android.PathForOutput(ctx, fileContainingFilePaths)
