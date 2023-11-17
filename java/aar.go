@@ -102,6 +102,9 @@ type aaptProperties struct {
 
 	// true if RRO is enforced for any of the dependent modules
 	RROEnforcedForDependent bool `blueprint:"mutated"`
+
+	// Filter only specified product and ignore other products
+	Filter_product *string `blueprint:"mutated"`
 }
 
 type aapt struct {
@@ -160,6 +163,10 @@ func propagateRROEnforcementMutator(ctx android.TopDownMutatorContext) {
 
 func (a *aapt) useResourceProcessorBusyBox() bool {
 	return BoolDefault(a.aaptProperties.Use_resource_processor, false)
+}
+
+func (a *aapt) filterProduct() string {
+	return String(a.aaptProperties.Filter_product)
 }
 
 func (a *aapt) ExportPackage() android.Path {
@@ -432,7 +439,7 @@ func (a *aapt) buildActions(ctx android.ModuleContext, opts aaptBuildActionOptio
 	var compiledResDirs []android.Paths
 	for _, dir := range resDirs {
 		a.resourceFiles = append(a.resourceFiles, dir.files...)
-		compiledResDirs = append(compiledResDirs, aapt2Compile(ctx, dir.dir, dir.files, compileFlags).Paths())
+		compiledResDirs = append(compiledResDirs, aapt2Compile(ctx, dir.dir, dir.files, compileFlags, a.filterProduct()).Paths())
 	}
 
 	for i, zip := range resZips {
@@ -491,7 +498,7 @@ func (a *aapt) buildActions(ctx android.ModuleContext, opts aaptBuildActionOptio
 	}
 
 	for _, dir := range overlayDirs {
-		compiledOverlay = append(compiledOverlay, aapt2Compile(ctx, dir.dir, dir.files, compileFlags).Paths()...)
+		compiledOverlay = append(compiledOverlay, aapt2Compile(ctx, dir.dir, dir.files, compileFlags, a.filterProduct()).Paths()...)
 	}
 
 	var splitPackages android.WritablePaths
