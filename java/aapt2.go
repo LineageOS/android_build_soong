@@ -25,17 +25,23 @@ import (
 	"android/soong/android"
 )
 
+func isPathValueResource(res android.Path) bool {
+	subDir := filepath.Dir(res.String())
+	subDir, lastDir := filepath.Split(subDir)
+	return strings.HasPrefix(lastDir, "values")
+}
+
 // Convert input resource file path to output file path.
 // values-[config]/<file>.xml -> values-[config]_<file>.arsc.flat;
 // For other resource file, just replace the last "/" with "_" and add .flat extension.
 func pathToAapt2Path(ctx android.ModuleContext, res android.Path) android.WritablePath {
 
 	name := res.Base()
-	subDir := filepath.Dir(res.String())
-	subDir, lastDir := filepath.Split(subDir)
-	if strings.HasPrefix(lastDir, "values") {
+	if isPathValueResource(res) {
 		name = strings.TrimSuffix(name, ".xml") + ".arsc"
 	}
+	subDir := filepath.Dir(res.String())
+	subDir, lastDir := filepath.Split(subDir)
 	name = lastDir + "_" + name + ".flat"
 	return android.PathForModuleOut(ctx, "aapt2", subDir, name)
 }
@@ -63,7 +69,21 @@ var aapt2CompileRule = pctx.AndroidStaticRule("aapt2Compile",
 
 // aapt2Compile compiles resources and puts the results in the requested directory.
 func aapt2Compile(ctx android.ModuleContext, dir android.Path, paths android.Paths,
-	flags []string) android.WritablePaths {
+	flags []string, productToFilter string) android.WritablePaths {
+	if productToFilter != "" && productToFilter != "default" {
+		// --filter-product leaves only product-specific resources. Product-specific resources only exist
+		// in value resources (values/*.xml), so filter value resource files only. Ignore other types of
+		// resources as they don't need to be in product characteristics RRO (and they will cause aapt2
+		// compile errors)
+		filteredPaths := android.Paths{}
+		for _, path := range paths {
+			if isPathValueResource(path) {
+				filteredPaths = append(filteredPaths, path)
+			}
+		}
+		paths = filteredPaths
+		flags = append([]string{"--filter-product " + productToFilter}, flags...)
+	}
 
 	// Shard the input paths so that they can be processed in parallel. If we shard them into too
 	// small chunks, the additional cost of spinning up aapt2 outweighs the performance gain. The

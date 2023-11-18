@@ -27,16 +27,7 @@ var (
 	SandboxingDenyModuleList = []string{
 		// go/keep-sorted start
 		"CtsApkVerityTestDebugFiles",
-		"ImageProcessing-rscript",
-		"ImageProcessing2-rscript",
-		"ImageProcessingJB-rscript",
 		"MultiDexLegacyTestApp_genrule",
-		"RSTest-rscript",
-		"RSTest_v11-rscript",
-		"RSTest_v14-rscript",
-		"RSTest_v16-rscript",
-		"Refocus-rscript",
-		"RsBalls-rscript",
 		"ScriptGroupTest-rscript",
 		"TracingVMProtoStub_cc",
 		"TracingVMProtoStub_h",
