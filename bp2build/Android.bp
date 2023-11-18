@@ -6,6 +6,7 @@ bootstrap_go_package {
     name: "soong-bp2build",
     pkgPath: "android/soong/bp2build",
     srcs: [
+        "aconfig_conversion_test.go",
         "androidbp_to_build_templates.go",
         "bp2build.go",
         "bp2build_product_config.go",
@@ -21,6 +22,7 @@ bootstrap_go_package {
     deps: [
         "blueprint-bootstrap",
         "soong-aidl-library",
+        "soong-aconfig",
         "soong-android",
         "soong-android-allowlists",
         "soong-android-soongconfig",
