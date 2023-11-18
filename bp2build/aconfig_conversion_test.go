@@ -156,7 +156,7 @@ func TestJavaAconfigLibrary(t *testing.T) {
 			name: "foo",
 			aconfig_declarations: "foo_aconfig_declarations",
 			libs: ["foo_java_library"],
-			test: true,
+			mode: "test",
 	}
 	`
 	expectedBazelTargets := []string{
@@ -184,7 +184,6 @@ func TestJavaAconfigLibrary(t *testing.T) {
 			AttrNameToString{
 				"aconfig_declarations":   `":foo_aconfig_declarations"`,
 				"libs":                   `[":foo_java_library-neverlink"]`,
-				"test":                   `True`,
 				"sdk_version":            `"system_current"`,
 				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 			},
@@ -213,7 +212,7 @@ func TestJavaAconfigLibraryAsTaggedOutput(t *testing.T) {
 	java_aconfig_library {
 			name: "foo_aconfig_library",
 			aconfig_declarations: "foo_aconfig_declarations",
-			test: true,
+			mode: "test",
 	}
 	`
 	expectedBazelTargets := []string{
@@ -230,7 +229,6 @@ func TestJavaAconfigLibraryAsTaggedOutput(t *testing.T) {
 			"foo_aconfig_library",
 			AttrNameToString{
 				"aconfig_declarations":   `":foo_aconfig_declarations"`,
-				"test":                   `True`,
 				"sdk_version":            `"system_current"`,
 				"target_compatible_with": `["//build/bazel_common_rules/platforms/os:android"]`,
 			},
