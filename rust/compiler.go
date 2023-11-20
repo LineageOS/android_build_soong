@@ -47,13 +47,13 @@ type compiler interface {
 
 	// Output directory in which source-generated code from dependencies is
 	// copied. This is equivalent to Cargo's OUT_DIR variable.
-	CargoOutDir() android.OptionalPath
+	cargoOutDir() android.OptionalPath
 
-	// CargoPkgVersion returns the value of the Cargo_pkg_version property.
-	CargoPkgVersion() string
+	// cargoPkgVersion returns the value of the Cargo_pkg_version property.
+	cargoPkgVersion() string
 
-	// CargoEnvCompat returns whether Cargo environment variables should be used.
-	CargoEnvCompat() bool
+	// cargoEnvCompat returns whether Cargo environment variables should be used.
+	cargoEnvCompat() bool
 
 	inData() bool
 	install(ctx ModuleContext)
@@ -242,7 +242,10 @@ type baseCompiler struct {
 
 	// If a crate has a source-generated dependency, a copy of the source file
 	// will be available in cargoOutDir (equivalent to Cargo OUT_DIR).
-	cargoOutDir android.ModuleOutPath
+	// This is stored internally because it may not be available during
+	// singleton-generation passes like rustdoc/rust_project.json, but should
+	// be stashed during initial generation.
+	cachedCargoOutDir android.ModuleOutPath
 }
 
 func (compiler *baseCompiler) Disabled() bool {
@@ -393,18 +396,18 @@ func (compiler *baseCompiler) rustdoc(ctx ModuleContext, flags Flags,
 }
 
 func (compiler *baseCompiler) initialize(ctx ModuleContext) {
-	compiler.cargoOutDir = android.PathForModuleOut(ctx, genSubDir)
+	compiler.cachedCargoOutDir = android.PathForModuleOut(ctx, genSubDir)
 }
 
-func (compiler *baseCompiler) CargoOutDir() android.OptionalPath {
-	return android.OptionalPathForPath(compiler.cargoOutDir)
+func (compiler *baseCompiler) cargoOutDir() android.OptionalPath {
+	return android.OptionalPathForPath(compiler.cachedCargoOutDir)
 }
 
-func (compiler *baseCompiler) CargoEnvCompat() bool {
+func (compiler *baseCompiler) cargoEnvCompat() bool {
 	return Bool(compiler.Properties.Cargo_env_compat)
 }
 
-func (compiler *baseCompiler) CargoPkgVersion() string {
+func (compiler *baseCompiler) cargoPkgVersion() string {
 	return String(compiler.Properties.Cargo_pkg_version)
 }
 

@@ -241,8 +241,8 @@ func (singleton *projectGeneratorSingleton) addCrate(ctx android.SingletonContex
 		ProcMacro:   procMacro,
 	}
 
-	if comp.CargoOutDir().Valid() {
-		crate.Env["OUT_DIR"] = comp.CargoOutDir().String()
+	if comp.cargoOutDir().Valid() {
+		crate.Env["OUT_DIR"] = comp.cargoOutDir().String()
 	}
 
 	for _, feature := range comp.Properties.Features {
