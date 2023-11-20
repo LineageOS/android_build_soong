@@ -2210,6 +2210,14 @@ type DataPath struct {
 	RelativeInstallPath string
 }
 
+func (d *DataPath) ToRelativeInstallPath() string {
+	relPath := d.SrcPath.Rel()
+	if d.RelativeInstallPath != "" {
+		relPath = filepath.Join(d.RelativeInstallPath, relPath)
+	}
+	return relPath
+}
+
 // PathsIfNonNil returns a Paths containing only the non-nil input arguments.
 func PathsIfNonNil(paths ...Path) Paths {
 	if len(paths) == 0 {
