@@ -16,6 +16,7 @@ package rust
 
 import (
 	"android/soong/cc"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -71,7 +72,7 @@ type compiler interface {
 	unstrippedOutputFilePath() android.Path
 	strippedOutputFilePath() android.OptionalPath
 
-	crateRootPath(ctx ModuleContext) android.Path
+	checkedCrateRootPath() (android.Path, error)
 }
 
 func (compiler *baseCompiler) edition() string {
@@ -248,6 +249,12 @@ type baseCompiler struct {
 	// singleton-generation passes like rustdoc/rust_project.json, but should
 	// be stashed during initial generation.
 	cachedCargoOutDir android.ModuleOutPath
+	// Calculated crate root cached internally because ModuleContext is not
+	// available to singleton targets like rustdoc/rust_project.json
+	cachedCrateRootPath android.Path
+	// If cachedCrateRootPath is nil after initialization, this will contain
+	// an explanation of why
+	cachedCrateRootError error
 }
 
 func (compiler *baseCompiler) Disabled() bool {
@@ -399,6 +406,12 @@ func (compiler *baseCompiler) rustdoc(ctx ModuleContext, flags Flags,
 
 func (compiler *baseCompiler) initialize(ctx ModuleContext) {
 	compiler.cachedCargoOutDir = android.PathForModuleOut(ctx, genSubDir)
+	if compiler.Properties.Crate_root == nil {
+		compiler.cachedCrateRootPath, compiler.cachedCrateRootError = srcPathFromModuleSrcs(ctx, compiler.Properties.Srcs)
+	} else {
+		compiler.cachedCrateRootPath = android.PathForModuleSrc(ctx, *compiler.Properties.Crate_root)
+		compiler.cachedCrateRootError = nil
+	}
 }
 
 func (compiler *baseCompiler) cargoOutDir() android.OptionalPath {
@@ -539,21 +552,20 @@ func (compiler *baseCompiler) relativeInstallPath() string {
 	return String(compiler.Properties.Relative_install_path)
 }
 
-func (compiler *baseCompiler) crateRootPath(ctx ModuleContext) android.Path {
-	if compiler.Properties.Crate_root == nil {
-		path := srcPathFromModuleSrcs(ctx, compiler.Properties.Srcs)
-		return path
-	} else {
-		return android.PathForModuleSrc(ctx, *compiler.Properties.Crate_root)
+func (compiler *baseCompiler) checkedCrateRootPath() (android.Path, error) {
+	return compiler.cachedCrateRootPath, compiler.cachedCrateRootError
+}
+
+func crateRootPath(ctx ModuleContext, compiler compiler) android.Path {
+	root, err := compiler.checkedCrateRootPath()
+	if err != nil {
+		ctx.PropertyErrorf("srcs", err.Error())
 	}
+	return root
 }
 
 // Returns the Path for the main source file along with Paths for generated source files from modules listed in srcs.
-func srcPathFromModuleSrcs(ctx ModuleContext, srcs []string) android.Path {
-	if len(srcs) == 0 {
-		ctx.PropertyErrorf("srcs", "srcs must not be empty")
-	}
-
+func srcPathFromModuleSrcs(ctx ModuleContext, srcs []string) (android.Path, error) {
 	// The srcs can contain strings with prefix ":".
 	// They are dependent modules of this module, with android.SourceDepTag.
 	// They are not the main source file compiled by rustc.
@@ -566,19 +578,22 @@ func srcPathFromModuleSrcs(ctx ModuleContext, srcs []string) android.Path {
 		}
 	}
 	if numSrcs > 1 {
-		ctx.PropertyErrorf("srcs", incorrectSourcesError)
+		return nil, errors.New(incorrectSourcesError)
 	}
 
 	// If a main source file is not provided we expect only a single SourceProvider module to be defined
 	// within srcs, with the expectation that the first source it provides is the entry point.
 	if srcIndex != 0 {
-		ctx.PropertyErrorf("srcs", "main source file must be the first in srcs")
+		return nil, errors.New("main source file must be the first in srcs")
 	} else if numSrcs > 1 {
-		ctx.PropertyErrorf("srcs", "only a single generated source module can be defined without a main source file.")
+		return nil, errors.New("only a single generated source module can be defined without a main source file.")
 	}
 
 	// TODO: b/297264540 - once all modules are sandboxed, we need to select the proper
 	// entry point file from Srcs rather than taking the first one
 	paths := android.PathsForModuleSrc(ctx, srcs)
-	return paths[srcIndex]
+	if len(paths) == 0 {
+		return nil, errors.New("srcs must not be empty")
+	}
+	return paths[srcIndex], nil
 }
