@@ -70,6 +70,8 @@ type compiler interface {
 
 	unstrippedOutputFilePath() android.Path
 	strippedOutputFilePath() android.OptionalPath
+
+	crateRootPath(ctx ModuleContext) android.Path
 }
 
 func (compiler *baseCompiler) edition() string {
@@ -535,6 +537,15 @@ func (compiler *baseCompiler) getStemWithoutSuffix(ctx BaseModuleContext) string
 
 func (compiler *baseCompiler) relativeInstallPath() string {
 	return String(compiler.Properties.Relative_install_path)
+}
+
+func (compiler *baseCompiler) crateRootPath(ctx ModuleContext) android.Path {
+	if compiler.Properties.Crate_root == nil {
+		path, _ := srcPathFromModuleSrcs(ctx, compiler.Properties.Srcs)
+		return path
+	} else {
+		return android.PathForModuleSrc(ctx, *compiler.Properties.Crate_root)
+	}
 }
 
 // Returns the Path for the main source file along with Paths for generated source files from modules listed in srcs.
