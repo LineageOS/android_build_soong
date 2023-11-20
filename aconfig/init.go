@@ -40,7 +40,7 @@ var (
 			Restat: true,
 		}, "release_version", "package", "declarations", "values", "default-permission")
 
-	// For java_aconfig_library: Generate java file
+	// For java_aconfig_library: Generate java library
 	javaRule = pctx.AndroidStaticRule("java_aconfig_library",
 		blueprint.RuleParams{
 			Command: `rm -rf ${out}.tmp` +
@@ -58,7 +58,7 @@ var (
 			Restat: true,
 		}, "mode")
 
-	// For java_aconfig_library: Generate java file
+	// For cc_aconfig_library: Generate C++ library
 	cppRule = pctx.AndroidStaticRule("cc_aconfig_library",
 		blueprint.RuleParams{
 			Command: `rm -rf ${gendir}` +
@@ -69,10 +69,10 @@ var (
 				`    --out ${gendir}`,
 			CommandDeps: []string{
 				"$aconfig",
-				"$soong_zip",
 			},
 		}, "gendir", "mode")
 
+	// For rust_aconfig_library: Generate Rust library
 	rustRule = pctx.AndroidStaticRule("rust_aconfig_library",
 		blueprint.RuleParams{
 			Command: `rm -rf ${gendir}` +
@@ -83,11 +83,10 @@ var (
 				`    --out ${gendir}`,
 			CommandDeps: []string{
 				"$aconfig",
-				"$soong_zip",
 			},
 		}, "gendir", "mode")
 
-	// For all_aconfig_declarations
+	// For all_aconfig_declarations: Combine all parsed_flags proto files
 	allDeclarationsRule = pctx.AndroidStaticRule("all_aconfig_declarations_dump",
 		blueprint.RuleParams{
 			Command: `${aconfig} dump --format protobuf --out ${out} ${cache_files}`,
