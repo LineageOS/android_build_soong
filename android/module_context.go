@@ -114,7 +114,7 @@ type ModuleContext interface {
 	// installed file will be returned by PackagingSpecs() on this module or by
 	// TransitivePackagingSpecs() on modules that depend on this module through dependency tags
 	// for which IsInstallDepNeeded returns true.
-	InstallExecutable(installPath InstallPath, name string, srcPath Path, deps ...Path) InstallPath
+	InstallExecutable(installPath InstallPath, name string, srcPath Path, deps ...InstallPath) InstallPath
 
 	// InstallFile creates a rule to copy srcPath to name in the installPath directory,
 	// with the given additional dependencies.
@@ -123,7 +123,7 @@ type ModuleContext interface {
 	// installed file will be returned by PackagingSpecs() on this module or by
 	// TransitivePackagingSpecs() on modules that depend on this module through dependency tags
 	// for which IsInstallDepNeeded returns true.
-	InstallFile(installPath InstallPath, name string, srcPath Path, deps ...Path) InstallPath
+	InstallFile(installPath InstallPath, name string, srcPath Path, deps ...InstallPath) InstallPath
 
 	// InstallFileWithExtraFilesZip creates a rule to copy srcPath to name in the installPath
 	// directory, and also unzip a zip file containing extra files to install into the same
@@ -133,7 +133,7 @@ type ModuleContext interface {
 	// installed file will be returned by PackagingSpecs() on this module or by
 	// TransitivePackagingSpecs() on modules that depend on this module through dependency tags
 	// for which IsInstallDepNeeded returns true.
-	InstallFileWithExtraFilesZip(installPath InstallPath, name string, srcPath Path, extraZip Path, deps ...Path) InstallPath
+	InstallFileWithExtraFilesZip(installPath InstallPath, name string, srcPath Path, extraZip Path, deps ...InstallPath) InstallPath
 
 	// InstallSymlink creates a rule to create a symlink from src srcPath to name in the installPath
 	// directory.
@@ -451,17 +451,17 @@ func (m *moduleContext) skipInstall() bool {
 }
 
 func (m *moduleContext) InstallFile(installPath InstallPath, name string, srcPath Path,
-	deps ...Path) InstallPath {
+	deps ...InstallPath) InstallPath {
 	return m.installFile(installPath, name, srcPath, deps, false, nil)
 }
 
 func (m *moduleContext) InstallExecutable(installPath InstallPath, name string, srcPath Path,
-	deps ...Path) InstallPath {
+	deps ...InstallPath) InstallPath {
 	return m.installFile(installPath, name, srcPath, deps, true, nil)
 }
 
 func (m *moduleContext) InstallFileWithExtraFilesZip(installPath InstallPath, name string, srcPath Path,
-	extraZip Path, deps ...Path) InstallPath {
+	extraZip Path, deps ...InstallPath) InstallPath {
 	return m.installFile(installPath, name, srcPath, deps, false, &extraFilesZip{
 		zip: extraZip,
 		dir: installPath,
@@ -487,23 +487,23 @@ func (m *moduleContext) packageFile(fullInstallPath InstallPath, srcPath Path, e
 	return spec
 }
 
-func (m *moduleContext) installFile(installPath InstallPath, name string, srcPath Path, deps []Path,
+func (m *moduleContext) installFile(installPath InstallPath, name string, srcPath Path, deps []InstallPath,
 	executable bool, extraZip *extraFilesZip) InstallPath {
 
 	fullInstallPath := installPath.Join(m, name)
 	m.module.base().hooks.runInstallHooks(m, srcPath, fullInstallPath, false)
 
 	if !m.skipInstall() {
-		deps = append(deps, InstallPaths(m.module.base().installFilesDepSet.ToList()).Paths()...)
+		deps = append(deps, InstallPaths(m.module.base().installFilesDepSet.ToList())...)
 
 		var implicitDeps, orderOnlyDeps Paths
 
 		if m.Host() {
 			// Installed host modules might be used during the build, depend directly on their
 			// dependencies so their timestamp is updated whenever their dependency is updated
-			implicitDeps = deps
+			implicitDeps = InstallPaths(deps).Paths()
 		} else {
-			orderOnlyDeps = deps
+			orderOnlyDeps = InstallPaths(deps).Paths()
 		}
 
 		if m.Config().KatiEnabled() {
