@@ -956,7 +956,7 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 
 	// Install to $OUT/soong/{target,host}/.../apex.
 	a.installedFile = ctx.InstallFile(a.installDir, a.Name()+installSuffix, a.outputFile,
-		a.compatSymlinks.Paths()...)
+		a.compatSymlinks...)
 
 	// installed-files.txt is dist'ed
 	a.installedFilesFile = a.buildInstalledFilesFile(ctx, a.outputFile, imageDir)
