@@ -18,6 +18,7 @@ bootstrap_go_package {
         "aconfig_values.go",
         "aconfig_value_set.go",
         "all_aconfig_declarations.go",
+        "exported_java_aconfig_library.go",
         "init.go",
         "testing.go",
     ],
