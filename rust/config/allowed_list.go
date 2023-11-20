@@ -48,6 +48,7 @@ var (
 
 	DownstreamRustAllowedPaths = []string{
 		// Add downstream allowed Rust paths here.
+		"hardware/lineage",
 	}
 
 	RustModuleTypes = []string{
