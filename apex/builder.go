@@ -563,13 +563,8 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 		// Copy the test files (if any)
 		for _, d := range fi.dataPaths {
 			// TODO(eakammer): This is now the third repetition of ~this logic for test paths, refactoring should be possible
-			relPath := d.SrcPath.Rel()
-			dataPath := d.SrcPath.String()
-			if !strings.HasSuffix(dataPath, relPath) {
-				panic(fmt.Errorf("path %q does not end with %q", dataPath, relPath))
-			}
-
-			dataDest := imageDir.Join(ctx, fi.apexRelativePath(relPath), d.RelativeInstallPath).String()
+			relPath := d.ToRelativeInstallPath()
+			dataDest := imageDir.Join(ctx, fi.apexRelativePath(relPath)).String()
 
 			copyCommands = append(copyCommands, "cp -f "+d.SrcPath.String()+" "+dataDest)
 			implicitInputs = append(implicitInputs, d.SrcPath)
@@ -956,7 +951,7 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 
 	// Install to $OUT/soong/{target,host}/.../apex.
 	a.installedFile = ctx.InstallFile(a.installDir, a.Name()+installSuffix, a.outputFile,
-		a.compatSymlinks.Paths()...)
+		a.compatSymlinks...)
 
 	// installed-files.txt is dist'ed
 	a.installedFilesFile = a.buildInstalledFilesFile(ctx, a.outputFile, imageDir)
@@ -1095,7 +1090,8 @@ func (a *apexBundle) buildCannedFsConfig(ctx android.ModuleContext) android.Outp
 		if f.installDir == "bin" || strings.HasPrefix(f.installDir, "bin/") {
 			executablePaths = append(executablePaths, pathInApex)
 			for _, d := range f.dataPaths {
-				readOnlyPaths = append(readOnlyPaths, filepath.Join(f.installDir, d.RelativeInstallPath, d.SrcPath.Rel()))
+				rel := d.ToRelativeInstallPath()
+				readOnlyPaths = append(readOnlyPaths, filepath.Join(f.installDir, rel))
 			}
 			for _, s := range f.symlinks {
 				executablePaths = append(executablePaths, filepath.Join(f.installDir, s))

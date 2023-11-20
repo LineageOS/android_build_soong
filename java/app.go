@@ -869,7 +869,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 			ctx.InstallFile(allowlistInstallPath, allowlistInstallFilename, a.privAppAllowlist.Path())
 		}
 
-		var extraInstalledPaths android.Paths
+		var extraInstalledPaths android.InstallPaths
 		for _, extra := range a.extraOutputFiles {
 			installed := ctx.InstallFile(a.installDir, extra.Base(), extra)
 			extraInstalledPaths = append(extraInstalledPaths, installed)

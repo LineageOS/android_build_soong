@@ -226,7 +226,7 @@ func (r *robolectricTest) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	}
 
 	installPath := android.PathForModuleInstall(ctx, r.BaseModuleName())
-	var installDeps android.Paths
+	var installDeps android.InstallPaths
 
 	if r.manifest != nil {
 		r.data = append(r.data, r.manifest)
