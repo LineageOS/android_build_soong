@@ -79,7 +79,7 @@ func (procMacro *procMacroDecorator) compile(ctx ModuleContext, flags Flags, dep
 	fileName := procMacro.getStem(ctx) + ctx.toolchain().ProcMacroSuffix()
 	outputFile := android.PathForModuleOut(ctx, fileName)
 
-	srcPath, _ := srcPathFromModuleSrcs(ctx, procMacro.baseCompiler.Properties.Srcs)
+	srcPath := procMacro.crateRootPath(ctx)
 	ret := TransformSrctoProcMacro(ctx, srcPath, deps, flags, outputFile)
 	procMacro.baseCompiler.unstrippedOutputFile = outputFile
 	return ret

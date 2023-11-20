@@ -541,7 +541,7 @@ func (compiler *baseCompiler) relativeInstallPath() string {
 
 func (compiler *baseCompiler) crateRootPath(ctx ModuleContext) android.Path {
 	if compiler.Properties.Crate_root == nil {
-		path, _ := srcPathFromModuleSrcs(ctx, compiler.Properties.Srcs)
+		path := srcPathFromModuleSrcs(ctx, compiler.Properties.Srcs)
 		return path
 	} else {
 		return android.PathForModuleSrc(ctx, *compiler.Properties.Crate_root)
@@ -549,7 +549,7 @@ func (compiler *baseCompiler) crateRootPath(ctx ModuleContext) android.Path {
 }
 
 // Returns the Path for the main source file along with Paths for generated source files from modules listed in srcs.
-func srcPathFromModuleSrcs(ctx ModuleContext, srcs []string) (android.Path, android.Paths) {
+func srcPathFromModuleSrcs(ctx ModuleContext, srcs []string) android.Path {
 	if len(srcs) == 0 {
 		ctx.PropertyErrorf("srcs", "srcs must not be empty")
 	}
@@ -580,5 +580,5 @@ func srcPathFromModuleSrcs(ctx ModuleContext, srcs []string) (android.Path, andr
 	// TODO: b/297264540 - once all modules are sandboxed, we need to select the proper
 	// entry point file from Srcs rather than taking the first one
 	paths := android.PathsForModuleSrc(ctx, srcs)
-	return paths[srcIndex], paths[1:]
+	return paths[srcIndex]
 }
