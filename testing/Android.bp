@@ -15,6 +15,7 @@ bootstrap_go_package {
         "all_test_specs.go",
         "test_spec.go",
         "init.go",
+        "test.go",
     ],
     pluginFor: ["soong_build"],
 }

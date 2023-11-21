@@ -113,6 +113,7 @@ bootstrap_go_package {
         "sdk_library_test.go",
         "system_modules_test.go",
         "systemserver_classpath_fragment_test.go",
+        "test_spec_test.go",
     ],
     pluginFor: ["soong_build"],
 }
