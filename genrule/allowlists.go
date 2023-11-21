@@ -40,7 +40,6 @@ var (
 		"aidl-golden-test-build-hook-gen",
 		"aidl_camera_build_version",
 		"android-cts-verifier",
-		"angle_commit_id",
 		"atest_integration_fake_src",
 		"awkgram.tab.h",
 		"c2hal_test_genc++",
