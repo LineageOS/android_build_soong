@@ -20,6 +20,7 @@ import (
 
 	"android/soong/bazel"
 	"android/soong/bloaty"
+	"android/soong/testing"
 	"android/soong/ui/metrics/bp2build_metrics_proto"
 
 	"github.com/google/blueprint"
@@ -144,8 +145,9 @@ type Module struct {
 
 	Properties BaseProperties
 
-	hod      android.HostOrDeviceSupported
-	multilib android.Multilib
+	hod        android.HostOrDeviceSupported
+	multilib   android.Multilib
+	testModule bool
 
 	makeLinkType string
 
@@ -1037,6 +1039,9 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		}
 
 		ctx.Phony("rust", ctx.RustModule().OutputFile().Path())
+	}
+	if mod.testModule {
+		ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 	}
 }
 
