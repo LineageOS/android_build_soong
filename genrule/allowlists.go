@@ -41,7 +41,6 @@ var (
 		"aidl_camera_build_version",
 		"android-cts-verifier",
 		"atest_integration_fake_src",
-		"awkgram.tab.h",
 		"camera-its",
 		"checkIn-service-stub-lite",
 		"chre_atoms_log.h",
