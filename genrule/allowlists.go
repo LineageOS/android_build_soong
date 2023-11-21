@@ -45,8 +45,6 @@ var (
 		"angle_commit_id",
 		"atest_integration_fake_src",
 		"awkgram.tab.h",
-		"c2hal_test_genc++",
-		"c2hal_test_genc++_headers",
 		"camera-its",
 		"checkIn-service-stub-lite",
 		"chre_atoms_log.h",
