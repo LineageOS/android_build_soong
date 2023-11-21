@@ -137,7 +137,6 @@ func init() {
 func TestFactory() android.Module {
 	module := NewTest(android.HostAndDeviceSupported, true)
 	module.bazelHandler = &ccTestBazelHandler{module: module}
-	module.testModule = true
 	return module.Init()
 }
 
@@ -162,7 +161,6 @@ func BenchmarkFactory() android.Module {
 // cc_test_host compiles a test host binary.
 func TestHostFactory() android.Module {
 	module := NewTest(android.HostSupported, true)
-	module.testModule = true
 	return module.Init()
 }
 
@@ -485,6 +483,7 @@ func NewTest(hod android.HostOrDeviceSupported, bazelable bool) *Module {
 	module, binary := newBinary(hod, bazelable)
 	module.bazelable = bazelable
 	module.multilib = android.MultilibBoth
+	module.testModule = true
 	binary.baseInstaller = NewTestInstaller()
 
 	test := &testBinary{
