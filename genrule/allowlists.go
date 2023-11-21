@@ -42,7 +42,6 @@ var (
 		"android-cts-verifier",
 		"angle_commit_id",
 		"atest_integration_fake_src",
-		"awkgram.tab.h",
 		"camera-its",
 		"checkIn-service-stub-lite",
 		"chre_atoms_log.h",
