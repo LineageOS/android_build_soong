@@ -61,7 +61,6 @@ var (
 		"swiftshader_spvtools_update_build_version",
 		"ue_unittest_erofs_imgs",
 		"vm-tests-tf-lib",
-		"vndk_abi_dump_zip",
 		// go/keep-sorted end
 	}
 
