@@ -64,8 +64,6 @@ var (
 		"gen_key_mismatch_capex",
 		"libbssl_sys_src_nostd",
 		"libc_musl_sysroot_bits",
-		"libchrome-crypto-include",
-		"libchrome-include",
 		"libcore-non-cts-tests-txt",
 		"pvmfw_fdt_template_rs",
 		"r8retrace-dexdump-sample-app",
