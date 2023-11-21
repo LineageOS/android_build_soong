@@ -59,8 +59,6 @@ var (
 		"gen_key_mismatch_capex",
 		"libbssl_sys_src_nostd",
 		"libc_musl_sysroot_bits",
-		"libchrome-crypto-include",
-		"libchrome-include",
 		"libcore-non-cts-tests-txt",
 		"pvmfw_fdt_template_rs",
 		"pw_log_log_proto_pwpb_h",
