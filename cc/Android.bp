@@ -19,6 +19,7 @@ bootstrap_go_package {
         "soong-multitree",
         "soong-snapshot",
         "soong-sysprop-bp2build",
+        "soong-testing",
         "soong-tradefed",
     ],
     srcs: [
