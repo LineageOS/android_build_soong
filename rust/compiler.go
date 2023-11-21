@@ -44,6 +44,8 @@ type compiler interface {
 	compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput
 	compilerDeps(ctx DepsContext, deps Deps) Deps
 	crateName() string
+	edition() string
+	features() []string
 	rustdoc(ctx ModuleContext, flags Flags, deps PathDeps) android.OptionalPath
 
 	// Output directory in which source-generated code from dependencies is
@@ -307,9 +309,13 @@ func (compiler *baseCompiler) cfgsToFlags() []string {
 	return flags
 }
 
+func (compiler *baseCompiler) features() []string {
+	return compiler.Properties.Features
+}
+
 func (compiler *baseCompiler) featuresToFlags() []string {
 	flags := []string{}
-	for _, feature := range compiler.Properties.Features {
+	for _, feature := range compiler.features() {
 		flags = append(flags, "--cfg 'feature=\""+feature+"\"'")
 	}
 
