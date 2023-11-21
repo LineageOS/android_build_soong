@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 
+	"android/soong/testing"
 	"android/soong/ui/metrics/bp2build_metrics_proto"
 
 	"github.com/google/blueprint"
@@ -862,9 +863,10 @@ type Module struct {
 	Properties       BaseProperties
 
 	// initialize before calling Init
-	hod       android.HostOrDeviceSupported
-	multilib  android.Multilib
-	bazelable bool
+	hod        android.HostOrDeviceSupported
+	multilib   android.Multilib
+	bazelable  bool
+	testModule bool
 
 	// Allowable SdkMemberTypes of this module type.
 	sdkMemberTypes []android.SdkMemberType
@@ -2328,6 +2330,9 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 				i.collectHeadersForSnapshot(ctx)
 			}
 		}
+	}
+	if c.testModule {
+		ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 	}
 
 	c.maybeInstall(ctx, apexInfo)
