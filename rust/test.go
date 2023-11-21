@@ -222,11 +222,13 @@ func RustTestFactory() android.Module {
 	// rustTestHostMultilib load hook to set MultilibFirst for the
 	// host target.
 	android.AddLoadHook(module, rustTestHostMultilib)
+	module.testModule = true
 	return module.Init()
 }
 
 func RustTestHostFactory() android.Module {
 	module, _ := NewRustTest(android.HostSupported)
+	module.testModule = true
 	return module.Init()
 }
 
