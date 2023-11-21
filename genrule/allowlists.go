@@ -40,8 +40,6 @@ var (
 		"aidl-golden-test-build-hook-gen",
 		"aidl_camera_build_version",
 		"android-cts-verifier",
-		"android-support-multidex-instrumentation-version",
-		"android-support-multidex-version",
 		"angle_commit_id",
 		"atest_integration_fake_src",
 		"awkgram.tab.h",
