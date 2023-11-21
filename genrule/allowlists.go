@@ -50,8 +50,6 @@ var (
 		"cronet_aml_base_android_runtime_unchecked_jni_headers",
 		"cronet_aml_base_android_runtime_unchecked_jni_headers__testing",
 		"deqp_spvtools_update_build_version",
-		"emp_ematch.yacc.c",
-		"emp_ematch.yacc.h",
 		"gen_corrupt_rebootless_apex",
 		"gen_key_mismatch_capex",
 		"libbssl_sys_src_nostd",
