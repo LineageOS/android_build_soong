@@ -16,6 +16,7 @@ package rust
 
 import (
 	"android/soong/cc"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -33,6 +34,48 @@ const (
 	RlibLinkage
 	DylibLinkage
 )
+
+type compiler interface {
+	initialize(ctx ModuleContext)
+	compilerFlags(ctx ModuleContext, flags Flags) Flags
+	cfgFlags(ctx ModuleContext, flags Flags) Flags
+	featureFlags(ctx ModuleContext, flags Flags) Flags
+	compilerProps() []interface{}
+	compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput
+	compilerDeps(ctx DepsContext, deps Deps) Deps
+	crateName() string
+	edition() string
+	features() []string
+	rustdoc(ctx ModuleContext, flags Flags, deps PathDeps) android.OptionalPath
+
+	// Output directory in which source-generated code from dependencies is
+	// copied. This is equivalent to Cargo's OUT_DIR variable.
+	cargoOutDir() android.OptionalPath
+
+	// cargoPkgVersion returns the value of the Cargo_pkg_version property.
+	cargoPkgVersion() string
+
+	// cargoEnvCompat returns whether Cargo environment variables should be used.
+	cargoEnvCompat() bool
+
+	inData() bool
+	install(ctx ModuleContext)
+	relativeInstallPath() string
+	everInstallable() bool
+
+	nativeCoverage() bool
+
+	Disabled() bool
+	SetDisabled()
+
+	stdLinkage(ctx *depsContext) RustLinkage
+	noStdlibs() bool
+
+	unstrippedOutputFilePath() android.Path
+	strippedOutputFilePath() android.OptionalPath
+
+	checkedCrateRootPath() (android.Path, error)
+}
 
 func (compiler *baseCompiler) edition() string {
 	return proptools.StringDefault(compiler.Properties.Edition, config.DefaultEdition)
@@ -204,7 +247,16 @@ type baseCompiler struct {
 
 	// If a crate has a source-generated dependency, a copy of the source file
 	// will be available in cargoOutDir (equivalent to Cargo OUT_DIR).
-	cargoOutDir android.ModuleOutPath
+	// This is stored internally because it may not be available during
+	// singleton-generation passes like rustdoc/rust_project.json, but should
+	// be stashed during initial generation.
+	cachedCargoOutDir android.ModuleOutPath
+	// Calculated crate root cached internally because ModuleContext is not
+	// available to singleton targets like rustdoc/rust_project.json
+	cachedCrateRootPath android.Path
+	// If cachedCrateRootPath is nil after initialization, this will contain
+	// an explanation of why
+	cachedCrateRootError error
 }
 
 func (compiler *baseCompiler) Disabled() bool {
@@ -257,9 +309,13 @@ func (compiler *baseCompiler) cfgsToFlags() []string {
 	return flags
 }
 
+func (compiler *baseCompiler) features() []string {
+	return compiler.Properties.Features
+}
+
 func (compiler *baseCompiler) featuresToFlags() []string {
 	flags := []string{}
-	for _, feature := range compiler.Properties.Features {
+	for _, feature := range compiler.features() {
 		flags = append(flags, "--cfg 'feature=\""+feature+"\"'")
 	}
 
@@ -355,18 +411,24 @@ func (compiler *baseCompiler) rustdoc(ctx ModuleContext, flags Flags,
 }
 
 func (compiler *baseCompiler) initialize(ctx ModuleContext) {
-	compiler.cargoOutDir = android.PathForModuleOut(ctx, genSubDir)
+	compiler.cachedCargoOutDir = android.PathForModuleOut(ctx, genSubDir)
+	if compiler.Properties.Crate_root == nil {
+		compiler.cachedCrateRootPath, compiler.cachedCrateRootError = srcPathFromModuleSrcs(ctx, compiler.Properties.Srcs)
+	} else {
+		compiler.cachedCrateRootPath = android.PathForModuleSrc(ctx, *compiler.Properties.Crate_root)
+		compiler.cachedCrateRootError = nil
+	}
 }
 
-func (compiler *baseCompiler) CargoOutDir() android.OptionalPath {
-	return android.OptionalPathForPath(compiler.cargoOutDir)
+func (compiler *baseCompiler) cargoOutDir() android.OptionalPath {
+	return android.OptionalPathForPath(compiler.cachedCargoOutDir)
 }
 
-func (compiler *baseCompiler) CargoEnvCompat() bool {
+func (compiler *baseCompiler) cargoEnvCompat() bool {
 	return Bool(compiler.Properties.Cargo_env_compat)
 }
 
-func (compiler *baseCompiler) CargoPkgVersion() string {
+func (compiler *baseCompiler) cargoPkgVersion() string {
 	return String(compiler.Properties.Cargo_pkg_version)
 }
 
@@ -496,12 +558,20 @@ func (compiler *baseCompiler) relativeInstallPath() string {
 	return String(compiler.Properties.Relative_install_path)
 }
 
-// Returns the Path for the main source file along with Paths for generated source files from modules listed in srcs.
-func srcPathFromModuleSrcs(ctx ModuleContext, srcs []string) (android.Path, android.Paths) {
-	if len(srcs) == 0 {
-		ctx.PropertyErrorf("srcs", "srcs must not be empty")
-	}
+func (compiler *baseCompiler) checkedCrateRootPath() (android.Path, error) {
+	return compiler.cachedCrateRootPath, compiler.cachedCrateRootError
+}
 
+func crateRootPath(ctx ModuleContext, compiler compiler) android.Path {
+	root, err := compiler.checkedCrateRootPath()
+	if err != nil {
+		ctx.PropertyErrorf("srcs", err.Error())
+	}
+	return root
+}
+
+// Returns the Path for the main source file along with Paths for generated source files from modules listed in srcs.
+func srcPathFromModuleSrcs(ctx ModuleContext, srcs []string) (android.Path, error) {
 	// The srcs can contain strings with prefix ":".
 	// They are dependent modules of this module, with android.SourceDepTag.
 	// They are not the main source file compiled by rustc.
@@ -514,19 +584,22 @@ func srcPathFromModuleSrcs(ctx ModuleContext, srcs []string) (android.Path, andr
 		}
 	}
 	if numSrcs > 1 {
-		ctx.PropertyErrorf("srcs", incorrectSourcesError)
+		return nil, errors.New(incorrectSourcesError)
 	}
 
 	// If a main source file is not provided we expect only a single SourceProvider module to be defined
 	// within srcs, with the expectation that the first source it provides is the entry point.
 	if srcIndex != 0 {
-		ctx.PropertyErrorf("srcs", "main source file must be the first in srcs")
+		return nil, errors.New("main source file must be the first in srcs")
 	} else if numSrcs > 1 {
-		ctx.PropertyErrorf("srcs", "only a single generated source module can be defined without a main source file.")
+		return nil, errors.New("only a single generated source module can be defined without a main source file.")
 	}
 
 	// TODO: b/297264540 - once all modules are sandboxed, we need to select the proper
 	// entry point file from Srcs rather than taking the first one
 	paths := android.PathsForModuleSrc(ctx, srcs)
-	return paths[srcIndex], paths[1:]
+	if len(paths) == 0 {
+		return nil, errors.New("srcs must not be empty")
+	}
+	return paths[srcIndex], nil
 }

@@ -76,6 +76,17 @@ var _ compiler = (*prebuiltProcMacroDecorator)(nil)
 var _ exportedFlagsProducer = (*prebuiltProcMacroDecorator)(nil)
 var _ rustPrebuilt = (*prebuiltProcMacroDecorator)(nil)
 
+func prebuiltPath(ctx ModuleContext, prebuilt rustPrebuilt) android.Path {
+	srcs := android.PathsForModuleSrc(ctx, prebuilt.prebuiltSrcs())
+	if len(srcs) == 0 {
+		ctx.PropertyErrorf("srcs", "srcs must not be empty")
+	}
+	if len(srcs) > 1 {
+		ctx.PropertyErrorf("srcs", "prebuilt libraries can only have one entry in srcs (the prebuilt path)")
+	}
+	return srcs[0]
+}
+
 func PrebuiltLibraryFactory() android.Module {
 	module, _ := NewPrebuiltLibrary(android.HostAndDeviceSupported)
 	return module.Init()
@@ -148,11 +159,7 @@ func (prebuilt *prebuiltLibraryDecorator) compilerProps() []interface{} {
 func (prebuilt *prebuiltLibraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput {
 	prebuilt.flagExporter.exportLinkDirs(android.PathsForModuleSrc(ctx, prebuilt.Properties.Link_dirs).Strings()...)
 	prebuilt.flagExporter.setProvider(ctx)
-
-	srcPath, paths := srcPathFromModuleSrcs(ctx, prebuilt.prebuiltSrcs())
-	if len(paths) > 0 {
-		ctx.PropertyErrorf("srcs", "prebuilt libraries can only have one entry in srcs (the prebuilt path)")
-	}
+	srcPath := prebuiltPath(ctx, prebuilt)
 	prebuilt.baseCompiler.unstrippedOutputFile = srcPath
 	return buildOutput{outputFile: srcPath}
 }
@@ -205,11 +212,7 @@ func (prebuilt *prebuiltProcMacroDecorator) compilerProps() []interface{} {
 func (prebuilt *prebuiltProcMacroDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput {
 	prebuilt.flagExporter.exportLinkDirs(android.PathsForModuleSrc(ctx, prebuilt.Properties.Link_dirs).Strings()...)
 	prebuilt.flagExporter.setProvider(ctx)
-
-	srcPath, paths := srcPathFromModuleSrcs(ctx, prebuilt.prebuiltSrcs())
-	if len(paths) > 0 {
-		ctx.PropertyErrorf("srcs", "prebuilt libraries can only have one entry in srcs (the prebuilt path)")
-	}
+	srcPath := prebuiltPath(ctx, prebuilt)
 	prebuilt.baseCompiler.unstrippedOutputFile = srcPath
 	return buildOutput{outputFile: srcPath}
 }
