@@ -150,7 +150,6 @@ func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
 		if !ctx.Config().IsEnvFalse("THINLTO_USE_MLGO") {
 			// Register allocation MLGO flags for ARM64.
 			if ctx.Arch().ArchType == android.Arm64 {
-				ltoCFlags = append(ltoCFlags, "-mllvm -regalloc-enable-advisor=release")
 				ltoLdFlags = append(ltoLdFlags, "-Wl,-mllvm,-regalloc-enable-advisor=release")
 			}
 			// Flags for training MLGO model.
