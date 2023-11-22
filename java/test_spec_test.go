@@ -86,7 +86,8 @@ func TestTestSpec(t *testing.T) {
 	// Tests for all_test_spec singleton.
 	singleton := result.SingletonForTests("all_test_specs")
 	rule := singleton.Rule("all_test_specs_rule")
-	expectedCmd := "out/soong/host/linux-x86/bin/metadata -rule test_spec -inputFile out/soong/all_test_spec_paths.rsp -outputFile out/soong/ownership/all_test_specs.pb"
+	prebuiltOs := result.Config.PrebuiltOS()
+	expectedCmd := "out/soong/host/" + prebuiltOs + "/bin/metadata -rule test_spec -inputFile out/soong/all_test_spec_paths.rsp -outputFile out/soong/ownership/all_test_specs.pb"
 	expectedOutputFile := "out/soong/ownership/all_test_specs.pb"
 	expectedInputFile := "out/soong/.intermediates/module-name/intermediateTestSpecMetadata.pb"
 	if !strings.Contains(
