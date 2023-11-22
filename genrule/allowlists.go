@@ -18,9 +18,6 @@ var (
 	DepfileAllowList = []string{
 		// go/keep-sorted start
 		"depfile_allowed_for_test",
-		"tflite_support_metadata_schema",
-		"tflite_support_spm_config",
-		"tflite_support_spm_encoder_config",
 		// go/keep-sorted end
 	}
 
