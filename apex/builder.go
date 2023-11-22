@@ -344,10 +344,12 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) android.OutputPath {
 	var fileContexts android.Path
 	var fileContextsDir string
+	isFileContextsModule := false
 	if a.properties.File_contexts == nil {
 		fileContexts = android.PathForSource(ctx, "system/sepolicy/apex", ctx.ModuleName()+"-file_contexts")
 	} else {
 		if m, t := android.SrcIsModuleWithTag(*a.properties.File_contexts); m != "" {
+			isFileContextsModule = true
 			otherModule := android.GetModuleFromPathDep(ctx, m, t)
 			fileContextsDir = ctx.OtherModuleDir(otherModule)
 		}
@@ -363,7 +365,7 @@ func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) android.Output
 			ctx.PropertyErrorf("file_contexts", "should be under system/sepolicy, but found in  %q", fileContextsDir)
 		}
 	}
-	if !android.ExistentPathForSource(ctx, fileContexts.String()).Valid() {
+	if !isFileContextsModule && !android.ExistentPathForSource(ctx, fileContexts.String()).Valid() {
 		ctx.PropertyErrorf("file_contexts", "cannot find file_contexts file: %q", fileContexts.String())
 	}
 
