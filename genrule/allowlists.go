@@ -46,10 +46,6 @@ var (
 		"camera-its",
 		"checkIn-service-stub-lite",
 		"chre_atoms_log.h",
-		"cronet_aml_base_android_runtime_jni_headers",
-		"cronet_aml_base_android_runtime_jni_headers__testing",
-		"cronet_aml_base_android_runtime_unchecked_jni_headers",
-		"cronet_aml_base_android_runtime_unchecked_jni_headers__testing",
 		"deqp_spvtools_update_build_version",
 		"emp_ematch.yacc.c",
 		"emp_ematch.yacc.h",
@@ -72,7 +68,6 @@ var (
 	SandboxingDenyPathList = []string{
 		// go/keep-sorted start
 		"art/test",
-		"external/cronet",
 		// go/keep-sorted end
 	}
 )
