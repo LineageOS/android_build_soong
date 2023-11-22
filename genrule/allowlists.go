@@ -27,7 +27,6 @@ var (
 	SandboxingDenyModuleList = []string{
 		// go/keep-sorted start
 		"CtsApkVerityTestDebugFiles",
-		"MultiDexLegacyTestApp_genrule",
 		"ScriptGroupTest-rscript",
 		"TracingVMProtoStub_cc",
 		"TracingVMProtoStub_h",
@@ -39,7 +38,6 @@ var (
 		"VehicleServerProtoStub_h@default-grpc",
 		"aidl-golden-test-build-hook-gen",
 		"aidl_camera_build_version",
-		"android-cts-verifier",
 		"atest_integration_fake_src",
 		"camera-its",
 		"checkIn-service-stub-lite",
