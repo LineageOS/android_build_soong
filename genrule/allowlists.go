@@ -44,8 +44,6 @@ var (
 		"libc_musl_sysroot_bits",
 		"libcore-non-cts-tests-txt",
 		"pvmfw_fdt_template_rs",
-		"r8retrace-dexdump-sample-app",
-		"r8retrace-run-retrace",
 		"seller-frontend-service-stub-lite",
 		"swiftshader_spvtools_update_build_version",
 		"ue_unittest_erofs_imgs",
