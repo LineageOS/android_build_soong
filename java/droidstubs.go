@@ -544,6 +544,15 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 	// information.
 	cmd.FlagWithArg("--format-defaults ", "overloaded-method-order=source,add-additional-overrides=yes")
 
+	// If requested hide the flagged APIs from the output of metalava. This
+	// should be implemented in the module SDK snapshot code by depending on
+	// special metalava rules that hide the flagged APIs but that will take
+	// lots of work. In the meantime, this is a temporary workaround that
+	// can and will only be used when building module SDK snapshots.
+	if ctx.Config().GetenvWithDefault("SOONG_SDK_SNAPSHOT_HIDE_FLAGGED_APIS", "false") == "true" {
+		cmd.Flag("--hide-annotation android.annotation.FlaggedApi")
+	}
+
 	return cmd
 }
 
