@@ -37,7 +37,6 @@ var (
 		"deqp_spvtools_update_build_version",
 		"gen_corrupt_rebootless_apex",
 		"gen_key_mismatch_capex",
-		"libc_musl_sysroot_bits",
 		"libcore-non-cts-tests-txt",
 		"pvmfw_fdt_template_rs",
 		"seller-frontend-service-stub-lite",
