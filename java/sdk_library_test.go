@@ -1665,3 +1665,35 @@ func TestStaticDepStubLibrariesVisibility(t *testing.T) {
 		}
 	`)
 }
+
+func TestSdkLibraryDependency(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithPrebuiltApis(map[string][]string{
+			"30": {"bar", "foo"},
+		}),
+	).RunTestWithBp(t,
+		`
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java", "b.java"],
+			api_packages: ["foo"],
+		}
+
+		java_sdk_library {
+			name: "bar",
+			srcs: ["c.java", "b.java"],
+			libs: [
+				"foo",
+			],
+			uses_libs: [
+				"foo",
+			],
+		}
+`)
+
+	barPermissions := result.ModuleForTests("bar.xml", "android_common").Rule("java_sdk_xml")
+
+	android.AssertStringDoesContain(t, "bar.xml java_sdk_xml command", barPermissions.RuleParams.Command, `dependency=\"foo\"`)
+}
