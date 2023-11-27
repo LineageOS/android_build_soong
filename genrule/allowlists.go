@@ -39,7 +39,6 @@ var (
 		"gen_key_mismatch_capex",
 		"libc_musl_sysroot_bits",
 		"libcore-non-cts-tests-txt",
-		"pvmfw_fdt_template_rs",
 		"seller-frontend-service-stub-lite",
 		"swiftshader_spvtools_update_build_version",
 		"ue_unittest_erofs_imgs",
