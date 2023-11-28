@@ -141,6 +141,8 @@ type Deps struct {
 
 	// List of libs that need to be excluded for APEX variant
 	ExcludeLibsForApex []string
+	// List of libs that need to be excluded for non-APEX variant
+	ExcludeLibsForNonApex []string
 }
 
 // PathDeps is a struct containing file paths to dependencies of a module.
@@ -728,6 +730,8 @@ type libraryDependencyTag struct {
 
 	// Whether or not this dependency has to be followed for the apex variants
 	excludeInApex bool
+	// Whether or not this dependency has to be followed for the non-apex variants
+	excludeInNonApex bool
 
 	// If true, don't automatically export symbols from the static library into a shared library.
 	unexportedSymbols bool
@@ -2819,6 +2823,9 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		if inList(lib, deps.ExcludeLibsForApex) {
 			depTag.excludeInApex = true
 		}
+		if inList(lib, deps.ExcludeLibsForNonApex) {
+			depTag.excludeInNonApex = true
+		}
 
 		name, version := StubsLibNameAndVersion(lib)
 		if apiLibraryName, ok := apiImportInfo.SharedLibs[name]; ok && !ctx.OtherModuleExists(name) {
@@ -3333,6 +3340,9 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			}
 
 			if !apexInfo.IsForPlatform() && libDepTag.excludeInApex {
+				return
+			}
+			if apexInfo.IsForPlatform() && libDepTag.excludeInNonApex {
 				return
 			}
 
