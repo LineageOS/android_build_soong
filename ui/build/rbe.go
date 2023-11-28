@@ -95,14 +95,10 @@ func cleanupRBELogsDir(ctx Context, config Config) {
 	}
 }
 
-func startRBE(ctx Context, config Config) {
+func checkRBERequirements(ctx Context, config Config) {
 	if !config.GoogleProdCredsExist() && prodCredsAuthType(config) {
 		ctx.Fatalf("Unable to start RBE reproxy\nFAILED: Missing LOAS credentials.")
 	}
-	ctx.BeginTrace(metrics.RunSetupTool, "rbe_bootstrap")
-	defer ctx.EndTrace()
-
-	ctx.Status.Status("Starting rbe...")
 
 	if u := ulimitOrFatal(ctx, config, "-u"); u < rbeLeastNProcs {
 		ctx.Fatalf("max user processes is insufficient: %d; want >= %d.\n", u, rbeLeastNProcs)
@@ -115,6 +111,13 @@ func startRBE(ctx Context, config Config) {
 			ctx.Fatalf("Unable to create logs dir (%v) for RBE: %v", config.rbeProxyLogsDir, err)
 		}
 	}
+}
+
+func startRBE(ctx Context, config Config) {
+	ctx.BeginTrace(metrics.RunSetupTool, "rbe_bootstrap")
+	defer ctx.EndTrace()
+
+	ctx.Status.Status("Starting rbe...")
 
 	cmd := Command(ctx, config, "startRBE bootstrap", rbeCommand(ctx, config, bootstrapCmd))
 
