@@ -18,9 +18,6 @@ var (
 	DepfileAllowList = []string{
 		// go/keep-sorted start
 		"depfile_allowed_for_test",
-		"tflite_support_metadata_schema",
-		"tflite_support_spm_config",
-		"tflite_support_spm_encoder_config",
 		// go/keep-sorted end
 	}
 
@@ -40,7 +37,6 @@ var (
 		"deqp_spvtools_update_build_version",
 		"gen_corrupt_rebootless_apex",
 		"gen_key_mismatch_capex",
-		"libbssl_sys_src_nostd",
 		"libc_musl_sysroot_bits",
 		"libcore-non-cts-tests-txt",
 		"pvmfw_fdt_template_rs",
