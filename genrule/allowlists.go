@@ -28,7 +28,6 @@ var (
 		"aidl-golden-test-build-hook-gen",
 		"aidl_camera_build_version",
 		"camera-its",
-		"checkIn-service-stub-lite",
 		"chre_atoms_log.h",
 		"cronet_aml_base_android_runtime_jni_headers",
 		"cronet_aml_base_android_runtime_jni_headers__testing",
