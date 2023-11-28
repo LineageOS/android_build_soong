@@ -24,6 +24,7 @@ import (
 
 type avbGenVbmetaImage struct {
 	android.ModuleBase
+	android.DefaultableModuleBase
 
 	properties avbGenVbmetaImageProperties
 
@@ -47,6 +48,7 @@ func avbGenVbmetaImageFactory() android.Module {
 	module := &avbGenVbmetaImage{}
 	module.AddProperties(&module.properties)
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
 	return module
 }
 
@@ -105,4 +107,21 @@ func (a *avbGenVbmetaImage) OutputFiles(tag string) (android.Paths, error) {
 		return []android.Path{a.output}, nil
 	}
 	return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+}
+
+type avbGenVbmetaImageDefaults struct {
+	android.ModuleBase
+	android.DefaultsModuleBase
+}
+
+// avb_gen_vbmeta_image_defaults provides a set of properties that can be inherited by other
+// avb_gen_vbmeta_image modules. A module can use the properties from an
+// avb_gen_vbmeta_image_defaults using `defaults: ["<:default_module_name>"]`. Properties of both
+// modules are erged (when possible) by prepending the default module's values to the depending
+// module's values.
+func avbGenVbmetaImageDefaultsFactory() android.Module {
+	module := &avbGenVbmetaImageDefaults{}
+	module.AddProperties(&avbGenVbmetaImageProperties{})
+	android.InitDefaultsModule(module)
+	return module
 }
