@@ -6,7 +6,6 @@ bootstrap_go_package {
     name: "soong-bp2build",
     pkgPath: "android/soong/bp2build",
     srcs: [
-        "aconfig_conversion_test.go",
         "androidbp_to_build_templates.go",
         "bp2build.go",
         "bp2build_product_config.go",
@@ -43,6 +42,7 @@ bootstrap_go_package {
     testSrcs: [
         "go_conversion_test.go",
         "aar_conversion_test.go",
+        "aconfig_conversion_test.go",
         "aidl_library_conversion_test.go",
         "android_app_certificate_conversion_test.go",
         "android_app_conversion_test.go",

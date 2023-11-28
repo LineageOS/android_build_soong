@@ -129,7 +129,8 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 						entries.SetPath("LOCAL_SOONG_DEXPREOPT_CONFIG", library.dexpreopter.configPath)
 					}
 					// TODO(b/311155208): The container here should be system.
-					entries.SetOptionalPaths("LOCAL_ACONFIG_FILES", library.getTransitiveAconfigFiles(""))
+
+					entries.SetPaths("LOCAL_ACONFIG_FILES", library.mergedAconfigFiles[""])
 				},
 			},
 		})
@@ -307,7 +308,7 @@ func (binary *Binary) AndroidMkEntries() []android.AndroidMkEntries {
 						entries.SetString("LOCAL_SOONG_BUILT_INSTALLED", binary.dexpreopter.builtInstalled)
 					}
 					// TODO(b/311155208): The container here should be system.
-					entries.SetOptionalPaths("LOCAL_ACONFIG_FILES", binary.getTransitiveAconfigFiles(""))
+					entries.SetPaths("LOCAL_ACONFIG_FILES", binary.mergedAconfigFiles[""])
 				},
 			},
 			ExtraFooters: []android.AndroidMkExtraFootersFunc{
@@ -461,7 +462,7 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 
 				if app.Name() != "framework-res" {
 					// TODO(b/311155208): The container here should be system.
-					entries.SetOptionalPaths("LOCAL_ACONFIG_FILES", app.getTransitiveAconfigFiles(""))
+					entries.SetPaths("LOCAL_ACONFIG_FILES", app.mergedAconfigFiles[""])
 				}
 			},
 		},
@@ -540,7 +541,7 @@ func (a *AndroidLibrary) AndroidMkEntries() []android.AndroidMkEntries {
 		entries.SetPath("LOCAL_SOONG_EXPORT_PROGUARD_FLAGS", a.combinedExportedProguardFlagsFile)
 		entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", true)
 		// TODO(b/311155208): The container here should be system.
-		entries.SetOptionalPaths("LOCAL_ACONFIG_FILES", a.getTransitiveAconfigFiles(""))
+		entries.SetPaths("LOCAL_ACONFIG_FILES", a.mergedAconfigFiles[""])
 	})
 
 	return entriesList
