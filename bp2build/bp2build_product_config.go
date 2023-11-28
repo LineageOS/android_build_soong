@@ -793,9 +793,6 @@ func generateImagePropDictionary(variables *android.PartitionVariables, partitio
 	if variables.BoardUsesRecoveryAsBoot {
 		ret["recovery_as_boot"] = "true"
 	}
-	if variables.BoardBuildGkiBootImageWithoutRamdisk {
-		ret["gki_boot_image_without_ramdisk"] = "true"
-	}
 	if variables.ProductUseDynamicPartitionSize {
 		ret["use_dynamic_partition_size"] = "true"
 	}
