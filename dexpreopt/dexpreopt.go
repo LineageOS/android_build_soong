@@ -124,7 +124,7 @@ func dexpreoptDisabled(ctx android.PathContext, global *GlobalConfig, module *Mo
 		return true
 	}
 
-	if global.OnlyPreoptArtBootImage && !module.PreoptExtractedApk {
+	if global.OnlyPreoptArtBootImage {
 		return true
 	}
 
