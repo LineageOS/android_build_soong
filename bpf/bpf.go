@@ -229,7 +229,6 @@ func (bpf *bpf) AndroidMk() android.AndroidMkData {
 				names = append(names, objName)
 				fmt.Fprintln(w, "include $(CLEAR_VARS)", " # bpf.bpf.obj")
 				fmt.Fprintln(w, "LOCAL_MODULE := ", objName)
-				data.Entries.WriteLicenseVariables(w)
 				fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", obj.String())
 				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", obj.Base())
 				fmt.Fprintln(w, "LOCAL_MODULE_CLASS := ETC")
@@ -239,7 +238,6 @@ func (bpf *bpf) AndroidMk() android.AndroidMkData {
 			}
 			fmt.Fprintln(w, "include $(CLEAR_VARS)", " # bpf.bpf")
 			fmt.Fprintln(w, "LOCAL_MODULE := ", name)
-			data.Entries.WriteLicenseVariables(w)
 			android.AndroidMkEmitAssignList(w, "LOCAL_REQUIRED_MODULES", names)
 			fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
 		},
