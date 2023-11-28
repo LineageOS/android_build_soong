@@ -34,8 +34,6 @@ var (
 		"cronet_aml_base_android_runtime_unchecked_jni_headers",
 		"cronet_aml_base_android_runtime_unchecked_jni_headers__testing",
 		"deqp_spvtools_update_build_version",
-		"gen_corrupt_rebootless_apex",
-		"gen_key_mismatch_capex",
 		"libcore-non-cts-tests-txt",
 		"seller-frontend-service-stub-lite",
 		"swiftshader_spvtools_update_build_version",
