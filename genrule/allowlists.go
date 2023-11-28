@@ -29,10 +29,6 @@ var (
 		"aidl_camera_build_version",
 		"camera-its",
 		"chre_atoms_log.h",
-		"cronet_aml_base_android_runtime_jni_headers",
-		"cronet_aml_base_android_runtime_jni_headers__testing",
-		"cronet_aml_base_android_runtime_unchecked_jni_headers",
-		"cronet_aml_base_android_runtime_unchecked_jni_headers__testing",
 		"deqp_spvtools_update_build_version",
 		"libcore-non-cts-tests-txt",
 		"seller-frontend-service-stub-lite",
@@ -44,7 +40,6 @@ var (
 	SandboxingDenyPathList = []string{
 		// go/keep-sorted start
 		"art/test",
-		"external/cronet",
 		// go/keep-sorted end
 	}
 )
