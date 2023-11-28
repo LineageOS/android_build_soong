@@ -24,7 +24,6 @@ var (
 	SandboxingDenyModuleList = []string{
 		// go/keep-sorted start
 		"CtsApkVerityTestDebugFiles",
-		"ScriptGroupTest-rscript",
 		"aidl-golden-test-build-hook-gen",
 		"aidl_camera_build_version",
 		"camera-its",
