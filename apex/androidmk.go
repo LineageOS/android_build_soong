@@ -245,7 +245,6 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 			fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)  # apex.apexBundle")
 			fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 			fmt.Fprintln(w, "LOCAL_MODULE :=", name)
-			data.Entries.WriteLicenseVariables(w)
 			fmt.Fprintln(w, "LOCAL_MODULE_CLASS := ETC") // do we need a new class?
 			fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", a.outputFile.String())
 			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", a.installDir.String())
