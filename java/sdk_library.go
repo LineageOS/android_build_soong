@@ -1682,6 +1682,24 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 	}
 	droidstubsArgs = append(droidstubsArgs, android.JoinWithPrefix(disabledWarnings, "--hide "))
 
+	droidstubsFiles := append([]string{}, module.sdkLibraryProperties.Droiddoc_option_files...)
+
+	// If requested hide the flagged APIs from the output of metalava. This
+	// should be implemented in the module SDK snapshot code by depending on
+	// special metalava rules that hide the flagged APIs but that will take
+	// lots of work. In the meantime, this is a temporary workaround that
+	// can and will only be used when building module SDK snapshots. This
+	// delegates the decision as to what options are passed to metalava to
+	// the "sdkext-released-flagged-apis" module by using metalava's support
+	// for expanding an argument of the form "@<file>" to the list of
+	// arguments found in <file>.
+	if mctx.Config().GetenvWithDefault("SOONG_SDK_SNAPSHOT_HIDE_FLAGGED_APIS", "false") == "true" {
+		metalavaHideFlaggedApisSource := ":sdkext-released-flagged-apis"
+		droidstubsArgs = append(droidstubsArgs,
+			fmt.Sprintf("@$(location %s)", metalavaHideFlaggedApisSource))
+		droidstubsFiles = append(droidstubsFiles, metalavaHideFlaggedApisSource)
+	}
+
 	// Output Javadoc comments for public scope.
 	if apiScope == apiScopePublic {
 		props.Output_javadoc_comments = proptools.BoolPtr(true)
@@ -1689,7 +1707,7 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 
 	// Add in scope specific arguments.
 	droidstubsArgs = append(droidstubsArgs, scopeSpecificDroidstubsArgs...)
-	props.Arg_files = module.sdkLibraryProperties.Droiddoc_option_files
+	props.Arg_files = droidstubsFiles
 	props.Args = proptools.StringPtr(strings.Join(droidstubsArgs, " "))
 
 	// List of APIs identified from the provided source files are created. They are later
