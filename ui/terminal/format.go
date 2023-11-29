@@ -51,9 +51,22 @@ func (s formatter) message(level status.MsgLevel, message string) string {
 	return ""
 }
 
+func remainingTimeString(t time.Time) string {
+	now := time.Now()
+	if t.After(now) {
+		return t.Sub(now).Round(time.Duration(time.Second)).String()
+	}
+	return time.Duration(0).Round(time.Duration(time.Second)).String()
+}
 func (s formatter) progress(counts status.Counts) string {
 	if s.format == "" {
-		return fmt.Sprintf("[%3d%% %d/%d] ", 100*counts.FinishedActions/counts.TotalActions, counts.FinishedActions, counts.TotalActions)
+		output := fmt.Sprintf("[%3d%% %d/%d", 100*counts.FinishedActions/counts.TotalActions, counts.FinishedActions, counts.TotalActions)
+
+		if !counts.EstimatedTime.IsZero() {
+			output += fmt.Sprintf(" %s remaining", remainingTimeString(counts.EstimatedTime))
+		}
+		output += "] "
+		return output
 	}
 
 	buf := &strings.Builder{}
@@ -93,6 +106,13 @@ func (s formatter) progress(counts status.Counts) string {
 			fmt.Fprintf(buf, "%3d%%", 100*counts.FinishedActions/counts.TotalActions)
 		case 'e':
 			fmt.Fprintf(buf, "%.3f", time.Since(s.start).Seconds())
+		case 'l':
+			if counts.EstimatedTime.IsZero() {
+				// No esitimated data
+				buf.WriteRune('?')
+			} else {
+				fmt.Fprintf(buf, "%s", remainingTimeString(counts.EstimatedTime))
+			}
 		default:
 			buf.WriteString("unknown placeholder '")
 			buf.WriteByte(c)
