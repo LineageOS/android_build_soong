@@ -87,7 +87,6 @@ func createTestModuleConfig(name, dexLocation string, buildPath, dexPath, enforc
 		DexPreoptImageLocationsOnHost:   []string{},
 		PreoptBootClassPathDexFiles:     nil,
 		PreoptBootClassPathDexLocations: nil,
-		PreoptExtractedApk:              false,
 		NoCreateAppImage:                false,
 		ForceCreateAppImage:             false,
 		PresignedPrebuilt:               false,
