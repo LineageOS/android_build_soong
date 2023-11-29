@@ -226,6 +226,8 @@ type ProductVariables struct {
 	DeviceMaxPageSizeSupported            *string  `json:",omitempty"`
 	DevicePageSizeAgnostic                *bool    `json:",omitempty"`
 
+	VendorApiLevel *string `json:",omitempty"`
+
 	RecoverySnapshotVersion *string `json:",omitempty"`
 
 	DeviceSecondaryArch        *string  `json:",omitempty"`

@@ -1425,6 +1425,10 @@ func (c *config) IsVndkDeprecated() bool {
 	return !Bool(c.productVariables.KeepVndk)
 }
 
+func (c *config) VendorApiLevel() string {
+	return String(c.productVariables.VendorApiLevel)
+}
+
 func (c *deviceConfig) Arches() []Arch {
 	var arches []Arch
 	for _, target := range c.config.Targets[Android] {
