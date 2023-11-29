@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
@@ -500,18 +499,20 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 	if metalavaUseRbe(ctx) {
 		rule.Remoteable(android.RemoteRuleSupports{RBE: true})
 		execStrategy := ctx.Config().GetenvWithDefault("RBE_METALAVA_EXEC_STRATEGY", remoteexec.LocalExecStrategy)
-		compare, _ := strconv.ParseBool(ctx.Config().GetenvWithDefault("RBE_METALAVA_COMPARE", "false"))
+		compare := ctx.Config().IsEnvTrue("RBE_METALAVA_COMPARE")
+		remoteUpdateCache := !ctx.Config().IsEnvFalse("RBE_METALAVA_REMOTE_UPDATE_CACHE")
 		labels := map[string]string{"type": "tool", "name": "metalava"}
 		// TODO: metalava pool rejects these jobs
 		pool := ctx.Config().GetenvWithDefault("RBE_METALAVA_POOL", "java16")
 		rule.Rewrapper(&remoteexec.REParams{
-			Labels:          labels,
-			ExecStrategy:    execStrategy,
-			ToolchainInputs: []string{config.JavaCmd(ctx).String()},
-			Platform:        map[string]string{remoteexec.PoolKey: pool},
-			Compare:         compare,
-			NumLocalRuns:    1,
-			NumRemoteRuns:   1,
+			Labels:              labels,
+			ExecStrategy:        execStrategy,
+			ToolchainInputs:     []string{config.JavaCmd(ctx).String()},
+			Platform:            map[string]string{remoteexec.PoolKey: pool},
+			Compare:             compare,
+			NumLocalRuns:        1,
+			NumRemoteRuns:       1,
+			NoRemoteUpdateCache: !remoteUpdateCache,
 		})
 	}
 
