@@ -40,7 +40,6 @@ bootstrap_go_package {
         "lto.go",
         "makevars.go",
         "orderfile.go",
-        "pgo.go",
         "prebuilt.go",
         "proto.go",
         "rs.go",
