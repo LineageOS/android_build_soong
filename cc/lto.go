@@ -140,7 +140,7 @@ func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
 		// Reduce the inlining threshold for a better balance of binary size and
 		// performance.
 		if !ctx.Darwin() {
-			if ctx.isPgoCompile() || ctx.isAfdoCompile() {
+			if ctx.isAfdoCompile() {
 				ltoLdFlags = append(ltoLdFlags, "-Wl,-plugin-opt,-import-instr-limit=40")
 			} else {
 				ltoLdFlags = append(ltoLdFlags, "-Wl,-plugin-opt,-import-instr-limit=5")

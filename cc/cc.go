@@ -531,7 +531,6 @@ type ModuleContextIntf interface {
 	baseModuleName() string
 	getVndkExtendsModuleName() string
 	isAfdoCompile() bool
-	isPgoCompile() bool
 	isOrderfileCompile() bool
 	isCfi() bool
 	isFuzzer() bool
@@ -895,7 +894,6 @@ type Module struct {
 	vndkdep   *vndkdep
 	lto       *lto
 	afdo      *afdo
-	pgo       *pgo
 	orderfile *orderfile
 
 	library libraryInterface
@@ -1278,9 +1276,6 @@ func (c *Module) Init() android.Module {
 	if c.afdo != nil {
 		c.AddProperties(c.afdo.props()...)
 	}
-	if c.pgo != nil {
-		c.AddProperties(c.pgo.props()...)
-	}
 	if c.orderfile != nil {
 		c.AddProperties(c.orderfile.props()...)
 	}
@@ -1406,13 +1401,6 @@ func (c *Module) IsVndk() bool {
 func (c *Module) isAfdoCompile() bool {
 	if afdo := c.afdo; afdo != nil {
 		return afdo.Properties.FdoProfilePath != nil
-	}
-	return false
-}
-
-func (c *Module) isPgoCompile() bool {
-	if pgo := c.pgo; pgo != nil {
-		return pgo.Properties.PgoCompile
 	}
 	return false
 }
@@ -1725,10 +1713,6 @@ func (ctx *moduleContextImpl) isAfdoCompile() bool {
 	return ctx.mod.isAfdoCompile()
 }
 
-func (ctx *moduleContextImpl) isPgoCompile() bool {
-	return ctx.mod.isPgoCompile()
-}
-
 func (ctx *moduleContextImpl) isOrderfileCompile() bool {
 	return ctx.mod.isOrderfileCompile()
 }
@@ -1841,7 +1825,6 @@ func newModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Mo
 	module.vndkdep = &vndkdep{}
 	module.lto = &lto{}
 	module.afdo = &afdo{}
-	module.pgo = &pgo{}
 	module.orderfile = &orderfile{}
 	return module
 }
@@ -2267,9 +2250,6 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	if c.afdo != nil {
 		flags = c.afdo.flags(ctx, flags)
 	}
-	if c.pgo != nil {
-		flags = c.pgo.flags(ctx, flags)
-	}
 	if c.orderfile != nil {
 		flags = c.orderfile.flags(ctx, flags)
 	}
@@ -2420,9 +2400,6 @@ func (c *Module) begin(ctx BaseModuleContext) {
 	}
 	if c.orderfile != nil {
 		c.orderfile.begin(ctx)
-	}
-	if c.pgo != nil {
-		c.pgo.begin(ctx)
 	}
 	if ctx.useSdk() && c.IsSdkVariant() {
 		version, err := nativeApiLevelFromUser(ctx, ctx.sdkVersion())
@@ -4333,7 +4310,6 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&VndkProperties{},
 		&LTOProperties{},
 		&AfdoProperties{},
-		&PgoProperties{},
 		&OrderfileProperties{},
 		&android.ProtoProperties{},
 		// RustBindgenProperties is included here so that cc_defaults can be used for rust_bindgen modules.
