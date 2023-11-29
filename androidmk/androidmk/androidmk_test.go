@@ -1450,6 +1450,7 @@ LOCAL_PACKAGE_NAME := foo
 LOCAL_PRODUCT_MODULE := true
 LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
 LOCAL_SDK_VERSION := current
+LOCAL_TARGET_SDK_VERSION := target_version
 LOCAL_RRO_THEME := FooTheme
 
 include $(BUILD_RRO_PACKAGE)
@@ -1460,6 +1461,7 @@ runtime_resource_overlay {
 	product_specific: true,
 
 	sdk_version: "current",
+	target_sdk_version: "target_version",
 	theme: "FooTheme",
 
 }

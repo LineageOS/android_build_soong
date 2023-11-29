@@ -538,18 +538,17 @@ type PartitionVariables struct {
 	TargetUserimagesSparseSquashfsDisabled bool `json:",omitempty"`
 	TargetUserimagesSparseF2fsDisabled     bool `json:",omitempty"`
 
-	BoardErofsCompressor                 string `json:",omitempty"`
-	BoardErofsCompressorHints            string `json:",omitempty"`
-	BoardErofsPclusterSize               string `json:",omitempty"`
-	BoardErofsShareDupBlocks             string `json:",omitempty"`
-	BoardErofsUseLegacyCompression       string `json:",omitempty"`
-	BoardExt4ShareDupBlocks              string `json:",omitempty"`
-	BoardFlashLogicalBlockSize           string `json:",omitempty"`
-	BoardFlashEraseBlockSize             string `json:",omitempty"`
-	BoardUsesRecoveryAsBoot              bool   `json:",omitempty"`
-	BoardBuildGkiBootImageWithoutRamdisk bool   `json:",omitempty"`
-	ProductUseDynamicPartitionSize       bool   `json:",omitempty"`
-	CopyImagesForTargetFilesZip          bool   `json:",omitempty"`
+	BoardErofsCompressor           string `json:",omitempty"`
+	BoardErofsCompressorHints      string `json:",omitempty"`
+	BoardErofsPclusterSize         string `json:",omitempty"`
+	BoardErofsShareDupBlocks       string `json:",omitempty"`
+	BoardErofsUseLegacyCompression string `json:",omitempty"`
+	BoardExt4ShareDupBlocks        string `json:",omitempty"`
+	BoardFlashLogicalBlockSize     string `json:",omitempty"`
+	BoardFlashEraseBlockSize       string `json:",omitempty"`
+	BoardUsesRecoveryAsBoot        bool   `json:",omitempty"`
+	ProductUseDynamicPartitionSize bool   `json:",omitempty"`
+	CopyImagesForTargetFilesZip    bool   `json:",omitempty"`
 
 	BoardAvbEnable bool `json:",omitempty"`
 

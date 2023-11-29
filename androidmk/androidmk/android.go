@@ -106,6 +106,7 @@ func init() {
 			"LOCAL_ARM_MODE_HACK":           "instruction_set",
 			"LOCAL_SDK_VERSION":             "sdk_version",
 			"LOCAL_MIN_SDK_VERSION":         "min_sdk_version",
+			"LOCAL_TARGET_SDK_VERSION":      "target_sdk_version",
 			"LOCAL_NDK_STL_VARIANT":         "stl",
 			"LOCAL_JAR_MANIFEST":            "manifest",
 			"LOCAL_CERTIFICATE":             "certificate",

@@ -28,21 +28,11 @@ var (
 		"aidl-golden-test-build-hook-gen",
 		"aidl_camera_build_version",
 		"camera-its",
-		"checkIn-service-stub-lite",
 		"chre_atoms_log.h",
-		"cronet_aml_base_android_runtime_jni_headers",
-		"cronet_aml_base_android_runtime_jni_headers__testing",
-		"cronet_aml_base_android_runtime_unchecked_jni_headers",
-		"cronet_aml_base_android_runtime_unchecked_jni_headers__testing",
 		"deqp_spvtools_update_build_version",
-		"gen_corrupt_rebootless_apex",
-		"gen_key_mismatch_capex",
-		"libc_musl_sysroot_bits",
 		"libcore-non-cts-tests-txt",
-		"pvmfw_fdt_template_rs",
 		"seller-frontend-service-stub-lite",
 		"swiftshader_spvtools_update_build_version",
-		"ue_unittest_erofs_imgs",
 		"vm-tests-tf-lib",
 		// go/keep-sorted end
 	}
@@ -50,7 +40,6 @@ var (
 	SandboxingDenyPathList = []string{
 		// go/keep-sorted start
 		"art/test",
-		"external/cronet",
 		// go/keep-sorted end
 	}
 )
