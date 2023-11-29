@@ -31,8 +31,9 @@ import (
 const tableHeightEnVar = "SOONG_UI_TABLE_HEIGHT"
 
 type actionTableEntry struct {
-	action    *status.Action
-	startTime time.Time
+	action           *status.Action
+	startTime        time.Time
+	estimatedEndTime time.Time
 }
 
 type smartStatusOutput struct {
