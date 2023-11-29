@@ -2109,6 +2109,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	if c.testModule {
 		ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 	}
+	ctx.SetProvider(blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: deps.GeneratedSources.Strings()})
 
 	c.maybeInstall(ctx, apexInfo)
 }

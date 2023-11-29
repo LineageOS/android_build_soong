@@ -419,6 +419,7 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 			addLocationLabel(in, inputLocation{paths})
 		}
 	}
+	ctx.SetProvider(blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: srcFiles.Strings()})
 
 	var copyFrom android.Paths
 	var outputFiles android.WritablePaths

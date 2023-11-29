@@ -241,12 +241,13 @@ func (m *syspropLibrary) CurrentSyspropApiFile() android.OptionalPath {
 // generated java_library will depend on these API files.
 func (m *syspropLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	baseModuleName := m.BaseModuleName()
-
-	for _, syspropFile := range android.PathsForModuleSrc(ctx, m.properties.Srcs) {
+	srcs := android.PathsForModuleSrc(ctx, m.properties.Srcs)
+	for _, syspropFile := range srcs {
 		if syspropFile.Ext() != ".sysprop" {
 			ctx.PropertyErrorf("srcs", "srcs contains non-sysprop file %q", syspropFile.String())
 		}
 	}
+	ctx.SetProvider(blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: srcs.Strings()})
 
 	if ctx.Failed() {
 		return
@@ -264,7 +265,7 @@ func (m *syspropLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	rule.Command().
 		BuiltTool("sysprop_api_dump").
 		Output(m.dumpedApiFile).
-		Inputs(android.PathsForModuleSrc(ctx, m.properties.Srcs))
+		Inputs(srcs)
 	rule.Build(baseModuleName+"_api_dump", baseModuleName+" api dump")
 
 	// check API rule
