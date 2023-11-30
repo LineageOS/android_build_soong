@@ -17,6 +17,7 @@ package java
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -108,26 +109,26 @@ type aaptProperties struct {
 }
 
 type aapt struct {
-	aaptSrcJar                     android.Path
-	transitiveAaptRJars            android.Paths
-	transitiveAaptResourcePackages android.Paths
-	exportPackage                  android.Path
-	manifestPath                   android.Path
-	proguardOptionsFile            android.Path
-	rTxt                           android.Path
-	rJar                           android.Path
-	extraAaptPackagesFile          android.Path
-	mergedManifestFile             android.Path
-	noticeFile                     android.OptionalPath
-	assetPackage                   android.OptionalPath
-	isLibrary                      bool
-	defaultManifestVersion         string
-	useEmbeddedNativeLibs          bool
-	useEmbeddedDex                 bool
-	usesNonSdkApis                 bool
-	hasNoCode                      bool
-	LoggingParent                  string
-	resourceFiles                  android.Paths
+	aaptSrcJar                         android.Path
+	transitiveAaptRJars                android.Paths
+	transitiveAaptResourcePackagesFile android.Path
+	exportPackage                      android.Path
+	manifestPath                       android.Path
+	proguardOptionsFile                android.Path
+	rTxt                               android.Path
+	rJar                               android.Path
+	extraAaptPackagesFile              android.Path
+	mergedManifestFile                 android.Path
+	noticeFile                         android.OptionalPath
+	assetPackage                       android.OptionalPath
+	isLibrary                          bool
+	defaultManifestVersion             string
+	useEmbeddedNativeLibs              bool
+	useEmbeddedDex                     bool
+	usesNonSdkApis                     bool
+	hasNoCode                          bool
+	LoggingParent                      string
+	resourceFiles                      android.Paths
 
 	splitNames []string
 	splits     []split
@@ -552,9 +553,16 @@ func (a *aapt) buildActions(ctx android.ModuleContext, opts aaptBuildActionOptio
 		aapt2ExtractExtraPackages(ctx, extraPackages, srcJar)
 	}
 
+	transitiveAaptResourcePackages := staticDeps.resPackages().Strings()
+	transitiveAaptResourcePackages = slices.DeleteFunc(transitiveAaptResourcePackages, func(p string) bool {
+		return p == packageRes.String()
+	})
+	transitiveAaptResourcePackagesFile := android.PathForModuleOut(ctx, "transitive-res-packages")
+	android.WriteFileRule(ctx, transitiveAaptResourcePackagesFile, strings.Join(transitiveAaptResourcePackages, "\n"))
+
 	a.aaptSrcJar = srcJar
 	a.transitiveAaptRJars = transitiveRJars
-	a.transitiveAaptResourcePackages = staticDeps.resPackages()
+	a.transitiveAaptResourcePackagesFile = transitiveAaptResourcePackagesFile
 	a.exportPackage = packageRes
 	a.manifestPath = manifestPath
 	a.proguardOptionsFile = proguardOptionsFile
@@ -820,9 +828,13 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 
 	proguardSpecInfo := a.collectProguardSpecInfo(ctx)
 	ctx.SetProvider(ProguardSpecInfoProvider, proguardSpecInfo)
-	a.exportedProguardFlagFiles = proguardSpecInfo.ProguardFlagsFiles.ToList()
-	a.extraProguardFlagFiles = append(a.extraProguardFlagFiles, a.exportedProguardFlagFiles...)
-	a.extraProguardFlagFiles = append(a.extraProguardFlagFiles, a.proguardOptionsFile)
+	exportedProguardFlagsFiles := proguardSpecInfo.ProguardFlagsFiles.ToList()
+	a.extraProguardFlagsFiles = append(a.extraProguardFlagsFiles, exportedProguardFlagsFiles...)
+	a.extraProguardFlagsFiles = append(a.extraProguardFlagsFiles, a.proguardOptionsFile)
+
+	combinedExportedProguardFlagFile := android.PathForModuleOut(ctx, "export_proguard_flags")
+	writeCombinedProguardFlagsFile(ctx, combinedExportedProguardFlagFile, exportedProguardFlagsFiles)
+	a.combinedExportedProguardFlagsFile = combinedExportedProguardFlagFile
 
 	var extraSrcJars android.Paths
 	var extraCombinedJars android.Paths
@@ -940,15 +952,15 @@ type AARImport struct {
 
 	properties AARImportProperties
 
-	classpathFile                  android.WritablePath
-	proguardFlags                  android.WritablePath
-	exportPackage                  android.WritablePath
-	transitiveAaptResourcePackages android.Paths
-	extraAaptPackagesFile          android.WritablePath
-	manifest                       android.WritablePath
-	assetsPackage                  android.WritablePath
-	rTxt                           android.WritablePath
-	rJar                           android.WritablePath
+	classpathFile                      android.WritablePath
+	proguardFlags                      android.WritablePath
+	exportPackage                      android.WritablePath
+	transitiveAaptResourcePackagesFile android.Path
+	extraAaptPackagesFile              android.WritablePath
+	manifest                           android.WritablePath
+	assetsPackage                      android.WritablePath
+	rTxt                               android.WritablePath
+	rJar                               android.WritablePath
 
 	resourcesNodesDepSet *android.DepSet[*resourcesNode]
 	manifestsDepSet      *android.DepSet[android.Path]
@@ -1211,7 +1223,13 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	_ = staticManifestsDepSet
 	a.manifestsDepSet = manifestDepSetBuilder.Build()
 
-	a.transitiveAaptResourcePackages = staticDeps.resPackages()
+	transitiveAaptResourcePackages := staticDeps.resPackages().Strings()
+	transitiveAaptResourcePackages = slices.DeleteFunc(transitiveAaptResourcePackages, func(p string) bool {
+		return p == a.exportPackage.String()
+	})
+	transitiveAaptResourcePackagesFile := android.PathForModuleOut(ctx, "transitive-res-packages")
+	android.WriteFileRule(ctx, transitiveAaptResourcePackagesFile, strings.Join(transitiveAaptResourcePackages, "\n"))
+	a.transitiveAaptResourcePackagesFile = transitiveAaptResourcePackagesFile
 
 	a.collectTransitiveHeaderJars(ctx)
 	ctx.SetProvider(JavaInfoProvider, JavaInfo{
