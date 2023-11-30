@@ -27,7 +27,6 @@ var (
 		"aidl_camera_build_version",
 		"camera-its",
 		"libcore-non-cts-tests-txt",
-		"swiftshader_spvtools_update_build_version",
 		// go/keep-sorted end
 	}
 
