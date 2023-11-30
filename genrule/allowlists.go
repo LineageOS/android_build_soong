@@ -28,7 +28,6 @@ var (
 		"camera-its",
 		"libcore-non-cts-tests-txt",
 		"swiftshader_spvtools_update_build_version",
-		"vm-tests-tf-lib",
 		// go/keep-sorted end
 	}
 
