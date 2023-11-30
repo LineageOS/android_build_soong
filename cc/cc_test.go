@@ -194,13 +194,13 @@ func checkInstallPartition(t *testing.T, ctx *android.TestContext, name, variant
 		}
 	}
 	socSpecific := func(m *Module) bool {
-		return m.SocSpecific() || m.socSpecificModuleContext()
+		return m.SocSpecific() || m.InstallInVendor()
 	}
 	deviceSpecific := func(m *Module) bool {
-		return m.DeviceSpecific() || m.deviceSpecificModuleContext()
+		return m.DeviceSpecific() || m.InstallInOdm()
 	}
 	productSpecific := func(m *Module) bool {
-		return m.ProductSpecific() || m.productSpecificModuleContext()
+		return m.ProductSpecific() || m.InstallInProduct()
 	}
 	systemExtSpecific := func(m *Module) bool {
 		return m.SystemExtSpecific()

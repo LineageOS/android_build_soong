@@ -117,20 +117,16 @@ func (mod *Module) IsSnapshotPrebuilt() bool {
 	return false
 }
 
-func (ctx *moduleContext) SocSpecific() bool {
+func (mod *Module) InstallInVendor() bool {
 	// Additionally check if this module is inVendor() that means it is a "vendor" variant of a
 	// module. As well as SoC specific modules, vendor variants must be installed to /vendor
 	// unless they have "odm_available: true".
-	return ctx.ModuleContext.SocSpecific() || (ctx.RustModule().InVendor() && !ctx.RustModule().VendorVariantToOdm())
+	return mod.InVendor() && !mod.VendorVariantToOdm()
 }
 
-func (ctx *moduleContext) DeviceSpecific() bool {
+func (mod *Module) InstallInOdm() bool {
 	// Some vendor variants want to be installed to /odm by setting "odm_available: true".
-	return ctx.ModuleContext.DeviceSpecific() || (ctx.RustModule().InVendor() && ctx.RustModule().VendorVariantToOdm())
-}
-
-func (ctx *moduleContext) SystemExtSpecific() bool {
-	return ctx.ModuleContext.SystemExtSpecific()
+	return mod.InVendor() && mod.VendorVariantToOdm()
 }
 
 // Returns true when this module creates a vendor variant and wants to install the vendor variant
