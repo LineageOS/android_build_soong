@@ -91,12 +91,12 @@ type dexer struct {
 	dexProperties DexProperties
 
 	// list of extra proguard flag files
-	extraProguardFlagFiles android.Paths
-	proguardDictionary     android.OptionalPath
-	proguardConfiguration  android.OptionalPath
-	proguardUsageZip       android.OptionalPath
-	resourcesInput         android.OptionalPath
-	resourcesOutput        android.OptionalPath
+	extraProguardFlagsFiles android.Paths
+	proguardDictionary      android.OptionalPath
+	proguardConfiguration   android.OptionalPath
+	proguardUsageZip        android.OptionalPath
+	resourcesInput          android.OptionalPath
+	resourcesOutput         android.OptionalPath
 
 	providesTransitiveHeaderJars
 }
@@ -296,7 +296,7 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8Fl
 		android.PathForSource(ctx, "build/make/core/proguard.flags"),
 	}
 
-	flagFiles = append(flagFiles, d.extraProguardFlagFiles...)
+	flagFiles = append(flagFiles, d.extraProguardFlagsFiles...)
 	// TODO(ccross): static android library proguard files
 
 	flagFiles = append(flagFiles, android.PathsForModuleSrc(ctx, opt.Proguard_flags_files)...)
