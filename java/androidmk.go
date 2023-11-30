@@ -274,7 +274,7 @@ func (prebuilt *AARImport) AndroidMkEntries() []android.AndroidMkEntries {
 				entries.SetPath("LOCAL_SOONG_HEADER_JAR", prebuilt.classpathFile)
 				entries.SetPath("LOCAL_SOONG_CLASSES_JAR", prebuilt.classpathFile)
 				entries.SetPath("LOCAL_SOONG_RESOURCE_EXPORT_PACKAGE", prebuilt.exportPackage)
-				entries.SetPaths("LOCAL_SOONG_TRANSITIVE_RES_PACKAGES", prebuilt.transitiveAaptResourcePackages)
+				entries.SetPath("LOCAL_SOONG_TRANSITIVE_RES_PACKAGES", prebuilt.transitiveAaptResourcePackagesFile)
 				entries.SetPath("LOCAL_SOONG_EXPORT_PROGUARD_FLAGS", prebuilt.proguardFlags)
 				entries.SetPath("LOCAL_SOONG_STATIC_LIBRARY_EXTRA_PACKAGES", prebuilt.extraAaptPackagesFile)
 				entries.SetPath("LOCAL_FULL_MANIFEST_FILE", prebuilt.manifest)
@@ -532,10 +532,10 @@ func (a *AndroidLibrary) AndroidMkEntries() []android.AndroidMkEntries {
 		}
 
 		entries.SetPath("LOCAL_SOONG_RESOURCE_EXPORT_PACKAGE", a.exportPackage)
-		entries.SetPaths("LOCAL_SOONG_TRANSITIVE_RES_PACKAGES", a.transitiveAaptResourcePackages)
+		entries.SetPath("LOCAL_SOONG_TRANSITIVE_RES_PACKAGES", a.transitiveAaptResourcePackagesFile)
 		entries.SetPath("LOCAL_SOONG_STATIC_LIBRARY_EXTRA_PACKAGES", a.extraAaptPackagesFile)
 		entries.SetPath("LOCAL_FULL_MANIFEST_FILE", a.mergedManifestFile)
-		entries.AddStrings("LOCAL_SOONG_EXPORT_PROGUARD_FLAGS", a.exportedProguardFlagFiles.Strings()...)
+		entries.SetPath("LOCAL_SOONG_EXPORT_PROGUARD_FLAGS", a.combinedExportedProguardFlagsFile)
 		entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", true)
 		entries.SetOptionalPaths("LOCAL_ACONFIG_FILES", a.getTransitiveAconfigFiles().ToList())
 	})
