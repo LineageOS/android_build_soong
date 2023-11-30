@@ -1,4 +1,4 @@
-package aconfig
+package codegen
 
 import (
 	"fmt"

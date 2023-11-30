@@ -38,6 +38,9 @@ type DeclarationsModule struct {
 
 		// Values from TARGET_RELEASE / RELEASE_ACONFIG_VALUE_SETS
 		Values []string `blueprint:"mutated"`
+
+		// Container(system/vendor/apex) that this module belongs to
+		Container string
 	}
 
 	intermediatePath android.WritablePath
@@ -69,6 +72,8 @@ func (module *DeclarationsModule) DepsMutator(ctx android.BottomUpMutatorContext
 	if len(module.properties.Package) == 0 {
 		ctx.PropertyErrorf("package", "missing package property")
 	}
+	// TODO(b/311155208): Add mandatory check for container after all pre-existing
+	// ones are changed.
 
 	// Add a dependency on the aconfig_value_sets defined in
 	// RELEASE_ACONFIG_VALUE_SETS, and add any aconfig_values that
@@ -110,12 +115,21 @@ func optionalVariable(prefix string, value string) string {
 }
 
 // Provider published by aconfig_value_set
-type declarationsProviderData struct {
+type DeclarationsProviderData struct {
 	Package          string
+	Container        string
 	IntermediatePath android.WritablePath
 }
 
-var declarationsProviderKey = blueprint.NewProvider(declarationsProviderData{})
+var DeclarationsProviderKey = blueprint.NewProvider(DeclarationsProviderData{})
+
+// This is used to collect the aconfig declarations info on the transitive closure,
+// the data is keyed on the container.
+type TransitiveDeclarationsInfo struct {
+	AconfigFiles map[string]*android.DepSet[android.Path]
+}
+
+var TransitiveDeclarationsInfoProvider = blueprint.NewProvider(TransitiveDeclarationsInfo{})
 
 func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Get the values that came from the global RELEASE_ACONFIG_VALUE_SETS flag
@@ -156,11 +170,47 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 		},
 	})
 
-	ctx.SetProvider(declarationsProviderKey, declarationsProviderData{
+	ctx.SetProvider(DeclarationsProviderKey, DeclarationsProviderData{
 		Package:          module.properties.Package,
+		Container:        module.properties.Container,
 		IntermediatePath: intermediatePath,
 	})
 
+}
+
+func CollectTransitiveAconfigFiles(ctx android.ModuleContext, transitiveAconfigFiles *map[string]*android.DepSet[android.Path]) {
+	if *transitiveAconfigFiles == nil {
+		*transitiveAconfigFiles = make(map[string]*android.DepSet[android.Path])
+	}
+	ctx.VisitDirectDeps(func(module android.Module) {
+		if dep := ctx.OtherModuleProvider(module, DeclarationsProviderKey).(DeclarationsProviderData); dep.IntermediatePath != nil {
+			aconfigMap := make(map[string]*android.DepSet[android.Path])
+			aconfigMap[dep.Container] = android.NewDepSet(android.POSTORDER, []android.Path{dep.IntermediatePath}, nil)
+			mergeTransitiveAconfigFiles(aconfigMap, *transitiveAconfigFiles)
+			return
+		}
+		if dep := ctx.OtherModuleProvider(module, TransitiveDeclarationsInfoProvider).(TransitiveDeclarationsInfo); len(dep.AconfigFiles) > 0 {
+			mergeTransitiveAconfigFiles(dep.AconfigFiles, *transitiveAconfigFiles)
+		}
+	})
+
+	ctx.SetProvider(TransitiveDeclarationsInfoProvider, TransitiveDeclarationsInfo{
+		AconfigFiles: *transitiveAconfigFiles,
+	})
+}
+
+func mergeTransitiveAconfigFiles(from, to map[string]*android.DepSet[android.Path]) {
+	for fromKey, fromValue := range from {
+		if fromValue == nil {
+			continue
+		}
+		toValue, ok := to[fromKey]
+		if !ok {
+			to[fromKey] = fromValue
+		} else {
+			to[fromKey] = android.NewDepSet(android.POSTORDER, toValue.ToList(), []*android.DepSet[android.Path]{fromValue})
+		}
+	}
 }
 
 type bazelAconfigDeclarationsAttributes struct {

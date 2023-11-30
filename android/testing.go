@@ -1293,3 +1293,10 @@ func StringRelativeToTop(config Config, command string) string {
 func StringsRelativeToTop(config Config, command []string) []string {
 	return normalizeStringArrayRelativeToTop(config, command)
 }
+
+func EnsureListContainsSuffix(t *testing.T, result []string, expected string) {
+	t.Helper()
+	if !SuffixInList(result, expected) {
+		t.Errorf("%q is not found in %v", expected, result)
+	}
+}
