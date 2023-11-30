@@ -25,6 +25,7 @@ import (
 	"strings"
 	"testing"
 
+	"android/soong/aconfig/codegen"
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -151,6 +152,7 @@ var prepareForApexTest = android.GroupFixturePreparers(
 	prebuilt_etc.PrepareForTestWithPrebuiltEtc,
 	rust.PrepareForTestWithRustDefaultModules,
 	sh.PrepareForTestWithShBuildComponents,
+	codegen.PrepareForTestWithAconfigBuildComponents,
 
 	PrepareForTestWithApexBuildComponents,
 
@@ -10755,4 +10757,438 @@ func TestFileSystemShouldSkipApexLibraries(t *testing.T) {
 	android.AssertStringListDoesNotContain(t, "filesystem should not have libbar",
 		inputs.Strings(),
 		"out/soong/.intermediates/libbar/android_arm64_armv8-a_shared/libbar.so")
+}
+
+var apex_default_bp = `
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		filegroup {
+			name: "myapex.manifest",
+			srcs: ["apex_manifest.json"],
+		}
+
+		filegroup {
+			name: "myapex.androidmanifest",
+			srcs: ["AndroidManifest.xml"],
+		}
+`
+
+func TestAconfigFilesJavaDeps(t *testing.T) {
+	ctx := testApex(t, apex_default_bp+`
+		apex {
+			name: "myapex",
+			manifest: ":myapex.manifest",
+			androidManifest: ":myapex.androidmanifest",
+			key: "myapex.key",
+			java_libs: [
+				"my_java_library_foo",
+				"my_java_library_bar",
+			],
+			updatable: false,
+		}
+
+		java_library {
+			name: "my_java_library_foo",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			static_libs: ["my_java_aconfig_library_foo"],
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+		}
+
+		java_library {
+			name: "my_java_library_bar",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			static_libs: ["my_java_aconfig_library_bar"],
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_foo",
+			package: "com.example.package",
+			container: "myapex",
+			srcs: ["foo.aconfig"],
+		}
+
+		java_aconfig_library {
+			name: "my_java_aconfig_library_foo",
+			aconfig_declarations: "my_aconfig_declarations_foo",
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_bar",
+			package: "com.example.package",
+			container: "myapex",
+			srcs: ["bar.aconfig"],
+		}
+
+		java_aconfig_library {
+			name: "my_java_aconfig_library_bar",
+			aconfig_declarations: "my_aconfig_declarations_bar",
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+		}
+	`)
+
+	mod := ctx.ModuleForTests("myapex", "android_common_myapex")
+	s := mod.Rule("apexRule").Args["copy_commands"]
+	copyCmds := regexp.MustCompile(" *&& *").Split(s, -1)
+	if len(copyCmds) != 5 {
+		t.Fatalf("Expected 5 commands, got %d in:\n%s", len(copyCmds), s)
+	}
+
+	ensureMatches(t, copyCmds[4], "^cp -f .*/aconfig_flags.pb .*/image.apex$")
+
+	combineAconfigRule := mod.Rule("All_aconfig_declarations_dump")
+	s = " " + combineAconfigRule.Args["cache_files"]
+	aconfigArgs := regexp.MustCompile(" --cache ").Split(s, -1)[1:]
+	if len(aconfigArgs) != 2 {
+		t.Fatalf("Expected 2 commands, got %d in:\n%s", len(aconfigArgs), s)
+	}
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_foo/intermediate.pb")
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_bar/intermediate.pb")
+
+	buildParams := combineAconfigRule.BuildParams
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_foo/intermediate.pb")
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_bar/intermediate.pb")
+	ensureContains(t, buildParams.Output.String(), "android_common_myapex/aconfig_flags.pb")
+}
+
+func TestAconfigFilesJavaAndCcDeps(t *testing.T) {
+	ctx := testApex(t, apex_default_bp+`
+		apex {
+			name: "myapex",
+			manifest: ":myapex.manifest",
+			androidManifest: ":myapex.androidmanifest",
+			key: "myapex.key",
+			java_libs: [
+				"my_java_library_foo",
+			],
+			native_shared_libs: [
+				"my_cc_library_bar",
+			],
+			binaries: [
+				"my_cc_binary_baz",
+			],
+			updatable: false,
+		}
+
+		java_library {
+			name: "my_java_library_foo",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			static_libs: ["my_java_aconfig_library_foo"],
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+		}
+
+		cc_library {
+			name: "my_cc_library_bar",
+			srcs: ["foo/bar/MyClass.cc"],
+			static_libs: ["my_cc_aconfig_library_bar"],
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+		}
+
+		cc_binary {
+			name: "my_cc_binary_baz",
+			srcs: ["foo/bar/MyClass.cc"],
+			static_libs: ["my_cc_aconfig_library_baz"],
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_foo",
+			package: "com.example.package",
+			container: "myapex",
+			srcs: ["foo.aconfig"],
+		}
+
+		java_aconfig_library {
+			name: "my_java_aconfig_library_foo",
+			aconfig_declarations: "my_aconfig_declarations_foo",
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_bar",
+			package: "com.example.package",
+			container: "myapex",
+			srcs: ["bar.aconfig"],
+		}
+
+		cc_aconfig_library {
+			name: "my_cc_aconfig_library_bar",
+			aconfig_declarations: "my_aconfig_declarations_bar",
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_baz",
+			package: "com.example.package",
+			container: "myapex",
+			srcs: ["baz.aconfig"],
+		}
+
+		cc_aconfig_library {
+			name: "my_cc_aconfig_library_baz",
+			aconfig_declarations: "my_aconfig_declarations_baz",
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+		}
+
+		cc_library {
+			name: "server_configurable_flags",
+			srcs: ["server_configurable_flags.cc"],
+		}
+	`)
+
+	mod := ctx.ModuleForTests("myapex", "android_common_myapex")
+	s := mod.Rule("apexRule").Args["copy_commands"]
+	copyCmds := regexp.MustCompile(" *&& *").Split(s, -1)
+	if len(copyCmds) != 9 {
+		t.Fatalf("Expected 9 commands, got %d in:\n%s", len(copyCmds), s)
+	}
+
+	ensureMatches(t, copyCmds[8], "^cp -f .*/aconfig_flags.pb .*/image.apex$")
+
+	combineAconfigRule := mod.Rule("All_aconfig_declarations_dump")
+	s = " " + combineAconfigRule.Args["cache_files"]
+	aconfigArgs := regexp.MustCompile(" --cache ").Split(s, -1)[1:]
+	if len(aconfigArgs) != 3 {
+		t.Fatalf("Expected 3 commands, got %d in:\n%s", len(aconfigArgs), s)
+	}
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_foo/intermediate.pb")
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_bar/intermediate.pb")
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_baz/intermediate.pb")
+
+	buildParams := combineAconfigRule.BuildParams
+	if len(buildParams.Inputs) != 3 {
+		t.Fatalf("Expected 3 input, got %d", len(buildParams.Inputs))
+	}
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_foo/intermediate.pb")
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_bar/intermediate.pb")
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_baz/intermediate.pb")
+	ensureContains(t, buildParams.Output.String(), "android_common_myapex/aconfig_flags.pb")
+}
+
+func TestAconfigFilesOnlyMatchCurrentApex(t *testing.T) {
+	ctx := testApex(t, apex_default_bp+`
+		apex {
+			name: "myapex",
+			manifest: ":myapex.manifest",
+			androidManifest: ":myapex.androidmanifest",
+			key: "myapex.key",
+			java_libs: [
+				"my_java_library_foo",
+				"other_java_library_bar",
+			],
+			updatable: false,
+		}
+
+		java_library {
+			name: "my_java_library_foo",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			static_libs: ["my_java_aconfig_library_foo"],
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+		}
+
+		java_library {
+			name: "other_java_library_bar",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			static_libs: ["other_java_aconfig_library_bar"],
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_foo",
+			package: "com.example.package",
+			container: "myapex",
+			srcs: ["foo.aconfig"],
+		}
+
+		java_aconfig_library {
+			name: "my_java_aconfig_library_foo",
+			aconfig_declarations: "my_aconfig_declarations_foo",
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+		}
+
+		aconfig_declarations {
+			name: "other_aconfig_declarations_bar",
+			package: "com.example.package",
+			container: "otherapex",
+			srcs: ["bar.aconfig"],
+		}
+
+		java_aconfig_library {
+			name: "other_java_aconfig_library_bar",
+			aconfig_declarations: "other_aconfig_declarations_bar",
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+		}
+	`)
+
+	mod := ctx.ModuleForTests("myapex", "android_common_myapex")
+	combineAconfigRule := mod.Rule("All_aconfig_declarations_dump")
+	s := " " + combineAconfigRule.Args["cache_files"]
+	aconfigArgs := regexp.MustCompile(" --cache ").Split(s, -1)[1:]
+	if len(aconfigArgs) != 1 {
+		t.Fatalf("Expected 1 commands, got %d in:\n%s", len(aconfigArgs), s)
+	}
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_foo/intermediate.pb")
+
+	buildParams := combineAconfigRule.BuildParams
+	if len(buildParams.Inputs) != 1 {
+		t.Fatalf("Expected 1 input, got %d", len(buildParams.Inputs))
+	}
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_foo/intermediate.pb")
+	ensureContains(t, buildParams.Output.String(), "android_common_myapex/aconfig_flags.pb")
+}
+
+func TestAconfigFilesRemoveDuplicates(t *testing.T) {
+	ctx := testApex(t, apex_default_bp+`
+		apex {
+			name: "myapex",
+			manifest: ":myapex.manifest",
+			androidManifest: ":myapex.androidmanifest",
+			key: "myapex.key",
+			java_libs: [
+				"my_java_library_foo",
+				"my_java_library_bar",
+			],
+			updatable: false,
+		}
+
+		java_library {
+			name: "my_java_library_foo",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			static_libs: ["my_java_aconfig_library_foo"],
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+		}
+
+		java_library {
+			name: "my_java_library_bar",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			static_libs: ["my_java_aconfig_library_bar"],
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_foo",
+			package: "com.example.package",
+			container: "myapex",
+			srcs: ["foo.aconfig"],
+		}
+
+		java_aconfig_library {
+			name: "my_java_aconfig_library_foo",
+			aconfig_declarations: "my_aconfig_declarations_foo",
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+		}
+
+		java_aconfig_library {
+			name: "my_java_aconfig_library_bar",
+			aconfig_declarations: "my_aconfig_declarations_foo",
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+		}
+	`)
+
+	mod := ctx.ModuleForTests("myapex", "android_common_myapex")
+	combineAconfigRule := mod.Rule("All_aconfig_declarations_dump")
+	s := " " + combineAconfigRule.Args["cache_files"]
+	aconfigArgs := regexp.MustCompile(" --cache ").Split(s, -1)[1:]
+	if len(aconfigArgs) != 1 {
+		t.Fatalf("Expected 1 commands, got %d in:\n%s", len(aconfigArgs), s)
+	}
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_foo/intermediate.pb")
+
+	buildParams := combineAconfigRule.BuildParams
+	if len(buildParams.Inputs) != 1 {
+		t.Fatalf("Expected 1 input, got %d", len(buildParams.Inputs))
+	}
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_foo/intermediate.pb")
+	ensureContains(t, buildParams.Output.String(), "android_common_myapex/aconfig_flags.pb")
 }
