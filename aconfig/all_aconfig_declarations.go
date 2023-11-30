@@ -37,17 +37,17 @@ func (this *allAconfigDeclarationsSingleton) GenerateBuildActions(ctx android.Si
 	// Find all of the aconfig_declarations modules
 	var cacheFiles android.Paths
 	ctx.VisitAllModules(func(module android.Module) {
-		if !ctx.ModuleHasProvider(module, declarationsProviderKey) {
+		if !ctx.ModuleHasProvider(module, DeclarationsProviderKey) {
 			return
 		}
-		decl := ctx.ModuleProvider(module, declarationsProviderKey).(declarationsProviderData)
+		decl := ctx.ModuleProvider(module, DeclarationsProviderKey).(DeclarationsProviderData)
 		cacheFiles = append(cacheFiles, decl.IntermediatePath)
 	})
 
 	// Generate build action for aconfig
 	this.intermediatePath = android.PathForIntermediates(ctx, "all_aconfig_declarations.pb")
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        allDeclarationsRule,
+		Rule:        AllDeclarationsRule,
 		Inputs:      cacheFiles,
 		Output:      this.intermediatePath,
 		Description: "all_aconfig_declarations",
