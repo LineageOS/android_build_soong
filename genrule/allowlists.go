@@ -24,14 +24,10 @@ var (
 	SandboxingDenyModuleList = []string{
 		// go/keep-sorted start
 		"CtsApkVerityTestDebugFiles",
-		"ScriptGroupTest-rscript",
 		"aidl-golden-test-build-hook-gen",
 		"aidl_camera_build_version",
 		"camera-its",
-		"chre_atoms_log.h",
-		"deqp_spvtools_update_build_version",
 		"libcore-non-cts-tests-txt",
-		"seller-frontend-service-stub-lite",
 		"swiftshader_spvtools_update_build_version",
 		"vm-tests-tf-lib",
 		// go/keep-sorted end

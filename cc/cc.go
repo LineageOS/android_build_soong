@@ -141,6 +141,8 @@ type Deps struct {
 
 	// List of libs that need to be excluded for APEX variant
 	ExcludeLibsForApex []string
+	// List of libs that need to be excluded for non-APEX variant
+	ExcludeLibsForNonApex []string
 }
 
 // PathDeps is a struct containing file paths to dependencies of a module.
@@ -529,7 +531,6 @@ type ModuleContextIntf interface {
 	baseModuleName() string
 	getVndkExtendsModuleName() string
 	isAfdoCompile() bool
-	isPgoCompile() bool
 	isOrderfileCompile() bool
 	isCfi() bool
 	isFuzzer() bool
@@ -728,6 +729,8 @@ type libraryDependencyTag struct {
 
 	// Whether or not this dependency has to be followed for the apex variants
 	excludeInApex bool
+	// Whether or not this dependency has to be followed for the non-apex variants
+	excludeInNonApex bool
 
 	// If true, don't automatically export symbols from the static library into a shared library.
 	unexportedSymbols bool
@@ -891,7 +894,6 @@ type Module struct {
 	vndkdep   *vndkdep
 	lto       *lto
 	afdo      *afdo
-	pgo       *pgo
 	orderfile *orderfile
 
 	library libraryInterface
@@ -1274,9 +1276,6 @@ func (c *Module) Init() android.Module {
 	if c.afdo != nil {
 		c.AddProperties(c.afdo.props()...)
 	}
-	if c.pgo != nil {
-		c.AddProperties(c.pgo.props()...)
-	}
 	if c.orderfile != nil {
 		c.AddProperties(c.orderfile.props()...)
 	}
@@ -1402,13 +1401,6 @@ func (c *Module) IsVndk() bool {
 func (c *Module) isAfdoCompile() bool {
 	if afdo := c.afdo; afdo != nil {
 		return afdo.Properties.FdoProfilePath != nil
-	}
-	return false
-}
-
-func (c *Module) isPgoCompile() bool {
-	if pgo := c.pgo; pgo != nil {
-		return pgo.Properties.PgoCompile
 	}
 	return false
 }
@@ -1721,10 +1713,6 @@ func (ctx *moduleContextImpl) isAfdoCompile() bool {
 	return ctx.mod.isAfdoCompile()
 }
 
-func (ctx *moduleContextImpl) isPgoCompile() bool {
-	return ctx.mod.isPgoCompile()
-}
-
 func (ctx *moduleContextImpl) isOrderfileCompile() bool {
 	return ctx.mod.isOrderfileCompile()
 }
@@ -1837,7 +1825,6 @@ func newModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Mo
 	module.vndkdep = &vndkdep{}
 	module.lto = &lto{}
 	module.afdo = &afdo{}
-	module.pgo = &pgo{}
 	module.orderfile = &orderfile{}
 	return module
 }
@@ -2263,9 +2250,6 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	if c.afdo != nil {
 		flags = c.afdo.flags(ctx, flags)
 	}
-	if c.pgo != nil {
-		flags = c.pgo.flags(ctx, flags)
-	}
 	if c.orderfile != nil {
 		flags = c.orderfile.flags(ctx, flags)
 	}
@@ -2416,9 +2400,6 @@ func (c *Module) begin(ctx BaseModuleContext) {
 	}
 	if c.orderfile != nil {
 		c.orderfile.begin(ctx)
-	}
-	if c.pgo != nil {
-		c.pgo.begin(ctx)
 	}
 	if ctx.useSdk() && c.IsSdkVariant() {
 		version, err := nativeApiLevelFromUser(ctx, ctx.sdkVersion())
@@ -2818,6 +2799,9 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		}
 		if inList(lib, deps.ExcludeLibsForApex) {
 			depTag.excludeInApex = true
+		}
+		if inList(lib, deps.ExcludeLibsForNonApex) {
+			depTag.excludeInNonApex = true
 		}
 
 		name, version := StubsLibNameAndVersion(lib)
@@ -3333,6 +3317,9 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			}
 
 			if !apexInfo.IsForPlatform() && libDepTag.excludeInApex {
+				return
+			}
+			if apexInfo.IsForPlatform() && libDepTag.excludeInNonApex {
 				return
 			}
 
@@ -4323,7 +4310,6 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&VndkProperties{},
 		&LTOProperties{},
 		&AfdoProperties{},
-		&PgoProperties{},
 		&OrderfileProperties{},
 		&android.ProtoProperties{},
 		// RustBindgenProperties is included here so that cc_defaults can be used for rust_bindgen modules.

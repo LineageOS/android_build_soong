@@ -95,6 +95,8 @@ type dexer struct {
 	proguardDictionary     android.OptionalPath
 	proguardConfiguration  android.OptionalPath
 	proguardUsageZip       android.OptionalPath
+	resourcesInput         android.OptionalPath
+	resourcesOutput        android.OptionalPath
 
 	providesTransitiveHeaderJars
 }
@@ -160,7 +162,7 @@ var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 		"$r8Template": &remoteexec.REParams{
 			Labels:          map[string]string{"type": "compile", "compiler": "r8"},
 			Inputs:          []string{"$implicits", "${config.R8Jar}"},
-			OutputFiles:     []string{"${outUsage}", "${outConfig}", "${outDict}"},
+			OutputFiles:     []string{"${outUsage}", "${outConfig}", "${outDict}", "${resourcesOutput}"},
 			ExecStrategy:    "${config.RER8ExecStrategy}",
 			ToolchainInputs: []string{"${config.JavaCmd}"},
 			Platform:        map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
@@ -180,7 +182,7 @@ var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 		},
 	}, []string{"outDir", "outDict", "outConfig", "outUsage", "outUsageZip", "outUsageDir",
-		"r8Flags", "zipFlags", "mergeZipsFlags"}, []string{"implicits"})
+		"r8Flags", "zipFlags", "mergeZipsFlags", "resourcesOutput"}, []string{"implicits"})
 
 func (d *dexer) dexCommonFlags(ctx android.ModuleContext,
 	dexParams *compileDexParams) (flags []string, deps android.Paths) {
@@ -349,6 +351,12 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8Fl
 		r8Flags = append(r8Flags, "-ignorewarnings")
 	}
 
+	if d.resourcesInput.Valid() {
+		r8Flags = append(r8Flags, "--resource-input", d.resourcesInput.Path().String())
+		r8Deps = append(r8Deps, d.resourcesInput.Path())
+		r8Flags = append(r8Flags, "--resource-output", d.resourcesOutput.Path().String())
+	}
+
 	return r8Flags, r8Deps
 }
 
@@ -390,6 +398,8 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 			android.ModuleNameWithPossibleOverride(ctx), "unused.txt")
 		proguardUsageZip := android.PathForModuleOut(ctx, "proguard_usage.zip")
 		d.proguardUsageZip = android.OptionalPathForPath(proguardUsageZip)
+		resourcesOutput := android.PathForModuleOut(ctx, "package-res-shrunken.apk")
+		d.resourcesOutput = android.OptionalPathForPath(resourcesOutput)
 		r8Flags, r8Deps := d.r8Flags(ctx, dexParams.flags)
 		r8Deps = append(r8Deps, commonDeps...)
 		rule := r8
@@ -408,17 +418,22 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 			rule = r8RE
 			args["implicits"] = strings.Join(r8Deps.Strings(), ",")
 		}
+		implicitOutputs := android.WritablePaths{
+			proguardDictionary,
+			proguardUsageZip,
+			proguardConfiguration}
+		if d.resourcesInput.Valid() {
+			implicitOutputs = append(implicitOutputs, resourcesOutput)
+			args["resourcesOutput"] = resourcesOutput.String()
+		}
 		ctx.Build(pctx, android.BuildParams{
-			Rule:        rule,
-			Description: "r8",
-			Output:      javalibJar,
-			ImplicitOutputs: android.WritablePaths{
-				proguardDictionary,
-				proguardUsageZip,
-				proguardConfiguration},
-			Input:     dexParams.classesJar,
-			Implicits: r8Deps,
-			Args:      args,
+			Rule:            rule,
+			Description:     "r8",
+			Output:          javalibJar,
+			ImplicitOutputs: implicitOutputs,
+			Input:           dexParams.classesJar,
+			Implicits:       r8Deps,
+			Args:            args,
 		})
 	} else {
 		d8Flags, d8Deps := d8Flags(dexParams.flags)
