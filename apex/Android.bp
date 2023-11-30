@@ -8,6 +8,8 @@ bootstrap_go_package {
     deps: [
         "blueprint",
         "soong",
+        "soong-aconfig",
+        "soong-aconfig-codegen",
         "soong-android",
         "soong-bazel",
         "soong-bpf",

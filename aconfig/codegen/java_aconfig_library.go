@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package aconfig
+package codegen
 
 import (
 	"fmt"
 
+	"android/soong/aconfig"
 	"android/soong/android"
 	"android/soong/bazel"
 	"android/soong/java"
@@ -73,7 +74,7 @@ func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) GenerateSourceJarBuild
 	if len(declarationsModules) != 1 {
 		panic(fmt.Errorf("Exactly one aconfig_declarations property required"))
 	}
-	declarations := ctx.OtherModuleProvider(declarationsModules[0], declarationsProviderKey).(declarationsProviderData)
+	declarations := ctx.OtherModuleProvider(declarationsModules[0], aconfig.DeclarationsProviderKey).(aconfig.DeclarationsProviderData)
 
 	// Generate the action to build the srcjar
 	srcJarPath := android.PathForModuleGen(ctx, ctx.ModuleName()+".srcjar")
@@ -92,10 +93,6 @@ func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) GenerateSourceJarBuild
 			"mode": mode,
 		},
 	})
-
-	// Tell the java module about the .aconfig files, so they can be propagated up the dependency chain.
-	// TODO: It would be nice to have that propagation code here instead of on java.Module and java.JavaInfo.
-	module.AddAconfigIntermediate(declarations.IntermediatePath)
 
 	return srcJarPath
 }

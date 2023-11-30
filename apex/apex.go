@@ -24,6 +24,7 @@ import (
 	"sort"
 	"strings"
 
+	"android/soong/aconfig"
 	"android/soong/bazel/cquery"
 
 	"github.com/google/blueprint"
@@ -482,6 +483,8 @@ type apexBundle struct {
 	nativeApisUsedByModuleFile   android.ModuleOutPath
 	nativeApisBackedByModuleFile android.ModuleOutPath
 	javaApisUsedByModuleFile     android.ModuleOutPath
+
+	aconfigFiles []android.Path
 }
 
 // apexFileClass represents a type of file that can be included in APEX.
@@ -2008,6 +2011,8 @@ type visitorContext struct {
 
 	// visitor skips these from this list of module names
 	unwantedTransitiveDeps []string
+
+	aconfigFiles []android.Path
 }
 
 func (vctx *visitorContext) normalizeFileInfo(mctx android.ModuleContext) {
@@ -2067,6 +2072,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 				fi := apexFileForNativeLibrary(ctx, ch, vctx.handleSpecialLibs)
 				fi.isJniLib = isJniLib
 				vctx.filesInfo = append(vctx.filesInfo, fi)
+				addAconfigFiles(vctx, ctx, child)
 				// Collect the list of stub-providing libs except:
 				// - VNDK libs are only for vendors
 				// - bootstrap bionic libs are treated as provided by system
@@ -2090,6 +2096,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			switch ch := child.(type) {
 			case *cc.Module:
 				vctx.filesInfo = append(vctx.filesInfo, apexFileForExecutable(ctx, ch))
+				addAconfigFiles(vctx, ctx, child)
 				return true // track transitive dependencies
 			case *rust.Module:
 				vctx.filesInfo = append(vctx.filesInfo, apexFileForRustExecutable(ctx, ch))
@@ -2132,6 +2139,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 					return false
 				}
 				vctx.filesInfo = append(vctx.filesInfo, af)
+				addAconfigFiles(vctx, ctx, child)
 				return true // track transitive dependencies
 			default:
 				ctx.PropertyErrorf("java_libs", "%q of type %q is not supported", depName, ctx.OtherModuleType(child))
@@ -2140,6 +2148,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			switch ap := child.(type) {
 			case *java.AndroidApp:
 				vctx.filesInfo = append(vctx.filesInfo, apexFilesForAndroidApp(ctx, ap)...)
+				addAconfigFiles(vctx, ctx, child)
 				return true // track transitive dependencies
 			case *java.AndroidAppImport:
 				vctx.filesInfo = append(vctx.filesInfo, apexFilesForAndroidApp(ctx, ap)...)
@@ -2298,6 +2307,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			}
 
 			vctx.filesInfo = append(vctx.filesInfo, af)
+			addAconfigFiles(vctx, ctx, child)
 			return true // track transitive dependencies
 		} else if rm, ok := child.(*rust.Module); ok {
 			af := apexFileForRustLibrary(ctx, rm)
@@ -2376,6 +2386,13 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 		ctx.ModuleErrorf("unexpected tag %s for indirect dependency %q", android.PrettyPrintTag(depTag), depName)
 	}
 	return false
+}
+
+func addAconfigFiles(vctx *visitorContext, ctx android.ModuleContext, module blueprint.Module) {
+	dep := ctx.OtherModuleProvider(module, aconfig.TransitiveDeclarationsInfoProvider).(aconfig.TransitiveDeclarationsInfo)
+	if len(dep.AconfigFiles) > 0 && dep.AconfigFiles[ctx.ModuleName()] != nil {
+		vctx.aconfigFiles = append(vctx.aconfigFiles, dep.AconfigFiles[ctx.ModuleName()].ToList()...)
+	}
 }
 
 func (a *apexBundle) shouldCheckDuplicate(ctx android.ModuleContext) bool {
@@ -2459,6 +2476,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// 3) some fields in apexBundle struct are configured
 	a.installDir = android.PathForModuleInstall(ctx, "apex")
 	a.filesInfo = vctx.filesInfo
+	a.aconfigFiles = android.FirstUniquePaths(vctx.aconfigFiles)
 
 	a.setPayloadFsType(ctx)
 	a.setSystemLibLink(ctx)
