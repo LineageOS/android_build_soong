@@ -30,6 +30,7 @@ import (
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
+	"android/soong/aconfig"
 	"android/soong/aidl_library"
 	"android/soong/android"
 	"android/soong/bazel/cquery"
@@ -925,6 +926,9 @@ type Module struct {
 	apexSdkVersion android.ApiLevel
 
 	hideApexVariantFromMake bool
+
+	// Aconfig files for all transitive deps.  Also exposed via TransitiveDeclarationsInfo
+	transitiveAconfigFiles map[string]*android.DepSet[android.Path]
 }
 
 func (c *Module) AddJSONData(d *map[string]interface{}) {
@@ -2318,6 +2322,8 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	if c.testModule {
 		ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 	}
+
+	aconfig.CollectTransitiveAconfigFiles(ctx, &c.transitiveAconfigFiles)
 
 	c.maybeInstall(ctx, apexInfo)
 }

@@ -37,7 +37,6 @@ func (callbacks *JavaGenLibTestCallbacks) DepsMutator(module *GeneratedJavaLibra
 }
 
 func (callbacks *JavaGenLibTestCallbacks) GenerateSourceJarBuildActions(module *GeneratedJavaLibraryModule, ctx android.ModuleContext) android.Path {
-	module.AddAconfigIntermediate(android.PathForOutput(ctx, "aconfig_cache_file"))
 	return android.PathForOutput(ctx, "blah.srcjar")
 }
 
