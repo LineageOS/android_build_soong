@@ -175,15 +175,6 @@ func androidMkWriteExtraTestConfigs(extraTestConfigs android.Paths, entries *and
 	}
 }
 
-func AndroidMkWriteTestData(data []android.DataPath, entries *android.AndroidMkEntries) {
-	testFiles := android.AndroidMkDataPaths(data)
-	if len(testFiles) > 0 {
-		entries.ExtraEntries = append(entries.ExtraEntries, func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-			entries.AddStrings("LOCAL_TEST_DATA", testFiles...)
-		})
-	}
-}
-
 func makeOverrideModuleNames(ctx AndroidMkContext, overrides []string) []string {
 	if ctx.Target().NativeBridge == android.NativeBridgeEnabled {
 		var result []string
@@ -379,11 +370,6 @@ func (benchmark *benchmarkDecorator) AndroidMkEntries(ctx AndroidMkContext, entr
 			entries.SetBool("LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG", true)
 		}
 	})
-	dataPaths := []android.DataPath{}
-	for _, srcPath := range benchmark.data {
-		dataPaths = append(dataPaths, android.DataPath{SrcPath: srcPath})
-	}
-	AndroidMkWriteTestData(dataPaths, entries)
 }
 
 func (test *testBinary) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
@@ -411,40 +397,16 @@ func (test *testBinary) AndroidMkEntries(ctx AndroidMkContext, entries *android.
 		test.Properties.Test_options.CommonTestOptions.SetAndroidMkEntries(entries)
 	})
 
-	AndroidMkWriteTestData(test.data, entries)
 	androidMkWriteExtraTestConfigs(test.extraTestConfigs, entries)
 }
 
 func (fuzz *fuzzBinary) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
 	ctx.subAndroidMk(entries, fuzz.binaryDecorator)
 
-	var fuzzFiles []string
-	for _, d := range fuzz.fuzzPackagedModule.Corpus {
-		fuzzFiles = append(fuzzFiles,
-			filepath.Dir(fuzz.fuzzPackagedModule.CorpusIntermediateDir.String())+":corpus/"+d.Base())
-	}
-
-	for _, d := range fuzz.fuzzPackagedModule.Data {
-		fuzzFiles = append(fuzzFiles,
-			filepath.Dir(fuzz.fuzzPackagedModule.DataIntermediateDir.String())+":data/"+d.Rel())
-	}
-
-	if fuzz.fuzzPackagedModule.Dictionary != nil {
-		fuzzFiles = append(fuzzFiles,
-			filepath.Dir(fuzz.fuzzPackagedModule.Dictionary.String())+":"+fuzz.fuzzPackagedModule.Dictionary.Base())
-	}
-
-	if fuzz.fuzzPackagedModule.Config != nil {
-		fuzzFiles = append(fuzzFiles,
-			filepath.Dir(fuzz.fuzzPackagedModule.Config.String())+":config.json")
-	}
-
 	entries.ExtraEntries = append(entries.ExtraEntries, func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 		entries.SetBool("LOCAL_IS_FUZZ_TARGET", true)
-		if len(fuzzFiles) > 0 {
-			entries.AddStrings("LOCAL_TEST_DATA", fuzzFiles...)
-		}
 		if fuzz.installedSharedDeps != nil {
+			// TOOD: move to install dep
 			entries.AddStrings("LOCAL_FUZZ_INSTALLED_SHARED_DEPS", fuzz.installedSharedDeps...)
 		}
 	})

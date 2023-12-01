@@ -153,6 +153,15 @@ type ModuleContext interface {
 	// for which IsInstallDepNeeded returns true.
 	InstallAbsoluteSymlink(installPath InstallPath, name string, absPath string) InstallPath
 
+	// InstallTestData creates rules to install test data (e.g. data files used during a test) into
+	// the installPath directory.
+	//
+	// The installed files will be returned by FilesToInstall(), and the PackagingSpec for the
+	// installed files will be returned by PackagingSpecs() on this module or by
+	// TransitivePackagingSpecs() on modules that depend on this module through dependency tags
+	// for which IsInstallDepNeeded returns true.
+	InstallTestData(installPath InstallPath, data []DataPath) InstallPaths
+
 	// PackageFile creates a PackagingSpec as if InstallFile was called, but without creating
 	// the rule to copy the file.  This is useful to define how a module would be packaged
 	// without installing it into the global installation directories.
@@ -212,6 +221,8 @@ type moduleContext struct {
 
 	katiInstalls []katiInstall
 	katiSymlinks []katiInstall
+
+	testData []DataPath
 
 	// For tests
 	buildParams []BuildParams
@@ -452,17 +463,17 @@ func (m *moduleContext) skipInstall() bool {
 
 func (m *moduleContext) InstallFile(installPath InstallPath, name string, srcPath Path,
 	deps ...InstallPath) InstallPath {
-	return m.installFile(installPath, name, srcPath, deps, false, nil)
+	return m.installFile(installPath, name, srcPath, deps, false, true, nil)
 }
 
 func (m *moduleContext) InstallExecutable(installPath InstallPath, name string, srcPath Path,
 	deps ...InstallPath) InstallPath {
-	return m.installFile(installPath, name, srcPath, deps, true, nil)
+	return m.installFile(installPath, name, srcPath, deps, true, true, nil)
 }
 
 func (m *moduleContext) InstallFileWithExtraFilesZip(installPath InstallPath, name string, srcPath Path,
 	extraZip Path, deps ...InstallPath) InstallPath {
-	return m.installFile(installPath, name, srcPath, deps, false, &extraFilesZip{
+	return m.installFile(installPath, name, srcPath, deps, false, true, &extraFilesZip{
 		zip: extraZip,
 		dir: installPath,
 	})
@@ -488,10 +499,12 @@ func (m *moduleContext) packageFile(fullInstallPath InstallPath, srcPath Path, e
 }
 
 func (m *moduleContext) installFile(installPath InstallPath, name string, srcPath Path, deps []InstallPath,
-	executable bool, extraZip *extraFilesZip) InstallPath {
+	executable bool, hooks bool, extraZip *extraFilesZip) InstallPath {
 
 	fullInstallPath := installPath.Join(m, name)
-	m.module.base().hooks.runInstallHooks(m, srcPath, fullInstallPath, false)
+	if hooks {
+		m.module.base().hooks.runInstallHooks(m, srcPath, fullInstallPath, false)
+	}
 
 	if !m.skipInstall() {
 		deps = append(deps, InstallPaths(m.module.base().installFilesDepSet.ToList())...)
@@ -645,6 +658,19 @@ func (m *moduleContext) InstallAbsoluteSymlink(installPath InstallPath, name str
 	})
 
 	return fullInstallPath
+}
+
+func (m *moduleContext) InstallTestData(installPath InstallPath, data []DataPath) InstallPaths {
+	m.testData = append(m.testData, data...)
+
+	ret := make(InstallPaths, 0, len(data))
+	for _, d := range data {
+		relPath := d.ToRelativeInstallPath()
+		installed := m.installFile(installPath, relPath, d.SrcPath, nil, false, false, nil)
+		ret = append(ret, installed)
+	}
+
+	return ret
 }
 
 func (m *moduleContext) CheckbuildFile(srcPath Path) {
