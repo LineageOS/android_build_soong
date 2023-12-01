@@ -72,6 +72,8 @@ var (
 		"-C panic=abort",
 		// Generate additional debug info for AutoFDO
 		"-Z debug-info-for-profiling",
+		// Android has ELF TLS on platform
+		"-Z tls-model=global-dynamic",
 	}
 
 	deviceGlobalLinkFlags = []string{
