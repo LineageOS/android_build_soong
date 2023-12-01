@@ -106,6 +106,7 @@ type fuzzBinary struct {
 	fuzzPackagedModule  fuzz.FuzzPackagedModule
 	installedSharedDeps []string
 	sharedLibraries     android.RuleBuilderInstalls
+	data                []android.DataPath
 }
 
 func (fuzz *fuzzBinary) fuzzBinary() bool {
@@ -231,15 +232,9 @@ func SharedLibrarySymbolsInstallLocation(libraryBase string, fuzzDir string, arc
 }
 
 func (fuzzBin *fuzzBinary) install(ctx ModuleContext, file android.Path) {
-	installBase := "fuzz"
-
-	fuzzBin.binaryDecorator.baseInstaller.dir = filepath.Join(
-		installBase, ctx.Target().Arch.ArchType.String(), ctx.ModuleName())
-	fuzzBin.binaryDecorator.baseInstaller.dir64 = filepath.Join(
-		installBase, ctx.Target().Arch.ArchType.String(), ctx.ModuleName())
-	fuzzBin.binaryDecorator.baseInstaller.install(ctx, file)
-
 	fuzzBin.fuzzPackagedModule = PackageFuzzModule(ctx, fuzzBin.fuzzPackagedModule, pctx)
+
+	installBase := "fuzz"
 
 	// Grab the list of required shared libraries.
 	fuzzBin.sharedLibraries, _ = CollectAllSharedDependencies(ctx)
@@ -256,34 +251,35 @@ func (fuzzBin *fuzzBinary) install(ctx ModuleContext, file android.Path) {
 				SharedLibrarySymbolsInstallLocation(install, installBase, ctx.Arch().ArchType.String()))
 		}
 	}
+
+	for _, d := range fuzzBin.fuzzPackagedModule.Corpus {
+		fuzzBin.data = append(fuzzBin.data, android.DataPath{SrcPath: d, RelativeInstallPath: "corpus", WithoutRel: true})
+	}
+
+	for _, d := range fuzzBin.fuzzPackagedModule.Data {
+		fuzzBin.data = append(fuzzBin.data, android.DataPath{SrcPath: d, RelativeInstallPath: "data"})
+	}
+
+	if d := fuzzBin.fuzzPackagedModule.Dictionary; d != nil {
+		fuzzBin.data = append(fuzzBin.data, android.DataPath{SrcPath: d, WithoutRel: true})
+	}
+
+	if d := fuzzBin.fuzzPackagedModule.Config; d != nil {
+		fuzzBin.data = append(fuzzBin.data, android.DataPath{SrcPath: d, WithoutRel: true})
+	}
+
+	fuzzBin.binaryDecorator.baseInstaller.dir = filepath.Join(
+		installBase, ctx.Target().Arch.ArchType.String(), ctx.ModuleName())
+	fuzzBin.binaryDecorator.baseInstaller.dir64 = filepath.Join(
+		installBase, ctx.Target().Arch.ArchType.String(), ctx.ModuleName())
+	fuzzBin.binaryDecorator.baseInstaller.installTestData(ctx, fuzzBin.data)
+	fuzzBin.binaryDecorator.baseInstaller.install(ctx, file)
 }
 
 func PackageFuzzModule(ctx android.ModuleContext, fuzzPackagedModule fuzz.FuzzPackagedModule, pctx android.PackageContext) fuzz.FuzzPackagedModule {
 	fuzzPackagedModule.Corpus = android.PathsForModuleSrc(ctx, fuzzPackagedModule.FuzzProperties.Corpus)
-	intermediateDir := android.PathForModuleOut(ctx, "corpus")
-
-	// Create one rule per file to avoid MAX_ARG_STRLEN hardlimit.
-	for _, entry := range fuzzPackagedModule.Corpus {
-		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.Cp,
-			Output: intermediateDir.Join(ctx, entry.Base()),
-			Input:  entry,
-		})
-	}
-	fuzzPackagedModule.CorpusIntermediateDir = intermediateDir
 
 	fuzzPackagedModule.Data = android.PathsForModuleSrc(ctx, fuzzPackagedModule.FuzzProperties.Data)
-	intermediateDir = android.PathForModuleOut(ctx, "data")
-
-	// Create one rule per file to avoid MAX_ARG_STRLEN hardlimit.
-	for _, entry := range fuzzPackagedModule.Data {
-		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.Cp,
-			Output: intermediateDir.Join(ctx, entry.Rel()),
-			Input:  entry,
-		})
-	}
-	fuzzPackagedModule.DataIntermediateDir = intermediateDir
 
 	if fuzzPackagedModule.FuzzProperties.Dictionary != nil {
 		fuzzPackagedModule.Dictionary = android.PathForModuleSrc(ctx, *fuzzPackagedModule.FuzzProperties.Dictionary)

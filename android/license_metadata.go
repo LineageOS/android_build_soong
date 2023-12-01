@@ -50,7 +50,14 @@ func buildLicenseMetadata(ctx ModuleContext, licenseMetadataFile WritablePath) {
 		outputFiles = PathsIfNonNil(outputFiles...)
 	}
 
-	isContainer := isContainerFromFileExtensions(base.installFiles, outputFiles)
+	// Only pass the last installed file to isContainerFromFileExtensions so a *.zip file in test data
+	// doesn't mark the whole module as a container.
+	var installFiles InstallPaths
+	if len(base.installFiles) > 0 {
+		installFiles = InstallPaths{base.installFiles[len(base.installFiles)-1]}
+	}
+
+	isContainer := isContainerFromFileExtensions(installFiles, outputFiles)
 
 	var allDepMetadataFiles Paths
 	var allDepMetadataArgs []string
