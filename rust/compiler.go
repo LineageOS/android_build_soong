@@ -239,6 +239,8 @@ type baseCompiler struct {
 
 	distFile android.OptionalPath
 
+	installDeps android.InstallPaths
+
 	// unstripped output file.
 	unstrippedOutputFile android.Path
 
@@ -538,7 +540,12 @@ func (compiler *baseCompiler) nativeCoverage() bool {
 
 func (compiler *baseCompiler) install(ctx ModuleContext) {
 	path := ctx.RustModule().OutputFile()
-	compiler.path = ctx.InstallFile(compiler.installDir(ctx), path.Path().Base(), path.Path())
+	compiler.path = ctx.InstallFile(compiler.installDir(ctx), path.Path().Base(), path.Path(), compiler.installDeps...)
+}
+
+func (compiler *baseCompiler) installTestData(ctx ModuleContext, data []android.DataPath) {
+	installedData := ctx.InstallTestData(compiler.installDir(ctx), data)
+	compiler.installDeps = append(compiler.installDeps, installedData...)
 }
 
 func (compiler *baseCompiler) getStem(ctx ModuleContext) string {
