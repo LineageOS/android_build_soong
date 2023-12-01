@@ -540,6 +540,10 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint
 		a.SetPaths("LOCAL_SOONG_INSTALL_SYMLINKS", base.katiSymlinks.InstallPaths().Paths())
 	}
 
+	if len(base.testData) > 0 {
+		a.AddStrings("LOCAL_TEST_DATA", androidMkDataPaths(base.testData)...)
+	}
+
 	if am, ok := mod.(ApexModule); ok {
 		a.SetBoolIfTrue("LOCAL_NOT_AVAILABLE_FOR_PLATFORM", am.NotAvailableForPlatform())
 	}
@@ -936,10 +940,13 @@ func shouldSkipAndroidMkProcessing(module *ModuleBase) bool {
 
 // A utility func to format LOCAL_TEST_DATA outputs. See the comments on DataPath to understand how
 // to use this func.
-func AndroidMkDataPaths(data []DataPath) []string {
+func androidMkDataPaths(data []DataPath) []string {
 	var testFiles []string
 	for _, d := range data {
 		rel := d.SrcPath.Rel()
+		if d.WithoutRel {
+			rel = d.SrcPath.Base()
+		}
 		path := d.SrcPath.String()
 		// LOCAL_TEST_DATA requires the rel portion of the path to be removed from the path.
 		if !strings.HasSuffix(path, rel) {
