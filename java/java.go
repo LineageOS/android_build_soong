@@ -639,7 +639,7 @@ func normalizeJavaVersion(ctx android.BaseModuleContext, javaVersion string) jav
 type Library struct {
 	Module
 
-	exportedProguardFlagFiles android.Paths
+	combinedExportedProguardFlagsFile android.Path
 
 	InstallMixin func(ctx android.ModuleContext, installPath android.Path) (extraInstallDeps android.InstallPaths)
 }
@@ -700,8 +700,12 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	proguardSpecInfo := j.collectProguardSpecInfo(ctx)
 	ctx.SetProvider(ProguardSpecInfoProvider, proguardSpecInfo)
-	j.exportedProguardFlagFiles = proguardSpecInfo.ProguardFlagsFiles.ToList()
-	j.extraProguardFlagFiles = append(j.extraProguardFlagFiles, j.exportedProguardFlagFiles...)
+	exportedProguardFlagsFiles := proguardSpecInfo.ProguardFlagsFiles.ToList()
+	j.extraProguardFlagsFiles = append(j.extraProguardFlagsFiles, exportedProguardFlagsFiles...)
+
+	combinedExportedProguardFlagFile := android.PathForModuleOut(ctx, "export_proguard_flags")
+	writeCombinedProguardFlagsFile(ctx, combinedExportedProguardFlagFile, exportedProguardFlagsFiles)
+	j.combinedExportedProguardFlagsFile = combinedExportedProguardFlagFile
 
 	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 	if !apexInfo.IsForPlatform() {
