@@ -26,7 +26,6 @@ var (
 		"CtsApkVerityTestDebugFiles",
 		"aidl_camera_build_version",
 		"camera-its",
-		"libcore-non-cts-tests-txt",
 		// go/keep-sorted end
 	}
 
