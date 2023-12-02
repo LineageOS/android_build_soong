@@ -297,15 +297,6 @@ type JavaInfo struct {
 	// JacocoReportClassesFile is the path to a jar containing uninstrumented classes that will be
 	// instrumented by jacoco.
 	JacocoReportClassesFile android.Path
-
-	// set of aconfig flags for all transitive libs deps
-	// TODO(joeo): It would be nice if this were over in the aconfig package instead of here.
-	// In order to do that, generated_java_library would need a way doing
-	// collectTransitiveAconfigFiles with one of the callbacks, and having that automatically
-	// propagated. If we were to clean up more of the stuff on JavaInfo that's not part of
-	// core java rules (e.g. AidlIncludeDirs), then maybe adding more framework to do that would be
-	// worth it.
-	TransitiveAconfigFiles *android.DepSet[android.Path]
 }
 
 var JavaInfoProvider = blueprint.NewProvider(JavaInfo{})

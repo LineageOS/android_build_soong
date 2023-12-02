@@ -1,4 +1,4 @@
-// Copyright 2023 Google Inc. All rights reserved.
+// Copyright (C) 2021 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,26 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genrule
+package codegen
 
-var (
-	DepfileAllowList = []string{
-		// go/keep-sorted start
-		"depfile_allowed_for_test",
-		// go/keep-sorted end
-	}
-
-	SandboxingDenyModuleList = []string{
-		// go/keep-sorted start
-		"CtsApkVerityTestDebugFiles",
-		"aidl_camera_build_version",
-		"camera-its",
-		// go/keep-sorted end
-	}
-
-	SandboxingDenyPathList = []string{
-		// go/keep-sorted start
-		"art/test",
-		// go/keep-sorted end
-	}
+import (
+	"android/soong/aconfig"
+	"android/soong/android"
 )
+
+var PrepareForTestWithAconfigBuildComponents = android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("aconfig_declarations", aconfig.DeclarationsFactory)
+	RegisterBuildComponents(ctx)
+})
