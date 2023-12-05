@@ -618,6 +618,14 @@ func (v *ProductVariables) SetDefaultConfig() {
 	}
 }
 
+func (this *ProductVariables) GetBuildFlagBool(flag string) bool {
+	val, ok := this.BuildFlags[flag]
+	if !ok {
+		return false
+	}
+	return val == "true"
+}
+
 // ProductConfigContext requires the access to the Module to get product config properties.
 type ProductConfigContext interface {
 	Module() Module
