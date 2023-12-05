@@ -39,7 +39,7 @@ func TestJavaLint(t *testing.T) {
 
 	foo := ctx.ModuleForTests("foo", "android_common")
 
-	sboxProto := android.RuleBuilderSboxProtoForTests(t, foo.Output("lint.sbox.textproto"))
+	sboxProto := android.RuleBuilderSboxProtoForTests(t, ctx, foo.Output("lint.sbox.textproto"))
 	if !strings.Contains(*sboxProto.Commands[0].Command, "--baseline lint-baseline.xml") {
 		t.Error("did not pass --baseline flag")
 	}
@@ -61,7 +61,7 @@ func TestJavaLintWithoutBaseline(t *testing.T) {
 
 	foo := ctx.ModuleForTests("foo", "android_common")
 
-	sboxProto := android.RuleBuilderSboxProtoForTests(t, foo.Output("lint.sbox.textproto"))
+	sboxProto := android.RuleBuilderSboxProtoForTests(t, ctx, foo.Output("lint.sbox.textproto"))
 	if strings.Contains(*sboxProto.Commands[0].Command, "--baseline") {
 		t.Error("passed --baseline flag for non existent file")
 	}
@@ -108,7 +108,7 @@ func TestJavaLintUsesCorrectBpConfig(t *testing.T) {
 
 	foo := ctx.ModuleForTests("foo", "android_common")
 
-	sboxProto := android.RuleBuilderSboxProtoForTests(t, foo.Output("lint.sbox.textproto"))
+	sboxProto := android.RuleBuilderSboxProtoForTests(t, ctx, foo.Output("lint.sbox.textproto"))
 	if !strings.Contains(*sboxProto.Commands[0].Command, "--baseline mybaseline.xml") {
 		t.Error("did not use the correct file for baseline")
 	}
@@ -276,7 +276,7 @@ func TestJavaLintDatabaseSelectionFull(t *testing.T) {
 			RunTestWithBp(t, thisBp)
 
 		foo := result.ModuleForTests("foo", "android_common")
-		sboxProto := android.RuleBuilderSboxProtoForTests(t, foo.Output("lint.sbox.textproto"))
+		sboxProto := android.RuleBuilderSboxProtoForTests(t, result.TestContext, foo.Output("lint.sbox.textproto"))
 		if !strings.Contains(*sboxProto.Commands[0].Command, "/"+testCase.expected_file) {
 			t.Error("did not use full api database for case", testCase)
 		}
