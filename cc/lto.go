@@ -116,7 +116,8 @@ func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
 		// better dead code elimination and CFG simplification, but do
 		// not perform costly optimizations for a balance between compile
 		// time, binary size and performance.
-		if !lto.ThinLTO() {
+		// Apply the same for Eng builds as well.
+		if !lto.ThinLTO() || ctx.Config().Eng() {
 			ltoLdFlags = append(ltoLdFlags, "-Wl,--lto-O0")
 		}
 
