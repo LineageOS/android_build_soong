@@ -283,11 +283,16 @@ func Build(ctx Context, config Config) {
 	}
 
 	rbeCh := make(chan bool)
+	var rbePanic any
 	if config.StartRBE() {
 		cleanupRBELogsDir(ctx, config)
+		checkRBERequirements(ctx, config)
 		go func() {
+			defer func() {
+				rbePanic = recover()
+				close(rbeCh)
+			}()
 			startRBE(ctx, config)
-			close(rbeCh)
 		}()
 		defer DumpRBEMetrics(ctx, config, filepath.Join(config.LogsDir(), "rbe_metrics.pb"))
 	} else {
@@ -345,6 +350,11 @@ func Build(ctx Context, config Config) {
 	}
 
 	<-rbeCh
+	if rbePanic != nil {
+		// If there was a ctx.Fatal in startRBE, rethrow it.
+		panic(rbePanic)
+	}
+
 	if what&RunNinja != 0 {
 		if what&RunKati != 0 {
 			installCleanIfNecessary(ctx, config)
