@@ -26,6 +26,7 @@ var (
 		"CtsApkVerityTestDebugFiles",
 		"aidl_camera_build_version",
 		"camera-its",
+		"chre_atoms_log.h",
 		// go/keep-sorted end
 	}
 
