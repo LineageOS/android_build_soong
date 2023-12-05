@@ -1921,7 +1921,7 @@ func TestJavaApiLibraryAndProviderLink(t *testing.T) {
 	for _, c := range testcases {
 		m := ctx.ModuleForTests(c.moduleName, "android_common")
 		manifest := m.Output("metalava.sbox.textproto")
-		sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
+		sboxProto := android.RuleBuilderSboxProtoForTests(t, ctx.TestContext, manifest)
 		manifestCommand := sboxProto.Commands[0].GetCommand()
 		sourceFilesFlag := "--source-files " + strings.Join(c.sourceTextFileDirs, " ")
 		android.AssertStringDoesContain(t, "source text files not present", manifestCommand, sourceFilesFlag)
@@ -2026,7 +2026,7 @@ func TestJavaApiLibraryAndDefaultsLink(t *testing.T) {
 	for _, c := range testcases {
 		m := ctx.ModuleForTests(c.moduleName, "android_common")
 		manifest := m.Output("metalava.sbox.textproto")
-		sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
+		sboxProto := android.RuleBuilderSboxProtoForTests(t, ctx.TestContext, manifest)
 		manifestCommand := sboxProto.Commands[0].GetCommand()
 		sourceFilesFlag := "--source-files " + strings.Join(c.sourceTextFileDirs, " ")
 		android.AssertStringDoesContain(t, "source text files not present", manifestCommand, sourceFilesFlag)
@@ -2316,7 +2316,7 @@ func TestJavaApiLibraryFullApiSurfaceStub(t *testing.T) {
 
 	m := ctx.ModuleForTests("bar1", "android_common")
 	manifest := m.Output("metalava.sbox.textproto")
-	sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
+	sboxProto := android.RuleBuilderSboxProtoForTests(t, ctx.TestContext, manifest)
 	manifestCommand := sboxProto.Commands[0].GetCommand()
 	android.AssertStringDoesContain(t, "Command expected to contain full_api_surface_stub output jar", manifestCommand, "lib1.jar")
 }
@@ -2480,7 +2480,7 @@ func TestJavaApiContributionImport(t *testing.T) {
 	`)
 	m := ctx.ModuleForTests("foo", "android_common")
 	manifest := m.Output("metalava.sbox.textproto")
-	sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
+	sboxProto := android.RuleBuilderSboxProtoForTests(t, ctx.TestContext, manifest)
 	manifestCommand := sboxProto.Commands[0].GetCommand()
 	sourceFilesFlag := "--source-files current.txt"
 	android.AssertStringDoesContain(t, "source text files not present", manifestCommand, sourceFilesFlag)
@@ -2501,7 +2501,7 @@ func TestJavaApiLibraryApiFilesSorting(t *testing.T) {
 	`)
 	m := ctx.ModuleForTests("foo", "android_common")
 	manifest := m.Output("metalava.sbox.textproto")
-	sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
+	sboxProto := android.RuleBuilderSboxProtoForTests(t, ctx, manifest)
 	manifestCommand := sboxProto.Commands[0].GetCommand()
 
 	// Api files are sorted from the narrowest api scope to the widest api scope.
@@ -2543,7 +2543,7 @@ func TestSdkLibraryProvidesSystemModulesToApiLibrary(t *testing.T) {
 	`)
 	m := result.ModuleForTests(apiScopePublic.apiLibraryModuleName("foo"), "android_common")
 	manifest := m.Output("metalava.sbox.textproto")
-	sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
+	sboxProto := android.RuleBuilderSboxProtoForTests(t, result.TestContext, manifest)
 	manifestCommand := sboxProto.Commands[0].GetCommand()
 	classPathFlag := "--classpath __SBOX_SANDBOX_DIR__/out/.intermediates/bar/android_common/turbine-combined/bar.jar"
 	android.AssertStringDoesContain(t, "command expected to contain classpath flag", manifestCommand, classPathFlag)

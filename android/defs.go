@@ -232,7 +232,7 @@ func shellUnescape(s string) string {
 
 // ContentFromFileRuleForTests returns the content that was passed to a WriteFileRule for use
 // in tests.
-func ContentFromFileRuleForTests(t *testing.T, params TestingBuildParams) string {
+func ContentFromFileRuleForTests(t *testing.T, ctx *TestContext, params TestingBuildParams) string {
 	t.Helper()
 	if g, w := params.Rule, writeFile; g != w {
 		t.Errorf("expected params.Rule to be %q, was %q", w, g)
