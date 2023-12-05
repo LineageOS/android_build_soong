@@ -797,7 +797,7 @@ func AssertExcludeFromRecoverySnapshotIs(t *testing.T, ctx *android.TestContext,
 func checkOverrides(t *testing.T, ctx *android.TestContext, singleton android.TestingSingleton, jsonPath string, expected []string) {
 	t.Helper()
 	out := singleton.MaybeOutput(jsonPath)
-	content := android.ContentFromFileRuleForTests(t, out)
+	content := android.ContentFromFileRuleForTests(t, ctx, out)
 
 	var flags snapshotJsonFlags
 	if err := json.Unmarshal([]byte(content), &flags); err != nil {
