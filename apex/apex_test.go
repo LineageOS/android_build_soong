@@ -4710,6 +4710,72 @@ func TestTestApex(t *testing.T) {
 	ensureListContains(t, ctx.ModuleVariantsForTests("mylib_common_test"), "android_arm64_armv8-a_shared")
 }
 
+func TestLibzVendorIsntStable(t *testing.T) {
+	ctx := testApex(t, `
+	apex {
+		name: "myapex",
+		key: "myapex.key",
+		updatable: false,
+		binaries: ["mybin"],
+	}
+	apex {
+		name: "myvendorapex",
+		key: "myapex.key",
+		file_contexts: "myvendorapex_file_contexts",
+		vendor: true,
+		updatable: false,
+		binaries: ["mybin"],
+	}
+	apex_key {
+		name: "myapex.key",
+		public_key: "testkey.avbpubkey",
+		private_key: "testkey.pem",
+	}
+	cc_binary {
+		name: "mybin",
+		vendor_available: true,
+		system_shared_libs: [],
+		stl: "none",
+		shared_libs: ["libz"],
+		apex_available: ["//apex_available:anyapex"],
+	}
+	cc_library {
+		name: "libz",
+		vendor_available: true,
+		system_shared_libs: [],
+		stl: "none",
+		stubs: {
+			versions: ["28", "30"],
+		},
+		target: {
+			vendor: {
+				no_stubs: true,
+			},
+		},
+	}
+	`, withFiles(map[string][]byte{
+		"myvendorapex_file_contexts": nil,
+	}))
+
+	// libz provides stubs for core variant.
+	{
+		ensureExactContents(t, ctx, "myapex", "android_common_myapex", []string{
+			"bin/mybin",
+		})
+		apexManifestRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("apexManifestRule")
+		android.AssertStringEquals(t, "should require libz", apexManifestRule.Args["requireNativeLibs"], "libz.so")
+	}
+	// libz doesn't provide stubs for vendor variant.
+	{
+		ensureExactContents(t, ctx, "myvendorapex", "android_common_myvendorapex", []string{
+			"bin/mybin",
+			"lib64/libz.so",
+		})
+		apexManifestRule := ctx.ModuleForTests("myvendorapex", "android_common_myvendorapex").Rule("apexManifestRule")
+		android.AssertStringEquals(t, "should not require libz", apexManifestRule.Args["requireNativeLibs"], "")
+	}
+}
+
 func TestApexWithTarget(t *testing.T) {
 	ctx := testApex(t, `
 		apex {

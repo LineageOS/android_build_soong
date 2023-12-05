@@ -23,6 +23,8 @@ import (
 
 	"android/soong/android"
 	"android/soong/snapshot"
+
+	"github.com/google/blueprint/proptools"
 )
 
 var _ android.ImageInterface = (*Module)(nil)
@@ -622,6 +624,10 @@ func squashVendorSrcs(m *Module) {
 
 		lib.baseCompiler.Properties.Exclude_generated_sources = append(lib.baseCompiler.Properties.Exclude_generated_sources,
 			lib.baseCompiler.Properties.Target.Vendor.Exclude_generated_sources...)
+
+		if lib.Properties.Target.Vendor.No_stubs {
+			proptools.Clear(&lib.Properties.Stubs)
+		}
 	}
 }
 
@@ -635,6 +641,10 @@ func squashProductSrcs(m *Module) {
 
 		lib.baseCompiler.Properties.Exclude_generated_sources = append(lib.baseCompiler.Properties.Exclude_generated_sources,
 			lib.baseCompiler.Properties.Target.Product.Exclude_generated_sources...)
+
+		if lib.Properties.Target.Product.No_stubs {
+			proptools.Clear(&lib.Properties.Stubs)
+		}
 	}
 }
 
