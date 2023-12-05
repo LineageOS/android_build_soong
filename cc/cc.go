@@ -2344,6 +2344,10 @@ func (c *Module) maybeUnhideFromMake() {
 	}
 }
 
+func (c *Module) getTransitiveAconfigFiles(container string) []android.Path {
+	return c.transitiveAconfigFiles[container].ToList()
+}
+
 // maybeInstall is called at the end of both GenerateAndroidBuildActions and
 // ProcessBazelQueryResponse to run the install hooks for installable modules,
 // like binaries and tests.
