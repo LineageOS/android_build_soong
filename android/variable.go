@@ -226,6 +226,8 @@ type ProductVariables struct {
 	DeviceMaxPageSizeSupported            *string  `json:",omitempty"`
 	DevicePageSizeAgnostic                *bool    `json:",omitempty"`
 
+	VendorApiLevel *string `json:",omitempty"`
+
 	RecoverySnapshotVersion *string `json:",omitempty"`
 
 	DeviceSecondaryArch        *string  `json:",omitempty"`
@@ -616,6 +618,14 @@ func (v *ProductVariables) SetDefaultConfig() {
 		v.CrossHostArch = stringPtr("x86")
 		v.CrossHostSecondaryArch = stringPtr("x86_64")
 	}
+}
+
+func (this *ProductVariables) GetBuildFlagBool(flag string) bool {
+	val, ok := this.BuildFlags[flag]
+	if !ok {
+		return false
+	}
+	return val == "true"
 }
 
 // ProductConfigContext requires the access to the Module to get product config properties.

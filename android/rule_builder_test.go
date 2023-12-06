@@ -683,7 +683,7 @@ func TestRuleBuilder_Build(t *testing.T) {
 			t.Errorf("want Deps = %q, got %q", blueprint.DepsGCC, params.Deps)
 		}
 
-		rspFile2Content := ContentFromFileRuleForTests(t, rspFile2Params)
+		rspFile2Content := ContentFromFileRuleForTests(t, result.TestContext, rspFile2Params)
 		AssertStringEquals(t, "rspFile2 content", "rsp_in2\n", rspFile2Content)
 	}
 
@@ -797,7 +797,7 @@ func TestRuleBuilderHashInputs(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Run("sbox", func(t *testing.T) {
 				gen := result.ModuleForTests(test.name+"_sbox", "")
-				manifest := RuleBuilderSboxProtoForTests(t, gen.Output("sbox.textproto"))
+				manifest := RuleBuilderSboxProtoForTests(t, result.TestContext, gen.Output("sbox.textproto"))
 				hash := manifest.Commands[0].GetInputHash()
 
 				AssertStringEquals(t, "hash", test.expectedHash, hash)

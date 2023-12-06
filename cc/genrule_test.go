@@ -178,7 +178,7 @@ func TestCmdPrefix(t *testing.T) {
 				android.OptionalFixturePreparer(tt.preparer),
 			).RunTestWithBp(t, bp)
 			gen := result.ModuleForTests("gen", tt.variant)
-			sboxProto := android.RuleBuilderSboxProtoForTests(t, gen.Output("genrule.sbox.textproto"))
+			sboxProto := android.RuleBuilderSboxProtoForTests(t, result.TestContext, gen.Output("genrule.sbox.textproto"))
 			cmd := *sboxProto.Commands[0].Command
 			android.AssertStringDoesContain(t, "incorrect CC_ARCH", cmd, "CC_ARCH="+tt.arch+" ")
 			android.AssertStringDoesContain(t, "incorrect CC_NATIVE_BRIDGE", cmd, "CC_NATIVE_BRIDGE="+tt.nativeBridge+" ")

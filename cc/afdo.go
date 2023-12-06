@@ -64,6 +64,13 @@ func (afdo *afdo) props() []interface{} {
 	return []interface{}{&afdo.Properties}
 }
 
+func (afdo *afdo) begin(ctx BaseModuleContext) {
+	// Disable on eng builds for faster build.
+	if ctx.Config().Eng() {
+		afdo.Properties.Afdo = false
+	}
+}
+
 // afdoEnabled returns true for binaries and shared libraries
 // that set afdo prop to True and there is a profile available
 func (afdo *afdo) afdoEnabled() bool {

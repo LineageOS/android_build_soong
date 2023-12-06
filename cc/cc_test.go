@@ -40,6 +40,7 @@ func TestMain(m *testing.M) {
 var prepareForCcTest = android.GroupFixturePreparers(
 	PrepareForTestWithCcIncludeVndk,
 	android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+		variables.VendorApiLevel = StringPtr("202404")
 		variables.DeviceVndkVersion = StringPtr("current")
 		variables.Platform_vndk_version = StringPtr("29")
 	}),
@@ -341,9 +342,9 @@ func checkVndkModule(t *testing.T, ctx *android.TestContext, name, subDir string
 	}
 }
 
-func checkWriteFileOutput(t *testing.T, params android.TestingBuildParams, expected []string) {
+func checkWriteFileOutput(t *testing.T, ctx *android.TestContext, params android.TestingBuildParams, expected []string) {
 	t.Helper()
-	content := android.ContentFromFileRuleForTests(t, params)
+	content := android.ContentFromFileRuleForTests(t, ctx, params)
 	actual := strings.FieldsFunc(content, func(r rune) bool { return r == '\n' })
 	assertArrayString(t, actual, expected)
 }
@@ -351,7 +352,7 @@ func checkWriteFileOutput(t *testing.T, params android.TestingBuildParams, expec
 func checkVndkOutput(t *testing.T, ctx *android.TestContext, output string, expected []string) {
 	t.Helper()
 	vndkSnapshot := ctx.SingletonForTests("vndk-snapshot")
-	checkWriteFileOutput(t, vndkSnapshot.Output(output), expected)
+	checkWriteFileOutput(t, ctx, vndkSnapshot.Output(output), expected)
 }
 
 func checkVndkLibrariesOutput(t *testing.T, ctx *android.TestContext, module string, expected []string) {
@@ -2131,11 +2132,13 @@ func TestEnforceProductVndkVersion(t *testing.T) {
 	ensureStringContains(t, vendor_cflags, "-D__ANDROID_VNDK__")
 	ensureStringContains(t, vendor_cflags, "-D__ANDROID_VENDOR__")
 	ensureStringNotContains(t, vendor_cflags, "-D__ANDROID_PRODUCT__")
+	ensureStringContains(t, vendor_cflags, "-D__ANDROID_VENDOR_API__=202404")
 
 	product_cflags := product_static.Rule("cc").Args["cFlags"]
 	ensureStringContains(t, product_cflags, "-D__ANDROID_VNDK__")
 	ensureStringContains(t, product_cflags, "-D__ANDROID_PRODUCT__")
 	ensureStringNotContains(t, product_cflags, "-D__ANDROID_VENDOR__")
+	ensureStringNotContains(t, product_cflags, "-D__ANDROID_VENDOR_API__=202404")
 }
 
 func TestEnforceProductVndkVersionErrors(t *testing.T) {
@@ -4302,7 +4305,7 @@ func TestAidlLibraryWithHeaders(t *testing.T) {
 		libfoo.Rule("aidl_library").Implicits,
 	)
 
-	manifest := android.RuleBuilderSboxProtoForTests(t, libfoo.Output("aidl_library.sbox.textproto"))
+	manifest := android.RuleBuilderSboxProtoForTests(t, ctx, libfoo.Output("aidl_library.sbox.textproto"))
 	aidlCommand := manifest.Commands[0].GetCommand()
 
 	expectedAidlFlags := "-Ipackage_foo/a -Ipackage_bar/x"
@@ -4337,7 +4340,7 @@ func TestAidlFlagsPassedToTheAidlCompiler(t *testing.T) {
 	`)
 
 	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_static")
-	manifest := android.RuleBuilderSboxProtoForTests(t, libfoo.Output("aidl.sbox.textproto"))
+	manifest := android.RuleBuilderSboxProtoForTests(t, ctx.TestContext, libfoo.Output("aidl.sbox.textproto"))
 	aidlCommand := manifest.Commands[0].GetCommand()
 	expectedAidlFlag := "-Werror"
 	if !strings.Contains(aidlCommand, expectedAidlFlag) {
@@ -4388,7 +4391,7 @@ func TestAidlFlagsWithMinSdkVersion(t *testing.T) {
 				}
 			`)
 			libfoo := ctx.ModuleForTests("libfoo", tc.variant)
-			manifest := android.RuleBuilderSboxProtoForTests(t, libfoo.Output("aidl.sbox.textproto"))
+			manifest := android.RuleBuilderSboxProtoForTests(t, ctx, libfoo.Output("aidl.sbox.textproto"))
 			aidlCommand := manifest.Commands[0].GetCommand()
 			expectedAidlFlag := "--min_sdk_version=" + tc.expected
 			if !strings.Contains(aidlCommand, expectedAidlFlag) {

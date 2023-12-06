@@ -406,6 +406,15 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_VNDK__")
 		if ctx.inVendor() {
 			flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_VENDOR__")
+
+			vendorApiLevel := ctx.Config().VendorApiLevel()
+			if vendorApiLevel == "" {
+				// TODO(b/314036847): This is a fallback for UDC targets.
+				// This must be a build failure when UDC is no longer built
+				// from this source tree.
+				vendorApiLevel = ctx.Config().PlatformSdkVersion().String()
+			}
+			flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_VENDOR_API__="+vendorApiLevel)
 		} else if ctx.inProduct() {
 			flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_PRODUCT__")
 		}

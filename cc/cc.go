@@ -2401,6 +2401,9 @@ func (c *Module) begin(ctx BaseModuleContext) {
 	if c.coverage != nil {
 		c.coverage.begin(ctx)
 	}
+	if c.afdo != nil {
+		c.afdo.begin(ctx)
+	}
 	if c.lto != nil {
 		c.lto.begin(ctx)
 	}
