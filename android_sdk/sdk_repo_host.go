@@ -165,10 +165,11 @@ func (s *sdkRepoHost) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				Flag(dir.Join(ctx, strip).String())
 		}
 	} else {
+		llvmObjCopy := config.ClangPath(ctx, "bin/llvm-objcopy")
 		llvmStrip := config.ClangPath(ctx, "bin/llvm-strip")
 		llvmLib := config.ClangPath(ctx, "lib/x86_64-unknown-linux-gnu/libc++.so")
 		for _, strip := range s.properties.Strip_files {
-			cmd := builder.Command().Tool(llvmStrip).ImplicitTool(llvmLib)
+			cmd := builder.Command().Tool(llvmStrip).ImplicitTool(llvmLib).ImplicitTool(llvmObjCopy)
 			if !ctx.Windows() {
 				cmd.Flag("-x")
 			}
