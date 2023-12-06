@@ -86,6 +86,7 @@ bootstrap_go_package {
         "app_import_test.go",
         "app_set_test.go",
         "app_test.go",
+        "code_metadata_test.go",
         "bootclasspath_fragment_test.go",
         "device_host_converter_test.go",
         "dex_test.go",
