@@ -424,6 +424,7 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 		return srcFiles
 	}
 	srcFiles := addLabelsForInputs("srcs", g.properties.Srcs, g.properties.Exclude_srcs)
+	ctx.SetProvider(blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: srcFiles.Strings()})
 
 	var copyFrom android.Paths
 	var outputFiles android.WritablePaths
