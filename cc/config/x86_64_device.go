@@ -107,7 +107,7 @@ func init() {
 	exportedVars.ExportStringList("X86_64Cflags", x86_64Cflags)
 	pctx.VariableFunc("X86_64Cflags", func(ctx android.PackageVarContext) string {
 		flags := x86_64Cflags
-		if ctx.Config().PageSizeAgnostic() {
+		if ctx.Config().NoBionicPageSizeMacro() {
 			flags = append(flags, "-D__BIONIC_NO_PAGE_SIZE_MACRO")
 		}
 		return strings.Join(flags, " ")
