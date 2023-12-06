@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/blueprint/pathtools"
 	"github.com/google/blueprint/proptools"
+	"github.com/google/blueprint"
 
 	"android/soong/aconfig"
 	"android/soong/android"
@@ -1170,6 +1171,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 	uniqueSrcFiles = append(uniqueSrcFiles, uniqueJavaFiles...)
 	uniqueSrcFiles = append(uniqueSrcFiles, uniqueKtFiles...)
 	j.uniqueSrcFiles = uniqueSrcFiles
+	ctx.SetProvider(blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: uniqueSrcFiles.Strings()})
 
 	// We don't currently run annotation processors in turbine, which means we can't use turbine
 	// generated header jars when an annotation processor that generates API is enabled.  One
