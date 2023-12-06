@@ -8,11 +8,14 @@ bootstrap_go_package {
     deps: [
         "blueprint",
         "soong-android",
+        "soong-testing-code_metadata_internal_proto",
         "soong-testing-test_spec_proto",
 
     ],
     srcs: [
+        "all_code_metadata.go",
         "all_test_specs.go",
+        "code_metadata.go",
         "test_spec.go",
         "init.go",
         "test.go",
