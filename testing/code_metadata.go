@@ -95,11 +95,11 @@ func (module *CodeMetadataModule) GenerateAndroidBuildActions(ctx android.Module
 
 	for _, m := range ctx.GetDirectDepsWithTag(codeDepTag) {
 		targetName := m.Name()
-		var moduleSrcs android.Paths
-		if ctx.OtherModuleHasProvider(m, android.SrcsFileProviderKey) {
+		var moduleSrcs []string
+		if ctx.OtherModuleHasProvider(m, blueprint.SrcsFileProviderKey) {
 			moduleSrcs = ctx.OtherModuleProvider(
-				m, android.SrcsFileProviderKey,
-			).(android.SrcsFileProviderData).SrcPaths
+				m, blueprint.SrcsFileProviderKey,
+			).(blueprint.SrcsFileProviderData).SrcPaths
 		}
 		if module.properties.MultiOwnership {
 			metadata := &code_metadata_internal_proto.CodeMetadataInternal_TargetOwnership{
@@ -107,7 +107,7 @@ func (module *CodeMetadataModule) GenerateAndroidBuildActions(ctx android.Module
 				TrendyTeamId:   &module.properties.TeamId,
 				Path:           &bpFilePath,
 				MultiOwnership: &module.properties.MultiOwnership,
-				SourceFiles:    moduleSrcs.Strings(),
+				SourceFiles:    moduleSrcs,
 			}
 			metadataList = append(metadataList, metadata)
 		} else {
@@ -115,7 +115,7 @@ func (module *CodeMetadataModule) GenerateAndroidBuildActions(ctx android.Module
 				TargetName:   &targetName,
 				TrendyTeamId: &module.properties.TeamId,
 				Path:         &bpFilePath,
-				SourceFiles:  moduleSrcs.Strings(),
+				SourceFiles:  moduleSrcs,
 			}
 			metadataList = append(metadataList, metadata)
 		}
