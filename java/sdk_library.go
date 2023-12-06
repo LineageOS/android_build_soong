@@ -2591,14 +2591,6 @@ func (module *SdkLibraryImport) DepsMutator(ctx android.BottomUpMutatorContext) 
 	}
 }
 
-func (module *SdkLibraryImport) AndroidMkEntries() []android.AndroidMkEntries {
-	// For an SDK library imported from a prebuilt APEX, we don't need a Make module for itself, as we
-	// don't need to install it. However, we need to add its dexpreopt outputs as sub-modules, if it
-	// is preopted.
-	dexpreoptEntries := module.dexpreopter.AndroidMkEntriesForApex()
-	return append(dexpreoptEntries, android.AndroidMkEntries{Disabled: true})
-}
-
 var _ android.ApexModule = (*SdkLibraryImport)(nil)
 
 // Implements android.ApexModule

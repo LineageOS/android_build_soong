@@ -410,7 +410,7 @@ func TestAndroidMkEntriesForApex(t *testing.T) {
 	verifyEntries(t,
 		"entriesList[0]",
 		"service-foo-dexpreopt-arm64-apex@com.android.apex1@javalib@service-foo.jar@classes.odex",
-		"/dexpreopt/oat/arm64/javalib.odex",
+		"/dexpreopt/service-foo/oat/arm64/javalib.odex",
 		"/system/framework/oat/arm64",
 		"apex@com.android.apex1@javalib@service-foo.jar@classes.odex",
 		entriesList[0])
@@ -418,7 +418,7 @@ func TestAndroidMkEntriesForApex(t *testing.T) {
 	verifyEntries(t,
 		"entriesList[1]",
 		"service-foo-dexpreopt-arm64-apex@com.android.apex1@javalib@service-foo.jar@classes.vdex",
-		"/dexpreopt/oat/arm64/javalib.vdex",
+		"/dexpreopt/service-foo/oat/arm64/javalib.vdex",
 		"/system/framework/oat/arm64",
 		"apex@com.android.apex1@javalib@service-foo.jar@classes.vdex",
 		entriesList[1])
@@ -459,7 +459,7 @@ func TestGenerateProfileEvenIfDexpreoptIsDisabled(t *testing.T) {
 	ctx := result.TestContext
 	dexpreopt := ctx.ModuleForTests("foo", "android_common").MaybeRule("dexpreopt")
 
-	expected := []string{"out/soong/.intermediates/foo/android_common/dexpreopt/profile.prof"}
+	expected := []string{"out/soong/.intermediates/foo/android_common/dexpreopt/foo/profile.prof"}
 
 	android.AssertArrayString(t, "outputs", expected, dexpreopt.AllOutputs())
 }
