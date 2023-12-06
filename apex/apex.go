@@ -2067,8 +2067,15 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 		switch depTag {
 		case sharedLibTag, jniLibTag:
 			isJniLib := depTag == jniLibTag
+			propertyName := "native_shared_libs"
+			if isJniLib {
+				propertyName = "jni_libs"
+			}
 			switch ch := child.(type) {
 			case *cc.Module:
+				if ch.IsStubs() {
+					ctx.PropertyErrorf(propertyName, "%q is a stub. Remove it from the list.", depName)
+				}
 				fi := apexFileForNativeLibrary(ctx, ch, vctx.handleSpecialLibs)
 				fi.isJniLib = isJniLib
 				vctx.filesInfo = append(vctx.filesInfo, fi)
@@ -2086,10 +2093,6 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 				vctx.filesInfo = append(vctx.filesInfo, fi)
 				return true // track transitive dependencies
 			default:
-				propertyName := "native_shared_libs"
-				if isJniLib {
-					propertyName = "jni_libs"
-				}
 				ctx.PropertyErrorf(propertyName, "%q is not a cc_library or cc_library_shared module", depName)
 			}
 		case executableTag:
