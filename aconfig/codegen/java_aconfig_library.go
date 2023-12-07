@@ -19,7 +19,6 @@ import (
 
 	"android/soong/aconfig"
 	"android/soong/android"
-	"android/soong/bazel"
 	"android/soong/java"
 
 	"github.com/google/blueprint"
@@ -100,57 +99,4 @@ func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) GenerateSourceJarBuild
 
 func isModeSupported(mode string) bool {
 	return android.InList(mode, aconfigSupportedModes)
-}
-
-type bazelJavaAconfigLibraryAttributes struct {
-	Aconfig_declarations bazel.LabelAttribute
-	Sdk_version          *string
-	Libs                 bazel.LabelListAttribute
-}
-
-func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) Bp2build(ctx android.Bp2buildMutatorContext, module *java.GeneratedJavaLibraryModule) {
-	if ctx.ModuleType() != "java_aconfig_library" {
-		return
-	}
-
-	// By default, soong builds the aconfig java library with private_current, however
-	// bazel currently doesn't support it so we default it to system_current. One reason
-	// is that the dependency of all java_aconfig_library aconfig-annotations-lib is
-	// built with system_current. For the java aconfig library itself it doesn't really
-	// matter whether it uses private API or system API because the only module it uses
-	// is DeviceConfig which is in system, and the rdeps of the java aconfig library
-	// won't change its sdk version either, so this should be fine.
-	// Ideally we should only use the default value if it is not set by the user, but
-	// bazel only supports a limited sdk versions, for example, the java_aconfig_library
-	// modules in framework/base use core_platform which is not supported by bazel yet.
-	// TODO(b/302148527): change soong to default to system_current as well.
-	sdkVersion := "system_current"
-
-	var libs bazel.LabelListAttribute
-	archVariantProps := module.GetArchVariantProperties(ctx, &java.CommonProperties{})
-	for axis, configToProps := range archVariantProps {
-		for config, p := range configToProps {
-			if archProps, ok := p.(*java.CommonProperties); ok {
-				var libLabels []bazel.Label
-				for _, d := range archProps.Libs {
-					neverlinkLabel := android.BazelLabelForModuleDepSingle(ctx, d)
-					neverlinkLabel.Label = neverlinkLabel.Label + "-neverlink"
-					libLabels = append(libLabels, neverlinkLabel)
-				}
-				libs.SetSelectValue(axis, config, (bazel.MakeLabelList(libLabels)))
-			}
-		}
-	}
-
-	attrs := bazelJavaAconfigLibraryAttributes{
-		Aconfig_declarations: *bazel.MakeLabelAttribute(android.BazelLabelForModuleDepSingle(ctx, callbacks.properties.Aconfig_declarations).Label),
-		Sdk_version:          &sdkVersion,
-		Libs:                 libs,
-	}
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "java_aconfig_library",
-		Bzl_load_location: "//build/bazel/rules/java:java_aconfig_library.bzl",
-	}
-
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: ctx.ModuleName()}, &attrs)
 }

@@ -22,10 +22,7 @@ import (
 	"strings"
 
 	"android/soong/android"
-	"android/soong/bazel"
 	"android/soong/dexpreopt"
-	"android/soong/ui/metrics/bp2build_metrics_proto"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
@@ -768,7 +765,6 @@ func aaptLibs(ctx android.ModuleContext, sdkContext android.SdkContext, classLoa
 type AndroidLibrary struct {
 	Library
 	aapt
-	android.BazelModuleBase
 
 	androidLibraryProperties androidLibraryProperties
 
@@ -905,7 +901,6 @@ func AndroidLibraryFactory() android.Module {
 
 	android.InitApexModule(module)
 	InitJavaModule(module, android.DeviceSupported)
-	android.InitBazelModule(module)
 	return module
 }
 
@@ -944,7 +939,6 @@ type AARImport struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 	android.ApexModuleBase
-	android.BazelModuleBase
 	prebuilt android.Prebuilt
 
 	// Functionality common to Module and Import.
@@ -1316,189 +1310,5 @@ func AARImportFactory() android.Module {
 	android.InitPrebuiltModule(module, &module.properties.Aars)
 	android.InitApexModule(module)
 	InitJavaModuleMultiTargets(module, android.DeviceSupported)
-	android.InitBazelModule(module)
 	return module
-}
-
-type bazelAapt struct {
-	Manifest       bazel.Label
-	Resource_files bazel.LabelListAttribute
-	Resource_zips  bazel.LabelListAttribute
-	Assets_dir     bazel.StringAttribute
-	Assets         bazel.LabelListAttribute
-}
-
-type bazelAndroidLibrary struct {
-	*javaLibraryAttributes
-	*bazelAapt
-}
-
-type bazelAndroidLibraryImport struct {
-	Aar         bazel.Label
-	Deps        bazel.LabelListAttribute
-	Exports     bazel.LabelListAttribute
-	Sdk_version bazel.StringAttribute
-}
-
-func (a *aapt) convertAaptAttrsWithBp2Build(ctx android.Bp2buildMutatorContext) (*bazelAapt, bool) {
-	manifest := proptools.StringDefault(a.aaptProperties.Manifest, "AndroidManifest.xml")
-
-	resourceFiles := bazel.LabelList{
-		Includes: []bazel.Label{},
-	}
-	for _, dir := range android.PathsWithOptionalDefaultForModuleSrc(ctx, a.aaptProperties.Resource_dirs, "res") {
-		files := android.RootToModuleRelativePaths(ctx, androidResourceGlob(ctx, dir))
-		resourceFiles.Includes = append(resourceFiles.Includes, files...)
-	}
-
-	assetsDir := bazel.StringAttribute{}
-	var assets bazel.LabelList
-	for i, dir := range android.PathsWithOptionalDefaultForModuleSrc(ctx, a.aaptProperties.Asset_dirs, "assets") {
-		if i > 0 {
-			ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_PROPERTY_UNSUPPORTED, "multiple asset_dirs")
-			return &bazelAapt{}, false
-		}
-		// Assets_dirs are relative to the module dir when specified, but if the default in used in
-		// PathsWithOptionalDefaultForModuleSrc, then dir is relative to the top.
-		assetsRelDir, error := filepath.Rel(ctx.ModuleDir(), dir.Rel())
-		if error != nil {
-			assetsRelDir = dir.Rel()
-		}
-		assetsDir.Value = proptools.StringPtr(assetsRelDir)
-		assets = bazel.MakeLabelList(android.RootToModuleRelativePaths(ctx, androidResourceGlob(ctx, dir)))
-
-	}
-	var resourceZips bazel.LabelList
-	if len(a.aaptProperties.Resource_zips) > 0 {
-		if ctx.ModuleName() == "framework-res" {
-			resourceZips = android.BazelLabelForModuleSrc(ctx, a.aaptProperties.Resource_zips)
-		} else {
-			//TODO: b/301593550 - Implement support for this
-			ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_PROPERTY_UNSUPPORTED, "resource_zips")
-			return &bazelAapt{}, false
-		}
-	}
-	return &bazelAapt{
-		android.BazelLabelForModuleSrcSingle(ctx, manifest),
-		bazel.MakeLabelListAttribute(resourceFiles),
-		bazel.MakeLabelListAttribute(resourceZips),
-		assetsDir,
-		bazel.MakeLabelListAttribute(assets),
-	}, true
-}
-
-func (a *AARImport) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	if len(a.properties.Aars) == 0 {
-		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_PROPERTY_UNSUPPORTED, "aars can't be empty")
-		return
-	}
-	aars := android.BazelLabelForModuleSrcExcludes(ctx, a.properties.Aars, []string{})
-	exportableStaticLibs := []string{}
-	// TODO(b/240716882): investigate and handle static_libs deps that are not imports. They are not supported for export by Bazel.
-	for _, depName := range a.properties.Static_libs {
-		if dep, ok := ctx.ModuleFromName(depName); ok {
-			switch dep.(type) {
-			case *AARImport, *Import:
-				exportableStaticLibs = append(exportableStaticLibs, depName)
-			}
-		}
-	}
-	name := android.RemoveOptionalPrebuiltPrefix(a.Name())
-	deps := android.BazelLabelForModuleDeps(ctx, android.LastUniqueStrings(android.CopyOf(append(a.properties.Static_libs, a.properties.Libs...))))
-	exports := android.BazelLabelForModuleDeps(ctx, android.LastUniqueStrings(exportableStaticLibs))
-
-	ctx.CreateBazelTargetModule(
-		bazel.BazelTargetModuleProperties{
-			Rule_class:        "aar_import",
-			Bzl_load_location: "//build/bazel/rules/android:aar_import.bzl",
-		},
-		android.CommonAttributes{Name: name},
-		&bazelAndroidLibraryImport{
-			Aar:         aars.Includes[0],
-			Deps:        bazel.MakeLabelListAttribute(deps),
-			Exports:     bazel.MakeLabelListAttribute(exports),
-			Sdk_version: bazel.StringAttribute{Value: a.properties.Sdk_version},
-		},
-	)
-
-	neverlink := true
-	ctx.CreateBazelTargetModule(
-		AndroidLibraryBazelTargetModuleProperties(),
-		android.CommonAttributes{Name: name + "-neverlink"},
-		&bazelAndroidLibrary{
-			javaLibraryAttributes: &javaLibraryAttributes{
-				Neverlink: bazel.BoolAttribute{Value: &neverlink},
-				Exports:   bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + name}),
-				javaCommonAttributes: &javaCommonAttributes{
-					Sdk_version: bazel.StringAttribute{Value: a.properties.Sdk_version},
-				},
-			},
-		},
-	)
-
-}
-func AndroidLibraryBazelTargetModuleProperties() bazel.BazelTargetModuleProperties {
-	return bazel.BazelTargetModuleProperties{
-		Rule_class:        "android_library",
-		Bzl_load_location: "//build/bazel/rules/android:android_library.bzl",
-	}
-}
-
-func (a *AndroidLibrary) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	commonAttrs, bp2buildInfo, supported := a.convertLibraryAttrsBp2Build(ctx)
-	if !supported {
-		return
-	}
-
-	depLabels := bp2buildInfo.DepLabels
-
-	deps := depLabels.Deps
-	if !commonAttrs.Srcs.IsEmpty() {
-		deps.Append(depLabels.StaticDeps) // we should only append these if there are sources to use them
-	} else if !depLabels.Deps.IsEmpty() {
-		// android_library does not accept deps when there are no srcs because
-		// there is no compilation happening, but it accepts exports.
-		// The non-empty deps here are unnecessary as deps on the android_library
-		// since they aren't being propagated to any dependencies.
-		// So we can drop deps here.
-		deps = bazel.LabelListAttribute{}
-	}
-	name := a.Name()
-	props := AndroidLibraryBazelTargetModuleProperties()
-
-	aaptAttrs, supported := a.convertAaptAttrsWithBp2Build(ctx)
-	if !supported {
-		return
-	}
-	if hasJavaResources := aaptAttrs.ConvertJavaResources(ctx, commonAttrs); hasJavaResources {
-		return
-	}
-	ctx.CreateBazelTargetModule(
-		props,
-		android.CommonAttributes{Name: name},
-		&bazelAndroidLibrary{
-			&javaLibraryAttributes{
-				javaCommonAttributes: commonAttrs,
-				Deps:                 deps,
-				Exports:              depLabels.StaticDeps,
-			},
-			aaptAttrs,
-		},
-	)
-
-	neverlink := true
-	ctx.CreateBazelTargetModule(
-		props,
-		android.CommonAttributes{Name: name + "-neverlink"},
-		&bazelAndroidLibrary{
-			javaLibraryAttributes: &javaLibraryAttributes{
-				Neverlink: bazel.BoolAttribute{Value: &neverlink},
-				Exports:   bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + name}),
-				javaCommonAttributes: &javaCommonAttributes{
-					Sdk_version:  bazel.StringAttribute{Value: a.deviceProperties.Sdk_version},
-					Java_version: bazel.StringAttribute{Value: a.properties.Java_version},
-				},
-			},
-		},
-	)
 }
