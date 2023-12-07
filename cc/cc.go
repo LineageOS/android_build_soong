@@ -928,7 +928,7 @@ type Module struct {
 	hideApexVariantFromMake bool
 
 	// Aconfig files for all transitive deps.  Also exposed via TransitiveDeclarationsInfo
-	transitiveAconfigFiles map[string]*android.DepSet[android.Path]
+	mergedAconfigFiles map[string]android.Paths
 }
 
 func (c *Module) AddJSONData(d *map[string]interface{}) {
@@ -2324,7 +2324,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 	ctx.SetProvider(blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: deps.GeneratedSources.Strings()})
 
-	aconfig.CollectTransitiveAconfigFiles(ctx, &c.transitiveAconfigFiles)
+	aconfig.CollectDependencyAconfigFiles(ctx, &c.mergedAconfigFiles)
 
 	c.maybeInstall(ctx, apexInfo)
 }
@@ -2343,10 +2343,6 @@ func (c *Module) maybeUnhideFromMake() {
 		c.Properties.HideFromMake = false // unhide
 		// Note: this is still non-installable
 	}
-}
-
-func (c *Module) getTransitiveAconfigFiles(container string) []android.Path {
-	return c.transitiveAconfigFiles[container].ToList()
 }
 
 // maybeInstall is called at the end of both GenerateAndroidBuildActions and

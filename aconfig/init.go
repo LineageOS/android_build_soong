@@ -48,6 +48,12 @@ var (
 				"${aconfig}",
 			},
 		}, "cache_files")
+
+	mergeAconfigFilesRule = pctx.AndroidStaticRule("mergeAconfigFilesRule",
+		blueprint.RuleParams{
+			Command:     `${aconfig} dump --dedup --format protobuf --out $out $flags`,
+			CommandDeps: []string{"${aconfig}"},
+		}, "flags")
 )
 
 func init() {
