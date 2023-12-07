@@ -195,10 +195,12 @@ func (c Config) MaxPageSizeSupported() string {
 	return String(c.config.productVariables.DeviceMaxPageSizeSupported)
 }
 
-// PageSizeAgnostic returns true when AOSP is page size agnostic,
-// othersise it returns false.
-func (c Config) PageSizeAgnostic() bool {
-	return Bool(c.config.productVariables.DevicePageSizeAgnostic)
+// NoBionicPageSizeMacro returns true when AOSP is page size agnostic.
+// This means that the bionic's macro PAGE_SIZE won't be defined.
+// Returns false when AOSP is NOT page size agnostic.
+// This means that bionic's macro PAGE_SIZE is defined.
+func (c Config) NoBionicPageSizeMacro() bool {
+	return Bool(c.config.productVariables.DeviceNoBionicPageSizeMacro)
 }
 
 // The release version passed to aconfig, derived from RELEASE_VERSION
@@ -237,6 +239,11 @@ func (c Config) ReleaseAconfigFlagDefaultPermission() string {
 func (c Config) ReleaseDefaultModuleBuildFromSource() bool {
 	return c.config.productVariables.ReleaseDefaultModuleBuildFromSource == nil ||
 		Bool(c.config.productVariables.ReleaseDefaultModuleBuildFromSource)
+}
+
+// Enables ABI monitoring of NDK libraries
+func (c Config) ReleaseNdkAbiMonitored() bool {
+	return c.config.productVariables.GetBuildFlagBool("RELEASE_NDK_ABI_MONITORED")
 }
 
 // A DeviceConfig object represents the configuration for a particular device

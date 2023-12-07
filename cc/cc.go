@@ -2322,6 +2322,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	if c.testModule {
 		ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 	}
+	ctx.SetProvider(blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: deps.GeneratedSources.Strings()})
 
 	aconfig.CollectTransitiveAconfigFiles(ctx, &c.transitiveAconfigFiles)
 
@@ -2342,6 +2343,10 @@ func (c *Module) maybeUnhideFromMake() {
 		c.Properties.HideFromMake = false // unhide
 		// Note: this is still non-installable
 	}
+}
+
+func (c *Module) getTransitiveAconfigFiles(container string) []android.Path {
+	return c.transitiveAconfigFiles[container].ToList()
 }
 
 // maybeInstall is called at the end of both GenerateAndroidBuildActions and

@@ -1,4 +1,4 @@
-// Copyright 2023 Google Inc. All rights reserved.
+// Copyright 2022 Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,27 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genrule
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
 
-var (
-	DepfileAllowList = []string{
-		// go/keep-sorted start
-		"depfile_allowed_for_test",
-		// go/keep-sorted end
-	}
-
-	SandboxingDenyModuleList = []string{
-		// go/keep-sorted start
-		"CtsApkVerityTestDebugFiles",
-		"aidl_camera_build_version",
-		"camera-its",
-		"chre_atoms_log.h",
-		// go/keep-sorted end
-	}
-
-	SandboxingDenyPathList = []string{
-		// go/keep-sorted start
-		"art/test",
-		// go/keep-sorted end
-	}
-)
+bootstrap_go_package {
+    name: "soong-testing-code_metadata_proto",
+    pkgPath: "android/soong/testing/code_metadata_proto",
+    deps: [
+            "golang-protobuf-reflect-protoreflect",
+            "golang-protobuf-runtime-protoimpl",
+        ],
+    srcs: [
+        "code_metadata.pb.go",
+    ],
+}

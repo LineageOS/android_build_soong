@@ -334,18 +334,12 @@ func canDumpAbi(config android.Config) bool {
 		return false
 	}
 	// http://b/156513478
-	// http://b/277624006
-	// This step is expensive. We're not able to do anything with the outputs of
-	// this step yet (canDiffAbi is flagged off because libabigail isn't able to
-	// handle all our libraries), disable it. There's no sense in protecting
-	// against checking in code that breaks abidw since by the time any of this
-	// can be turned on we'll need to migrate to STG anyway.
-	return false
+	return config.ReleaseNdkAbiMonitored()
 }
 
 // Feature flag to disable diffing against prebuilts.
-func canDiffAbi() bool {
-	return false
+func canDiffAbi(config android.Config) bool {
+	return config.ReleaseNdkAbiMonitored()
 }
 
 func (this *stubDecorator) dumpAbi(ctx ModuleContext, symbolList android.Path) {
@@ -476,7 +470,7 @@ func (c *stubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) O
 	c.versionScriptPath = nativeAbiResult.versionScript
 	if canDumpAbi(ctx.Config()) {
 		c.dumpAbi(ctx, nativeAbiResult.symbolList)
-		if canDiffAbi() {
+		if canDiffAbi(ctx.Config()) {
 			c.diffAbi(ctx)
 		}
 	}

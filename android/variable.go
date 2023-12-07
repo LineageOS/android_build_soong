@@ -224,7 +224,7 @@ type ProductVariables struct {
 	DeviceCurrentApiLevelForVendorModules *string  `json:",omitempty"`
 	DeviceSystemSdkVersions               []string `json:",omitempty"`
 	DeviceMaxPageSizeSupported            *string  `json:",omitempty"`
-	DevicePageSizeAgnostic                *bool    `json:",omitempty"`
+	DeviceNoBionicPageSizeMacro           *bool    `json:",omitempty"`
 
 	VendorApiLevel *string `json:",omitempty"`
 
@@ -582,20 +582,20 @@ func (v *ProductVariables) SetDefaultConfig() {
 		Platform_version_all_preview_codenames: []string{"S"},
 		Platform_vndk_version:                  stringPtr("S"),
 
-		HostArch:                   stringPtr("x86_64"),
-		HostSecondaryArch:          stringPtr("x86"),
-		DeviceName:                 stringPtr("generic_arm64"),
-		DeviceProduct:              stringPtr("aosp_arm-eng"),
-		DeviceArch:                 stringPtr("arm64"),
-		DeviceArchVariant:          stringPtr("armv8-a"),
-		DeviceCpuVariant:           stringPtr("generic"),
-		DeviceAbi:                  []string{"arm64-v8a"},
-		DeviceSecondaryArch:        stringPtr("arm"),
-		DeviceSecondaryArchVariant: stringPtr("armv8-a"),
-		DeviceSecondaryCpuVariant:  stringPtr("generic"),
-		DeviceSecondaryAbi:         []string{"armeabi-v7a", "armeabi"},
-		DeviceMaxPageSizeSupported: stringPtr("4096"),
-		DevicePageSizeAgnostic:     boolPtr(false),
+		HostArch:                    stringPtr("x86_64"),
+		HostSecondaryArch:           stringPtr("x86"),
+		DeviceName:                  stringPtr("generic_arm64"),
+		DeviceProduct:               stringPtr("aosp_arm-eng"),
+		DeviceArch:                  stringPtr("arm64"),
+		DeviceArchVariant:           stringPtr("armv8-a"),
+		DeviceCpuVariant:            stringPtr("generic"),
+		DeviceAbi:                   []string{"arm64-v8a"},
+		DeviceSecondaryArch:         stringPtr("arm"),
+		DeviceSecondaryArchVariant:  stringPtr("armv8-a"),
+		DeviceSecondaryCpuVariant:   stringPtr("generic"),
+		DeviceSecondaryAbi:          []string{"armeabi-v7a", "armeabi"},
+		DeviceMaxPageSizeSupported:  stringPtr("4096"),
+		DeviceNoBionicPageSizeMacro: boolPtr(false),
 
 		AAPTConfig:          []string{"normal", "large", "xlarge", "hdpi", "xhdpi", "xxhdpi"},
 		AAPTPreferredConfig: stringPtr("xhdpi"),

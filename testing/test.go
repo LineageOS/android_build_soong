@@ -18,4 +18,4 @@ import (
 	"android/soong/android"
 )
 
-var PrepareForTestWithTestSpecBuildComponents = android.FixtureRegisterWithContext(RegisterBuildComponents)
+var PrepareForTestWithTestingBuildComponents = android.FixtureRegisterWithContext(RegisterBuildComponents)

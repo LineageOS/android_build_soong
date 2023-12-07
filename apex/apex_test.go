@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"android/soong/aconfig/codegen"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -958,6 +959,32 @@ func TestApexWithStubs(t *testing.T) {
 
 	apexManifestRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("apexManifestRule")
 	ensureListContains(t, names(apexManifestRule.Args["requireNativeLibs"]), "libfoo.shared_from_rust.so")
+}
+
+func TestApexShouldNotEmbedStubVariant(t *testing.T) {
+	testApexError(t, `module "myapex" .*: native_shared_libs: "libbar" is a stub`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			vendor: true,
+			updatable: false,
+			native_shared_libs: ["libbar"], // should not add an LLNDK stub in a vendor apex
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "libbar",
+			srcs: ["mylib.cpp"],
+			llndk: {
+				symbol_file: "libbar.map.txt",
+			}
+		}
+	`)
 }
 
 func TestApexCanUsePrivateApis(t *testing.T) {
