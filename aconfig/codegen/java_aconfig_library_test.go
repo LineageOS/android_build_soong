@@ -60,9 +60,8 @@ func runJavaAndroidMkTest(t *testing.T, bp string) {
 	entry := android.AndroidMkEntriesForTest(t, result.TestContext, module)[0]
 
 	makeVar := entry.EntryMap["LOCAL_ACONFIG_FILES"]
-	android.AssertIntEquals(t, "len(LOCAL_ACONFIG_FILES)", 2, len(makeVar))
-	android.EnsureListContainsSuffix(t, makeVar, "my_aconfig_declarations_foo/intermediate.pb")
-	android.EnsureListContainsSuffix(t, makeVar, "my_aconfig_declarations_bar/intermediate.pb")
+	android.AssertIntEquals(t, "len(LOCAL_ACONFIG_FILES)", 1, len(makeVar))
+	android.EnsureListContainsSuffix(t, makeVar, "android_common/aconfig_merged.pb")
 }
 
 func TestAndroidMkJavaLibrary(t *testing.T) {
