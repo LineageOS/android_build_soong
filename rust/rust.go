@@ -26,6 +26,7 @@ import (
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
+	"android/soong/aconfig"
 	"android/soong/android"
 	"android/soong/cc"
 	cc_config "android/soong/cc/config"
@@ -176,6 +177,9 @@ type Module struct {
 	transitiveAndroidMkSharedLibs *android.DepSet[string]
 
 	android.BazelModuleBase
+
+	// Aconfig files for all transitive deps.  Also exposed via TransitiveDeclarationsInfo
+	mergedAconfigFiles map[string]android.Paths
 }
 
 func (mod *Module) Header() bool {
@@ -1006,6 +1010,8 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	if mod.testModule {
 		ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 	}
+
+	aconfig.CollectDependencyAconfigFiles(ctx, &mod.mergedAconfigFiles)
 }
 
 func (mod *Module) deps(ctx DepsContext) Deps {
