@@ -11103,7 +11103,7 @@ func TestAconfigFilesJavaAndCcDeps(t *testing.T) {
 		t.Fatalf("Expected 3 commands, got %d in:\n%s", len(aconfigArgs), s)
 	}
 	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_foo/intermediate.pb")
-	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_bar/intermediate.pb")
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_cc_library_bar/android_arm64_armv8-a_shared_apex10000/aconfig_merged.pb")
 	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_baz/intermediate.pb")
 
 	buildParams := combineAconfigRule.BuildParams
@@ -11111,7 +11111,7 @@ func TestAconfigFilesJavaAndCcDeps(t *testing.T) {
 		t.Fatalf("Expected 3 input, got %d", len(buildParams.Inputs))
 	}
 	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_foo/intermediate.pb")
-	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_bar/intermediate.pb")
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_cc_library_bar/android_arm64_armv8-a_shared_apex10000/aconfig_merged.pb")
 	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_baz/intermediate.pb")
 	ensureContains(t, buildParams.Output.String(), "android_common_myapex/aconfig_flags.pb")
 }

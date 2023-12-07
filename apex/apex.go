@@ -2394,7 +2394,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 func addAconfigFiles(vctx *visitorContext, ctx android.ModuleContext, module blueprint.Module) {
 	dep := ctx.OtherModuleProvider(module, aconfig.TransitiveDeclarationsInfoProvider).(aconfig.TransitiveDeclarationsInfo)
 	if len(dep.AconfigFiles) > 0 && dep.AconfigFiles[ctx.ModuleName()] != nil {
-		vctx.aconfigFiles = append(vctx.aconfigFiles, dep.AconfigFiles[ctx.ModuleName()].ToList()...)
+		vctx.aconfigFiles = append(vctx.aconfigFiles, dep.AconfigFiles[ctx.ModuleName()]...)
 	}
 }
 

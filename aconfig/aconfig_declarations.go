@@ -126,7 +126,7 @@ var DeclarationsProviderKey = blueprint.NewProvider(DeclarationsProviderData{})
 // This is used to collect the aconfig declarations info on the transitive closure,
 // the data is keyed on the container.
 type TransitiveDeclarationsInfo struct {
-	AconfigFiles map[string]*android.DepSet[android.Path]
+	AconfigFiles map[string]android.Paths
 }
 
 var TransitiveDeclarationsInfoProvider = blueprint.NewProvider(TransitiveDeclarationsInfo{})
@@ -177,40 +177,49 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 	})
 
 }
-
-func CollectTransitiveAconfigFiles(ctx android.ModuleContext, transitiveAconfigFiles *map[string]*android.DepSet[android.Path]) {
-	if *transitiveAconfigFiles == nil {
-		*transitiveAconfigFiles = make(map[string]*android.DepSet[android.Path])
+func CollectDependencyAconfigFiles(ctx android.ModuleContext, mergedAconfigFiles *map[string]android.Paths) {
+	if *mergedAconfigFiles == nil {
+		*mergedAconfigFiles = make(map[string]android.Paths)
 	}
 	ctx.VisitDirectDeps(func(module android.Module) {
 		if dep := ctx.OtherModuleProvider(module, DeclarationsProviderKey).(DeclarationsProviderData); dep.IntermediatePath != nil {
-			aconfigMap := make(map[string]*android.DepSet[android.Path])
-			aconfigMap[dep.Container] = android.NewDepSet(android.POSTORDER, []android.Path{dep.IntermediatePath}, nil)
-			mergeTransitiveAconfigFiles(aconfigMap, *transitiveAconfigFiles)
+			(*mergedAconfigFiles)[dep.Container] = append((*mergedAconfigFiles)[dep.Container], dep.IntermediatePath)
 			return
 		}
 		if dep := ctx.OtherModuleProvider(module, TransitiveDeclarationsInfoProvider).(TransitiveDeclarationsInfo); len(dep.AconfigFiles) > 0 {
-			mergeTransitiveAconfigFiles(dep.AconfigFiles, *transitiveAconfigFiles)
+			for container, v := range dep.AconfigFiles {
+				(*mergedAconfigFiles)[container] = append((*mergedAconfigFiles)[container], v...)
+			}
 		}
 	})
 
+	for container, aconfigFiles := range *mergedAconfigFiles {
+		(*mergedAconfigFiles)[container] = mergeAconfigFiles(ctx, aconfigFiles)
+	}
+
 	ctx.SetProvider(TransitiveDeclarationsInfoProvider, TransitiveDeclarationsInfo{
-		AconfigFiles: *transitiveAconfigFiles,
+		AconfigFiles: *mergedAconfigFiles,
 	})
 }
 
-func mergeTransitiveAconfigFiles(from, to map[string]*android.DepSet[android.Path]) {
-	for fromKey, fromValue := range from {
-		if fromValue == nil {
-			continue
-		}
-		toValue, ok := to[fromKey]
-		if !ok {
-			to[fromKey] = fromValue
-		} else {
-			to[fromKey] = android.NewDepSet(android.POSTORDER, toValue.ToList(), []*android.DepSet[android.Path]{fromValue})
-		}
+func mergeAconfigFiles(ctx android.ModuleContext, inputs android.Paths) android.Paths {
+	if len(inputs) == 1 {
+		return android.Paths{inputs[0]}
 	}
+
+	output := android.PathForModuleOut(ctx, "aconfig_merged.pb")
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        mergeAconfigFilesRule,
+		Description: "merge aconfig files",
+		Inputs:      inputs,
+		Output:      output,
+		Args: map[string]string{
+			"flags": android.JoinWithPrefix(inputs.Strings(), "--cache "),
+		},
+	})
+
+	return android.Paths{output}
 }
 
 type bazelAconfigDeclarationsAttributes struct {
