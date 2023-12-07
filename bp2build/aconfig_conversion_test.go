@@ -15,6 +15,7 @@
 package bp2build
 
 import (
+	"android/soong/aconfig/codegen"
 	"testing"
 
 	"android/soong/aconfig"
@@ -25,6 +26,7 @@ import (
 
 func registerAconfigModuleTypes(ctx android.RegistrationContext) {
 	aconfig.RegisterBuildComponents(ctx)
+	codegen.RegisterBuildComponents(ctx)
 	ctx.RegisterModuleType("cc_library", cc.LibraryFactory)
 	ctx.RegisterModuleType("java_library", java.LibraryFactory)
 }

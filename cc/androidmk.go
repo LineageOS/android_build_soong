@@ -134,7 +134,7 @@ func (c *Module) AndroidMkEntries() []android.AndroidMkEntries {
 						"$(SOONG_SDK_VARIANT_MODULES) $(patsubst %.sdk,%,$(LOCAL_MODULE))")
 				}
 				// TODO(b/311155208): The container here should be system.
-				entries.SetOptionalPaths("LOCAL_ACONFIG_FILES", c.getTransitiveAconfigFiles(""))
+				entries.SetPaths("LOCAL_ACONFIG_FILES", c.mergedAconfigFiles[""])
 			},
 		},
 		ExtraFooters: []android.AndroidMkExtraFootersFunc{
