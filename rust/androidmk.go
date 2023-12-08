@@ -66,7 +66,8 @@ func (mod *Module) AndroidMkEntries() []android.AndroidMkEntries {
 				if mod.UseVndk() {
 					entries.SetBool("LOCAL_USE_VNDK", true)
 				}
-
+				// TODO(b/311155208): The container here should be system.
+				entries.SetPaths("LOCAL_ACONFIG_FILES", mod.mergedAconfigFiles[""])
 			},
 		},
 	}
