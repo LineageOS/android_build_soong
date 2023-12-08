@@ -15,46 +15,15 @@
 package build
 
 import (
+	"android/soong/ui/metrics"
+	"android/soong/ui/status"
 	"bufio"
 	"fmt"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"sort"
 	"strings"
-	"sync"
-
-	"android/soong/ui/metrics"
-	"android/soong/ui/status"
 )
-
-var (
-	// bazel output paths are in __main__/bazel-out/<config-specific-path>/bin
-	bazelOutputPathRegexOnce sync.Once
-	bazelOutputPathRegexp    *regexp.Regexp
-)
-
-func bazelOutputPathPattern(config Config) *regexp.Regexp {
-	bazelOutputPathRegexOnce.Do(func() {
-		// Bazel output files are in <Bazel output base>/execroot/__main__/bazel-out/<config>/bin
-		bazelOutRoot := filepath.Join(regexp.QuoteMeta(config.bazelOutputBase()), "execroot", "__main__", "bazel-out")
-		bazelOutputPathRegexp = regexp.MustCompile(bazelOutRoot + "/[^/]+/bin")
-	})
-	return bazelOutputPathRegexp
-}
-
-func ignoreBazelPath(config Config, path string) bool {
-	bazelRoot := filepath.Join(config.bazelOutputBase(), "execroot")
-	// Don't check bazel output regexp unless it is Bazel path
-	if strings.HasPrefix(path, bazelRoot) {
-		bazelOutputRegexp := bazelOutputPathPattern(config)
-		// if the file is a bazel path that is _not_ a Bazel generated file output, we rely on Bazel to
-		// ensure the paths to exist. If it _is_ a Bazel output path, we expect that it should be built
-		// by Ninja.
-		return !bazelOutputRegexp.MatchString(path)
-	}
-	return false
-}
 
 // Checks for files in the out directory that have a rule that depends on them but no rule to
 // create them. This catches a common set of build failures where a rule to generate a file is
@@ -128,9 +97,6 @@ func testForDanglingRules(ctx Context, config Config) {
 			continue
 		}
 
-		if ignoreBazelPath(config, line) {
-			continue
-		}
 		danglingRules[line] = true
 	}
 

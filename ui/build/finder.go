@@ -74,10 +74,6 @@ func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
 			"AndroidProducts.mk",
 			// General Soong build definitions, using the Blueprint syntax.
 			"Android.bp",
-			// Bazel build definitions.
-			"BUILD.bazel",
-			// Bazel build definitions.
-			"BUILD",
 			// Kati clean definitions.
 			"CleanSpec.mk",
 			// Ownership definition.
@@ -85,13 +81,11 @@ func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
 			// Test configuration for modules in directories that contain this
 			// file.
 			"TEST_MAPPING",
-			// Bazel top-level file to mark a directory as a Bazel workspace.
-			"WORKSPACE",
 			// METADATA file of packages
 			"METADATA",
 		},
-		// Bazel Starlark configuration files and all .mk files for product/board configuration.
-		IncludeSuffixes: []string{".bzl", ".mk"},
+		// .mk files for product/board configuration.
+		IncludeSuffixes: []string{".mk"},
 	}
 	dumpDir := config.FileListDir()
 	f, err = finder.New(cacheParams, filesystem, logger.New(ioutil.Discard),
@@ -109,17 +103,6 @@ func androidBpSearchDirs(config Config) []string {
 		dirs = append(dirs, config.ApiSurfacesOutDir())
 	}
 	return dirs
-}
-
-// Finds the list of Bazel-related files (BUILD, WORKSPACE and Starlark) in the tree.
-func findBazelFiles(entries finder.DirEntries) (dirNames []string, fileNames []string) {
-	matches := []string{}
-	for _, foundName := range entries.FileNames {
-		if foundName == "BUILD.bazel" || foundName == "BUILD" || foundName == "WORKSPACE" || strings.HasSuffix(foundName, ".bzl") {
-			matches = append(matches, foundName)
-		}
-	}
-	return entries.DirNames, matches
 }
 
 func findProductAndBoardConfigFiles(entries finder.DirEntries) (dirNames []string, fileNames []string) {
@@ -175,13 +158,6 @@ func FindSources(ctx Context, config Config, f *finder.Finder) {
 	err = dumpListToFile(ctx, config, androidProductsMks, filepath.Join(dumpDir, "AndroidProducts.mk.list"))
 	if err != nil {
 		ctx.Fatalf("Could not export product list: %v", err)
-	}
-
-	// Recursively look for all Bazel related files.
-	bazelFiles := f.FindMatching(".", findBazelFiles)
-	err = dumpListToFile(ctx, config, bazelFiles, filepath.Join(dumpDir, "bazel.list"))
-	if err != nil {
-		ctx.Fatalf("Could not export bazel BUILD list: %v", err)
 	}
 
 	// Recursively look for all OWNERS files.
