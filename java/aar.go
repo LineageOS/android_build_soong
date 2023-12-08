@@ -351,6 +351,7 @@ type aaptBuildActionOptions struct {
 	excludedLibs                   []string
 	enforceDefaultTargetSdkVersion bool
 	extraLinkFlags                 []string
+	aconfigTextFiles               android.Paths
 }
 
 func (a *aapt) buildActions(ctx android.ModuleContext, opts aaptBuildActionOptions) {
@@ -531,7 +532,8 @@ func (a *aapt) buildActions(ctx android.ModuleContext, opts aaptBuildActionOptio
 		transitiveAssets = android.ReverseSliceInPlace(staticDeps.assets())
 	}
 	aapt2Link(ctx, packageRes, srcJar, proguardOptionsFile, rTxt,
-		linkFlags, linkDeps, compiledRes, compiledOverlay, transitiveAssets, splitPackages)
+		linkFlags, linkDeps, compiledRes, compiledOverlay, transitiveAssets, splitPackages,
+		opts.aconfigTextFiles)
 	// Extract assets from the resource package output so that they can be used later in aapt2link
 	// for modules that depend on this one.
 	if android.PrefixInList(linkFlags, "-A ") {
@@ -1195,7 +1197,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	transitiveAssets := android.ReverseSliceInPlace(staticDeps.assets())
 	aapt2Link(ctx, a.exportPackage, nil, proguardOptionsFile, a.rTxt,
-		linkFlags, linkDeps, nil, overlayRes, transitiveAssets, nil)
+		linkFlags, linkDeps, nil, overlayRes, transitiveAssets, nil, nil)
 
 	a.rJar = android.PathForModuleOut(ctx, "busybox/R.jar")
 	resourceProcessorBusyBoxGenerateBinaryR(ctx, a.rTxt, a.manifest, a.rJar, nil, true)

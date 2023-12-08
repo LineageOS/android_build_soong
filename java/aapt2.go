@@ -202,7 +202,8 @@ var mergeAssetsRule = pctx.AndroidStaticRule("mergeAssets",
 func aapt2Link(ctx android.ModuleContext,
 	packageRes, genJar, proguardOptions, rTxt android.WritablePath,
 	flags []string, deps android.Paths,
-	compiledRes, compiledOverlay, assetPackages android.Paths, splitPackages android.WritablePaths) {
+	compiledRes, compiledOverlay, assetPackages android.Paths, splitPackages android.WritablePaths,
+	featureFlagsPaths android.Paths) {
 
 	var inFlags []string
 
@@ -253,6 +254,11 @@ func aapt2Link(ctx android.ModuleContext,
 			Output:      packageRes,
 			Description: "merge assets from dependencies",
 		})
+	}
+
+	for _, featureFlagsPath := range featureFlagsPaths {
+		deps = append(deps, featureFlagsPath)
+		inFlags = append(inFlags, "--feature-flags", "@"+featureFlagsPath.String())
 	}
 
 	// Note the absence of splitPackages. The caller is supposed to compose and provide --split flag
