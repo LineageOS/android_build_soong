@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"android/soong/testing"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -138,6 +139,12 @@ type appProperties struct {
 	// Setting this will make this APK identical to all targets, regardless of
 	// PRODUCT_CHARACTERISTICS.
 	Generate_product_characteristics_rro *bool
+
+	// A list of files or dependencies to make available to the build sandbox. This is
+	// useful if source files are symlinks, the targets of the symlinks must be listed here.
+	// Note that currently not all actions implemented by android_apps are sandboxed, so you
+	// may only see this being necessary in lint builds.
+	Compile_data []string
 
 	ProductCharacteristicsRROPackageName        *string `blueprint:"mutated"`
 	ProductCharacteristicsRROManifestModuleName *string `blueprint:"mutated"`
@@ -798,6 +805,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	a.linter.mergedManifest = a.aapt.mergedManifestFile
 	a.linter.manifest = a.aapt.manifestPath
 	a.linter.resources = a.aapt.resourceFiles
+	a.linter.compile_data = android.PathsForModuleSrc(ctx, a.appProperties.Compile_data)
 	a.linter.buildModuleReportZip = ctx.Config().UnbundledBuildApps()
 
 	dexJarFile, packageResources := a.dexBuildActions(ctx)
