@@ -41,7 +41,7 @@ func (this *allAconfigDeclarationsSingleton) GenerateBuildActions(ctx android.Si
 			return
 		}
 		decl := ctx.ModuleProvider(module, DeclarationsProviderKey).(DeclarationsProviderData)
-		cacheFiles = append(cacheFiles, decl.IntermediatePath)
+		cacheFiles = append(cacheFiles, decl.IntermediateCacheOutputPath)
 	})
 
 	// Generate build action for aconfig

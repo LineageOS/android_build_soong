@@ -20,6 +20,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/bazel"
+
 	"github.com/google/blueprint"
 )
 
@@ -116,9 +117,10 @@ func optionalVariable(prefix string, value string) string {
 
 // Provider published by aconfig_value_set
 type DeclarationsProviderData struct {
-	Package          string
-	Container        string
-	IntermediatePath android.WritablePath
+	Package                     string
+	Container                   string
+	IntermediateCacheOutputPath android.WritablePath
+	IntermediateDumpOutputPath  android.WritablePath
 }
 
 var DeclarationsProviderKey = blueprint.NewProvider(DeclarationsProviderData{})
@@ -151,14 +153,14 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 
 	// Intermediate format
 	declarationFiles := android.PathsForModuleSrc(ctx, module.properties.Srcs)
-	intermediatePath := android.PathForModuleOut(ctx, "intermediate.pb")
+	intermediateCacheFilePath := android.PathForModuleOut(ctx, "intermediate.pb")
 	defaultPermission := ctx.Config().ReleaseAconfigFlagDefaultPermission()
 	inputFiles := make([]android.Path, len(declarationFiles))
 	copy(inputFiles, declarationFiles)
 	inputFiles = append(inputFiles, valuesFiles...)
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        aconfigRule,
-		Output:      intermediatePath,
+		Output:      intermediateCacheFilePath,
 		Inputs:      inputFiles,
 		Description: "aconfig_declarations",
 		Args: map[string]string{
@@ -170,10 +172,19 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 		},
 	})
 
+	intermediateDumpFilePath := android.PathForModuleOut(ctx, "intermediate.txt")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        aconfigTextRule,
+		Output:      intermediateDumpFilePath,
+		Inputs:      android.Paths{intermediateCacheFilePath},
+		Description: "aconfig_text",
+	})
+
 	ctx.SetProvider(DeclarationsProviderKey, DeclarationsProviderData{
-		Package:          module.properties.Package,
-		Container:        module.properties.Container,
-		IntermediatePath: intermediatePath,
+		Package:                     module.properties.Package,
+		Container:                   module.properties.Container,
+		IntermediateCacheOutputPath: intermediateCacheFilePath,
+		IntermediateDumpOutputPath:  intermediateDumpFilePath,
 	})
 
 }
@@ -182,8 +193,8 @@ func CollectDependencyAconfigFiles(ctx android.ModuleContext, mergedAconfigFiles
 		*mergedAconfigFiles = make(map[string]android.Paths)
 	}
 	ctx.VisitDirectDeps(func(module android.Module) {
-		if dep := ctx.OtherModuleProvider(module, DeclarationsProviderKey).(DeclarationsProviderData); dep.IntermediatePath != nil {
-			(*mergedAconfigFiles)[dep.Container] = append((*mergedAconfigFiles)[dep.Container], dep.IntermediatePath)
+		if dep := ctx.OtherModuleProvider(module, DeclarationsProviderKey).(DeclarationsProviderData); dep.IntermediateCacheOutputPath != nil {
+			(*mergedAconfigFiles)[dep.Container] = append((*mergedAconfigFiles)[dep.Container], dep.IntermediateCacheOutputPath)
 			return
 		}
 		if dep := ctx.OtherModuleProvider(module, TransitiveDeclarationsInfoProvider).(TransitiveDeclarationsInfo); len(dep.AconfigFiles) > 0 {

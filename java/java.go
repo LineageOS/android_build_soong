@@ -409,6 +409,7 @@ var (
 	syspropPublicStubDepTag = dependencyTag{name: "sysprop public stub"}
 	javaApiContributionTag  = dependencyTag{name: "java-api-contribution"}
 	depApiSrcsTag           = dependencyTag{name: "dep-api-srcs"}
+	aconfigDeclarationTag   = dependencyTag{name: "aconfig-declaration"}
 	jniInstallTag           = installDependencyTag{name: "jni install"}
 	binaryInstallTag        = installDependencyTag{name: "binary install"}
 	usesLibReqTag           = makeUsesLibraryDependencyTag(dexpreopt.AnySdkVersion, false)
