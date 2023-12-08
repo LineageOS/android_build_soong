@@ -135,22 +135,6 @@ const (
 	RunBuildTests  = 1 << iota
 )
 
-// checkBazelMode fails the build if there are conflicting arguments for which bazel
-// build mode to use.
-func checkBazelMode(ctx Context, config Config) {
-	count := 0
-	if config.bazelProdMode {
-		count++
-	}
-	if config.bazelStagingMode {
-		count++
-	}
-	if count > 1 {
-		ctx.Fatalln("Conflicting bazel mode.\n" +
-			"Do not specify more than one of --bazel-mode and --bazel-mode-staging ")
-	}
-}
-
 // checkProblematicFiles fails the build if existing Android.mk or CleanSpec.mk files are found at the root of the tree.
 func checkProblematicFiles(ctx Context) {
 	files := []string{"Android.mk", "CleanSpec.mk"}
@@ -261,8 +245,6 @@ func Build(ctx Context, config Config) {
 	}
 
 	defer waitForDist(ctx)
-
-	checkBazelMode(ctx, config)
 
 	// checkProblematicFiles aborts the build if Android.mk or CleanSpec.mk are found at the root of the tree.
 	checkProblematicFiles(ctx)
