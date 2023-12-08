@@ -22,7 +22,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"android/soong/aconfig"
 	"android/soong/testing"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -170,6 +172,9 @@ type overridableAppProperties struct {
 	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
 	// from PRODUCT_PACKAGES.
 	Overrides []string
+
+	// Names of aconfig_declarations modules that specify aconfig flags that the app depends on.
+	Flags_packages []string
 }
 
 type AndroidApp struct {
@@ -315,6 +320,10 @@ func (a *AndroidApp) OverridablePropertiesDepsMutator(ctx android.BottomUpMutato
 			ctx.PropertyErrorf("additional_certificates",
 				`must be names of android_app_certificate modules in the form ":module"`)
 		}
+	}
+
+	for _, aconfig_declaration := range a.overridableAppProperties.Flags_packages {
+		ctx.AddDependency(ctx.Module(), aconfigDeclarationTag, aconfig_declaration)
 	}
 }
 
@@ -500,13 +509,27 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 	if a.Updatable() {
 		a.aapt.defaultManifestVersion = android.DefaultUpdatableModuleVersion
 	}
+
+	var aconfigTextFilePaths android.Paths
+	ctx.VisitDirectDepsWithTag(aconfigDeclarationTag, func(dep android.Module) {
+		if provider, ok := ctx.OtherModuleProvider(dep, aconfig.DeclarationsProviderKey).(aconfig.DeclarationsProviderData); ok {
+			aconfigTextFilePaths = append(aconfigTextFilePaths, provider.IntermediateDumpOutputPath)
+		} else {
+			ctx.ModuleErrorf("Only aconfig_declarations module type is allowed for "+
+				"flags_packages property, but %s is not aconfig_declarations module type",
+				dep.Name(),
+			)
+		}
+	})
+
 	a.aapt.buildActions(ctx,
 		aaptBuildActionOptions{
-			android.SdkContext(a),
-			a.classLoaderContexts,
-			a.usesLibraryProperties.Exclude_uses_libs,
-			a.enforceDefaultTargetSdkVersion(),
-			aaptLinkFlags,
+			sdkContext:                     android.SdkContext(a),
+			classLoaderContexts:            a.classLoaderContexts,
+			excludedLibs:                   a.usesLibraryProperties.Exclude_uses_libs,
+			enforceDefaultTargetSdkVersion: a.enforceDefaultTargetSdkVersion(),
+			extraLinkFlags:                 aaptLinkFlags,
+			aconfigTextFiles:               aconfigTextFilePaths,
 		},
 	)
 

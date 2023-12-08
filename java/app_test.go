@@ -4333,3 +4333,48 @@ func TestApexGlobalMinSdkVersionOverride(t *testing.T) {
 	)
 
 }
+
+func TestAppFlagsPackages(t *testing.T) {
+	ctx := testApp(t, `
+		android_app {
+			name: "foo",
+			srcs: ["a.java"],
+			sdk_version: "current",
+			flags_packages: [
+				"bar",
+				"baz",
+			],
+		}
+		aconfig_declarations {
+			name: "bar",
+			package: "com.example.package",
+			srcs: [
+				"bar.aconfig",
+			],
+		}
+		aconfig_declarations {
+			name: "baz",
+			package: "com.example.package",
+			srcs: [
+				"baz.aconfig",
+			],
+		}
+	`)
+
+	foo := ctx.ModuleForTests("foo", "android_common")
+
+	// android_app module depends on aconfig_declarations listed in flags_packages
+	android.AssertBoolEquals(t, "foo expected to depend on bar", true,
+		CheckModuleHasDependency(t, ctx, "foo", "android_common", "bar"))
+
+	android.AssertBoolEquals(t, "foo expected to depend on baz", true,
+		CheckModuleHasDependency(t, ctx, "foo", "android_common", "baz"))
+
+	aapt2LinkRule := foo.Rule("android/soong/java.aapt2Link")
+	linkInFlags := aapt2LinkRule.Args["inFlags"]
+	android.AssertStringDoesContain(t,
+		"aapt2 link command expected to pass feature flags arguments",
+		linkInFlags,
+		"--feature-flags @out/soong/.intermediates/bar/intermediate.txt --feature-flags @out/soong/.intermediates/baz/intermediate.txt",
+	)
+}
