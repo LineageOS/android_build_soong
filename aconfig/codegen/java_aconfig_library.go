@@ -21,6 +21,7 @@ import (
 	"android/soong/android"
 	"android/soong/bazel"
 	"android/soong/java"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
@@ -86,7 +87,7 @@ func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) GenerateSourceJarBuild
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        javaRule,
-		Input:       declarations.IntermediatePath,
+		Input:       declarations.IntermediateCacheOutputPath,
 		Output:      srcJarPath,
 		Description: "aconfig.srcjar",
 		Args: map[string]string{

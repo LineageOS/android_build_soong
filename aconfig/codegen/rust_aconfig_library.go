@@ -74,7 +74,7 @@ func (a *aconfigDecorator) GenerateSource(ctx rust.ModuleContext, deps rust.Path
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:  rustRule,
-		Input: declarations.IntermediatePath,
+		Input: declarations.IntermediateCacheOutputPath,
 		Outputs: []android.WritablePath{
 			generatedSource,
 		},
