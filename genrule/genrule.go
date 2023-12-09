@@ -539,7 +539,7 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 						if len(paths) == 0 {
 							return reportError("label %q has no files", label)
 						}
-						return proptools.ShellEscape(strings.Join(paths, " ")), nil
+						return strings.Join(proptools.ShellEscapeList(paths), " "), nil
 					} else {
 						return reportError("unknown locations label %q is not in srcs, out, tools or tool_files.", label)
 					}
