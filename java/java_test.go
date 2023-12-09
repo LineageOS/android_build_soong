@@ -26,6 +26,7 @@ import (
 
 	"github.com/google/blueprint/proptools"
 
+	"android/soong/aconfig"
 	"android/soong/android"
 	"android/soong/cc"
 	"android/soong/dexpreopt"
@@ -47,6 +48,8 @@ var prepareForJavaTest = android.GroupFixturePreparers(
 	cc.PrepareForTestWithCcBuildComponents,
 	// Include all the default java modules.
 	PrepareForTestWithDexpreopt,
+	// Include aconfig modules.
+	aconfig.PrepareForTestWithAconfigBuildComponents,
 )
 
 func TestMain(m *testing.M) {

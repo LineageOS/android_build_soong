@@ -40,6 +40,19 @@ var (
 			Restat: true,
 		}, "release_version", "package", "declarations", "values", "default-permission")
 
+	// For create-device-config-sysprops: Generate aconfig flag value map text file
+	aconfigTextRule = pctx.AndroidStaticRule("aconfig_text",
+		blueprint.RuleParams{
+			Command: `${aconfig} dump --format bool` +
+				` --cache ${in}` +
+				` --out ${out}.tmp` +
+				` && ( if cmp -s ${out}.tmp ${out} ; then rm ${out}.tmp ; else mv ${out}.tmp ${out} ; fi )`,
+			CommandDeps: []string{
+				"${aconfig}",
+			},
+			Restat: true,
+		})
+
 	// For all_aconfig_declarations: Combine all parsed_flags proto files
 	AllDeclarationsRule = pctx.AndroidStaticRule("All_aconfig_declarations_dump",
 		blueprint.RuleParams{
@@ -48,6 +61,12 @@ var (
 				"${aconfig}",
 			},
 		}, "cache_files")
+
+	mergeAconfigFilesRule = pctx.AndroidStaticRule("mergeAconfigFilesRule",
+		blueprint.RuleParams{
+			Command:     `${aconfig} dump --dedup --format protobuf --out $out $flags`,
+			CommandDeps: []string{"${aconfig}"},
+		}, "flags")
 )
 
 func init() {
