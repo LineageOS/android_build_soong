@@ -21,6 +21,7 @@ bootstrap_go_package {
     pkgPath: "android/soong/jar",
     srcs: [
         "jar.go",
+        "services.go",
     ],
     testSrcs: [
         "jar_test.go",

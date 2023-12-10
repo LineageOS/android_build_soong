@@ -17,6 +17,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"hash/crc32"
 	"os"
 	"strconv"
 	"strings"
@@ -27,28 +28,34 @@ import (
 )
 
 type testZipEntry struct {
-	name string
-	mode os.FileMode
-	data []byte
+	name   string
+	mode   os.FileMode
+	data   []byte
+	method uint16
 }
 
 var (
-	A     = testZipEntry{"A", 0755, []byte("foo")}
-	a     = testZipEntry{"a", 0755, []byte("foo")}
-	a2    = testZipEntry{"a", 0755, []byte("FOO2")}
-	a3    = testZipEntry{"a", 0755, []byte("Foo3")}
-	bDir  = testZipEntry{"b/", os.ModeDir | 0755, nil}
-	bbDir = testZipEntry{"b/b/", os.ModeDir | 0755, nil}
-	bbb   = testZipEntry{"b/b/b", 0755, nil}
-	ba    = testZipEntry{"b/a", 0755, []byte("foob")}
-	bc    = testZipEntry{"b/c", 0755, []byte("bar")}
-	bd    = testZipEntry{"b/d", 0700, []byte("baz")}
-	be    = testZipEntry{"b/e", 0700, []byte("")}
+	A     = testZipEntry{"A", 0755, []byte("foo"), zip.Deflate}
+	a     = testZipEntry{"a", 0755, []byte("foo"), zip.Deflate}
+	a2    = testZipEntry{"a", 0755, []byte("FOO2"), zip.Deflate}
+	a3    = testZipEntry{"a", 0755, []byte("Foo3"), zip.Deflate}
+	bDir  = testZipEntry{"b/", os.ModeDir | 0755, nil, zip.Deflate}
+	bbDir = testZipEntry{"b/b/", os.ModeDir | 0755, nil, zip.Deflate}
+	bbb   = testZipEntry{"b/b/b", 0755, nil, zip.Deflate}
+	ba    = testZipEntry{"b/a", 0755, []byte("foo"), zip.Deflate}
+	bc    = testZipEntry{"b/c", 0755, []byte("bar"), zip.Deflate}
+	bd    = testZipEntry{"b/d", 0700, []byte("baz"), zip.Deflate}
+	be    = testZipEntry{"b/e", 0700, []byte(""), zip.Deflate}
 
-	metainfDir     = testZipEntry{jar.MetaDir, os.ModeDir | 0755, nil}
-	manifestFile   = testZipEntry{jar.ManifestFile, 0755, []byte("manifest")}
-	manifestFile2  = testZipEntry{jar.ManifestFile, 0755, []byte("manifest2")}
-	moduleInfoFile = testZipEntry{jar.ModuleInfoClass, 0755, []byte("module-info")}
+	service1a        = testZipEntry{"META-INF/services/service1", 0755, []byte("class1\nclass2\n"), zip.Store}
+	service1b        = testZipEntry{"META-INF/services/service1", 0755, []byte("class1\nclass3\n"), zip.Deflate}
+	service1combined = testZipEntry{"META-INF/services/service1", 0755, []byte("class1\nclass2\nclass3\n"), zip.Store}
+	service2         = testZipEntry{"META-INF/services/service2", 0755, []byte("class1\nclass2\n"), zip.Deflate}
+
+	metainfDir     = testZipEntry{jar.MetaDir, os.ModeDir | 0755, nil, zip.Deflate}
+	manifestFile   = testZipEntry{jar.ManifestFile, 0755, []byte("manifest"), zip.Deflate}
+	manifestFile2  = testZipEntry{jar.ManifestFile, 0755, []byte("manifest2"), zip.Deflate}
+	moduleInfoFile = testZipEntry{jar.ModuleInfoClass, 0755, []byte("module-info"), zip.Deflate}
 )
 
 type testInputZip struct {
@@ -236,6 +243,15 @@ func TestMergeZips(t *testing.T) {
 				"in1": true,
 			},
 		},
+		{
+			name: "services",
+			in: [][]testZipEntry{
+				{service1a, service2},
+				{service1b},
+			},
+			jar: true,
+			out: []testZipEntry{service1combined, service2},
+		},
 	}
 
 	for _, test := range testCases {
@@ -256,7 +272,7 @@ func TestMergeZips(t *testing.T) {
 
 			closeErr := writer.Close()
 			if closeErr != nil {
-				t.Fatal(err)
+				t.Fatal(closeErr)
 			}
 
 			if test.err != "" {
@@ -266,12 +282,16 @@ func TestMergeZips(t *testing.T) {
 					t.Fatal("incorrect err, want:", test.err, "got:", err)
 				}
 				return
+			} else if err != nil {
+				t.Fatal("unexpected err: ", err)
 			}
 
 			if !bytes.Equal(want, out.Bytes()) {
 				t.Error("incorrect zip output")
 				t.Errorf("want:\n%s", dumpZip(want))
 				t.Errorf("got:\n%s", dumpZip(out.Bytes()))
+				os.WriteFile("/tmp/got.zip", out.Bytes(), 0755)
+				os.WriteFile("/tmp/want.zip", want, 0755)
 			}
 		})
 	}
@@ -286,8 +306,14 @@ func testZipEntriesToBuf(entries []testZipEntry) []byte {
 			Name: e.name,
 		}
 		fh.SetMode(e.mode)
+		fh.Method = e.method
+		fh.UncompressedSize64 = uint64(len(e.data))
+		fh.CRC32 = crc32.ChecksumIEEE(e.data)
+		if fh.Method == zip.Store {
+			fh.CompressedSize64 = fh.UncompressedSize64
+		}
 
-		w, err := zw.CreateHeader(&fh)
+		w, err := zw.CreateHeaderAndroid(&fh)
 		if err != nil {
 			panic(err)
 		}

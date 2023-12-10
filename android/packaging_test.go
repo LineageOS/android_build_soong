@@ -373,7 +373,7 @@ func TestPackagingBaseSingleTarget(t *testing.T) {
 
 func TestPackagingWithSkipInstallDeps(t *testing.T) {
 	// package -[dep]-> foo -[dep]-> bar      -[dep]-> baz
-	//                  OK           SKIPPED
+	// Packaging should continue transitively through modules that are not installed.
 	multiTarget := false
 	runPackagingTest(t, multiTarget,
 		`
@@ -396,5 +396,5 @@ func TestPackagingWithSkipInstallDeps(t *testing.T) {
 			name: "package",
 			deps: ["foo"],
 		}
-		`, []string{"lib64/foo"})
+		`, []string{"lib64/foo", "lib64/bar", "lib64/baz"})
 }

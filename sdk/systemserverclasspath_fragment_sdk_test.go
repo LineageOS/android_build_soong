@@ -86,6 +86,51 @@ func testSnapshotWithSystemServerClasspathFragment(t *testing.T, sdk string, tar
 	)
 }
 
+func TestSnapshotWithEmptySystemServerClasspathFragment(t *testing.T) {
+	commonSdk := `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			min_sdk_version: "Tiramisu",
+			systemserverclasspath_fragments: ["mysystemserverclasspathfragment"],
+		}
+		systemserverclasspath_fragment {
+			name: "mysystemserverclasspathfragment",
+			apex_available: ["myapex"],
+			contents: ["mysdklibrary"],
+		}
+		java_sdk_library {
+			name: "mysdklibrary",
+			apex_available: ["myapex"],
+			srcs: ["Test.java"],
+			min_sdk_version: "34", // UpsideDownCake
+		}
+		sdk {
+			name: "mysdk",
+			apexes: ["myapex"],
+		}
+	`
+
+	result := android.GroupFixturePreparers(
+		prepareForSdkTestWithJava,
+		java.PrepareForTestWithJavaDefaultModules,
+		java.PrepareForTestWithJavaSdkLibraryFiles,
+		java.FixtureWithLastReleaseApis("mysdklibrary"),
+		dexpreopt.FixtureSetApexSystemServerJars("myapex:mysdklibrary"),
+		android.FixtureModifyEnv(func(env map[string]string) {
+			// targeting Tiramisu here means that we won't export mysdklibrary
+			env["SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE"] = "Tiramisu"
+		}),
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.Platform_version_active_codenames = []string{"UpsideDownCake"}
+		}),
+		prepareForSdkTestWithApex,
+		android.FixtureWithRootAndroidBp(commonSdk),
+	).RunTest(t)
+
+	CheckSnapshot(t, result, "mysdk", "", checkAndroidBpContents(`// This is auto-generated. DO NOT EDIT.`))
+}
+
 func TestSnapshotWithSystemServerClasspathFragment(t *testing.T) {
 
 	commonSdk := `
