@@ -59,7 +59,6 @@ func (stripper *Stripper) NeedsStrip(actx android.ModuleContext) bool {
 	return !forceDisable && (forceEnable || defaultEnable)
 }
 
-// Keep this consistent with //build/bazel/rules/stripped_shared_library.bzl.
 func (stripper *Stripper) strip(actx android.ModuleContext, in android.Path, out android.ModuleOutPath,
 	flags StripFlags, isStaticLib bool) {
 	if actx.Darwin() {

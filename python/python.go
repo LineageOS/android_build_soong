@@ -129,7 +129,6 @@ type pathMapping struct {
 type PythonLibraryModule struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
-	android.BazelModuleBase
 
 	properties      BaseProperties
 	protoProperties android.ProtoProperties
@@ -197,14 +196,6 @@ func (p *PythonLibraryModule) getPkgPath() string {
 	return String(p.properties.Pkg_path)
 }
 
-// PkgPath is the "public" version of `getPkgPath` that is only available during bp2build
-func (p *PythonLibraryModule) PkgPath(ctx android.BazelConversionContext) *string {
-	if ctx.Config().BuildMode != android.Bp2build {
-		ctx.ModuleErrorf("PkgPath is only supported in bp2build mode")
-	}
-	return p.properties.Pkg_path
-}
-
 func (p *PythonLibraryModule) getBaseProperties() *BaseProperties {
 	return &p.properties
 }
@@ -215,7 +206,6 @@ func (p *PythonLibraryModule) init() android.Module {
 	p.AddProperties(&p.properties, &p.protoProperties)
 	android.InitAndroidArchModule(p, p.hod, p.multilib)
 	android.InitDefaultableModule(p)
-	android.InitBazelModule(p)
 	return p
 }
 

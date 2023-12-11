@@ -299,7 +299,7 @@ func PackageFuzzModule(ctx android.ModuleContext, fuzzPackagedModule fuzz.FuzzPa
 }
 
 func NewFuzzer(hod android.HostOrDeviceSupported) *Module {
-	module, binary := newBinary(hod, false)
+	module, binary := newBinary(hod)
 	baseInstallerPath := "fuzz"
 
 	binary.baseInstaller = NewBaseInstaller(baseInstallerPath, baseInstallerPath, InstallInData)

@@ -102,7 +102,6 @@ func (p *PythonTestModule) init() android.Module {
 	p.AddProperties(&p.testProperties)
 	android.InitAndroidArchModule(p, p.hod, p.multilib)
 	android.InitDefaultableModule(p)
-	android.InitBazelModule(p)
 	if p.isTestHost() && p.testProperties.Test_options.Unit_test == nil {
 		p.testProperties.Test_options.Unit_test = proptools.BoolPtr(true)
 	}

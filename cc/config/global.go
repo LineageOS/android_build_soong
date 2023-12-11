@@ -378,12 +378,6 @@ var (
 	VisibilityDefaultFlag = "-fvisibility=default"
 )
 
-// BazelCcToolchainVars generates bzl file content containing variables for
-// Bazel's cc_toolchain configuration.
-func BazelCcToolchainVars(config android.Config) string {
-	return android.BazelToolchainVars(config, exportedVars)
-}
-
 func ExportStringList(name string, value []string) {
 	exportedVars.ExportStringList(name, value)
 }

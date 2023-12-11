@@ -24,7 +24,6 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/bazel"
 	"android/soong/cc"
 	"android/soong/snapshot"
 	"android/soong/tradefed"
@@ -155,7 +154,6 @@ type TestProperties struct {
 
 type ShBinary struct {
 	android.ModuleBase
-	android.BazelModuleBase
 
 	properties shBinaryProperties
 
@@ -490,18 +488,15 @@ func (s *ShTest) AndroidMkEntries() []android.AndroidMkEntries {
 	}}
 }
 
-func initShBinaryModule(s *ShBinary, useBazel bool) {
+func initShBinaryModule(s *ShBinary) {
 	s.AddProperties(&s.properties)
-	if useBazel {
-		android.InitBazelModule(s)
-	}
 }
 
 // sh_binary is for a shell script or batch file to be installed as an
 // executable binary to <partition>/bin.
 func ShBinaryFactory() android.Module {
 	module := &ShBinary{}
-	initShBinaryModule(module, true)
+	initShBinaryModule(module)
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibFirst)
 	return module
 }
@@ -510,7 +505,7 @@ func ShBinaryFactory() android.Module {
 // to $(HOST_OUT)/bin.
 func ShBinaryHostFactory() android.Module {
 	module := &ShBinary{}
-	initShBinaryModule(module, true)
+	initShBinaryModule(module)
 	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibFirst)
 	return module
 }
@@ -518,7 +513,7 @@ func ShBinaryHostFactory() android.Module {
 // sh_test defines a shell script based test module.
 func ShTestFactory() android.Module {
 	module := &ShTest{}
-	initShBinaryModule(&module.ShBinary, true)
+	initShBinaryModule(&module.ShBinary)
 	module.AddProperties(&module.testProperties)
 
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibFirst)
@@ -528,7 +523,7 @@ func ShTestFactory() android.Module {
 // sh_test_host defines a shell script based test module that runs on a host.
 func ShTestHostFactory() android.Module {
 	module := &ShTest{}
-	initShBinaryModule(&module.ShBinary, true)
+	initShBinaryModule(&module.ShBinary)
 	module.AddProperties(&module.testProperties)
 	// Default sh_test_host to unit_tests = true
 	if module.testProperties.Test_options.Unit_test == nil {
@@ -537,117 +532,6 @@ func ShTestHostFactory() android.Module {
 
 	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibFirst)
 	return module
-}
-
-type bazelShBinaryAttributes struct {
-	Srcs     bazel.LabelListAttribute
-	Filename *string
-	Sub_dir  *string
-	// Bazel also supports the attributes below, but (so far) these are not required for Bionic
-	// deps
-	// data
-	// args
-	// compatible_with
-	// deprecation
-	// distribs
-	// env
-	// exec_compatible_with
-	// exec_properties
-	// features
-	// licenses
-	// output_licenses
-	// restricted_to
-	// tags
-	// target_compatible_with
-	// testonly
-	// toolchains
-	// visibility
-}
-
-type bazelShTestAttributes struct {
-	Srcs      bazel.LabelListAttribute
-	Data      bazel.LabelListAttribute
-	Data_bins bazel.LabelListAttribute
-	Tags      bazel.StringListAttribute
-	Runs_on   bazel.StringListAttribute
-	tradefed.TestConfigAttributes
-}
-
-func (m *ShBinary) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	srcs := bazel.MakeLabelListAttribute(
-		android.BazelLabelForModuleSrc(ctx, []string{*m.properties.Src}))
-
-	var filename *string
-	if m.properties.Filename != nil {
-		filename = m.properties.Filename
-	}
-
-	var subDir *string
-	if m.properties.Sub_dir != nil {
-		subDir = m.properties.Sub_dir
-	}
-
-	attrs := &bazelShBinaryAttributes{
-		Srcs:     srcs,
-		Filename: filename,
-		Sub_dir:  subDir,
-	}
-
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "sh_binary",
-		Bzl_load_location: "//build/bazel/rules:sh_binary.bzl",
-	}
-
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
-}
-
-func (m *ShTest) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	srcs := bazel.MakeLabelListAttribute(
-		android.BazelLabelForModuleSrc(ctx, []string{*m.properties.Src}))
-
-	dataBins := bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, m.testProperties.Data_bins))
-
-	var combinedData bazel.LabelList
-	combinedData.Append(android.BazelLabelForModuleSrc(ctx, m.testProperties.Data))
-	combinedData.Append(android.BazelLabelForModuleDeps(ctx, m.testProperties.Data_bins))
-	combinedData.Append(android.BazelLabelForModuleDeps(ctx, m.testProperties.Data_libs))
-	data := bazel.MakeLabelListAttribute(combinedData)
-
-	tags := bazel.MakeStringListAttribute(
-		m.testProperties.Test_options.Tags)
-
-	testConfigAttributes := tradefed.GetTestConfigAttributes(
-		ctx,
-		m.testProperties.Test_config,
-		[]string{},
-		m.testProperties.Auto_gen_config,
-		m.testProperties.Test_suites,
-		m.testProperties.Test_config_template,
-		nil,
-		nil,
-	)
-
-	unitTest := m.testProperties.Test_options.Unit_test
-
-	runs_on := bazel.MakeStringListAttribute(android.RunsOn(
-		m.ModuleBase.HostSupported(),
-		m.ModuleBase.DeviceSupported(),
-		(unitTest != nil && *unitTest)))
-
-	attrs := &bazelShTestAttributes{
-		Srcs:                 srcs,
-		Data:                 data,
-		Data_bins:            dataBins,
-		Tags:                 tags,
-		Runs_on:              runs_on,
-		TestConfigAttributes: testConfigAttributes,
-	}
-
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "sh_test",
-		Bzl_load_location: "//build/bazel/rules:sh_test.bzl",
-	}
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
 }
 
 var Bool = proptools.Bool
