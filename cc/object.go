@@ -219,6 +219,10 @@ func (object *objectLinker) unstrippedOutputFilePath() android.Path {
 	return nil
 }
 
+func (object *objectLinker) strippedAllOutputFilePath() android.Path {
+	panic("Not implemented.")
+}
+
 func (object *objectLinker) nativeCoverage() bool {
 	return true
 }
