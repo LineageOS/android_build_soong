@@ -491,6 +491,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 
 	cmd.BuiltTool("lint").ImplicitTool(ctx.Config().HostJavaToolPath(ctx, "lint.jar")).
 		Flag("--quiet").
+		Flag("--include-aosp-issues").
 		FlagWithInput("--project ", lintPaths.projectXML).
 		FlagWithInput("--config ", lintPaths.configXML).
 		FlagWithOutput("--html ", html).
