@@ -35,8 +35,6 @@ type GeneratedJavaLibraryCallbacks interface {
 	// Called from inside GenerateAndroidBuildActions. Add the build rules to
 	// make the srcjar, and return the path to it.
 	GenerateSourceJarBuildActions(module *GeneratedJavaLibraryModule, ctx android.ModuleContext) android.Path
-
-	Bp2build(ctx android.Bp2buildMutatorContext, module *GeneratedJavaLibraryModule)
 }
 
 // GeneratedJavaLibraryModuleFactory provides a utility for modules that are generated
@@ -57,7 +55,6 @@ func GeneratedJavaLibraryModuleFactory(moduleName string, callbacks GeneratedJav
 	module.addHostAndDeviceProperties()
 	module.initModuleAndImport(module)
 	android.InitApexModule(module)
-	android.InitBazelModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	if properties != nil {
 		module.AddProperties(properties)
@@ -109,8 +106,4 @@ func (module *GeneratedJavaLibraryModule) GenerateAndroidBuildActions(ctx androi
 	srcJarPath := module.callbacks.GenerateSourceJarBuildActions(module, ctx)
 	module.Library.properties.Generated_srcjars = append(module.Library.properties.Generated_srcjars, srcJarPath)
 	module.Library.GenerateAndroidBuildActions(ctx)
-}
-
-func (module *GeneratedJavaLibraryModule) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	module.callbacks.Bp2build(ctx, module)
 }

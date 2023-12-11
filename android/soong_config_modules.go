@@ -187,7 +187,6 @@ func (*soongConfigModuleTypeImport) GenerateAndroidBuildActions(ModuleContext) {
 
 type soongConfigModuleTypeModule struct {
 	ModuleBase
-	BazelModuleBase
 	properties soongconfig.ModuleTypeProperties
 }
 
@@ -395,10 +394,6 @@ func loadSoongConfigModuleTypeDefinition(ctx LoadHookContext, from string) map[s
 			return (map[string]blueprint.ModuleFactory)(nil)
 		}
 
-		if ctx.Config().BuildMode == Bp2build {
-			ctx.Config().Bp2buildSoongConfigDefinitions.AddVars(mtDef)
-		}
-
 		globalModuleTypes := ctx.moduleFactories()
 
 		factories := make(map[string]blueprint.ModuleFactory)
@@ -406,7 +401,7 @@ func loadSoongConfigModuleTypeDefinition(ctx LoadHookContext, from string) map[s
 		for name, moduleType := range mtDef.ModuleTypes {
 			factory := globalModuleTypes[moduleType.BaseModuleType]
 			if factory != nil {
-				factories[name] = configModuleFactory(factory, moduleType, ctx.Config().BuildMode == Bp2build)
+				factories[name] = configModuleFactory(factory, moduleType)
 			} else {
 				reportErrors(ctx, from,
 					fmt.Errorf("missing global module type factory for %q", moduleType.BaseModuleType))
@@ -474,7 +469,7 @@ var _ soongconfig.SoongConfig = (*tracingConfig)(nil)
 
 // configModuleFactory takes an existing soongConfigModuleFactory and a
 // ModuleType to create a new ModuleFactory that uses a custom loadhook.
-func configModuleFactory(factory blueprint.ModuleFactory, moduleType *soongconfig.ModuleType, bp2build bool) blueprint.ModuleFactory {
+func configModuleFactory(factory blueprint.ModuleFactory, moduleType *soongconfig.ModuleType) blueprint.ModuleFactory {
 	// Defer creation of conditional properties struct until the first call from the factory
 	// method. That avoids having to make a special call to the factory to create the properties
 	// structs from which the conditional properties struct is created. This is needed in order to
@@ -515,40 +510,22 @@ func configModuleFactory(factory blueprint.ModuleFactory, moduleType *soongconfi
 		conditionalProps := proptools.CloneEmptyProperties(conditionalFactoryProps)
 		props = append(props, conditionalProps.Interface())
 
-		if bp2build {
-			// The loadhook is different for bp2build, since we don't want to set a specific
-			// set of property values based on a vendor var -- we want __all of them__ to
-			// generate select statements, so we put the entire soong_config_variables
-			// struct, together with the namespace representing those variables, while
-			// creating the custom module with the factory.
-			AddLoadHook(module, func(ctx LoadHookContext) {
-				if m, ok := module.(Bazelable); ok {
-					m.SetBaseModuleType(moduleType.BaseModuleType)
-					// Instead of applying all properties, keep the entire conditionalProps struct as
-					// part of the custom module so dependent modules can create the selects accordingly
-					m.setNamespacedVariableProps(namespacedVariableProperties{
-						moduleType.ConfigNamespace: []interface{}{conditionalProps.Interface()},
-					})
-				}
-			})
-		} else {
-			// Regular Soong operation wraps the existing module factory with a
-			// conditional on Soong config variables by reading the product
-			// config variables from Make.
-			AddLoadHook(module, func(ctx LoadHookContext) {
-				tracingConfig := newTracingConfig(ctx.Config().VendorConfig(moduleType.ConfigNamespace))
-				newProps, err := soongconfig.PropertiesToApply(moduleType, conditionalProps, tracingConfig)
-				if err != nil {
-					ctx.ModuleErrorf("%s", err)
-					return
-				}
-				for _, ps := range newProps {
-					ctx.AppendProperties(ps)
-				}
+		// Regular Soong operation wraps the existing module factory with a
+		// conditional on Soong config variables by reading the product
+		// config variables from Make.
+		AddLoadHook(module, func(ctx LoadHookContext) {
+			tracingConfig := newTracingConfig(ctx.Config().VendorConfig(moduleType.ConfigNamespace))
+			newProps, err := soongconfig.PropertiesToApply(moduleType, conditionalProps, tracingConfig)
+			if err != nil {
+				ctx.ModuleErrorf("%s", err)
+				return
+			}
+			for _, ps := range newProps {
+				ctx.AppendProperties(ps)
+			}
 
-				module.(Module).base().commonProperties.SoongConfigTrace = tracingConfig.getTrace()
-			})
-		}
+			module.(Module).base().commonProperties.SoongConfigTrace = tracingConfig.getTrace()
+		})
 		return module, props
 	}
 }

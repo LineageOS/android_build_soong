@@ -16,8 +16,6 @@ package aidl_library
 
 import (
 	"android/soong/android"
-	"android/soong/bazel"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
@@ -53,55 +51,7 @@ type aidlLibraryProperties struct {
 
 type AidlLibrary struct {
 	android.ModuleBase
-	android.BazelModuleBase
 	properties aidlLibraryProperties
-}
-
-type bazelAidlLibraryAttributes struct {
-	Srcs                bazel.LabelListAttribute
-	Hdrs                bazel.LabelListAttribute
-	Strip_import_prefix *string
-	Deps                bazel.LabelListAttribute
-}
-
-func (lib *AidlLibrary) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	srcs := bazel.MakeLabelListAttribute(
-		android.BazelLabelForModuleSrc(
-			ctx,
-			lib.properties.Srcs,
-		),
-	)
-
-	hdrs := bazel.MakeLabelListAttribute(
-		android.BazelLabelForModuleSrc(
-			ctx,
-			lib.properties.Hdrs,
-		),
-	)
-
-	tags := []string{"apex_available=//apex_available:anyapex"}
-	deps := bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, lib.properties.Deps))
-
-	attrs := &bazelAidlLibraryAttributes{
-		Srcs:                srcs,
-		Hdrs:                hdrs,
-		Strip_import_prefix: lib.properties.Strip_import_prefix,
-		Deps:                deps,
-	}
-
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "aidl_library",
-		Bzl_load_location: "//build/bazel/rules/aidl:aidl_library.bzl",
-	}
-
-	ctx.CreateBazelTargetModule(
-		props,
-		android.CommonAttributes{
-			Name: lib.Name(),
-			Tags: bazel.MakeStringListAttribute(tags),
-		},
-		attrs,
-	)
 }
 
 type AidlLibraryInfo struct {
@@ -170,7 +120,6 @@ func AidlLibraryFactory() android.Module {
 	module := &AidlLibrary{}
 	module.AddProperties(&module.properties)
 	android.InitAndroidModule(module)
-	android.InitBazelModule(module)
 	return module
 }
 

@@ -19,10 +19,7 @@ import (
 	"strings"
 
 	"android/soong/android"
-	"android/soong/bazel"
 	"android/soong/cc"
-
-	"github.com/google/blueprint/proptools"
 )
 
 var (
@@ -282,77 +279,5 @@ func NewRustProtobuf(hod android.HostOrDeviceSupported) (*Module, *protobufDecor
 
 	module := NewSourceProviderModule(hod, protobuf, false, false)
 
-	android.InitBazelModule(module)
-
 	return module, protobuf
-}
-
-type rustProtoAttributes struct {
-	Srcs       bazel.LabelListAttribute
-	Crate_name bazel.StringAttribute
-	Deps       bazel.LabelListAttribute
-}
-
-type protoLibraryAttributes struct {
-	Srcs bazel.LabelListAttribute
-}
-
-func protoLibraryBp2build(ctx android.Bp2buildMutatorContext, m *Module) {
-	var protoFiles []string
-
-	for _, propsInterface := range m.sourceProvider.SourceProviderProps() {
-		if possibleProps, ok := propsInterface.(*ProtobufProperties); ok {
-			protoFiles = possibleProps.Protos
-			break
-		}
-	}
-
-	protoLibraryName := m.Name() + "_proto"
-
-	protoDeps := bazel.LabelListAttribute{
-		Value: bazel.LabelList{
-			Includes: []bazel.Label{
-				{
-					Label:              ":" + protoLibraryName,
-					OriginalModuleName: m.Name(),
-				},
-			},
-		},
-	}
-
-	// TODO(b/295918553): Remove androidRestriction after rust toolchain for android is checked in.
-	var androidRestriction bazel.BoolAttribute
-	androidRestriction.SetSelectValue(bazel.OsConfigurationAxis, "android", proptools.BoolPtr(false))
-
-	ctx.CreateBazelTargetModuleWithRestrictions(
-		bazel.BazelTargetModuleProperties{
-			Rule_class: "proto_library",
-		},
-		android.CommonAttributes{
-			Name: protoLibraryName,
-		},
-		&protoLibraryAttributes{
-			Srcs: bazel.MakeLabelListAttribute(
-				android.BazelLabelForModuleSrc(ctx, protoFiles),
-			),
-		},
-		androidRestriction,
-	)
-
-	ctx.CreateBazelTargetModuleWithRestrictions(
-		bazel.BazelTargetModuleProperties{
-			Rule_class:        "rust_proto_library",
-			Bzl_load_location: "@rules_rust//proto/protobuf:defs.bzl",
-		},
-		android.CommonAttributes{
-			Name: m.Name(),
-		},
-		&rustProtoAttributes{
-			Crate_name: bazel.StringAttribute{
-				Value: proptools.StringPtr(m.CrateName()),
-			},
-			Deps: protoDeps,
-		},
-		androidRestriction,
-	)
 }

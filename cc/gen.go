@@ -19,9 +19,6 @@ import (
 	"strings"
 
 	"android/soong/aidl_library"
-	"android/soong/bazel"
-	"android/soong/sysprop/bp2build"
-
 	"github.com/google/blueprint"
 
 	"android/soong/android"
@@ -181,41 +178,6 @@ func genLex(ctx android.ModuleContext, lexFile android.Path, outFile android.Mod
 	})
 }
 
-type LexAttrs struct {
-	Srcs    bazel.LabelListAttribute
-	Lexopts bazel.StringListAttribute
-}
-
-type LexNames struct {
-	cSrcName bazel.LabelAttribute
-	srcName  bazel.LabelAttribute
-}
-
-func bp2BuildLex(ctx android.Bp2buildMutatorContext, moduleName string, ca compilerAttributes) LexNames {
-	names := LexNames{}
-	if !ca.lSrcs.IsEmpty() {
-		names.cSrcName = createLexTargetModule(ctx, moduleName+"_genlex_l", ca.lSrcs, ca.lexopts)
-	}
-	if !ca.llSrcs.IsEmpty() {
-		names.srcName = createLexTargetModule(ctx, moduleName+"_genlex_ll", ca.llSrcs, ca.lexopts)
-	}
-	return names
-}
-
-func createLexTargetModule(ctx android.Bp2buildMutatorContext, name string, srcs bazel.LabelListAttribute, opts bazel.StringListAttribute) bazel.LabelAttribute {
-	ctx.CreateBazelTargetModule(
-		bazel.BazelTargetModuleProperties{
-			Rule_class:        "genlex",
-			Bzl_load_location: "//build/bazel/rules/cc:flex.bzl",
-		},
-		android.CommonAttributes{Name: name},
-		&LexAttrs{
-			Srcs:    srcs,
-			Lexopts: opts,
-		})
-	return bazel.LabelAttribute{Value: &bazel.Label{Label: ":" + name}}
-}
-
 func genSysprop(ctx android.ModuleContext, syspropFile android.Path) (android.Path, android.Paths) {
 	headerFile := android.PathForModuleGen(ctx, "sysprop", "include", syspropFile.Rel()+".h")
 	publicHeaderFile := android.PathForModuleGen(ctx, "sysprop/public", "include", syspropFile.Rel()+".h")
@@ -238,35 +200,6 @@ func genSysprop(ctx android.ModuleContext, syspropFile android.Path) (android.Pa
 	})
 
 	return cppFile, headers.Paths()
-}
-
-func bp2buildCcSysprop(ctx android.Bp2buildMutatorContext, moduleName string, minSdkVersion *string, srcs bazel.LabelListAttribute) *bazel.LabelAttribute {
-	labels := bp2build.SyspropLibraryLabels{
-		SyspropLibraryLabel:  moduleName + "_sysprop_library",
-		CcStaticLibraryLabel: moduleName + "_cc_sysprop_library_static",
-	}
-	bp2build.Bp2buildBaseSyspropLibrary(ctx, labels.SyspropLibraryLabel, srcs)
-	bp2build.Bp2buildSyspropCc(ctx, labels, minSdkVersion)
-	return createLabelAttributeCorrespondingToSrcs(":"+labels.CcStaticLibraryLabel, srcs)
-}
-
-// Creates a LabelAttribute for a given label where the value is only set for
-// the same config values that have values in a given LabelListAttribute
-func createLabelAttributeCorrespondingToSrcs(baseLabelName string, srcs bazel.LabelListAttribute) *bazel.LabelAttribute {
-	baseLabel := bazel.Label{Label: baseLabelName}
-	label := bazel.LabelAttribute{}
-	if !srcs.Value.IsNil() && !srcs.Value.IsEmpty() {
-		label.Value = &baseLabel
-		return &label
-	}
-	for axis, configToSrcs := range srcs.ConfigurableValues {
-		for config, val := range configToSrcs {
-			if !val.IsNil() && !val.IsEmpty() {
-				label.SetSelectValue(axis, config, baseLabel)
-			}
-		}
-	}
-	return &label
 }
 
 // Used to communicate information from the genSources method back to the library code that uses

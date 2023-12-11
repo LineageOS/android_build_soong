@@ -25,7 +25,6 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/bazel"
 	"android/soong/cc/config"
 )
 
@@ -563,51 +562,5 @@ func newStubLibrary() *Module {
 func NdkLibraryFactory() android.Module {
 	module := newStubLibrary()
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibBoth)
-	android.InitBazelModule(module)
 	return module
-}
-
-type bazelCcApiContributionAttributes struct {
-	Api          bazel.LabelAttribute
-	Api_surfaces bazel.StringListAttribute
-	Hdrs         bazel.LabelListAttribute
-	Library_name string
-}
-
-func ndkLibraryBp2build(ctx android.Bp2buildMutatorContext, c *Module) {
-	ndk, _ := c.linker.(*stubDecorator)
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "cc_stub_suite",
-		Bzl_load_location: "//build/bazel/rules/cc:cc_stub_library.bzl",
-	}
-	sourceLibraryName := strings.TrimSuffix(c.Name(), ".ndk")
-	fromApiLevel, err := android.ApiLevelFromUser(ctx, proptools.String(ndk.properties.First_version))
-	if err != nil {
-		ctx.PropertyErrorf("first_version", "error converting first_version %v", proptools.String(ndk.properties.First_version))
-	}
-	symbolFileLabel := android.BazelLabelForModuleSrcSingle(ctx, proptools.String(ndk.properties.Symbol_file))
-	attrs := &bazelCcStubSuiteAttributes{
-		// TODO - b/300504837 Add ndk headers
-		Symbol_file:     proptools.StringPtr(symbolFileLabel.Label),
-		Soname:          proptools.StringPtr(sourceLibraryName + ".so"),
-		Api_surface:     proptools.StringPtr(android.PublicApi.String()),
-		Included_in_ndk: proptools.BoolPtr(true),
-	}
-	if sourceLibrary, exists := ctx.ModuleFromName(sourceLibraryName); exists {
-		// the source library might not exist in minimal/unbuildable branches like kernel-build-tools.
-		// check for its existence
-		attrs.Source_library_label = proptools.StringPtr(c.GetBazelLabel(ctx, sourceLibrary))
-	}
-	if ctx.Config().RawPlatformSdkVersion() != nil {
-		// This is a hack to populate `versions` only on branches that set a platform_sdk_version
-		// This prevents errors on branches such as kernel-build-tools
-		// This hack is acceptable since we are not required to support NDK Bazel builds on those branches
-		attrs.Versions = bazel.MakeStringListAttribute(ndkLibraryVersions(ctx, fromApiLevel))
-	}
-
-	ctx.CreateBazelTargetModule(
-		props,
-		android.CommonAttributes{Name: c.Name() + "_stub_libs"},
-		attrs,
-	)
 }

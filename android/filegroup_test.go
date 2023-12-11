@@ -40,17 +40,8 @@ func TestFileGroupWithPathProp(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		outBaseDir := "outputbase"
 		result := GroupFixturePreparers(
 			PrepareForTestWithFilegroup,
-			FixtureModifyConfig(func(config Config) {
-				config.BazelContext = MockBazelContext{
-					OutputBaseDir: outBaseDir,
-					LabelToOutputFiles: map[string][]string{
-						"//:baz": []string{"a/b/c/d/test.aidl"},
-					},
-				}
-			}),
 		).RunTestWithBp(t, testCase.bp)
 
 		fg := result.Module("baz", "").(*fileGroup)
