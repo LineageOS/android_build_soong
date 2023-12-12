@@ -708,7 +708,7 @@ func TestGenruleAllowlistingDepfile(t *testing.T) {
 				depfile: true,
 				cmd: "cat $(in) > $(out) && cat $(depfile)",
 			`,
-			err: "depfile: Deprecated to ensure the module type is convertible to Bazel",
+			err: "depfile: Deprecated because with genrule sandboxing, dependencies must be known before the action is run in order to add them to the sandbox",
 		},
 		{
 			name: `no error when module is allowlisted`,
