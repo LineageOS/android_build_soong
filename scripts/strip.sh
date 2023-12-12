@@ -29,6 +29,7 @@
 #   --keep-symbols
 #   --keep-symbols-and-debug-frame
 #   --remove-build-id
+#   --windows
 
 set -o pipefail
 
@@ -43,6 +44,7 @@ Options:
         --keep-symbols                  Keep symbols in out-file
         --keep-symbols-and-debug-frame  Keep symbols and .debug_frame in out-file
         --remove-build-id               Remove the gnu build-id section in out-file
+        --windows                       Input file is Windows DLL or executable
 EOF
     exit 1
 }
@@ -50,7 +52,11 @@ EOF
 do_strip() {
     # GNU strip --strip-all does not strip .ARM.attributes,
     # so we tell llvm-strip to keep it too.
-    "${CLANG_BIN}/llvm-strip" --strip-all --keep-section=.ARM.attributes "${infile}" -o "${outfile}.tmp"
+    local keep_section=--keep-section=.ARM.attributes
+    if [ -n "${windows}" ]; then
+      keep_section=
+    fi
+    "${CLANG_BIN}/llvm-strip" --strip-all ${keep_section} "${infile}" -o "${outfile}.tmp"
 }
 
 do_strip_keep_symbols_and_debug_frame() {
@@ -149,6 +155,7 @@ while getopts $OPTSTRING opt; do
                 keep-symbols) keep_symbols=true ;;
                 keep-symbols-and-debug-frame) keep_symbols_and_debug_frame=true ;;
                 remove-build-id) remove_build_id=true ;;
+                windows) windows=true ;;
                 *) echo "Unknown option --${OPTARG}"; usage ;;
             esac;;
         ?) usage ;;
