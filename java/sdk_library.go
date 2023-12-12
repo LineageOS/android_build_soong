@@ -2378,7 +2378,8 @@ type SdkLibraryImport struct {
 	xmlPermissionsFileModule *sdkLibraryXml
 
 	// Build path to the dex implementation jar obtained from the prebuilt_apex, if any.
-	dexJarFile OptionalDexJarPath
+	dexJarFile    OptionalDexJarPath
+	dexJarFileErr error
 
 	// Expected install file path of the source module(sdk_library)
 	// or dex implementation jar obtained from the prebuilt_apex, if any.
@@ -2687,9 +2688,12 @@ func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 		ai, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 		if ai.ForPrebuiltApex {
 			// Get the path of the dex implementation jar from the `deapexer` module.
-			di := android.FindDeapexerProviderForModule(ctx)
-			if di == nil {
-				return // An error has been reported by FindDeapexerProviderForModule.
+			di, err := android.FindDeapexerProviderForModule(ctx)
+			if err != nil {
+				// An error was found, possibly due to multiple apexes in the tree that export this library
+				// Defer the error till a client tries to call DexJarBuildPath
+				module.dexJarFileErr = err
+				return
 			}
 			dexJarFileApexRootRelative := apexRootRelativePathToJavaLib(module.BaseModuleName())
 			if dexOutputPath := di.PrebuiltExportPath(dexJarFileApexRootRelative); dexOutputPath != nil {
@@ -2751,6 +2755,9 @@ func (module *SdkLibraryImport) SdkImplementationJars(ctx android.BaseModuleCont
 func (module *SdkLibraryImport) DexJarBuildPath() OptionalDexJarPath {
 	// The dex implementation jar extracted from the .apex file should be used in preference to the
 	// source.
+	if module.dexJarFileErr != nil {
+		panic(module.dexJarFileErr.Error())
+	}
 	if module.dexJarFile.IsSet() {
 		return module.dexJarFile
 	}

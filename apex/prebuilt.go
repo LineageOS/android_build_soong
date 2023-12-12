@@ -193,7 +193,10 @@ func (p *prebuiltCommon) dexpreoptSystemServerJars(ctx android.ModuleContext) {
 	}
 	// Use apex_name to determine the api domain of this prebuilt apex
 	apexName := p.ApexVariationName()
-	di := android.FindDeapexerProviderForModule(ctx)
+	di, err := android.FindDeapexerProviderForModule(ctx)
+	if err != nil {
+		ctx.ModuleErrorf(err.Error())
+	}
 	dc := dexpreopt.GetGlobalConfig(ctx)
 	systemServerJarList := dc.AllApexSystemServerJars(ctx)
 
