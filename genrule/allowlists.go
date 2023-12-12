@@ -32,7 +32,6 @@ var (
 
 	SandboxingDenyPathList = []string{
 		// go/keep-sorted start
-		"art/test",
 		// go/keep-sorted end
 	}
 )

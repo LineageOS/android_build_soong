@@ -51,8 +51,6 @@ var (
 		"-C force-unwind-tables=yes",
 		// Use v0 mangling to distinguish from C++ symbols
 		"-C symbol-mangling-version=v0",
-		// This flag requires to have no space so that when it's exported to bazel
-		// it can be removed. See aosp/2768339
 		"--color=always",
 		"-Z dylib-lto",
 		"-Z link-native-libraries=no",
@@ -144,9 +142,4 @@ func GetRustVersion(ctx android.PathContext) string {
 		return override
 	}
 	return RustDefaultVersion
-}
-
-// BazelRustToolchainVars returns a string with
-func BazelRustToolchainVars(config android.Config) string {
-	return android.BazelToolchainVars(config, ExportedVars)
 }

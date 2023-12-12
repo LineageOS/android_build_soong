@@ -139,9 +139,6 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir st
 				archStr := fi.module.Target().Arch.ArchType.String()
 				fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH :=", archStr)
 			}
-		} else if fi.isBazelPrebuilt && fi.arch != "" {
-			// This apexFile comes from Bazel
-			fmt.Fprintln(w, "LOCAL_MODULE_TARGET_ARCH :=", fi.arch)
 		}
 		if fi.jacocoReportClassesFile != nil {
 			fmt.Fprintln(w, "LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR :=", fi.jacocoReportClassesFile.String())
@@ -185,21 +182,17 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir st
 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_android_app_set.mk")
 		case nativeSharedLib, nativeExecutable, nativeTest:
 			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.stem())
-			if fi.isBazelPrebuilt {
-				fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", fi.unstrippedBuiltFile)
-			} else {
-				if ccMod, ok := fi.module.(*cc.Module); ok {
-					if ccMod.UnstrippedOutputFile() != nil {
-						fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", ccMod.UnstrippedOutputFile().String())
-					}
-					ccMod.AndroidMkWriteAdditionalDependenciesForSourceAbiDiff(w)
-					if ccMod.CoverageOutputFile().Valid() {
-						fmt.Fprintln(w, "LOCAL_PREBUILT_COVERAGE_ARCHIVE :=", ccMod.CoverageOutputFile().String())
-					}
-				} else if rustMod, ok := fi.module.(*rust.Module); ok {
-					if rustMod.UnstrippedOutputFile() != nil {
-						fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", rustMod.UnstrippedOutputFile().String())
-					}
+			if ccMod, ok := fi.module.(*cc.Module); ok {
+				if ccMod.UnstrippedOutputFile() != nil {
+					fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", ccMod.UnstrippedOutputFile().String())
+				}
+				ccMod.AndroidMkWriteAdditionalDependenciesForSourceAbiDiff(w)
+				if ccMod.CoverageOutputFile().Valid() {
+					fmt.Fprintln(w, "LOCAL_PREBUILT_COVERAGE_ARCHIVE :=", ccMod.CoverageOutputFile().String())
+				}
+			} else if rustMod, ok := fi.module.(*rust.Module); ok {
+				if rustMod.UnstrippedOutputFile() != nil {
+					fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", rustMod.UnstrippedOutputFile().String())
 				}
 			}
 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_cc_rust_prebuilt.mk")

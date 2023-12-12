@@ -2,7 +2,6 @@ package cc
 
 import (
 	"android/soong/android"
-	"android/soong/bazel/cquery"
 	"android/soong/fuzz"
 	"android/soong/snapshot"
 
@@ -431,19 +430,3 @@ type FlagExporterInfo struct {
 }
 
 var FlagExporterInfoProvider = blueprint.NewProvider(FlagExporterInfo{})
-
-// flagExporterInfoFromCcInfo populates FlagExporterInfo provider with information from Bazel.
-func flagExporterInfoFromCcInfo(ctx android.ModuleContext, ccInfo cquery.CcInfo) FlagExporterInfo {
-
-	includes := android.PathsForBazelOut(ctx, ccInfo.Includes)
-	systemIncludes := android.PathsForBazelOut(ctx, ccInfo.SystemIncludes)
-	headers := android.PathsForBazelOut(ctx, ccInfo.Headers)
-
-	return FlagExporterInfo{
-		IncludeDirs:       android.FirstUniquePaths(includes),
-		SystemIncludeDirs: android.FirstUniquePaths(systemIncludes),
-		GeneratedHeaders:  headers,
-		// necessary to ensure generated headers are considered implicit deps of dependent actions
-		Deps: headers,
-	}
-}

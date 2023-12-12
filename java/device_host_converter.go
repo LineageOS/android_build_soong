@@ -19,16 +19,12 @@ import (
 	"io"
 
 	"android/soong/android"
-	"android/soong/bazel"
 	"android/soong/dexpreopt"
-
-	"github.com/google/blueprint/proptools"
 )
 
 type DeviceHostConverter struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
-	android.BazelModuleBase
 
 	properties DeviceHostConverterProperties
 
@@ -80,7 +76,6 @@ func HostForDeviceFactory() android.Module {
 	module.AddProperties(&module.properties)
 
 	InitJavaModule(module, android.DeviceSupported)
-	android.InitBazelModule(module)
 	return module
 }
 
@@ -192,33 +187,4 @@ func (d *DeviceHostConverter) AndroidMk() android.AndroidMkData {
 			},
 		},
 	}
-}
-
-type bazelDeviceHostConverterAttributes struct {
-	Exports bazel.LabelListAttribute
-}
-
-func (d *DeviceHostConverter) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	ctx.CreateBazelTargetModule(
-		bazel.BazelTargetModuleProperties{
-			Rule_class:        "java_host_for_device",
-			Bzl_load_location: "//build/bazel/rules/java:host_for_device.bzl",
-		},
-		android.CommonAttributes{Name: d.Name()},
-		&bazelDeviceHostConverterAttributes{
-			Exports: bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, d.properties.Libs)),
-		},
-	)
-	neverLinkAttrs := &javaLibraryAttributes{
-		Exports:   bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + d.Name()}),
-		Neverlink: bazel.BoolAttribute{Value: proptools.BoolPtr(true)},
-		javaCommonAttributes: &javaCommonAttributes{
-			Sdk_version: bazel.StringAttribute{Value: proptools.StringPtr("none")},
-		},
-	}
-	ctx.CreateBazelTargetModule(
-		javaLibraryBazelTargetModuleProperties(),
-		android.CommonAttributes{Name: d.Name() + "-neverlink"},
-		neverLinkAttrs)
-
 }

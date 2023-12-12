@@ -14,7 +14,6 @@ bootstrap_go_package {
     ],
     srcs: [
         "binary.go",
-        "bp2build.go",
         "builder.go",
         "defaults.go",
         "library.go",

@@ -16,7 +16,6 @@ package aconfig
 
 import (
 	"android/soong/android"
-	"android/soong/bazel"
 	"github.com/google/blueprint"
 )
 
@@ -24,7 +23,6 @@ import (
 type ValueSetModule struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
-	android.BazelModuleBase
 
 	properties struct {
 		// aconfig_values modules
@@ -38,7 +36,6 @@ func ValueSetFactory() android.Module {
 	android.InitAndroidModule(module)
 	android.InitDefaultableModule(module)
 	module.AddProperties(&module.properties)
-	android.InitBazelModule(module)
 
 	return module
 }
@@ -90,24 +87,4 @@ func (module *ValueSetModule) GenerateAndroidBuildActions(ctx android.ModuleCont
 	ctx.SetProvider(valueSetProviderKey, valueSetProviderData{
 		AvailablePackages: packages,
 	})
-}
-
-type bazelAconfigValueSetAttributes struct {
-	Values bazel.LabelListAttribute
-}
-
-func (module *ValueSetModule) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	if ctx.ModuleType() != "aconfig_value_set" {
-		return
-	}
-
-	attrs := bazelAconfigValueSetAttributes{
-		Values: bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, module.properties.Values)),
-	}
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "aconfig_value_set",
-		Bzl_load_location: "//build/bazel/rules/aconfig:aconfig_value_set.bzl",
-	}
-
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, &attrs)
 }

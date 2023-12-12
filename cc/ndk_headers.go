@@ -18,11 +18,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/google/blueprint"
-	"github.com/google/blueprint/proptools"
-
 	"android/soong/android"
-	"android/soong/bazel"
+	"github.com/google/blueprint"
 )
 
 var (
@@ -81,7 +78,6 @@ type headerProperties struct {
 
 type headerModule struct {
 	android.ModuleBase
-	android.BazelModuleBase
 
 	properties headerProperties
 
@@ -148,30 +144,6 @@ func (m *headerModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 }
 
-type bazelNdkHeadersAttributes struct {
-	Strip_import_prefix *string
-	Import_prefix       *string
-	Hdrs                bazel.LabelListAttribute
-	Run_versioner       *bool
-}
-
-func (h *headerModule) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "ndk_headers",
-		Bzl_load_location: "//build/bazel/rules/cc:ndk_headers.bzl",
-	}
-	attrs := &bazelNdkHeadersAttributes{
-		Strip_import_prefix: h.properties.From,
-		Import_prefix:       h.properties.To,
-		Hdrs:                bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrcExcludes(ctx, h.properties.Srcs, h.properties.Exclude_srcs)),
-	}
-	ctx.CreateBazelTargetModule(
-		props,
-		android.CommonAttributes{Name: h.Name()},
-		attrs,
-	)
-}
-
 // ndk_headers installs the sets of ndk headers defined in the srcs property
 // to the sysroot base + "usr/include" + to directory + directory component.
 // ndk_headers requires the license file to be specified. Example:
@@ -186,7 +158,6 @@ func NdkHeadersFactory() android.Module {
 	module := &headerModule{}
 	module.AddProperties(&module.properties)
 	android.InitAndroidModule(module)
-	android.InitBazelModule(module)
 	return module
 }
 
@@ -219,7 +190,6 @@ type versionedHeaderProperties struct {
 // Note that this is really only built to handle bionic/libc/include.
 type versionedHeaderModule struct {
 	android.ModuleBase
-	android.BazelModuleBase
 
 	properties versionedHeaderProperties
 
@@ -256,25 +226,6 @@ func (m *versionedHeaderModule) GenerateAndroidBuildActions(ctx android.ModuleCo
 	}
 
 	processHeadersWithVersioner(ctx, fromSrcPath, toOutputPath, m.srcPaths, installPaths)
-}
-
-func (h *versionedHeaderModule) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "ndk_headers",
-		Bzl_load_location: "//build/bazel/rules/cc:ndk_headers.bzl",
-	}
-	globPattern := headerGlobPattern(proptools.String(h.properties.From))
-	attrs := &bazelNdkHeadersAttributes{
-		Strip_import_prefix: h.properties.From,
-		Import_prefix:       h.properties.To,
-		Run_versioner:       proptools.BoolPtr(true),
-		Hdrs:                bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, []string{globPattern})),
-	}
-	ctx.CreateBazelTargetModule(
-		props,
-		android.CommonAttributes{Name: h.Name()},
-		attrs,
-	)
 }
 
 func processHeadersWithVersioner(ctx android.ModuleContext, srcDir, outDir android.Path,
@@ -326,7 +277,6 @@ func VersionedNdkHeadersFactory() android.Module {
 	module.AddProperties(&module.properties)
 
 	android.InitAndroidModule(module)
-	android.InitBazelModule(module)
 
 	return module
 }

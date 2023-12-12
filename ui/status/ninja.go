@@ -194,7 +194,7 @@ func (n *NinjaReader) run() {
 
 			if estimatedDuration > 0 {
 				n.status.SetEstimatedTime(time.Now().Add(estimatedDuration))
-				n.status.Verbose(fmt.Sprintf("parallelism: %d, estimiated from total time: %s, critical path time: %s",
+				n.status.Verbose(fmt.Sprintf("parallelism: %d, estimated from total time: %s, critical path time: %s",
 					parallelism,
 					estimatedDurationFromTotal,
 					estimatedDurationFromCriticalPath))

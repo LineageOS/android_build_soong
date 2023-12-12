@@ -40,7 +40,6 @@ func TestSpecFactory() android.Module {
 type TestSpecModule struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
-	android.BazelModuleBase
 
 	// Properties for "test_spec"
 	properties struct {

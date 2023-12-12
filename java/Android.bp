@@ -11,7 +11,6 @@ bootstrap_go_package {
         "soong",
         "soong-aconfig",
         "soong-android",
-        "soong-bazel",
         "soong-cc",
         "soong-dexpreopt",
         "soong-genrule",
