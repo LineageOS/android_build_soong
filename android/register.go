@@ -15,15 +15,9 @@
 package android
 
 import (
-	"bufio"
 	"fmt"
-	"path/filepath"
-	"reflect"
-	"regexp"
-
-	"android/soong/shared"
-
 	"github.com/google/blueprint"
+	"reflect"
 )
 
 // A sortable component is one whose registration order affects the order in which it is executed
@@ -166,75 +160,6 @@ func NewContext(config Config) *Context {
 	return ctx
 }
 
-// Helper function to register the module types used in bp2build.
-func registerModuleTypes(ctx *Context) {
-	for _, t := range moduleTypes {
-		t.register(ctx)
-	}
-	// Required for SingletonModule types, even though we are not using them.
-	for _, t := range singletons {
-		t.register(ctx)
-	}
-}
-
-// RegisterForBazelConversion registers an alternate shadow pipeline of
-// singletons, module types and mutators to register for converting Blueprint
-// files to semantically equivalent BUILD files.
-func (ctx *Context) RegisterForBazelConversion() {
-	registerModuleTypes(ctx)
-	RegisterMutatorsForBazelConversion(ctx, bp2buildPreArchMutators)
-}
-
-// RegisterExistingBazelTargets reads Bazel BUILD.bazel and BUILD files under
-// the workspace, and returns a map containing names of Bazel targets defined in
-// these BUILD files.
-// For example, maps "//foo/bar" to ["baz", "qux"] if `//foo/bar:{baz,qux}` exist.
-func (c *Context) RegisterExistingBazelTargets(topDir string, existingBazelFiles []string) error {
-	result := map[string][]string{}
-
-	// Search for instances of `name = "$NAME"` (with arbitrary spacing).
-	targetNameRegex := regexp.MustCompile(`(?m)^\s*name\s*=\s*\"([^\"]+)\"`)
-
-	parseBuildFile := func(path string) error {
-		fullPath := shared.JoinPath(topDir, path)
-		sourceDir := filepath.Dir(path)
-
-		fileInfo, err := c.Config().fs.Stat(fullPath)
-		if err != nil {
-			return fmt.Errorf("Error accessing Bazel file '%s': %s", path, err)
-		}
-		if !fileInfo.IsDir() &&
-			(fileInfo.Name() == "BUILD" || fileInfo.Name() == "BUILD.bazel") {
-			f, err := c.Config().fs.Open(fullPath)
-			if err != nil {
-				return fmt.Errorf("Error reading Bazel file '%s': %s", path, err)
-			}
-			defer f.Close()
-			scanner := bufio.NewScanner(f)
-			for scanner.Scan() {
-				line := scanner.Text()
-				matches := targetNameRegex.FindAllStringSubmatch(line, -1)
-				for _, match := range matches {
-					result[sourceDir] = append(result[sourceDir], match[1])
-				}
-			}
-		}
-		return nil
-	}
-
-	for _, path := range existingBazelFiles {
-		if !c.Config().Bp2buildPackageConfig.ShouldKeepExistingBuildFileForDir(filepath.Dir(path)) {
-			continue
-		}
-		err := parseBuildFile(path)
-		if err != nil {
-			return err
-		}
-	}
-	c.Config().SetBazelBuildFileTargets(result)
-	return nil
-}
-
 // Register the pipeline of singletons, module types, and mutators for
 // generating build.ninja and other files for Kati, from Android.bp files.
 func (ctx *Context) Register() {
@@ -260,8 +185,6 @@ func (ctx *Context) registerSingletonMakeVarsProvider(makevars SingletonMakeVars
 func collateGloballyRegisteredSingletons() sortableComponents {
 	allSingletons := append(sortableComponents(nil), singletons...)
 	allSingletons = append(allSingletons,
-		singleton{parallel: true, name: "bazeldeps", factory: BazelSingleton},
-
 		// Register phony just before makevars so it can write out its phony rules as Make rules
 		singleton{parallel: false, name: "phony", factory: phonySingletonFactory},
 

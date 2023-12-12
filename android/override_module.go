@@ -214,17 +214,6 @@ func (b *OverridableModuleBase) override(ctx BaseModuleContext, m Module, o Over
 	}
 	b.overridableModuleProperties.OverriddenBy = o.Name()
 	b.overridableModuleProperties.OverriddenByModuleDir = o.ModuleDir()
-
-	if oBazelable, ok := o.base().module.(Bazelable); ok {
-		if bBazelable, ok := m.(Bazelable); ok {
-			oProps := oBazelable.bazelProps()
-			bProps := bBazelable.bazelProps()
-			bProps.Bazel_module.Bp2build_available = oProps.Bazel_module.Bp2build_available
-			bProps.Bazel_module.Label = oProps.Bazel_module.Label
-		} else {
-			ctx.ModuleErrorf("Override type cannot be Bazelable if original module type is not Bazelable %v %v.", o.Name(), m.Name())
-		}
-	}
 }
 
 // GetOverriddenBy returns the name of the override module that has overridden this module.
@@ -347,32 +336,4 @@ func replaceDepsOnOverridingModuleMutator(ctx BottomUpMutatorContext) {
 			ctx.ReplaceDependencies(o)
 		}
 	}
-}
-
-// ModuleNameWithPossibleOverride returns the name of the OverrideModule that overrides the current
-// variant of this OverridableModule, or ctx.ModuleName() if this module is not an OverridableModule
-// or if this variant is not overridden.
-func ModuleNameWithPossibleOverride(ctx BazelConversionContext) string {
-	return moduleNameWithPossibleOverride(ctx, ctx.Module(), ctx.OtherModuleName(ctx.Module()))
-}
-
-func moduleNameWithPossibleOverride(ctx shouldConvertModuleContext, module blueprint.Module, name string) string {
-	if overridable, ok := module.(OverridableModule); ok {
-		if o := overridable.GetOverriddenBy(); o != "" {
-			return o
-		}
-	}
-	return name
-}
-
-// moduleDirWithPossibleOverride returns the dir of the OverrideModule that overrides the current
-// variant of the given OverridableModule, or ctx.OtherModuleName() if the module is not an
-// OverridableModule or if the variant is not overridden.
-func moduleDirWithPossibleOverride(ctx shouldConvertModuleContext, module blueprint.Module, dir string) string {
-	if overridable, ok := module.(OverridableModule); ok {
-		if o := overridable.GetOverriddenByModuleDir(); o != "" {
-			return o
-		}
-	}
-	return dir
 }
