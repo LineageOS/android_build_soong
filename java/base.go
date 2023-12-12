@@ -20,8 +20,6 @@ import (
 	"strconv"
 	"strings"
 
-	"android/soong/ui/metrics/bp2build_metrics_proto"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
 	"github.com/google/blueprint/proptools"
@@ -408,7 +406,6 @@ type Module struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 	android.ApexModuleBase
-	android.BazelModuleBase
 
 	// Functionality common to Module and Import.
 	embeddableInModuleAndImport
@@ -1037,37 +1034,6 @@ func (j *Module) collectJavacFlags(
 			// (javac doesn't seem to expand into symbolic links when searching for patch-module targets, so
 			// just adding a symlink under the root doesn't help.)
 			patchPaths := []string{".", ctx.Config().SoongOutDir()}
-
-			// b/150878007
-			//
-			// Workaround to support *Bazel-executed* JDK9 javac in Bazel's
-			// execution root for --patch-module. If this javac command line is
-			// invoked within Bazel's execution root working directory, the top
-			// level directories (e.g. libcore/, tools/, frameworks/) are all
-			// symlinks. JDK9 javac does not traverse into symlinks, which causes
-			// --patch-module to fail source file lookups when invoked in the
-			// execution root.
-			//
-			// Short of patching javac or enumerating *all* directories as possible
-			// input dirs, manually add the top level dir of the source files to be
-			// compiled.
-			topLevelDirs := map[string]bool{}
-			for _, srcFilePath := range srcFiles {
-				srcFileParts := strings.Split(srcFilePath.String(), "/")
-				// Ignore source files that are already in the top level directory
-				// as well as generated files in the out directory. The out
-				// directory may be an absolute path, which means srcFileParts[0] is the
-				// empty string, so check that as well. Note that "out" in Bazel's execution
-				// root is *not* a symlink, which doesn't cause problems for --patch-modules
-				// anyway, so it's fine to not apply this workaround for generated
-				// source files.
-				if len(srcFileParts) > 1 &&
-					srcFileParts[0] != "" &&
-					srcFileParts[0] != "out" {
-					topLevelDirs[srcFileParts[0]] = true
-				}
-			}
-			patchPaths = append(patchPaths, android.SortedKeys(topLevelDirs)...)
 
 			classPath := flags.classpath.FormJavaClassPath("")
 			if classPath != "" {
@@ -2379,22 +2345,3 @@ type ModuleWithStem interface {
 }
 
 var _ ModuleWithStem = (*Module)(nil)
-
-func (j *Module) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	switch ctx.ModuleType() {
-	case "java_library", "java_library_host", "java_library_static", "tradefed_java_library_host":
-		if lib, ok := ctx.Module().(*Library); ok {
-			javaLibraryBp2Build(ctx, lib)
-		}
-	case "java_binary_host":
-		if binary, ok := ctx.Module().(*Binary); ok {
-			javaBinaryHostBp2Build(ctx, binary)
-		}
-	case "java_test_host":
-		if testHost, ok := ctx.Module().(*TestHost); ok {
-			javaTestHostBp2Build(ctx, testHost)
-		}
-	default:
-		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "")
-	}
-}

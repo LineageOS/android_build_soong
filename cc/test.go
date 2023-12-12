@@ -22,8 +22,6 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/bazel"
-	"android/soong/bazel/cquery"
 	"android/soong/tradefed"
 )
 
@@ -139,8 +137,7 @@ func init() {
 // specific functionality on a device. The executable binary gets an implicit
 // static_libs dependency on libgtests unless the gtest flag is set to false.
 func TestFactory() android.Module {
-	module := NewTest(android.HostAndDeviceSupported, true)
-	module.bazelHandler = &ccTestBazelHandler{module: module}
+	module := NewTest(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
@@ -164,7 +161,7 @@ func BenchmarkFactory() android.Module {
 
 // cc_test_host compiles a test host binary.
 func TestHostFactory() android.Module {
-	module := NewTest(android.HostSupported, true)
+	module := NewTest(android.HostSupported)
 	return module.Init()
 }
 
@@ -488,9 +485,8 @@ func getTradefedConfigOptions(ctx android.EarlyModuleContext, properties *TestBi
 	return configs
 }
 
-func NewTest(hod android.HostOrDeviceSupported, bazelable bool) *Module {
-	module, binary := newBinary(hod, bazelable)
-	module.bazelable = bazelable
+func NewTest(hod android.HostOrDeviceSupported) *Module {
+	module, binary := newBinary(hod)
 	module.multilib = android.MultilibBoth
 	module.testModule = true
 	binary.baseInstaller = NewTestInstaller()
@@ -552,7 +548,6 @@ func NewTestLibrary(hod android.HostOrDeviceSupported) *Module {
 	}
 	module.linker = test
 	module.installer = test
-	module.bazelable = true
 	return module
 }
 
@@ -632,7 +627,7 @@ func (benchmark *benchmarkDecorator) install(ctx ModuleContext, file android.Pat
 }
 
 func NewBenchmark(hod android.HostOrDeviceSupported) *Module {
-	module, binary := newBinary(hod, false)
+	module, binary := newBinary(hod)
 	module.multilib = android.MultilibBoth
 	binary.baseInstaller = NewBaseInstaller("benchmarktest", "benchmarktest64", InstallInData)
 
@@ -642,181 +637,4 @@ func NewBenchmark(hod android.HostOrDeviceSupported) *Module {
 	module.linker = benchmark
 	module.installer = benchmark
 	return module
-}
-
-type ccTestBazelHandler struct {
-	module *Module
-}
-
-var _ BazelHandler = (*ccTestBazelHandler)(nil)
-
-// The top level target named $label is a test_suite target,
-// not the internal cc_test executable target.
-//
-// This is to ensure `b test //$label` runs the test_suite target directly,
-// which depends on tradefed_test targets, instead of the internal cc_test
-// target, which doesn't have tradefed integrations.
-//
-// However, for cquery, we want the internal cc_test executable target, which
-// has the suffix "__tf_internal".
-func mixedBuildsTestLabel(label string) string {
-	return label + "__tf_internal"
-}
-
-func (handler *ccTestBazelHandler) QueueBazelCall(ctx android.BaseModuleContext, label string) {
-	bazelCtx := ctx.Config().BazelContext
-	bazelCtx.QueueBazelRequest(mixedBuildsTestLabel(label), cquery.GetCcUnstrippedInfo, android.GetConfigKey(ctx))
-}
-
-func (handler *ccTestBazelHandler) ProcessBazelQueryResponse(ctx android.ModuleContext, label string) {
-	bazelCtx := ctx.Config().BazelContext
-	info, err := bazelCtx.GetCcUnstrippedInfo(mixedBuildsTestLabel(label), android.GetConfigKey(ctx))
-	if err != nil {
-		ctx.ModuleErrorf(err.Error())
-		return
-	}
-
-	var outputFilePath android.Path = android.PathForBazelOut(ctx, info.OutputFile)
-	if len(info.TidyFiles) > 0 {
-		handler.module.tidyFiles = android.PathsForBazelOut(ctx, info.TidyFiles)
-		outputFilePath = android.AttachValidationActions(ctx, outputFilePath, handler.module.tidyFiles)
-	}
-	handler.module.outputFile = android.OptionalPathForPath(outputFilePath)
-	handler.module.linker.(*testBinary).unstrippedOutputFile = android.PathForBazelOut(ctx, info.UnstrippedOutput)
-
-	handler.module.setAndroidMkVariablesFromCquery(info.CcAndroidMkInfo)
-}
-
-// binaryAttributes contains Bazel attributes corresponding to a cc test
-type testBinaryAttributes struct {
-	binaryAttributes
-
-	Gtest *bool
-
-	tidyAttributes
-	tradefed.TestConfigAttributes
-
-	Runs_on bazel.StringListAttribute
-}
-
-// testBinaryBp2build is the bp2build converter for cc_test modules. A cc_test's
-// dependency graph and compilation/linking steps are functionally similar to a
-// cc_binary, but has additional dependencies on test deps like gtest, and
-// produces additional runfiles like XML plans for Tradefed orchestration
-//
-// TODO(b/244432609): handle `isolated` property.
-// TODO(b/244432134): handle custom runpaths for tests that assume runfile layouts not
-// default to bazel. (see linkerInit function)
-func testBinaryBp2build(ctx android.Bp2buildMutatorContext, m *Module) {
-	var testBinaryAttrs testBinaryAttributes
-	testBinaryAttrs.binaryAttributes = binaryBp2buildAttrs(ctx, m)
-
-	var data bazel.LabelListAttribute
-	var tags bazel.StringListAttribute
-
-	testBinaryProps := m.GetArchVariantProperties(ctx, &TestBinaryProperties{})
-	for axis, configToProps := range testBinaryProps {
-		for config, props := range configToProps {
-			if p, ok := props.(*TestBinaryProperties); ok {
-				// Combine data, data_bins and data_libs into a single 'data' attribute.
-				var combinedData bazel.LabelList
-				combinedData.Append(android.BazelLabelForModuleSrc(ctx, p.Data))
-				combinedData.Append(android.BazelLabelForModuleDeps(ctx, p.Data_bins))
-				combinedData.Append(android.BazelLabelForModuleDeps(ctx, p.Data_libs))
-				data.SetSelectValue(axis, config, combinedData)
-				tags.SetSelectValue(axis, config, p.Test_options.Tags)
-			}
-		}
-	}
-
-	// The logic comes from https://cs.android.com/android/platform/superproject/main/+/0df8153267f96da877febc5332240fa06ceb8533:build/soong/cc/sanitize.go;l=488
-	var features bazel.StringListAttribute
-	curFeatures := testBinaryAttrs.binaryAttributes.Features.SelectValue(bazel.OsArchConfigurationAxis, bazel.OsArchAndroidArm64)
-	var newFeatures []string
-	if !android.InList("memtag_heap", curFeatures) && !android.InList("-memtag_heap", curFeatures) {
-		newFeatures = append(newFeatures, "memtag_heap")
-		if !android.InList("diag_memtag_heap", curFeatures) && !android.InList("-diag_memtag_heap", curFeatures) {
-			newFeatures = append(newFeatures, "diag_memtag_heap")
-		}
-	}
-
-	features.SetSelectValue(bazel.OsArchConfigurationAxis, bazel.OsArchAndroidArm64, newFeatures)
-	testBinaryAttrs.binaryAttributes.Features.Append(features)
-	testBinaryAttrs.binaryAttributes.Features.DeduplicateAxesFromBase()
-
-	m.convertTidyAttributes(ctx, &testBinaryAttrs.tidyAttributes)
-
-	testBinary := m.linker.(*testBinary)
-	gtest := testBinary.gtest()
-	gtestIsolated := testBinary.isolated(ctx)
-	// Use the underling bool pointer for Gtest in attrs
-	// This ensures that if this property is not set in Android.bp file, it will not be set in BUILD file either
-	// cc_test macro will default gtest to True
-	testBinaryAttrs.Gtest = testBinary.LinkerProperties.Gtest
-
-	addImplicitGtestDeps(ctx, &testBinaryAttrs, gtest, gtestIsolated)
-
-	var unitTest *bool
-
-	for _, testProps := range m.GetProperties() {
-		if p, ok := testProps.(*TestBinaryProperties); ok {
-			useVendor := false // TODO Bug: 262914724
-			testInstallBase := getTestInstallBase(useVendor)
-			testConfigAttributes := tradefed.GetTestConfigAttributes(
-				ctx,
-				p.Test_config,
-				p.Test_options.Extra_test_configs,
-				p.Auto_gen_config,
-				p.Test_options.Test_suite_tag,
-				p.Test_config_template,
-				getTradefedConfigOptions(ctx, p, gtestIsolated, true),
-				&testInstallBase,
-			)
-			testBinaryAttrs.TestConfigAttributes = testConfigAttributes
-			unitTest = p.Test_options.Unit_test
-		}
-	}
-
-	testBinaryAttrs.Runs_on = bazel.MakeStringListAttribute(android.RunsOn(
-		m.ModuleBase.HostSupported(),
-		m.ModuleBase.DeviceSupported(),
-		gtest || (unitTest != nil && *unitTest)))
-
-	// TODO (b/262914724): convert to tradefed_cc_test and tradefed_cc_test_host
-	ctx.CreateBazelTargetModule(
-		bazel.BazelTargetModuleProperties{
-			Rule_class:        "cc_test",
-			Bzl_load_location: "//build/bazel/rules/cc:cc_test.bzl",
-		},
-		android.CommonAttributes{
-			Name: m.Name(),
-			Data: data,
-			Tags: tags,
-		},
-		&testBinaryAttrs)
-}
-
-// cc_test that builds using gtest needs some additional deps
-// addImplicitGtestDeps makes these deps explicit in the generated BUILD files
-func addImplicitGtestDeps(ctx android.Bp2buildMutatorContext, attrs *testBinaryAttributes, gtest, gtestIsolated bool) {
-	addDepsAndDedupe := func(lla *bazel.LabelListAttribute, modules []string) {
-		moduleLabels := android.BazelLabelForModuleDeps(ctx, modules)
-		lla.Value.Append(moduleLabels)
-		// Dedupe
-		lla.Value = bazel.FirstUniqueBazelLabelList(lla.Value)
-	}
-	// this must be kept in sync with Soong's implementation in:
-	// https://cs.android.com/android/_/android/platform/build/soong/+/460fb2d6d546b5ab493a7e5479998c4933a80f73:cc/test.go;l=300-313;drc=ec7314336a2b35ea30ce5438b83949c28e3ac429;bpv=1;bpt=0
-	if gtest {
-		// TODO - b/244433197: Handle canUseSdk
-		if gtestIsolated {
-			addDepsAndDedupe(&attrs.Deps, []string{"libgtest_isolated_main"})
-			addDepsAndDedupe(&attrs.Dynamic_deps, []string{"liblog"})
-		} else {
-			addDepsAndDedupe(&attrs.Deps, []string{
-				"libgtest_main",
-				"libgtest",
-			})
-		}
-	}
 }

@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
@@ -893,28 +892,6 @@ var (
 		"toolchain":     android.SdkToolchain,
 	}
 )
-
-// A helper function that returns the api surface of the corresponding java_api_contribution Bazel target
-// The api_surface is populated using the naming convention of the droidstubs module.
-func bazelApiSurfaceName(name string) string {
-	// Sort the keys so that longer strings appear first
-	// Otherwise substrings like system will match both system and system_server
-	sortedKeys := make([]string, 0)
-	for key := range droidstubsModuleNamingToSdkKind {
-		sortedKeys = append(sortedKeys, key)
-	}
-	sort.Slice(sortedKeys, func(i, j int) bool {
-		return len(sortedKeys[i]) > len(sortedKeys[j])
-	})
-	for _, sortedKey := range sortedKeys {
-		if strings.Contains(name, sortedKey) {
-			sdkKind := droidstubsModuleNamingToSdkKind[sortedKey]
-			return sdkKind.String() + "api"
-		}
-	}
-	// Default is publicapi
-	return android.SdkPublic.String() + "api"
-}
 
 func StubsDefaultsFactory() android.Module {
 	module := &DocDefaults{}

@@ -221,10 +221,6 @@ func init() {
 	hostJNIToolVariableWithSdkToolsPrebuilt("SignapkJniLibrary", "libconscrypt_openjdk_jni")
 }
 
-func BazelJavaToolchainVars(config android.Config) string {
-	return android.BazelToolchainVars(config, exportedVars)
-}
-
 func hostBinToolVariableWithSdkToolsPrebuilt(name, tool string) {
 	pctx.VariableFunc(name, func(ctx android.PackageVarContext) string {
 		if ctx.Config().AlwaysUsePrebuiltSdks() {

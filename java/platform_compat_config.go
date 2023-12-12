@@ -19,10 +19,7 @@ import (
 	"path/filepath"
 
 	"android/soong/android"
-	"android/soong/bazel"
-
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -57,7 +54,6 @@ type platformCompatConfigProperties struct {
 
 type platformCompatConfig struct {
 	android.ModuleBase
-	android.BazelModuleBase
 
 	properties     platformCompatConfigProperties
 	installDirPath android.InstallPath
@@ -126,29 +122,10 @@ func (p *platformCompatConfig) AndroidMkEntries() []android.AndroidMkEntries {
 	}}
 }
 
-type bazelPlatformCompatConfigAttributes struct {
-	Src bazel.LabelAttribute
-}
-
-func (p *platformCompatConfig) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "platform_compat_config",
-		Bzl_load_location: "//build/bazel/rules/java:platform_compat_config.bzl",
-	}
-	attr := &bazelPlatformCompatConfigAttributes{
-		Src: *bazel.MakeLabelAttribute(
-			android.BazelLabelForModuleSrcSingle(ctx, proptools.String(p.properties.Src)).Label),
-	}
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{
-		Name: p.Name(),
-	}, attr)
-}
-
 func PlatformCompatConfigFactory() android.Module {
 	module := &platformCompatConfig{}
 	module.AddProperties(&module.properties)
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
-	android.InitBazelModule(module)
 	return module
 }
 

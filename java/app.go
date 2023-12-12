@@ -29,12 +29,10 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/bazel"
 	"android/soong/cc"
 	"android/soong/dexpreopt"
 	"android/soong/genrule"
 	"android/soong/tradefed"
-	"android/soong/ui/metrics/bp2build_metrics_proto"
 )
 
 func init() {
@@ -184,7 +182,6 @@ type overridableAppProperties struct {
 }
 
 type AndroidApp struct {
-	android.BazelModuleBase
 	Library
 	aapt
 	android.OverridableModuleBase
@@ -1173,7 +1170,6 @@ func AndroidAppFactory() android.Module {
 	android.InitDefaultableModule(module)
 	android.InitOverridableModule(module, &module.overridableAppProperties.Overrides)
 	android.InitApexModule(module)
-	android.InitBazelModule(module)
 
 	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
 		a := ctx.Module().(*AndroidApp)
@@ -1258,8 +1254,6 @@ type AndroidTest struct {
 	testConfig       android.Path
 	extraTestConfigs android.Paths
 	data             android.Paths
-
-	android.BazelModuleBase
 }
 
 func (a *AndroidTest) InstallInTestcases() bool {
@@ -1386,7 +1380,6 @@ func AndroidTestFactory() android.Module {
 	android.InitDefaultableModule(module)
 	android.InitOverridableModule(module, &module.overridableAppProperties.Overrides)
 
-	android.InitBazelModule(module)
 	return module
 }
 
@@ -1410,8 +1403,6 @@ type AndroidTestHelperApp struct {
 	AndroidApp
 
 	appTestHelperAppProperties appTestHelperAppProperties
-
-	android.BazelModuleBase
 }
 
 func (a *AndroidTestHelperApp) InstallInTestcases() bool {
@@ -1443,13 +1434,11 @@ func AndroidTestHelperAppFactory() android.Module {
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 	android.InitApexModule(module)
-	android.InitBazelModule(module)
 	return module
 }
 
 type AndroidAppCertificate struct {
 	android.ModuleBase
-	android.BazelModuleBase
 
 	properties  AndroidAppCertificateProperties
 	Certificate Certificate
@@ -1466,7 +1455,6 @@ func AndroidAppCertificateFactory() android.Module {
 	module := &AndroidAppCertificate{}
 	module.AddProperties(&module.properties)
 	android.InitAndroidModule(module)
-	android.InitBazelModule(module)
 	return module
 }
 
@@ -1742,256 +1730,4 @@ func (u *usesLibrary) verifyUsesLibrariesManifest(ctx android.ModuleContext, man
 // system and returns the path to a copy of the APK.
 func (u *usesLibrary) verifyUsesLibrariesAPK(ctx android.ModuleContext, apk android.Path) {
 	u.verifyUsesLibraries(ctx, apk, nil) // for APKs manifest_check does not write output file
-}
-
-// For Bazel / bp2build
-
-type bazelAndroidAppCertificateAttributes struct {
-	Certificate string
-}
-
-func (m *AndroidAppCertificate) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	androidAppCertificateBp2Build(ctx, m)
-}
-
-func androidAppCertificateBp2Build(ctx android.Bp2buildMutatorContext, module *AndroidAppCertificate) {
-	var certificate string
-	if module.properties.Certificate != nil {
-		certificate = *module.properties.Certificate
-	}
-
-	attrs := &bazelAndroidAppCertificateAttributes{
-		Certificate: certificate,
-	}
-
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "android_app_certificate",
-		Bzl_load_location: "//build/bazel/rules/android:android_app_certificate.bzl",
-	}
-
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, attrs)
-}
-
-type manifestValueAttribute struct {
-	MinSdkVersion    *string
-	TargetSdkVersion *string
-}
-
-type bazelAndroidAppAttributes struct {
-	*javaCommonAttributes
-	*bazelAapt
-	Deps             bazel.LabelListAttribute
-	Custom_package   *string
-	Certificate      bazel.LabelAttribute
-	Certificate_name bazel.StringAttribute
-	Manifest_values  *manifestValueAttribute
-	Optimize         *bool
-	Proguard_specs   bazel.LabelListAttribute
-	Updatable        *bool
-}
-
-func (b bazelAapt) ConvertJavaResources(ctx android.Bp2buildMutatorContext, javaAttrs *javaCommonAttributes) bool {
-	// TODO (b/300470246) bp2build support for java_resources & java_resource_dirs in android rules
-	hasJavaResources := !javaAttrs.javaResourcesAttributes.Resources.IsEmpty()
-	if hasJavaResources {
-		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_UNSUPPORTED, "(b/300470246) java resources in android_* module")
-	}
-	return hasJavaResources
-}
-
-func convertWithBp2build(ctx android.Bp2buildMutatorContext, a *AndroidApp) (bool, android.CommonAttributes, *bazelAndroidAppAttributes) {
-	aapt, supported := a.convertAaptAttrsWithBp2Build(ctx)
-	if !supported {
-		return false, android.CommonAttributes{}, &bazelAndroidAppAttributes{}
-	}
-	if a.appProperties.Jni_uses_platform_apis != nil {
-		ctx.MarkBp2buildUnconvertible(
-			bp2build_metrics_proto.UnconvertedReasonType_UNSUPPORTED,
-			"TODO - b/299360988: Add bp2build support for jni_uses_platform_apis",
-		)
-		return false, android.CommonAttributes{}, &bazelAndroidAppAttributes{}
-	}
-	if a.appProperties.Jni_uses_sdk_apis != nil {
-		ctx.MarkBp2buildUnconvertible(
-			bp2build_metrics_proto.UnconvertedReasonType_UNSUPPORTED,
-			"TODO - b/299360988: Add bp2build support for jni_uses_sdk_apis",
-		)
-		return false, android.CommonAttributes{}, &bazelAndroidAppAttributes{}
-	}
-
-	certificate, certificateName := android.BazelStringOrLabelFromProp(ctx, a.overridableAppProperties.Certificate)
-
-	manifestValues := &manifestValueAttribute{
-		MinSdkVersion:    a.deviceProperties.Min_sdk_version,
-		TargetSdkVersion: a.deviceProperties.Target_sdk_version,
-	}
-
-	appAttrs := &bazelAndroidAppAttributes{
-		// TODO(b/209576404): handle package name override by product variable PRODUCT_MANIFEST_PACKAGE_NAME_OVERRIDES
-		Custom_package:   a.overridableAppProperties.Package_name,
-		Certificate:      certificate,
-		Certificate_name: certificateName,
-		Manifest_values:  manifestValues,
-		Updatable:        a.appProperties.Updatable,
-	}
-
-	// As framework-res has no sources, no deps in the Bazel sense, and java compilation, dexing and optimization is skipped by
-	// Soong specifically for it, return early here before any of the conversion work for the above is attempted.
-	if ctx.ModuleName() == "framework-res" {
-		appAttrs.bazelAapt = aapt
-		return true, android.CommonAttributes{Name: a.Name(), SkipData: proptools.BoolPtr(true)}, appAttrs
-	}
-
-	// Optimization is..
-	// - enabled by default for android_app, android_test_helper_app
-	// - disabled by default for android_test
-	//
-	// TODO(b/192032291): Disable android_test_helper_app optimization by
-	// default after auditing downstream usage.
-	if a.dexProperties.Optimize.EnabledByDefault != a.dexer.effectiveOptimizeEnabled() {
-		// Property is explicitly defined by default from default, so emit the Bazel attribute.
-		appAttrs.Optimize = proptools.BoolPtr(a.dexer.effectiveOptimizeEnabled())
-	}
-
-	if a.dexer.effectiveOptimizeEnabled() {
-		handCraftedFlags := ""
-		if Bool(a.dexProperties.Optimize.Ignore_warnings) {
-			handCraftedFlags += "-ignorewarning "
-		}
-		if !Bool(a.dexProperties.Optimize.Shrink) {
-			handCraftedFlags += "-dontshrink "
-		}
-		if !Bool(a.dexProperties.Optimize.Optimize) {
-			handCraftedFlags += "-dontoptimize "
-		}
-		if !Bool(a.dexProperties.Optimize.Obfuscate) {
-			handCraftedFlags += "-dontobfuscate "
-		}
-		appAttrs.Proguard_specs = bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, a.dexProperties.Optimize.Proguard_flags_files))
-		if handCraftedFlags != "" {
-			generatedFlagFileRuleName := a.Name() + "_proguard_flags"
-			ctx.CreateBazelTargetModule(bazel.BazelTargetModuleProperties{
-				Rule_class: "genrule",
-			}, android.CommonAttributes{
-				Name:     generatedFlagFileRuleName,
-				SkipData: proptools.BoolPtr(true),
-			}, &genrule.BazelGenruleAttributes{
-				Outs: []string{a.Name() + "_proguard.flags"},
-				Cmd: bazel.StringAttribute{
-					Value: proptools.StringPtr("echo " + handCraftedFlags + "> $(OUTS)"),
-				},
-			})
-			appAttrs.Proguard_specs.Add(bazel.MakeLabelAttribute(":" + generatedFlagFileRuleName))
-		}
-	}
-
-	commonAttrs, bp2BuildInfo, supported := a.convertLibraryAttrsBp2Build(ctx)
-	if !supported {
-		return false, android.CommonAttributes{}, &bazelAndroidAppAttributes{}
-	}
-	if hasJavaResources := aapt.ConvertJavaResources(ctx, commonAttrs); hasJavaResources {
-		return false, android.CommonAttributes{}, &bazelAndroidAppAttributes{}
-	}
-
-	depLabels := bp2BuildInfo.DepLabels
-
-	deps := depLabels.Deps
-	deps.Append(depLabels.StaticDeps)
-
-	var jniDeps bazel.LabelListAttribute
-	archVariantProps := a.GetArchVariantProperties(ctx, &appProperties{})
-	for axis, configToProps := range archVariantProps {
-		for config, _props := range configToProps {
-			if archProps, ok := _props.(*appProperties); ok {
-				archJniLibs := android.BazelLabelForModuleDeps(
-					ctx,
-					android.LastUniqueStrings(android.CopyOf(archProps.Jni_libs)))
-				jniDeps.SetSelectValue(axis, config, archJniLibs)
-			}
-		}
-	}
-	deps.Append(jniDeps)
-
-	if !bp2BuildInfo.hasKotlin {
-		appAttrs.javaCommonAttributes = commonAttrs
-		appAttrs.bazelAapt = aapt
-		appAttrs.Deps = deps
-	} else {
-		ktName := a.Name() + "_kt"
-		ctx.CreateBazelTargetModule(
-			AndroidLibraryBazelTargetModuleProperties(),
-			android.CommonAttributes{Name: ktName},
-			&bazelAndroidLibrary{
-				javaLibraryAttributes: &javaLibraryAttributes{
-					javaCommonAttributes: commonAttrs,
-					Deps:                 deps,
-				},
-				bazelAapt: aapt,
-			},
-		)
-
-		appAttrs.bazelAapt = &bazelAapt{Manifest: aapt.Manifest}
-		appAttrs.Deps = bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + ktName})
-		appAttrs.javaCommonAttributes = &javaCommonAttributes{
-			Sdk_version: commonAttrs.Sdk_version,
-		}
-	}
-
-	return true, android.CommonAttributes{Name: a.Name(), SkipData: proptools.BoolPtr(true)}, appAttrs
-}
-
-// ConvertWithBp2build is used to convert android_app to Bazel.
-func (a *AndroidApp) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	if ok, commonAttrs, appAttrs := convertWithBp2build(ctx, a); ok {
-		var props bazel.BazelTargetModuleProperties
-		if ctx.ModuleName() == "framework-res" {
-			props = bazel.BazelTargetModuleProperties{
-				Rule_class:        "framework_resources",
-				Bzl_load_location: "//build/bazel/rules/android:framework_resources.bzl",
-			}
-		} else {
-			props = bazel.BazelTargetModuleProperties{
-				Rule_class:        "android_binary",
-				Bzl_load_location: "//build/bazel/rules/android:android_binary.bzl",
-			}
-		}
-		ctx.CreateBazelTargetModule(props, commonAttrs, appAttrs)
-	}
-
-}
-
-// ConvertWithBp2build is used to convert android_test to Bazel.
-func (at *AndroidTest) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	if ok, commonAttrs, appAttrs := convertWithBp2build(ctx, &at.AndroidApp); ok {
-		props := bazel.BazelTargetModuleProperties{
-			Rule_class:        "android_test",
-			Bzl_load_location: "//build/bazel/rules/android:android_test.bzl",
-		}
-
-		ctx.CreateBazelTargetModule(props, commonAttrs, appAttrs)
-	}
-
-}
-
-func (atha *AndroidTestHelperApp) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	if ok, commonAttrs, appAttrs := convertWithBp2build(ctx, &atha.AndroidApp); ok {
-		// an android_test_helper_app is an android_binary with testonly = True
-		commonAttrs.Testonly = proptools.BoolPtr(true)
-
-		// android_test_helper_app sets default values differently to android_app,
-		// https://cs.android.com/android/platform/superproject/main/+/main:build/soong/java/app.go;l=1273-1279;drc=e12c083198403ec694af6c625aed11327eb2bf7f
-		//
-		// installable: true (settable prop)
-		// use_embedded_native_libs: true (settable prop)
-		// lint.test: true (settable prop)
-		// AlwaysPackageNativeLibs: true (blueprint mutated prop)
-		// dexpreopt isTest: true (not prop)
-
-		props := bazel.BazelTargetModuleProperties{
-			Rule_class:        "android_binary",
-			Bzl_load_location: "//build/bazel/rules/android:android_binary.bzl",
-		}
-
-		ctx.CreateBazelTargetModule(props, commonAttrs, appAttrs)
-	}
 }

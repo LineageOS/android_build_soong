@@ -18,8 +18,6 @@ import (
 	"fmt"
 
 	"android/soong/android"
-	"android/soong/bazel"
-
 	"github.com/google/blueprint/proptools"
 )
 
@@ -35,7 +33,6 @@ func registerApexKeyBuildComponents(ctx android.RegistrationContext) {
 
 type apexKey struct {
 	android.ModuleBase
-	android.BazelModuleBase
 
 	properties apexKeyProperties
 
@@ -58,7 +55,6 @@ func ApexKeyFactory() android.Module {
 	module := &apexKey{}
 	module.AddProperties(&module.properties)
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
-	android.InitBazelModule(module)
 	return module
 }
 
@@ -158,42 +154,4 @@ func writeApexKeys(ctx android.ModuleContext, module android.Module) android.Wri
 	entry := apexKeyEntryFor(ctx, module)
 	android.WriteFileRuleVerbatim(ctx, path, entry.String())
 	return path
-}
-
-// For Bazel / bp2build
-
-type bazelApexKeyAttributes struct {
-	Public_key      bazel.LabelAttribute
-	Public_key_name bazel.StringAttribute
-
-	Private_key      bazel.LabelAttribute
-	Private_key_name bazel.StringAttribute
-}
-
-// ConvertWithBp2build performs conversion apexKey for bp2build
-func (m *apexKey) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	apexKeyBp2BuildInternal(ctx, m)
-}
-
-func apexKeyBp2BuildInternal(ctx android.Bp2buildMutatorContext, module *apexKey) {
-	privateKeyLabelAttribute, privateKeyNameAttribute :=
-		android.BazelStringOrLabelFromProp(ctx, module.properties.Private_key)
-
-	publicKeyLabelAttribute, publicKeyNameAttribute :=
-		android.BazelStringOrLabelFromProp(ctx, module.properties.Public_key)
-
-	attrs := &bazelApexKeyAttributes{
-		Private_key:      privateKeyLabelAttribute,
-		Private_key_name: privateKeyNameAttribute,
-
-		Public_key:      publicKeyLabelAttribute,
-		Public_key_name: publicKeyNameAttribute,
-	}
-
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "apex_key",
-		Bzl_load_location: "//build/bazel/rules/apex:apex_key.bzl",
-	}
-
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, attrs)
 }

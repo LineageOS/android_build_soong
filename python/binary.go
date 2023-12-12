@@ -95,7 +95,6 @@ func (p *PythonBinaryModule) init() android.Module {
 	p.AddProperties(&p.binaryProperties)
 	android.InitAndroidArchModule(p, p.hod, p.multilib)
 	android.InitDefaultableModule(p)
-	android.InitBazelModule(p)
 	return p
 }
 

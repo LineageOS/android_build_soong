@@ -19,7 +19,6 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/bazel"
 )
 
 const (
@@ -162,110 +161,4 @@ func protoFlags(ctx ModuleContext, flags Flags, p *android.ProtoProperties) Flag
 	}
 
 	return flags
-}
-
-type protoAttributes struct {
-	Deps bazel.LabelListAttribute
-
-	// A list of proto_library targets that that the proto_library in `deps` depends on
-	// This list is overestimation.
-	// Overestimation is necessary since Soong includes other protos via proto.include_dirs and not
-	// a specific .proto file module explicitly.
-	Transitive_deps bazel.LabelListAttribute
-
-	// A list of cc_library_* targets that the generated cpp code depends on
-	Cc_deps bazel.LabelListAttribute
-
-	Min_sdk_version *string
-}
-
-type bp2buildProtoDeps struct {
-	wholeStaticLib               *bazel.LabelAttribute
-	implementationWholeStaticLib *bazel.LabelAttribute
-	protoDep                     *bazel.LabelAttribute
-}
-
-func bp2buildProto(ctx android.Bp2buildMutatorContext, m *Module, protoSrcs bazel.LabelListAttribute, la linkerAttributes) bp2buildProtoDeps {
-	var ret bp2buildProtoDeps
-
-	protoInfo, ok := android.Bp2buildProtoProperties(ctx, &m.ModuleBase, protoSrcs)
-	if !ok || protoInfo.Proto_libs.IsEmpty() {
-		return ret
-	}
-
-	var depName string
-	typ := proptools.StringDefault(protoInfo.Type, protoTypeDefault)
-	var rule_class string
-	suffix := "_cc_proto"
-	switch typ {
-	case "lite":
-		suffix += "_lite"
-		rule_class = "cc_lite_proto_library"
-		depName = "libprotobuf-cpp-lite"
-	case "full":
-		rule_class = "cc_proto_library"
-		depName = "libprotobuf-cpp-full"
-	default:
-		ctx.PropertyErrorf("proto.type", "cannot handle conversion at this time: %q", typ)
-	}
-
-	dep := android.BazelLabelForModuleDepSingle(ctx, depName)
-	ret.protoDep = &bazel.LabelAttribute{Value: &dep}
-
-	var protoAttrs protoAttributes
-	protoAttrs.Deps.SetValue(protoInfo.Proto_libs)
-	protoAttrs.Transitive_deps.SetValue(protoInfo.Transitive_proto_libs)
-
-	// Add the implementation deps of the top-level cc_library_static
-	// This is necessary to compile the internal root of cc_proto_library.
-	// Without this, clang might not be able to find .h files that the generated cpp files depends on
-	protoAttrs.Cc_deps = *la.implementationDeps.Clone()
-	protoAttrs.Cc_deps.Append(la.implementationDynamicDeps)
-	protoAttrs.Cc_deps.Append(la.implementationWholeArchiveDeps)
-	protoAttrs.Cc_deps.Append(la.wholeArchiveDeps)
-	// Subtract myself to prevent possible circular dep
-	protoAttrs.Cc_deps = bazel.SubtractBazelLabelListAttribute(
-		protoAttrs.Cc_deps,
-		bazel.MakeLabelListAttribute(
-			bazel.MakeLabelList([]bazel.Label{
-				bazel.Label{Label: ":" + m.Name() + suffix},
-			}),
-		),
-	)
-	// Subtract the protobuf libraries since cc_proto_library implicitly adds them
-	protoAttrs.Cc_deps = bazel.SubtractBazelLabelListAttribute(
-		protoAttrs.Cc_deps,
-		bazel.MakeLabelListAttribute(
-			bazel.MakeLabelList([]bazel.Label{
-				bazel.Label{Label: "//external/protobuf:libprotobuf-cpp-full", OriginalModuleName: "libprotobuf-cpp-full"},
-				bazel.Label{Label: "//external/protobuf:libprotobuf-cpp-lite", OriginalModuleName: "libprotobuf-cpp-lite"},
-			}),
-		),
-	)
-
-	protoAttrs.Min_sdk_version = m.Properties.Min_sdk_version
-
-	name := m.Name() + suffix
-	tags := android.ApexAvailableTagsWithoutTestApexes(ctx, m)
-	ctx.CreateBazelTargetModule(
-		bazel.BazelTargetModuleProperties{
-			Rule_class:        rule_class,
-			Bzl_load_location: "//build/bazel/rules/cc:cc_proto.bzl",
-		},
-		android.CommonAttributes{Name: name, Tags: tags},
-		&protoAttrs)
-
-	var privateHdrs bool
-	if lib, ok := m.linker.(*libraryDecorator); ok {
-		privateHdrs = !proptools.Bool(lib.Properties.Proto.Export_proto_headers)
-	}
-
-	labelAttr := &bazel.LabelAttribute{Value: &bazel.Label{Label: ":" + name}}
-	if privateHdrs {
-		ret.implementationWholeStaticLib = labelAttr
-	} else {
-		ret.wholeStaticLib = labelAttr
-	}
-
-	return ret
 }

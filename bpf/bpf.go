@@ -22,8 +22,6 @@ import (
 	"strings"
 
 	"android/soong/android"
-	"android/soong/bazel"
-	"android/soong/bazel/cquery"
 	"android/soong/cc"
 
 	"github.com/google/blueprint"
@@ -98,7 +96,6 @@ type BpfProperties struct {
 
 type bpf struct {
 	android.ModuleBase
-	android.BazelModuleBase
 
 	properties BpfProperties
 
@@ -245,35 +242,6 @@ func (bpf *bpf) AndroidMk() android.AndroidMkData {
 	}
 }
 
-var _ android.MixedBuildBuildable = (*bpf)(nil)
-
-func (bpf *bpf) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
-	return true
-}
-
-func (bpf *bpf) QueueBazelCall(ctx android.BaseModuleContext) {
-	bazelCtx := ctx.Config().BazelContext
-	bazelCtx.QueueBazelRequest(
-		bpf.GetBazelLabel(ctx, bpf),
-		cquery.GetOutputFiles,
-		android.GetConfigKey(ctx))
-}
-
-func (bpf *bpf) ProcessBazelQueryResponse(ctx android.ModuleContext) {
-	bazelCtx := ctx.Config().BazelContext
-	objPaths, err := bazelCtx.GetOutputFiles(bpf.GetBazelLabel(ctx, bpf), android.GetConfigKey(ctx))
-	if err != nil {
-		ctx.ModuleErrorf(err.Error())
-		return
-	}
-
-	bazelOuts := android.Paths{}
-	for _, p := range objPaths {
-		bazelOuts = append(bazelOuts, android.PathForBazelOut(ctx, p))
-	}
-	bpf.objs = bazelOuts
-}
-
 // Implements OutputFileFileProducer interface so that the obj output can be used in the data property
 // of other modules.
 func (bpf *bpf) OutputFiles(tag string) (android.Paths, error) {
@@ -297,39 +265,5 @@ func BpfFactory() android.Module {
 	module.AddProperties(&module.properties)
 
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
-	android.InitBazelModule(module)
 	return module
-}
-
-type bazelBpfAttributes struct {
-	Srcs              bazel.LabelListAttribute
-	Copts             bazel.StringListAttribute
-	Absolute_includes bazel.StringListAttribute
-	Btf               *bool
-	// TODO(b/249528391): Add support for sub_dir
-}
-
-// bpf bp2build converter
-func (b *bpf) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	if ctx.ModuleType() != "bpf" {
-		return
-	}
-
-	srcs := bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, b.properties.Srcs))
-	copts := bazel.MakeStringListAttribute(b.properties.Cflags)
-	absolute_includes := bazel.MakeStringListAttribute(b.properties.Include_dirs)
-	btf := b.properties.Btf
-
-	attrs := bazelBpfAttributes{
-		Srcs:              srcs,
-		Copts:             copts,
-		Absolute_includes: absolute_includes,
-		Btf:               btf,
-	}
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "bpf",
-		Bzl_load_location: "//build/bazel/rules/bpf:bpf.bzl",
-	}
-
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: b.Name()}, &attrs)
 }

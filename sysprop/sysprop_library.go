@@ -23,10 +23,6 @@ import (
 	"path"
 	"sync"
 
-	"android/soong/bazel"
-	"android/soong/sysprop/bp2build"
-	"android/soong/ui/metrics/bp2build_metrics_proto"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -129,7 +125,6 @@ func syspropJavaGenFactory() android.Module {
 type syspropLibrary struct {
 	android.ModuleBase
 	android.ApexModuleBase
-	android.BazelModuleBase
 
 	properties syspropLibraryProperties
 
@@ -236,10 +231,6 @@ func (m *syspropLibrary) javaGenModuleName() string {
 
 func (m *syspropLibrary) javaGenPublicStubName() string {
 	return m.BaseModuleName() + "_java_gen_public"
-}
-
-func (m *syspropLibrary) bp2buildJavaImplementationModuleName() string {
-	return m.BaseModuleName() + "_java_library"
 }
 
 func (m *syspropLibrary) BaseModuleName() string {
@@ -390,7 +381,6 @@ func syspropLibraryFactory() android.Module {
 	)
 	android.InitAndroidModule(m)
 	android.InitApexModule(m)
-	android.InitBazelModule(m)
 	android.AddLoadHook(m, func(ctx android.LoadHookContext) { syspropLibraryHook(ctx, m) })
 	return m
 }
@@ -424,9 +414,6 @@ type ccLibraryProperties struct {
 	Min_sdk_version    *string
 	Cflags             []string
 	Ldflags            []string
-	Bazel_module       struct {
-		Label *string
-	}
 }
 
 type javaLibraryProperties struct {
@@ -443,10 +430,6 @@ type javaLibraryProperties struct {
 	SyspropPublicStub string
 	Apex_available    []string
 	Min_sdk_version   *string
-	Bazel_module      struct {
-		Bp2build_available *bool
-		Label              *string
-	}
 }
 
 func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
@@ -492,14 +475,6 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 			"Unknown value %s: must be one of Platform, Vendor or Odm", m.Owner())
 	}
 
-	var label *string
-	if b, ok := ctx.Module().(android.Bazelable); ok && b.ShouldConvertWithBp2build(ctx) {
-		// TODO: b/295566168 - this will need to change once build files are checked in to account for
-		// checked in modules in mixed builds
-		label = proptools.StringPtr(
-			fmt.Sprintf("//%s:%s", ctx.ModuleDir(), m.CcImplementationModuleName()))
-	}
-
 	// Generate a C++ implementation library.
 	// cc_library can receive *.sysprop files as their srcs, generating sources itself.
 	ccProps := ccLibraryProperties{}
@@ -521,7 +496,6 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 	ccProps.Min_sdk_version = m.properties.Cpp.Min_sdk_version
 	ccProps.Cflags = m.properties.Cpp.Cflags
 	ccProps.Ldflags = m.properties.Cpp.Ldflags
-	ccProps.Bazel_module.Label = label
 	ctx.CreateModule(cc.LibraryFactory, &ccProps)
 
 	scope := "internal"
@@ -566,13 +540,6 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 		SyspropPublicStub: publicStub,
 		Apex_available:    m.ApexProperties.Apex_available,
 		Min_sdk_version:   m.properties.Java.Min_sdk_version,
-		Bazel_module: struct {
-			Bp2build_available *bool
-			Label              *string
-		}{
-			Label: proptools.StringPtr(
-				fmt.Sprintf("//%s:%s", ctx.ModuleDir(), m.bp2buildJavaImplementationModuleName())),
-		},
 	})
 
 	if publicStub != "" {
@@ -590,12 +557,6 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 			Sdk_version: proptools.StringPtr("core_current"),
 			Libs:        []string{javaSyspropStub},
 			Stem:        proptools.StringPtr(m.BaseModuleName()),
-			Bazel_module: struct {
-				Bp2build_available *bool
-				Label              *string
-			}{
-				Bp2build_available: proptools.BoolPtr(false),
-			},
 		})
 	}
 
@@ -608,21 +569,4 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 		libraries := syspropLibraries(ctx.Config())
 		*libraries = append(*libraries, "//"+ctx.ModuleDir()+":"+ctx.ModuleName())
 	}
-}
-
-// TODO(b/240463568): Additional properties will be added for API validation
-func (m *syspropLibrary) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	if m.Owner() != "Platform" {
-		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_UNSUPPORTED, "Only sysprop libraries owned by platform are supported at this time")
-		return
-	}
-	labels := bp2build.SyspropLibraryLabels{
-		SyspropLibraryLabel:  m.BaseModuleName(),
-		CcSharedLibraryLabel: m.CcImplementationModuleName(),
-		CcStaticLibraryLabel: cc.BazelLabelNameForStaticModule(m.CcImplementationModuleName()),
-		JavaLibraryLabel:     m.bp2buildJavaImplementationModuleName(),
-	}
-	bp2build.Bp2buildBaseSyspropLibrary(ctx, labels.SyspropLibraryLabel, bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, m.properties.Srcs)))
-	bp2build.Bp2buildSyspropCc(ctx, labels, m.properties.Cpp.Min_sdk_version)
-	bp2build.Bp2buildSyspropJava(ctx, labels, m.properties.Java.Min_sdk_version)
 }
