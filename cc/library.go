@@ -400,6 +400,8 @@ type libraryDecorator struct {
 
 	// Location of the linked, unstripped library for shared libraries
 	unstrippedOutputFile android.Path
+	// Location of the linked, stripped library for shared libraries, strip: "all"
+	strippedAllOutputFile android.Path
 
 	// Location of the file that should be copied to dist dir when requested
 	distFile android.Path
@@ -1201,6 +1203,17 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 		}
 	}
 
+	// Generate an output file for dist as if strip: "all" is set on the module.
+	// Currently this is for layoutlib release process only.
+	for _, dist := range ctx.Module().(*Module).Dists() {
+		if dist.Tag != nil && *dist.Tag == "stripped_all" {
+			strippedAllOutputFile := android.PathForModuleOut(ctx, "stripped_all", fileName)
+			transformStrip(ctx, outputFile, strippedAllOutputFile, StripFlags{Toolchain: flags.Toolchain})
+			library.strippedAllOutputFile = strippedAllOutputFile
+			break
+		}
+	}
+
 	sharedLibs := deps.EarlySharedLibs
 	sharedLibs = append(sharedLibs, deps.SharedLibs...)
 	sharedLibs = append(sharedLibs, deps.LateSharedLibs...)
@@ -1260,6 +1273,10 @@ func addStubDependencyProviders(ctx ModuleContext) {
 
 func (library *libraryDecorator) unstrippedOutputFilePath() android.Path {
 	return library.unstrippedOutputFile
+}
+
+func (library *libraryDecorator) strippedAllOutputFilePath() android.Path {
+	return library.strippedAllOutputFile
 }
 
 func (library *libraryDecorator) disableStripping() {
