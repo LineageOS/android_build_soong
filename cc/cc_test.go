@@ -4758,3 +4758,29 @@ func TestCcBuildBrokenClangCFlags(t *testing.T) {
 		})
 	}
 }
+
+func TestStrippedAllOutputFile(t *testing.T) {
+	t.Parallel()
+	bp := `
+		cc_library {
+			name: "test_lib",
+			srcs: ["test_lib.cpp"],
+			dist: {
+				targets: [ "dist_target" ],
+				tag: "stripped_all",
+			}
+		}
+ `
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
+	ctx := testCcWithConfig(t, config)
+	module := ctx.ModuleForTests("test_lib", "android_arm_armv7-a-neon_shared").Module()
+	outputFile, err := module.(android.OutputFileProducer).OutputFiles("stripped_all")
+	if err != nil {
+		t.Errorf("Expected cc_library to produce output files, error: %s", err)
+		return
+	}
+	if !strings.HasSuffix(outputFile.Strings()[0], "/stripped_all/test_lib.so") {
+		t.Errorf("Unexpected output file: %s", outputFile.Strings()[0])
+		return
+	}
+}
