@@ -211,6 +211,7 @@ func CollectDependencyAconfigFiles(ctx android.ModuleContext, mergedAconfigFiles
 }
 
 func mergeAconfigFiles(ctx android.ModuleContext, inputs android.Paths) android.Paths {
+	inputs = android.LastUniquePaths(inputs)
 	if len(inputs) == 1 {
 		return android.Paths{inputs[0]}
 	}
