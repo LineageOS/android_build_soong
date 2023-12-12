@@ -10897,9 +10897,7 @@ func TestAconfigFilesJavaDeps(t *testing.T) {
 			sdk_version: "none",
 			system_modules: "none",
 			static_libs: ["my_java_aconfig_library_foo"],
-			// TODO: remove //apex_available:platform
 			apex_available: [
-				"//apex_available:platform",
 				"myapex",
 			],
 		}
@@ -10910,9 +10908,7 @@ func TestAconfigFilesJavaDeps(t *testing.T) {
 			sdk_version: "none",
 			system_modules: "none",
 			static_libs: ["my_java_aconfig_library_bar"],
-			// TODO: remove //apex_available:platform
 			apex_available: [
-				"//apex_available:platform",
 				"myapex",
 			],
 		}
@@ -10927,9 +10923,7 @@ func TestAconfigFilesJavaDeps(t *testing.T) {
 		java_aconfig_library {
 			name: "my_java_aconfig_library_foo",
 			aconfig_declarations: "my_aconfig_declarations_foo",
-			// TODO: remove //apex_available:platform
 			apex_available: [
-				"//apex_available:platform",
 				"myapex",
 			],
 		}
@@ -10944,9 +10938,7 @@ func TestAconfigFilesJavaDeps(t *testing.T) {
 		java_aconfig_library {
 			name: "my_java_aconfig_library_bar",
 			aconfig_declarations: "my_aconfig_declarations_bar",
-			// TODO: remove //apex_available:platform
 			apex_available: [
-				"//apex_available:platform",
 				"myapex",
 			],
 		}
@@ -11001,9 +10993,7 @@ func TestAconfigFilesJavaAndCcDeps(t *testing.T) {
 			sdk_version: "none",
 			system_modules: "none",
 			static_libs: ["my_java_aconfig_library_foo"],
-			// TODO: remove //apex_available:platform
 			apex_available: [
-				"//apex_available:platform",
 				"myapex",
 			],
 		}
@@ -11011,10 +11001,11 @@ func TestAconfigFilesJavaAndCcDeps(t *testing.T) {
 		cc_library {
 			name: "my_cc_library_bar",
 			srcs: ["foo/bar/MyClass.cc"],
-			static_libs: ["my_cc_aconfig_library_bar"],
-			// TODO: remove //apex_available:platform
+			static_libs: [
+				"my_cc_aconfig_library_bar",
+				"my_cc_aconfig_library_baz",
+			],
 			apex_available: [
-				"//apex_available:platform",
 				"myapex",
 			],
 		}
@@ -11023,9 +11014,7 @@ func TestAconfigFilesJavaAndCcDeps(t *testing.T) {
 			name: "my_cc_binary_baz",
 			srcs: ["foo/bar/MyClass.cc"],
 			static_libs: ["my_cc_aconfig_library_baz"],
-			// TODO: remove //apex_available:platform
 			apex_available: [
-				"//apex_available:platform",
 				"myapex",
 			],
 		}
@@ -11040,9 +11029,7 @@ func TestAconfigFilesJavaAndCcDeps(t *testing.T) {
 		java_aconfig_library {
 			name: "my_java_aconfig_library_foo",
 			aconfig_declarations: "my_aconfig_declarations_foo",
-			// TODO: remove //apex_available:platform
 			apex_available: [
-				"//apex_available:platform",
 				"myapex",
 			],
 		}
@@ -11057,9 +11044,7 @@ func TestAconfigFilesJavaAndCcDeps(t *testing.T) {
 		cc_aconfig_library {
 			name: "my_cc_aconfig_library_bar",
 			aconfig_declarations: "my_aconfig_declarations_bar",
-			// TODO: remove //apex_available:platform
 			apex_available: [
-				"//apex_available:platform",
 				"myapex",
 			],
 		}
@@ -11074,9 +11059,7 @@ func TestAconfigFilesJavaAndCcDeps(t *testing.T) {
 		cc_aconfig_library {
 			name: "my_cc_aconfig_library_baz",
 			aconfig_declarations: "my_aconfig_declarations_baz",
-			// TODO: remove //apex_available:platform
 			apex_available: [
-				"//apex_available:platform",
 				"myapex",
 			],
 		}
@@ -11116,6 +11099,151 @@ func TestAconfigFilesJavaAndCcDeps(t *testing.T) {
 	ensureContains(t, buildParams.Output.String(), "android_common_myapex/aconfig_flags.pb")
 }
 
+func TestAconfigFilesRustDeps(t *testing.T) {
+	ctx := testApex(t, apex_default_bp+`
+		apex {
+			name: "myapex",
+			manifest: ":myapex.manifest",
+			androidManifest: ":myapex.androidmanifest",
+			key: "myapex.key",
+			native_shared_libs: [
+				"libmy_rust_library",
+			],
+			binaries: [
+				"my_rust_binary",
+			],
+			rust_dyn_libs: [
+				"libmy_rust_dylib",
+			],
+			updatable: false,
+		}
+
+		rust_library {
+			name: "libflags_rust", // test mock
+			crate_name: "flags_rust",
+			srcs: ["lib.rs"],
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		rust_library {
+			name: "liblazy_static", // test mock
+			crate_name: "lazy_static",
+			srcs: ["src/lib.rs"],
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		rust_ffi_shared {
+			name: "libmy_rust_library",
+			srcs: ["src/lib.rs"],
+			rustlibs: ["libmy_rust_aconfig_library_foo"],
+			crate_name: "my_rust_library",
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		rust_library_dylib {
+			name: "libmy_rust_dylib",
+			srcs: ["foo/bar/MyClass.rs"],
+			rustlibs: ["libmy_rust_aconfig_library_bar"],
+			crate_name: "my_rust_dylib",
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		rust_binary {
+			name: "my_rust_binary",
+			srcs: ["foo/bar/MyClass.rs"],
+			rustlibs: [
+				"libmy_rust_aconfig_library_baz",
+				"libmy_rust_dylib",
+			],
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_foo",
+			package: "com.example.package",
+			container: "myapex",
+			srcs: ["foo.aconfig"],
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_bar",
+			package: "com.example.package",
+			container: "myapex",
+			srcs: ["bar.aconfig"],
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_baz",
+			package: "com.example.package",
+			container: "myapex",
+			srcs: ["baz.aconfig"],
+		}
+
+		rust_aconfig_library {
+			name: "libmy_rust_aconfig_library_foo",
+			aconfig_declarations: "my_aconfig_declarations_foo",
+			crate_name: "my_rust_aconfig_library_foo",
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		rust_aconfig_library {
+			name: "libmy_rust_aconfig_library_bar",
+			aconfig_declarations: "my_aconfig_declarations_bar",
+			crate_name: "my_rust_aconfig_library_bar",
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		rust_aconfig_library {
+			name: "libmy_rust_aconfig_library_baz",
+			aconfig_declarations: "my_aconfig_declarations_baz",
+			crate_name: "my_rust_aconfig_library_baz",
+			apex_available: [
+				"myapex",
+			],
+		}
+	`)
+
+	mod := ctx.ModuleForTests("myapex", "android_common_myapex")
+	s := mod.Rule("apexRule").Args["copy_commands"]
+	copyCmds := regexp.MustCompile(" *&& *").Split(s, -1)
+	if len(copyCmds) != 23 {
+		t.Fatalf("Expected 23 commands, got %d in:\n%s", len(copyCmds), s)
+	}
+
+	ensureMatches(t, copyCmds[22], "^cp -f .*/aconfig_flags.pb .*/image.apex$")
+
+	combineAconfigRule := mod.Rule("All_aconfig_declarations_dump")
+	s = " " + combineAconfigRule.Args["cache_files"]
+	aconfigArgs := regexp.MustCompile(" --cache ").Split(s, -1)[1:]
+	if len(aconfigArgs) != 2 {
+		t.Fatalf("Expected 2 commands, got %d in:\n%s", len(aconfigArgs), s)
+	}
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_foo/intermediate.pb")
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_rust_binary/android_arm64_armv8-a_apex10000/aconfig_merged.pb")
+
+	buildParams := combineAconfigRule.BuildParams
+	if len(buildParams.Inputs) != 2 {
+		t.Fatalf("Expected 3 input, got %d", len(buildParams.Inputs))
+	}
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_foo/intermediate.pb")
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_rust_binary/android_arm64_armv8-a_apex10000/aconfig_merged.pb")
+	ensureContains(t, buildParams.Output.String(), "android_common_myapex/aconfig_flags.pb")
+}
+
 func TestAconfigFilesOnlyMatchCurrentApex(t *testing.T) {
 	ctx := testApex(t, apex_default_bp+`
 		apex {
@@ -11136,9 +11264,7 @@ func TestAconfigFilesOnlyMatchCurrentApex(t *testing.T) {
 			sdk_version: "none",
 			system_modules: "none",
 			static_libs: ["my_java_aconfig_library_foo"],
-			// TODO: remove //apex_available:platform
 			apex_available: [
-				"//apex_available:platform",
 				"myapex",
 			],
 		}
@@ -11149,9 +11275,7 @@ func TestAconfigFilesOnlyMatchCurrentApex(t *testing.T) {
 			sdk_version: "none",
 			system_modules: "none",
 			static_libs: ["other_java_aconfig_library_bar"],
-			// TODO: remove //apex_available:platform
 			apex_available: [
-				"//apex_available:platform",
 				"myapex",
 			],
 		}
@@ -11166,9 +11290,7 @@ func TestAconfigFilesOnlyMatchCurrentApex(t *testing.T) {
 		java_aconfig_library {
 			name: "my_java_aconfig_library_foo",
 			aconfig_declarations: "my_aconfig_declarations_foo",
-			// TODO: remove //apex_available:platform
 			apex_available: [
-				"//apex_available:platform",
 				"myapex",
 			],
 		}
@@ -11183,9 +11305,7 @@ func TestAconfigFilesOnlyMatchCurrentApex(t *testing.T) {
 		java_aconfig_library {
 			name: "other_java_aconfig_library_bar",
 			aconfig_declarations: "other_aconfig_declarations_bar",
-			// TODO: remove //apex_available:platform
 			apex_available: [
-				"//apex_available:platform",
 				"myapex",
 			],
 		}
@@ -11228,9 +11348,7 @@ func TestAconfigFilesRemoveDuplicates(t *testing.T) {
 			sdk_version: "none",
 			system_modules: "none",
 			static_libs: ["my_java_aconfig_library_foo"],
-			// TODO: remove //apex_available:platform
 			apex_available: [
-				"//apex_available:platform",
 				"myapex",
 			],
 		}
@@ -11241,9 +11359,7 @@ func TestAconfigFilesRemoveDuplicates(t *testing.T) {
 			sdk_version: "none",
 			system_modules: "none",
 			static_libs: ["my_java_aconfig_library_bar"],
-			// TODO: remove //apex_available:platform
 			apex_available: [
-				"//apex_available:platform",
 				"myapex",
 			],
 		}
@@ -11258,9 +11374,7 @@ func TestAconfigFilesRemoveDuplicates(t *testing.T) {
 		java_aconfig_library {
 			name: "my_java_aconfig_library_foo",
 			aconfig_declarations: "my_aconfig_declarations_foo",
-			// TODO: remove //apex_available:platform
 			apex_available: [
-				"//apex_available:platform",
 				"myapex",
 			],
 		}
@@ -11268,9 +11382,7 @@ func TestAconfigFilesRemoveDuplicates(t *testing.T) {
 		java_aconfig_library {
 			name: "my_java_aconfig_library_bar",
 			aconfig_declarations: "my_aconfig_declarations_foo",
-			// TODO: remove //apex_available:platform
 			apex_available: [
-				"//apex_available:platform",
 				"myapex",
 			],
 		}
