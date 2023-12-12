@@ -16,7 +16,6 @@ package android
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -267,23 +266,4 @@ func TestNoCreateVariationsInFinalDeps(t *testing.T) {
 		}),
 		FixtureWithRootAndroidBp(`test {name: "foo"}`),
 	).RunTest(t)
-}
-
-func TestConvertApexAvailableToTags(t *testing.T) {
-	input := []string{
-		"com.android.adbd",
-		"//apex_available:platform",
-	}
-	actual := ConvertApexAvailableToTags(input)
-	expected := []string{
-		"apex_available=com.android.adbd",
-		"apex_available=//apex_available:platform",
-	}
-	if !reflect.DeepEqual(actual, expected) {
-		t.Errorf("Expected: %v, actual: %v", expected, actual)
-	}
-
-	if ConvertApexAvailableToTags(nil) != nil {
-		t.Errorf("Expected providing nil to return nil")
-	}
 }

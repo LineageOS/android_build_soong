@@ -7,16 +7,11 @@ bootstrap_go_package {
     pkgPath: "android/soong/bp2build",
     srcs: [
         "androidbp_to_build_templates.go",
-        "bp2build.go",
-        "bp2build_product_config.go",
         "build_conversion.go",
         "bzl_conversion.go",
         "configurability.go",
         "constants.go",
         "conversion.go",
-        "metrics.go",
-        "symlink_forest.go",
-        "testing.go",
     ],
     deps: [
         "blueprint-bootstrap",
@@ -41,7 +36,6 @@ bootstrap_go_package {
     ],
     testSrcs: [
         "conversion_test.go",
-        "performance_test.go",
     ],
     pluginFor: [
         "soong_build",
