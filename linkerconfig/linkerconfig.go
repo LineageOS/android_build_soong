@@ -19,11 +19,9 @@ import (
 	"sort"
 	"strings"
 
-	"android/soong/ui/metrics/bp2build_metrics_proto"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/bazel"
 	"android/soong/cc"
 	"android/soong/etc"
 )
@@ -54,7 +52,6 @@ type linkerConfigProperties struct {
 
 type linkerConfig struct {
 	android.ModuleBase
-	android.BazelModuleBase
 	properties linkerConfigProperties
 
 	outputFilePath android.OutputPath
@@ -103,29 +100,6 @@ func (l *linkerConfig) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.InstallFile(l.installDirPath, l.outputFilePath.Base(), l.outputFilePath)
 }
 
-type linkerConfigAttributes struct {
-	Src bazel.LabelAttribute
-}
-
-func (l *linkerConfig) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	if l.properties.Src == nil {
-		ctx.PropertyErrorf("src", "empty src is not supported")
-		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_UNSUPPORTED, "")
-		return
-	}
-	src := android.BazelLabelForModuleSrcSingle(ctx, *l.properties.Src)
-	targetModuleProperties := bazel.BazelTargetModuleProperties{
-		Rule_class:        "linker_config",
-		Bzl_load_location: "//build/bazel/rules:linker_config.bzl",
-	}
-	ctx.CreateBazelTargetModule(
-		targetModuleProperties,
-		android.CommonAttributes{Name: l.Name()},
-		&linkerConfigAttributes{
-			Src: bazel.LabelAttribute{Value: &src},
-		})
-}
-
 func BuildLinkerConfig(ctx android.ModuleContext, builder *android.RuleBuilder,
 	input android.Path, otherModules []android.Module, output android.OutputPath) {
 
@@ -171,7 +145,6 @@ func LinkerConfigFactory() android.Module {
 	m := &linkerConfig{}
 	m.AddProperties(&m.properties)
 	android.InitAndroidArchModule(m, android.HostAndDeviceSupported, android.MultilibFirst)
-	android.InitBazelModule(m)
 	return m
 }
 

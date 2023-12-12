@@ -22,7 +22,6 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/bazel"
 	"android/soong/java/config"
 )
 
@@ -852,7 +851,6 @@ type ExportedDroiddocDirProperties struct {
 
 type ExportedDroiddocDir struct {
 	android.ModuleBase
-	android.BazelModuleBase
 
 	properties ExportedDroiddocDirProperties
 
@@ -865,7 +863,6 @@ func ExportedDroiddocDirFactory() android.Module {
 	module := &ExportedDroiddocDir{}
 	module.AddProperties(&module.properties)
 	android.InitAndroidModule(module)
-	android.InitBazelModule(module)
 	return module
 }
 
@@ -875,28 +872,6 @@ func (d *ExportedDroiddocDir) GenerateAndroidBuildActions(ctx android.ModuleCont
 	path := String(d.properties.Path)
 	d.dir = android.PathForModuleSrc(ctx, path)
 	d.deps = android.PathsForModuleSrc(ctx, []string{filepath.Join(path, "**/*")})
-}
-
-// ConvertWithBp2build implements android.BazelModule.
-func (d *ExportedDroiddocDir) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	props := bazel.BazelTargetModuleProperties{
-		// Use the native py_library rule.
-		Rule_class:        "droiddoc_exported_dir",
-		Bzl_load_location: "//build/bazel/rules/droiddoc:droiddoc_exported_dir.bzl",
-	}
-
-	type BazelAttrs struct {
-		Dir  *string
-		Srcs bazel.LabelListAttribute
-	}
-
-	attrs := &BazelAttrs{
-		Dir:  proptools.StringPtr(*d.properties.Path),
-		Srcs: bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, []string{filepath.Join(*d.properties.Path, "**/*")})),
-	}
-
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: d.Name()}, attrs)
-
 }
 
 // Defaults

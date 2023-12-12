@@ -25,15 +25,12 @@ import (
 	"strings"
 
 	"android/soong/testing"
-	"android/soong/ui/metrics/bp2build_metrics_proto"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/aconfig"
 	"android/soong/aidl_library"
 	"android/soong/android"
-	"android/soong/bazel/cquery"
 	"android/soong/cc/config"
 	"android/soong/fuzz"
 	"android/soong/genrule"
@@ -592,7 +589,6 @@ type Generator interface {
 	GeneratorFlags(ctx ModuleContext, flags Flags, deps PathDeps) Flags
 	GeneratorSources(ctx ModuleContext) GeneratedSource
 	GeneratorBuildActions(ctx ModuleContext, flags Flags, deps PathDeps)
-	GeneratorBp2build(ctx android.Bp2buildMutatorContext, module *Module) bool
 }
 
 // compiler is the interface for a compiler helper object. Different module decorators may implement
@@ -831,19 +827,6 @@ func IsTestPerSrcDepTag(depTag blueprint.DependencyTag) bool {
 	return ok && ccDepTag == testPerSrcDepTag
 }
 
-// bazelHandler is the interface for a helper object related to deferring to Bazel for
-// processing a cc module (during Bazel mixed builds). Individual module types should define
-// their own bazel handler if they support being handled by Bazel.
-type BazelHandler interface {
-	// QueueBazelCall invokes request-queueing functions on the BazelContext
-	//so that these requests are handled when Bazel's cquery is invoked.
-	QueueBazelCall(ctx android.BaseModuleContext, label string)
-
-	// ProcessBazelQueryResponse uses information retrieved from Bazel to set properties
-	// on the current module with given label.
-	ProcessBazelQueryResponse(ctx android.ModuleContext, label string)
-}
-
 // Module contains the properties and members used by all C/C++ module types, and implements
 // the blueprint.Module interface.  It delegates to compiler, linker, and installer interfaces
 // to construct the output file.  Behavior can be customized with a Customizer, or "decorator",
@@ -861,15 +844,12 @@ type BazelHandler interface {
 type Module struct {
 	fuzz.FuzzModule
 
-	android.BazelModuleBase
-
 	VendorProperties VendorProperties
 	Properties       BaseProperties
 
 	// initialize before calling Init
 	hod        android.HostOrDeviceSupported
 	multilib   android.Multilib
-	bazelable  bool
 	testModule bool
 
 	// Allowable SdkMemberTypes of this module type.
@@ -880,11 +860,10 @@ type Module struct {
 	// type-specific logic. These members may reference different objects or the same object.
 	// Functions of these decorators will be invoked to initialize and register type-specific
 	// build statements.
-	generators   []Generator
-	compiler     compiler
-	linker       linker
-	installer    installer
-	bazelHandler BazelHandler
+	generators []Generator
+	compiler   compiler
+	linker     linker
+	installer  installer
 
 	features  []feature
 	stl       *stl
@@ -1288,9 +1267,6 @@ func (c *Module) Init() android.Module {
 	}
 
 	android.InitAndroidArchModule(c, c.hod, c.multilib)
-	if c.bazelable {
-		android.InitBazelModule(c)
-	}
 	android.InitApexModule(c)
 	android.InitDefaultableModule(c)
 
@@ -1546,8 +1522,6 @@ func isBionic(name string) bool {
 }
 
 func InstallToBootstrap(name string, config android.Config) bool {
-	// NOTE: also update //build/bazel/rules/apex/cc.bzl#_installed_to_bootstrap
-	// if this list is updated.
 	if name == "libclang_rt.hwasan" || name == "libc_hwasan" {
 		return true
 	}
@@ -1943,170 +1917,6 @@ func GetSubnameProperty(actx android.ModuleContext, c LinkableInterface) string 
 	return subName
 }
 
-var _ android.MixedBuildBuildable = (*Module)(nil)
-
-func (c *Module) getBazelModuleLabel(ctx android.BaseModuleContext) string {
-	var bazelModuleLabel string
-	if c.typ() == fullLibrary && c.static() {
-		// cc_library is a special case in bp2build; two targets are generated -- one for each
-		// of the shared and static variants. The shared variant keeps the module name, but the
-		// static variant uses a different suffixed name.
-		bazelModuleLabel = bazelLabelForStaticModule(ctx, c)
-	} else {
-		bazelModuleLabel = c.GetBazelLabel(ctx, c)
-	}
-	labelNoPrebuilt := bazelModuleLabel
-	if c.IsPrebuilt() {
-		labelNoPrebuilt = android.RemoveOptionalPrebuiltPrefixFromBazelLabel(bazelModuleLabel)
-	}
-	return labelNoPrebuilt
-}
-
-func (c *Module) QueueBazelCall(ctx android.BaseModuleContext) {
-	c.bazelHandler.QueueBazelCall(ctx, c.getBazelModuleLabel(ctx))
-}
-
-// IsMixedBuildSupported returns true if the module should be analyzed by Bazel
-// in any of the --bazel-mode(s).
-func (c *Module) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
-	if !allEnabledSanitizersSupportedByBazel(ctx, c) {
-		//TODO(b/278772861) support sanitizers in Bazel rules
-		return false
-	}
-	if !imageVariantSupportedByBazel(c) {
-		return false
-	}
-	if c.IsSdkVariant() {
-		return false
-	}
-	return c.bazelHandler != nil
-}
-
-func imageVariantSupportedByBazel(c *Module) bool {
-	if c.IsLlndk() {
-		return false
-	}
-	if c.InVendor() {
-		return false
-	}
-	if c.InProduct() {
-		return false
-	}
-	if c.InRamdisk() {
-		return false
-	}
-	if c.InVendorRamdisk() {
-		return false
-	}
-	if c.InRecovery() {
-		return false
-	}
-	return true
-}
-
-func allEnabledSanitizersSupportedByBazel(ctx android.BaseModuleContext, c *Module) bool {
-	if c.sanitize == nil {
-		return true
-	}
-	sanitizeProps := &c.sanitize.Properties.SanitizeMutated
-
-	unsupportedSanitizers := []*bool{
-		sanitizeProps.Safestack,
-		sanitizeProps.Scudo,
-		BoolPtr(len(c.sanitize.Properties.Sanitize.Recover) > 0),
-	}
-	for _, san := range unsupportedSanitizers {
-		if Bool(san) {
-			return false
-		}
-	}
-
-	for _, san := range Sanitizers {
-		if san == intOverflow {
-			// TODO(b/261058727): enable mixed builds for all modules with UBSan
-			// Currently we can only support ubsan when minimum runtime is used.
-			ubsanEnabled := Bool(sanitizeProps.Integer_overflow) || len(sanitizeProps.Misc_undefined) > 0
-			if !ubsanEnabled || c.MinimalRuntimeNeeded() {
-				continue
-			}
-		} else if san == cfi {
-			apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
-			// Only allow cfi if this is an apex variant
-			if !apexInfo.IsForPlatform() {
-				continue
-			}
-		}
-		if c.sanitize.isSanitizerEnabled(san) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func GetApexConfigKey(ctx android.BaseModuleContext) *android.ApexConfigKey {
-	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
-	if !apexInfo.IsForPlatform() {
-		apexKey := android.ApexConfigKey{
-			WithinApex:     true,
-			ApexSdkVersion: findApexSdkVersion(ctx, apexInfo).String(),
-			ApiDomain:      findApiDomain(apexInfo),
-		}
-		return &apexKey
-	}
-
-	return nil
-}
-
-// Returns the api domain of a module for an apexInfo group
-// Input:
-// ai.InApexModules: [com.android.foo, test_com.android.foo, com.google.android.foo]
-// Return:
-// com.android.foo
-
-// If a module is included in multiple api domains (collated by min_sdk_version), it will return
-// the first match. The other matches have the same build actions since they share a min_sdk_version, so returning
-// the first match is fine.
-func findApiDomain(ai android.ApexInfo) string {
-	// Remove any test apexes
-	matches, _ := android.FilterList(ai.InApexModules, ai.TestApexes)
-	// Remove any google apexes. Rely on naming convention.
-	pred := func(s string) bool { return !strings.HasPrefix(s, "com.google") }
-	matches = android.FilterListPred(matches, pred)
-	if len(matches) > 0 {
-		// Return the first match
-		return android.SortedUniqueStrings(matches)[0]
-	} else {
-		// No apex in the tree has a dependency on this module
-		return ""
-	}
-}
-
-func (c *Module) ProcessBazelQueryResponse(ctx android.ModuleContext) {
-	bazelModuleLabel := c.getBazelModuleLabel(ctx)
-	c.bazelHandler.ProcessBazelQueryResponse(ctx, bazelModuleLabel)
-
-	c.Properties.SubName = GetSubnameProperty(ctx, c)
-	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
-	if !apexInfo.IsForPlatform() {
-		c.hideApexVariantFromMake = true
-	}
-
-	c.makeLinkType = GetMakeLinkType(ctx, c)
-
-	mctx := &moduleContext{
-		ModuleContext: ctx,
-		moduleContextImpl: moduleContextImpl{
-			mod: c,
-		},
-	}
-	mctx.ctx = mctx
-
-	// TODO(b/244432500): Get the tradefed config from the bazel target instead
-	// of generating it with Soong.
-	c.maybeInstall(mctx, apexInfo)
-}
-
 func moduleContextFromAndroidModuleContext(actx android.ModuleContext, c *Module) ModuleContext {
 	ctx := &moduleContext{
 		ModuleContext: actx,
@@ -2345,9 +2155,8 @@ func (c *Module) maybeUnhideFromMake() {
 	}
 }
 
-// maybeInstall is called at the end of both GenerateAndroidBuildActions and
-// ProcessBazelQueryResponse to run the install hooks for installable modules,
-// like binaries and tests.
+// maybeInstall is called at the end of both GenerateAndroidBuildActions to run the
+// install hooks for installable modules, like binaries and tests.
 func (c *Module) maybeInstall(ctx ModuleContext, apexInfo android.ApexInfo) {
 	if !proptools.BoolDefault(c.Installable(), true) {
 		// If the module has been specifically configure to not be installed then
@@ -2368,12 +2177,6 @@ func (c *Module) maybeInstall(ctx ModuleContext, apexInfo android.ApexInfo) {
 			return
 		}
 	}
-}
-
-func (c *Module) setAndroidMkVariablesFromCquery(info cquery.CcAndroidMkInfo) {
-	c.Properties.AndroidMkSharedLibs = info.LocalSharedLibs
-	c.Properties.AndroidMkStaticLibs = info.LocalStaticLibs
-	c.Properties.AndroidMkWholeStaticLibs = info.LocalWholeStaticLibs
 }
 
 func (c *Module) toolchain(ctx android.BaseModuleContext) config.Toolchain {
@@ -4213,65 +4016,6 @@ func (c *Module) typ() moduleType {
 		return ndkPrebuiltStl
 	}
 	return unknownType
-}
-
-// ConvertWithBp2build converts Module to Bazel for bp2build.
-func (c *Module) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	if len(c.generators) > 0 {
-		allConverted := true
-		for _, generator := range c.generators {
-			allConverted = allConverted && generator.GeneratorBp2build(ctx, c)
-		}
-		if allConverted {
-			return
-		}
-	}
-
-	prebuilt := c.IsPrebuilt()
-	switch c.typ() {
-	case binary:
-		if prebuilt {
-			prebuiltBinaryBp2Build(ctx, c)
-		} else {
-			binaryBp2build(ctx, c)
-		}
-	case testBin:
-		if !prebuilt {
-			testBinaryBp2build(ctx, c)
-		}
-	case object:
-		if prebuilt {
-			prebuiltObjectBp2Build(ctx, c)
-		} else {
-			objectBp2Build(ctx, c)
-		}
-	case fullLibrary:
-		if !prebuilt {
-			libraryBp2Build(ctx, c)
-		} else {
-			prebuiltLibraryBp2Build(ctx, c)
-		}
-	case headerLibrary:
-		libraryHeadersBp2Build(ctx, c)
-	case staticLibrary:
-		if prebuilt {
-			prebuiltLibraryStaticBp2Build(ctx, c, false)
-		} else {
-			sharedOrStaticLibraryBp2Build(ctx, c, true)
-		}
-	case sharedLibrary:
-		if prebuilt {
-			prebuiltLibrarySharedBp2Build(ctx, c)
-		} else {
-			sharedOrStaticLibraryBp2Build(ctx, c, false)
-		}
-	case ndkPrebuiltStl:
-		ndkPrebuiltStlBp2build(ctx, c)
-	case ndkLibrary:
-		ndkLibraryBp2build(ctx, c)
-	default:
-		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "")
-	}
 }
 
 // Defaults

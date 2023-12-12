@@ -24,16 +24,6 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
-// TODO(b/267229066): Remove globalAfdoProfileProjects after implementing bp2build converter for fdo_profile
-var (
-	globalAfdoProfileProjects = []string{
-		"vendor/google_data/pgo_profile/sampling/",
-		"toolchain/pgo-profiles/sampling/",
-	}
-)
-
-var afdoProfileProjectsConfigKey = android.NewOnceKey("AfdoProfileProjects")
-
 // This flag needs to be in both CFlags and LdFlags to ensure correct symbol ordering
 const afdoFlagsFormat = "-fprofile-sample-use=%s -fprofile-sample-accurate"
 

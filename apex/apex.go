@@ -25,13 +25,10 @@ import (
 	"strings"
 
 	"android/soong/aconfig"
-	"android/soong/bazel/cquery"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/bazel"
 	"android/soong/bpf"
 	"android/soong/cc"
 	prebuilt_etc "android/soong/etc"
@@ -389,7 +386,6 @@ type apexBundle struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 	android.OverridableModuleBase
-	android.BazelModuleBase
 	multitree.ExportableModuleBase
 
 	// Properties
@@ -546,10 +542,6 @@ type apexFile struct {
 	isJniLib      bool
 
 	multilib string
-
-	isBazelPrebuilt     bool
-	unstrippedBuiltFile android.Path
-	arch                string
 
 	// TODO(jiyong): remove this
 	module android.Module
@@ -1821,119 +1813,6 @@ func (f fsType) string() string {
 	}
 }
 
-var _ android.MixedBuildBuildable = (*apexBundle)(nil)
-
-func (a *apexBundle) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
-	return true
-}
-
-func (a *apexBundle) QueueBazelCall(ctx android.BaseModuleContext) {
-	bazelCtx := ctx.Config().BazelContext
-	bazelCtx.QueueBazelRequest(a.GetBazelLabel(ctx, a), cquery.GetApexInfo, android.GetConfigKey(ctx))
-}
-
-// GetBazelLabel returns the bazel label of this apexBundle, or the label of the
-// override_apex module overriding this apexBundle. An apexBundle can be
-// overridden by different override_apex modules (e.g. Google or Go variants),
-// which is handled by the overrides mutators.
-func (a *apexBundle) GetBazelLabel(ctx android.BazelConversionPathContext, module blueprint.Module) string {
-	return a.BazelModuleBase.GetBazelLabel(ctx, a)
-}
-
-func (a *apexBundle) ProcessBazelQueryResponse(ctx android.ModuleContext) {
-	if !a.commonBuildActions(ctx) {
-		return
-	}
-
-	a.setPayloadFsType(ctx)
-	a.setSystemLibLink(ctx)
-	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx)
-
-	bazelCtx := ctx.Config().BazelContext
-	outputs, err := bazelCtx.GetApexInfo(a.GetBazelLabel(ctx, a), android.GetConfigKey(ctx))
-	if err != nil {
-		ctx.ModuleErrorf(err.Error())
-		return
-	}
-	a.installDir = android.PathForModuleInstall(ctx, "apex")
-
-	// Set the output file to .apex or .capex depending on the compression configuration.
-	a.setCompression(ctx)
-	if a.isCompressed {
-		a.outputApexFile = android.PathForBazelOutRelative(ctx, ctx.ModuleDir(), outputs.SignedCompressedOutput)
-	} else {
-		a.outputApexFile = android.PathForBazelOutRelative(ctx, ctx.ModuleDir(), outputs.SignedOutput)
-	}
-	a.outputFile = a.outputApexFile
-
-	if len(outputs.TidyFiles) > 0 {
-		tidyFiles := android.PathsForBazelOut(ctx, outputs.TidyFiles)
-		a.outputFile = android.AttachValidationActions(ctx, a.outputFile, tidyFiles)
-	}
-
-	// TODO(b/257829940): These are used by the apex_keys_text singleton; would probably be a clearer
-	// interface if these were set in a provider rather than the module itself
-	a.publicKeyFile = android.PathForBazelOut(ctx, outputs.BundleKeyInfo[0])
-	a.privateKeyFile = android.PathForBazelOut(ctx, outputs.BundleKeyInfo[1])
-	a.containerCertificateFile = android.PathForBazelOut(ctx, outputs.ContainerKeyInfo[0])
-	a.containerPrivateKeyFile = android.PathForBazelOut(ctx, outputs.ContainerKeyInfo[1])
-
-	// Ensure ApexMkInfo.install_to_system make module names are installed as
-	// part of a bundled build.
-	a.makeModulesToInstall = append(a.makeModulesToInstall, outputs.MakeModulesToInstall...)
-
-	a.bundleModuleFile = android.PathForBazelOut(ctx, outputs.BundleFile)
-	a.nativeApisUsedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.SymbolsUsedByApex))
-	a.nativeApisBackedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.BackingLibs))
-	// TODO(b/239084755): Generate the java api using.xml file from Bazel.
-	a.javaApisUsedByModuleFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.JavaSymbolsUsedByApex))
-	a.installedFilesFile = android.ModuleOutPath(android.PathForBazelOut(ctx, outputs.InstalledFiles))
-	installSuffix := imageApexSuffix
-	if a.isCompressed {
-		installSuffix = imageCapexSuffix
-	}
-	a.installedFile = ctx.InstallFile(a.installDir, a.Name()+installSuffix, a.outputFile,
-		a.compatSymlinks...)
-
-	// filesInfo in mixed mode must retrieve all information about the apex's
-	// contents completely from the Starlark providers. It should never rely on
-	// Android.bp information, as they might not exist for fully migrated
-	// dependencies.
-	//
-	// Prevent accidental writes to filesInfo in the earlier parts Soong by
-	// asserting it to be nil.
-	if a.filesInfo != nil {
-		panic(
-			fmt.Errorf("internal error: filesInfo must be nil for an apex handled by Bazel. " +
-				"Did something else set filesInfo before this line of code?"))
-	}
-	for _, f := range outputs.PayloadFilesInfo {
-		fileInfo := apexFile{
-			isBazelPrebuilt: true,
-
-			builtFile:           android.PathForBazelOut(ctx, f["built_file"]),
-			unstrippedBuiltFile: android.PathForBazelOut(ctx, f["unstripped_built_file"]),
-			androidMkModuleName: f["make_module_name"],
-			installDir:          f["install_dir"],
-			class:               classes[f["class"]],
-			customStem:          f["basename"],
-			moduleDir:           f["package"],
-		}
-
-		arch := f["arch"]
-		fileInfo.arch = arch
-		if len(arch) > 0 {
-			fileInfo.multilib = "lib32"
-			if strings.HasSuffix(arch, "64") {
-				fileInfo.multilib = "lib64"
-			}
-		}
-
-		a.filesInfo = append(a.filesInfo, fileInfo)
-	}
-	a.apexKeysPath = writeApexKeys(ctx, a)
-}
-
 func (a *apexBundle) setCompression(ctx android.ModuleContext) {
 	if a.testOnlyShouldForceCompression() {
 		a.isCompressed = true
@@ -2587,7 +2466,6 @@ func newApexBundle() *apexBundle {
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 	android.InitOverridableModule(module, &module.overridableProperties.Overrides)
-	android.InitBazelModule(module)
 	multitree.InitExportableModule(module)
 	return module
 }
@@ -2635,7 +2513,6 @@ func DefaultsFactory() android.Module {
 type OverrideApex struct {
 	android.ModuleBase
 	android.OverrideModuleBase
-	android.BazelModuleBase
 }
 
 func (o *OverrideApex) GenerateAndroidBuildActions(_ android.ModuleContext) {
@@ -2651,102 +2528,7 @@ func OverrideApexFactory() android.Module {
 
 	android.InitAndroidMultiTargetsArchModule(m, android.DeviceSupported, android.MultilibCommon)
 	android.InitOverrideModule(m)
-	android.InitBazelModule(m)
 	return m
-}
-
-func (o *OverrideApex) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	if ctx.ModuleType() != "override_apex" {
-		return
-	}
-
-	baseApexModuleName := o.OverrideModuleBase.GetOverriddenModuleName()
-	baseModule, baseApexExists := ctx.ModuleFromName(baseApexModuleName)
-	if !baseApexExists {
-		panic(fmt.Errorf("Base apex module doesn't exist: %s", baseApexModuleName))
-	}
-
-	a, baseModuleIsApex := baseModule.(*apexBundle)
-	if !baseModuleIsApex {
-		panic(fmt.Errorf("Base module is not apex module: %s", baseApexModuleName))
-	}
-	attrs, props, commonAttrs := convertWithBp2build(a, ctx)
-
-	// We just want the name, not module reference.
-	baseApexName := strings.TrimPrefix(baseApexModuleName, ":")
-	attrs.Base_apex_name = &baseApexName
-
-	for _, p := range o.GetProperties() {
-		overridableProperties, ok := p.(*overridableProperties)
-		if !ok {
-			continue
-		}
-
-		// Manifest is either empty or a file in the directory of base APEX and is not overridable.
-		// After it is converted in convertWithBp2build(baseApex, ctx),
-		// the attrs.Manifest.Value.Label is the file path relative to the directory
-		// of base apex. So the following code converts it to a label that looks like
-		// <package of base apex>:<path of manifest file> if base apex and override
-		// apex are not in the same package.
-		baseApexPackage := ctx.OtherModuleDir(a)
-		overrideApexPackage := ctx.ModuleDir()
-		if baseApexPackage != overrideApexPackage {
-			attrs.Manifest.Value.Label = "//" + baseApexPackage + ":" + attrs.Manifest.Value.Label
-		}
-
-		// Key
-		if overridableProperties.Key != nil {
-			attrs.Key = bazel.LabelAttribute{}
-			attrs.Key.SetValue(android.BazelLabelForModuleDepSingle(ctx, *overridableProperties.Key))
-		}
-
-		// Certificate
-		if overridableProperties.Certificate == nil {
-			// If overridableProperties.Certificate is nil, clear this out as
-			// well with zeroed structs, so the override_apex does not use the
-			// base apex's certificate.
-			attrs.Certificate = bazel.LabelAttribute{}
-			attrs.Certificate_name = bazel.StringAttribute{}
-		} else {
-			attrs.Certificate, attrs.Certificate_name = android.BazelStringOrLabelFromProp(ctx, overridableProperties.Certificate)
-		}
-
-		// Prebuilts
-		if overridableProperties.Prebuilts != nil {
-			prebuiltsLabelList := android.BazelLabelForModuleDeps(ctx, overridableProperties.Prebuilts)
-			attrs.Prebuilts = bazel.MakeLabelListAttribute(prebuiltsLabelList)
-		}
-
-		// Compressible
-		if overridableProperties.Compressible != nil {
-			attrs.Compressible = bazel.BoolAttribute{Value: overridableProperties.Compressible}
-		}
-
-		// Package name
-		//
-		// e.g. com.android.adbd's package name is com.android.adbd, but
-		// com.google.android.adbd overrides the package name to com.google.android.adbd
-		//
-		// TODO: this can be overridden from the product configuration, see
-		// getOverrideManifestPackageName and
-		// PRODUCT_MANIFEST_PACKAGE_NAME_OVERRIDES.
-		//
-		// Instead of generating the BUILD files differently based on the product config
-		// at the point of conversion, this should be handled by the BUILD file loading
-		// from the soong_injection's product_vars, so product config is decoupled from bp2build.
-		if overridableProperties.Package_name != "" {
-			attrs.Package_name = &overridableProperties.Package_name
-		}
-
-		// Logging parent
-		if overridableProperties.Logging_parent != "" {
-			attrs.Logging_parent = &overridableProperties.Logging_parent
-		}
-	}
-
-	commonAttrs.Name = o.Name()
-
-	ctx.CreateBazelTargetModule(props, commonAttrs, &attrs)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3201,306 +2983,6 @@ func rBcpPackages() map[string][]string {
 			"android.net",
 		},
 	}
-}
-
-// For Bazel / bp2build
-
-type bazelApexBundleAttributes struct {
-	Manifest              bazel.LabelAttribute
-	Android_manifest      bazel.LabelAttribute
-	File_contexts         bazel.LabelAttribute
-	Canned_fs_config      bazel.LabelAttribute
-	Key                   bazel.LabelAttribute
-	Certificate           bazel.LabelAttribute  // used when the certificate prop is a module
-	Certificate_name      bazel.StringAttribute // used when the certificate prop is a string
-	Min_sdk_version       bazel.StringAttribute
-	Updatable             bazel.BoolAttribute
-	Installable           bazel.BoolAttribute
-	Binaries              bazel.LabelListAttribute
-	Prebuilts             bazel.LabelListAttribute
-	Native_shared_libs_32 bazel.LabelListAttribute
-	Native_shared_libs_64 bazel.LabelListAttribute
-	Compressible          bazel.BoolAttribute
-	Package_name          *string
-	Logging_parent        *string
-	Tests                 bazel.LabelListAttribute
-	Base_apex_name        *string
-	Apex_available_name   *string
-	Variant_version       *string
-}
-
-type convertedNativeSharedLibs struct {
-	Native_shared_libs_32 bazel.LabelListAttribute
-	Native_shared_libs_64 bazel.LabelListAttribute
-}
-
-const (
-	minSdkVersionPropName = "Min_sdk_version"
-)
-
-// ConvertWithBp2build performs bp2build conversion of an apex
-func (a *apexBundle) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	// We only convert apex and apex_test modules at this time
-	if ctx.ModuleType() != "apex" && ctx.ModuleType() != "apex_test" {
-		return
-	}
-
-	attrs, props, commonAttrs := convertWithBp2build(a, ctx)
-	commonAttrs.Name = a.Name()
-	ctx.CreateBazelTargetModule(props, commonAttrs, &attrs)
-}
-
-func convertWithBp2build(a *apexBundle, ctx android.Bp2buildMutatorContext) (bazelApexBundleAttributes, bazel.BazelTargetModuleProperties, android.CommonAttributes) {
-	var manifestLabelAttribute bazel.LabelAttribute
-	manifestLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json")))
-
-	var androidManifestLabelAttribute bazel.LabelAttribute
-	if a.properties.AndroidManifest != nil {
-		androidManifestLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *a.properties.AndroidManifest))
-	}
-
-	var fileContextsLabelAttribute bazel.LabelAttribute
-	if a.properties.File_contexts == nil {
-		// See buildFileContexts(), if file_contexts is not specified the default one is used, which is //system/sepolicy/apex:<module name>-file_contexts
-		fileContextsLabelAttribute.SetValue(android.BazelLabelForModuleDepSingle(ctx, a.Name()+"-file_contexts"))
-	} else if strings.HasPrefix(*a.properties.File_contexts, ":") {
-		// File_contexts is a module
-		fileContextsLabelAttribute.SetValue(android.BazelLabelForModuleDepSingle(ctx, *a.properties.File_contexts))
-	} else {
-		// File_contexts is a file
-		fileContextsLabelAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *a.properties.File_contexts))
-	}
-
-	var cannedFsConfigAttribute bazel.LabelAttribute
-	if a.properties.Canned_fs_config != nil {
-		cannedFsConfigAttribute.SetValue(android.BazelLabelForModuleSrcSingle(ctx, *a.properties.Canned_fs_config))
-	}
-
-	productVariableProps, errs := android.ProductVariableProperties(ctx, a)
-	for _, err := range errs {
-		ctx.ModuleErrorf("ProductVariableProperties error: %s", err)
-	}
-	// TODO(b/219503907) this would need to be set to a.MinSdkVersionValue(ctx) but
-	// given it's coming via config, we probably don't want to put it in here.
-	var minSdkVersion bazel.StringAttribute
-	if a.properties.Min_sdk_version != nil {
-		minSdkVersion.SetValue(*a.properties.Min_sdk_version)
-	}
-	if props, ok := productVariableProps[minSdkVersionPropName]; ok {
-		for c, p := range props {
-			if val, ok := p.(*string); ok {
-				minSdkVersion.SetSelectValue(c.ConfigurationAxis(), c.SelectKey(), val)
-			}
-		}
-	}
-
-	var keyLabelAttribute bazel.LabelAttribute
-	if a.overridableProperties.Key != nil {
-		keyLabelAttribute.SetValue(android.BazelLabelForModuleDepSingle(ctx, *a.overridableProperties.Key))
-	}
-
-	// Certificate
-	certificate, certificateName := android.BazelStringOrLabelFromProp(ctx, a.overridableProperties.Certificate)
-
-	nativeSharedLibs := &convertedNativeSharedLibs{
-		Native_shared_libs_32: bazel.LabelListAttribute{},
-		Native_shared_libs_64: bazel.LabelListAttribute{},
-	}
-
-	// https://cs.android.com/android/platform/superproject/+/master:build/soong/android/arch.go;l=698;drc=f05b0d35d2fbe51be9961ce8ce8031f840295c68
-	// https://cs.android.com/android/platform/superproject/+/master:build/soong/apex/apex.go;l=2549;drc=ec731a83e3e2d80a1254e32fd4ad7ef85e262669
-	// In Soong, decodeMultilib, used to get multilib, return "first" if defaultMultilib is set to "common".
-	// Since apex sets defaultMultilib to be "common", equivalent compileMultilib in bp2build for apex should be "first"
-	compileMultilib := "first"
-	if a.CompileMultilib() != nil {
-		compileMultilib = *a.CompileMultilib()
-	}
-
-	// properties.Native_shared_libs is treated as "both"
-	convertBothLibs(ctx, compileMultilib, a.properties.Native_shared_libs, nativeSharedLibs)
-	convertBothLibs(ctx, compileMultilib, a.properties.Multilib.Both.Native_shared_libs, nativeSharedLibs)
-	convert32Libs(ctx, compileMultilib, a.properties.Multilib.Lib32.Native_shared_libs, nativeSharedLibs)
-	convert64Libs(ctx, compileMultilib, a.properties.Multilib.Lib64.Native_shared_libs, nativeSharedLibs)
-	convertFirstLibs(ctx, compileMultilib, a.properties.Multilib.First.Native_shared_libs, nativeSharedLibs)
-
-	prebuilts := a.overridableProperties.Prebuilts
-	prebuiltsLabelList := android.BazelLabelForModuleDeps(ctx, prebuilts)
-	prebuiltsLabelListAttribute := bazel.MakeLabelListAttribute(prebuiltsLabelList)
-
-	binaries := android.BazelLabelForModuleDeps(ctx, a.properties.ApexNativeDependencies.Binaries)
-	binariesLabelListAttribute := bazel.MakeLabelListAttribute(binaries)
-
-	var testsAttrs bazel.LabelListAttribute
-	if a.testApex && len(a.properties.ApexNativeDependencies.Tests) > 0 {
-		tests := android.BazelLabelForModuleDeps(ctx, a.properties.ApexNativeDependencies.Tests)
-		testsAttrs = bazel.MakeLabelListAttribute(tests)
-	}
-
-	var updatableAttribute bazel.BoolAttribute
-	if a.properties.Updatable != nil {
-		updatableAttribute.Value = a.properties.Updatable
-	}
-
-	var installableAttribute bazel.BoolAttribute
-	if a.properties.Installable != nil {
-		installableAttribute.Value = a.properties.Installable
-	}
-
-	var compressibleAttribute bazel.BoolAttribute
-	if a.overridableProperties.Compressible != nil {
-		compressibleAttribute.Value = a.overridableProperties.Compressible
-	}
-
-	var packageName *string
-	if a.overridableProperties.Package_name != "" {
-		packageName = &a.overridableProperties.Package_name
-	}
-
-	var loggingParent *string
-	if a.overridableProperties.Logging_parent != "" {
-		loggingParent = &a.overridableProperties.Logging_parent
-	}
-
-	attrs := bazelApexBundleAttributes{
-		Manifest:              manifestLabelAttribute,
-		Android_manifest:      androidManifestLabelAttribute,
-		File_contexts:         fileContextsLabelAttribute,
-		Canned_fs_config:      cannedFsConfigAttribute,
-		Min_sdk_version:       minSdkVersion,
-		Key:                   keyLabelAttribute,
-		Certificate:           certificate,
-		Certificate_name:      certificateName,
-		Updatable:             updatableAttribute,
-		Installable:           installableAttribute,
-		Native_shared_libs_32: nativeSharedLibs.Native_shared_libs_32,
-		Native_shared_libs_64: nativeSharedLibs.Native_shared_libs_64,
-		Binaries:              binariesLabelListAttribute,
-		Prebuilts:             prebuiltsLabelListAttribute,
-		Compressible:          compressibleAttribute,
-		Package_name:          packageName,
-		Logging_parent:        loggingParent,
-		Tests:                 testsAttrs,
-		Apex_available_name:   a.properties.Apex_available_name,
-		Variant_version:       a.properties.Variant_version,
-	}
-
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "apex",
-		Bzl_load_location: "//build/bazel/rules/apex:apex.bzl",
-	}
-
-	commonAttrs := android.CommonAttributes{}
-	if a.testApex {
-		commonAttrs.Testonly = proptools.BoolPtr(true)
-		// Set the api_domain of the test apex
-		attrs.Base_apex_name = proptools.StringPtr(cc.GetApiDomain(a.Name()))
-	}
-
-	return attrs, props, commonAttrs
-}
-
-// The following conversions are based on this table where the rows are the compile_multilib
-// values and the columns are the properties.Multilib.*.Native_shared_libs. Each cell
-// represents how the libs should be compiled for a 64-bit/32-bit device: 32 means it
-// should be compiled as 32-bit, 64 means it should be compiled as 64-bit, none means it
-// should not be compiled.
-// multib/compile_multilib, 32,        64,        both,     first
-// 32,                      32/32,     none/none, 32/32,    none/32
-// 64,                      none/none, 64/none,   64/none,  64/none
-// both,                    32/32,     64/none,   32&64/32, 64/32
-// first,                   32/32,     64/none,   64/32,    64/32
-
-func convert32Libs(ctx android.Bp2buildMutatorContext, compileMultilb string,
-	libs []string, nativeSharedLibs *convertedNativeSharedLibs) {
-	libsLabelList := android.BazelLabelForModuleDeps(ctx, libs)
-	switch compileMultilb {
-	case "both", "32":
-		makeNoConfig32SharedLibsAttributes(libsLabelList, nativeSharedLibs)
-	case "first":
-		make32SharedLibsAttributes(libsLabelList, nativeSharedLibs)
-	case "64":
-		// Incompatible, ignore
-	default:
-		invalidCompileMultilib(ctx, compileMultilb)
-	}
-}
-
-func convert64Libs(ctx android.Bp2buildMutatorContext, compileMultilb string,
-	libs []string, nativeSharedLibs *convertedNativeSharedLibs) {
-	libsLabelList := android.BazelLabelForModuleDeps(ctx, libs)
-	switch compileMultilb {
-	case "both", "64", "first":
-		make64SharedLibsAttributes(libsLabelList, nativeSharedLibs)
-	case "32":
-		// Incompatible, ignore
-	default:
-		invalidCompileMultilib(ctx, compileMultilb)
-	}
-}
-
-func convertBothLibs(ctx android.Bp2buildMutatorContext, compileMultilb string,
-	libs []string, nativeSharedLibs *convertedNativeSharedLibs) {
-	libsLabelList := android.BazelLabelForModuleDeps(ctx, libs)
-	switch compileMultilb {
-	case "both":
-		makeNoConfig32SharedLibsAttributes(libsLabelList, nativeSharedLibs)
-		make64SharedLibsAttributes(libsLabelList, nativeSharedLibs)
-	case "first":
-		makeFirstSharedLibsAttributes(libsLabelList, nativeSharedLibs)
-	case "32":
-		makeNoConfig32SharedLibsAttributes(libsLabelList, nativeSharedLibs)
-	case "64":
-		make64SharedLibsAttributes(libsLabelList, nativeSharedLibs)
-	default:
-		invalidCompileMultilib(ctx, compileMultilb)
-	}
-}
-
-func convertFirstLibs(ctx android.Bp2buildMutatorContext, compileMultilb string,
-	libs []string, nativeSharedLibs *convertedNativeSharedLibs) {
-	libsLabelList := android.BazelLabelForModuleDeps(ctx, libs)
-	switch compileMultilb {
-	case "both", "first":
-		makeFirstSharedLibsAttributes(libsLabelList, nativeSharedLibs)
-	case "32":
-		make32SharedLibsAttributes(libsLabelList, nativeSharedLibs)
-	case "64":
-		make64SharedLibsAttributes(libsLabelList, nativeSharedLibs)
-	default:
-		invalidCompileMultilib(ctx, compileMultilb)
-	}
-}
-
-func makeFirstSharedLibsAttributes(libsLabelList bazel.LabelList, nativeSharedLibs *convertedNativeSharedLibs) {
-	make32SharedLibsAttributes(libsLabelList, nativeSharedLibs)
-	make64SharedLibsAttributes(libsLabelList, nativeSharedLibs)
-}
-
-func makeNoConfig32SharedLibsAttributes(libsLabelList bazel.LabelList, nativeSharedLibs *convertedNativeSharedLibs) {
-	list := bazel.LabelListAttribute{}
-	list.SetSelectValue(bazel.NoConfigAxis, "", libsLabelList)
-	nativeSharedLibs.Native_shared_libs_32.Append(list)
-}
-
-func make32SharedLibsAttributes(libsLabelList bazel.LabelList, nativeSharedLibs *convertedNativeSharedLibs) {
-	makeSharedLibsAttributes("x86", libsLabelList, &nativeSharedLibs.Native_shared_libs_32)
-	makeSharedLibsAttributes("arm", libsLabelList, &nativeSharedLibs.Native_shared_libs_32)
-}
-
-func make64SharedLibsAttributes(libsLabelList bazel.LabelList, nativeSharedLibs *convertedNativeSharedLibs) {
-	makeSharedLibsAttributes("x86_64", libsLabelList, &nativeSharedLibs.Native_shared_libs_64)
-	makeSharedLibsAttributes("arm64", libsLabelList, &nativeSharedLibs.Native_shared_libs_64)
-}
-
-func makeSharedLibsAttributes(config string, libsLabelList bazel.LabelList,
-	labelListAttr *bazel.LabelListAttribute) {
-	list := bazel.LabelListAttribute{}
-	list.SetSelectValue(bazel.ArchConfigurationAxis, config, libsLabelList)
-	labelListAttr.Append(list)
-}
-
-func invalidCompileMultilib(ctx android.Bp2buildMutatorContext, value string) {
-	ctx.PropertyErrorf("compile_multilib", "Invalid value: %s", value)
 }
 
 func (a *apexBundle) IsTestApex() bool {

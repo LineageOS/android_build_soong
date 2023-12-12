@@ -23,7 +23,6 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/bazel/cquery"
 	"android/soong/snapshot"
 )
 
@@ -494,42 +493,4 @@ func TestPrebuiltTakeSnapshot(t *testing.T) {
 		checkIfSnapshotTaken(t, result, "recovery", "prebuilt_recovery")
 		checkIfSnapshotNotTaken(t, result, "recovery", "prebuilt_recovery_indirect")
 	})
-}
-
-func TestPrebuiltEtcAndroidMkEntriesWithBazel(t *testing.T) {
-	t.Parallel()
-	bp := `
-prebuilt_etc {
-	name: "myetc",
-	src: "prebuilt_etc.rc", // filename in src tree
-	filename: "init.rc", // target filename on device
-	sub_dir: "subdir", // relative subdir for installation
-	bazel_module: { label: "//foo/bar:myetc" },
-}
-`
-	res := android.GroupFixturePreparers(
-		prepareForPrebuiltEtcTest,
-		android.FixtureModifyConfig(func(cfg android.Config) {
-			cfg.BazelContext = android.MockBazelContext{
-				LabelToPrebuiltFileInfo: map[string]cquery.PrebuiltFileInfo{
-					"//foo/bar:myetc": cquery.PrebuiltFileInfo{
-						Src:         "foo/bar/prebuilt_etc.rc",
-						Dir:         "etc/subdir",
-						Filename:    "init.rc",
-						Installable: true,
-					},
-				},
-			}
-		}),
-	).RunTestWithBp(t, bp)
-	ctx := res.ModuleForTests("myetc", "android_arm64_armv8-a")
-	mod := ctx.Module()
-	entries := android.AndroidMkEntriesForTest(t, res.TestContext, mod)[0]
-	// verify androidmk entries
-	android.AssertStringDoesContain(t, "LOCAL_MODULE_PATH should contain", entries.EntryMap["LOCAL_MODULE_PATH"][0], "etc/subdir")
-	android.AssertStringEquals(t, "LOCAL_INSTALLED_MODULE_STEM is incorrect", "init.rc", entries.EntryMap["LOCAL_INSTALLED_MODULE_STEM"][0])
-	// verify installation rules
-	install := ctx.Description("install")
-	android.AssertStringEquals(t, "Source location of prebuilt_etc installation", "out/soong/.intermediates/myetc/android_arm64_armv8-a/init.rc", install.Input.String())
-	android.AssertStringEquals(t, "Target location of prebuilt_etc installation", "out/soong/target/product/test_device/system/etc/subdir/init.rc", install.Output.String())
 }

@@ -65,7 +65,6 @@ func GenRuleFactory() android.Module {
 
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
-	android.InitBazelModule(module)
 
 	return module
 }
@@ -79,7 +78,6 @@ func GenRuleFactoryHost() android.Module {
 
 	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
-	android.InitBazelModule(module)
 
 	return module
 }

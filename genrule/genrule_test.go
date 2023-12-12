@@ -1039,31 +1039,6 @@ func TestPrebuiltTool(t *testing.T) {
 	}
 }
 
-func TestGenruleWithBazel(t *testing.T) {
-	bp := `
-		genrule {
-				name: "foo",
-				out: ["one.txt", "two.txt"],
-				bazel_module: { label: "//foo/bar:bar" },
-		}
-	`
-
-	result := android.GroupFixturePreparers(
-		prepareForGenRuleTest, android.FixtureModifyConfig(func(config android.Config) {
-			config.BazelContext = android.MockBazelContext{
-				OutputBaseDir: "outputbase",
-				LabelToOutputFiles: map[string][]string{
-					"//foo/bar:bar": []string{"bazelone.txt", "bazeltwo.txt"}}}
-		})).RunTestWithBp(t, testGenruleBp()+bp)
-
-	gen := result.Module("foo", "").(*Module)
-
-	expectedOutputFiles := []string{"outputbase/execroot/__main__/bazelone.txt",
-		"outputbase/execroot/__main__/bazeltwo.txt"}
-	android.AssertDeepEquals(t, "output files", expectedOutputFiles, gen.outputFiles.Strings())
-	android.AssertDeepEquals(t, "output deps", expectedOutputFiles, gen.outputDeps.Strings())
-}
-
 func TestGenruleWithGlobPaths(t *testing.T) {
 	testcases := []struct {
 		name            string

@@ -19,7 +19,6 @@ import (
 	"strings"
 
 	"android/soong/android"
-	"android/soong/bazel"
 
 	"github.com/google/blueprint"
 )
@@ -27,7 +26,6 @@ import (
 type DeclarationsModule struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
-	android.BazelModuleBase
 
 	// Properties for "aconfig_declarations"
 	properties struct {
@@ -53,7 +51,6 @@ func DeclarationsFactory() android.Module {
 	android.InitAndroidModule(module)
 	android.InitDefaultableModule(module)
 	module.AddProperties(&module.properties)
-	android.InitBazelModule(module)
 
 	return module
 }
@@ -231,27 +228,4 @@ func mergeAconfigFiles(ctx android.ModuleContext, inputs android.Paths) android.
 	})
 
 	return android.Paths{output}
-}
-
-type bazelAconfigDeclarationsAttributes struct {
-	Srcs    bazel.LabelListAttribute
-	Package string
-}
-
-func (module *DeclarationsModule) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	if ctx.ModuleType() != "aconfig_declarations" {
-		return
-	}
-	srcs := bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, module.properties.Srcs))
-
-	attrs := bazelAconfigDeclarationsAttributes{
-		Srcs:    srcs,
-		Package: module.properties.Package,
-	}
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "aconfig_declarations",
-		Bzl_load_location: "//build/bazel/rules/aconfig:aconfig_declarations.bzl",
-	}
-
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, &attrs)
 }

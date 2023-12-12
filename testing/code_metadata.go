@@ -36,7 +36,6 @@ func CodeMetadataFactory() android.Module {
 type CodeMetadataModule struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
-	android.BazelModuleBase
 
 	// Properties for "code_metadata"
 	properties struct {
