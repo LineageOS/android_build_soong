@@ -20,7 +20,6 @@ import (
 	"runtime"
 	"strings"
 
-	"android/soong/android/soongconfig"
 	"android/soong/bazel"
 
 	"github.com/google/blueprint/proptools"
@@ -746,44 +745,6 @@ func (p SoongConfigProperty) SelectKey() string {
 // property, like ["-DDEFINES"] for cflags.
 type ProductConfigProperties map[string]map[ProductConfigOrSoongConfigProperty]interface{}
 
-// ProductVariableProperties returns a ProductConfigProperties containing only the properties which
-// have been set for the given module.
-func ProductVariableProperties(ctx ArchVariantContext, module Module) (ProductConfigProperties, []error) {
-	var errs []error
-	moduleBase := module.base()
-
-	productConfigProperties := ProductConfigProperties{}
-
-	if moduleBase.variableProperties != nil {
-		productVariablesProperty := proptools.FieldNameForProperty("product_variables")
-		if moduleBase.ArchSpecific() {
-			for /* axis */ _, configToProps := range moduleBase.GetArchVariantProperties(ctx, moduleBase.variableProperties) {
-				for config, props := range configToProps {
-					variableValues := reflect.ValueOf(props).Elem().FieldByName(productVariablesProperty)
-					productConfigProperties.AddProductConfigProperties(variableValues, config)
-				}
-			}
-		} else {
-			variableValues := reflect.ValueOf(moduleBase.variableProperties).Elem().FieldByName(productVariablesProperty)
-			productConfigProperties.AddProductConfigProperties(variableValues, "")
-		}
-	}
-
-	if m, ok := module.(Bazelable); ok && m.namespacedVariableProps() != nil {
-		for namespace, namespacedVariableProps := range m.namespacedVariableProps() {
-			for _, namespacedVariableProp := range namespacedVariableProps {
-				variableValues := reflect.ValueOf(namespacedVariableProp).Elem().FieldByName(soongconfig.SoongConfigProperty)
-				err := productConfigProperties.AddSoongConfigProperties(namespace, variableValues)
-				if err != nil {
-					errs = append(errs, err)
-				}
-			}
-		}
-	}
-
-	return productConfigProperties, errs
-}
-
 func (p *ProductConfigProperties) AddProductConfigProperty(
 	propertyName, productVariableName, arch string, propertyValue interface{}) {
 
@@ -832,10 +793,6 @@ func (p *ProductConfigProperties) AddEitherProperty(
 		(*p)[propertyName][key] = propertyValue
 	}
 }
-
-var (
-	conditionsDefaultField string = proptools.FieldNameForProperty(bazel.ConditionsDefaultConfigKey)
-)
 
 // maybeExtractConfigVarProp attempts to read this value as a config var struct
 // wrapped by interfaces and ptrs. If it's not the right type, the second return

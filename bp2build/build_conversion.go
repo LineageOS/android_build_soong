@@ -28,10 +28,7 @@ import (
 	"android/soong/android"
 	"android/soong/bazel"
 	"android/soong/starlark_fmt"
-	"android/soong/ui/metrics/bp2build_metrics_proto"
-
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -201,18 +198,13 @@ func (ctx *CodegenContext) Mode() CodegenMode {
 type CodegenMode int
 
 const (
-	// Bp2Build - generate BUILD files with targets buildable by Bazel directly.
-	//
-	// This mode is used for the Soong->Bazel build definition conversion.
-	Bp2Build CodegenMode = iota
-
 	// QueryView - generate BUILD files with targets representing fully mutated
 	// Soong modules, representing the fully configured Soong module graph with
 	// variants and dependency edges.
 	//
 	// This mode is used for discovering and introspecting the existing Soong
 	// module graph.
-	QueryView
+	QueryView CodegenMode = iota
 )
 
 type unconvertedDepsMode int
@@ -227,8 +219,6 @@ const (
 
 func (mode CodegenMode) String() string {
 	switch mode {
-	case Bp2Build:
-		return "Bp2Build"
 	case QueryView:
 		return "QueryView"
 	default:
@@ -256,9 +246,6 @@ func (ctx *CodegenContext) Context() *android.Context { return ctx.context }
 // writing BUILD files in the output directory.
 func NewCodegenContext(config android.Config, context *android.Context, mode CodegenMode, topDir string) *CodegenContext {
 	var unconvertedDeps unconvertedDepsMode
-	if config.IsEnvTrue("BP2BUILD_ERROR_UNCONVERTED") {
-		unconvertedDeps = errorModulesUnconvertedDeps
-	}
 	return &CodegenContext{
 		context:            context,
 		config:             config,
@@ -281,422 +268,10 @@ func propsToAttributes(props map[string]string) string {
 type conversionResults struct {
 	buildFileToTargets    map[string]BazelTargets
 	moduleNameToPartition map[string]string
-	metrics               CodegenMetrics
 }
 
 func (r conversionResults) BuildDirToTargets() map[string]BazelTargets {
 	return r.buildFileToTargets
-}
-
-// struct to store state of b bazel targets (e.g. go targets which do not implement android.Module)
-// this implements bp2buildModule interface and is passed to generateBazelTargets
-type bTarget struct {
-	targetName            string
-	targetPackage         string
-	bazelRuleClass        string
-	bazelRuleLoadLocation string
-	bazelAttributes       []interface{}
-}
-
-var _ bp2buildModule = (*bTarget)(nil)
-
-func (b bTarget) TargetName() string {
-	return b.targetName
-}
-
-func (b bTarget) TargetPackage() string {
-	return b.targetPackage
-}
-
-func (b bTarget) BazelRuleClass() string {
-	return b.bazelRuleClass
-}
-
-func (b bTarget) BazelRuleLoadLocation() string {
-	return b.bazelRuleLoadLocation
-}
-
-func (b bTarget) BazelAttributes() []interface{} {
-	return b.bazelAttributes
-}
-
-// Creates a target_compatible_with entry that is *not* compatible with android
-func targetNotCompatibleWithAndroid() bazel.LabelListAttribute {
-	ret := bazel.LabelListAttribute{}
-	ret.SetSelectValue(bazel.OsConfigurationAxis, bazel.OsAndroid,
-		bazel.MakeLabelList(
-			[]bazel.Label{
-				bazel.Label{
-					Label: "@platforms//:incompatible",
-				},
-			},
-		),
-	)
-	return ret
-}
-
-// helper function to return labels for srcs used in bootstrap_go_package and bootstrap_go_binary
-// this function has the following limitations which make it unsuitable for widespread use
-// - wildcard patterns in srcs
-// This is ok for go since build/blueprint does not support it.
-//
-// Prefer to use `BazelLabelForModuleSrc` instead
-func goSrcLabels(cfg android.Config, moduleDir string, srcs []string, linuxSrcs, darwinSrcs []string) bazel.LabelListAttribute {
-	labels := func(srcs []string) bazel.LabelList {
-		ret := []bazel.Label{}
-		for _, src := range srcs {
-			srcLabel := bazel.Label{
-				Label: src,
-			}
-			ret = append(ret, srcLabel)
-		}
-		// Respect package boundaries
-		return android.TransformSubpackagePaths(
-			cfg,
-			moduleDir,
-			bazel.MakeLabelList(ret),
-		)
-	}
-
-	ret := bazel.LabelListAttribute{}
-	// common
-	ret.SetSelectValue(bazel.NoConfigAxis, "", labels(srcs))
-	// linux
-	ret.SetSelectValue(bazel.OsConfigurationAxis, bazel.OsLinux, labels(linuxSrcs))
-	// darwin
-	ret.SetSelectValue(bazel.OsConfigurationAxis, bazel.OsDarwin, labels(darwinSrcs))
-	return ret
-}
-
-func goDepLabels(deps []string, goModulesMap nameToGoLibraryModule) bazel.LabelListAttribute {
-	labels := []bazel.Label{}
-	for _, dep := range deps {
-		moduleDir := goModulesMap[dep].Dir
-		if moduleDir == "." {
-			moduleDir = ""
-		}
-		label := bazel.Label{
-			Label: fmt.Sprintf("//%s:%s", moduleDir, dep),
-		}
-		labels = append(labels, label)
-	}
-	return bazel.MakeLabelListAttribute(bazel.MakeLabelList(labels))
-}
-
-// attributes common to blueprint_go_binary and bootstap_go_package
-type goAttributes struct {
-	Importpath             bazel.StringAttribute
-	Srcs                   bazel.LabelListAttribute
-	Deps                   bazel.LabelListAttribute
-	Data                   bazel.LabelListAttribute
-	Target_compatible_with bazel.LabelListAttribute
-
-	// attributes for the dynamically generated go_test target
-	Embed bazel.LabelListAttribute
-}
-
-type goTestProperties struct {
-	name           string
-	dir            string
-	testSrcs       []string
-	linuxTestSrcs  []string
-	darwinTestSrcs []string
-	testData       []string
-	// Name of the target that should be compiled together with the test
-	embedName string
-}
-
-// Creates a go_test target for bootstrap_go_package / blueprint_go_binary
-func generateBazelTargetsGoTest(ctx *android.Context, goModulesMap nameToGoLibraryModule, gp goTestProperties) (BazelTarget, error) {
-	ca := android.CommonAttributes{
-		Name: gp.name,
-	}
-	ga := goAttributes{
-		Srcs: goSrcLabels(ctx.Config(), gp.dir, gp.testSrcs, gp.linuxTestSrcs, gp.darwinTestSrcs),
-		Data: goSrcLabels(ctx.Config(), gp.dir, gp.testData, []string{}, []string{}),
-		Embed: bazel.MakeLabelListAttribute(
-			bazel.MakeLabelList(
-				[]bazel.Label{bazel.Label{Label: ":" + gp.embedName}},
-			),
-		),
-		Target_compatible_with: targetNotCompatibleWithAndroid(),
-	}
-
-	libTest := bTarget{
-		targetName:            gp.name,
-		targetPackage:         gp.dir,
-		bazelRuleClass:        "go_test",
-		bazelRuleLoadLocation: "@io_bazel_rules_go//go:def.bzl",
-		bazelAttributes:       []interface{}{&ca, &ga},
-	}
-	return generateBazelTarget(ctx, libTest)
-}
-
-// TODO - b/288491147: testSrcs of certain bootstrap_go_package/blueprint_go_binary are not hermetic and depend on
-// testdata checked into the filesystem.
-// Denylist the generation of go_test targets for these Soong modules.
-// The go_library/go_binary will still be generated, since those are hermitic.
-var (
-	goTestsDenylist = []string{
-		"android-archive-zip",
-		"bazel_notice_gen",
-		"blueprint-bootstrap-bpdoc",
-		"blueprint-microfactory",
-		"blueprint-pathtools",
-		"bssl_ar",
-		"compliance_checkmetadata",
-		"compliance_checkshare",
-		"compliance_dumpgraph",
-		"compliance_dumpresolutions",
-		"compliance_listshare",
-		"compliance-module",
-		"compliancenotice_bom",
-		"compliancenotice_shippedlibs",
-		"compliance_rtrace",
-		"compliance_sbom",
-		"golang-protobuf-internal-fuzz-jsonfuzz",
-		"golang-protobuf-internal-fuzz-textfuzz",
-		"golang-protobuf-internal-fuzz-wirefuzz",
-		"htmlnotice",
-		"protoc-gen-go",
-		"rbcrun-module",
-		"spdx-tools-builder",
-		"spdx-tools-builder2v1",
-		"spdx-tools-builder2v2",
-		"spdx-tools-builder2v3",
-		"spdx-tools-idsearcher",
-		"spdx-tools-spdx-json",
-		"spdx-tools-utils",
-		"soong-ui-build",
-		"textnotice",
-		"xmlnotice",
-	}
-)
-
-func testOfGoPackageIsIncompatible(g *bootstrap.GoPackage) bool {
-	return android.InList(g.Name(), goTestsDenylist) ||
-		// Denylist tests of soong_build
-		// Theses tests have a guard that prevent usage outside a test environment
-		// The guard (`ensureTestOnly`) looks for a `-test` in os.Args, which is present in soong's gotestrunner, but missing in `b test`
-		g.IsPluginFor("soong_build") ||
-		// soong-android is a dep of soong_build
-		// This dependency is created by soong_build by listing it in its deps explicitly in Android.bp, and not via `plugin_for` in `soong-android`
-		g.Name() == "soong-android"
-}
-
-func testOfGoBinaryIsIncompatible(g *bootstrap.GoBinary) bool {
-	return android.InList(g.Name(), goTestsDenylist)
-}
-
-func generateBazelTargetsGoPackage(ctx *android.Context, g *bootstrap.GoPackage, goModulesMap nameToGoLibraryModule) ([]BazelTarget, []error) {
-	ca := android.CommonAttributes{
-		Name: g.Name(),
-	}
-
-	// For this bootstrap_go_package dep chain,
-	// A --> B --> C ( ---> depends on)
-	// Soong provides the convenience of only listing B as deps of A even if a src file of A imports C
-	// Bazel OTOH
-	// 1. requires C to be listed in `deps` expllicity.
-	// 2. does not require C to be listed if src of A does not import C
-	//
-	// bp2build does not have sufficient info on whether C is a direct dep of A or not, so for now collect all transitive deps and add them to deps
-	transitiveDeps := transitiveGoDeps(g.Deps(), goModulesMap)
-
-	ga := goAttributes{
-		Importpath: bazel.StringAttribute{
-			Value: proptools.StringPtr(g.GoPkgPath()),
-		},
-		Srcs: goSrcLabels(ctx.Config(), ctx.ModuleDir(g), g.Srcs(), g.LinuxSrcs(), g.DarwinSrcs()),
-		Deps: goDepLabels(
-			android.FirstUniqueStrings(transitiveDeps),
-			goModulesMap,
-		),
-		Target_compatible_with: targetNotCompatibleWithAndroid(),
-	}
-
-	lib := bTarget{
-		targetName:            g.Name(),
-		targetPackage:         ctx.ModuleDir(g),
-		bazelRuleClass:        "go_library",
-		bazelRuleLoadLocation: "@io_bazel_rules_go//go:def.bzl",
-		bazelAttributes:       []interface{}{&ca, &ga},
-	}
-	retTargets := []BazelTarget{}
-	var retErrs []error
-	if libTarget, err := generateBazelTarget(ctx, lib); err == nil {
-		retTargets = append(retTargets, libTarget)
-	} else {
-		retErrs = []error{err}
-	}
-
-	// If the library contains test srcs, create an additional go_test target
-	if !testOfGoPackageIsIncompatible(g) && (len(g.TestSrcs()) > 0 || len(g.LinuxTestSrcs()) > 0 || len(g.DarwinTestSrcs()) > 0) {
-		gp := goTestProperties{
-			name:           g.Name() + "-test",
-			dir:            ctx.ModuleDir(g),
-			testSrcs:       g.TestSrcs(),
-			linuxTestSrcs:  g.LinuxTestSrcs(),
-			darwinTestSrcs: g.DarwinTestSrcs(),
-			testData:       g.TestData(),
-			embedName:      g.Name(), // embed the source go_library in the test so that its .go files are included in the compilation unit
-		}
-		if libTestTarget, err := generateBazelTargetsGoTest(ctx, goModulesMap, gp); err == nil {
-			retTargets = append(retTargets, libTestTarget)
-		} else {
-			retErrs = append(retErrs, err)
-		}
-	}
-
-	return retTargets, retErrs
-}
-
-type goLibraryModule struct {
-	Dir  string
-	Deps []string
-}
-
-type buildConversionMetadata struct {
-	nameToGoLibraryModule nameToGoLibraryModule
-	ndkHeaders            []blueprint.Module
-}
-
-type nameToGoLibraryModule map[string]goLibraryModule
-
-// Visit each module in the graph, and collect metadata about the build graph
-// If a module is of type `bootstrap_go_package`, return a map containing metadata like its dir and deps
-// If a module is of type `ndk_headers`, add it to a list and return the list
-func createBuildConversionMetadata(ctx *android.Context) buildConversionMetadata {
-	goMap := nameToGoLibraryModule{}
-	ndkHeaders := []blueprint.Module{}
-	ctx.VisitAllModules(func(m blueprint.Module) {
-		moduleType := ctx.ModuleType(m)
-		// We do not need to store information about blueprint_go_binary since it does not have any rdeps
-		if moduleType == "bootstrap_go_package" {
-			goMap[m.Name()] = goLibraryModule{
-				Dir:  ctx.ModuleDir(m),
-				Deps: m.(*bootstrap.GoPackage).Deps(),
-			}
-		} else if moduleType == "ndk_headers" || moduleType == "versioned_ndk_headers" {
-			ndkHeaders = append(ndkHeaders, m)
-		}
-	})
-	return buildConversionMetadata{
-		nameToGoLibraryModule: goMap,
-		ndkHeaders:            ndkHeaders,
-	}
-}
-
-// Returns the deps in the transitive closure of a go target
-func transitiveGoDeps(directDeps []string, goModulesMap nameToGoLibraryModule) []string {
-	allDeps := directDeps
-	i := 0
-	for i < len(allDeps) {
-		curr := allDeps[i]
-		allDeps = append(allDeps, goModulesMap[curr].Deps...)
-		i += 1
-	}
-	allDeps = android.SortedUniqueStrings(allDeps)
-	return allDeps
-}
-
-func generateBazelTargetsGoBinary(ctx *android.Context, g *bootstrap.GoBinary, goModulesMap nameToGoLibraryModule) ([]BazelTarget, []error) {
-	ca := android.CommonAttributes{
-		Name: g.Name(),
-	}
-
-	retTargets := []BazelTarget{}
-	var retErrs []error
-
-	// For this bootstrap_go_package dep chain,
-	// A --> B --> C ( ---> depends on)
-	// Soong provides the convenience of only listing B as deps of A even if a src file of A imports C
-	// Bazel OTOH
-	// 1. requires C to be listed in `deps` expllicity.
-	// 2. does not require C to be listed if src of A does not import C
-	//
-	// bp2build does not have sufficient info on whether C is a direct dep of A or not, so for now collect all transitive deps and add them to deps
-	transitiveDeps := transitiveGoDeps(g.Deps(), goModulesMap)
-
-	goSource := ""
-	// If the library contains test srcs, create an additional go_test target
-	// The go_test target will embed a go_source containining the source .go files it tests
-	if !testOfGoBinaryIsIncompatible(g) && (len(g.TestSrcs()) > 0 || len(g.LinuxTestSrcs()) > 0 || len(g.DarwinTestSrcs()) > 0) {
-		// Create a go_source containing the source .go files of go_library
-		// This target will be an `embed` of the go_binary and go_test
-		goSource = g.Name() + "-source"
-		ca := android.CommonAttributes{
-			Name: goSource,
-		}
-		ga := goAttributes{
-			Srcs:                   goSrcLabels(ctx.Config(), ctx.ModuleDir(g), g.Srcs(), g.LinuxSrcs(), g.DarwinSrcs()),
-			Deps:                   goDepLabels(transitiveDeps, goModulesMap),
-			Target_compatible_with: targetNotCompatibleWithAndroid(),
-		}
-		libTestSource := bTarget{
-			targetName:            goSource,
-			targetPackage:         ctx.ModuleDir(g),
-			bazelRuleClass:        "go_source",
-			bazelRuleLoadLocation: "@io_bazel_rules_go//go:def.bzl",
-			bazelAttributes:       []interface{}{&ca, &ga},
-		}
-		if libSourceTarget, err := generateBazelTarget(ctx, libTestSource); err == nil {
-			retTargets = append(retTargets, libSourceTarget)
-		} else {
-			retErrs = append(retErrs, err)
-		}
-
-		// Create a go_test target
-		gp := goTestProperties{
-			name:           g.Name() + "-test",
-			dir:            ctx.ModuleDir(g),
-			testSrcs:       g.TestSrcs(),
-			linuxTestSrcs:  g.LinuxTestSrcs(),
-			darwinTestSrcs: g.DarwinTestSrcs(),
-			testData:       g.TestData(),
-			// embed the go_source in the test
-			embedName: g.Name() + "-source",
-		}
-		if libTestTarget, err := generateBazelTargetsGoTest(ctx, goModulesMap, gp); err == nil {
-			retTargets = append(retTargets, libTestTarget)
-		} else {
-			retErrs = append(retErrs, err)
-		}
-
-	}
-
-	// Create a go_binary target
-	ga := goAttributes{
-		Deps:                   goDepLabels(transitiveDeps, goModulesMap),
-		Target_compatible_with: targetNotCompatibleWithAndroid(),
-	}
-
-	// If the binary has testSrcs, embed the common `go_source`
-	if goSource != "" {
-		ga.Embed = bazel.MakeLabelListAttribute(
-			bazel.MakeLabelList(
-				[]bazel.Label{bazel.Label{Label: ":" + goSource}},
-			),
-		)
-	} else {
-		ga.Srcs = goSrcLabels(ctx.Config(), ctx.ModuleDir(g), g.Srcs(), g.LinuxSrcs(), g.DarwinSrcs())
-	}
-
-	bin := bTarget{
-		targetName:            g.Name(),
-		targetPackage:         ctx.ModuleDir(g),
-		bazelRuleClass:        "go_binary",
-		bazelRuleLoadLocation: "@io_bazel_rules_go//go:def.bzl",
-		bazelAttributes:       []interface{}{&ca, &ga},
-	}
-
-	if binTarget, err := generateBazelTarget(ctx, bin); err == nil {
-		retTargets = append(retTargets, binTarget)
-	} else {
-		retErrs = []error{err}
-	}
-
-	return retTargets, retErrs
 }
 
 func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (conversionResults, []error) {
@@ -704,103 +279,19 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 	defer ctx.Context().EndEvent("GenerateBazelTargets")
 	buildFileToTargets := make(map[string]BazelTargets)
 
-	// Simple metrics tracking for bp2build
-	metrics := CreateCodegenMetrics()
-
 	dirs := make(map[string]bool)
 	moduleNameToPartition := make(map[string]string)
 
 	var errs []error
 
-	// Visit go libraries in a pre-run and store its state in a map
-	// The time complexity remains O(N), and this does not add significant wall time.
-	meta := createBuildConversionMetadata(ctx.Context())
-	nameToGoLibMap := meta.nameToGoLibraryModule
-	ndkHeaders := meta.ndkHeaders
-
 	bpCtx := ctx.Context()
 	bpCtx.VisitAllModules(func(m blueprint.Module) {
 		dir := bpCtx.ModuleDir(m)
-		moduleType := bpCtx.ModuleType(m)
 		dirs[dir] = true
 
 		var targets []BazelTarget
-		var targetErrs []error
 
 		switch ctx.Mode() {
-		case Bp2Build:
-			if aModule, ok := m.(android.Module); ok {
-				reason := aModule.GetUnconvertedReason()
-				if reason != nil {
-					// If this module was force-enabled, cause an error.
-					if _, ok := ctx.Config().BazelModulesForceEnabledByFlag()[m.Name()]; ok && m.Name() != "" {
-						err := fmt.Errorf("Force Enabled Module %s not converted", m.Name())
-						errs = append(errs, err)
-					}
-
-					// Log the module isn't to be converted by bp2build.
-					// TODO: b/291598248 - Log handcrafted modules differently than other unconverted modules.
-					metrics.AddUnconvertedModule(m, moduleType, dir, *reason)
-					return
-				}
-				if len(aModule.Bp2buildTargets()) == 0 {
-					panic(fmt.Errorf("illegal bp2build invariant: module '%s' was neither converted nor marked unconvertible", aModule.Name()))
-				}
-
-				// Handle modules converted to generated targets.
-				targets, targetErrs = generateBazelTargets(bpCtx, aModule)
-				errs = append(errs, targetErrs...)
-				for _, t := range targets {
-					// A module can potentially generate more than 1 Bazel
-					// target, each of a different rule class.
-					metrics.IncrementRuleClassCount(t.ruleClass)
-				}
-
-				// record the partition
-				moduleNameToPartition[android.RemoveOptionalPrebuiltPrefix(aModule.Name())] = aModule.GetPartitionForBp2build()
-
-				// Log the module.
-				metrics.AddConvertedModule(aModule, moduleType, dir)
-
-				// Handle modules with unconverted deps. By default, emit a warning.
-				if unconvertedDeps := aModule.GetUnconvertedBp2buildDeps(); len(unconvertedDeps) > 0 {
-					msg := fmt.Sprintf("%s %s:%s depends on unconverted modules: %s",
-						moduleType, bpCtx.ModuleDir(m), m.Name(), strings.Join(unconvertedDeps, ", "))
-					switch ctx.unconvertedDepMode {
-					case warnUnconvertedDeps:
-						metrics.moduleWithUnconvertedDepsMsgs = append(metrics.moduleWithUnconvertedDepsMsgs, msg)
-					case errorModulesUnconvertedDeps:
-						errs = append(errs, fmt.Errorf(msg))
-						return
-					}
-				}
-				if unconvertedDeps := aModule.GetMissingBp2buildDeps(); len(unconvertedDeps) > 0 {
-					msg := fmt.Sprintf("%s %s:%s depends on missing modules: %s",
-						moduleType, bpCtx.ModuleDir(m), m.Name(), strings.Join(unconvertedDeps, ", "))
-					switch ctx.unconvertedDepMode {
-					case warnUnconvertedDeps:
-						metrics.moduleWithMissingDepsMsgs = append(metrics.moduleWithMissingDepsMsgs, msg)
-					case errorModulesUnconvertedDeps:
-						errs = append(errs, fmt.Errorf(msg))
-						return
-					}
-				}
-			} else if glib, ok := m.(*bootstrap.GoPackage); ok {
-				targets, targetErrs = generateBazelTargetsGoPackage(bpCtx, glib, nameToGoLibMap)
-				errs = append(errs, targetErrs...)
-				metrics.IncrementRuleClassCount("bootstrap_go_package")
-				metrics.AddConvertedModule(glib, "bootstrap_go_package", dir)
-			} else if gbin, ok := m.(*bootstrap.GoBinary); ok {
-				targets, targetErrs = generateBazelTargetsGoBinary(bpCtx, gbin, nameToGoLibMap)
-				errs = append(errs, targetErrs...)
-				metrics.IncrementRuleClassCount("blueprint_go_binary")
-				metrics.AddConvertedModule(gbin, "blueprint_go_binary", dir)
-			} else {
-				metrics.AddUnconvertedModule(m, moduleType, dir, android.UnconvertedReason{
-					ReasonType: int(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED),
-				})
-				return
-			}
 		case QueryView:
 			// Blocklist certain module types from being generated.
 			if canonicalizeModuleType(bpCtx.ModuleType(m)) == "package" {
@@ -823,37 +314,6 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 			buildFileToTargets[targetDir] = append(buildFileToTargets[targetDir], target)
 		}
 	})
-
-	// Create an ndk_sysroot target that has a dependency edge on every target corresponding to Soong's ndk_headers
-	// This root target will provide headers to sdk variants of jni libraries
-	if ctx.Mode() == Bp2Build {
-		var depLabels bazel.LabelList
-		for _, ndkHeader := range ndkHeaders {
-			depLabel := bazel.Label{
-				Label: "//" + bpCtx.ModuleDir(ndkHeader) + ":" + ndkHeader.Name(),
-			}
-			depLabels.Add(&depLabel)
-		}
-		a := struct {
-			Deps bazel.LabelListAttribute
-		}{
-			Deps: bazel.MakeLabelListAttribute(bazel.UniqueSortedBazelLabelList(depLabels)),
-		}
-		ndkSysroot := bTarget{
-			targetName:            "ndk_sysroot",
-			targetPackage:         "build/bazel/rules/cc", // The location is subject to change, use build/bazel for now
-			bazelRuleClass:        "cc_library_headers",
-			bazelRuleLoadLocation: "//build/bazel/rules/cc:cc_library_headers.bzl",
-			bazelAttributes:       []interface{}{&a},
-		}
-
-		if t, err := generateBazelTarget(bpCtx, ndkSysroot); err == nil {
-			dir := ndkSysroot.targetPackage
-			buildFileToTargets[dir] = append(buildFileToTargets[dir], t)
-		} else {
-			errs = append(errs, err)
-		}
-	}
 
 	if len(errs) > 0 {
 		return conversionResults{}, errs
@@ -883,70 +343,7 @@ func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (convers
 	return conversionResults{
 		buildFileToTargets:    buildFileToTargets,
 		moduleNameToPartition: moduleNameToPartition,
-		metrics:               metrics,
 	}, errs
-}
-
-func generateBazelTargets(ctx bpToBuildContext, m android.Module) ([]BazelTarget, []error) {
-	var targets []BazelTarget
-	var errs []error
-	for _, m := range m.Bp2buildTargets() {
-		target, err := generateBazelTarget(ctx, m)
-		if err != nil {
-			errs = append(errs, err)
-			return targets, errs
-		}
-		targets = append(targets, target)
-	}
-	return targets, errs
-}
-
-type bp2buildModule interface {
-	TargetName() string
-	TargetPackage() string
-	BazelRuleClass() string
-	BazelRuleLoadLocation() string
-	BazelAttributes() []interface{}
-}
-
-func generateBazelTarget(ctx bpToBuildContext, m bp2buildModule) (BazelTarget, error) {
-	ruleClass := m.BazelRuleClass()
-	bzlLoadLocation := m.BazelRuleLoadLocation()
-
-	// extract the bazel attributes from the module.
-	attrs := m.BazelAttributes()
-	props, err := extractModuleProperties(attrs, true)
-	if err != nil {
-		return BazelTarget{}, err
-	}
-
-	// name is handled in a special manner
-	delete(props.Attrs, "name")
-
-	// Return the Bazel target with rule class and attributes, ready to be
-	// code-generated.
-	attributes := propsToAttributes(props.Attrs)
-	var content string
-	targetName := m.TargetName()
-	if targetName != "" {
-		content = fmt.Sprintf(ruleTargetTemplate, ruleClass, targetName, attributes)
-	} else {
-		content = fmt.Sprintf(unnamedRuleTargetTemplate, ruleClass, attributes)
-	}
-	var loads []BazelLoad
-	if bzlLoadLocation != "" {
-		loads = append(loads, BazelLoad{
-			file:    bzlLoadLocation,
-			symbols: []BazelLoadSymbol{{symbol: ruleClass}},
-		})
-	}
-	return BazelTarget{
-		name:        targetName,
-		packageName: m.TargetPackage(),
-		ruleClass:   ruleClass,
-		loads:       loads,
-		content:     content,
-	}, nil
 }
 
 // Convert a module and its deps and props into a Bazel macro/rule
