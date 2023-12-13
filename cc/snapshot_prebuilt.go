@@ -209,7 +209,7 @@ type SnapshotInfo struct {
 	HeaderLibs, Binaries, Objects, StaticLibs, SharedLibs, Rlibs, Dylibs map[string]string
 }
 
-var SnapshotInfoProvider = blueprint.NewMutatorProvider(SnapshotInfo{}, "deps")
+var SnapshotInfoProvider = blueprint.NewMutatorProvider[SnapshotInfo]("deps")
 
 var _ android.ImageInterface = (*snapshotModule)(nil)
 

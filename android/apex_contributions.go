@@ -124,7 +124,7 @@ func (a *allApexContributions) SetPrebuiltSelectionInfoProvider(ctx BaseModuleCo
 
 // A provider containing metadata about whether source or prebuilt should be used
 // This provider will be used in prebuilt_select mutator to redirect deps
-var PrebuiltSelectionInfoProvider = blueprint.NewMutatorProvider(PrebuiltSelectionInfoMap{}, "prebuilt_select")
+var PrebuiltSelectionInfoProvider = blueprint.NewMutatorProvider[PrebuiltSelectionInfoMap]("prebuilt_select")
 
 // Map of baseModuleName to the selected source or prebuilt
 type PrebuiltSelectionInfoMap map[string]PrebuiltSelectionInfo

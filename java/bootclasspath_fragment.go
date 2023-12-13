@@ -352,7 +352,7 @@ func (m *BootclasspathFragmentModule) bootclasspathFragmentPropertyCheck(ctx and
 	}
 }
 
-var BootclasspathFragmentApexContentInfoProvider = blueprint.NewProvider(BootclasspathFragmentApexContentInfo{})
+var BootclasspathFragmentApexContentInfoProvider = blueprint.NewProvider[BootclasspathFragmentApexContentInfo]()
 
 // BootclasspathFragmentApexContentInfo contains the bootclasspath_fragments contributions to the
 // apex contents.
