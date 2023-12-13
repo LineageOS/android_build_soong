@@ -479,7 +479,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 			target += strconv.Itoa(android.FutureApiLevelInt)
 		} else {
 			apiLevel := nativeApiLevelOrPanic(ctx, version)
-			target += apiLevel.String()
+			target += strconv.Itoa(apiLevel.FinalOrFutureInt())
 		}
 	}
 
