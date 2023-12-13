@@ -393,5 +393,5 @@ func TestDroidstubsHideFlaggedApi(t *testing.T) {
 	m := result.ModuleForTests("foo", "android_common")
 	manifest := m.Output("metalava.sbox.textproto")
 	cmdline := String(android.RuleBuilderSboxProtoForTests(t, result.TestContext, manifest).Commands[0].Command)
-	android.AssertStringDoesContain(t, "flagged api hide command not included", cmdline, "--hide-annotation android.annotation.FlaggedApi")
+	android.AssertStringDoesContain(t, "flagged api hide command not included", cmdline, "--revert-annotation android.annotation.FlaggedApi")
 }
