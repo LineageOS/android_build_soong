@@ -162,7 +162,7 @@ func isModuleInConfiguredList(ctx android.BaseModuleContext, module android.Modu
 		return false
 	}
 
-	apexInfo := ctx.OtherModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
+	apexInfo, _ := android.OtherModuleProvider(ctx, module, android.ApexInfoProvider)
 
 	// Now match the apex part of the boot image configuration.
 	requiredApex := configuredBootJars.Apex(index)

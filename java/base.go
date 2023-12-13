@@ -1726,7 +1726,7 @@ func (j *Module) collectProguardSpecInfo(ctx android.ModuleContext) ProguardSpec
 	transitiveProguardFlags := []*android.DepSet[android.Path]{}
 
 	ctx.VisitDirectDeps(func(m android.Module) {
-		depProguardInfo := ctx.OtherModuleProvider(m, ProguardSpecInfoProvider).(ProguardSpecInfo)
+		depProguardInfo, _ := android.OtherModuleProvider(ctx, m, ProguardSpecInfoProvider)
 		depTag := ctx.OtherModuleDependencyTag(m)
 
 		if depProguardInfo.UnconditionallyExportedProguardFlags != nil {
@@ -1912,7 +1912,7 @@ func (j *providesTransitiveHeaderJars) collectTransitiveHeaderJars(ctx android.M
 			return
 		}
 
-		dep := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
+		dep, _ := android.OtherModuleProvider(ctx, module, JavaInfoProvider)
 		tag := ctx.OtherModuleDependencyTag(module)
 		_, isUsesLibDep := tag.(usesLibraryDependencyTag)
 		if tag == libTag || tag == r8LibraryJarTag || isUsesLibDep {
@@ -2037,7 +2037,7 @@ func (j *Module) collectTransitiveSrcFiles(ctx android.ModuleContext, mine andro
 	ctx.VisitDirectDeps(func(module android.Module) {
 		tag := ctx.OtherModuleDependencyTag(module)
 		if tag == staticLibTag {
-			depInfo := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
+			depInfo, _ := android.OtherModuleProvider(ctx, module, JavaInfoProvider)
 			if depInfo.TransitiveSrcFiles != nil {
 				fromDeps = append(fromDeps, depInfo.TransitiveSrcFiles)
 			}
@@ -2209,15 +2209,14 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			case staticLibTag:
 				ctx.ModuleErrorf("dependency on java_sdk_library %q can only be in libs", otherName)
 			}
-		} else if ctx.OtherModuleHasProvider(module, JavaInfoProvider) {
-			dep := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
-			if sdkLinkType != javaPlatform &&
-				ctx.OtherModuleHasProvider(module, SyspropPublicStubInfoProvider) {
-				// dep is a sysprop implementation library, but this module is not linking against
-				// the platform, so it gets the sysprop public stubs library instead.  Replace
-				// dep with the JavaInfo from the SyspropPublicStubInfoProvider.
-				syspropDep := ctx.OtherModuleProvider(module, SyspropPublicStubInfoProvider).(SyspropPublicStubInfo)
-				dep = syspropDep.JavaInfo
+		} else if dep, ok := android.OtherModuleProvider(ctx, module, JavaInfoProvider); ok {
+			if sdkLinkType != javaPlatform {
+				if syspropDep, ok := android.OtherModuleProvider(ctx, module, SyspropPublicStubInfoProvider); ok {
+					// dep is a sysprop implementation library, but this module is not linking against
+					// the platform, so it gets the sysprop public stubs library instead.  Replace
+					// dep with the JavaInfo from the SyspropPublicStubInfoProvider.
+					dep = syspropDep.JavaInfo
+				}
 			}
 			switch tag {
 			case bootClasspathTag:

@@ -99,8 +99,7 @@ func (lib *AidlLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	includeDirsDepSetBuilder.Direct(includeDir)
 
 	for _, dep := range ctx.GetDirectDepsWithTag(aidlLibraryTag) {
-		if ctx.OtherModuleHasProvider(dep, AidlLibraryProvider) {
-			info := ctx.OtherModuleProvider(dep, AidlLibraryProvider).(AidlLibraryInfo)
+		if info, ok := android.OtherModuleProvider(ctx, dep, AidlLibraryProvider); ok {
 			includeDirsDepSetBuilder.Transitive(&info.IncludeDirs)
 			hdrsDepSetBuilder.Transitive(&info.Hdrs)
 		}

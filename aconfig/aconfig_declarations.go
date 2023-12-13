@@ -134,16 +134,13 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 	// Get the values that came from the global RELEASE_ACONFIG_VALUE_SETS flag
 	valuesFiles := make([]android.Path, 0)
 	ctx.VisitDirectDeps(func(dep android.Module) {
-		if !ctx.OtherModuleHasProvider(dep, valueSetProviderKey) {
-			// Other modules get injected as dependencies too, for example the license modules
-			return
-		}
-		depData := ctx.OtherModuleProvider(dep, valueSetProviderKey).(valueSetProviderData)
-		paths, ok := depData.AvailablePackages[module.properties.Package]
-		if ok {
-			valuesFiles = append(valuesFiles, paths...)
-			for _, path := range paths {
-				module.properties.Values = append(module.properties.Values, path.String())
+		if depData, ok := android.OtherModuleProvider(ctx, dep, valueSetProviderKey); ok {
+			paths, ok := depData.AvailablePackages[module.properties.Package]
+			if ok {
+				valuesFiles = append(valuesFiles, paths...)
+				for _, path := range paths {
+					module.properties.Values = append(module.properties.Values, path.String())
+				}
 			}
 		}
 	})
@@ -190,11 +187,11 @@ func CollectDependencyAconfigFiles(ctx android.ModuleContext, mergedAconfigFiles
 		*mergedAconfigFiles = make(map[string]android.Paths)
 	}
 	ctx.VisitDirectDeps(func(module android.Module) {
-		if dep := ctx.OtherModuleProvider(module, DeclarationsProviderKey).(DeclarationsProviderData); dep.IntermediateCacheOutputPath != nil {
+		if dep, _ := android.OtherModuleProvider(ctx, module, DeclarationsProviderKey); dep.IntermediateCacheOutputPath != nil {
 			(*mergedAconfigFiles)[dep.Container] = append((*mergedAconfigFiles)[dep.Container], dep.IntermediateCacheOutputPath)
 			return
 		}
-		if dep := ctx.OtherModuleProvider(module, TransitiveDeclarationsInfoProvider).(TransitiveDeclarationsInfo); len(dep.AconfigFiles) > 0 {
+		if dep, _ := android.OtherModuleProvider(ctx, module, TransitiveDeclarationsInfoProvider); len(dep.AconfigFiles) > 0 {
 			for container, v := range dep.AconfigFiles {
 				(*mergedAconfigFiles)[container] = append((*mergedAconfigFiles)[container], v...)
 			}

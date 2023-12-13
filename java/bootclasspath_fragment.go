@@ -876,7 +876,7 @@ func (b *bootclasspathFragmentSdkMemberProperties) PopulateFromVariant(ctx andro
 
 	// Get the hidden API information from the module.
 	mctx := ctx.SdkModuleContext()
-	hiddenAPIInfo := mctx.OtherModuleProvider(module, HiddenAPIInfoForSdkProvider).(HiddenAPIInfoForSdk)
+	hiddenAPIInfo, _ := android.OtherModuleProvider(mctx, module, HiddenAPIInfoForSdkProvider)
 	b.Flag_files_by_category = hiddenAPIInfo.FlagFilesByCategory
 
 	// Copy all the generated file paths.

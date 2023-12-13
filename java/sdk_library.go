@@ -673,8 +673,7 @@ type scopePaths struct {
 }
 
 func (paths *scopePaths) extractStubsLibraryInfoFromDependency(ctx android.ModuleContext, dep android.Module) error {
-	if ctx.OtherModuleHasProvider(dep, JavaInfoProvider) {
-		lib := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
+	if lib, ok := android.OtherModuleProvider(ctx, dep, JavaInfoProvider); ok {
 		paths.stubsHeaderPath = lib.HeaderJars
 		paths.stubsImplPath = lib.ImplementationJars
 
@@ -2037,7 +2036,7 @@ func PrebuiltJars(ctx android.BaseModuleContext, baseName string, s android.SdkS
 // false.
 func withinSameApexesAs(ctx android.BaseModuleContext, other android.Module) bool {
 	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
-	otherApexInfo := ctx.OtherModuleProvider(other, android.ApexInfoProvider).(android.ApexInfo)
+	otherApexInfo, _ := android.OtherModuleProvider(ctx, other, android.ApexInfoProvider)
 	return len(otherApexInfo.InApexVariants) > 0 && reflect.DeepEqual(apexInfo.InApexVariants, otherApexInfo.InApexVariants)
 }
 

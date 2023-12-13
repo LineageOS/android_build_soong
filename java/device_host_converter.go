@@ -97,8 +97,7 @@ func (d *DeviceHostConverter) GenerateAndroidBuildActions(ctx android.ModuleCont
 	}
 
 	ctx.VisitDirectDepsWithTag(deviceHostConverterDepTag, func(m android.Module) {
-		if ctx.OtherModuleHasProvider(m, JavaInfoProvider) {
-			dep := ctx.OtherModuleProvider(m, JavaInfoProvider).(JavaInfo)
+		if dep, ok := android.OtherModuleProvider(ctx, m, JavaInfoProvider); ok {
 			d.headerJars = append(d.headerJars, dep.HeaderJars...)
 			d.implementationJars = append(d.implementationJars, dep.ImplementationJars...)
 			d.implementationAndResourceJars = append(d.implementationAndResourceJars, dep.ImplementationAndResourcesJars...)

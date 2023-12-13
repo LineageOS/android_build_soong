@@ -579,8 +579,7 @@ func (i *HiddenAPIInfo) mergeFromFragmentDeps(ctx android.ModuleContext, fragmen
 	// Merge all the information from the fragments. The fragments form a DAG so it is possible that
 	// this will introduce duplicates so they will be resolved after processing all the fragments.
 	for _, fragment := range fragments {
-		if ctx.OtherModuleHasProvider(fragment, HiddenAPIInfoProvider) {
-			info := ctx.OtherModuleProvider(fragment, HiddenAPIInfoProvider).(HiddenAPIInfo)
+		if info, ok := android.OtherModuleProvider(ctx, fragment, HiddenAPIInfoProvider); ok {
 			i.TransitiveStubDexJarsByScope.addStubDexJarsByModule(info.TransitiveStubDexJarsByScope)
 		}
 	}
@@ -777,8 +776,7 @@ func (i *HiddenAPIPropertyInfo) extractPackageRulesFromProperties(p *HiddenAPIPa
 
 func (i *HiddenAPIPropertyInfo) gatherPropertyInfo(ctx android.ModuleContext, contents []android.Module) {
 	for _, module := range contents {
-		if ctx.OtherModuleHasProvider(module, hiddenAPIPropertyInfoProvider) {
-			info := ctx.OtherModuleProvider(module, hiddenAPIPropertyInfoProvider).(HiddenAPIPropertyInfo)
+		if info, ok := android.OtherModuleProvider(ctx, module, hiddenAPIPropertyInfoProvider); ok {
 			i.FlagFilesByCategory.append(info.FlagFilesByCategory)
 			i.PackagePrefixes = append(i.PackagePrefixes, info.PackagePrefixes...)
 			i.SinglePackages = append(i.SinglePackages, info.SinglePackages...)
@@ -1404,7 +1402,7 @@ func deferReportingMissingBootDexJar(ctx android.ModuleContext, module android.M
 		}
 
 		if am, ok := module.(android.ApexModule); ok && am.InAnyApex() {
-			apexInfo := ctx.OtherModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
+			apexInfo, _ := android.OtherModuleProvider(ctx, module, android.ApexInfoProvider)
 			if apexInfo.IsForPlatform() {
 				return true
 			}

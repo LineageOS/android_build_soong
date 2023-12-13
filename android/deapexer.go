@@ -150,7 +150,7 @@ type RequiresFilesFromPrebuiltApexTag interface {
 func FindDeapexerProviderForModule(ctx ModuleContext) *DeapexerInfo {
 	var di *DeapexerInfo
 	ctx.VisitDirectDepsWithTag(DeapexerTag, func(m Module) {
-		c := ctx.OtherModuleProvider(m, DeapexerProvider).(DeapexerInfo)
+		c, _ := OtherModuleProvider(ctx, m, DeapexerProvider)
 		p := &c
 		if di != nil {
 			// If two DeapexerInfo providers have been found then check if they are

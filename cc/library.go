@@ -1235,7 +1235,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 	var transitiveStaticLibrariesForOrdering *android.DepSet[android.Path]
 	if static := ctx.GetDirectDepsWithTag(staticVariantTag); len(static) > 0 {
-		s := ctx.OtherModuleProvider(static[0], StaticLibraryInfoProvider).(StaticLibraryInfo)
+		s, _ := android.OtherModuleProvider(ctx, static[0], StaticLibraryInfoProvider)
 		transitiveStaticLibrariesForOrdering = s.TransitiveStaticLibrariesForOrdering
 	}
 
@@ -1256,8 +1256,8 @@ func addStubDependencyProviders(ctx ModuleContext) {
 	if len(stubs) > 0 {
 		var stubsInfo []SharedStubLibrary
 		for _, stub := range stubs {
-			stubInfo := ctx.OtherModuleProvider(stub, SharedLibraryInfoProvider).(SharedLibraryInfo)
-			flagInfo := ctx.OtherModuleProvider(stub, FlagExporterInfoProvider).(FlagExporterInfo)
+			stubInfo, _ := android.OtherModuleProvider(ctx, stub, SharedLibraryInfoProvider)
+			flagInfo, _ := android.OtherModuleProvider(ctx, stub, FlagExporterInfoProvider)
 			stubsInfo = append(stubsInfo, SharedStubLibrary{
 				Version:           moduleLibraryInterface(stub).stubsVersion(),
 				SharedLibraryInfo: stubInfo,

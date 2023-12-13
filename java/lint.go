@@ -413,8 +413,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 
 	extraLintCheckModules := ctx.GetDirectDepsWithTag(extraLintCheckTag)
 	for _, extraLintCheckModule := range extraLintCheckModules {
-		if ctx.OtherModuleHasProvider(extraLintCheckModule, JavaInfoProvider) {
-			dep := ctx.OtherModuleProvider(extraLintCheckModule, JavaInfoProvider).(JavaInfo)
+		if dep, ok := android.OtherModuleProvider(ctx, extraLintCheckModule, JavaInfoProvider); ok {
 			l.extraLintCheckJars = append(l.extraLintCheckJars, dep.ImplementationAndResourcesJars...)
 		} else {
 			ctx.PropertyErrorf("lint.extra_check_modules",

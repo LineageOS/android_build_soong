@@ -1168,7 +1168,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 	ctx.VisitDirectDeps(func(dep android.Module) {
 		if dep.Name() == "api_imports" {
-			apiImportInfo = ctx.OtherModuleProvider(dep, multitree.ApiImportsProvider).(multitree.ApiImportInfo)
+			apiImportInfo, _ = android.OtherModuleProvider(ctx, dep, multitree.ApiImportsProvider)
 			hasApiImportInfo = true
 		}
 	})
@@ -1279,7 +1279,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 			//Append the dependencies exportedDirs, except for proc-macros which target a different arch/OS
 			if depTag != procMacroDepTag {
-				exportedInfo := ctx.OtherModuleProvider(dep, FlagExporterInfoProvider).(FlagExporterInfo)
+				exportedInfo, _ := android.OtherModuleProvider(ctx, dep, FlagExporterInfoProvider)
 				depPaths.linkDirs = append(depPaths.linkDirs, exportedInfo.LinkDirs...)
 				depPaths.depFlags = append(depPaths.depFlags, exportedInfo.Flags...)
 				depPaths.linkObjects = append(depPaths.linkObjects, exportedInfo.LinkObjects...)
@@ -1295,7 +1295,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			if depTag == sourceDepTag {
 				if _, ok := mod.sourceProvider.(*protobufDecorator); ok && mod.Source() {
 					if _, ok := rustDep.sourceProvider.(*protobufDecorator); ok {
-						exportedInfo := ctx.OtherModuleProvider(dep, cc.FlagExporterInfoProvider).(cc.FlagExporterInfo)
+						exportedInfo, _ := android.OtherModuleProvider(ctx, dep, cc.FlagExporterInfoProvider)
 						depPaths.depIncludePaths = append(depPaths.depIncludePaths, exportedInfo.IncludeDirs...)
 					}
 				}
@@ -1348,7 +1348,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				depPaths.linkObjects = append(depPaths.linkObjects, linkObject.String())
 				depPaths.linkDirs = append(depPaths.linkDirs, linkPath)
 
-				exportedInfo := ctx.OtherModuleProvider(dep, cc.FlagExporterInfoProvider).(cc.FlagExporterInfo)
+				exportedInfo, _ := android.OtherModuleProvider(ctx, dep, cc.FlagExporterInfoProvider)
 				depPaths.depIncludePaths = append(depPaths.depIncludePaths, exportedInfo.IncludeDirs...)
 				depPaths.depSystemIncludePaths = append(depPaths.depSystemIncludePaths, exportedInfo.SystemIncludeDirs...)
 				depPaths.depClangFlags = append(depPaths.depClangFlags, exportedInfo.Flags...)
@@ -1392,7 +1392,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				directAndroidMkSharedLibs = append(directAndroidMkSharedLibs, makeLibName)
 				exportDep = true
 			case cc.IsHeaderDepTag(depTag):
-				exportedInfo := ctx.OtherModuleProvider(dep, cc.FlagExporterInfoProvider).(cc.FlagExporterInfo)
+				exportedInfo, _ := android.OtherModuleProvider(ctx, dep, cc.FlagExporterInfoProvider)
 				depPaths.depIncludePaths = append(depPaths.depIncludePaths, exportedInfo.IncludeDirs...)
 				depPaths.depSystemIncludePaths = append(depPaths.depSystemIncludePaths, exportedInfo.SystemIncludeDirs...)
 				depPaths.depGeneratedHeaders = append(depPaths.depGeneratedHeaders, exportedInfo.GeneratedHeaders...)

@@ -91,7 +91,7 @@ var TestModuleProviderKey = blueprint.NewProvider[TestModuleProviderData]()
 
 func (module *TestSpecModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	for _, m := range ctx.GetDirectDepsWithTag(testsDepTag) {
-		if !ctx.OtherModuleHasProvider(m, TestModuleProviderKey) {
+		if _, ok := android.OtherModuleProvider(ctx, m, TestModuleProviderKey); !ok {
 			ctx.ModuleErrorf(ErrTestModuleDataNotFound, m.Name())
 		}
 	}

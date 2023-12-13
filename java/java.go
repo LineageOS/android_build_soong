@@ -1257,7 +1257,7 @@ func (j *Test) generateAndroidBuildActionsWithConfig(ctx android.ModuleContext, 
 	})
 
 	ctx.VisitDirectDepsWithTag(jniLibTag, func(dep android.Module) {
-		sharedLibInfo := ctx.OtherModuleProvider(dep, cc.SharedLibraryInfoProvider).(cc.SharedLibraryInfo)
+		sharedLibInfo, _ := android.OtherModuleProvider(ctx, dep, cc.SharedLibraryInfoProvider)
 		if sharedLibInfo.SharedLibrary != nil {
 			// Copy to an intermediate output directory to append "lib[64]" to the path,
 			// so that it's compatible with the default rpath values.
@@ -1902,19 +1902,19 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		tag := ctx.OtherModuleDependencyTag(dep)
 		switch tag {
 		case javaApiContributionTag:
-			provider := ctx.OtherModuleProvider(dep, JavaApiImportProvider).(JavaApiImportInfo)
+			provider, _ := android.OtherModuleProvider(ctx, dep, JavaApiImportProvider)
 			if provider.ApiFile == nil && !ctx.Config().AllowMissingDependencies() {
 				ctx.ModuleErrorf("Error: %s has an empty api file.", dep.Name())
 			}
 			srcFilesInfo = append(srcFilesInfo, provider)
 		case libTag:
-			provider := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
+			provider, _ := android.OtherModuleProvider(ctx, dep, JavaInfoProvider)
 			classPaths = append(classPaths, provider.HeaderJars...)
 		case staticLibTag:
-			provider := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
+			provider, _ := android.OtherModuleProvider(ctx, dep, JavaInfoProvider)
 			staticLibs = append(staticLibs, provider.HeaderJars...)
 		case depApiSrcsTag:
-			provider := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
+			provider, _ := android.OtherModuleProvider(ctx, dep, JavaInfoProvider)
 			depApiSrcsStubsJar = provider.HeaderJars[0]
 		case systemModulesTag:
 			module := dep.(SystemModulesProvider)
@@ -2220,8 +2220,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.collectTransitiveHeaderJars(ctx)
 	ctx.VisitDirectDeps(func(module android.Module) {
 		tag := ctx.OtherModuleDependencyTag(module)
-		if ctx.OtherModuleHasProvider(module, JavaInfoProvider) {
-			dep := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
+		if dep, ok := android.OtherModuleProvider(ctx, module, JavaInfoProvider); ok {
 			switch tag {
 			case libTag, sdkLibTag:
 				flags.classpath = append(flags.classpath, dep.HeaderJars...)
