@@ -272,7 +272,7 @@ func (d *Dexpreopter) DexpreoptPrebuiltApexSystemServerJars(ctx android.ModuleCo
 	dc := dexpreopt.GetGlobalConfig(ctx)
 	d.installPath = android.PathForModuleInPartitionInstall(ctx, "", strings.TrimPrefix(dexpreopt.GetSystemServerDexLocation(ctx, dc, libraryName), "/"))
 	// generate the rules for creating the .odex and .vdex files for this system server jar
-	dexJarFile := di.PrebuiltExportPath(apexRootRelativePathToJavaLib(libraryName))
+	dexJarFile := di.PrebuiltExportPath(ApexRootRelativePathToJavaLib(libraryName))
 	d.dexpreopt(ctx, dexJarFile)
 }
 

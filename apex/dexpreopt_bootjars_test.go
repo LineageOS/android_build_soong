@@ -308,9 +308,18 @@ func TestDexpreoptProfileWithMultiplePrebuiltArtApexes(t *testing.T) {
 
 		// Prebuilt ART APEX.
 
+		java_import {
+			name: "core-oj",
+			jars: ["core-oj.jar"],
+			apex_available: [
+				"com.android.art",
+			],
+		}
+
 		prebuilt_bootclasspath_fragment {
 			name: "art-bootclasspath-fragment",
 			image_name: "art",
+			contents: ["core-oj"],
 			hidden_api: {
 				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
 				metadata: "my-bootclasspath-fragment/metadata.csv",

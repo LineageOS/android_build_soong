@@ -947,6 +947,7 @@ type HiddenAPIOutput struct {
 	HiddenAPIFlagOutput
 
 	// The map from base module name to the path to the encoded boot dex file.
+	// This field is not available in prebuilt apexes
 	EncodedBootDexFilesByModule bootDexJarByModule
 }
 
