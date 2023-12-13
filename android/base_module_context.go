@@ -112,8 +112,6 @@ type BaseModuleContext interface {
 	// the first DependencyTag.
 	GetDirectDep(name string) (blueprint.Module, blueprint.DependencyTag)
 
-	ModuleFromName(name string) (blueprint.Module, bool)
-
 	// VisitDirectDepsBlueprint calls visit for each direct dependency.  If there are multiple
 	// direct dependencies on the same module visit will be called multiple times on that module
 	// and OtherModuleDependencyTag will return a different tag for each.
@@ -209,12 +207,6 @@ type BaseModuleContext interface {
 	// Calling this function prevents adding new dependencies.
 	getMissingDependencies() []string
 
-	// AddUnconvertedBp2buildDep stores module name of a direct dependency that was not converted via bp2build
-	AddUnconvertedBp2buildDep(dep string)
-
-	// AddMissingBp2buildDep stores the module name of a direct dependency that was not found.
-	AddMissingBp2buildDep(dep string)
-
 	Target() Target
 	TargetPrimary() bool
 
@@ -243,12 +235,8 @@ type baseModuleContext struct {
 
 	strictVisitDeps bool // If true, enforce that all dependencies are enabled
 
-	bazelConversionMode bool
 }
 
-func (b *baseModuleContext) isBazelConversionMode() bool {
-	return b.bazelConversionMode
-}
 func (b *baseModuleContext) OtherModuleName(m blueprint.Module) string {
 	return b.bp.OtherModuleName(m)
 }
@@ -294,18 +282,6 @@ func (b *baseModuleContext) GetDirectDepWithTag(name string, tag blueprint.Depen
 
 func (b *baseModuleContext) blueprintBaseModuleContext() blueprint.BaseModuleContext {
 	return b.bp
-}
-
-// AddUnconvertedBp2buildDep stores module name of a dependency that was not converted to Bazel.
-func (b *baseModuleContext) AddUnconvertedBp2buildDep(dep string) {
-	unconvertedDeps := &b.Module().base().commonProperties.BazelConversionStatus.UnconvertedDeps
-	*unconvertedDeps = append(*unconvertedDeps, dep)
-}
-
-// AddMissingBp2buildDep stores module name of a dependency that was not found in a Android.bp file.
-func (b *baseModuleContext) AddMissingBp2buildDep(dep string) {
-	missingDeps := &b.Module().base().commonProperties.BazelConversionStatus.MissingDeps
-	*missingDeps = append(*missingDeps, dep)
 }
 
 func (b *baseModuleContext) AddMissingDependencies(deps []string) {
@@ -433,27 +409,6 @@ func (b *baseModuleContext) GetDirectDepsWithTag(tag blueprint.DependencyTag) []
 // first DependencyTag.
 func (b *baseModuleContext) GetDirectDep(name string) (blueprint.Module, blueprint.DependencyTag) {
 	return b.getDirectDepFirstTag(name)
-}
-
-func (b *baseModuleContext) ModuleFromName(name string) (blueprint.Module, bool) {
-	if !b.isBazelConversionMode() {
-		panic("cannot call ModuleFromName if not in bazel conversion mode")
-	}
-	var m blueprint.Module
-	var ok bool
-	if moduleName, _ := SrcIsModuleWithTag(name); moduleName != "" {
-		m, ok = b.bp.ModuleFromName(moduleName)
-	} else {
-		m, ok = b.bp.ModuleFromName(name)
-	}
-	if !ok {
-		return m, ok
-	}
-	// If this module is not preferred, tried to get the prebuilt version instead
-	if a, aOk := m.(Module); aOk && !IsModulePrebuilt(a) && !IsModulePreferred(a) {
-		return b.ModuleFromName("prebuilt_" + name)
-	}
-	return m, ok
 }
 
 func (b *baseModuleContext) VisitDirectDepsBlueprint(visit func(blueprint.Module)) {

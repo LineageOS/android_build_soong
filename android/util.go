@@ -591,3 +591,9 @@ func CheckDuplicate(values []string) (duplicate string, found bool) {
 	}
 	return "", false
 }
+
+func AddToStringSet(set map[string]bool, items []string) {
+	for _, item := range items {
+		set[item] = true
+	}
+}

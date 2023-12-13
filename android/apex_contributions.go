@@ -111,9 +111,6 @@ func (a *allApexContributions) SetPrebuiltSelectionInfoProvider(ctx BaseModuleCo
 		}
 	}
 
-	if ctx.Config().Bp2buildMode() { // Skip bp2build
-		return
-	}
 	p := PrebuiltSelectionInfoMap{}
 	ctx.VisitDirectDepsWithTag(acDepTag, func(child Module) {
 		if m, ok := child.(*apexContributions); ok {

@@ -15,11 +15,6 @@
 package android
 
 import (
-	"path/filepath"
-
-	"android/soong/bazel"
-	"android/soong/ui/metrics/bp2build_metrics_proto"
-
 	"github.com/google/blueprint"
 )
 
@@ -32,40 +27,9 @@ import (
 //   run FinalDeps mutators (CreateVariations disallowed in this phase)
 //   continue on to GenerateAndroidBuildActions
 
-// RegisterMutatorsForBazelConversion is a alternate registration pipeline for bp2build. Exported for testing.
-func RegisterMutatorsForBazelConversion(ctx *Context, preArchMutators []RegisterMutatorFunc) {
-	bp2buildMutators := append(preArchMutators, registerBp2buildConversionMutator)
-	registerMutatorsForBazelConversion(ctx, bp2buildMutators)
-}
-
-func registerMutatorsForBazelConversion(ctx *Context, bp2buildMutators []RegisterMutatorFunc) {
-	mctx := &registerMutatorsContext{
-		bazelConversionMode: true,
-	}
-
-	allMutators := append([]RegisterMutatorFunc{
-		RegisterNamespaceMutator,
-		RegisterDefaultsPreArchMutators,
-		// TODO(b/165114590): this is required to resolve deps that are only prebuilts, but we should
-		// evaluate the impact on conversion.
-		RegisterPrebuiltsPreArchMutators,
-		RegisterPrebuiltsPostDepsMutators,
-	},
-		bp2buildMutators...)
-
-	// Register bp2build mutators
-	for _, f := range allMutators {
-		f(mctx)
-	}
-
-	mctx.mutators.registerAll(ctx)
-}
-
 // collateGloballyRegisteredMutators constructs the list of mutators that have been registered
 // with the InitRegistrationContext and will be used at runtime.
 func collateGloballyRegisteredMutators() sortableComponents {
-	// ensure mixed builds mutator is the last mutator
-	finalDeps = append(finalDeps, registerMixedBuildsMutator)
 	return collateRegisteredMutators(preArch, preDeps, postDeps, finalDeps)
 }
 
@@ -94,9 +58,8 @@ func collateRegisteredMutators(preArch, preDeps, postDeps, finalDeps []RegisterM
 }
 
 type registerMutatorsContext struct {
-	mutators            sortableComponents
-	finalPhase          bool
-	bazelConversionMode bool
+	mutators   sortableComponents
+	finalPhase bool
 }
 
 type RegisterMutatorsContext interface {
@@ -219,58 +182,6 @@ func FinalDepsMutators(f RegisterMutatorFunc) {
 	finalDeps = append(finalDeps, f)
 }
 
-var bp2buildPreArchMutators = []RegisterMutatorFunc{}
-
-// A minimal context for Bp2build conversion
-type Bp2buildMutatorContext interface {
-	BazelConversionPathContext
-	BaseMutatorContext
-
-	// AddDependency adds a dependency to the given module.  It returns a slice of modules for each
-	// dependency (some entries may be nil).
-	//
-	// If the mutator is parallel (see MutatorHandle.Parallel), this method will pause until the
-	// new dependencies have had the current mutator called on them.  If the mutator is not
-	// parallel this method does not affect the ordering of the current mutator pass, but will
-	// be ordered correctly for all future mutator passes.
-	AddDependency(module blueprint.Module, tag blueprint.DependencyTag, name ...string) []blueprint.Module
-
-	// CreateBazelTargetModule creates a BazelTargetModule by calling the
-	// factory method, just like in CreateModule, but also requires
-	// BazelTargetModuleProperties containing additional metadata for the
-	// bp2build codegenerator.
-	CreateBazelTargetModule(bazel.BazelTargetModuleProperties, CommonAttributes, interface{})
-
-	// CreateBazelTargetModuleWithRestrictions creates a BazelTargetModule by calling the
-	// factory method, just like in CreateModule, but also requires
-	// BazelTargetModuleProperties containing additional metadata for the
-	// bp2build codegenerator. The generated target is restricted to only be buildable for certain
-	// platforms, as dictated by a given bool attribute: the target will not be buildable in
-	// any platform for which this bool attribute is false.
-	CreateBazelTargetModuleWithRestrictions(bazel.BazelTargetModuleProperties, CommonAttributes, interface{}, bazel.BoolAttribute)
-
-	// MarkBp2buildUnconvertible registers the current module as "unconvertible to bp2build" for the
-	// given reason.
-	MarkBp2buildUnconvertible(reasonType bp2build_metrics_proto.UnconvertedReasonType, detail string)
-
-	// CreateBazelTargetAliasInDir creates an alias definition in `dir` directory.
-	// This function can be used to create alias definitions in a directory that is different
-	// from the directory of the visited Soong module.
-	CreateBazelTargetAliasInDir(dir string, name string, actual bazel.Label)
-
-	// CreateBazelConfigSetting creates a config_setting in <dir>/BUILD.bazel
-	// build/bazel has several static config_setting(s) that are used in Bazel builds.
-	// This function can be used to createa additional config_setting(s) based on the build graph
-	// (e.g. a config_setting specific to an apex variant)
-	CreateBazelConfigSetting(csa bazel.ConfigSettingAttributes, ca CommonAttributes, dir string)
-}
-
-// PreArchBp2BuildMutators adds mutators to be register for converting Android Blueprint modules
-// into Bazel BUILD targets that should run prior to deps and conversion.
-func PreArchBp2BuildMutators(f RegisterMutatorFunc) {
-	bp2buildPreArchMutators = append(bp2buildPreArchMutators, f)
-}
-
 type BaseMutatorContext interface {
 	BaseModuleContext
 
@@ -301,7 +212,15 @@ type BottomUpMutator func(BottomUpMutatorContext)
 
 type BottomUpMutatorContext interface {
 	BaseMutatorContext
-	Bp2buildMutatorContext
+
+	// AddDependency adds a dependency to the given module.  It returns a slice of modules for each
+	// dependency (some entries may be nil).
+	//
+	// If the mutator is parallel (see MutatorHandle.Parallel), this method will pause until the
+	// new dependencies have had the current mutator called on them.  If the mutator is not
+	// parallel this method does not affect the ordering of the current mutator pass, but will
+	// be ordered correctly for all future mutator passes.
+	AddDependency(module blueprint.Module, tag blueprint.DependencyTag, name ...string) []blueprint.Module
 
 	// AddReverseDependency adds a dependency from the destination to the given module.
 	// Does not affect the ordering of the current mutator pass, but will be ordered
@@ -416,10 +335,9 @@ type bottomUpMutatorContext struct {
 }
 
 func bottomUpMutatorContextFactory(ctx blueprint.BottomUpMutatorContext, a Module,
-	finalPhase, bazelConversionMode bool) BottomUpMutatorContext {
+	finalPhase bool) BottomUpMutatorContext {
 
 	moduleContext := a.base().baseModuleContextFactory(ctx)
-	moduleContext.bazelConversionMode = bazelConversionMode
 
 	return &bottomUpMutatorContext{
 		bp:                ctx,
@@ -430,10 +348,9 @@ func bottomUpMutatorContextFactory(ctx blueprint.BottomUpMutatorContext, a Modul
 
 func (x *registerMutatorsContext) BottomUp(name string, m BottomUpMutator) MutatorHandle {
 	finalPhase := x.finalPhase
-	bazelConversionMode := x.bazelConversionMode
 	f := func(ctx blueprint.BottomUpMutatorContext) {
 		if a, ok := ctx.Module().(Module); ok {
-			m(bottomUpMutatorContextFactory(ctx, a, finalPhase, bazelConversionMode))
+			m(bottomUpMutatorContextFactory(ctx, a, finalPhase))
 		}
 	}
 	mutator := &mutator{name: x.mutatorName(name), bottomUpMutator: f}
@@ -550,15 +467,13 @@ type TransitionMutator interface {
 }
 
 type androidTransitionMutator struct {
-	finalPhase          bool
-	bazelConversionMode bool
-	mutator             TransitionMutator
+	finalPhase bool
+	mutator    TransitionMutator
 }
 
 func (a *androidTransitionMutator) Split(ctx blueprint.BaseModuleContext) []string {
 	if m, ok := ctx.Module().(Module); ok {
 		moduleContext := m.base().baseModuleContextFactory(ctx)
-		moduleContext.bazelConversionMode = a.bazelConversionMode
 		return a.mutator.Split(&moduleContext)
 	} else {
 		return []string{""}
@@ -607,15 +522,14 @@ func (a *androidTransitionMutator) IncomingTransition(ctx blueprint.IncomingTran
 
 func (a *androidTransitionMutator) Mutate(ctx blueprint.BottomUpMutatorContext, variation string) {
 	if am, ok := ctx.Module().(Module); ok {
-		a.mutator.Mutate(bottomUpMutatorContextFactory(ctx, am, a.finalPhase, a.bazelConversionMode), variation)
+		a.mutator.Mutate(bottomUpMutatorContextFactory(ctx, am, a.finalPhase), variation)
 	}
 }
 
 func (x *registerMutatorsContext) Transition(name string, m TransitionMutator) {
 	atm := &androidTransitionMutator{
-		finalPhase:          x.finalPhase,
-		bazelConversionMode: x.bazelConversionMode,
-		mutator:             m,
+		finalPhase: x.finalPhase,
+		mutator:    m,
 	}
 	mutator := &mutator{
 		name:              name,
@@ -624,9 +538,6 @@ func (x *registerMutatorsContext) Transition(name string, m TransitionMutator) {
 }
 
 func (x *registerMutatorsContext) mutatorName(name string) string {
-	if x.bazelConversionMode {
-		return name + "_bp2build"
-	}
 	return name
 }
 
@@ -634,7 +545,6 @@ func (x *registerMutatorsContext) TopDown(name string, m TopDownMutator) Mutator
 	f := func(ctx blueprint.TopDownMutatorContext) {
 		if a, ok := ctx.Module().(Module); ok {
 			moduleContext := a.base().baseModuleContextFactory(ctx)
-			moduleContext.bazelConversionMode = x.bazelConversionMode
 			actx := &topDownMutatorContext{
 				bp:                ctx,
 				baseModuleContext: moduleContext,
@@ -696,179 +606,6 @@ func depsMutator(ctx BottomUpMutatorContext) {
 
 func registerDepsMutator(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("deps", depsMutator).Parallel()
-}
-
-func (t *bottomUpMutatorContext) CreateBazelTargetModule(
-	bazelProps bazel.BazelTargetModuleProperties,
-	commonAttrs CommonAttributes,
-	attrs interface{}) {
-	t.createBazelTargetModule(bazelProps, commonAttrs, attrs, bazel.BoolAttribute{})
-}
-
-func (t *bottomUpMutatorContext) CreateBazelTargetModuleWithRestrictions(
-	bazelProps bazel.BazelTargetModuleProperties,
-	commonAttrs CommonAttributes,
-	attrs interface{},
-	enabledProperty bazel.BoolAttribute) {
-	t.createBazelTargetModule(bazelProps, commonAttrs, attrs, enabledProperty)
-}
-
-func (t *bottomUpMutatorContext) MarkBp2buildUnconvertible(
-	reasonType bp2build_metrics_proto.UnconvertedReasonType, detail string) {
-	mod := t.Module()
-	mod.base().setBp2buildUnconvertible(reasonType, detail)
-}
-
-var (
-	bazelAliasModuleProperties = bazel.BazelTargetModuleProperties{
-		Rule_class: "alias",
-	}
-)
-
-type bazelAliasAttributes struct {
-	Actual *bazel.LabelAttribute
-}
-
-func (t *bottomUpMutatorContext) CreateBazelTargetAliasInDir(
-	dir string,
-	name string,
-	actual bazel.Label) {
-	mod := t.Module()
-	attrs := &bazelAliasAttributes{
-		Actual: bazel.MakeLabelAttribute(actual.Label),
-	}
-	info := bp2buildInfo{
-		Dir:             dir,
-		BazelProps:      bazelAliasModuleProperties,
-		CommonAttrs:     CommonAttributes{Name: name},
-		ConstraintAttrs: constraintAttributes{},
-		Attrs:           attrs,
-	}
-	mod.base().addBp2buildInfo(info)
-}
-
-// Returns the directory in which the bazel target will be generated
-// If ca.Dir is not nil, use that
-// Otherwise default to the directory of the soong module
-func dirForBazelTargetGeneration(t *bottomUpMutatorContext, ca *CommonAttributes) string {
-	dir := t.OtherModuleDir(t.Module())
-	if ca.Dir != nil {
-		dir = *ca.Dir
-		// Restrict its use to dirs that contain an Android.bp file.
-		// There are several places in bp2build where we use the existence of Android.bp/BUILD on the filesystem
-		// to curate a compatible label for src files (e.g. headers for cc).
-		// If we arbritrarily create BUILD files, then it might render those curated labels incompatible.
-		if exists, _, _ := t.Config().fs.Exists(filepath.Join(dir, "Android.bp")); !exists {
-			t.ModuleErrorf("Cannot use ca.Dir to create a BazelTarget in dir: %v since it does not contain an Android.bp file", dir)
-		}
-
-		// Set ca.Dir to nil so that it does not get emitted to the BUILD files
-		ca.Dir = nil
-	}
-	return dir
-}
-
-func (t *bottomUpMutatorContext) CreateBazelConfigSetting(
-	csa bazel.ConfigSettingAttributes,
-	ca CommonAttributes,
-	dir string) {
-	mod := t.Module()
-	info := bp2buildInfo{
-		Dir: dir,
-		BazelProps: bazel.BazelTargetModuleProperties{
-			Rule_class: "config_setting",
-		},
-		CommonAttrs:     ca,
-		ConstraintAttrs: constraintAttributes{},
-		Attrs:           &csa,
-	}
-	mod.base().addBp2buildInfo(info)
-}
-
-// ApexAvailableTags converts the apex_available property value of an ApexModule
-// module and returns it as a list of keyed tags.
-func ApexAvailableTags(mod Module) bazel.StringListAttribute {
-	attr := bazel.StringListAttribute{}
-	// Transform specific attributes into tags.
-	if am, ok := mod.(ApexModule); ok {
-		// TODO(b/218841706): hidl_interface has the apex_available prop, but it's
-		// defined directly as a prop and not via ApexModule, so this doesn't
-		// pick those props up.
-		apexAvailable := am.apexModuleBase().ApexAvailable()
-		// If a user does not specify apex_available in Android.bp, then soong provides a default.
-		// To avoid verbosity of BUILD files, remove this default from user-facing BUILD files.
-		if len(am.apexModuleBase().ApexProperties.Apex_available) == 0 {
-			apexAvailable = []string{}
-		}
-		attr.Value = ConvertApexAvailableToTags(apexAvailable)
-	}
-	return attr
-}
-
-func ApexAvailableTagsWithoutTestApexes(ctx BaseModuleContext, mod Module) bazel.StringListAttribute {
-	attr := bazel.StringListAttribute{}
-	if am, ok := mod.(ApexModule); ok {
-		apexAvailableWithoutTestApexes := removeTestApexes(ctx, am.apexModuleBase().ApexAvailable())
-		// If a user does not specify apex_available in Android.bp, then soong provides a default.
-		// To avoid verbosity of BUILD files, remove this default from user-facing BUILD files.
-		if len(am.apexModuleBase().ApexProperties.Apex_available) == 0 {
-			apexAvailableWithoutTestApexes = []string{}
-		}
-		attr.Value = ConvertApexAvailableToTags(apexAvailableWithoutTestApexes)
-	}
-	return attr
-}
-
-func removeTestApexes(ctx BaseModuleContext, apex_available []string) []string {
-	testApexes := []string{}
-	for _, aa := range apex_available {
-		// ignore the wildcards
-		if InList(aa, AvailableToRecognziedWildcards) {
-			continue
-		}
-		mod, _ := ctx.ModuleFromName(aa)
-		if apex, ok := mod.(ApexTestInterface); ok && apex.IsTestApex() {
-			testApexes = append(testApexes, aa)
-		}
-	}
-	return RemoveListFromList(CopyOf(apex_available), testApexes)
-}
-
-func ConvertApexAvailableToTags(apexAvailable []string) []string {
-	if len(apexAvailable) == 0 {
-		// We need nil specifically to make bp2build not add the tags property at all,
-		// instead of adding it with an empty list
-		return nil
-	}
-	result := make([]string, 0, len(apexAvailable))
-	for _, a := range apexAvailable {
-		result = append(result, "apex_available="+a)
-	}
-	return result
-}
-
-// ConvertApexAvailableToTagsWithoutTestApexes converts a list of apex names to a list of bazel tags
-// This function drops any test apexes from the input.
-func ConvertApexAvailableToTagsWithoutTestApexes(ctx BaseModuleContext, apexAvailable []string) []string {
-	noTestApexes := removeTestApexes(ctx, apexAvailable)
-	return ConvertApexAvailableToTags(noTestApexes)
-}
-
-func (t *bottomUpMutatorContext) createBazelTargetModule(
-	bazelProps bazel.BazelTargetModuleProperties,
-	commonAttrs CommonAttributes,
-	attrs interface{},
-	enabledProperty bazel.BoolAttribute) {
-	constraintAttributes := commonAttrs.fillCommonBp2BuildModuleAttrs(t, enabledProperty)
-	mod := t.Module()
-	info := bp2buildInfo{
-		Dir:             dirForBazelTargetGeneration(t, &commonAttrs),
-		BazelProps:      bazelProps,
-		CommonAttrs:     commonAttrs,
-		ConstraintAttrs: constraintAttributes,
-		Attrs:           attrs,
-	}
-	mod.base().addBp2buildInfo(info)
 }
 
 // android.topDownMutatorContext either has to embed blueprint.TopDownMutatorContext, in which case every method that

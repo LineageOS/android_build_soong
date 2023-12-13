@@ -61,11 +61,7 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		// passed to PathForSource or PathForModuleSrc.
 		TestAllowNonExistentPaths: true,
 
-		BazelContext:              noopBazelContext{},
-		BuildMode:                 BazelProdMode,
-		mixedBuildDisabledModules: make(map[string]struct{}),
-		mixedBuildEnabledModules:  make(map[string]struct{}),
-		bazelForceEnabledModules:  make(map[string]struct{}),
+		BuildMode: AnalysisNoBazel,
 	}
 	config.deviceConfig = &deviceConfig{
 		config: config,
