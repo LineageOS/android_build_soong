@@ -411,7 +411,7 @@ func (a *AndroidApp) useEmbeddedNativeLibs(ctx android.ModuleContext) bool {
 		ctx.PropertyErrorf("min_sdk_version", "invalid value %q: %s", a.MinSdkVersion(ctx), err)
 	}
 
-	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	return (minSdkVersion.FinalOrFutureInt() >= 23 && Bool(a.appProperties.Use_embedded_native_libs)) ||
 		!apexInfo.IsForPlatform()
 }
@@ -436,7 +436,7 @@ func (a *AndroidApp) shouldUncompressDex(ctx android.ModuleContext) bool {
 }
 
 func (a *AndroidApp) shouldEmbedJnis(ctx android.BaseModuleContext) bool {
-	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	return ctx.Config().UnbundledBuild() || Bool(a.appProperties.Use_embedded_native_libs) ||
 		!apexInfo.IsForPlatform() || a.appProperties.AlwaysPackageNativeLibs
 }
@@ -745,7 +745,8 @@ func (a *AndroidApp) createPrivappAllowlist(ctx android.ModuleContext) android.P
 func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	var apkDeps android.Paths
 
-	if !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform() {
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
+	if !apexInfo.IsForPlatform() {
 		a.hideApexVariantFromMake = true
 	}
 
@@ -889,8 +890,6 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	if allowlist != nil {
 		a.privAppAllowlist = android.OptionalPathForPath(allowlist)
 	}
-
-	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 
 	// Install the app package.
 	shouldInstallAppPackage := (Bool(a.Module.properties.Installable) || ctx.Host()) && apexInfo.IsForPlatform() && !a.appProperties.PreventInstall

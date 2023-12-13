@@ -647,7 +647,7 @@ func (j *Library) PermittedPackagesForUpdatableBootJars() []string {
 
 func shouldUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter) bool {
 	// Store uncompressed (and aligned) any dex files from jars in APEXes.
-	if apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo); !apexInfo.IsForPlatform() {
+	if apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider); !apexInfo.IsForPlatform() {
 		return true
 	}
 
@@ -695,7 +695,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	writeCombinedProguardFlagsFile(ctx, combinedExportedProguardFlagFile, exportedProguardFlagsFiles)
 	j.combinedExportedProguardFlagsFile = combinedExportedProguardFlagFile
 
-	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	if !apexInfo.IsForPlatform() {
 		j.hideApexVariantFromMake = true
 	}
@@ -2188,7 +2188,8 @@ func (j *Import) commonBuildActions(ctx android.ModuleContext) {
 	j.sdkVersion = j.SdkVersion(ctx)
 	j.minSdkVersion = j.MinSdkVersion(ctx)
 
-	if !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform() {
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
+	if !apexInfo.IsForPlatform() {
 		j.hideApexVariantFromMake = true
 	}
 
@@ -2247,7 +2248,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if ctx.Device() {
 		// If this is a variant created for a prebuilt_apex then use the dex implementation jar
 		// obtained from the associated deapexer module.
-		ai := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+		ai, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 		if ai.ForPrebuiltApex {
 			// Get the path of the dex implementation jar from the `deapexer` module.
 			di := android.FindDeapexerProviderForModule(ctx)
@@ -2570,7 +2571,7 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ctx.PropertyErrorf("jars", "exactly one jar must be provided")
 	}
 
-	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	if !apexInfo.IsForPlatform() {
 		j.hideApexVariantFromMake = true
 	}

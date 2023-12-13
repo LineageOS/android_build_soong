@@ -2150,7 +2150,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			af := apexFileForNativeLibrary(ctx, ch, vctx.handleSpecialLibs)
 			af.transitiveDep = true
 
-			abInfo := ctx.Provider(ApexBundleInfoProvider).(ApexBundleInfo)
+			abInfo, _ := android.ModuleProvider(ctx, ApexBundleInfoProvider)
 			if !abInfo.Contents.DirectlyInApex(depName) && (ch.IsStubs() || ch.HasStubsVariants()) {
 				// If the dependency is a stubs lib, don't include it in this APEX,
 				// but make sure that the lib is installed on the device.
@@ -2589,7 +2589,7 @@ func (a *apexBundle) checkStaticLinkingToStubLibraries(ctx android.ModuleContext
 		return
 	}
 
-	abInfo := ctx.Provider(ApexBundleInfoProvider).(ApexBundleInfo)
+	abInfo, _ := android.ModuleProvider(ctx, ApexBundleInfoProvider)
 
 	a.WalkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) bool {
 		if ccm, ok := to.(*cc.Module); ok {

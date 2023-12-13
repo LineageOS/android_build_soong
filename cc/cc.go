@@ -1744,11 +1744,13 @@ func (ctx *moduleContextImpl) getVndkExtendsModuleName() string {
 }
 
 func (ctx *moduleContextImpl) isForPlatform() bool {
-	return ctx.ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform()
+	apexInfo, _ := android.ModuleProvider(ctx.ctx, android.ApexInfoProvider)
+	return apexInfo.IsForPlatform()
 }
 
 func (ctx *moduleContextImpl) apexVariationName() string {
-	return ctx.ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).ApexVariationName
+	apexInfo, _ := android.ModuleProvider(ctx.ctx, android.ApexInfoProvider)
+	return apexInfo.ApexVariationName
 }
 
 func (ctx *moduleContextImpl) apexSdkVersion() android.ApiLevel {
@@ -1991,7 +1993,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 
 	c.Properties.SubName = GetSubnameProperty(actx, c)
-	apexInfo := actx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	apexInfo, _ := android.ModuleProvider(actx, android.ApexInfoProvider)
 	if !apexInfo.IsForPlatform() {
 		c.hideApexVariantFromMake = true
 	}
@@ -2982,7 +2984,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		depPaths.ReexportedGeneratedHeaders = append(depPaths.ReexportedGeneratedHeaders, exporter.GeneratedHeaders...)
 	}
 
-	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	c.apexSdkVersion = findApexSdkVersion(ctx, apexInfo)
 
 	skipModuleList := map[string]bool{}
@@ -3402,7 +3404,7 @@ func ShouldUseStubForApex(ctx android.ModuleContext, dep android.Module) bool {
 		bootstrap = linkable.Bootstrap()
 	}
 
-	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 
 	useStubs := false
 
@@ -3436,7 +3438,7 @@ func ShouldUseStubForApex(ctx android.ModuleContext, dep android.Module) bool {
 			// Another exception: if this module is a test for an APEX, then
 			// it is linked with the non-stub variant of a module in the APEX
 			// as if this is part of the APEX.
-			testFor := ctx.Provider(android.ApexTestForInfoProvider).(android.ApexTestForInfo)
+			testFor, _ := android.ModuleProvider(ctx, android.ApexTestForInfoProvider)
 			for _, apexContents := range testFor.ApexContents {
 				if apexContents.DirectlyInApex(depName) {
 					useStubs = false

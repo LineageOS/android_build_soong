@@ -167,7 +167,7 @@ func FindDeapexerProviderForModule(ctx ModuleContext) *DeapexerInfo {
 	if di != nil {
 		return di
 	}
-	ai := ctx.Provider(ApexInfoProvider).(ApexInfo)
+	ai, _ := ModuleProvider(ctx, ApexInfoProvider)
 	ctx.ModuleErrorf("No prebuilt APEX provides a deapexer module for APEX variant %s", ai.ApexVariationName)
 	return nil
 }

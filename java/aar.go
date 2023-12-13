@@ -805,7 +805,8 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		},
 	)
 
-	a.hideApexVariantFromMake = !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform()
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
+	a.hideApexVariantFromMake = !apexInfo.IsForPlatform()
 
 	a.stem = proptools.StringDefault(a.overridableDeviceProperties.Stem, ctx.ModuleName())
 
@@ -1106,7 +1107,8 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.sdkVersion = a.SdkVersion(ctx)
 	a.minSdkVersion = a.MinSdkVersion(ctx)
 
-	a.hideApexVariantFromMake = !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform()
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
+	a.hideApexVariantFromMake = !apexInfo.IsForPlatform()
 
 	aarName := ctx.ModuleName() + ".aar"
 	a.aarPath = android.PathForModuleSrc(ctx, a.properties.Aars[0])

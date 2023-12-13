@@ -685,7 +685,7 @@ func (j *Module) shouldInstrumentInApex(ctx android.BaseModuleContext) bool {
 	// Force enable the instrumentation for java code that is built for APEXes ...
 	// except for the jacocoagent itself (because instrumenting jacocoagent using jacocoagent
 	// doesn't make sense) or framework libraries (e.g. libraries found in the InstrumentFrameworkModules list) unless EMMA_INSTRUMENT_FRAMEWORK is true.
-	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	isJacocoAgent := ctx.ModuleName() == "jacocoagent"
 	if j.DirectlyInAnyApex() && !isJacocoAgent && !apexInfo.IsForPlatform() {
 		if !inList(ctx.ModuleName(), config.InstrumentFrameworkModules) {
@@ -1572,7 +1572,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 
 	// Enable dex compilation for the APEX variants, unless it is disabled explicitly
 	compileDex := j.dexProperties.Compile_dex
-	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	if j.DirectlyInAnyApex() && !apexInfo.IsForPlatform() {
 		if compileDex == nil {
 			compileDex = proptools.BoolPtr(true)

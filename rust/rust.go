@@ -747,7 +747,8 @@ func (mod *Module) installable(apexInfo android.ApexInfo) bool {
 }
 
 func (ctx moduleContext) apexVariationName() string {
-	return ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).ApexVariationName
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
+	return apexInfo.ApexVariationName
 }
 
 var _ cc.LinkableInterface = (*Module)(nil)
@@ -897,7 +898,7 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		ModuleContext: actx,
 	}
 
-	apexInfo := actx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	apexInfo, _ := android.ModuleProvider(actx, android.ApexInfoProvider)
 	if !apexInfo.IsForPlatform() {
 		mod.hideApexVariantFromMake = true
 	}
@@ -978,7 +979,7 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 			}
 		}
 
-		apexInfo := actx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+		apexInfo, _ := android.ModuleProvider(actx, android.ApexInfoProvider)
 		if !proptools.BoolDefault(mod.Installable(), mod.EverInstallable()) && !mod.ProcMacro() {
 			// If the module has been specifically configure to not be installed then
 			// hide from make as otherwise it will break when running inside make as the
@@ -1148,7 +1149,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 	// For the dependency from platform to apex, use the latest stubs
 	mod.apexSdkVersion = android.FutureApiLevel
-	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	if !apexInfo.IsForPlatform() {
 		mod.apexSdkVersion = apexInfo.MinSdkVersion
 	}
