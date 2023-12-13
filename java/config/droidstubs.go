@@ -53,7 +53,7 @@ var (
 	MetalavaAnnotationsWarningsFlags = strings.Join(metalavaAnnotationsWarningsFlags, " ")
 
 	metalavaHideFlaggedApis = []string{
-		"--hide-annotation",
+		"--revert-annotation",
 		"android.annotation.FlaggedApi",
 	}
 
