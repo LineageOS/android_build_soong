@@ -244,7 +244,7 @@ func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps
 		},
 	})
 
-	ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
+	android.SetProvider(ctx, SharedLibraryInfoProvider, SharedLibraryInfo{
 		SharedLibrary: outputFile,
 		Target:        ctx.Target(),
 
@@ -270,7 +270,7 @@ func (d *apiLibraryDecorator) shareStubs(ctx ModuleContext) {
 				FlagExporterInfo:  flagInfo,
 			})
 		}
-		ctx.SetProvider(SharedLibraryStubsProvider, SharedLibraryStubsInfo{
+		android.SetProvider(ctx, SharedLibraryStubsProvider, SharedLibraryStubsInfo{
 			SharedStubLibraries: stubsInfo,
 
 			IsLLNDK: ctx.IsLlndk(),

@@ -1020,7 +1020,7 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 
 	// The membership information is saved for later access
 	apexContents := android.NewApexContents(contents)
-	mctx.SetProvider(ApexBundleInfoProvider, ApexBundleInfo{
+	android.SetProvider(mctx, ApexBundleInfoProvider, ApexBundleInfo{
 		Contents: apexContents,
 	})
 
@@ -1058,7 +1058,7 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 	})
 
 	if a.dynamic_common_lib_apex() {
-		mctx.SetProvider(DCLAInfoProvider, DCLAInfo{
+		android.SetProvider(mctx, DCLAInfoProvider, DCLAInfo{
 			ProvidedLibs: a.properties.Native_shared_libs,
 		})
 	}
@@ -1204,7 +1204,7 @@ func apexTestForMutator(mctx android.BottomUpMutatorContext) {
 			abInfo := mctx.OtherModuleProvider(testFor, ApexBundleInfoProvider).(ApexBundleInfo)
 			contents = append(contents, abInfo.Contents)
 		}
-		mctx.SetProvider(android.ApexTestForInfoProvider, android.ApexTestForInfo{
+		android.SetProvider(mctx, android.ApexTestForInfoProvider, android.ApexTestForInfo{
 			ApexContents: contents,
 		})
 	}

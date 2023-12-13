@@ -2131,9 +2131,9 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		}
 	}
 	if c.testModule {
-		ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
+		android.SetProvider(ctx, testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 	}
-	ctx.SetProvider(blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: deps.GeneratedSources.Strings()})
+	android.SetProvider(ctx, blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: deps.GeneratedSources.Strings()})
 
 	aconfig.CollectDependencyAconfigFiles(ctx, &c.mergedAconfigFiles)
 
@@ -2370,7 +2370,7 @@ func GetApiImports(c LinkableInterface, actx android.BottomUpMutatorContext) mul
 			if len(apiImportModule) > 0 && apiImportModule[0] != nil {
 				apiInfo := actx.OtherModuleProvider(apiImportModule[0], multitree.ApiImportsProvider).(multitree.ApiImportInfo)
 				apiImportInfo = apiInfo
-				actx.SetProvider(multitree.ApiImportsProvider, apiInfo)
+				android.SetProvider(actx, multitree.ApiImportsProvider, apiInfo)
 			}
 		}
 	}
@@ -2394,7 +2394,7 @@ func GetSnapshot(c LinkableInterface, snapshotInfo **SnapshotInfo, actx android.
 			snapshot := actx.OtherModuleProvider(snapshotModule[0], SnapshotInfoProvider).(SnapshotInfo)
 			*snapshotInfo = &snapshot
 			// republish the snapshot for use in later mutators on this module
-			actx.SetProvider(SnapshotInfoProvider, snapshot)
+			android.SetProvider(actx, SnapshotInfoProvider, snapshot)
 		}
 	}
 	if *snapshotInfo == nil {

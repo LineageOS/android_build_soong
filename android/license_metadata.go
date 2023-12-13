@@ -175,7 +175,7 @@ func buildLicenseMetadata(ctx ModuleContext, licenseMetadataFile WritablePath) {
 		},
 	})
 
-	ctx.SetProvider(LicenseMetadataProvider, &LicenseMetadataInfo{
+	SetProvider(ctx, LicenseMetadataProvider, &LicenseMetadataInfo{
 		LicenseMetadataPath:   licenseMetadataFile,
 		LicenseMetadataDepSet: NewDepSet(TOPOLOGICAL, Paths{licenseMetadataFile}, allDepMetadataDepSets),
 	})

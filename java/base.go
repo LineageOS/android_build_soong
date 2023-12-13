@@ -618,7 +618,7 @@ func (j *Module) provideHiddenAPIPropertyInfo(ctx android.ModuleContext) {
 	// Populate with package rules from the properties.
 	hiddenAPIInfo.extractPackageRulesFromProperties(&j.deviceProperties.HiddenAPIPackageProperties)
 
-	ctx.SetProvider(hiddenAPIPropertyInfoProvider, hiddenAPIInfo)
+	android.SetProvider(ctx, hiddenAPIPropertyInfoProvider, hiddenAPIInfo)
 }
 
 func (j *Module) OutputFiles(tag string) (android.Paths, error) {
@@ -1143,7 +1143,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 	uniqueSrcFiles = append(uniqueSrcFiles, uniqueJavaFiles...)
 	uniqueSrcFiles = append(uniqueSrcFiles, uniqueKtFiles...)
 	j.uniqueSrcFiles = uniqueSrcFiles
-	ctx.SetProvider(blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: uniqueSrcFiles.Strings()})
+	android.SetProvider(ctx, blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: uniqueSrcFiles.Strings()})
 
 	// We don't currently run annotation processors in turbine, which means we can't use turbine
 	// generated header jars when an annotation processor that generates API is enabled.  One
@@ -1178,7 +1178,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 			return
 		}
 
-		ctx.SetProvider(JavaInfoProvider, JavaInfo{
+		android.SetProvider(ctx, JavaInfoProvider, JavaInfo{
 			HeaderJars:                     android.PathsIfNonNil(j.headerJarFile),
 			TransitiveLibsHeaderJars:       j.transitiveLibsHeaderJars,
 			TransitiveStaticLibsHeaderJars: j.transitiveStaticLibsHeaderJars,
@@ -1696,7 +1696,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 
 	aconfig.CollectDependencyAconfigFiles(ctx, &j.mergedAconfigFiles)
 
-	ctx.SetProvider(JavaInfoProvider, JavaInfo{
+	android.SetProvider(ctx, JavaInfoProvider, JavaInfo{
 		HeaderJars:                     android.PathsIfNonNil(j.headerJarFile),
 		TransitiveLibsHeaderJars:       j.transitiveLibsHeaderJars,
 		TransitiveStaticLibsHeaderJars: j.transitiveStaticLibsHeaderJars,
@@ -2289,7 +2289,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			case syspropPublicStubDepTag:
 				// This is a sysprop implementation library, forward the JavaInfoProvider from
 				// the corresponding sysprop public stub library as SyspropPublicStubInfoProvider.
-				ctx.SetProvider(SyspropPublicStubInfoProvider, SyspropPublicStubInfo{
+				android.SetProvider(ctx, SyspropPublicStubInfoProvider, SyspropPublicStubInfo{
 					JavaInfo: dep,
 				})
 			}

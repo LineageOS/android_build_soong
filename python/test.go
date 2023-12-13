@@ -208,7 +208,7 @@ func (p *PythonTestModule) GenerateAndroidBuildActions(ctx android.ModuleContext
 	installedData := ctx.InstallTestData(installDir, p.data)
 	p.installedDest = ctx.InstallFile(installDir, p.installSource.Base(), p.installSource, installedData...)
 
-	ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
+	android.SetProvider(ctx, testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 }
 
 func (p *PythonTestModule) AndroidMkEntries() []android.AndroidMkEntries {

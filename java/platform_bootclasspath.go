@@ -389,7 +389,7 @@ func (b *platformBootclasspathModule) createAndProvideMonolithicHiddenAPIInfo(ct
 	monolithicInfo := newMonolithicHiddenAPIInfo(ctx, temporaryInput.FlagFilesByCategory, classpathElements)
 
 	// Store the information for testing.
-	ctx.SetProvider(MonolithicHiddenAPIInfoProvider, monolithicInfo)
+	android.SetProvider(ctx, MonolithicHiddenAPIInfoProvider, monolithicInfo)
 	return monolithicInfo
 }
 

@@ -547,7 +547,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	}
 
 	if library.static() || library.shared() {
-		ctx.SetProvider(cc.FlagExporterInfoProvider, cc.FlagExporterInfo{
+		android.SetProvider(ctx, cc.FlagExporterInfoProvider, cc.FlagExporterInfo{
 			IncludeDirs: library.includeDirs,
 		})
 	}
@@ -559,7 +559,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		library.tocFile = android.OptionalPathForPath(tocFile)
 		cc.TransformSharedObjectToToc(ctx, outputFile, tocFile)
 
-		ctx.SetProvider(cc.SharedLibraryInfoProvider, cc.SharedLibraryInfo{
+		android.SetProvider(ctx, cc.SharedLibraryInfoProvider, cc.SharedLibraryInfo{
 			TableOfContents: android.OptionalPathForPath(tocFile),
 			SharedLibrary:   outputFile,
 			Target:          ctx.Target(),
@@ -568,7 +568,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 
 	if library.static() {
 		depSet := android.NewDepSetBuilder[android.Path](android.TOPOLOGICAL).Direct(outputFile).Build()
-		ctx.SetProvider(cc.StaticLibraryInfoProvider, cc.StaticLibraryInfo{
+		android.SetProvider(ctx, cc.StaticLibraryInfoProvider, cc.StaticLibraryInfo{
 			StaticLibrary: outputFile,
 
 			TransitiveStaticLibrariesForOrdering: depSet,

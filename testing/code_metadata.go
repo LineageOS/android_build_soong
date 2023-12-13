@@ -132,7 +132,7 @@ func (module *CodeMetadataModule) GenerateAndroidBuildActions(ctx android.Module
 	)
 	android.WriteFileRule(ctx, intermediatePath, string(protoData))
 
-	ctx.SetProvider(
+	android.SetProvider(ctx,
 		CodeMetadataProviderKey,
 		CodeMetadataProviderData{IntermediatePath: intermediatePath},
 	)

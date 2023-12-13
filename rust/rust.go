@@ -509,7 +509,7 @@ func (flagExporter *flagExporter) exportLinkObjects(flags ...string) {
 }
 
 func (flagExporter *flagExporter) setProvider(ctx ModuleContext) {
-	ctx.SetProvider(FlagExporterInfoProvider, FlagExporterInfo{
+	android.SetProvider(ctx, FlagExporterInfoProvider, FlagExporterInfo{
 		LinkDirs:    flagExporter.linkDirs,
 		LinkObjects: flagExporter.linkObjects,
 	})
@@ -950,7 +950,7 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 			sourceLib := sourceMod.(*Module).compiler.(*libraryDecorator)
 			mod.sourceProvider.setOutputFiles(sourceLib.sourceProvider.Srcs())
 		}
-		ctx.SetProvider(blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: mod.sourceProvider.Srcs().Strings()})
+		android.SetProvider(ctx, blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: mod.sourceProvider.Srcs().Strings()})
 	}
 
 	if mod.compiler != nil && !mod.compiler.Disabled() {
@@ -1003,7 +1003,7 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		ctx.Phony("rust", ctx.RustModule().OutputFile().Path())
 	}
 	if mod.testModule {
-		ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
+		android.SetProvider(ctx, testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 	}
 
 	aconfig.CollectDependencyAconfigFiles(ctx, &mod.mergedAconfigFiles)

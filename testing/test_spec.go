@@ -119,7 +119,7 @@ func (module *TestSpecModule) GenerateAndroidBuildActions(ctx android.ModuleCont
 	}
 	android.WriteFileRule(ctx, intermediatePath, string(protoData))
 
-	ctx.SetProvider(
+	android.SetProvider(ctx,
 		TestSpecProviderKey, TestSpecProviderData{
 			IntermediatePath: intermediatePath,
 		},

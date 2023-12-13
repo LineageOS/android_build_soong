@@ -106,7 +106,7 @@ func (lib *AidlLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 	}
 
-	ctx.SetProvider(AidlLibraryProvider, AidlLibraryInfo{
+	android.SetProvider(ctx, AidlLibraryProvider, AidlLibraryInfo{
 		Srcs:        srcs,
 		IncludeDirs: *includeDirsDepSetBuilder.Build(),
 		Hdrs:        *hdrsDepSetBuilder.Build(),

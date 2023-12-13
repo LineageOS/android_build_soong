@@ -73,7 +73,7 @@ func MeasureSizeForPaths(ctx android.ModuleContext, paths ...android.OptionalPat
 			mf.paths = append(mf.paths, p)
 		}
 	}
-	ctx.SetProvider(fileSizeMeasurerKey, mf)
+	android.SetProvider(ctx, fileSizeMeasurerKey, mf)
 }
 
 type sizesSingleton struct{}

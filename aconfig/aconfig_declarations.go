@@ -177,7 +177,7 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 		Description: "aconfig_text",
 	})
 
-	ctx.SetProvider(DeclarationsProviderKey, DeclarationsProviderData{
+	android.SetProvider(ctx, DeclarationsProviderKey, DeclarationsProviderData{
 		Package:                     module.properties.Package,
 		Container:                   module.properties.Container,
 		IntermediateCacheOutputPath: intermediateCacheFilePath,
@@ -205,7 +205,7 @@ func CollectDependencyAconfigFiles(ctx android.ModuleContext, mergedAconfigFiles
 		(*mergedAconfigFiles)[container] = mergeAconfigFiles(ctx, aconfigFiles)
 	}
 
-	ctx.SetProvider(TransitiveDeclarationsInfoProvider, TransitiveDeclarationsInfo{
+	android.SetProvider(ctx, TransitiveDeclarationsInfoProvider, TransitiveDeclarationsInfo{
 		AconfigFiles: *mergedAconfigFiles,
 	})
 }

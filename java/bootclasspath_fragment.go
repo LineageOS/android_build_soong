@@ -500,7 +500,7 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 	if ctx.Module() != ctx.FinalModule() {
 		b.HideFromMake()
 	}
-	ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
+	android.SetProvider(ctx, testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 }
 
 // getProfileProviderApex returns the name of the apex that provides a boot image profile, or an
@@ -537,7 +537,7 @@ func (b *BootclasspathFragmentModule) provideApexContentInfo(ctx android.ModuleC
 	}
 
 	// Make the apex content info available for other modules.
-	ctx.SetProvider(BootclasspathFragmentApexContentInfoProvider, info)
+	android.SetProvider(ctx, BootclasspathFragmentApexContentInfoProvider, info)
 }
 
 // generateClasspathProtoBuildActions generates all required build actions for classpath.proto config
@@ -623,7 +623,7 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 	hiddenAPIInfo.HiddenAPIFlagOutput = output.HiddenAPIFlagOutput
 
 	//  Provide it for use by other modules.
-	ctx.SetProvider(HiddenAPIInfoProvider, hiddenAPIInfo)
+	android.SetProvider(ctx, HiddenAPIInfoProvider, hiddenAPIInfo)
 
 	return output
 }
@@ -744,7 +744,7 @@ func (b *BootclasspathFragmentModule) produceHiddenAPIOutput(ctx android.ModuleC
 	}
 
 	// Make the information available for the sdk snapshot.
-	ctx.SetProvider(HiddenAPIInfoForSdkProvider, HiddenAPIInfoForSdk{
+	android.SetProvider(ctx, HiddenAPIInfoForSdkProvider, HiddenAPIInfoForSdk{
 		FlagFilesByCategory: flagFilesByCategory,
 		HiddenAPIFlagOutput: flagOutput,
 	})

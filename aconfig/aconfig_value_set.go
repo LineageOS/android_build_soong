@@ -84,7 +84,7 @@ func (module *ValueSetModule) GenerateAndroidBuildActions(ctx android.ModuleCont
 		packages[depData.Package] = srcs
 
 	})
-	ctx.SetProvider(valueSetProviderKey, valueSetProviderData{
+	android.SetProvider(ctx, valueSetProviderKey, valueSetProviderData{
 		AvailablePackages: packages,
 	})
 }
