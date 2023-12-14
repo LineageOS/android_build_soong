@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"android/soong/aconfig"
 	"github.com/google/blueprint/proptools"
 
 	"fmt"
@@ -133,8 +134,7 @@ func (c *Module) AndroidMkEntries() []android.AndroidMkEntries {
 					entries.SetString("SOONG_SDK_VARIANT_MODULES",
 						"$(SOONG_SDK_VARIANT_MODULES) $(patsubst %.sdk,%,$(LOCAL_MODULE))")
 				}
-				// TODO(b/311155208): The container here should be system.
-				entries.SetPaths("LOCAL_ACONFIG_FILES", c.mergedAconfigFiles[""])
+				aconfig.SetAconfigFileMkEntries(c.AndroidModuleBase(), entries, c.mergedAconfigFiles)
 			},
 		},
 		ExtraFooters: []android.AndroidMkExtraFootersFunc{
