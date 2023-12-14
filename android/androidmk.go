@@ -492,8 +492,6 @@ type fillInEntriesContext interface {
 	ModuleDir(module blueprint.Module) string
 	ModuleSubDir(module blueprint.Module) string
 	Config() Config
-	ModuleProvider(module blueprint.Module, provider blueprint.AnyProviderKey) any
-	ModuleHasProvider(module blueprint.Module, provider blueprint.AnyProviderKey) bool
 	moduleProvider(module blueprint.Module, provider blueprint.AnyProviderKey) (any, bool)
 	ModuleType(module blueprint.Module) string
 }
