@@ -104,3 +104,61 @@ func testIncorrectCCCodegenModeHelper(t *testing.T, bpMode string, err string) {
 			}
 		`, bpMode))
 }
+
+func TestAndroidMkCcLibrary(t *testing.T) {
+	bp := `
+		aconfig_declarations {
+			name: "my_aconfig_declarations_foo",
+			package: "com.example.package",
+			srcs: ["foo.aconfig"],
+			container: "vendor",
+		}
+
+		cc_aconfig_library {
+			name: "my_cc_aconfig_library_foo",
+			aconfig_declarations: "my_aconfig_declarations_foo",
+			vendor_available: true,
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_bar",
+			package: "com.example.package",
+			srcs: ["bar.aconfig"],
+		}
+
+		cc_aconfig_library {
+			name: "my_cc_aconfig_library_bar",
+			aconfig_declarations: "my_aconfig_declarations_bar",
+			vendor_available: true,
+		}
+
+		cc_library {
+			name: "my_cc_library",
+			srcs: [
+				"src/foo.cc",
+			],
+			static_libs: [
+				"my_cc_aconfig_library_foo",
+				"my_cc_aconfig_library_bar",
+			],
+			vendor: true,
+		}
+
+		cc_library {
+			name: "server_configurable_flags",
+			srcs: ["server_configurable_flags.cc"],
+		}
+	`
+	result := android.GroupFixturePreparers(
+		PrepareForTestWithAconfigBuildComponents,
+		cc.PrepareForTestWithCcDefaultModules).
+		ExtendWithErrorHandler(android.FixtureExpectsNoErrors).RunTestWithBp(t, bp)
+
+	module := result.ModuleForTests("my_cc_library", "android_arm64_armv8-a_shared").Module()
+
+	entry := android.AndroidMkEntriesForTest(t, result.TestContext, module)[0]
+
+	makeVar := entry.EntryMap["LOCAL_ACONFIG_FILES"]
+	android.AssertIntEquals(t, "len(LOCAL_ACONFIG_FILES)", 1, len(makeVar))
+	android.EnsureListContainsSuffix(t, makeVar, "my_aconfig_declarations_foo/intermediate.pb")
+}
