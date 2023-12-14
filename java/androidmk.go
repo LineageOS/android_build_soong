@@ -19,6 +19,7 @@ import (
 	"io"
 	"strings"
 
+	"android/soong/aconfig"
 	"android/soong/android"
 
 	"github.com/google/blueprint/proptools"
@@ -128,9 +129,7 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 					if library.dexpreopter.configPath != nil {
 						entries.SetPath("LOCAL_SOONG_DEXPREOPT_CONFIG", library.dexpreopter.configPath)
 					}
-					// TODO(b/311155208): The container here should be system.
-
-					entries.SetPaths("LOCAL_ACONFIG_FILES", library.mergedAconfigFiles[""])
+					aconfig.SetAconfigFileMkEntries(&library.ModuleBase, entries, library.mergedAconfigFiles)
 				},
 			},
 		})
@@ -307,8 +306,7 @@ func (binary *Binary) AndroidMkEntries() []android.AndroidMkEntries {
 					if len(binary.dexpreopter.builtInstalled) > 0 {
 						entries.SetString("LOCAL_SOONG_BUILT_INSTALLED", binary.dexpreopter.builtInstalled)
 					}
-					// TODO(b/311155208): The container here should be system.
-					entries.SetPaths("LOCAL_ACONFIG_FILES", binary.mergedAconfigFiles[""])
+					aconfig.SetAconfigFileMkEntries(&binary.ModuleBase, entries, binary.mergedAconfigFiles)
 				},
 			},
 			ExtraFooters: []android.AndroidMkExtraFootersFunc{
@@ -461,8 +459,7 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 				entries.SetOptionalPaths("LOCAL_SOONG_LINT_REPORTS", app.linter.reports)
 
 				if app.Name() != "framework-res" {
-					// TODO(b/311155208): The container here should be system.
-					entries.SetPaths("LOCAL_ACONFIG_FILES", app.mergedAconfigFiles[""])
+					aconfig.SetAconfigFileMkEntries(&app.ModuleBase, entries, app.mergedAconfigFiles)
 				}
 			},
 		},
@@ -540,8 +537,7 @@ func (a *AndroidLibrary) AndroidMkEntries() []android.AndroidMkEntries {
 		entries.SetPath("LOCAL_FULL_MANIFEST_FILE", a.mergedManifestFile)
 		entries.SetPath("LOCAL_SOONG_EXPORT_PROGUARD_FLAGS", a.combinedExportedProguardFlagsFile)
 		entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", true)
-		// TODO(b/311155208): The container here should be system.
-		entries.SetPaths("LOCAL_ACONFIG_FILES", a.mergedAconfigFiles[""])
+		aconfig.SetAconfigFileMkEntries(&a.ModuleBase, entries, a.mergedAconfigFiles)
 	})
 
 	return entriesList
