@@ -446,8 +446,10 @@ func osMutator(bpctx blueprint.BottomUpMutatorContext) {
 		}
 	}
 
+	createCommonOSVariant := base.commonProperties.CreateCommonOSVariant
+
 	// If there are no supported OSes then disable the module.
-	if len(moduleOSList) == 0 {
+	if len(moduleOSList) == 0 && !createCommonOSVariant {
 		base.Disable()
 		return
 	}
@@ -458,7 +460,6 @@ func osMutator(bpctx blueprint.BottomUpMutatorContext) {
 		osNames[i] = os.String()
 	}
 
-	createCommonOSVariant := base.commonProperties.CreateCommonOSVariant
 	if createCommonOSVariant {
 		// A CommonOS variant was requested so add it to the list of OS variants to
 		// create. It needs to be added to the end because it needs to depend on the
