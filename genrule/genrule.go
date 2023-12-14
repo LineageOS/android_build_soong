@@ -581,17 +581,15 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 
 func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Allowlist genrule to use depfile until we have a solution to remove it.
-	// TODO(b/235582219): Remove allowlist for genrule
+	// TODO(b/307824623): Remove depfile property
 	if Bool(g.properties.Depfile) {
 		sandboxingAllowlistSets := getSandboxingAllowlistSets(ctx)
-		// TODO(b/283852474): Checking the GenruleSandboxing flag is temporary in
-		// order to pass the presubmit before internal master is updated.
 		if ctx.DeviceConfig().GenruleSandboxing() && !sandboxingAllowlistSets.depfileAllowSet[g.Name()] {
 			ctx.PropertyErrorf(
 				"depfile",
-				"Deprecated to ensure the module type is convertible to Bazel. "+
-					"Try specifying the dependencies explicitly so that there is no need to use depfile. "+
-					"If not possible, the escape hatch is to add the module to allowlists.go to bypass the error.")
+				"Deprecated because with genrule sandboxing, dependencies must be known before the action is run "+
+					"in order to add them to the sandbox. "+
+					"Please specify the dependencies explicitly so that there is no need to use depfile.")
 		}
 	}
 
