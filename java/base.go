@@ -195,6 +195,12 @@ type CommonProperties struct {
 
 	// If true, then only the headers are built and not the implementation jar.
 	Headers_only *bool
+
+	// A list of files or dependencies to make available to the build sandbox. This is
+	// useful if source files are symlinks, the targets of the symlinks must be listed here.
+	// Note that currently not all actions implemented by android_apps are sandboxed, so you
+	// may only see this being necessary in lint builds.
+	Compile_data []string `android:"path"`
 }
 
 // Properties that are specific to device modules. Host module factories should not add these when
@@ -1677,6 +1683,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		j.linter.compileSdkKind = j.SdkVersion(ctx).Kind
 		j.linter.javaLanguageLevel = flags.javaVersion.String()
 		j.linter.kotlinLanguageLevel = "1.3"
+		j.linter.compile_data = android.PathsForModuleSrc(ctx, j.properties.Compile_data)
 		if !apexInfo.IsForPlatform() && ctx.Config().UnbundledBuildApps() {
 			j.linter.buildModuleReportZip = true
 		}
