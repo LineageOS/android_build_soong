@@ -56,6 +56,7 @@ type ProtobufProperties struct {
 
 	// Use protobuf version 3.x. This will be deleted once we migrate all current users
 	// of protobuf off of 2.x.
+	// ludovicb@: DEPRECATED, to be removed
 	Use_protobuf3 *bool
 
 	// List of exported include paths containing proto files for dependent rust_protobuf modules.
@@ -74,10 +75,6 @@ type protobufDecorator struct {
 	protoFlags     android.ProtoFlags
 }
 
-func (proto *protobufDecorator) useProtobuf3() bool {
-	return Bool(proto.Properties.Use_protobuf3)
-}
-
 func (proto *protobufDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) android.Path {
 	var protoFlags android.ProtoFlags
 	var grpcProtoFlags android.ProtoFlags
@@ -87,12 +84,7 @@ func (proto *protobufDecorator) GenerateSource(ctx ModuleContext, deps PathDeps)
 	protoFiles := android.PathsForModuleSrc(ctx, proto.Properties.Protos)
 	grpcFiles := android.PathsForModuleSrc(ctx, proto.Properties.Grpc_protos)
 
-	// For now protobuf2 (the deprecated version) remains the default. This will change in the
-	// future as we update the various users.
-	protoPluginPath := ctx.Config().HostToolPath(ctx, "protoc-gen-rust-deprecated")
-	if proto.useProtobuf3() == true {
-		protoPluginPath = ctx.Config().HostToolPath(ctx, "protoc-gen-rust")
-	}
+	protoPluginPath := ctx.Config().HostToolPath(ctx, "protoc-gen-rust")
 
 	commonProtoFlags = append(commonProtoFlags, defaultProtobufFlags...)
 	commonProtoFlags = append(commonProtoFlags, proto.Properties.Proto_flags...)
@@ -216,13 +208,7 @@ func (proto *protobufDecorator) genModFileContents() string {
 		lines = append(
 			lines,
 			"pub mod empty {",
-			"    pub use protobuf::well_known_types::Empty;",
-			"}",
-			"pub mod wrappers {",
-			"    pub use protobuf::well_known_types::{",
-			"        DoubleValue, FloatValue, Int64Value, UInt64Value, Int32Value, UInt32Value,",
-			"        BoolValue, StringValue, BytesValue",
-			"    };",
+			"    pub use protobuf::well_known_types::empty::Empty;",
 			"}")
 	}
 
@@ -235,20 +221,10 @@ func (proto *protobufDecorator) SourceProviderProps() []interface{} {
 
 func (proto *protobufDecorator) SourceProviderDeps(ctx DepsContext, deps Deps) Deps {
 	deps = proto.BaseSourceProvider.SourceProviderDeps(ctx, deps)
-	useProtobuf3 := proto.useProtobuf3()
-	if useProtobuf3 == true {
-		deps.Rustlibs = append(deps.Rustlibs, "libprotobuf")
-	} else {
-		deps.Rustlibs = append(deps.Rustlibs, "libprotobuf_deprecated")
-	}
+	deps.Rustlibs = append(deps.Rustlibs, "libprotobuf")
 	deps.HeaderLibs = append(deps.SharedLibs, proto.Properties.Header_libs...)
 
 	if len(proto.Properties.Grpc_protos) > 0 {
-		if useProtobuf3 == true {
-			ctx.PropertyErrorf("protos", "rust_protobuf with grpc_protos defined must currently use "+
-				"`use_protobuf3: false,` in the Android.bp file. This is temporary until the "+
-				"grpcio crate is updated to use the current version of the protobuf crate.")
-		}
 		deps.Rustlibs = append(deps.Rustlibs, "libgrpcio", "libfutures")
 		deps.HeaderLibs = append(deps.HeaderLibs, "libprotobuf-cpp-full")
 	}
