@@ -25,6 +25,8 @@ import (
 	"strings"
 	"testing"
 
+	"android/soong/aconfig/codegen"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -151,6 +153,7 @@ var prepareForApexTest = android.GroupFixturePreparers(
 	prebuilt_etc.PrepareForTestWithPrebuiltEtc,
 	rust.PrepareForTestWithRustDefaultModules,
 	sh.PrepareForTestWithShBuildComponents,
+	codegen.PrepareForTestWithAconfigBuildComponents,
 
 	PrepareForTestWithApexBuildComponents,
 
@@ -595,13 +598,15 @@ func TestBasicApex(t *testing.T) {
 		t.Errorf("Could not find all expected symlinks! foo: %t, foo_link_64: %t. Command was %s", found_foo, found_foo_link_64, copyCmds)
 	}
 
-	fullDepsInfo := strings.Split(ctx.ModuleForTests("myapex", "android_common_myapex").Output("depsinfo/fulllist.txt").Args["content"], "\\n")
+	fullDepsInfo := strings.Split(android.ContentFromFileRuleForTests(t, ctx,
+		ctx.ModuleForTests("myapex", "android_common_myapex").Output("depsinfo/fulllist.txt")), "\n")
 	ensureListContains(t, fullDepsInfo, "  myjar(minSdkVersion:(no version)) <- myapex")
 	ensureListContains(t, fullDepsInfo, "  mylib2(minSdkVersion:(no version)) <- mylib")
 	ensureListContains(t, fullDepsInfo, "  myotherjar(minSdkVersion:(no version)) <- myjar")
 	ensureListContains(t, fullDepsInfo, "  mysharedjar(minSdkVersion:(no version)) (external) <- myjar")
 
-	flatDepsInfo := strings.Split(ctx.ModuleForTests("myapex", "android_common_myapex").Output("depsinfo/flatlist.txt").Args["content"], "\\n")
+	flatDepsInfo := strings.Split(android.ContentFromFileRuleForTests(t, ctx,
+		ctx.ModuleForTests("myapex", "android_common_myapex").Output("depsinfo/flatlist.txt")), "\n")
 	ensureListContains(t, flatDepsInfo, "myjar(minSdkVersion:(no version))")
 	ensureListContains(t, flatDepsInfo, "mylib2(minSdkVersion:(no version))")
 	ensureListContains(t, flatDepsInfo, "myotherjar(minSdkVersion:(no version))")
@@ -956,6 +961,32 @@ func TestApexWithStubs(t *testing.T) {
 	ensureListContains(t, names(apexManifestRule.Args["requireNativeLibs"]), "libfoo.shared_from_rust.so")
 }
 
+func TestApexShouldNotEmbedStubVariant(t *testing.T) {
+	testApexError(t, `module "myapex" .*: native_shared_libs: "libbar" is a stub`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			vendor: true,
+			updatable: false,
+			native_shared_libs: ["libbar"], // should not add an LLNDK stub in a vendor apex
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "libbar",
+			srcs: ["mylib.cpp"],
+			llndk: {
+				symbol_file: "libbar.map.txt",
+			}
+		}
+	`)
+}
+
 func TestApexCanUsePrivateApis(t *testing.T) {
 	ctx := testApex(t, `
 		apex {
@@ -1281,10 +1312,12 @@ func TestApexWithExplicitStubsDependency(t *testing.T) {
 	// Ensure that libfoo stubs is not linking to libbar (since it is a stubs)
 	ensureNotContains(t, libFooStubsLdFlags, "libbar.so")
 
-	fullDepsInfo := strings.Split(ctx.ModuleForTests("myapex2", "android_common_myapex2").Output("depsinfo/fulllist.txt").Args["content"], "\\n")
+	fullDepsInfo := strings.Split(android.ContentFromFileRuleForTests(t, ctx,
+		ctx.ModuleForTests("myapex2", "android_common_myapex2").Output("depsinfo/fulllist.txt")), "\n")
 	ensureListContains(t, fullDepsInfo, "  libfoo(minSdkVersion:(no version)) (external) <- mylib")
 
-	flatDepsInfo := strings.Split(ctx.ModuleForTests("myapex2", "android_common_myapex2").Output("depsinfo/flatlist.txt").Args["content"], "\\n")
+	flatDepsInfo := strings.Split(android.ContentFromFileRuleForTests(t, ctx,
+		ctx.ModuleForTests("myapex2", "android_common_myapex2").Output("depsinfo/flatlist.txt")), "\n")
 	ensureListContains(t, flatDepsInfo, "libfoo(minSdkVersion:(no version)) (external)")
 }
 
@@ -2030,7 +2063,8 @@ func TestTrackAllowedDeps(t *testing.T) {
 		"out/soong/.intermediates/myapex2/android_common_myapex2/depsinfo/flatlist.txt")
 
 	myapex := ctx.ModuleForTests("myapex", "android_common_myapex")
-	flatlist := strings.Split(myapex.Output("depsinfo/flatlist.txt").BuildParams.Args["content"], "\\n")
+	flatlist := strings.Split(android.ContentFromFileRuleForTests(t, ctx,
+		myapex.Output("depsinfo/flatlist.txt")), "\n")
 	android.AssertStringListContains(t, "deps with stubs should be tracked in depsinfo as external dep",
 		flatlist, "libbar(minSdkVersion:(no version)) (external)")
 	android.AssertStringListDoesNotContain(t, "do not track if not available for platform",
@@ -4701,6 +4735,72 @@ func TestTestApex(t *testing.T) {
 
 	// Ensure that the platform variant ends with _shared
 	ensureListContains(t, ctx.ModuleVariantsForTests("mylib_common_test"), "android_arm64_armv8-a_shared")
+}
+
+func TestLibzVendorIsntStable(t *testing.T) {
+	ctx := testApex(t, `
+	apex {
+		name: "myapex",
+		key: "myapex.key",
+		updatable: false,
+		binaries: ["mybin"],
+	}
+	apex {
+		name: "myvendorapex",
+		key: "myapex.key",
+		file_contexts: "myvendorapex_file_contexts",
+		vendor: true,
+		updatable: false,
+		binaries: ["mybin"],
+	}
+	apex_key {
+		name: "myapex.key",
+		public_key: "testkey.avbpubkey",
+		private_key: "testkey.pem",
+	}
+	cc_binary {
+		name: "mybin",
+		vendor_available: true,
+		system_shared_libs: [],
+		stl: "none",
+		shared_libs: ["libz"],
+		apex_available: ["//apex_available:anyapex"],
+	}
+	cc_library {
+		name: "libz",
+		vendor_available: true,
+		system_shared_libs: [],
+		stl: "none",
+		stubs: {
+			versions: ["28", "30"],
+		},
+		target: {
+			vendor: {
+				no_stubs: true,
+			},
+		},
+	}
+	`, withFiles(map[string][]byte{
+		"myvendorapex_file_contexts": nil,
+	}))
+
+	// libz provides stubs for core variant.
+	{
+		ensureExactContents(t, ctx, "myapex", "android_common_myapex", []string{
+			"bin/mybin",
+		})
+		apexManifestRule := ctx.ModuleForTests("myapex", "android_common_myapex").Rule("apexManifestRule")
+		android.AssertStringEquals(t, "should require libz", apexManifestRule.Args["requireNativeLibs"], "libz.so")
+	}
+	// libz doesn't provide stubs for vendor variant.
+	{
+		ensureExactContents(t, ctx, "myvendorapex", "android_common_myvendorapex", []string{
+			"bin/mybin",
+			"lib64/libz.so",
+		})
+		apexManifestRule := ctx.ModuleForTests("myvendorapex", "android_common_myvendorapex").Rule("apexManifestRule")
+		android.AssertStringEquals(t, "should not require libz", apexManifestRule.Args["requireNativeLibs"], "")
+	}
 }
 
 func TestApexWithTarget(t *testing.T) {
@@ -8154,7 +8254,7 @@ func TestAppBundle(t *testing.T) {
 		`, withManifestPackageNameOverrides([]string{"AppFoo:com.android.foo"}))
 
 	bundleConfigRule := ctx.ModuleForTests("myapex", "android_common_myapex").Output("bundle_config.json")
-	content := bundleConfigRule.Args["content"]
+	content := android.ContentFromFileRuleForTests(t, ctx, bundleConfigRule)
 
 	ensureContains(t, content, `"compression":{"uncompressed_glob":["apex_payload.img","apex_manifest.*"]}`)
 	ensureContains(t, content, `"apex_config":{"apex_embedded_apk_config":[{"package_name":"com.android.foo","path":"app/AppFoo@TEST.BUILD_ID/AppFoo.apk"}]}`)
@@ -8181,7 +8281,7 @@ func TestAppSetBundle(t *testing.T) {
 		}`)
 	mod := ctx.ModuleForTests("myapex", "android_common_myapex")
 	bundleConfigRule := mod.Output("bundle_config.json")
-	content := bundleConfigRule.Args["content"]
+	content := android.ContentFromFileRuleForTests(t, ctx, bundleConfigRule)
 	ensureContains(t, content, `"compression":{"uncompressed_glob":["apex_payload.img","apex_manifest.*"]}`)
 	s := mod.Rule("apexRule").Args["copy_commands"]
 	copyCmds := regexp.MustCompile(" *&& *").Split(s, -1)
@@ -9126,7 +9226,7 @@ func TestApexKeysTxt(t *testing.T) {
 	`)
 
 	myapex := ctx.ModuleForTests("myapex", "android_common_myapex")
-	content := myapex.Output("apexkeys.txt").BuildParams.Args["content"]
+	content := android.ContentFromFileRuleForTests(t, ctx, myapex.Output("apexkeys.txt"))
 	ensureContains(t, content, `name="myapex.apex" public_key="vendor/foo/devkeys/testkey.avbpubkey" private_key="vendor/foo/devkeys/testkey.pem" container_certificate="vendor/foo/devkeys/test.x509.pem" container_private_key="vendor/foo/devkeys/test.pk8" partition="system" sign_tool="sign_myapex"`)
 }
 
@@ -9166,9 +9266,11 @@ func TestApexKeysTxtOverrides(t *testing.T) {
 		}
 	`)
 
-	content := ctx.ModuleForTests("myapex", "android_common_myapex").Output("apexkeys.txt").BuildParams.Args["content"]
+	content := android.ContentFromFileRuleForTests(t, ctx,
+		ctx.ModuleForTests("myapex", "android_common_myapex").Output("apexkeys.txt"))
 	ensureContains(t, content, `name="myapex.apex" public_key="vendor/foo/devkeys/testkey.avbpubkey" private_key="vendor/foo/devkeys/testkey.pem" container_certificate="vendor/foo/devkeys/test.x509.pem" container_private_key="vendor/foo/devkeys/test.pk8" partition="system" sign_tool="sign_myapex"`)
-	content = ctx.ModuleForTests("myapex_set", "android_common_myapex_set").Output("apexkeys.txt").BuildParams.Args["content"]
+	content = android.ContentFromFileRuleForTests(t, ctx,
+		ctx.ModuleForTests("myapex_set", "android_common_myapex_set").Output("apexkeys.txt"))
 	ensureContains(t, content, `name="myapex_set.apex" public_key="PRESIGNED" private_key="PRESIGNED" container_certificate="PRESIGNED" container_private_key="PRESIGNED" partition="system"`)
 }
 
@@ -10755,4 +10857,550 @@ func TestFileSystemShouldSkipApexLibraries(t *testing.T) {
 	android.AssertStringListDoesNotContain(t, "filesystem should not have libbar",
 		inputs.Strings(),
 		"out/soong/.intermediates/libbar/android_arm64_armv8-a_shared/libbar.so")
+}
+
+var apex_default_bp = `
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		filegroup {
+			name: "myapex.manifest",
+			srcs: ["apex_manifest.json"],
+		}
+
+		filegroup {
+			name: "myapex.androidmanifest",
+			srcs: ["AndroidManifest.xml"],
+		}
+`
+
+func TestAconfigFilesJavaDeps(t *testing.T) {
+	ctx := testApex(t, apex_default_bp+`
+		apex {
+			name: "myapex",
+			manifest: ":myapex.manifest",
+			androidManifest: ":myapex.androidmanifest",
+			key: "myapex.key",
+			java_libs: [
+				"my_java_library_foo",
+				"my_java_library_bar",
+			],
+			updatable: false,
+		}
+
+		java_library {
+			name: "my_java_library_foo",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			static_libs: ["my_java_aconfig_library_foo"],
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		java_library {
+			name: "my_java_library_bar",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			static_libs: ["my_java_aconfig_library_bar"],
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_foo",
+			package: "com.example.package",
+			container: "myapex",
+			srcs: ["foo.aconfig"],
+		}
+
+		java_aconfig_library {
+			name: "my_java_aconfig_library_foo",
+			aconfig_declarations: "my_aconfig_declarations_foo",
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_bar",
+			package: "com.example.package",
+			container: "myapex",
+			srcs: ["bar.aconfig"],
+		}
+
+		java_aconfig_library {
+			name: "my_java_aconfig_library_bar",
+			aconfig_declarations: "my_aconfig_declarations_bar",
+			apex_available: [
+				"myapex",
+			],
+		}
+	`)
+
+	mod := ctx.ModuleForTests("myapex", "android_common_myapex")
+	s := mod.Rule("apexRule").Args["copy_commands"]
+	copyCmds := regexp.MustCompile(" *&& *").Split(s, -1)
+	if len(copyCmds) != 5 {
+		t.Fatalf("Expected 5 commands, got %d in:\n%s", len(copyCmds), s)
+	}
+
+	ensureMatches(t, copyCmds[4], "^cp -f .*/aconfig_flags.pb .*/image.apex$")
+
+	combineAconfigRule := mod.Rule("All_aconfig_declarations_dump")
+	s = " " + combineAconfigRule.Args["cache_files"]
+	aconfigArgs := regexp.MustCompile(" --cache ").Split(s, -1)[1:]
+	if len(aconfigArgs) != 2 {
+		t.Fatalf("Expected 2 commands, got %d in:\n%s", len(aconfigArgs), s)
+	}
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_foo/intermediate.pb")
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_bar/intermediate.pb")
+
+	buildParams := combineAconfigRule.BuildParams
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_foo/intermediate.pb")
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_bar/intermediate.pb")
+	ensureContains(t, buildParams.Output.String(), "android_common_myapex/aconfig_flags.pb")
+}
+
+func TestAconfigFilesJavaAndCcDeps(t *testing.T) {
+	ctx := testApex(t, apex_default_bp+`
+		apex {
+			name: "myapex",
+			manifest: ":myapex.manifest",
+			androidManifest: ":myapex.androidmanifest",
+			key: "myapex.key",
+			java_libs: [
+				"my_java_library_foo",
+			],
+			native_shared_libs: [
+				"my_cc_library_bar",
+			],
+			binaries: [
+				"my_cc_binary_baz",
+			],
+			updatable: false,
+		}
+
+		java_library {
+			name: "my_java_library_foo",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			static_libs: ["my_java_aconfig_library_foo"],
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		cc_library {
+			name: "my_cc_library_bar",
+			srcs: ["foo/bar/MyClass.cc"],
+			static_libs: [
+				"my_cc_aconfig_library_bar",
+				"my_cc_aconfig_library_baz",
+			],
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		cc_binary {
+			name: "my_cc_binary_baz",
+			srcs: ["foo/bar/MyClass.cc"],
+			static_libs: ["my_cc_aconfig_library_baz"],
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_foo",
+			package: "com.example.package",
+			container: "myapex",
+			srcs: ["foo.aconfig"],
+		}
+
+		java_aconfig_library {
+			name: "my_java_aconfig_library_foo",
+			aconfig_declarations: "my_aconfig_declarations_foo",
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_bar",
+			package: "com.example.package",
+			container: "myapex",
+			srcs: ["bar.aconfig"],
+		}
+
+		cc_aconfig_library {
+			name: "my_cc_aconfig_library_bar",
+			aconfig_declarations: "my_aconfig_declarations_bar",
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_baz",
+			package: "com.example.package",
+			container: "myapex",
+			srcs: ["baz.aconfig"],
+		}
+
+		cc_aconfig_library {
+			name: "my_cc_aconfig_library_baz",
+			aconfig_declarations: "my_aconfig_declarations_baz",
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		cc_library {
+			name: "server_configurable_flags",
+			srcs: ["server_configurable_flags.cc"],
+		}
+	`)
+
+	mod := ctx.ModuleForTests("myapex", "android_common_myapex")
+	s := mod.Rule("apexRule").Args["copy_commands"]
+	copyCmds := regexp.MustCompile(" *&& *").Split(s, -1)
+	if len(copyCmds) != 9 {
+		t.Fatalf("Expected 9 commands, got %d in:\n%s", len(copyCmds), s)
+	}
+
+	ensureMatches(t, copyCmds[8], "^cp -f .*/aconfig_flags.pb .*/image.apex$")
+
+	combineAconfigRule := mod.Rule("All_aconfig_declarations_dump")
+	s = " " + combineAconfigRule.Args["cache_files"]
+	aconfigArgs := regexp.MustCompile(" --cache ").Split(s, -1)[1:]
+	if len(aconfigArgs) != 3 {
+		t.Fatalf("Expected 3 commands, got %d in:\n%s", len(aconfigArgs), s)
+	}
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_foo/intermediate.pb")
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_cc_library_bar/android_arm64_armv8-a_shared_apex10000/aconfig_merged.pb")
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_baz/intermediate.pb")
+
+	buildParams := combineAconfigRule.BuildParams
+	if len(buildParams.Inputs) != 3 {
+		t.Fatalf("Expected 3 input, got %d", len(buildParams.Inputs))
+	}
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_foo/intermediate.pb")
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_cc_library_bar/android_arm64_armv8-a_shared_apex10000/aconfig_merged.pb")
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_baz/intermediate.pb")
+	ensureContains(t, buildParams.Output.String(), "android_common_myapex/aconfig_flags.pb")
+}
+
+func TestAconfigFilesRustDeps(t *testing.T) {
+	ctx := testApex(t, apex_default_bp+`
+		apex {
+			name: "myapex",
+			manifest: ":myapex.manifest",
+			androidManifest: ":myapex.androidmanifest",
+			key: "myapex.key",
+			native_shared_libs: [
+				"libmy_rust_library",
+			],
+			binaries: [
+				"my_rust_binary",
+			],
+			rust_dyn_libs: [
+				"libmy_rust_dylib",
+			],
+			updatable: false,
+		}
+
+		rust_library {
+			name: "libflags_rust", // test mock
+			crate_name: "flags_rust",
+			srcs: ["lib.rs"],
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		rust_library {
+			name: "liblazy_static", // test mock
+			crate_name: "lazy_static",
+			srcs: ["src/lib.rs"],
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		rust_ffi_shared {
+			name: "libmy_rust_library",
+			srcs: ["src/lib.rs"],
+			rustlibs: ["libmy_rust_aconfig_library_foo"],
+			crate_name: "my_rust_library",
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		rust_library_dylib {
+			name: "libmy_rust_dylib",
+			srcs: ["foo/bar/MyClass.rs"],
+			rustlibs: ["libmy_rust_aconfig_library_bar"],
+			crate_name: "my_rust_dylib",
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		rust_binary {
+			name: "my_rust_binary",
+			srcs: ["foo/bar/MyClass.rs"],
+			rustlibs: [
+				"libmy_rust_aconfig_library_baz",
+				"libmy_rust_dylib",
+			],
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_foo",
+			package: "com.example.package",
+			container: "myapex",
+			srcs: ["foo.aconfig"],
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_bar",
+			package: "com.example.package",
+			container: "myapex",
+			srcs: ["bar.aconfig"],
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_baz",
+			package: "com.example.package",
+			container: "myapex",
+			srcs: ["baz.aconfig"],
+		}
+
+		rust_aconfig_library {
+			name: "libmy_rust_aconfig_library_foo",
+			aconfig_declarations: "my_aconfig_declarations_foo",
+			crate_name: "my_rust_aconfig_library_foo",
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		rust_aconfig_library {
+			name: "libmy_rust_aconfig_library_bar",
+			aconfig_declarations: "my_aconfig_declarations_bar",
+			crate_name: "my_rust_aconfig_library_bar",
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		rust_aconfig_library {
+			name: "libmy_rust_aconfig_library_baz",
+			aconfig_declarations: "my_aconfig_declarations_baz",
+			crate_name: "my_rust_aconfig_library_baz",
+			apex_available: [
+				"myapex",
+			],
+		}
+	`)
+
+	mod := ctx.ModuleForTests("myapex", "android_common_myapex")
+	s := mod.Rule("apexRule").Args["copy_commands"]
+	copyCmds := regexp.MustCompile(" *&& *").Split(s, -1)
+	if len(copyCmds) != 23 {
+		t.Fatalf("Expected 23 commands, got %d in:\n%s", len(copyCmds), s)
+	}
+
+	ensureMatches(t, copyCmds[22], "^cp -f .*/aconfig_flags.pb .*/image.apex$")
+
+	combineAconfigRule := mod.Rule("All_aconfig_declarations_dump")
+	s = " " + combineAconfigRule.Args["cache_files"]
+	aconfigArgs := regexp.MustCompile(" --cache ").Split(s, -1)[1:]
+	if len(aconfigArgs) != 2 {
+		t.Fatalf("Expected 2 commands, got %d in:\n%s", len(aconfigArgs), s)
+	}
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_foo/intermediate.pb")
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_rust_binary/android_arm64_armv8-a_apex10000/aconfig_merged.pb")
+
+	buildParams := combineAconfigRule.BuildParams
+	if len(buildParams.Inputs) != 2 {
+		t.Fatalf("Expected 3 input, got %d", len(buildParams.Inputs))
+	}
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_foo/intermediate.pb")
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_rust_binary/android_arm64_armv8-a_apex10000/aconfig_merged.pb")
+	ensureContains(t, buildParams.Output.String(), "android_common_myapex/aconfig_flags.pb")
+}
+
+func TestAconfigFilesOnlyMatchCurrentApex(t *testing.T) {
+	ctx := testApex(t, apex_default_bp+`
+		apex {
+			name: "myapex",
+			manifest: ":myapex.manifest",
+			androidManifest: ":myapex.androidmanifest",
+			key: "myapex.key",
+			java_libs: [
+				"my_java_library_foo",
+				"other_java_library_bar",
+			],
+			updatable: false,
+		}
+
+		java_library {
+			name: "my_java_library_foo",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			static_libs: ["my_java_aconfig_library_foo"],
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		java_library {
+			name: "other_java_library_bar",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			static_libs: ["other_java_aconfig_library_bar"],
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_foo",
+			package: "com.example.package",
+			container: "myapex",
+			srcs: ["foo.aconfig"],
+		}
+
+		java_aconfig_library {
+			name: "my_java_aconfig_library_foo",
+			aconfig_declarations: "my_aconfig_declarations_foo",
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		aconfig_declarations {
+			name: "other_aconfig_declarations_bar",
+			package: "com.example.package",
+			container: "otherapex",
+			srcs: ["bar.aconfig"],
+		}
+
+		java_aconfig_library {
+			name: "other_java_aconfig_library_bar",
+			aconfig_declarations: "other_aconfig_declarations_bar",
+			apex_available: [
+				"myapex",
+			],
+		}
+	`)
+
+	mod := ctx.ModuleForTests("myapex", "android_common_myapex")
+	combineAconfigRule := mod.Rule("All_aconfig_declarations_dump")
+	s := " " + combineAconfigRule.Args["cache_files"]
+	aconfigArgs := regexp.MustCompile(" --cache ").Split(s, -1)[1:]
+	if len(aconfigArgs) != 1 {
+		t.Fatalf("Expected 1 commands, got %d in:\n%s", len(aconfigArgs), s)
+	}
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_foo/intermediate.pb")
+
+	buildParams := combineAconfigRule.BuildParams
+	if len(buildParams.Inputs) != 1 {
+		t.Fatalf("Expected 1 input, got %d", len(buildParams.Inputs))
+	}
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_foo/intermediate.pb")
+	ensureContains(t, buildParams.Output.String(), "android_common_myapex/aconfig_flags.pb")
+}
+
+func TestAconfigFilesRemoveDuplicates(t *testing.T) {
+	ctx := testApex(t, apex_default_bp+`
+		apex {
+			name: "myapex",
+			manifest: ":myapex.manifest",
+			androidManifest: ":myapex.androidmanifest",
+			key: "myapex.key",
+			java_libs: [
+				"my_java_library_foo",
+				"my_java_library_bar",
+			],
+			updatable: false,
+		}
+
+		java_library {
+			name: "my_java_library_foo",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			static_libs: ["my_java_aconfig_library_foo"],
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		java_library {
+			name: "my_java_library_bar",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			static_libs: ["my_java_aconfig_library_bar"],
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		aconfig_declarations {
+			name: "my_aconfig_declarations_foo",
+			package: "com.example.package",
+			container: "myapex",
+			srcs: ["foo.aconfig"],
+		}
+
+		java_aconfig_library {
+			name: "my_java_aconfig_library_foo",
+			aconfig_declarations: "my_aconfig_declarations_foo",
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		java_aconfig_library {
+			name: "my_java_aconfig_library_bar",
+			aconfig_declarations: "my_aconfig_declarations_foo",
+			apex_available: [
+				"myapex",
+			],
+		}
+	`)
+
+	mod := ctx.ModuleForTests("myapex", "android_common_myapex")
+	combineAconfigRule := mod.Rule("All_aconfig_declarations_dump")
+	s := " " + combineAconfigRule.Args["cache_files"]
+	aconfigArgs := regexp.MustCompile(" --cache ").Split(s, -1)[1:]
+	if len(aconfigArgs) != 1 {
+		t.Fatalf("Expected 1 commands, got %d in:\n%s", len(aconfigArgs), s)
+	}
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_foo/intermediate.pb")
+
+	buildParams := combineAconfigRule.BuildParams
+	if len(buildParams.Inputs) != 1 {
+		t.Fatalf("Expected 1 input, got %d", len(buildParams.Inputs))
+	}
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_foo/intermediate.pb")
+	ensureContains(t, buildParams.Output.String(), "android_common_myapex/aconfig_flags.pb")
 }

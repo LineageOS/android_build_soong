@@ -127,51 +127,19 @@ func parseFinalizedPrebuiltPath(ctx android.LoadHookContext, p string, allowIncr
 func prebuiltApiModuleName(mctx android.LoadHookContext, module, scope, version string) string {
 	return fmt.Sprintf("%s_%s_%s_%s", mctx.ModuleName(), scope, version, module)
 }
-
-func hasBazelPrebuilt(module string) bool {
-	return module == "android" || module == "core-for-system-modules"
-}
-
-func bazelPrebuiltApiModuleName(module, scope, version string) string {
-	bazelModule := module
-	switch module {
-	case "android":
-		bazelModule = "android_jar"
-	case "core-for-system-modules":
-		bazelModule = "core_jar"
-	}
-	bazelVersion := version
-	if version == "current" {
-		bazelVersion = strconv.Itoa(android.FutureApiLevelInt)
-	}
-	bazelScope := scope
-	switch scope {
-	case "module-lib":
-		bazelScope = "module"
-	case "system-server":
-		bazelScope = "system_server"
-	}
-	return fmt.Sprintf("//prebuilts/sdk:%s_%s_%s", bazelScope, bazelVersion, bazelModule)
-}
-
 func createImport(mctx android.LoadHookContext, module, scope, version, path, sdkVersion string, compileDex bool) {
 	props := struct {
-		Name         *string
-		Jars         []string
-		Sdk_version  *string
-		Installable  *bool
-		Compile_dex  *bool
-		Bazel_module android.BazelModuleProperties
+		Name        *string
+		Jars        []string
+		Sdk_version *string
+		Installable *bool
+		Compile_dex *bool
 	}{
 		Name:        proptools.StringPtr(prebuiltApiModuleName(mctx, module, scope, version)),
 		Jars:        []string{path},
 		Sdk_version: proptools.StringPtr(sdkVersion),
 		Installable: proptools.BoolPtr(false),
 		Compile_dex: proptools.BoolPtr(compileDex),
-	}
-	if hasBazelPrebuilt(module) {
-		props.Bazel_module = android.BazelModuleProperties{
-			Label: proptools.StringPtr(bazelPrebuiltApiModuleName(module, scope, version))}
 	}
 	mctx.CreateModule(ImportFactory, &props)
 }

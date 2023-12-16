@@ -18,13 +18,12 @@ import (
 	"fmt"
 	"strings"
 
-	"android/soong/bazel"
 	"android/soong/bloaty"
-	"android/soong/ui/metrics/bp2build_metrics_proto"
-
+	"android/soong/testing"
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
+	"android/soong/aconfig"
 	"android/soong/android"
 	"android/soong/cc"
 	cc_config "android/soong/cc/config"
@@ -144,8 +143,9 @@ type Module struct {
 
 	Properties BaseProperties
 
-	hod      android.HostOrDeviceSupported
-	multilib android.Multilib
+	hod        android.HostOrDeviceSupported
+	multilib   android.Multilib
+	testModule bool
 
 	makeLinkType string
 
@@ -173,7 +173,8 @@ type Module struct {
 
 	transitiveAndroidMkSharedLibs *android.DepSet[string]
 
-	android.BazelModuleBase
+	// Aconfig files for all transitive deps.  Also exposed via TransitiveDeclarationsInfo
+	mergedAconfigFiles map[string]android.Paths
 }
 
 func (mod *Module) Header() bool {
@@ -483,44 +484,6 @@ type RustLibraries []RustLibrary
 type RustLibrary struct {
 	Path      android.Path
 	CrateName string
-}
-
-type compiler interface {
-	initialize(ctx ModuleContext)
-	compilerFlags(ctx ModuleContext, flags Flags) Flags
-	cfgFlags(ctx ModuleContext, flags Flags) Flags
-	featureFlags(ctx ModuleContext, flags Flags) Flags
-	compilerProps() []interface{}
-	compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput
-	compilerDeps(ctx DepsContext, deps Deps) Deps
-	crateName() string
-	rustdoc(ctx ModuleContext, flags Flags, deps PathDeps) android.OptionalPath
-
-	// Output directory in which source-generated code from dependencies is
-	// copied. This is equivalent to Cargo's OUT_DIR variable.
-	CargoOutDir() android.OptionalPath
-
-	// CargoPkgVersion returns the value of the Cargo_pkg_version property.
-	CargoPkgVersion() string
-
-	// CargoEnvCompat returns whether Cargo environment variables should be used.
-	CargoEnvCompat() bool
-
-	inData() bool
-	install(ctx ModuleContext)
-	relativeInstallPath() string
-	everInstallable() bool
-
-	nativeCoverage() bool
-
-	Disabled() bool
-	SetDisabled()
-
-	stdLinkage(ctx *depsContext) RustLinkage
-	noStdlibs() bool
-
-	unstrippedOutputFilePath() android.Path
-	strippedOutputFilePath() android.OptionalPath
 }
 
 type exportedFlagsProducer interface {
@@ -987,6 +950,7 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 			sourceLib := sourceMod.(*Module).compiler.(*libraryDecorator)
 			mod.sourceProvider.setOutputFiles(sourceLib.sourceProvider.Srcs())
 		}
+		ctx.SetProvider(blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: mod.sourceProvider.Srcs().Strings()})
 	}
 
 	if mod.compiler != nil && !mod.compiler.Disabled() {
@@ -1038,6 +1002,11 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 		ctx.Phony("rust", ctx.RustModule().OutputFile().Path())
 	}
+	if mod.testModule {
+		ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
+	}
+
+	aconfig.CollectDependencyAconfigFiles(ctx, &mod.mergedAconfigFiles)
 }
 
 func (mod *Module) deps(ctx DepsContext) Deps {
@@ -1880,48 +1849,6 @@ func (k kytheExtractRustSingleton) GenerateBuildActions(ctx android.SingletonCon
 
 func (c *Module) Partition() string {
 	return ""
-}
-
-func (m *Module) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	if ctx.ModuleType() == "rust_library_host" || ctx.ModuleType() == "rust_library" {
-		libraryBp2build(ctx, m)
-	} else if ctx.ModuleType() == "rust_proc_macro" {
-		procMacroBp2build(ctx, m)
-	} else if ctx.ModuleType() == "rust_binary_host" {
-		binaryBp2build(ctx, m)
-	} else if ctx.ModuleType() == "rust_protobuf_host" || ctx.ModuleType() == "rust_protobuf" {
-		protoLibraryBp2build(ctx, m)
-	} else if ctx.ModuleType() == "rust_ffi_static" {
-		ffiStaticBp2build(ctx, m)
-	} else {
-		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "")
-	}
-}
-
-// This is a workaround by assuming the conventions that rust crate repos are structured
-// while waiting for the sandboxing work to complete.
-// TODO(b/297344471): When crate_root prop is set which enforces inputs sandboxing,
-// always use `srcs` and `compile_data` props to generate `srcs` and `compile_data` attributes
-// instead of using globs.
-func srcsAndCompileDataAttrs(ctx android.Bp2buildMutatorContext, c baseCompiler) (bazel.LabelList, bazel.LabelList) {
-	var srcs bazel.LabelList
-	var compileData bazel.LabelList
-
-	if c.Properties.Srcs[0] == "src/lib.rs" {
-		srcs = android.BazelLabelForModuleSrc(ctx, []string{"src/**/*.rs"})
-		compileData = android.BazelLabelForModuleSrc(
-			ctx,
-			[]string{
-				"src/**/*.proto",
-				"examples/**/*.rs",
-				"**/*.md",
-			},
-		)
-	} else {
-		srcs = android.BazelLabelForModuleSrc(ctx, c.Properties.Srcs)
-	}
-
-	return srcs, compileData
 }
 
 var Bool = proptools.Bool

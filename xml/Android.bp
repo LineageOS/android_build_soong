@@ -9,7 +9,6 @@ bootstrap_go_package {
         "blueprint",
         "blueprint-pathtools",
         "soong",
-        "soong-bp2build",
         "soong-android",
         "soong-etc",
     ],
@@ -19,7 +18,6 @@ bootstrap_go_package {
     ],
     testSrcs: [
         "xml_test.go",
-        "xml_conversion_test.go",
     ],
     pluginFor: ["soong_build"],
 }

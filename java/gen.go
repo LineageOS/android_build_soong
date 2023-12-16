@@ -129,19 +129,7 @@ func genAidlIncludeFlags(ctx android.PathContext, srcFiles android.Paths, exclud
 			baseDir = filepath.Clean(baseDir)
 			baseDirSeen := android.InList(baseDir, baseDirs) || android.InList(baseDir, excludeDirsStrings)
 
-			// For go/bp2build mixed builds, a file may be listed under a
-			// directory in the Bazel output tree that is symlinked to a
-			// directory under the android source tree. We should only
-			// include one copy of this directory so that the AIDL tool
-			// doesn't find multiple definitions of the same AIDL class.
-			// This code comes into effect when filegroups are used in mixed builds.
-			bazelPathPrefix := android.PathForBazelOut(ctx, "").String()
-			bazelBaseDir, err := filepath.Rel(bazelPathPrefix, baseDir)
-			bazelBaseDirSeen := err == nil &&
-				android.InList(bazelBaseDir, baseDirs) ||
-				android.InList(bazelBaseDir, excludeDirsStrings)
-
-			if baseDir != "" && !baseDirSeen && !bazelBaseDirSeen {
+			if baseDir != "" && !baseDirSeen {
 				baseDirs = append(baseDirs, baseDir)
 			}
 		}

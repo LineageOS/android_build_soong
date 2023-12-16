@@ -189,6 +189,7 @@ func (test *testDecorator) install(ctx ModuleContext) {
 	if ctx.Host() && test.Properties.Test_options.Unit_test == nil {
 		test.Properties.Test_options.Unit_test = proptools.BoolPtr(true)
 	}
+	test.binaryDecorator.installTestData(ctx, test.data)
 	test.binaryDecorator.install(ctx)
 }
 
@@ -222,11 +223,13 @@ func RustTestFactory() android.Module {
 	// rustTestHostMultilib load hook to set MultilibFirst for the
 	// host target.
 	android.AddLoadHook(module, rustTestHostMultilib)
+	module.testModule = true
 	return module.Init()
 }
 
 func RustTestHostFactory() android.Module {
 	module, _ := NewRustTest(android.HostSupported)
+	module.testModule = true
 	return module.Init()
 }
 

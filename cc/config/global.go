@@ -357,9 +357,9 @@ var (
 	}
 
 	CStdVersion               = "gnu17"
-	CppStdVersion             = "gnu++17"
+	CppStdVersion             = "gnu++20"
 	ExperimentalCStdVersion   = "gnu2x"
-	ExperimentalCppStdVersion = "gnu++2a"
+	ExperimentalCppStdVersion = "gnu++2b"
 
 	// prebuilts/clang default settings.
 	ClangDefaultBase         = "prebuilts/clang/host"
@@ -377,12 +377,6 @@ var (
 	VisibilityHiddenFlag  = "-fvisibility=hidden"
 	VisibilityDefaultFlag = "-fvisibility=default"
 )
-
-// BazelCcToolchainVars generates bzl file content containing variables for
-// Bazel's cc_toolchain configuration.
-func BazelCcToolchainVars(config android.Config) string {
-	return android.BazelToolchainVars(config, exportedVars)
-}
 
 func ExportStringList(name string, value []string) {
 	exportedVars.ExportStringList(name, value)

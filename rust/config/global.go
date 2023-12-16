@@ -25,7 +25,7 @@ var (
 	pctx         = android.NewPackageContext("android/soong/rust/config")
 	ExportedVars = android.NewExportedVariables(pctx)
 
-	RustDefaultVersion = "1.72.1"
+	RustDefaultVersion = "1.73.0"
 	RustDefaultBase    = "prebuilts/rust/"
 	DefaultEdition     = "2021"
 	Stdlibs            = []string{
@@ -51,8 +51,6 @@ var (
 		"-C force-unwind-tables=yes",
 		// Use v0 mangling to distinguish from C++ symbols
 		"-C symbol-mangling-version=v0",
-		// This flag requires to have no space so that when it's exported to bazel
-		// it can be removed. See aosp/2768339
 		"--color=always",
 		"-Z dylib-lto",
 		"-Z link-native-libraries=no",
@@ -72,6 +70,8 @@ var (
 		"-C panic=abort",
 		// Generate additional debug info for AutoFDO
 		"-Z debug-info-for-profiling",
+		// Android has ELF TLS on platform
+		"-Z tls-model=global-dynamic",
 	}
 
 	deviceGlobalLinkFlags = []string{
@@ -142,9 +142,4 @@ func GetRustVersion(ctx android.PathContext) string {
 		return override
 	}
 	return RustDefaultVersion
-}
-
-// BazelRustToolchainVars returns a string with
-func BazelRustToolchainVars(config android.Config) string {
-	return android.BazelToolchainVars(config, ExportedVars)
 }

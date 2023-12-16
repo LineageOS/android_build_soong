@@ -135,22 +135,6 @@ const (
 	RunBuildTests  = 1 << iota
 )
 
-// checkBazelMode fails the build if there are conflicting arguments for which bazel
-// build mode to use.
-func checkBazelMode(ctx Context, config Config) {
-	count := 0
-	if config.bazelProdMode {
-		count++
-	}
-	if config.bazelStagingMode {
-		count++
-	}
-	if count > 1 {
-		ctx.Fatalln("Conflicting bazel mode.\n" +
-			"Do not specify more than one of --bazel-mode and --bazel-mode-staging ")
-	}
-}
-
 // checkProblematicFiles fails the build if existing Android.mk or CleanSpec.mk files are found at the root of the tree.
 func checkProblematicFiles(ctx Context) {
 	files := []string{"Android.mk", "CleanSpec.mk"}
@@ -262,8 +246,6 @@ func Build(ctx Context, config Config) {
 
 	defer waitForDist(ctx)
 
-	checkBazelMode(ctx, config)
-
 	// checkProblematicFiles aborts the build if Android.mk or CleanSpec.mk are found at the root of the tree.
 	checkProblematicFiles(ctx)
 
@@ -283,11 +265,16 @@ func Build(ctx Context, config Config) {
 	}
 
 	rbeCh := make(chan bool)
+	var rbePanic any
 	if config.StartRBE() {
 		cleanupRBELogsDir(ctx, config)
+		checkRBERequirements(ctx, config)
 		go func() {
+			defer func() {
+				rbePanic = recover()
+				close(rbeCh)
+			}()
 			startRBE(ctx, config)
-			close(rbeCh)
 		}()
 		defer DumpRBEMetrics(ctx, config, filepath.Join(config.LogsDir(), "rbe_metrics.pb"))
 	} else {
@@ -345,6 +332,11 @@ func Build(ctx Context, config Config) {
 	}
 
 	<-rbeCh
+	if rbePanic != nil {
+		// If there was a ctx.Fatal in startRBE, rethrow it.
+		panic(rbePanic)
+	}
+
 	if what&RunNinja != 0 {
 		if what&RunKati != 0 {
 			installCleanIfNecessary(ctx, config)

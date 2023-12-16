@@ -91,6 +91,8 @@ type REParams struct {
 	NumLocalRuns int
 	// Number of times the action should be rerun remotely.
 	NumRemoteRuns int
+	// Boolean indicating whether to update remote cache entry. Rewrapper defaults to true, so the name is negated here.
+	NoRemoteUpdateCache bool
 }
 
 func init() {
@@ -144,6 +146,10 @@ func (r *REParams) wrapperArgs() string {
 
 	if r.Compare && r.NumLocalRuns >= 0 && r.NumRemoteRuns >= 0 {
 		args += fmt.Sprintf(" --compare=true --num_local_reruns=%d --num_remote_reruns=%d", r.NumLocalRuns, r.NumRemoteRuns)
+	}
+
+	if r.NoRemoteUpdateCache {
+		args += " --remote_update_cache=false"
 	}
 
 	if len(r.Inputs) > 0 {

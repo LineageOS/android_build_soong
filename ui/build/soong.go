@@ -44,12 +44,10 @@ const (
 	availableEnvFile = "soong.environment.available"
 	usedEnvFile      = "soong.environment.used"
 
-	soongBuildTag        = "build"
-	bp2buildFilesTag     = "bp2build_files"
-	bp2buildWorkspaceTag = "bp2build_workspace"
-	jsonModuleGraphTag   = "modulegraph"
-	queryviewTag         = "queryview"
-	soongDocsTag         = "soong_docs"
+	soongBuildTag      = "build"
+	jsonModuleGraphTag = "modulegraph"
+	queryviewTag       = "queryview"
+	soongDocsTag       = "soong_docs"
 
 	// bootstrapEpoch is used to determine if an incremental build is incompatible with the current
 	// version of bootstrap and needs cleaning before continuing the build.  Increment this for
@@ -275,7 +273,6 @@ func bootstrapEpochCleanup(ctx Context, config Config) {
 func bootstrapGlobFileList(config Config) []string {
 	return []string{
 		config.NamedGlobFile(getGlobPathName(config)),
-		config.NamedGlobFile(bp2buildFilesTag),
 		config.NamedGlobFile(jsonModuleGraphTag),
 		config.NamedGlobFile(queryviewTag),
 		config.NamedGlobFile(soongDocsTag),
@@ -294,18 +291,6 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	mainSoongBuildExtraArgs := append(baseArgs, "-o", config.SoongNinjaFile())
 	if config.EmptyNinjaFile() {
 		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--empty-ninja-file")
-	}
-	if config.bazelProdMode {
-		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--bazel-mode")
-	}
-	if config.bazelStagingMode {
-		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--bazel-mode-staging")
-	}
-	if config.IsPersistentBazelEnabled() {
-		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--use-bazel-proxy")
-	}
-	if len(config.bazelForceEnabledModules) > 0 {
-		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--bazel-force-enabled-modules="+config.bazelForceEnabledModules)
 	}
 	if config.MultitreeBuild() {
 		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--multitree-build")
@@ -326,24 +311,6 @@ func bootstrapBlueprint(ctx Context, config Config) {
 			config:       config,
 			output:       config.SoongNinjaFile(),
 			specificArgs: mainSoongBuildExtraArgs,
-		},
-		{
-			name:        bp2buildFilesTag,
-			description: fmt.Sprintf("converting Android.bp files to BUILD files at %s/bp2build", config.SoongOutDir()),
-			config:      config,
-			output:      config.Bp2BuildFilesMarkerFile(),
-			specificArgs: append(baseArgs,
-				"--bp2build_marker", config.Bp2BuildFilesMarkerFile(),
-			),
-		},
-		{
-			name:        bp2buildWorkspaceTag,
-			description: "Creating Bazel symlink forest",
-			config:      config,
-			output:      config.Bp2BuildWorkspaceMarkerFile(),
-			specificArgs: append(baseArgs,
-				"--symlink_forest_marker", config.Bp2BuildWorkspaceMarkerFile(),
-			),
 		},
 		{
 			name:        jsonModuleGraphTag,
@@ -410,22 +377,6 @@ func bootstrapBlueprint(ctx Context, config Config) {
 			pbf.debugPort = delvePort
 		}
 		pbi := pbf.primaryBuilderInvocation()
-		// Some invocations require adjustment:
-		switch pbf.name {
-		case soongBuildTag:
-			if config.BazelBuildEnabled() {
-				// Mixed builds call Bazel from soong_build and they therefore need the
-				// Bazel workspace to be available. Make that so by adding a dependency on
-				// the bp2build marker file to the action that invokes soong_build .
-				pbi.OrderOnlyInputs = append(pbi.OrderOnlyInputs, config.Bp2BuildWorkspaceMarkerFile())
-			}
-		case bp2buildWorkspaceTag:
-			pbi.Inputs = append(pbi.Inputs,
-				config.Bp2BuildFilesMarkerFile(),
-				filepath.Join(config.FileListDir(), "bazel.list"))
-		case bp2buildFilesTag:
-			pbi.Inputs = append(pbi.Inputs, filepath.Join(config.FileListDir(), "METADATA.list"))
-		}
 		invocations = append(invocations, pbi)
 	}
 
@@ -603,16 +554,7 @@ func runSoong(ctx Context, config Config) {
 
 	soongBuildEnv := config.Environment().Copy()
 	soongBuildEnv.Set("TOP", os.Getenv("TOP"))
-	// For Bazel mixed builds.
-	soongBuildEnv.Set("BAZEL_PATH", "./build/bazel/bin/bazel")
-	// Bazel's HOME var is set to an output subdirectory which doesn't exist. This
-	// prevents Bazel from file I/O in the actual user HOME directory.
-	soongBuildEnv.Set("BAZEL_HOME", absPath(ctx, filepath.Join(config.BazelOutDir(), "bazelhome")))
-	soongBuildEnv.Set("BAZEL_OUTPUT_BASE", config.bazelOutputBase())
-	soongBuildEnv.Set("BAZEL_WORKSPACE", absPath(ctx, "."))
-	soongBuildEnv.Set("BAZEL_METRICS_DIR", config.BazelMetricsDir())
 	soongBuildEnv.Set("LOG_DIR", config.LogsDir())
-	soongBuildEnv.Set("BAZEL_DEPS_FILE", absPath(ctx, filepath.Join(config.BazelOutDir(), "bazel.list")))
 
 	// For Soong bootstrapping tests
 	if os.Getenv("ALLOW_MISSING_DEPENDENCIES") == "true" {
@@ -630,13 +572,9 @@ func runSoong(ctx Context, config Config) {
 
 		checkEnvironmentFile(ctx, soongBuildEnv, config.UsedEnvFile(soongBuildTag))
 
-		if config.BazelBuildEnabled() || config.Bp2Build() {
-			checkEnvironmentFile(ctx, soongBuildEnv, config.UsedEnvFile(bp2buildFilesTag))
-		} else {
-			// Remove bazel files in the event that bazel is disabled for the build.
-			// These files may have been left over from a previous bazel-enabled build.
-			cleanBazelFiles(config)
-		}
+		// Remove bazel files in the event that bazel is disabled for the build.
+		// These files may have been left over from a previous bazel-enabled build.
+		cleanBazelFiles(config)
 
 		if config.JsonModuleGraph() {
 			checkEnvironmentFile(ctx, soongBuildEnv, config.UsedEnvFile(jsonModuleGraphTag))
@@ -657,14 +595,6 @@ func runSoong(ctx Context, config Config) {
 	ninja := func(targets ...string) {
 		ctx.BeginTrace(metrics.RunSoong, "bootstrap")
 		defer ctx.EndTrace()
-
-		if config.IsPersistentBazelEnabled() {
-			bazelProxy := bazel.NewProxyServer(ctx.Logger, config.OutDir(), filepath.Join(config.SoongOutDir(), "workspace"), config.GetBazeliskBazelVersion())
-			if err := bazelProxy.Start(); err != nil {
-				ctx.Fatalf("Failed to create bazel proxy")
-			}
-			defer bazelProxy.Close()
-		}
 
 		fifo := filepath.Join(config.OutDir(), ".ninja_fifo")
 		nr := status.NewNinjaReader(ctx, ctx.Status.StartTool(), fifo)
@@ -707,10 +637,6 @@ func runSoong(ctx Context, config Config) {
 
 	if config.JsonModuleGraph() {
 		targets = append(targets, config.ModuleGraphFile())
-	}
-
-	if config.Bp2Build() {
-		targets = append(targets, config.Bp2BuildWorkspaceMarkerFile())
 	}
 
 	if config.Queryview() {

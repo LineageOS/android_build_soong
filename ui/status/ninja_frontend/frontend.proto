@@ -30,6 +30,10 @@ message Status {
     optional uint32 parallelism = 1;
     // Verbose value passed to ninja.
     optional bool verbose = 2;
+    // Critical path's running time in milliseconds
+    optional uint32 critical_path_time = 3;
+    // Total running time of every need-to-build edge in milliseconds
+    optional uint32 estimated_total_time = 4;
   }
 
   message BuildFinished {

@@ -67,7 +67,7 @@ type robolectricProperties struct {
 	// instead of the one built from source in external/robolectric-shadows.
 	Robolectric_prebuilt_version *string
 
-	// Use /external/robolectric rather than /external/robolectric-shadows as the version of robolectri
+	// Use /external/robolectric rather than /external/robolectric-shadows as the version of robolectric
 	// to use.  /external/robolectric closely tracks github's master, and will fully replace /external/robolectric-shadows
 	Upstream *bool
 }

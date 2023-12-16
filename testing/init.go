@@ -18,10 +18,18 @@ import (
 	"android/soong/android"
 )
 
+var (
+	pctx = android.NewPackageContext("android/soong/testing")
+)
+
 func init() {
 	RegisterBuildComponents(android.InitRegistrationContext)
+	pctx.HostBinToolVariable("metadata", "metadata")
 }
 
 func RegisterBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("code_metadata", CodeMetadataFactory)
 	ctx.RegisterModuleType("test_spec", TestSpecFactory)
+	ctx.RegisterParallelSingletonType("all_code_metadata", AllCodeMetadataFactory)
+	ctx.RegisterParallelSingletonType("all_test_specs", AllTestSpecsFactory)
 }

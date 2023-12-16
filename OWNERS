@@ -3,29 +3,13 @@
 # approving build related projects.
 
 # AMER
-agespino@google.com  #{LAST_RESORT_SUGGESTION}
 ccross@android.com
 colefaust@google.com
-cparsons@google.com  #{LAST_RESORT_SUGGESTION}
-dacek@google.com  #{LAST_RESORT_SUGGESTION}
-delmerico@google.com  #{LAST_RESORT_SUGGESTION}
 dwillemsen@google.com
-eakammer@google.com  #{LAST_RESORT_SUGGESTION}
 jihoonkang@google.com
-jobredeaux@google.com  #{LAST_RESORT_SUGGESTION}
 joeo@google.com
-juu@google.com  #{LAST_RESORT_SUGGESTION}
 lamontjones@google.com
 mrziwang@google.com
 spandandas@google.com
-tradical@google.com  #{LAST_RESORT_SUGGESTION}
-usta@google.com  #{LAST_RESORT_SUGGESTION}
-vinhdaitran@google.com  #{LAST_RESORT_SUGGESTION}
 weiwli@google.com
 yudiliu@google.com
-
-# APAC
-jingwen@google.com  #{LAST_RESORT_SUGGESTION}
-
-# EMEA
-lberki@google.com  #{LAST_RESORT_SUGGESTION}

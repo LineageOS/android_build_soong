@@ -26,6 +26,7 @@ import (
 
 	"github.com/google/blueprint/proptools"
 
+	"android/soong/aconfig"
 	"android/soong/android"
 	"android/soong/cc"
 	"android/soong/dexpreopt"
@@ -47,6 +48,8 @@ var prepareForJavaTest = android.GroupFixturePreparers(
 	cc.PrepareForTestWithCcBuildComponents,
 	// Include all the default java modules.
 	PrepareForTestWithDexpreopt,
+	// Include aconfig modules.
+	aconfig.PrepareForTestWithAconfigBuildComponents,
 )
 
 func TestMain(m *testing.M) {
@@ -1202,7 +1205,7 @@ func TestPatchModule(t *testing.T) {
 		expected := "java.base=.:out/soong"
 		checkPatchModuleFlag(t, ctx, "bar", expected)
 		expected = "java.base=" + strings.Join([]string{
-			".", "out/soong", "dir", "dir2", "nested", defaultModuleToPath("ext"), defaultModuleToPath("framework")}, ":")
+			".", "out/soong", defaultModuleToPath("ext"), defaultModuleToPath("framework")}, ":")
 		checkPatchModuleFlag(t, ctx, "baz", expected)
 	})
 }
@@ -1282,43 +1285,6 @@ func TestAidlExportIncludeDirsFromImports(t *testing.T) {
 
 	aidlCommand := ctx.ModuleForTests("foo", "android_common").Rule("aidl").RuleParams.Command
 	expectedAidlFlag := "-Iaidl/bar"
-	if !strings.Contains(aidlCommand, expectedAidlFlag) {
-		t.Errorf("aidl command %q does not contain %q", aidlCommand, expectedAidlFlag)
-	}
-}
-
-func TestAidlIncludeDirFromConvertedFileGroupWithPathPropInMixedBuilds(t *testing.T) {
-	// TODO(b/247782695), TODO(b/242847534) Fix mixed builds for filegroups
-	t.Skip("Re-enable once filegroups are corrected for mixed builds")
-	bp := `
-	filegroup {
-		name: "foo_aidl",
-		srcs: ["aidl/foo/IFoo.aidl"],
-		path: "aidl/foo",
-		bazel_module: { label: "//:foo_aidl" },
-	}
-	java_library {
-		name: "foo",
-		srcs: [":foo_aidl"],
-	}
-`
-
-	outBaseDir := "out/bazel/output"
-	result := android.GroupFixturePreparers(
-		prepareForJavaTest,
-		android.PrepareForTestWithFilegroup,
-		android.FixtureModifyConfig(func(config android.Config) {
-			config.BazelContext = android.MockBazelContext{
-				OutputBaseDir: outBaseDir,
-				LabelToOutputFiles: map[string][]string{
-					"//:foo_aidl": []string{"aidl/foo/IFoo.aidl"},
-				},
-			}
-		}),
-	).RunTestWithBp(t, bp)
-
-	aidlCommand := result.ModuleForTests("foo", "android_common").Rule("aidl").RuleParams.Command
-	expectedAidlFlag := "-I" + outBaseDir + "/execroot/__main__/aidl/foo"
 	if !strings.Contains(aidlCommand, expectedAidlFlag) {
 		t.Errorf("aidl command %q does not contain %q", aidlCommand, expectedAidlFlag)
 	}
@@ -1740,85 +1706,6 @@ func TestDataDeviceBinsBuildsDeviceBinary(t *testing.T) {
 	}
 }
 
-func TestImportMixedBuild(t *testing.T) {
-	bp := `
-		java_import {
-			name: "baz",
-			jars: [
-				"test1.jar",
-				"test2.jar",
-			],
-			bazel_module: { label: "//foo/bar:baz" },
-		}
-	`
-
-	ctx := android.GroupFixturePreparers(
-		prepareForJavaTest,
-		android.FixtureModifyConfig(func(config android.Config) {
-			config.BazelContext = android.MockBazelContext{
-				OutputBaseDir: "outputbase",
-				LabelToOutputFiles: map[string][]string{
-					"//foo/bar:baz": []string{"test1.jar", "test2.jar"},
-				},
-			}
-		}),
-	).RunTestWithBp(t, bp)
-
-	bazMod := ctx.ModuleForTests("baz", "android_common").Module()
-	producer := bazMod.(android.OutputFileProducer)
-	expectedOutputFiles := []string{".intermediates/baz/android_common/bazelCombined/baz.jar"}
-
-	outputFiles, err := producer.OutputFiles("")
-	if err != nil {
-		t.Errorf("Unexpected error getting java_import outputfiles %s", err)
-	}
-	actualOutputFiles := android.NormalizePathsForTesting(outputFiles)
-	android.AssertDeepEquals(t, "Output files are produced", expectedOutputFiles, actualOutputFiles)
-
-	javaInfoProvider := ctx.ModuleProvider(bazMod, JavaInfoProvider)
-	javaInfo, ok := javaInfoProvider.(JavaInfo)
-	if !ok {
-		t.Error("could not get JavaInfo from java_import module")
-	}
-	android.AssertDeepEquals(t, "Header JARs are produced", expectedOutputFiles, android.NormalizePathsForTesting(javaInfo.HeaderJars))
-	android.AssertDeepEquals(t, "Implementation/Resources JARs are produced", expectedOutputFiles, android.NormalizePathsForTesting(javaInfo.ImplementationAndResourcesJars))
-	android.AssertDeepEquals(t, "Implementation JARs are produced", expectedOutputFiles, android.NormalizePathsForTesting(javaInfo.ImplementationJars))
-}
-
-func TestGenAidlIncludeFlagsForMixedBuilds(t *testing.T) {
-	bazelOutputBaseDir := filepath.Join("out", "bazel")
-	result := android.GroupFixturePreparers(
-		PrepareForIntegrationTestWithJava,
-		android.FixtureModifyConfig(func(config android.Config) {
-			config.BazelContext = android.MockBazelContext{
-				OutputBaseDir: bazelOutputBaseDir,
-			}
-		}),
-	).RunTest(t)
-
-	ctx := &android.TestPathContext{TestResult: result}
-
-	srcDirectory := filepath.Join("frameworks", "base")
-	srcDirectoryAlreadyIncluded := filepath.Join("frameworks", "base", "core", "java")
-	bazelSrcDirectory := android.PathForBazelOut(ctx, srcDirectory)
-	bazelSrcDirectoryAlreadyIncluded := android.PathForBazelOut(ctx, srcDirectoryAlreadyIncluded)
-	srcs := android.Paths{
-		android.PathForTestingWithRel(bazelSrcDirectory.String(), "bazelAidl.aidl"),
-		android.PathForTestingWithRel(bazelSrcDirectory.String(), "bazelAidl2.aidl"),
-		android.PathForTestingWithRel(bazelSrcDirectoryAlreadyIncluded.String(), "bazelAidlExclude.aidl"),
-		android.PathForTestingWithRel(bazelSrcDirectoryAlreadyIncluded.String(), "bazelAidl2Exclude.aidl"),
-	}
-	dirsAlreadyIncluded := android.Paths{
-		android.PathForTesting(srcDirectoryAlreadyIncluded),
-	}
-
-	expectedFlags := " -Iout/bazel/execroot/__main__/frameworks/base"
-	flags := genAidlIncludeFlags(ctx, srcs, dirsAlreadyIncluded)
-	if flags != expectedFlags {
-		t.Errorf("expected flags to be %q; was %q", expectedFlags, flags)
-	}
-}
-
 func TestDeviceBinaryWrapperGeneration(t *testing.T) {
 	// Scenario 1: java_binary has main_class property in its bp
 	ctx, _ := testJava(t, `
@@ -1921,7 +1808,7 @@ func TestJavaApiLibraryAndProviderLink(t *testing.T) {
 	for _, c := range testcases {
 		m := ctx.ModuleForTests(c.moduleName, "android_common")
 		manifest := m.Output("metalava.sbox.textproto")
-		sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
+		sboxProto := android.RuleBuilderSboxProtoForTests(t, ctx.TestContext, manifest)
 		manifestCommand := sboxProto.Commands[0].GetCommand()
 		sourceFilesFlag := "--source-files " + strings.Join(c.sourceTextFileDirs, " ")
 		android.AssertStringDoesContain(t, "source text files not present", manifestCommand, sourceFilesFlag)
@@ -2026,7 +1913,7 @@ func TestJavaApiLibraryAndDefaultsLink(t *testing.T) {
 	for _, c := range testcases {
 		m := ctx.ModuleForTests(c.moduleName, "android_common")
 		manifest := m.Output("metalava.sbox.textproto")
-		sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
+		sboxProto := android.RuleBuilderSboxProtoForTests(t, ctx.TestContext, manifest)
 		manifestCommand := sboxProto.Commands[0].GetCommand()
 		sourceFilesFlag := "--source-files " + strings.Join(c.sourceTextFileDirs, " ")
 		android.AssertStringDoesContain(t, "source text files not present", manifestCommand, sourceFilesFlag)
@@ -2316,7 +2203,7 @@ func TestJavaApiLibraryFullApiSurfaceStub(t *testing.T) {
 
 	m := ctx.ModuleForTests("bar1", "android_common")
 	manifest := m.Output("metalava.sbox.textproto")
-	sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
+	sboxProto := android.RuleBuilderSboxProtoForTests(t, ctx.TestContext, manifest)
 	manifestCommand := sboxProto.Commands[0].GetCommand()
 	android.AssertStringDoesContain(t, "Command expected to contain full_api_surface_stub output jar", manifestCommand, "lib1.jar")
 }
@@ -2480,7 +2367,7 @@ func TestJavaApiContributionImport(t *testing.T) {
 	`)
 	m := ctx.ModuleForTests("foo", "android_common")
 	manifest := m.Output("metalava.sbox.textproto")
-	sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
+	sboxProto := android.RuleBuilderSboxProtoForTests(t, ctx.TestContext, manifest)
 	manifestCommand := sboxProto.Commands[0].GetCommand()
 	sourceFilesFlag := "--source-files current.txt"
 	android.AssertStringDoesContain(t, "source text files not present", manifestCommand, sourceFilesFlag)
@@ -2501,7 +2388,7 @@ func TestJavaApiLibraryApiFilesSorting(t *testing.T) {
 	`)
 	m := ctx.ModuleForTests("foo", "android_common")
 	manifest := m.Output("metalava.sbox.textproto")
-	sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
+	sboxProto := android.RuleBuilderSboxProtoForTests(t, ctx, manifest)
 	manifestCommand := sboxProto.Commands[0].GetCommand()
 
 	// Api files are sorted from the narrowest api scope to the widest api scope.
@@ -2543,7 +2430,7 @@ func TestSdkLibraryProvidesSystemModulesToApiLibrary(t *testing.T) {
 	`)
 	m := result.ModuleForTests(apiScopePublic.apiLibraryModuleName("foo"), "android_common")
 	manifest := m.Output("metalava.sbox.textproto")
-	sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
+	sboxProto := android.RuleBuilderSboxProtoForTests(t, result.TestContext, manifest)
 	manifestCommand := sboxProto.Commands[0].GetCommand()
 	classPathFlag := "--classpath __SBOX_SANDBOX_DIR__/out/.intermediates/bar/android_common/turbine-combined/bar.jar"
 	android.AssertStringDoesContain(t, "command expected to contain classpath flag", manifestCommand, classPathFlag)

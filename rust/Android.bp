@@ -7,11 +7,13 @@ bootstrap_go_package {
     pkgPath: "android/soong/rust",
     deps: [
         "soong",
+        "soong-aconfig",
         "soong-android",
         "soong-bloaty",
         "soong-cc",
         "soong-rust-config",
         "soong-snapshot",
+        "soong-testing",
     ],
     srcs: [
         "afdo.go",

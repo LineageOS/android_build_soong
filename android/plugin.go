@@ -72,7 +72,6 @@ var allowedPluginsByName = map[string]bool{
 
 var internalPluginsPaths = []string{
 	"vendor/google/build/soong/internal_plugins.json",
-	"vendor/google_clockwork/build/internal_plugins.json",
 }
 
 type pluginProvider interface {

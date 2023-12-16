@@ -22,6 +22,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -478,7 +479,8 @@ func copyFiles(copies []*sbox_proto.Copy, fromDir, toDir string, exists existsTy
 // copyOneFile copies a file and its permissions.  If forceExecutable is true it adds u+x to the
 // permissions.  If exists is allowFromNotExists it returns nil if the from path doesn't exist.
 // If write is onlyWriteIfChanged then the output file is compared to the input file and not written to
-// if it is the same, avoiding updating the timestamp.
+// if it is the same, avoiding updating the timestamp. If from is a symlink, the symlink itself
+// will be copied, instead of what it points to.
 func copyOneFile(from string, to string, forceExecutable bool, exists existsType,
 	write writeType) error {
 	err := os.MkdirAll(filepath.Dir(to), 0777)
@@ -486,12 +488,31 @@ func copyOneFile(from string, to string, forceExecutable bool, exists existsType
 		return err
 	}
 
-	stat, err := os.Stat(from)
+	stat, err := os.Lstat(from)
 	if err != nil {
 		if os.IsNotExist(err) && exists == allowFromNotExists {
 			return nil
 		}
 		return err
+	}
+
+	if stat.Mode()&fs.ModeSymlink != 0 {
+		linkTarget, err := os.Readlink(from)
+		if err != nil {
+			return err
+		}
+		if write == onlyWriteIfChanged {
+			toLinkTarget, err := os.Readlink(to)
+			if err == nil && toLinkTarget == linkTarget {
+				return nil
+			}
+		}
+		err = os.Remove(to)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+
+		return os.Symlink(linkTarget, to)
 	}
 
 	perm := stat.Mode()

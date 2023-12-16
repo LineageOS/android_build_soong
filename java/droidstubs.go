@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
@@ -500,18 +498,20 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 	if metalavaUseRbe(ctx) {
 		rule.Remoteable(android.RemoteRuleSupports{RBE: true})
 		execStrategy := ctx.Config().GetenvWithDefault("RBE_METALAVA_EXEC_STRATEGY", remoteexec.LocalExecStrategy)
-		compare, _ := strconv.ParseBool(ctx.Config().GetenvWithDefault("RBE_METALAVA_COMPARE", "false"))
+		compare := ctx.Config().IsEnvTrue("RBE_METALAVA_COMPARE")
+		remoteUpdateCache := !ctx.Config().IsEnvFalse("RBE_METALAVA_REMOTE_UPDATE_CACHE")
 		labels := map[string]string{"type": "tool", "name": "metalava"}
 		// TODO: metalava pool rejects these jobs
 		pool := ctx.Config().GetenvWithDefault("RBE_METALAVA_POOL", "java16")
 		rule.Rewrapper(&remoteexec.REParams{
-			Labels:          labels,
-			ExecStrategy:    execStrategy,
-			ToolchainInputs: []string{config.JavaCmd(ctx).String()},
-			Platform:        map[string]string{remoteexec.PoolKey: pool},
-			Compare:         compare,
-			NumLocalRuns:    1,
-			NumRemoteRuns:   1,
+			Labels:              labels,
+			ExecStrategy:        execStrategy,
+			ToolchainInputs:     []string{config.JavaCmd(ctx).String()},
+			Platform:            map[string]string{remoteexec.PoolKey: pool},
+			Compare:             compare,
+			NumLocalRuns:        1,
+			NumRemoteRuns:       1,
+			NoRemoteUpdateCache: !remoteUpdateCache,
 		})
 	}
 
@@ -892,28 +892,6 @@ var (
 		"toolchain":     android.SdkToolchain,
 	}
 )
-
-// A helper function that returns the api surface of the corresponding java_api_contribution Bazel target
-// The api_surface is populated using the naming convention of the droidstubs module.
-func bazelApiSurfaceName(name string) string {
-	// Sort the keys so that longer strings appear first
-	// Otherwise substrings like system will match both system and system_server
-	sortedKeys := make([]string, 0)
-	for key := range droidstubsModuleNamingToSdkKind {
-		sortedKeys = append(sortedKeys, key)
-	}
-	sort.Slice(sortedKeys, func(i, j int) bool {
-		return len(sortedKeys[i]) > len(sortedKeys[j])
-	})
-	for _, sortedKey := range sortedKeys {
-		if strings.Contains(name, sortedKey) {
-			sdkKind := droidstubsModuleNamingToSdkKind[sortedKey]
-			return sdkKind.String() + "api"
-		}
-	}
-	// Default is publicapi
-	return android.SdkPublic.String() + "api"
-}
 
 func StubsDefaultsFactory() android.Module {
 	module := &DocDefaults{}

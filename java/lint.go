@@ -93,6 +93,7 @@ type linter struct {
 	outputs                 lintOutputs
 	properties              LintProperties
 	extraMainlineLintErrors []string
+	compile_data            android.Paths
 
 	reports android.Paths
 
@@ -448,7 +449,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 
 	srcsList := android.PathForModuleOut(ctx, "lint", "lint-srcs.list")
 	srcsListRsp := android.PathForModuleOut(ctx, "lint-srcs.list.rsp")
-	rule.Command().Text("cp").FlagWithRspFileInputList("", srcsListRsp, l.srcs).Output(srcsList)
+	rule.Command().Text("cp").FlagWithRspFileInputList("", srcsListRsp, l.srcs).Output(srcsList).Implicits(l.compile_data)
 
 	lintPaths := l.writeLintProjectXML(ctx, rule, srcsList)
 
@@ -491,6 +492,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 
 	cmd.BuiltTool("lint").ImplicitTool(ctx.Config().HostJavaToolPath(ctx, "lint.jar")).
 		Flag("--quiet").
+		Flag("--include-aosp-issues").
 		FlagWithInput("--project ", lintPaths.projectXML).
 		FlagWithInput("--config ", lintPaths.configXML).
 		FlagWithOutput("--html ", html).

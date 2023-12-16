@@ -24,13 +24,10 @@ import (
 	"strings"
 	"sync"
 
-	"android/soong/ui/metrics/bp2build_metrics_proto"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/bazel"
 	"android/soong/dexpreopt"
 )
 
@@ -1238,8 +1235,6 @@ type SdkLibraryDependency interface {
 type SdkLibrary struct {
 	Library
 
-	android.BazelModuleBase
-
 	sdkLibraryProperties sdkLibraryProperties
 
 	// Map from api scope to the scope specific property structure.
@@ -1993,6 +1988,7 @@ func (module *SdkLibrary) createXmlFile(mctx android.DefaultableHookContext) {
 		Min_device_sdk            *string
 		Max_device_sdk            *string
 		Sdk_library_min_api_level *string
+		Uses_libs_dependencies    []string
 	}{
 		Name:                      proptools.StringPtr(module.xmlPermissionsModuleName()),
 		Lib_name:                  proptools.StringPtr(module.BaseModuleName()),
@@ -2002,6 +1998,7 @@ func (module *SdkLibrary) createXmlFile(mctx android.DefaultableHookContext) {
 		Min_device_sdk:            module.commonSdkLibraryProperties.Min_device_sdk,
 		Max_device_sdk:            module.commonSdkLibraryProperties.Max_device_sdk,
 		Sdk_library_min_api_level: &moduleMinApiLevelStr,
+		Uses_libs_dependencies:    module.usesLibraryProperties.Uses_libs,
 	}
 
 	mctx.CreateModule(sdkLibraryXmlFactory, &props)
@@ -2316,45 +2313,7 @@ func SdkLibraryFactory() android.Module {
 			module.CreateInternalModules(ctx)
 		}
 	})
-	android.InitBazelModule(module)
 	return module
-}
-
-type bazelSdkLibraryAttributes struct {
-	Public        *bazel.Label
-	System        *bazel.Label
-	Test          *bazel.Label
-	Module_lib    *bazel.Label
-	System_server *bazel.Label
-}
-
-// java_sdk_library bp2build converter
-func (module *SdkLibrary) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	if ctx.ModuleType() != "java_sdk_library" {
-		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_TYPE_UNSUPPORTED, "")
-		return
-	}
-
-	nameToAttr := make(map[string]*bazel.Label)
-
-	for _, scope := range module.getGeneratedApiScopes(ctx) {
-		apiSurfaceFile := android.BazelLabelForModuleSrcSingle(ctx, path.Join(module.getApiDir(), scope.apiFilePrefix+"current.txt"))
-		nameToAttr[scope.name] = &apiSurfaceFile
-	}
-
-	attrs := bazelSdkLibraryAttributes{
-		Public:        nameToAttr["public"],
-		System:        nameToAttr["system"],
-		Test:          nameToAttr["test"],
-		Module_lib:    nameToAttr["module-lib"],
-		System_server: nameToAttr["system-server"],
-	}
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "java_sdk_library",
-		Bzl_load_location: "//build/bazel/rules/java:sdk_library.bzl",
-	}
-
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, &attrs)
 }
 
 //
@@ -2398,7 +2357,6 @@ type sdkLibraryImportProperties struct {
 type SdkLibraryImport struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
-	android.BazelModuleBase
 	prebuilt android.Prebuilt
 	android.ApexModuleBase
 
@@ -2482,7 +2440,6 @@ func sdkLibraryImportFactory() android.Module {
 
 	android.InitPrebuiltModule(module, &[]string{""})
 	android.InitApexModule(module)
-	android.InitBazelModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 
 	module.SetDefaultableHook(func(mctx android.DefaultableHookContext) {
@@ -2491,33 +2448,6 @@ func sdkLibraryImportFactory() android.Module {
 		}
 	})
 	return module
-}
-
-// java_sdk_library bp2build converter
-func (i *SdkLibraryImport) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	nameToAttr := make(map[string]*bazel.Label)
-
-	for scope, props := range i.scopeProperties {
-		if api := proptools.String(props.Current_api); api != "" {
-			apiSurfaceFile := android.BazelLabelForModuleSrcSingle(ctx, api)
-			nameToAttr[scope.name] = &apiSurfaceFile
-		}
-	}
-
-	attrs := bazelSdkLibraryAttributes{
-		Public:        nameToAttr["public"],
-		System:        nameToAttr["system"],
-		Test:          nameToAttr["test"],
-		Module_lib:    nameToAttr["module-lib"],
-		System_server: nameToAttr["system-server"],
-	}
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "java_sdk_library",
-		Bzl_load_location: "//build/bazel/rules/java:sdk_library.bzl",
-	}
-
-	name := android.RemoveOptionalPrebuiltPrefix(i.Name())
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name}, &attrs)
 }
 
 var _ PermittedPackagesForUpdatableBootJars = (*SdkLibraryImport)(nil)
@@ -2968,6 +2898,11 @@ type sdkLibraryXmlProperties struct {
 	//
 	// This value comes from the ApiLevel of the MinSdkVersion property.
 	Sdk_library_min_api_level *string
+
+	// Uses-libs dependencies that the shared library requires to work correctly.
+	//
+	// This will add dependency="foo:bar" to the <library> section.
+	Uses_libs_dependencies []string
 }
 
 // java_sdk_library_xml builds the permission xml file for a java_sdk_library.
@@ -3076,6 +3011,13 @@ func formattedOptionalAttribute(attrName string, value *string) string {
 	return fmt.Sprintf(`        %s=\"%s\"\n`, attrName, *value)
 }
 
+func formattedDependenciesAttribute(dependencies []string) string {
+	if dependencies == nil {
+		return ""
+	}
+	return fmt.Sprintf(`        dependency=\"%s\"\n`, strings.Join(dependencies, ":"))
+}
+
 func (module *sdkLibraryXml) permissionsContents(ctx android.ModuleContext) string {
 	libName := proptools.String(module.properties.Lib_name)
 	libNameAttr := formattedOptionalAttribute("name", &libName)
@@ -3085,6 +3027,7 @@ func (module *sdkLibraryXml) permissionsContents(ctx android.ModuleContext) stri
 	implicitUntilAttr := formattedOptionalSdkLevelAttribute(ctx, "on-bootclasspath-before", module.properties.On_bootclasspath_before)
 	minSdkAttr := formattedOptionalSdkLevelAttribute(ctx, "min-device-sdk", module.properties.Min_device_sdk)
 	maxSdkAttr := formattedOptionalSdkLevelAttribute(ctx, "max-device-sdk", module.properties.Max_device_sdk)
+	dependenciesAttr := formattedDependenciesAttribute(module.properties.Uses_libs_dependencies)
 	// <library> is understood in all android versions whereas <apex-library> is only understood from API T (and ignored before that).
 	// similarly, min_device_sdk is only understood from T. So if a library is using that, we need to use the apex-library to make sure this library is not loaded before T
 	var libraryTag string
@@ -3118,6 +3061,7 @@ func (module *sdkLibraryXml) permissionsContents(ctx android.ModuleContext) stri
 		implicitUntilAttr,
 		minSdkAttr,
 		maxSdkAttr,
+		dependenciesAttr,
 		`    />\n`,
 		`</permissions>\n`}, "")
 }

@@ -28,9 +28,6 @@ func GeneratedCcLibraryModuleFactory(moduleName string, callbacks Generator) and
 		staticAndSharedLibrarySdkMemberType,
 	}
 
-	module.bazelable = true
-	module.bazelHandler = &ccLibraryBazelHandler{module: module}
-
 	module.generators = append(module.generators, callbacks)
 
 	return module.Init()

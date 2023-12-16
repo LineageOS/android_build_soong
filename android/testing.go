@@ -219,10 +219,6 @@ func (ctx *TestContext) FinalDepsMutators(f RegisterMutatorFunc) {
 	ctx.finalDeps = append(ctx.finalDeps, f)
 }
 
-func (ctx *TestContext) RegisterBp2BuildConfig(config Bp2BuildConversionAllowlist) {
-	ctx.config.Bp2buildPackageConfig = config
-}
-
 // PreArchBp2BuildMutators adds mutators to be register for converting Android Blueprint modules
 // into Bazel BUILD targets that should run prior to deps and conversion.
 func (ctx *TestContext) PreArchBp2BuildMutators(f RegisterMutatorFunc) {
@@ -447,12 +443,6 @@ func (ctx *TestContext) Register() {
 	// Save the sorted components order away to make them easy to access while debugging.
 	ctx.mutatorOrder = componentsToNames(mutators)
 	ctx.singletonOrder = componentsToNames(singletons)
-}
-
-// RegisterForBazelConversion prepares a test context for bp2build conversion.
-func (ctx *TestContext) RegisterForBazelConversion() {
-	ctx.config.BuildMode = Bp2build
-	RegisterMutatorsForBazelConversion(ctx.Context, ctx.bp2buildPreArch)
 }
 
 func (ctx *TestContext) ParseFileList(rootDir string, filePaths []string) (deps []string, errs []error) {
@@ -1292,4 +1282,11 @@ func StringRelativeToTop(config Config, command string) string {
 // of calling StringRelativeToTop on the corresponding item in the input slice.
 func StringsRelativeToTop(config Config, command []string) []string {
 	return normalizeStringArrayRelativeToTop(config, command)
+}
+
+func EnsureListContainsSuffix(t *testing.T, result []string, expected string) {
+	t.Helper()
+	if !SuffixInList(result, expected) {
+		t.Errorf("%q is not found in %v", expected, result)
+	}
 }

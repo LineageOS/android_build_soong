@@ -399,13 +399,11 @@ type FuzzProperties struct {
 }
 
 type FuzzPackagedModule struct {
-	FuzzProperties        FuzzProperties
-	Dictionary            android.Path
-	Corpus                android.Paths
-	CorpusIntermediateDir android.Path
-	Config                android.Path
-	Data                  android.Paths
-	DataIntermediateDir   android.Path
+	FuzzProperties FuzzProperties
+	Dictionary     android.Path
+	Corpus         android.Paths
+	Config         android.Path
+	Data           android.Paths
 }
 
 func GetFramework(ctx android.LoadHookContext, lang Lang) Framework {

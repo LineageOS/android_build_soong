@@ -72,7 +72,6 @@ type configImpl struct {
 	checkbuild               bool
 	dist                     bool
 	jsonModuleGraph          bool
-	bp2build                 bool
 	queryview                bool
 	reportMkMetrics          bool // Collect and report mk2bp migration progress metrics.
 	soongDocs                bool
@@ -87,9 +86,7 @@ type configImpl struct {
 	skipMetricsUpload        bool
 	buildStartedTime         int64 // For metrics-upload-only - manually specify a build-started time
 	buildFromSourceStub      bool
-	ensureAllowlistIntegrity bool   // For CI builds - make sure modules are mixed-built
-	bazelExitCode            int32  // For b runs - necessary for updating NonZeroExit
-	besId                    string // For b runs, to identify the BuildEventService logs
+	ensureAllowlistIntegrity bool // For CI builds - make sure modules are mixed-built
 
 	// From the product config
 	katiArgs        []string
@@ -108,15 +105,10 @@ type configImpl struct {
 
 	pathReplaced bool
 
-	bazelProdMode    bool
-	bazelStagingMode bool
-
 	// Set by multiproduct_kati
 	emptyNinjaFile bool
 
 	metricsUploader string
-
-	bazelForceEnabledModules string
 
 	includeTags    []string
 	sourceRootDirs []string
@@ -384,9 +376,13 @@ func NewConfig(ctx Context, args ...string) Config {
 	// Configure Java-related variables, including adding it to $PATH
 	java8Home := filepath.Join("prebuilts/jdk/jdk8", ret.HostPrebuiltTag())
 	java17Home := filepath.Join("prebuilts/jdk/jdk17", ret.HostPrebuiltTag())
+	java21Home := filepath.Join("prebuilts/jdk/jdk21", ret.HostPrebuiltTag())
 	javaHome := func() string {
 		if override, ok := ret.environ.Get("OVERRIDE_ANDROID_JAVA_HOME"); ok {
 			return override
+		}
+		if ret.environ.IsEnvTrue("EXPERIMENTAL_USE_OPENJDK21_TOOLCHAIN") {
+			return java21Home
 		}
 		if toolchain11, ok := ret.environ.Get("EXPERIMENTAL_USE_OPENJDK11_TOOLCHAIN"); ok && toolchain11 != "true" {
 			ctx.Fatalln("The environment variable EXPERIMENTAL_USE_OPENJDK11_TOOLCHAIN is no longer supported. An OpenJDK 11 toolchain is now the global default.")
@@ -444,11 +440,6 @@ func NewConfig(ctx Context, args ...string) Config {
 		for k, v := range getRBEVars(ctx, Config{ret}) {
 			ret.environ.Set(k, v)
 		}
-	}
-
-	bpd := ret.BazelMetricsDir()
-	if err := os.RemoveAll(bpd); err != nil {
-		ctx.Fatalf("Unable to remove bazel profile directory %q: %v", bpd, err)
 	}
 
 	c := Config{ret}
@@ -531,12 +522,10 @@ func getNinjaWeightListSourceInMetric(s NinjaWeightListSource) *smpb.BuildConfig
 
 func buildConfig(config Config) *smpb.BuildConfig {
 	c := &smpb.BuildConfig{
-		ForceUseGoma:                proto.Bool(config.ForceUseGoma()),
-		UseGoma:                     proto.Bool(config.UseGoma()),
-		UseRbe:                      proto.Bool(config.UseRBE()),
-		BazelMixedBuild:             proto.Bool(config.BazelBuildEnabled()),
-		ForceDisableBazelMixedBuild: proto.Bool(config.IsBazelMixedBuildForceDisabled()),
-		NinjaWeightListSource:       getNinjaWeightListSourceInMetric(config.NinjaWeightListSource()),
+		ForceUseGoma:          proto.Bool(config.ForceUseGoma()),
+		UseGoma:               proto.Bool(config.UseGoma()),
+		UseRbe:                proto.Bool(config.UseRBE()),
+		NinjaWeightListSource: getNinjaWeightListSourceInMetric(config.NinjaWeightListSource()),
 	}
 	c.Targets = append(c.Targets, config.arguments...)
 
@@ -790,10 +779,6 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			c.reportMkMetrics = true
 		} else if arg == "--multitree-build" {
 			c.multitreeBuild = true
-		} else if arg == "--bazel-mode" {
-			c.bazelProdMode = true
-		} else if arg == "--bazel-mode-staging" {
-			c.bazelStagingMode = true
 		} else if arg == "--search-api-dir" {
 			c.searchApiDir = true
 		} else if strings.HasPrefix(arg, "--ninja_weight_source=") {
@@ -828,8 +813,6 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			buildCmd = strings.TrimPrefix(buildCmd, "\"")
 			buildCmd = strings.TrimSuffix(buildCmd, "\"")
 			ctx.Metrics.SetBuildCommand([]string{buildCmd})
-		} else if strings.HasPrefix(arg, "--bazel-force-enabled-modules=") {
-			c.bazelForceEnabledModules = strings.TrimPrefix(arg, "--bazel-force-enabled-modules=")
 		} else if strings.HasPrefix(arg, "--build-started-time-unix-millis=") {
 			buildTimeStr := strings.TrimPrefix(arg, "--build-started-time-unix-millis=")
 			val, err := strconv.ParseInt(buildTimeStr, 10, 64)
@@ -874,8 +857,6 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			c.dist = true
 		} else if arg == "json-module-graph" {
 			c.jsonModuleGraph = true
-		} else if arg == "bp2build" {
-			c.bp2build = true
 		} else if arg == "queryview" {
 			c.queryview = true
 		} else if arg == "soong_docs" {
@@ -972,13 +953,12 @@ func (c *configImpl) SoongBuildInvocationNeeded() bool {
 		return true
 	}
 
-	if !c.JsonModuleGraph() && !c.Bp2Build() && !c.Queryview() && !c.SoongDocs() {
+	if !c.JsonModuleGraph() && !c.Queryview() && !c.SoongDocs() {
 		// Command line was empty, the default Ninja target is built
 		return true
 	}
 
-	// bp2build + dist may be used to dist bp2build logs but does not require SoongBuildInvocation
-	if c.Dist() && !c.Bp2Build() {
+	if c.Dist() {
 		return true
 	}
 
@@ -1006,14 +986,6 @@ func (c *configImpl) NinjaArgs() []string {
 		return c.arguments
 	}
 	return c.ninjaArgs
-}
-
-func (c *configImpl) BazelOutDir() string {
-	return filepath.Join(c.OutDir(), "bazel")
-}
-
-func (c *configImpl) bazelOutputBase() string {
-	return filepath.Join(c.BazelOutDir(), "output")
 }
 
 func (c *configImpl) SoongOutDir() string {
@@ -1052,14 +1024,6 @@ func (c *configImpl) UsedEnvFile(tag string) string {
 		return shared.JoinPath(c.SoongOutDir(), usedEnvFile+"."+v+"."+tag)
 	}
 	return shared.JoinPath(c.SoongOutDir(), usedEnvFile+"."+tag)
-}
-
-func (c *configImpl) Bp2BuildFilesMarkerFile() string {
-	return shared.JoinPath(c.SoongOutDir(), "bp2build_files_marker")
-}
-
-func (c *configImpl) Bp2BuildWorkspaceMarkerFile() string {
-	return shared.JoinPath(c.SoongOutDir(), "bp2build_workspace_marker")
 }
 
 func (c *configImpl) SoongDocsHtml() string {
@@ -1105,10 +1069,6 @@ func (c *configImpl) Dist() bool {
 
 func (c *configImpl) JsonModuleGraph() bool {
 	return c.jsonModuleGraph
-}
-
-func (c *configImpl) Bp2Build() bool {
-	return c.bp2build
 }
 
 func (c *configImpl) Queryview() bool {
@@ -1302,7 +1262,7 @@ func (c *configImpl) canSupportRBE() bool {
 
 func (c *configImpl) UseRBE() bool {
 	// These alternate modes of running Soong do not use RBE / reclient.
-	if c.Bp2Build() || c.Queryview() || c.JsonModuleGraph() {
+	if c.Queryview() || c.JsonModuleGraph() {
 		return false
 	}
 
@@ -1317,10 +1277,6 @@ func (c *configImpl) UseRBE() bool {
 		}
 	}
 	return false
-}
-
-func (c *configImpl) BazelBuildEnabled() bool {
-	return c.bazelProdMode || c.bazelStagingMode
 }
 
 func (c *configImpl) StartRBE() bool {
@@ -1675,12 +1631,6 @@ func (c *configImpl) LogsDir() string {
 	return absDir
 }
 
-// BazelMetricsDir returns the <logs dir>/bazel_metrics directory
-// where the bazel profiles are located.
-func (c *configImpl) BazelMetricsDir() string {
-	return filepath.Join(c.LogsDir(), "bazel_metrics")
-}
-
 // MkFileMetrics returns the file path for make-related metrics.
 func (c *configImpl) MkMetrics() string {
 	return filepath.Join(c.LogsDir(), "mk_metrics.pb")
@@ -1692,28 +1642,6 @@ func (c *configImpl) SetEmptyNinjaFile(v bool) {
 
 func (c *configImpl) EmptyNinjaFile() bool {
 	return c.emptyNinjaFile
-}
-
-func (c *configImpl) IsBazelMixedBuildForceDisabled() bool {
-	return c.Environment().IsEnvTrue("BUILD_BROKEN_DISABLE_BAZEL")
-}
-
-func (c *configImpl) IsPersistentBazelEnabled() bool {
-	return c.Environment().IsEnvTrue("USE_PERSISTENT_BAZEL")
-}
-
-// GetBazeliskBazelVersion returns the Bazel version to use for this build,
-// or the empty string if the current canonical prod Bazel should be used.
-// This environment variable should only be set to debug the build system.
-// The Bazel version, if set, will be passed to Bazelisk, and Bazelisk will
-// handle downloading and invoking the correct Bazel binary.
-func (c *configImpl) GetBazeliskBazelVersion() string {
-	value, _ := c.Environment().Get("USE_BAZEL_VERSION")
-	return value
-}
-
-func (c *configImpl) BazelModulesForceEnabledByFlag() string {
-	return c.bazelForceEnabledModules
 }
 
 func (c *configImpl) SkipMetricsUpload() bool {
@@ -1731,10 +1659,6 @@ func (c *configImpl) BuildStartedTimeOrDefault(defaultTime time.Time) time.Time 
 		return defaultTime
 	}
 	return time.UnixMilli(c.buildStartedTime)
-}
-
-func (c *configImpl) BazelExitCode() int32 {
-	return c.bazelExitCode
 }
 
 func GetMetricsUploader(topDir string, env *Environment) string {

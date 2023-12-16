@@ -102,7 +102,6 @@ func (p *PythonTestModule) init() android.Module {
 	p.AddProperties(&p.testProperties)
 	android.InitAndroidArchModule(p, p.hod, p.multilib)
 	android.InitDefaultableModule(p)
-	android.InitBazelModule(p)
 	if p.isTestHost() && p.testProperties.Test_options.Unit_test == nil {
 		p.testProperties.Test_options.Unit_test = proptools.BoolPtr(true)
 	}
@@ -188,8 +187,6 @@ func (p *PythonTestModule) GenerateAndroidBuildActions(ctx android.ModuleContext
 		panic(fmt.Errorf("unknown python test runner '%s', should be 'tradefed' or 'mobly'", runner))
 	}
 
-	p.installedDest = ctx.InstallFile(installDir(ctx, "nativetest", "nativetest64", ctx.ModuleName()), p.installSource.Base(), p.installSource)
-
 	for _, dataSrcPath := range android.PathsForModuleSrc(ctx, p.testProperties.Data) {
 		p.data = append(p.data, android.DataPath{SrcPath: dataSrcPath})
 	}
@@ -206,6 +203,11 @@ func (p *PythonTestModule) GenerateAndroidBuildActions(ctx android.ModuleContext
 			p.data = append(p.data, android.DataPath{SrcPath: javaDataSrcPath})
 		}
 	}
+
+	installDir := installDir(ctx, "nativetest", "nativetest64", ctx.ModuleName())
+	installedData := ctx.InstallTestData(installDir, p.data)
+	p.installedDest = ctx.InstallFile(installDir, p.installSource.Base(), p.installSource, installedData...)
+
 	ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 }
 
@@ -226,8 +228,6 @@ func (p *PythonTestModule) AndroidMkEntries() []android.AndroidMkEntries {
 			}
 
 			entries.SetBoolIfTrue("LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG", !BoolDefault(p.binaryProperties.Auto_gen_config, true))
-
-			entries.AddStrings("LOCAL_TEST_DATA", android.AndroidMkDataPaths(p.data)...)
 
 			p.testProperties.Test_options.SetAndroidMkEntries(entries)
 		})

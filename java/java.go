@@ -24,12 +24,8 @@ import (
 	"sort"
 	"strings"
 
-	"android/soong/bazel"
-	"android/soong/bazel/cquery"
 	"android/soong/remoteexec"
 	"android/soong/testing"
-	"android/soong/ui/metrics/bp2build_metrics_proto"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -297,15 +293,6 @@ type JavaInfo struct {
 	// JacocoReportClassesFile is the path to a jar containing uninstrumented classes that will be
 	// instrumented by jacoco.
 	JacocoReportClassesFile android.Path
-
-	// set of aconfig flags for all transitive libs deps
-	// TODO(joeo): It would be nice if this were over in the aconfig package instead of here.
-	// In order to do that, generated_java_library would need a way doing
-	// collectTransitiveAconfigFiles with one of the callbacks, and having that automatically
-	// propagated. If we were to clean up more of the stuff on JavaInfo that's not part of
-	// core java rules (e.g. AidlIncludeDirs), then maybe adding more framework to do that would be
-	// worth it.
-	TransitiveAconfigFiles *android.DepSet[android.Path]
 }
 
 var JavaInfoProvider = blueprint.NewProvider(JavaInfo{})
@@ -418,6 +405,7 @@ var (
 	syspropPublicStubDepTag = dependencyTag{name: "sysprop public stub"}
 	javaApiContributionTag  = dependencyTag{name: "java-api-contribution"}
 	depApiSrcsTag           = dependencyTag{name: "dep-api-srcs"}
+	aconfigDeclarationTag   = dependencyTag{name: "aconfig-declaration"}
 	jniInstallTag           = installDependencyTag{name: "jni install"}
 	binaryInstallTag        = installDependencyTag{name: "binary install"}
 	usesLibReqTag           = makeUsesLibraryDependencyTag(dexpreopt.AnySdkVersion, false)
@@ -639,7 +627,7 @@ func normalizeJavaVersion(ctx android.BaseModuleContext, javaVersion string) jav
 type Library struct {
 	Module
 
-	exportedProguardFlagFiles android.Paths
+	combinedExportedProguardFlagsFile android.Path
 
 	InstallMixin func(ctx android.ModuleContext, installPath android.Path) (extraInstallDeps android.InstallPaths)
 }
@@ -700,8 +688,12 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	proguardSpecInfo := j.collectProguardSpecInfo(ctx)
 	ctx.SetProvider(ProguardSpecInfoProvider, proguardSpecInfo)
-	j.exportedProguardFlagFiles = proguardSpecInfo.ProguardFlagsFiles.ToList()
-	j.extraProguardFlagFiles = append(j.extraProguardFlagFiles, j.exportedProguardFlagFiles...)
+	exportedProguardFlagsFiles := proguardSpecInfo.ProguardFlagsFiles.ToList()
+	j.extraProguardFlagsFiles = append(j.extraProguardFlagsFiles, exportedProguardFlagsFiles...)
+
+	combinedExportedProguardFlagFile := android.PathForModuleOut(ctx, "export_proguard_flags")
+	writeCombinedProguardFlagsFile(ctx, combinedExportedProguardFlagFile, exportedProguardFlagsFiles)
+	j.combinedExportedProguardFlagsFile = combinedExportedProguardFlagFile
 
 	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 	if !apexInfo.IsForPlatform() {
@@ -913,7 +905,6 @@ func LibraryFactory() android.Module {
 	module.initModuleAndImport(module)
 
 	android.InitApexModule(module)
-	android.InitBazelModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
 }
@@ -935,7 +926,6 @@ func LibraryHostFactory() android.Module {
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 
 	android.InitApexModule(module)
-	android.InitBazelModule(module)
 	InitJavaModule(module, android.HostSupported)
 	return module
 }
@@ -1445,8 +1435,6 @@ func TestHostFactory() android.Module {
 		nil,
 		nil)
 
-	android.InitBazelModule(module)
-
 	InitJavaModuleMultiTargets(module, android.HostSupported)
 
 	return module
@@ -1587,7 +1575,6 @@ func BinaryFactory() android.Module {
 
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommonFirst)
 	android.InitDefaultableModule(module)
-	android.InitBazelModule(module)
 
 	return module
 }
@@ -1606,7 +1593,6 @@ func BinaryHostFactory() android.Module {
 
 	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommonFirst)
 	android.InitDefaultableModule(module)
-	android.InitBazelModule(module)
 	return module
 }
 
@@ -2101,7 +2087,6 @@ type Import struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 	android.ApexModuleBase
-	android.BazelModuleBase
 	prebuilt android.Prebuilt
 
 	// Functionality common to Module and Import.
@@ -2200,7 +2185,6 @@ func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (j *Import) commonBuildActions(ctx android.ModuleContext) {
-	//TODO(b/231322772) these should come from Bazel once available
 	j.sdkVersion = j.SdkVersion(ctx)
 	j.minSdkVersion = j.MinSdkVersion(ctx)
 
@@ -2502,7 +2486,6 @@ func ImportFactory() android.Module {
 
 	android.InitPrebuiltModule(module, &module.properties.Jars)
 	android.InitApexModule(module)
-	android.InitBazelModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
 }
@@ -2519,7 +2502,6 @@ func ImportFactoryHost() android.Module {
 
 	android.InitPrebuiltModule(module, &module.properties.Jars)
 	android.InitApexModule(module)
-	android.InitBazelModule(module)
 	InitJavaModule(module, android.HostSupported)
 	return module
 }
@@ -2814,695 +2796,6 @@ func addCLCFromDep(ctx android.ModuleContext, depModule android.Module,
 	} else {
 		clcMap.AddContextMap(dep.ClassLoaderContexts(), depName)
 	}
-}
-
-type javaResourcesAttributes struct {
-	Resources             bazel.LabelListAttribute
-	Resource_strip_prefix *string
-	Additional_resources  bazel.LabelListAttribute `blueprint:"mutated"`
-}
-
-func (m *Library) getResourceFilegroupStripPrefix(ctx android.Bp2buildMutatorContext, resourceFilegroup string) (*string, bool) {
-	if otherM, ok := ctx.ModuleFromName(resourceFilegroup); ok {
-		if fg, isFilegroup := otherM.(android.FileGroupPath); isFilegroup {
-			return proptools.StringPtr(filepath.Join(ctx.OtherModuleDir(otherM), fg.GetPath(ctx))), true
-		}
-	}
-	return proptools.StringPtr(""), false
-}
-
-func (m *Library) convertJavaResourcesAttributes(ctx android.Bp2buildMutatorContext) *javaResourcesAttributes {
-	var resources bazel.LabelList
-	var resourceStripPrefix *string
-
-	additionalJavaResourcesMap := make(map[string]*javaResourcesAttributes)
-
-	if m.properties.Java_resources != nil {
-		for _, res := range m.properties.Java_resources {
-			if prefix, isFilegroup := m.getResourceFilegroupStripPrefix(ctx, res); isFilegroup {
-				otherM, _ := ctx.ModuleFromName(res)
-				resourcesTargetName := ctx.ModuleName() + "_filegroup_resources_" + otherM.Name()
-				additionalJavaResourcesMap[resourcesTargetName] = &javaResourcesAttributes{
-					Resources:             bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, []string{res})),
-					Resource_strip_prefix: prefix,
-				}
-			} else {
-				resources.Append(android.BazelLabelForModuleSrc(ctx, []string{res}))
-			}
-		}
-
-		if !resources.IsEmpty() {
-			resourceStripPrefix = proptools.StringPtr(ctx.ModuleDir())
-		}
-	}
-
-	//TODO(b/179889880) handle case where glob includes files outside package
-	resDeps := ResourceDirsToFiles(
-		ctx,
-		m.properties.Java_resource_dirs,
-		m.properties.Exclude_java_resource_dirs,
-		m.properties.Exclude_java_resources,
-	)
-
-	for _, resDep := range resDeps {
-		dir, files := resDep.dir, resDep.files
-
-		// Bazel includes the relative path from the WORKSPACE root when placing the resource
-		// inside the JAR file, so we need to remove that prefix
-		prefix := proptools.StringPtr(dir.String())
-		resourcesTargetName := ctx.ModuleName() + "_resource_dir_" + dir.String()
-		additionalJavaResourcesMap[resourcesTargetName] = &javaResourcesAttributes{
-			Resources:             bazel.MakeLabelListAttribute(bazel.MakeLabelList(android.RootToModuleRelativePaths(ctx, files))),
-			Resource_strip_prefix: prefix,
-		}
-	}
-
-	var additionalResourceLabels bazel.LabelList
-	if len(additionalJavaResourcesMap) > 0 {
-		var additionalResources []string
-		for resName, _ := range additionalJavaResourcesMap {
-			additionalResources = append(additionalResources, resName)
-		}
-		sort.Strings(additionalResources)
-
-		for i, resName := range additionalResources {
-			resAttr := additionalJavaResourcesMap[resName]
-			if resourceStripPrefix == nil && i == 0 {
-				resourceStripPrefix = resAttr.Resource_strip_prefix
-				resources = resAttr.Resources.Value
-			} else if !resAttr.Resources.IsEmpty() {
-				ctx.CreateBazelTargetModule(
-					bazel.BazelTargetModuleProperties{
-						Rule_class:        "java_resources",
-						Bzl_load_location: "//build/bazel/rules/java:java_resources.bzl",
-					},
-					android.CommonAttributes{Name: resName},
-					resAttr,
-				)
-				additionalResourceLabels.Append(android.BazelLabelForModuleSrc(ctx, []string{resName}))
-			}
-		}
-
-	}
-
-	return &javaResourcesAttributes{
-		Resources:             bazel.MakeLabelListAttribute(resources),
-		Resource_strip_prefix: resourceStripPrefix,
-		Additional_resources:  bazel.MakeLabelListAttribute(additionalResourceLabels),
-	}
-}
-
-type javaCommonAttributes struct {
-	*javaResourcesAttributes
-	*kotlinAttributes
-	Srcs                    bazel.LabelListAttribute
-	Plugins                 bazel.LabelListAttribute
-	Javacopts               bazel.StringListAttribute
-	Sdk_version             bazel.StringAttribute
-	Java_version            bazel.StringAttribute
-	Errorprone_force_enable bazel.BoolAttribute
-	Javac_shard_size        *int64
-}
-
-type javaDependencyLabels struct {
-	// Dependencies which DO NOT contribute to the API visible to upstream dependencies.
-	Deps bazel.LabelListAttribute
-	// Dependencies which DO contribute to the API visible to upstream dependencies.
-	StaticDeps bazel.LabelListAttribute
-}
-
-type eventLogTagsAttributes struct {
-	Srcs bazel.LabelListAttribute
-}
-
-type aidlLibraryAttributes struct {
-	Srcs bazel.LabelListAttribute
-	Tags bazel.StringListAttribute
-}
-
-type javaAidlLibraryAttributes struct {
-	Deps bazel.LabelListAttribute
-	Tags bazel.StringListAttribute
-}
-
-// bp2BuildJavaInfo has information needed for the conversion of  java*_modules
-// that is needed bor Bp2Build conversion but that requires different handling
-// depending on the module type.
-type bp2BuildJavaInfo struct {
-	// separates dependencies into dynamic dependencies and static dependencies.
-	DepLabels *javaDependencyLabels
-	hasKotlin bool
-}
-
-func javaXsdTargetName(xsd android.XsdConfigBp2buildTargets) string {
-	return xsd.JavaBp2buildTargetName()
-}
-
-// convertLibraryAttrsBp2Build returns a javaCommonAttributes struct with
-// converted attributes shared across java_* modules and a bp2BuildJavaInfo struct
-// which has other non-attribute information needed for bp2build conversion
-// that needs different handling depending on the module types, and thus needs
-// to be returned to the calling function.
-func (m *Library) convertLibraryAttrsBp2Build(ctx android.Bp2buildMutatorContext) (*javaCommonAttributes, *bp2BuildJavaInfo, bool) {
-	var srcs bazel.LabelListAttribute
-	var deps bazel.LabelListAttribute
-	var staticDeps bazel.LabelListAttribute
-
-	if proptools.String(m.deviceProperties.Sdk_version) == "" && m.DeviceSupported() {
-		// TODO(b/297356704): handle platform apis in bp2build
-		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_PROPERTY_UNSUPPORTED, "sdk_version unset")
-		return &javaCommonAttributes{}, &bp2BuildJavaInfo{}, false
-	} else if proptools.String(m.deviceProperties.Sdk_version) == "core_platform" {
-		// TODO(b/297356582): handle core_platform in bp2build
-		ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_PROPERTY_UNSUPPORTED, "sdk_version core_platform")
-		return &javaCommonAttributes{}, &bp2BuildJavaInfo{}, false
-	}
-
-	archVariantProps := m.GetArchVariantProperties(ctx, &CommonProperties{})
-	for axis, configToProps := range archVariantProps {
-		for config, p := range configToProps {
-			if archProps, ok := p.(*CommonProperties); ok {
-				archSrcs := android.BazelLabelForModuleSrcExcludes(ctx, archProps.Srcs, archProps.Exclude_srcs)
-				srcs.SetSelectValue(axis, config, archSrcs)
-				if archProps.Jarjar_rules != nil {
-					ctx.MarkBp2buildUnconvertible(bp2build_metrics_proto.UnconvertedReasonType_PROPERTY_UNSUPPORTED, "jarjar_rules")
-					return &javaCommonAttributes{}, &bp2BuildJavaInfo{}, false
-				}
-			}
-		}
-	}
-	srcs.Append(
-		bazel.MakeLabelListAttribute(
-			android.BazelLabelForModuleSrcExcludes(ctx,
-				m.properties.Openjdk9.Srcs,
-				m.properties.Exclude_srcs)))
-	srcs.ResolveExcludes()
-
-	javaSrcPartition := "java"
-	protoSrcPartition := "proto"
-	xsdSrcPartition := "xsd"
-	logtagSrcPartition := "logtag"
-	aidlSrcPartition := "aidl"
-	kotlinPartition := "kotlin"
-	srcPartitions := bazel.PartitionLabelListAttribute(ctx, &srcs, bazel.LabelPartitions{
-		javaSrcPartition:   bazel.LabelPartition{Extensions: []string{".java"}, Keep_remainder: true},
-		logtagSrcPartition: bazel.LabelPartition{Extensions: []string{".logtags", ".logtag"}},
-		protoSrcPartition:  android.ProtoSrcLabelPartition,
-		aidlSrcPartition:   android.AidlSrcLabelPartition,
-		xsdSrcPartition:    bazel.LabelPartition{LabelMapper: android.XsdLabelMapper(javaXsdTargetName)},
-		kotlinPartition:    bazel.LabelPartition{Extensions: []string{".kt"}},
-	})
-
-	javaSrcs := srcPartitions[javaSrcPartition]
-	kotlinSrcs := srcPartitions[kotlinPartition]
-	javaSrcs.Append(kotlinSrcs)
-
-	staticDeps.Append(srcPartitions[xsdSrcPartition])
-
-	if !srcPartitions[logtagSrcPartition].IsEmpty() {
-		logtagsLibName := m.Name() + "_logtags"
-		ctx.CreateBazelTargetModule(
-			bazel.BazelTargetModuleProperties{
-				Rule_class:        "event_log_tags",
-				Bzl_load_location: "//build/bazel/rules/java:event_log_tags.bzl",
-			},
-			android.CommonAttributes{Name: logtagsLibName},
-			&eventLogTagsAttributes{
-				Srcs: srcPartitions[logtagSrcPartition],
-			},
-		)
-
-		logtagsSrcs := bazel.MakeLabelList([]bazel.Label{{Label: ":" + logtagsLibName}})
-		javaSrcs.Append(bazel.MakeLabelListAttribute(logtagsSrcs))
-	}
-
-	if !srcPartitions[aidlSrcPartition].IsEmpty() {
-		aidlLibs, aidlSrcs := srcPartitions[aidlSrcPartition].Partition(func(src bazel.Label) bool {
-			return android.IsConvertedToAidlLibrary(ctx, src.OriginalModuleName)
-		})
-
-		apexAvailableTags := android.ApexAvailableTagsWithoutTestApexes(ctx, ctx.Module())
-
-		if !aidlSrcs.IsEmpty() {
-			aidlLibName := m.Name() + "_aidl_library"
-			ctx.CreateBazelTargetModule(
-				bazel.BazelTargetModuleProperties{
-					Rule_class:        "aidl_library",
-					Bzl_load_location: "//build/bazel/rules/aidl:aidl_library.bzl",
-				},
-				android.CommonAttributes{Name: aidlLibName},
-				&aidlLibraryAttributes{
-					Srcs: aidlSrcs,
-					Tags: apexAvailableTags,
-				},
-			)
-			aidlLibs.Add(&bazel.LabelAttribute{Value: &bazel.Label{Label: ":" + aidlLibName}})
-		}
-
-		javaAidlLibName := m.Name() + "_java_aidl_library"
-		ctx.CreateBazelTargetModule(
-			bazel.BazelTargetModuleProperties{
-				Rule_class:        "java_aidl_library",
-				Bzl_load_location: "//build/bazel/rules/java:java_aidl_library.bzl",
-			},
-			android.CommonAttributes{Name: javaAidlLibName},
-			&javaAidlLibraryAttributes{
-				Deps: aidlLibs,
-				Tags: apexAvailableTags,
-			},
-		)
-
-		staticDeps.Append(bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + javaAidlLibName}))
-	}
-
-	var javacopts bazel.StringListAttribute //[]string
-	plugins := bazel.MakeLabelListAttribute(
-		android.BazelLabelForModuleDeps(ctx, m.properties.Plugins),
-	)
-	if m.properties.Javacflags != nil || m.properties.Openjdk9.Javacflags != nil {
-		javacopts = bazel.MakeStringListAttribute(
-			append(append([]string{}, m.properties.Javacflags...), m.properties.Openjdk9.Javacflags...))
-	}
-
-	epEnabled := m.properties.Errorprone.Enabled
-	epJavacflags := m.properties.Errorprone.Javacflags
-	var errorproneForceEnable bazel.BoolAttribute
-	if epEnabled == nil {
-		//TODO(b/227504307) add configuration that depends on RUN_ERROR_PRONE environment variable
-	} else if *epEnabled {
-		plugins.Append(bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, m.properties.Errorprone.Extra_check_modules)))
-		javacopts.Append(bazel.MakeStringListAttribute(epJavacflags))
-		errorproneForceEnable.Value = epEnabled
-	} else {
-		javacopts.Append(bazel.MakeStringListAttribute([]string{"-XepDisableAllChecks"}))
-	}
-
-	resourcesAttrs := m.convertJavaResourcesAttributes(ctx)
-
-	commonAttrs := &javaCommonAttributes{
-		Srcs:                    javaSrcs,
-		javaResourcesAttributes: resourcesAttrs,
-		Plugins:                 plugins,
-		Javacopts:               javacopts,
-		Java_version:            bazel.StringAttribute{Value: m.properties.Java_version},
-		Sdk_version:             bazel.StringAttribute{Value: m.deviceProperties.Sdk_version},
-		Errorprone_force_enable: errorproneForceEnable,
-		Javac_shard_size:        m.properties.Javac_shard_size,
-	}
-
-	for axis, configToProps := range archVariantProps {
-		for config, _props := range configToProps {
-			if archProps, ok := _props.(*CommonProperties); ok {
-				var libLabels []bazel.Label
-				for _, d := range archProps.Libs {
-					neverlinkLabel := android.BazelLabelForModuleDepSingle(ctx, d)
-					neverlinkLabel.Label = neverlinkLabel.Label + "-neverlink"
-					libLabels = append(libLabels, neverlinkLabel)
-				}
-				deps.SetSelectValue(axis, config, bazel.MakeLabelList(libLabels))
-			}
-		}
-	}
-
-	depLabels := &javaDependencyLabels{}
-	deps.Append(resourcesAttrs.Additional_resources)
-	depLabels.Deps = deps
-
-	for axis, configToProps := range archVariantProps {
-		for config, _props := range configToProps {
-			if archProps, ok := _props.(*CommonProperties); ok {
-				archStaticLibs := android.BazelLabelForModuleDeps(
-					ctx,
-					android.LastUniqueStrings(android.CopyOf(archProps.Static_libs)))
-				depLabels.StaticDeps.SetSelectValue(axis, config, archStaticLibs)
-			}
-		}
-	}
-	depLabels.StaticDeps.Append(staticDeps)
-
-	var additionalProtoDeps bazel.LabelListAttribute
-	additionalProtoDeps.Append(depLabels.Deps)
-	additionalProtoDeps.Append(depLabels.StaticDeps)
-	protoDepLabel := bp2buildProto(ctx, &m.Module, srcPartitions[protoSrcPartition], additionalProtoDeps)
-	// Soong does not differentiate between a java_library and the Bazel equivalent of
-	// a java_proto_library + proto_library pair. Instead, in Soong proto sources are
-	// listed directly in the srcs of a java_library, and the classes produced
-	// by protoc are included directly in the resulting JAR. Thus upstream dependencies
-	// that depend on a java_library with proto sources can link directly to the protobuf API,
-	// and so this should be a static dependency.
-	if protoDepLabel != nil {
-		depLabels.StaticDeps.Append(bazel.MakeSingleLabelListAttribute(*protoDepLabel))
-	}
-
-	hasKotlin := !kotlinSrcs.IsEmpty()
-	commonAttrs.kotlinAttributes = &kotlinAttributes{
-		Kotlincflags: &m.properties.Kotlincflags,
-	}
-	if len(m.properties.Common_srcs) != 0 {
-		hasKotlin = true
-		commonAttrs.kotlinAttributes.Common_srcs = bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, m.properties.Common_srcs))
-	}
-
-	bp2BuildInfo := &bp2BuildJavaInfo{
-		DepLabels: depLabels,
-		hasKotlin: hasKotlin,
-	}
-
-	return commonAttrs, bp2BuildInfo, true
-}
-
-type javaLibraryAttributes struct {
-	*javaCommonAttributes
-	Deps      bazel.LabelListAttribute
-	Exports   bazel.LabelListAttribute
-	Neverlink bazel.BoolAttribute
-}
-
-type kotlinAttributes struct {
-	Common_srcs  bazel.LabelListAttribute
-	Kotlincflags *[]string
-}
-
-func ktJvmLibraryBazelTargetModuleProperties() bazel.BazelTargetModuleProperties {
-	return bazel.BazelTargetModuleProperties{
-		Rule_class:        "kt_jvm_library",
-		Bzl_load_location: "//build/bazel/rules/kotlin:kt_jvm_library.bzl",
-	}
-}
-
-func javaLibraryBazelTargetModuleProperties() bazel.BazelTargetModuleProperties {
-	return bazel.BazelTargetModuleProperties{
-		Rule_class:        "java_library",
-		Bzl_load_location: "//build/bazel/rules/java:library.bzl",
-	}
-}
-
-func javaLibraryBp2Build(ctx android.Bp2buildMutatorContext, m *Library) {
-	commonAttrs, bp2BuildInfo, supported := m.convertLibraryAttrsBp2Build(ctx)
-	if !supported {
-		return
-	}
-	depLabels := bp2BuildInfo.DepLabels
-
-	deps := depLabels.Deps
-	exports := depLabels.StaticDeps
-	if !commonAttrs.Srcs.IsEmpty() {
-		deps.Append(exports) // we should only append these if there are sources to use them
-	} else if !deps.IsEmpty() {
-		// java_library does not accept deps when there are no srcs because
-		// there is no compilation happening, but it accepts exports.
-		// The non-empty deps here are unnecessary as deps on the java_library
-		// since they aren't being propagated to any dependencies.
-		// So we can drop deps here.
-		deps = bazel.LabelListAttribute{}
-	}
-	var props bazel.BazelTargetModuleProperties
-	attrs := &javaLibraryAttributes{
-		javaCommonAttributes: commonAttrs,
-		Deps:                 deps,
-		Exports:              exports,
-	}
-	name := m.Name()
-
-	if !bp2BuildInfo.hasKotlin {
-		props = javaLibraryBazelTargetModuleProperties()
-	} else {
-		props = ktJvmLibraryBazelTargetModuleProperties()
-	}
-
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name}, attrs)
-	neverlinkProp := true
-	neverLinkAttrs := &javaLibraryAttributes{
-		Exports:   bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + name}),
-		Neverlink: bazel.BoolAttribute{Value: &neverlinkProp},
-		javaCommonAttributes: &javaCommonAttributes{
-			Sdk_version:  bazel.StringAttribute{Value: m.deviceProperties.Sdk_version},
-			Java_version: bazel.StringAttribute{Value: m.properties.Java_version},
-		},
-	}
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name + "-neverlink"}, neverLinkAttrs)
-
-}
-
-type javaBinaryHostAttributes struct {
-	*javaCommonAttributes
-	Deps         bazel.LabelListAttribute
-	Runtime_deps bazel.LabelListAttribute
-	Main_class   string
-	Jvm_flags    bazel.StringListAttribute
-}
-
-// JavaBinaryHostBp2Build is for java_binary_host bp2build.
-func javaBinaryHostBp2Build(ctx android.Bp2buildMutatorContext, m *Binary) {
-	commonAttrs, bp2BuildInfo, supported := m.convertLibraryAttrsBp2Build(ctx)
-	if !supported {
-		return
-	}
-	depLabels := bp2BuildInfo.DepLabels
-
-	deps := depLabels.Deps
-	deps.Append(depLabels.StaticDeps)
-	if m.binaryProperties.Jni_libs != nil {
-		deps.Append(bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, m.binaryProperties.Jni_libs)))
-	}
-
-	var runtimeDeps bazel.LabelListAttribute
-	if commonAttrs.Srcs.IsEmpty() {
-		// if there are no sources, then the dependencies can only be used at runtime
-		runtimeDeps = deps
-		deps = bazel.LabelListAttribute{}
-	}
-
-	mainClass := ""
-	if m.binaryProperties.Main_class != nil {
-		mainClass = *m.binaryProperties.Main_class
-	}
-	if m.properties.Manifest != nil {
-		mainClassInManifest, err := android.GetMainClassInManifest(ctx.Config(), android.PathForModuleSrc(ctx, *m.properties.Manifest).String())
-		if err != nil {
-			return
-		}
-		mainClass = mainClassInManifest
-	}
-
-	// Attribute jvm_flags
-	var jvmFlags bazel.StringListAttribute
-	if m.binaryProperties.Jni_libs != nil {
-		jniLibPackages := []string{}
-		for _, jniLib := range m.binaryProperties.Jni_libs {
-			if jniLibModule, exists := ctx.ModuleFromName(jniLib); exists {
-				otherDir := ctx.OtherModuleDir(jniLibModule)
-				jniLibPackages = append(jniLibPackages, filepath.Join(otherDir, jniLib))
-			}
-		}
-		jniLibPaths := []string{}
-		for _, jniLibPackage := range jniLibPackages {
-			// See cs/f:.*/third_party/bazel/.*java_stub_template.txt for the use of RUNPATH
-			jniLibPaths = append(jniLibPaths, "$${RUNPATH}"+jniLibPackage)
-		}
-		jvmFlags = bazel.MakeStringListAttribute([]string{"-Djava.library.path=" + strings.Join(jniLibPaths, ":")})
-	}
-
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "java_binary",
-		Bzl_load_location: "@rules_java//java:defs.bzl",
-	}
-	binAttrs := &javaBinaryHostAttributes{
-		Runtime_deps: runtimeDeps,
-		Main_class:   mainClass,
-		Jvm_flags:    jvmFlags,
-	}
-
-	if commonAttrs.Srcs.IsEmpty() {
-		binAttrs.javaCommonAttributes = commonAttrs
-		ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, binAttrs)
-		return
-	}
-
-	libInfo := libraryCreationInfo{
-		deps:      deps,
-		attrs:     commonAttrs,
-		baseName:  m.Name(),
-		hasKotlin: bp2BuildInfo.hasKotlin,
-	}
-	libName := createLibraryTarget(ctx, libInfo)
-	binAttrs.Runtime_deps.Add(&bazel.LabelAttribute{Value: &bazel.Label{Label: ":" + libName}})
-
-	// Create the BazelTargetModule.
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, binAttrs)
-}
-
-type javaTestHostAttributes struct {
-	*javaCommonAttributes
-	Srcs         bazel.LabelListAttribute
-	Deps         bazel.LabelListAttribute
-	Runtime_deps bazel.LabelListAttribute
-}
-
-// javaTestHostBp2Build is for java_test_host bp2build.
-func javaTestHostBp2Build(ctx android.Bp2buildMutatorContext, m *TestHost) {
-	commonAttrs, bp2BuildInfo, supported := m.convertLibraryAttrsBp2Build(ctx)
-	if !supported {
-		return
-	}
-	depLabels := bp2BuildInfo.DepLabels
-
-	deps := depLabels.Deps
-	deps.Append(depLabels.StaticDeps)
-
-	var runtimeDeps bazel.LabelListAttribute
-	attrs := &javaTestHostAttributes{
-		Runtime_deps: runtimeDeps,
-	}
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "java_test",
-		Bzl_load_location: "//build/bazel/rules/java:test.bzl",
-	}
-
-	if commonAttrs.Srcs.IsEmpty() {
-		// if there are no sources, then the dependencies can only be used at runtime
-		attrs.Runtime_deps = deps
-		attrs.javaCommonAttributes = commonAttrs
-		ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
-		return
-	}
-
-	libInfo := libraryCreationInfo{
-		deps:      deps,
-		attrs:     commonAttrs,
-		baseName:  m.Name(),
-		hasKotlin: bp2BuildInfo.hasKotlin,
-	}
-	libName := createLibraryTarget(ctx, libInfo)
-
-	attrs.Srcs = commonAttrs.Srcs
-	attrs.Deps = deps
-	attrs.Runtime_deps.Add(&bazel.LabelAttribute{Value: &bazel.Label{Label: ":" + libName}})
-	// Create the BazelTargetModule.
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: m.Name()}, attrs)
-}
-
-// libraryCreationInfo encapsulates the info needed to create java_library target from
-// java_binary_host or java_test_host.
-type libraryCreationInfo struct {
-	deps      bazel.LabelListAttribute
-	attrs     *javaCommonAttributes
-	baseName  string
-	hasKotlin bool
-}
-
-// helper function that creates java_library target from java_binary_host or java_test_host,
-// and returns the library target name,
-func createLibraryTarget(ctx android.Bp2buildMutatorContext, libInfo libraryCreationInfo) string {
-	libName := libInfo.baseName + "_lib"
-	var libProps bazel.BazelTargetModuleProperties
-	if libInfo.hasKotlin {
-		libProps = ktJvmLibraryBazelTargetModuleProperties()
-	} else {
-		libProps = javaLibraryBazelTargetModuleProperties()
-	}
-	libAttrs := &javaLibraryAttributes{
-		Deps:                 libInfo.deps,
-		javaCommonAttributes: libInfo.attrs,
-	}
-
-	ctx.CreateBazelTargetModule(libProps, android.CommonAttributes{Name: libName}, libAttrs)
-	return libName
-}
-
-type bazelJavaImportAttributes struct {
-	Jars    bazel.LabelListAttribute
-	Exports bazel.LabelListAttribute
-}
-
-// java_import bp2Build converter.
-func (i *Import) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	var jars bazel.LabelListAttribute
-	archVariantProps := i.GetArchVariantProperties(ctx, &ImportProperties{})
-	for axis, configToProps := range archVariantProps {
-		for config, _props := range configToProps {
-			if archProps, ok := _props.(*ImportProperties); ok {
-				archJars := android.BazelLabelForModuleSrcExcludes(ctx, archProps.Jars, []string(nil))
-				jars.SetSelectValue(axis, config, archJars)
-			}
-		}
-	}
-
-	attrs := &bazelJavaImportAttributes{
-		Jars: jars,
-	}
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "java_import",
-		Bzl_load_location: "//build/bazel/rules/java:import.bzl",
-	}
-
-	name := android.RemoveOptionalPrebuiltPrefix(i.Name())
-
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name}, attrs)
-
-	neverlink := true
-	neverlinkAttrs := &javaLibraryAttributes{
-		Neverlink: bazel.BoolAttribute{Value: &neverlink},
-		Exports:   bazel.MakeSingleLabelListAttribute(bazel.Label{Label: ":" + name}),
-		javaCommonAttributes: &javaCommonAttributes{
-			Sdk_version: bazel.StringAttribute{Value: proptools.StringPtr("none")},
-		},
-	}
-	ctx.CreateBazelTargetModule(
-		javaLibraryBazelTargetModuleProperties(),
-		android.CommonAttributes{Name: name + "-neverlink"},
-		neverlinkAttrs)
-}
-
-var _ android.MixedBuildBuildable = (*Import)(nil)
-
-func (i *Import) getBazelModuleLabel(ctx android.BaseModuleContext) string {
-	return android.RemoveOptionalPrebuiltPrefixFromBazelLabel(i.GetBazelLabel(ctx, i))
-}
-
-func (i *Import) ProcessBazelQueryResponse(ctx android.ModuleContext) {
-	i.commonBuildActions(ctx)
-
-	bazelCtx := ctx.Config().BazelContext
-	filePaths, err := bazelCtx.GetOutputFiles(i.getBazelModuleLabel(ctx), android.GetConfigKey(ctx))
-	if err != nil {
-		ctx.ModuleErrorf(err.Error())
-		return
-	}
-
-	bazelJars := android.Paths{}
-	for _, bazelOutputFile := range filePaths {
-		bazelJars = append(bazelJars, android.PathForBazelOut(ctx, bazelOutputFile))
-	}
-
-	jarName := android.RemoveOptionalPrebuiltPrefix(i.Name()) + ".jar"
-	outputFile := android.PathForModuleOut(ctx, "bazelCombined", jarName)
-	TransformJarsToJar(ctx, outputFile, "combine prebuilt jars", bazelJars,
-		android.OptionalPath{}, // manifest
-		false,                  // stripDirEntries
-		[]string{},             // filesToStrip
-		[]string{},             // dirsToStrip
-	)
-	i.combinedClasspathFile = outputFile
-
-	ctx.SetProvider(JavaInfoProvider, JavaInfo{
-		HeaderJars:                     android.PathsIfNonNil(i.combinedClasspathFile),
-		ImplementationAndResourcesJars: android.PathsIfNonNil(i.combinedClasspathFile),
-		ImplementationJars:             android.PathsIfNonNil(i.combinedClasspathFile),
-		// TODO(b/240308299) include AIDL information from Bazel
-		// TODO: aconfig files?
-	})
-
-	i.maybeInstall(ctx, jarName, outputFile)
-}
-
-func (i *Import) QueueBazelCall(ctx android.BaseModuleContext) {
-	bazelCtx := ctx.Config().BazelContext
-	bazelCtx.QueueBazelRequest(i.getBazelModuleLabel(ctx), cquery.GetOutputFiles, android.GetConfigKey(ctx))
-}
-
-func (i *Import) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
-	return true
 }
 
 type JavaApiContributionImport struct {

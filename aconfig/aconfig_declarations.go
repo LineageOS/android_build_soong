@@ -19,14 +19,13 @@ import (
 	"strings"
 
 	"android/soong/android"
-	"android/soong/bazel"
+
 	"github.com/google/blueprint"
 )
 
 type DeclarationsModule struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
-	android.BazelModuleBase
 
 	// Properties for "aconfig_declarations"
 	properties struct {
@@ -38,6 +37,9 @@ type DeclarationsModule struct {
 
 		// Values from TARGET_RELEASE / RELEASE_ACONFIG_VALUE_SETS
 		Values []string `blueprint:"mutated"`
+
+		// Container(system/vendor/apex) that this module belongs to
+		Container string
 	}
 
 	intermediatePath android.WritablePath
@@ -49,7 +51,6 @@ func DeclarationsFactory() android.Module {
 	android.InitAndroidModule(module)
 	android.InitDefaultableModule(module)
 	module.AddProperties(&module.properties)
-	android.InitBazelModule(module)
 
 	return module
 }
@@ -69,6 +70,8 @@ func (module *DeclarationsModule) DepsMutator(ctx android.BottomUpMutatorContext
 	if len(module.properties.Package) == 0 {
 		ctx.PropertyErrorf("package", "missing package property")
 	}
+	// TODO(b/311155208): Add mandatory check for container after all pre-existing
+	// ones are changed.
 
 	// Add a dependency on the aconfig_value_sets defined in
 	// RELEASE_ACONFIG_VALUE_SETS, and add any aconfig_values that
@@ -110,12 +113,22 @@ func optionalVariable(prefix string, value string) string {
 }
 
 // Provider published by aconfig_value_set
-type declarationsProviderData struct {
-	Package          string
-	IntermediatePath android.WritablePath
+type DeclarationsProviderData struct {
+	Package                     string
+	Container                   string
+	IntermediateCacheOutputPath android.WritablePath
+	IntermediateDumpOutputPath  android.WritablePath
 }
 
-var declarationsProviderKey = blueprint.NewProvider(declarationsProviderData{})
+var DeclarationsProviderKey = blueprint.NewProvider(DeclarationsProviderData{})
+
+// This is used to collect the aconfig declarations info on the transitive closure,
+// the data is keyed on the container.
+type TransitiveDeclarationsInfo struct {
+	AconfigFiles map[string]android.Paths
+}
+
+var TransitiveDeclarationsInfoProvider = blueprint.NewProvider(TransitiveDeclarationsInfo{})
 
 func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Get the values that came from the global RELEASE_ACONFIG_VALUE_SETS flag
@@ -137,14 +150,14 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 
 	// Intermediate format
 	declarationFiles := android.PathsForModuleSrc(ctx, module.properties.Srcs)
-	intermediatePath := android.PathForModuleOut(ctx, "intermediate.pb")
+	intermediateCacheFilePath := android.PathForModuleOut(ctx, "intermediate.pb")
 	defaultPermission := ctx.Config().ReleaseAconfigFlagDefaultPermission()
 	inputFiles := make([]android.Path, len(declarationFiles))
 	copy(inputFiles, declarationFiles)
 	inputFiles = append(inputFiles, valuesFiles...)
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        aconfigRule,
-		Output:      intermediatePath,
+		Output:      intermediateCacheFilePath,
 		Inputs:      inputFiles,
 		Description: "aconfig_declarations",
 		Args: map[string]string{
@@ -156,32 +169,73 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 		},
 	})
 
-	ctx.SetProvider(declarationsProviderKey, declarationsProviderData{
-		Package:          module.properties.Package,
-		IntermediatePath: intermediatePath,
+	intermediateDumpFilePath := android.PathForModuleOut(ctx, "intermediate.txt")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        aconfigTextRule,
+		Output:      intermediateDumpFilePath,
+		Inputs:      android.Paths{intermediateCacheFilePath},
+		Description: "aconfig_text",
+	})
+
+	ctx.SetProvider(DeclarationsProviderKey, DeclarationsProviderData{
+		Package:                     module.properties.Package,
+		Container:                   module.properties.Container,
+		IntermediateCacheOutputPath: intermediateCacheFilePath,
+		IntermediateDumpOutputPath:  intermediateDumpFilePath,
 	})
 
 }
+func CollectDependencyAconfigFiles(ctx android.ModuleContext, mergedAconfigFiles *map[string]android.Paths) {
+	if *mergedAconfigFiles == nil {
+		*mergedAconfigFiles = make(map[string]android.Paths)
+	}
+	ctx.VisitDirectDeps(func(module android.Module) {
+		if dep := ctx.OtherModuleProvider(module, DeclarationsProviderKey).(DeclarationsProviderData); dep.IntermediateCacheOutputPath != nil {
+			(*mergedAconfigFiles)[dep.Container] = append((*mergedAconfigFiles)[dep.Container], dep.IntermediateCacheOutputPath)
+			return
+		}
+		if dep := ctx.OtherModuleProvider(module, TransitiveDeclarationsInfoProvider).(TransitiveDeclarationsInfo); len(dep.AconfigFiles) > 0 {
+			for container, v := range dep.AconfigFiles {
+				(*mergedAconfigFiles)[container] = append((*mergedAconfigFiles)[container], v...)
+			}
+		}
+	})
 
-type bazelAconfigDeclarationsAttributes struct {
-	Srcs    bazel.LabelListAttribute
-	Package string
+	for container, aconfigFiles := range *mergedAconfigFiles {
+		(*mergedAconfigFiles)[container] = mergeAconfigFiles(ctx, aconfigFiles)
+	}
+
+	ctx.SetProvider(TransitiveDeclarationsInfoProvider, TransitiveDeclarationsInfo{
+		AconfigFiles: *mergedAconfigFiles,
+	})
 }
 
-func (module *DeclarationsModule) ConvertWithBp2build(ctx android.Bp2buildMutatorContext) {
-	if ctx.ModuleType() != "aconfig_declarations" {
-		return
-	}
-	srcs := bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, module.properties.Srcs))
-
-	attrs := bazelAconfigDeclarationsAttributes{
-		Srcs:    srcs,
-		Package: module.properties.Package,
-	}
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "aconfig_declarations",
-		Bzl_load_location: "//build/bazel/rules/aconfig:aconfig_declarations.bzl",
+func mergeAconfigFiles(ctx android.ModuleContext, inputs android.Paths) android.Paths {
+	inputs = android.LastUniquePaths(inputs)
+	if len(inputs) == 1 {
+		return android.Paths{inputs[0]}
 	}
 
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, &attrs)
+	output := android.PathForModuleOut(ctx, "aconfig_merged.pb")
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        mergeAconfigFilesRule,
+		Description: "merge aconfig files",
+		Inputs:      inputs,
+		Output:      output,
+		Args: map[string]string{
+			"flags": android.JoinWithPrefix(inputs.Strings(), "--cache "),
+		},
+	})
+
+	return android.Paths{output}
+}
+
+func SetAconfigFileMkEntries(m *android.ModuleBase, entries *android.AndroidMkEntries, aconfigFiles map[string]android.Paths) {
+	if m.InstallInVendor() {
+		entries.SetPaths("LOCAL_ACONFIG_FILES", aconfigFiles["vendor"])
+	} else {
+		// TODO(b/311155208): The container here should be system.
+		entries.SetPaths("LOCAL_ACONFIG_FILES", aconfigFiles[""])
+	}
 }

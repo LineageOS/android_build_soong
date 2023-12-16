@@ -264,6 +264,16 @@ var (
 			Command:     `${config.Zip2ZipCmd} -i ${in} -o ${out} -x 'META-INF/services/**/*'`,
 			CommandDeps: []string{"${config.Zip2ZipCmd}"},
 		})
+
+	writeCombinedProguardFlagsFileRule = pctx.AndroidStaticRule("writeCombinedProguardFlagsFileRule",
+		blueprint.RuleParams{
+			Command: `rm -f $out && ` +
+				`for f in $in; do ` +
+				` echo  && ` +
+				` echo "# including $$f" && ` +
+				` cat $$f; ` +
+				`done > $out`,
+		})
 )
 
 func init() {
@@ -683,6 +693,15 @@ func TransformZipAlign(ctx android.ModuleContext, outputFile android.WritablePat
 		Input:       inputFile,
 		Output:      outputFile,
 		Validations: validations,
+	})
+}
+
+func writeCombinedProguardFlagsFile(ctx android.ModuleContext, outputFile android.WritablePath, files android.Paths) {
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        writeCombinedProguardFlagsFileRule,
+		Description: "write combined proguard flags file",
+		Inputs:      files,
+		Output:      outputFile,
 	})
 }
 

@@ -15,12 +15,11 @@
 package rust
 
 import (
-	"path/filepath"
-
 	"android/soong/android"
 	"android/soong/cc"
 	"android/soong/fuzz"
 	"android/soong/rust/config"
+	"path/filepath"
 )
 
 func init() {
@@ -131,12 +130,6 @@ func (fuzzer *fuzzDecorator) autoDep(ctx android.BottomUpMutatorContext) autoDep
 }
 
 func (fuzz *fuzzDecorator) install(ctx ModuleContext) {
-	fuzz.binaryDecorator.baseCompiler.dir = filepath.Join(
-		"fuzz", ctx.Target().Arch.ArchType.String(), ctx.ModuleName())
-	fuzz.binaryDecorator.baseCompiler.dir64 = filepath.Join(
-		"fuzz", ctx.Target().Arch.ArchType.String(), ctx.ModuleName())
-	fuzz.binaryDecorator.baseCompiler.install(ctx)
-
 	fuzz.fuzzPackagedModule = cc.PackageFuzzModule(ctx, fuzz.fuzzPackagedModule, pctx)
 
 	installBase := "fuzz"
@@ -157,4 +150,30 @@ func (fuzz *fuzzDecorator) install(ctx ModuleContext) {
 				cc.SharedLibrarySymbolsInstallLocation(install, installBase, ctx.Arch().ArchType.String()))
 		}
 	}
+
+	var fuzzData []android.DataPath
+	for _, d := range fuzz.fuzzPackagedModule.Corpus {
+		fuzzData = append(fuzzData, android.DataPath{SrcPath: d, RelativeInstallPath: "corpus", WithoutRel: true})
+	}
+
+	for _, d := range fuzz.fuzzPackagedModule.Data {
+		fuzzData = append(fuzzData, android.DataPath{SrcPath: d, RelativeInstallPath: "data"})
+	}
+
+	if d := fuzz.fuzzPackagedModule.Dictionary; d != nil {
+		fuzzData = append(fuzzData, android.DataPath{SrcPath: d, WithoutRel: true})
+	}
+
+	if d := fuzz.fuzzPackagedModule.Config; d != nil {
+		fuzzData = append(fuzzData, android.DataPath{SrcPath: d, WithoutRel: true})
+	}
+
+	fuzz.binaryDecorator.baseCompiler.dir = filepath.Join(
+		"fuzz", ctx.Target().Arch.ArchType.String(), ctx.ModuleName())
+	fuzz.binaryDecorator.baseCompiler.dir64 = filepath.Join(
+		"fuzz", ctx.Target().Arch.ArchType.String(), ctx.ModuleName())
+	fuzz.binaryDecorator.baseCompiler.installTestData(ctx, fuzzData)
+
+	fuzz.binaryDecorator.baseCompiler.install(ctx)
+
 }

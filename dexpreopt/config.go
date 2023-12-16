@@ -184,8 +184,6 @@ type ModuleConfig struct {
 	PreoptBootClassPathDexFiles     android.Paths // file paths of boot class path files
 	PreoptBootClassPathDexLocations []string      // virtual locations of boot class path files
 
-	PreoptExtractedApk bool // Overrides OnlyPreoptModules
-
 	NoCreateAppImage    bool
 	ForceCreateAppImage bool
 

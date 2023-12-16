@@ -543,7 +543,7 @@ func TestGenruleHashInputs(t *testing.T) {
 	for _, test := range testcases {
 		t.Run(test.name, func(t *testing.T) {
 			gen := result.ModuleForTests(test.name, "")
-			manifest := android.RuleBuilderSboxProtoForTests(t, gen.Output("genrule.sbox.textproto"))
+			manifest := android.RuleBuilderSboxProtoForTests(t, result.TestContext, gen.Output("genrule.sbox.textproto"))
 			hash := manifest.Commands[0].GetInputHash()
 
 			android.AssertStringEquals(t, "hash", test.expectedHash, hash)
@@ -708,7 +708,7 @@ func TestGenruleAllowlistingDepfile(t *testing.T) {
 				depfile: true,
 				cmd: "cat $(in) > $(out) && cat $(depfile)",
 			`,
-			err: "depfile: Deprecated to ensure the module type is convertible to Bazel",
+			err: "depfile: Deprecated because with genrule sandboxing, dependencies must be known before the action is run in order to add them to the sandbox",
 		},
 		{
 			name: `no error when module is allowlisted`,
@@ -1037,31 +1037,6 @@ func TestPrebuiltTool(t *testing.T) {
 			android.AssertStringEquals(t, "command", expectedCmd, gen.rawCommands[0])
 		})
 	}
-}
-
-func TestGenruleWithBazel(t *testing.T) {
-	bp := `
-		genrule {
-				name: "foo",
-				out: ["one.txt", "two.txt"],
-				bazel_module: { label: "//foo/bar:bar" },
-		}
-	`
-
-	result := android.GroupFixturePreparers(
-		prepareForGenRuleTest, android.FixtureModifyConfig(func(config android.Config) {
-			config.BazelContext = android.MockBazelContext{
-				OutputBaseDir: "outputbase",
-				LabelToOutputFiles: map[string][]string{
-					"//foo/bar:bar": []string{"bazelone.txt", "bazeltwo.txt"}}}
-		})).RunTestWithBp(t, testGenruleBp()+bp)
-
-	gen := result.Module("foo", "").(*Module)
-
-	expectedOutputFiles := []string{"outputbase/execroot/__main__/bazelone.txt",
-		"outputbase/execroot/__main__/bazeltwo.txt"}
-	android.AssertDeepEquals(t, "output files", expectedOutputFiles, gen.outputFiles.Strings())
-	android.AssertDeepEquals(t, "output deps", expectedOutputFiles, gen.outputDeps.Strings())
 }
 
 func TestGenruleWithGlobPaths(t *testing.T) {

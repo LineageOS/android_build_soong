@@ -374,8 +374,6 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 		PreoptBootClassPathDexFiles:     dexFiles.Paths(),
 		PreoptBootClassPathDexLocations: dexLocations,
 
-		PreoptExtractedApk: false,
-
 		NoCreateAppImage:    !BoolDefault(d.dexpreoptProperties.Dex_preopt.App_image, true),
 		ForceCreateAppImage: BoolDefault(d.dexpreoptProperties.Dex_preopt.App_image, false),
 

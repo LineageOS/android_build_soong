@@ -67,6 +67,7 @@ func TestCfgsToFlags(t *testing.T) {
 func TestEnforceSingleSourceFile(t *testing.T) {
 
 	singleSrcError := "srcs can only contain one path for a rust file and source providers prefixed by \":\""
+	prebuiltSingleSrcError := "prebuilt libraries can only have one entry in srcs"
 
 	// Test libraries
 	testRustError(t, singleSrcError, `
@@ -90,7 +91,7 @@ func TestEnforceSingleSourceFile(t *testing.T) {
 		}`)
 
 	// Test prebuilts
-	testRustError(t, singleSrcError, `
+	testRustError(t, prebuiltSingleSrcError, `
 		rust_prebuilt_dylib {
 			name: "foo-bar-prebuilt",
 			srcs: ["liby.so", "libz.so"],

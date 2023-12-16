@@ -196,7 +196,7 @@ func rustEnvVars(ctx ModuleContext, deps PathDeps) []string {
 	}
 
 	if len(deps.SrcDeps) > 0 {
-		moduleGenDir := ctx.RustModule().compiler.CargoOutDir()
+		moduleGenDir := ctx.RustModule().compiler.cargoOutDir()
 		// We must calculate an absolute path for OUT_DIR since Rust's include! macro (which normally consumes this)
 		// assumes that paths are relative to the source file.
 		var outDirPrefix string
@@ -215,13 +215,13 @@ func rustEnvVars(ctx ModuleContext, deps PathDeps) []string {
 
 	envVars = append(envVars, "ANDROID_RUST_VERSION="+config.GetRustVersion(ctx))
 
-	if ctx.RustModule().compiler.CargoEnvCompat() {
+	if ctx.RustModule().compiler.cargoEnvCompat() {
 		if bin, ok := ctx.RustModule().compiler.(*binaryDecorator); ok {
 			envVars = append(envVars, "CARGO_BIN_NAME="+bin.getStem(ctx))
 		}
 		envVars = append(envVars, "CARGO_CRATE_NAME="+ctx.RustModule().CrateName())
 		envVars = append(envVars, "CARGO_PKG_NAME="+ctx.RustModule().CrateName())
-		pkgVersion := ctx.RustModule().compiler.CargoPkgVersion()
+		pkgVersion := ctx.RustModule().compiler.cargoPkgVersion()
 		if pkgVersion != "" {
 			envVars = append(envVars, "CARGO_PKG_VERSION="+pkgVersion)
 
@@ -327,7 +327,7 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	orderOnly = append(orderOnly, deps.SharedLibs...)
 
 	if len(deps.SrcDeps) > 0 {
-		moduleGenDir := ctx.RustModule().compiler.CargoOutDir()
+		moduleGenDir := ctx.RustModule().compiler.cargoOutDir()
 		var outputs android.WritablePaths
 
 		for _, genSrc := range deps.SrcDeps {

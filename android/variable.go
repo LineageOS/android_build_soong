@@ -20,7 +20,6 @@ import (
 	"runtime"
 	"strings"
 
-	"android/soong/android/soongconfig"
 	"android/soong/bazel"
 
 	"github.com/google/blueprint/proptools"
@@ -224,7 +223,9 @@ type ProductVariables struct {
 	DeviceCurrentApiLevelForVendorModules *string  `json:",omitempty"`
 	DeviceSystemSdkVersions               []string `json:",omitempty"`
 	DeviceMaxPageSizeSupported            *string  `json:",omitempty"`
-	DevicePageSizeAgnostic                *bool    `json:",omitempty"`
+	DeviceNoBionicPageSizeMacro           *bool    `json:",omitempty"`
+
+	VendorApiLevel *string `json:",omitempty"`
 
 	RecoverySnapshotVersion *string `json:",omitempty"`
 
@@ -538,18 +539,17 @@ type PartitionVariables struct {
 	TargetUserimagesSparseSquashfsDisabled bool `json:",omitempty"`
 	TargetUserimagesSparseF2fsDisabled     bool `json:",omitempty"`
 
-	BoardErofsCompressor                 string `json:",omitempty"`
-	BoardErofsCompressorHints            string `json:",omitempty"`
-	BoardErofsPclusterSize               string `json:",omitempty"`
-	BoardErofsShareDupBlocks             string `json:",omitempty"`
-	BoardErofsUseLegacyCompression       string `json:",omitempty"`
-	BoardExt4ShareDupBlocks              string `json:",omitempty"`
-	BoardFlashLogicalBlockSize           string `json:",omitempty"`
-	BoardFlashEraseBlockSize             string `json:",omitempty"`
-	BoardUsesRecoveryAsBoot              bool   `json:",omitempty"`
-	BoardBuildGkiBootImageWithoutRamdisk bool   `json:",omitempty"`
-	ProductUseDynamicPartitionSize       bool   `json:",omitempty"`
-	CopyImagesForTargetFilesZip          bool   `json:",omitempty"`
+	BoardErofsCompressor           string `json:",omitempty"`
+	BoardErofsCompressorHints      string `json:",omitempty"`
+	BoardErofsPclusterSize         string `json:",omitempty"`
+	BoardErofsShareDupBlocks       string `json:",omitempty"`
+	BoardErofsUseLegacyCompression string `json:",omitempty"`
+	BoardExt4ShareDupBlocks        string `json:",omitempty"`
+	BoardFlashLogicalBlockSize     string `json:",omitempty"`
+	BoardFlashEraseBlockSize       string `json:",omitempty"`
+	BoardUsesRecoveryAsBoot        bool   `json:",omitempty"`
+	ProductUseDynamicPartitionSize bool   `json:",omitempty"`
+	CopyImagesForTargetFilesZip    bool   `json:",omitempty"`
 
 	BoardAvbEnable bool `json:",omitempty"`
 
@@ -581,20 +581,20 @@ func (v *ProductVariables) SetDefaultConfig() {
 		Platform_version_all_preview_codenames: []string{"S"},
 		Platform_vndk_version:                  stringPtr("S"),
 
-		HostArch:                   stringPtr("x86_64"),
-		HostSecondaryArch:          stringPtr("x86"),
-		DeviceName:                 stringPtr("generic_arm64"),
-		DeviceProduct:              stringPtr("aosp_arm-eng"),
-		DeviceArch:                 stringPtr("arm64"),
-		DeviceArchVariant:          stringPtr("armv8-a"),
-		DeviceCpuVariant:           stringPtr("generic"),
-		DeviceAbi:                  []string{"arm64-v8a"},
-		DeviceSecondaryArch:        stringPtr("arm"),
-		DeviceSecondaryArchVariant: stringPtr("armv8-a"),
-		DeviceSecondaryCpuVariant:  stringPtr("generic"),
-		DeviceSecondaryAbi:         []string{"armeabi-v7a", "armeabi"},
-		DeviceMaxPageSizeSupported: stringPtr("4096"),
-		DevicePageSizeAgnostic:     boolPtr(false),
+		HostArch:                    stringPtr("x86_64"),
+		HostSecondaryArch:           stringPtr("x86"),
+		DeviceName:                  stringPtr("generic_arm64"),
+		DeviceProduct:               stringPtr("aosp_arm-eng"),
+		DeviceArch:                  stringPtr("arm64"),
+		DeviceArchVariant:           stringPtr("armv8-a"),
+		DeviceCpuVariant:            stringPtr("generic"),
+		DeviceAbi:                   []string{"arm64-v8a"},
+		DeviceSecondaryArch:         stringPtr("arm"),
+		DeviceSecondaryArchVariant:  stringPtr("armv8-a"),
+		DeviceSecondaryCpuVariant:   stringPtr("generic"),
+		DeviceSecondaryAbi:          []string{"armeabi-v7a", "armeabi"},
+		DeviceMaxPageSizeSupported:  stringPtr("4096"),
+		DeviceNoBionicPageSizeMacro: boolPtr(false),
 
 		AAPTConfig:          []string{"normal", "large", "xlarge", "hdpi", "xhdpi", "xxhdpi"},
 		AAPTPreferredConfig: stringPtr("xhdpi"),
@@ -617,6 +617,14 @@ func (v *ProductVariables) SetDefaultConfig() {
 		v.CrossHostArch = stringPtr("x86")
 		v.CrossHostSecondaryArch = stringPtr("x86_64")
 	}
+}
+
+func (this *ProductVariables) GetBuildFlagBool(flag string) bool {
+	val, ok := this.BuildFlags[flag]
+	if !ok {
+		return false
+	}
+	return val == "true"
 }
 
 // ProductConfigContext requires the access to the Module to get product config properties.
@@ -737,44 +745,6 @@ func (p SoongConfigProperty) SelectKey() string {
 // property, like ["-DDEFINES"] for cflags.
 type ProductConfigProperties map[string]map[ProductConfigOrSoongConfigProperty]interface{}
 
-// ProductVariableProperties returns a ProductConfigProperties containing only the properties which
-// have been set for the given module.
-func ProductVariableProperties(ctx ArchVariantContext, module Module) (ProductConfigProperties, []error) {
-	var errs []error
-	moduleBase := module.base()
-
-	productConfigProperties := ProductConfigProperties{}
-
-	if moduleBase.variableProperties != nil {
-		productVariablesProperty := proptools.FieldNameForProperty("product_variables")
-		if moduleBase.ArchSpecific() {
-			for /* axis */ _, configToProps := range moduleBase.GetArchVariantProperties(ctx, moduleBase.variableProperties) {
-				for config, props := range configToProps {
-					variableValues := reflect.ValueOf(props).Elem().FieldByName(productVariablesProperty)
-					productConfigProperties.AddProductConfigProperties(variableValues, config)
-				}
-			}
-		} else {
-			variableValues := reflect.ValueOf(moduleBase.variableProperties).Elem().FieldByName(productVariablesProperty)
-			productConfigProperties.AddProductConfigProperties(variableValues, "")
-		}
-	}
-
-	if m, ok := module.(Bazelable); ok && m.namespacedVariableProps() != nil {
-		for namespace, namespacedVariableProps := range m.namespacedVariableProps() {
-			for _, namespacedVariableProp := range namespacedVariableProps {
-				variableValues := reflect.ValueOf(namespacedVariableProp).Elem().FieldByName(soongconfig.SoongConfigProperty)
-				err := productConfigProperties.AddSoongConfigProperties(namespace, variableValues)
-				if err != nil {
-					errs = append(errs, err)
-				}
-			}
-		}
-	}
-
-	return productConfigProperties, errs
-}
-
 func (p *ProductConfigProperties) AddProductConfigProperty(
 	propertyName, productVariableName, arch string, propertyValue interface{}) {
 
@@ -823,10 +793,6 @@ func (p *ProductConfigProperties) AddEitherProperty(
 		(*p)[propertyName][key] = propertyValue
 	}
 }
-
-var (
-	conditionsDefaultField string = proptools.FieldNameForProperty(bazel.ConditionsDefaultConfigKey)
-)
 
 // maybeExtractConfigVarProp attempts to read this value as a config var struct
 // wrapped by interfaces and ptrs. If it's not the right type, the second return

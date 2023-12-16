@@ -1911,7 +1911,3 @@ func cfiMakeVarsProvider(ctx android.MakeVarsContext) {
 func hwasanMakeVarsProvider(ctx android.MakeVarsContext) {
 	hwasanStaticLibs(ctx.Config()).exportToMake(ctx)
 }
-
-func BazelCcSanitizerToolchainVars(config android.Config) string {
-	return android.BazelToolchainVars(config, exportedVars)
-}

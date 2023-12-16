@@ -71,26 +71,3 @@ func TestBpfSourceName(t *testing.T) {
 		`\QAndroid.bp:2:3: module "bpf_invalid_name.o" variant "android_common": invalid character '_' in source name\E`)).
 		RunTestWithBp(t, bp)
 }
-
-func TestBpfWithBazel(t *testing.T) {
-	bp := `
-		bpf {
-			name: "bpf.o",
-			srcs: ["bpf.c"],
-			bazel_module: { label: "//bpf" },
-		}
-	`
-
-	result := android.GroupFixturePreparers(
-		prepareForBpfTest, android.FixtureModifyConfig(func(config android.Config) {
-			config.BazelContext = android.MockBazelContext{
-				OutputBaseDir: "outputbase",
-				LabelToOutputFiles: map[string][]string{
-					"//bpf": []string{"bpf.o"}}}
-		})).RunTestWithBp(t, bp)
-
-	output := result.Module("bpf.o", "android_common").(*bpf)
-
-	expectedOutputFiles := []string{"outputbase/execroot/__main__/bpf.o"}
-	android.AssertDeepEquals(t, "output files", expectedOutputFiles, output.objs.Strings())
-}

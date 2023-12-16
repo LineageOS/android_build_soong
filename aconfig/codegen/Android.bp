@@ -1,0 +1,32 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+bootstrap_go_package {
+    name: "soong-aconfig-codegen",
+    pkgPath: "android/soong/aconfig/codegen",
+    deps: [
+        "blueprint",
+        "blueprint-pathtools",
+        "sbox_proto",
+        "soong",
+        "soong-aconfig",
+        "soong-android",
+        "soong-bazel",
+        "soong-java",
+        "soong-rust",
+    ],
+    srcs: [
+        "cc_aconfig_library.go",
+        "init.go",
+        "java_aconfig_library.go",
+        "rust_aconfig_library.go",
+        "testing.go",
+    ],
+    testSrcs: [
+        "java_aconfig_library_test.go",
+        "cc_aconfig_library_test.go",
+        "rust_aconfig_library_test.go",
+    ],
+    pluginFor: ["soong_build"],
+}
