@@ -49,7 +49,13 @@ func CollectDependencyAconfigFiles(ctx ModuleContext, mergedAconfigFiles *map[st
 	if *mergedAconfigFiles == nil {
 		*mergedAconfigFiles = make(map[string]Paths)
 	}
-	ctx.VisitDirectDeps(func(module Module) {
+	ctx.VisitDirectDepsBlueprint(func(module blueprint.Module) {
+		// Walk our direct dependencies, ignoring blueprint Modules and disabled Android Modules.
+		aModule, _ := module.(Module)
+		if aModule == nil || !aModule.Enabled() {
+			return
+		}
+
 		if dep, _ := OtherModuleProvider(ctx, module, AconfigDeclarationsProviderKey); dep.IntermediateCacheOutputPath != nil {
 			(*mergedAconfigFiles)[dep.Container] = append((*mergedAconfigFiles)[dep.Container], dep.IntermediateCacheOutputPath)
 			return
