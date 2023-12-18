@@ -211,7 +211,7 @@ func (c *ClasspathFragmentBase) androidMkEntries() []android.AndroidMkEntries {
 	}}
 }
 
-var ClasspathFragmentProtoContentInfoProvider = blueprint.NewProvider(ClasspathFragmentProtoContentInfo{})
+var ClasspathFragmentProtoContentInfoProvider = blueprint.NewProvider[ClasspathFragmentProtoContentInfo]()
 
 type ClasspathFragmentProtoContentInfo struct {
 	// Whether the classpaths.proto config is generated for the fragment.
