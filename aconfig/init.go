@@ -71,9 +71,17 @@ var (
 	// java_aconfig_libraries to be consumed by apps built outside the
 	// platform
 	exportedJavaRule = pctx.AndroidStaticRule("exported_java_aconfig_library",
+		// For each aconfig cache file, if the cache contains any
+		// exported flags, generate Java flag lookup code for the
+		// exported flags (only). Finally collect all generated code
+		// into the ${out} JAR file.
 		blueprint.RuleParams{
 			Command: `rm -rf ${out}.tmp` +
-				`&& for cache in ${cache_files}; do ${aconfig} create-java-lib --cache $$cache --out ${out}.tmp; done` +
+				`&& for cache in ${cache_files}; do ` +
+				`  if [[ -n "$$(${aconfig} dump --cache $$cache --filter=is_exported:true --format='{fully_qualified_name}')" ]]; then ` +
+				`    ${aconfig} create-java-lib --cache $$cache --mode=exported --out ${out}.tmp; ` +
+				`  fi ` +
+				`done` +
 				`&& $soong_zip -write_if_changed -jar -o ${out} -C ${out}.tmp -D ${out}.tmp` +
 				`&& rm -rf ${out}.tmp`,
 			CommandDeps: []string{
