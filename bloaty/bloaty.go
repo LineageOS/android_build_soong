@@ -26,7 +26,7 @@ const bloatyDescriptorExt = ".bloaty.csv"
 const protoFilename = "binary_sizes.pb.gz"
 
 var (
-	fileSizeMeasurerKey blueprint.ProviderKey
+	fileSizeMeasurerKey blueprint.ProviderKey[measuredFiles]
 	pctx                = android.NewPackageContext("android/soong/bloaty")
 
 	// bloaty is used to measure a binary section sizes.

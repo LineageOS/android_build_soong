@@ -72,8 +72,8 @@ var _ ClasspathElement = (*ClasspathLibraryElement)(nil)
 
 // ClasspathElementContext defines the context methods needed by CreateClasspathElements
 type ClasspathElementContext interface {
-	OtherModuleHasProvider(m blueprint.Module, provider blueprint.ProviderKey) bool
-	OtherModuleProvider(m blueprint.Module, provider blueprint.ProviderKey) interface{}
+	OtherModuleHasProvider(m blueprint.Module, provider blueprint.AnyProviderKey) bool
+	OtherModuleProvider(m blueprint.Module, provider blueprint.AnyProviderKey) interface{}
 	ModuleErrorf(fmt string, args ...interface{})
 }
 

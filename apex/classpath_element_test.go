@@ -33,11 +33,11 @@ type testClasspathElementContext struct {
 	errs        []error
 }
 
-func (t *testClasspathElementContext) OtherModuleHasProvider(module blueprint.Module, provider blueprint.ProviderKey) bool {
+func (t *testClasspathElementContext) OtherModuleHasProvider(module blueprint.Module, provider blueprint.AnyProviderKey) bool {
 	return t.testContext.ModuleHasProvider(module, provider)
 }
 
-func (t *testClasspathElementContext) OtherModuleProvider(module blueprint.Module, provider blueprint.ProviderKey) interface{} {
+func (t *testClasspathElementContext) OtherModuleProvider(module blueprint.Module, provider blueprint.AnyProviderKey) interface{} {
 	return t.testContext.ModuleProvider(module, provider)
 }
 

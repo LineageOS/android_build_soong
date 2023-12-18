@@ -79,26 +79,30 @@ type BaseModuleContext interface {
 	// not set it returns the zero value of the type of the provider, so the return value can always
 	// be type asserted to the type of the provider.  The value returned may be a deep copy of the
 	// value originally passed to SetProvider.
-	OtherModuleProvider(m blueprint.Module, provider blueprint.ProviderKey) interface{}
+	OtherModuleProvider(m blueprint.Module, provider blueprint.AnyProviderKey) any
 
 	// OtherModuleHasProvider returns true if the provider for the given module has been set.
-	OtherModuleHasProvider(m blueprint.Module, provider blueprint.ProviderKey) bool
+	OtherModuleHasProvider(m blueprint.Module, provider blueprint.AnyProviderKey) bool
+
+	otherModuleProvider(m blueprint.Module, provider blueprint.AnyProviderKey) (any, bool)
 
 	// Provider returns the value for a provider for the current module.  If the value is
 	// not set it returns the zero value of the type of the provider, so the return value can always
 	// be type asserted to the type of the provider.  It panics if called before the appropriate
 	// mutator or GenerateBuildActions pass for the provider.  The value returned may be a deep
 	// copy of the value originally passed to SetProvider.
-	Provider(provider blueprint.ProviderKey) interface{}
+	Provider(provider blueprint.AnyProviderKey) any
 
 	// HasProvider returns true if the provider for the current module has been set.
-	HasProvider(provider blueprint.ProviderKey) bool
+	HasProvider(provider blueprint.AnyProviderKey) bool
+
+	provider(provider blueprint.AnyProviderKey) (any, bool)
 
 	// SetProvider sets the value for a provider for the current module.  It panics if not called
 	// during the appropriate mutator or GenerateBuildActions pass for the provider, if the value
 	// is not of the appropriate type, or if the value has already been set.  The value should not
 	// be modified after being passed to SetProvider.
-	SetProvider(provider blueprint.ProviderKey, value interface{})
+	SetProvider(provider blueprint.AnyProviderKey, value interface{})
 
 	GetDirectDepsWithTag(tag blueprint.DependencyTag) []Module
 
@@ -260,19 +264,35 @@ func (b *baseModuleContext) OtherModuleReverseDependencyVariantExists(name strin
 func (b *baseModuleContext) OtherModuleType(m blueprint.Module) string {
 	return b.bp.OtherModuleType(m)
 }
-func (b *baseModuleContext) OtherModuleProvider(m blueprint.Module, provider blueprint.ProviderKey) interface{} {
+func (b *baseModuleContext) OtherModuleProvider(m blueprint.Module, provider blueprint.AnyProviderKey) any {
+	value, _ := b.bp.OtherModuleProvider(m, provider)
+	return value
+}
+
+func (b *baseModuleContext) OtherModuleHasProvider(m blueprint.Module, provider blueprint.AnyProviderKey) bool {
+	_, ok := b.bp.OtherModuleProvider(m, provider)
+	return ok
+}
+
+func (b *baseModuleContext) otherModuleProvider(m blueprint.Module, provider blueprint.AnyProviderKey) (any, bool) {
 	return b.bp.OtherModuleProvider(m, provider)
 }
-func (b *baseModuleContext) OtherModuleHasProvider(m blueprint.Module, provider blueprint.ProviderKey) bool {
-	return b.bp.OtherModuleHasProvider(m, provider)
+
+func (b *baseModuleContext) Provider(provider blueprint.AnyProviderKey) any {
+	value, _ := b.bp.Provider(provider)
+	return value
 }
-func (b *baseModuleContext) Provider(provider blueprint.ProviderKey) interface{} {
+
+func (b *baseModuleContext) HasProvider(provider blueprint.AnyProviderKey) bool {
+	_, ok := b.bp.Provider(provider)
+	return ok
+}
+
+func (b *baseModuleContext) provider(provider blueprint.AnyProviderKey) (any, bool) {
 	return b.bp.Provider(provider)
 }
-func (b *baseModuleContext) HasProvider(provider blueprint.ProviderKey) bool {
-	return b.bp.HasProvider(provider)
-}
-func (b *baseModuleContext) SetProvider(provider blueprint.ProviderKey, value interface{}) {
+
+func (b *baseModuleContext) SetProvider(provider blueprint.AnyProviderKey, value any) {
 	b.bp.SetProvider(provider, value)
 }
 
