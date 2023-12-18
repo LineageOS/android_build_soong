@@ -49,7 +49,7 @@ var prepareForTsanTest = android.FixtureAddFile("tsan/Android.bp", []byte(`
 `))
 
 type providerInterface interface {
-	ModuleProvider(blueprint.Module, blueprint.ProviderKey) interface{}
+	ModuleProvider(blueprint.Module, blueprint.AnyProviderKey) interface{}
 }
 
 // expectSharedLinkDep verifies that the from module links against the to module as a

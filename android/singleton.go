@@ -20,6 +20,8 @@ import (
 
 // SingletonContext
 type SingletonContext interface {
+	blueprintSingletonContext() blueprint.SingletonContext
+
 	Config() Config
 	DeviceConfig() DeviceConfig
 
@@ -38,10 +40,12 @@ type SingletonContext interface {
 	// return value can always be type-asserted to the type of the provider.  The return value should
 	// always be considered read-only.  It panics if called before the appropriate mutator or
 	// GenerateBuildActions pass for the provider on the module.
-	ModuleProvider(module blueprint.Module, provider blueprint.ProviderKey) interface{}
+	ModuleProvider(module blueprint.Module, provider blueprint.AnyProviderKey) any
 
 	// ModuleHasProvider returns true if the provider for the given module has been set.
-	ModuleHasProvider(module blueprint.Module, provider blueprint.ProviderKey) bool
+	ModuleHasProvider(module blueprint.Module, provider blueprint.AnyProviderKey) bool
+
+	moduleProvider(module blueprint.Module, provider blueprint.AnyProviderKey) (any, bool)
 
 	ModuleErrorf(module blueprint.Module, format string, args ...interface{})
 	Errorf(format string, args ...interface{})
@@ -133,6 +137,10 @@ type singletonContextAdaptor struct {
 
 	buildParams []BuildParams
 	ruleParams  map[blueprint.Rule]blueprint.RuleParams
+}
+
+func (s *singletonContextAdaptor) blueprintSingletonContext() blueprint.SingletonContext {
+	return s.SingletonContext
 }
 
 func (s *singletonContextAdaptor) Config() Config {
@@ -281,4 +289,19 @@ func (s *singletonContextAdaptor) ModuleVariantsFromName(referer Module, name st
 		}
 	}
 	return result
+}
+
+func (s *singletonContextAdaptor) ModuleProvider(module blueprint.Module, provider blueprint.AnyProviderKey) any {
+	value, _ := s.SingletonContext.ModuleProvider(module, provider)
+	return value
+}
+
+// ModuleHasProvider returns true if the provider for the given module has been set.
+func (s *singletonContextAdaptor) ModuleHasProvider(module blueprint.Module, provider blueprint.AnyProviderKey) bool {
+	_, ok := s.SingletonContext.ModuleProvider(module, provider)
+	return ok
+}
+
+func (s *singletonContextAdaptor) moduleProvider(module blueprint.Module, provider blueprint.AnyProviderKey) (any, bool) {
+	return s.SingletonContext.ModuleProvider(module, provider)
 }
