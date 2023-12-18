@@ -251,7 +251,7 @@ func (m *syspropLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 			ctx.PropertyErrorf("srcs", "srcs contains non-sysprop file %q", syspropFile.String())
 		}
 	}
-	ctx.SetProvider(blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: srcs.Strings()})
+	android.SetProvider(ctx, blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: srcs.Strings()})
 
 	if ctx.Failed() {
 		return

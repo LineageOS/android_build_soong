@@ -171,7 +171,7 @@ func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 			p.androidMkSuffix = ""
 		}
 
-		ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
+		android.SetProvider(ctx, SharedLibraryInfoProvider, SharedLibraryInfo{
 			SharedLibrary: in,
 			Target:        ctx.Target(),
 

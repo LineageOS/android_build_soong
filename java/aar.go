@@ -805,7 +805,8 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		},
 	)
 
-	a.hideApexVariantFromMake = !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform()
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
+	a.hideApexVariantFromMake = !apexInfo.IsForPlatform()
 
 	a.stem = proptools.StringDefault(a.overridableDeviceProperties.Stem, ctx.ModuleName())
 
@@ -825,7 +826,7 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	a.linter.resources = a.aapt.resourceFiles
 
 	proguardSpecInfo := a.collectProguardSpecInfo(ctx)
-	ctx.SetProvider(ProguardSpecInfoProvider, proguardSpecInfo)
+	android.SetProvider(ctx, ProguardSpecInfoProvider, proguardSpecInfo)
 	exportedProguardFlagsFiles := proguardSpecInfo.ProguardFlagsFiles.ToList()
 	a.extraProguardFlagsFiles = append(a.extraProguardFlagsFiles, exportedProguardFlagsFiles...)
 	a.extraProguardFlagsFiles = append(a.extraProguardFlagsFiles, a.proguardOptionsFile)
@@ -860,12 +861,12 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 
 	prebuiltJniPackages := android.Paths{}
 	ctx.VisitDirectDeps(func(module android.Module) {
-		if info, ok := ctx.OtherModuleProvider(module, JniPackageProvider).(JniPackageInfo); ok {
+		if info, ok := android.OtherModuleProvider(ctx, module, JniPackageProvider); ok {
 			prebuiltJniPackages = append(prebuiltJniPackages, info.JniPackages...)
 		}
 	})
 	if len(prebuiltJniPackages) > 0 {
-		ctx.SetProvider(JniPackageProvider, JniPackageInfo{
+		android.SetProvider(ctx, JniPackageProvider, JniPackageInfo{
 			JniPackages: prebuiltJniPackages,
 		})
 	}
@@ -1106,7 +1107,8 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.sdkVersion = a.SdkVersion(ctx)
 	a.minSdkVersion = a.MinSdkVersion(ctx)
 
-	a.hideApexVariantFromMake = !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform()
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
+	a.hideApexVariantFromMake = !apexInfo.IsForPlatform()
 
 	aarName := ctx.ModuleName() + ".aar"
 	a.aarPath = android.PathForModuleSrc(ctx, a.properties.Aars[0])
@@ -1123,7 +1125,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	aarRTxt := extractedAARDir.Join(ctx, "R.txt")
 	a.assetsPackage = android.PathForModuleOut(ctx, "assets.zip")
 	a.proguardFlags = extractedAARDir.Join(ctx, "proguard.txt")
-	ctx.SetProvider(ProguardSpecInfoProvider, ProguardSpecInfo{
+	android.SetProvider(ctx, ProguardSpecInfoProvider, ProguardSpecInfo{
 		ProguardFlagsFiles: android.NewDepSet[android.Path](
 			android.POSTORDER,
 			android.Paths{a.proguardFlags},
@@ -1228,7 +1230,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.transitiveAaptResourcePackagesFile = transitiveAaptResourcePackagesFile
 
 	a.collectTransitiveHeaderJars(ctx)
-	ctx.SetProvider(JavaInfoProvider, JavaInfo{
+	android.SetProvider(ctx, JavaInfoProvider, JavaInfo{
 		HeaderJars:                     android.PathsIfNonNil(a.classpathFile),
 		TransitiveLibsHeaderJars:       a.transitiveLibsHeaderJars,
 		TransitiveStaticLibsHeaderJars: a.transitiveStaticLibsHeaderJars,
@@ -1258,7 +1260,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 	}
 
-	ctx.SetProvider(JniPackageProvider, JniPackageInfo{
+	android.SetProvider(ctx, JniPackageProvider, JniPackageInfo{
 		JniPackages: a.jniPackages,
 	})
 }

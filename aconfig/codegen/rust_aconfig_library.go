@@ -65,7 +65,7 @@ func (a *aconfigDecorator) GenerateSource(ctx rust.ModuleContext, deps rust.Path
 	if len(declarationsModules) != 1 {
 		panic(fmt.Errorf("Exactly one aconfig_declarations property required"))
 	}
-	declarations := ctx.OtherModuleProvider(declarationsModules[0], aconfig.DeclarationsProviderKey).(aconfig.DeclarationsProviderData)
+	declarations, _ := android.OtherModuleProvider(ctx, declarationsModules[0], aconfig.DeclarationsProviderKey)
 
 	mode := proptools.StringDefault(a.Properties.Mode, "production")
 	if !isModeSupported(mode) {

@@ -2226,7 +2226,8 @@ func TestTransitiveSrcFiles(t *testing.T) {
 		}
 	`)
 	c := ctx.ModuleForTests("c", "android_common").Module()
-	transitiveSrcFiles := android.Paths(ctx.ModuleProvider(c, JavaInfoProvider).(JavaInfo).TransitiveSrcFiles.ToList())
+	javaInfo, _ := android.SingletonModuleProvider(ctx, c, JavaInfoProvider)
+	transitiveSrcFiles := android.Paths(javaInfo.TransitiveSrcFiles.ToList())
 	android.AssertArrayString(t, "unexpected jar deps", []string{"b.java", "c.java"}, transitiveSrcFiles.Strings())
 }
 

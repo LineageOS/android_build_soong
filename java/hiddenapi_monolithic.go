@@ -67,8 +67,7 @@ func newMonolithicHiddenAPIInfo(ctx android.ModuleContext, flagFilesByCategory F
 
 		case *ClasspathFragmentElement:
 			fragment := e.Module()
-			if ctx.OtherModuleHasProvider(fragment, HiddenAPIInfoProvider) {
-				info := ctx.OtherModuleProvider(fragment, HiddenAPIInfoProvider).(HiddenAPIInfo)
+			if info, ok := android.OtherModuleProvider(ctx, fragment, HiddenAPIInfoProvider); ok {
 				monolithicInfo.append(&info)
 			} else {
 				ctx.ModuleErrorf("%s does not provide hidden API information", fragment)

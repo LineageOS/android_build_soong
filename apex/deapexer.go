@@ -127,7 +127,7 @@ func (p *Deapexer) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if len(exports) > 0 {
 		// Make the information available for other modules.
 		di := android.NewDeapexerInfo(apexModuleName(ctx.ModuleName()), exports)
-		ctx.SetProvider(android.DeapexerProvider, di)
+		android.SetProvider(ctx, android.DeapexerProvider, di)
 
 		// Create a sorted list of the files that this exports.
 		exportedPaths = android.SortedUniquePaths(exportedPaths)

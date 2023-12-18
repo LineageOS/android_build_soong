@@ -461,8 +461,8 @@ func PrebuiltSelectModuleMutator(ctx BottomUpMutatorContext) {
 		// Propagate the provider received from `all_apex_contributions`
 		// to the source module
 		ctx.VisitDirectDepsWithTag(acDepTag, func(am Module) {
-			psi := ctx.OtherModuleProvider(am, PrebuiltSelectionInfoProvider).(PrebuiltSelectionInfoMap)
-			ctx.SetProvider(PrebuiltSelectionInfoProvider, psi)
+			psi, _ := OtherModuleProvider(ctx, am, PrebuiltSelectionInfoProvider)
+			SetProvider(ctx, PrebuiltSelectionInfoProvider, psi)
 		})
 
 	} else if s, ok := ctx.Module().(Module); ok {
@@ -548,9 +548,7 @@ func (p *Prebuilt) usePrebuilt(ctx BaseMutatorContext, source Module, prebuilt M
 	// Use `all_apex_contributions` for source vs prebuilt selection.
 	psi := PrebuiltSelectionInfoMap{}
 	ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(am Module) {
-		if ctx.OtherModuleHasProvider(am, PrebuiltSelectionInfoProvider) {
-			psi = ctx.OtherModuleProvider(am, PrebuiltSelectionInfoProvider).(PrebuiltSelectionInfoMap)
-		}
+		psi, _ = OtherModuleProvider(ctx, am, PrebuiltSelectionInfoProvider)
 	})
 
 	// If the source module is explicitly listed in the metadata module, use that
