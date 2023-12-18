@@ -1256,11 +1256,11 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				},
 			})
 		}
-
-		ctx.SetProvider(JniPackageProvider, JniPackageInfo{
-			JniPackages: a.jniPackages,
-		})
 	}
+
+	ctx.SetProvider(JniPackageProvider, JniPackageInfo{
+		JniPackages: a.jniPackages,
+	})
 }
 
 func (a *AARImport) HeaderJars() android.Paths {
