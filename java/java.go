@@ -239,7 +239,7 @@ type ProguardSpecInfo struct {
 	UnconditionallyExportedProguardFlags *android.DepSet[android.Path]
 }
 
-var ProguardSpecInfoProvider = blueprint.NewProvider(ProguardSpecInfo{})
+var ProguardSpecInfoProvider = blueprint.NewProvider[ProguardSpecInfo]()
 
 // JavaInfo contains information about a java module for use by modules that depend on it.
 type JavaInfo struct {
@@ -295,7 +295,7 @@ type JavaInfo struct {
 	JacocoReportClassesFile android.Path
 }
 
-var JavaInfoProvider = blueprint.NewProvider(JavaInfo{})
+var JavaInfoProvider = blueprint.NewProvider[JavaInfo]()
 
 // SyspropPublicStubInfo contains info about the sysprop public stub library that corresponds to
 // the sysprop implementation library.
@@ -305,7 +305,7 @@ type SyspropPublicStubInfo struct {
 	JavaInfo JavaInfo
 }
 
-var SyspropPublicStubInfoProvider = blueprint.NewProvider(SyspropPublicStubInfo{})
+var SyspropPublicStubInfoProvider = blueprint.NewProvider[SyspropPublicStubInfo]()
 
 // Methods that need to be implemented for a module that is added to apex java_libs property.
 type ApexDependency interface {
@@ -1624,7 +1624,7 @@ type JavaApiImportInfo struct {
 	ApiSurface string
 }
 
-var JavaApiImportProvider = blueprint.NewProvider(JavaApiImportInfo{})
+var JavaApiImportProvider = blueprint.NewProvider[JavaApiImportInfo]()
 
 func (ap *JavaApiContribution) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	var apiFile android.Path = nil

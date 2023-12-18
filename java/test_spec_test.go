@@ -122,7 +122,7 @@ func TestTestSpec(t *testing.T) {
 }
 
 func runTestSpecTest(
-		t *testing.T, errorHandler android.FixtureErrorHandler, bp string,
+	t *testing.T, errorHandler android.FixtureErrorHandler, bp string,
 ) *android.TestResult {
 	return android.GroupFixturePreparers(
 		soongTesting.PrepareForTestWithTestingBuildComponents,
