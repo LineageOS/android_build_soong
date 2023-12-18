@@ -322,7 +322,7 @@ type LicenseInfo struct {
 	Licenses []string
 }
 
-var LicenseInfoProvider = blueprint.NewProvider(LicenseInfo{})
+var LicenseInfoProvider = blueprint.NewProvider[LicenseInfo]()
 
 func init() {
 	RegisterMakeVarsProvider(pctx, licensesMakeVarsProvider)

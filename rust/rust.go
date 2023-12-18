@@ -527,7 +527,7 @@ type FlagExporterInfo struct {
 	LinkObjects []string // TODO: this should be android.Paths
 }
 
-var FlagExporterInfoProvider = blueprint.NewProvider(FlagExporterInfo{})
+var FlagExporterInfoProvider = blueprint.NewProvider[FlagExporterInfo]()
 
 func (mod *Module) isCoverageVariant() bool {
 	return mod.coverage.Properties.IsCoverageVariant

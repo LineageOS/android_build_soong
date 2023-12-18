@@ -912,13 +912,13 @@ type DCLAInfo struct {
 	ProvidedLibs []string
 }
 
-var DCLAInfoProvider = blueprint.NewMutatorProvider(DCLAInfo{}, "apex_info")
+var DCLAInfoProvider = blueprint.NewMutatorProvider[DCLAInfo]("apex_info")
 
 type ApexBundleInfo struct {
 	Contents *android.ApexContents
 }
 
-var ApexBundleInfoProvider = blueprint.NewMutatorProvider(ApexBundleInfo{}, "apex_info")
+var ApexBundleInfoProvider = blueprint.NewMutatorProvider[ApexBundleInfo]("apex_info")
 
 var _ ApexInfoMutator = (*apexBundle)(nil)
 

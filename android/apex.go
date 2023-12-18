@@ -89,7 +89,7 @@ type ApexInfo struct {
 	TestApexes []string
 }
 
-var ApexInfoProvider = blueprint.NewMutatorProvider(ApexInfo{}, "apex")
+var ApexInfoProvider = blueprint.NewMutatorProvider[ApexInfo]("apex")
 
 func (i ApexInfo) AddJSONData(d *map[string]interface{}) {
 	(*d)["Apex"] = map[string]interface{}{
@@ -145,7 +145,7 @@ type ApexTestForInfo struct {
 	ApexContents []*ApexContents
 }
 
-var ApexTestForInfoProvider = blueprint.NewMutatorProvider(ApexTestForInfo{}, "apex_test_for")
+var ApexTestForInfoProvider = blueprint.NewMutatorProvider[ApexTestForInfo]("apex_test_for")
 
 // DepIsInSameApex defines an interface that should be used to determine whether a given dependency
 // should be considered as part of the same APEX as the current module or not. Note: this was
