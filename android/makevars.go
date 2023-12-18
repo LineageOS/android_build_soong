@@ -92,7 +92,8 @@ type MakeVarsContext interface {
 	ModuleDir(module blueprint.Module) string
 	ModuleSubDir(module blueprint.Module) string
 	ModuleType(module blueprint.Module) string
-	ModuleProvider(module blueprint.Module, key blueprint.ProviderKey) interface{}
+	ModuleProvider(module blueprint.Module, key blueprint.AnyProviderKey) any
+	moduleProvider(module blueprint.Module, key blueprint.AnyProviderKey) (any, bool)
 	BlueprintFile(module blueprint.Module) string
 
 	ModuleErrorf(module blueprint.Module, format string, args ...interface{})

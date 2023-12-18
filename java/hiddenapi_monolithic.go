@@ -90,4 +90,4 @@ func (i *MonolithicHiddenAPIInfo) append(other *HiddenAPIInfo) {
 	i.FlagSubsets = append(i.FlagSubsets, other.FlagSubset())
 }
 
-var MonolithicHiddenAPIInfoProvider = blueprint.NewProvider(MonolithicHiddenAPIInfo{})
+var MonolithicHiddenAPIInfoProvider = blueprint.NewProvider[MonolithicHiddenAPIInfo]()

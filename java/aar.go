@@ -1069,7 +1069,7 @@ type JniPackageInfo struct {
 	JniPackages android.Paths
 }
 
-var JniPackageProvider = blueprint.NewProvider(JniPackageInfo{})
+var JniPackageProvider = blueprint.NewProvider[JniPackageInfo]()
 
 // Unzip an AAR and extract the JNI libs for $archString.
 var extractJNI = pctx.AndroidStaticRule("extractJNI",
@@ -1256,11 +1256,11 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				},
 			})
 		}
-
-		ctx.SetProvider(JniPackageProvider, JniPackageInfo{
-			JniPackages: a.jniPackages,
-		})
 	}
+
+	ctx.SetProvider(JniPackageProvider, JniPackageInfo{
+		JniPackages: a.jniPackages,
+	})
 }
 
 func (a *AARImport) HeaderJars() android.Paths {

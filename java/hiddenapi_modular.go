@@ -600,7 +600,7 @@ func (i *HiddenAPIInfo) FlagSubset() SignatureCsvSubset {
 	return SignatureCsvSubset{i.FilteredFlagsPath, i.SignaturePatternsPath}
 }
 
-var HiddenAPIInfoProvider = blueprint.NewProvider(HiddenAPIInfo{})
+var HiddenAPIInfoProvider = blueprint.NewProvider[HiddenAPIInfo]()
 
 // HiddenAPIInfoForSdk contains information provided by the hidden API processing for use
 // by the sdk snapshot.
@@ -617,7 +617,7 @@ type HiddenAPIInfoForSdk struct {
 }
 
 // Provides hidden API info for the sdk snapshot.
-var HiddenAPIInfoForSdkProvider = blueprint.NewProvider(HiddenAPIInfoForSdk{})
+var HiddenAPIInfoForSdkProvider = blueprint.NewProvider[HiddenAPIInfoForSdk]()
 
 // ModuleStubDexJars contains the stub dex jars provided by a single module.
 //
@@ -749,7 +749,7 @@ type HiddenAPIPropertyInfo struct {
 	SplitPackages []string
 }
 
-var hiddenAPIPropertyInfoProvider = blueprint.NewProvider(HiddenAPIPropertyInfo{})
+var hiddenAPIPropertyInfoProvider = blueprint.NewProvider[HiddenAPIPropertyInfo]()
 
 // newHiddenAPIPropertyInfo creates a new initialized HiddenAPIPropertyInfo struct.
 func newHiddenAPIPropertyInfo() HiddenAPIPropertyInfo {

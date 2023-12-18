@@ -52,7 +52,7 @@ type valuesProviderData struct {
 	Values android.Paths
 }
 
-var valuesProviderKey = blueprint.NewProvider(valuesProviderData{})
+var valuesProviderKey = blueprint.NewProvider[valuesProviderData]()
 
 func (module *ValuesModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if len(module.properties.Package) == 0 {

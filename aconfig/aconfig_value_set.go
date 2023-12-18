@@ -54,7 +54,7 @@ type valueSetProviderData struct {
 	AvailablePackages map[string]android.Paths
 }
 
-var valueSetProviderKey = blueprint.NewProvider(valueSetProviderData{})
+var valueSetProviderKey = blueprint.NewProvider[valueSetProviderData]()
 
 func (module *ValueSetModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 	deps := ctx.AddDependency(ctx.Module(), valueSetTag, module.properties.Values...)

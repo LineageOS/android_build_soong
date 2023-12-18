@@ -200,7 +200,7 @@ func isContainerFromFileExtensions(installPaths InstallPaths, builtPaths Paths) 
 }
 
 // LicenseMetadataProvider is used to propagate license metadata paths between modules.
-var LicenseMetadataProvider = blueprint.NewProvider(&LicenseMetadataInfo{})
+var LicenseMetadataProvider = blueprint.NewProvider[*LicenseMetadataInfo]()
 
 // LicenseMetadataInfo stores the license metadata path for a module.
 type LicenseMetadataInfo struct {
