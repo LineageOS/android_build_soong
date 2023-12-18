@@ -1041,6 +1041,40 @@ func (library *libraryDecorator) linkerSpecifiedDeps(specifiedDeps specifiedDeps
 	return specifiedDeps
 }
 
+func (library *libraryDecorator) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *android.ModuleInfoJSON) {
+	if library.static() {
+		moduleInfoJSON.Class = []string{"STATIC_LIBRARIES"}
+		moduleInfoJSON.Uninstallable = true
+	} else if library.shared() {
+		moduleInfoJSON.Class = []string{"SHARED_LIBRARIES"}
+	} else if library.header() {
+		moduleInfoJSON.Class = []string{"HEADER_LIBRARIES"}
+		moduleInfoJSON.Uninstallable = true
+	}
+
+	if library.buildStubs() && library.stubsVersion() != "" {
+		moduleInfoJSON.SubName += "." + library.stubsVersion()
+	}
+
+	// If a library providing a stub is included in an APEX, the private APIs of the library
+	// is accessible only inside the APEX. From outside of the APEX, clients can only use the
+	// public APIs via the stub. To enforce this, the (latest version of the) stub gets the
+	// name of the library. The impl library instead gets the `.bootstrap` suffix to so that
+	// they can be exceptionally used directly when APEXes are not available (e.g. during the
+	// very early stage in the boot process).
+	if len(library.Properties.Stubs.Versions) > 0 && !ctx.Host() && ctx.notInPlatform() &&
+		!ctx.inRamdisk() && !ctx.inVendorRamdisk() && !ctx.inRecovery() && !ctx.useVndk() && !ctx.static() {
+		if library.buildStubs() && library.isLatestStubVersion() {
+			moduleInfoJSON.SubName = ""
+		}
+		if !library.buildStubs() {
+			moduleInfoJSON.SubName = ".bootstrap"
+		}
+	}
+
+	library.baseLinker.moduleInfoJSON(ctx, moduleInfoJSON)
+}
+
 func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 

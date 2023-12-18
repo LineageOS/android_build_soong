@@ -163,6 +163,11 @@ func (fuzz *fuzzBinary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	return flags
 }
 
+func (fuzz *fuzzBinary) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *android.ModuleInfoJSON) {
+	fuzz.binaryDecorator.moduleInfoJSON(ctx, moduleInfoJSON)
+	moduleInfoJSON.Class = []string{"EXECUTABLES"}
+}
+
 // IsValidSharedDependency takes a module and determines if it is a unique shared library
 // that should be installed in the fuzz target output directories. This function
 // returns true, unless:
