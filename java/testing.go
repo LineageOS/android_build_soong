@@ -617,7 +617,7 @@ func CheckPlatformBootclasspathModules(t *testing.T, result *android.TestResult,
 func CheckClasspathFragmentProtoContentInfoProvider(t *testing.T, result *android.TestResult, generated bool, contents, outputFilename, installDir string) {
 	t.Helper()
 	p := result.Module("platform-bootclasspath", "android_common").(*platformBootclasspathModule)
-	info := result.ModuleProvider(p, ClasspathFragmentProtoContentInfoProvider).(ClasspathFragmentProtoContentInfo)
+	info, _ := android.SingletonModuleProvider(result, p, ClasspathFragmentProtoContentInfoProvider)
 
 	android.AssertBoolEquals(t, "classpath proto generated", generated, info.ClasspathFragmentProtoGenerated)
 	android.AssertStringEquals(t, "classpath proto contents", contents, info.ClasspathFragmentProtoContents.String())
@@ -637,7 +637,7 @@ func ApexNamePairsFromModules(ctx *android.TestContext, modules []android.Module
 func apexNamePairFromModule(ctx *android.TestContext, module android.Module) string {
 	name := module.Name()
 	var apex string
-	apexInfo := ctx.ModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
+	apexInfo, _ := android.SingletonModuleProvider(ctx, module, android.ApexInfoProvider)
 	if apexInfo.IsForPlatform() {
 		apex = "platform"
 	} else {

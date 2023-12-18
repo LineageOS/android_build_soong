@@ -132,7 +132,7 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 
 		if p.static() {
 			depSet := android.NewDepSetBuilder[android.Path](android.TOPOLOGICAL).Direct(in).Build()
-			ctx.SetProvider(StaticLibraryInfoProvider, StaticLibraryInfo{
+			android.SetProvider(ctx, StaticLibraryInfoProvider, StaticLibraryInfo{
 				StaticLibrary: in,
 
 				TransitiveStaticLibrariesForOrdering: depSet,
@@ -190,7 +190,7 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 				},
 			})
 
-			ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
+			android.SetProvider(ctx, SharedLibraryInfoProvider, SharedLibraryInfo{
 				SharedLibrary: outputFile,
 				Target:        ctx.Target(),
 
@@ -213,7 +213,7 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 	}
 
 	if p.header() {
-		ctx.SetProvider(HeaderLibraryInfoProvider, HeaderLibraryInfo{})
+		android.SetProvider(ctx, HeaderLibraryInfoProvider, HeaderLibraryInfo{})
 
 		// Need to return an output path so that the AndroidMk logic doesn't skip
 		// the prebuilt header. For compatibility, in case Android.mk files use a

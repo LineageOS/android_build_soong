@@ -492,8 +492,6 @@ type fillInEntriesContext interface {
 	ModuleDir(module blueprint.Module) string
 	ModuleSubDir(module blueprint.Module) string
 	Config() Config
-	ModuleProvider(module blueprint.Module, provider blueprint.AnyProviderKey) any
-	ModuleHasProvider(module blueprint.Module, provider blueprint.AnyProviderKey) bool
 	moduleProvider(module blueprint.Module, provider blueprint.AnyProviderKey) (any, bool)
 	ModuleType(module blueprint.Module) string
 }
@@ -624,8 +622,7 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint
 		}
 	}
 
-	if ctx.ModuleHasProvider(mod, LicenseMetadataProvider) {
-		licenseMetadata := ctx.ModuleProvider(mod, LicenseMetadataProvider).(*LicenseMetadataInfo)
+	if licenseMetadata, ok := SingletonModuleProvider(ctx, mod, LicenseMetadataProvider); ok {
 		a.SetPath("LOCAL_SOONG_LICENSE_METADATA", licenseMetadata.LicenseMetadataPath)
 	}
 
