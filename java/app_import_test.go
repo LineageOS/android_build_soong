@@ -40,8 +40,8 @@ func TestAndroidAppImport(t *testing.T) {
 	variant := ctx.ModuleForTests("foo", "android_common")
 
 	// Check dexpreopt outputs.
-	if variant.MaybeOutput("dexpreopt/oat/arm64/package.vdex").Rule == nil ||
-		variant.MaybeOutput("dexpreopt/oat/arm64/package.odex").Rule == nil {
+	if variant.MaybeOutput("dexpreopt/foo/oat/arm64/package.vdex").Rule == nil ||
+		variant.MaybeOutput("dexpreopt/foo/oat/arm64/package.odex").Rule == nil {
 		t.Errorf("can't find dexpreopt outputs")
 	}
 
@@ -74,8 +74,8 @@ func TestAndroidAppImport_NoDexPreopt(t *testing.T) {
 	variant := ctx.ModuleForTests("foo", "android_common")
 
 	// Check dexpreopt outputs. They shouldn't exist.
-	if variant.MaybeOutput("dexpreopt/oat/arm64/package.vdex").Rule != nil ||
-		variant.MaybeOutput("dexpreopt/oat/arm64/package.odex").Rule != nil {
+	if variant.MaybeOutput("dexpreopt/foo/oat/arm64/package.vdex").Rule != nil ||
+		variant.MaybeOutput("dexpreopt/foo/oat/arm64/package.odex").Rule != nil {
 		t.Errorf("dexpreopt shouldn't have run.")
 	}
 
@@ -101,8 +101,8 @@ func TestAndroidAppImport_Presigned(t *testing.T) {
 	variant := ctx.ModuleForTests("foo", "android_common")
 
 	// Check dexpreopt outputs.
-	if variant.MaybeOutput("dexpreopt/oat/arm64/package.vdex").Rule == nil ||
-		variant.MaybeOutput("dexpreopt/oat/arm64/package.odex").Rule == nil {
+	if variant.MaybeOutput("dexpreopt/foo/oat/arm64/package.vdex").Rule == nil ||
+		variant.MaybeOutput("dexpreopt/foo/oat/arm64/package.odex").Rule == nil {
 		t.Errorf("can't find dexpreopt outputs")
 	}
 	// Make sure signing was skipped and aligning was done.
@@ -210,8 +210,8 @@ func TestAndroidAppImport_DefaultDevCert(t *testing.T) {
 	variant := ctx.ModuleForTests("foo", "android_common")
 
 	// Check dexpreopt outputs.
-	if variant.MaybeOutput("dexpreopt/oat/arm64/package.vdex").Rule == nil ||
-		variant.MaybeOutput("dexpreopt/oat/arm64/package.odex").Rule == nil {
+	if variant.MaybeOutput("dexpreopt/foo/oat/arm64/package.vdex").Rule == nil ||
+		variant.MaybeOutput("dexpreopt/foo/oat/arm64/package.odex").Rule == nil {
 		t.Errorf("can't find dexpreopt outputs")
 	}
 

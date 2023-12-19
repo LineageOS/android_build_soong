@@ -15,6 +15,7 @@
 package android
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -146,10 +147,16 @@ type RequiresFilesFromPrebuiltApexTag interface {
 
 // FindDeapexerProviderForModule searches through the direct dependencies of the current context
 // module for a DeapexerTag dependency and returns its DeapexerInfo. If a single nonambiguous
-// deapexer module isn't found then errors are reported with ctx.ModuleErrorf and nil is returned.
-func FindDeapexerProviderForModule(ctx ModuleContext) *DeapexerInfo {
+// deapexer module isn't found then it returns it an error
+// clients should check the value of error and call ctx.ModuleErrof if a non nil error is received
+func FindDeapexerProviderForModule(ctx ModuleContext) (*DeapexerInfo, error) {
 	var di *DeapexerInfo
+	var err error
 	ctx.VisitDirectDepsWithTag(DeapexerTag, func(m Module) {
+		if err != nil {
+			// An err has been found. Do not visit further.
+			return
+		}
 		c, _ := OtherModuleProvider(ctx, m, DeapexerProvider)
 		p := &c
 		if di != nil {
@@ -159,17 +166,18 @@ func FindDeapexerProviderForModule(ctx ModuleContext) *DeapexerInfo {
 				di = selected
 				return
 			}
-			ctx.ModuleErrorf("Multiple installable prebuilt APEXes provide ambiguous deapexers: %s and %s",
-				di.ApexModuleName(), p.ApexModuleName())
+			err = fmt.Errorf("Multiple installable prebuilt APEXes provide ambiguous deapexers: %s and %s", di.ApexModuleName(), p.ApexModuleName())
 		}
 		di = p
 	})
+	if err != nil {
+		return nil, err
+	}
 	if di != nil {
-		return di
+		return di, nil
 	}
 	ai, _ := ModuleProvider(ctx, ApexInfoProvider)
-	ctx.ModuleErrorf("No prebuilt APEX provides a deapexer module for APEX variant %s", ai.ApexVariationName)
-	return nil
+	return nil, fmt.Errorf("No prebuilt APEX provides a deapexer module for APEX variant %s", ai.ApexVariationName)
 }
 
 // removeCompressedApexSuffix removes the _compressed suffix from the name if present.

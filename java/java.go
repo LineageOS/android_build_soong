@@ -2100,6 +2100,7 @@ type Import struct {
 
 	// output file containing classes.dex and resources
 	dexJarFile        OptionalDexJarPath
+	dexJarFileErr     error
 	dexJarInstallFile android.Path
 
 	combinedClasspathFile android.Path
@@ -2250,9 +2251,12 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ai, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 		if ai.ForPrebuiltApex {
 			// Get the path of the dex implementation jar from the `deapexer` module.
-			di := android.FindDeapexerProviderForModule(ctx)
-			if di == nil {
-				return // An error has been reported by FindDeapexerProviderForModule.
+			di, err := android.FindDeapexerProviderForModule(ctx)
+			if err != nil {
+				// An error was found, possibly due to multiple apexes in the tree that export this library
+				// Defer the error till a client tries to call DexJarBuildPath
+				j.dexJarFileErr = err
+				return
 			}
 			dexJarFileApexRootRelative := apexRootRelativePathToJavaLib(j.BaseModuleName())
 			if dexOutputPath := di.PrebuiltExportPath(dexJarFileApexRootRelative); dexOutputPath != nil {
@@ -2375,6 +2379,9 @@ func (j *Import) ImplementationAndResourcesJars() android.Paths {
 }
 
 func (j *Import) DexJarBuildPath() OptionalDexJarPath {
+	if j.dexJarFileErr != nil {
+		panic(j.dexJarFileErr.Error())
+	}
 	return j.dexJarFile
 }
 
