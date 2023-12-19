@@ -78,7 +78,7 @@ var (
 		blueprint.RuleParams{
 			Command: `rm -rf ${out}.tmp` +
 				`&& for cache in ${cache_files}; do ` +
-				`  if [[ -n "$$(${aconfig} dump --cache $$cache --filter=is_exported:true --format='{fully_qualified_name}')" ]]; then ` +
+				`  if [ -n "$$(${aconfig} dump --cache $$cache --filter=is_exported:true --format='{fully_qualified_name}')" ]; then ` +
 				`    ${aconfig} create-java-lib --cache $$cache --mode=exported --out ${out}.tmp; ` +
 				`  fi ` +
 				`done` +
