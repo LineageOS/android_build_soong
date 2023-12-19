@@ -79,16 +79,23 @@ func (install *dexpreopterInstall) SubModuleName() string {
 func (install dexpreopterInstall) ToMakeEntries() android.AndroidMkEntries {
 	return android.AndroidMkEntries{
 		Class:      "ETC",
-		SubName:    install.SubModuleName(),
 		OutputFile: android.OptionalPathForPath(install.outputPathOnHost),
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+				entries.SetString("LOCAL_MODULE", install.FullModuleName())
 				entries.SetString("LOCAL_MODULE_PATH", install.installDirOnDevice.String())
 				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", install.installFileOnDevice)
 				entries.SetString("LOCAL_NOT_AVAILABLE_FOR_PLATFORM", "false")
+				// Unset LOCAL_SOONG_INSTALLED_MODULE so that this does not default to the primary .apex file
+				// Without this, installation of the dexpreopt artifacts get skipped
+				entries.SetString("LOCAL_SOONG_INSTALLED_MODULE", "")
 			},
 		},
 	}
+}
+
+type Dexpreopter struct {
+	dexpreopter
 }
 
 type dexpreopter struct {
@@ -258,6 +265,17 @@ func (d *dexpreopter) getInstallPath(
 	return defaultInstallPath
 }
 
+// DexpreoptPrebuiltApexSystemServerJars generates the dexpreopt artifacts from a jar file that has been deapexed from a prebuilt apex
+func (d *Dexpreopter) DexpreoptPrebuiltApexSystemServerJars(ctx android.ModuleContext, libraryName string, di *android.DeapexerInfo) {
+	// A single prebuilt apex can have multiple apex system jars
+	// initialize the output path for this dex jar
+	dc := dexpreopt.GetGlobalConfig(ctx)
+	d.installPath = android.PathForModuleInPartitionInstall(ctx, "", strings.TrimPrefix(dexpreopt.GetSystemServerDexLocation(ctx, dc, libraryName), "/"))
+	// generate the rules for creating the .odex and .vdex files for this system server jar
+	dexJarFile := di.PrebuiltExportPath(apexRootRelativePathToJavaLib(libraryName))
+	d.dexpreopt(ctx, dexJarFile)
+}
+
 func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.WritablePath) {
 	global := dexpreopt.GetGlobalConfig(ctx)
 
@@ -346,11 +364,15 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 
 	d.dexpreoptProperties.Dex_preopt_result.Profile_guided = profileClassListing.Valid()
 
+	// A single apex can have multiple system server jars
+	// Use the dexJar to create a unique scope for each
+	dexJarStem := strings.TrimSuffix(dexJarFile.Base(), dexJarFile.Ext())
+
 	// Full dexpreopt config, used to create dexpreopt build rules.
 	dexpreoptConfig := &dexpreopt.ModuleConfig{
 		Name:            moduleName(ctx),
 		DexLocation:     dexLocation,
-		BuildPath:       android.PathForModuleOut(ctx, "dexpreopt", moduleName(ctx)+".jar").OutputPath,
+		BuildPath:       android.PathForModuleOut(ctx, "dexpreopt", dexJarStem, moduleName(ctx)+".jar").OutputPath,
 		DexPath:         dexJarFile,
 		ManifestPath:    android.OptionalPathForPath(d.manifestFile),
 		UncompressedDex: d.uncompressedDex,
@@ -380,7 +402,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 		PresignedPrebuilt: d.isPresignedPrebuilt,
 	}
 
-	d.configPath = android.PathForModuleOut(ctx, "dexpreopt", "dexpreopt.config")
+	d.configPath = android.PathForModuleOut(ctx, "dexpreopt", dexJarStem, "dexpreopt.config")
 	dexpreopt.WriteModuleConfig(ctx, dexpreoptConfig, d.configPath)
 
 	if d.dexpreoptDisabled(ctx) {
@@ -394,7 +416,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 	// dependencies to create a per-app list, and use `rsync --checksum` to prevent the file's mtime
 	// from being changed if the contents don't change. This avoids unnecessary dexpreopt reruns.
 	productPackages := android.PathForModuleInPartitionInstall(ctx, "", "product_packages.txt")
-	appProductPackages := android.PathForModuleOut(ctx, "dexpreopt", "product_packages.txt")
+	appProductPackages := android.PathForModuleOut(ctx, "dexpreopt", dexJarStem, "product_packages.txt")
 	appProductPackagesStaging := appProductPackages.ReplaceExtension(ctx, "txt.tmp")
 	clcNames, _ := dexpreopt.ComputeClassLoaderContextDependencies(dexpreoptConfig.ClassLoaderContexts)
 	sort.Strings(clcNames) // The order needs to be deterministic.
@@ -416,7 +438,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 		Text("rsync --checksum").
 		Input(appProductPackagesStaging).
 		Output(appProductPackages)
-	productPackagesRule.Restat().Build("product_packages", "dexpreopt product_packages")
+	productPackagesRule.Restat().Build("product_packages."+dexJarStem, "dexpreopt product_packages")
 
 	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(
 		ctx, globalSoong, global, dexpreoptConfig, appProductPackages)
@@ -425,9 +447,11 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 		return
 	}
 
-	dexpreoptRule.Build("dexpreopt", "dexpreopt")
+	dexpreoptRule.Build("dexpreopt"+"."+dexJarStem, "dexpreopt")
 
-	isApexSystemServerJar := global.AllApexSystemServerJars(ctx).ContainsJar(moduleName(ctx))
+	// The current ctx might be of a deapexer module created by a prebuilt apex
+	// Use the path of the dex file to determine the library name
+	isApexSystemServerJar := global.AllApexSystemServerJars(ctx).ContainsJar(dexJarStem)
 
 	for _, install := range dexpreoptRule.Installs() {
 		// Remove the "/" prefix because the path should be relative to $ANDROID_PRODUCT_OUT.
@@ -452,7 +476,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 				// The installs will be handled by Make as sub-modules of the java library.
 				d.builtInstalledForApex = append(d.builtInstalledForApex, dexpreopterInstall{
 					name:                arch + "-" + installBase,
-					moduleName:          moduleName(ctx),
+					moduleName:          dexJarStem,
 					outputPathOnHost:    install.From,
 					installDirOnDevice:  installPath,
 					installFileOnDevice: installBase,
