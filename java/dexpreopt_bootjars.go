@@ -544,7 +544,7 @@ func gatherBootclasspathFragments(ctx android.ModuleContext) map[string]android.
 				return true
 			}
 			if tag == bootclasspathFragmentDepTag {
-				apexInfo := ctx.OtherModuleProvider(child, android.ApexInfoProvider).(android.ApexInfo)
+				apexInfo, _ := android.OtherModuleProvider(ctx, child, android.ApexInfoProvider)
 				for _, apex := range apexInfo.InApexVariants {
 					fragments[apex] = child
 				}
@@ -682,7 +682,7 @@ func extractEncodedDexJarsFromModulesOrBootclasspathFragments(ctx android.Module
 					pair.jarModule.Name(),
 					pair.apex)
 			}
-			bootclasspathFragmentInfo := ctx.OtherModuleProvider(fragment, BootclasspathFragmentApexContentInfoProvider).(BootclasspathFragmentApexContentInfo)
+			bootclasspathFragmentInfo, _ := android.OtherModuleProvider(ctx, fragment, BootclasspathFragmentApexContentInfoProvider)
 			jar, err := bootclasspathFragmentInfo.DexBootJarPathForContentModule(pair.jarModule)
 			if err != nil {
 				ctx.ModuleErrorf("%s", err)

@@ -1020,7 +1020,7 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 
 	// The membership information is saved for later access
 	apexContents := android.NewApexContents(contents)
-	mctx.SetProvider(ApexBundleInfoProvider, ApexBundleInfo{
+	android.SetProvider(mctx, ApexBundleInfoProvider, ApexBundleInfo{
 		Contents: apexContents,
 	})
 
@@ -1058,7 +1058,7 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 	})
 
 	if a.dynamic_common_lib_apex() {
-		mctx.SetProvider(DCLAInfoProvider, DCLAInfo{
+		android.SetProvider(mctx, DCLAInfoProvider, DCLAInfo{
 			ProvidedLibs: a.properties.Native_shared_libs,
 		})
 	}
@@ -1201,10 +1201,10 @@ func apexTestForMutator(mctx android.BottomUpMutatorContext) {
 	if _, ok := mctx.Module().(android.ApexModule); ok {
 		var contents []*android.ApexContents
 		for _, testFor := range mctx.GetDirectDepsWithTag(testForTag) {
-			abInfo := mctx.OtherModuleProvider(testFor, ApexBundleInfoProvider).(ApexBundleInfo)
+			abInfo, _ := android.OtherModuleProvider(mctx, testFor, ApexBundleInfoProvider)
 			contents = append(contents, abInfo.Contents)
 		}
-		mctx.SetProvider(android.ApexTestForInfoProvider, android.ApexTestForInfo{
+		android.SetProvider(mctx, android.ApexTestForInfoProvider, android.ApexTestForInfo{
 			ApexContents: contents,
 		})
 	}
@@ -1465,7 +1465,7 @@ func (a *apexBundle) libs_to_trim(ctx android.ModuleContext) []string {
 		panic(fmt.Errorf("expected exactly at most one dcla dependency, got %d", len(dclaModules)))
 	}
 	if len(dclaModules) > 0 {
-		DCLAInfo := ctx.OtherModuleProvider(dclaModules[0], DCLAInfoProvider).(DCLAInfo)
+		DCLAInfo, _ := android.OtherModuleProvider(ctx, dclaModules[0], DCLAInfoProvider)
 		return DCLAInfo.ProvidedLibs
 	}
 	return []string{}
@@ -1783,7 +1783,7 @@ func (a *apexBundle) WalkPayloadDeps(ctx android.ModuleContext, do android.Paylo
 			return false
 		}
 
-		ai := ctx.OtherModuleProvider(child, android.ApexInfoProvider).(android.ApexInfo)
+		ai, _ := android.OtherModuleProvider(ctx, child, android.ApexInfoProvider)
 		externalDep := !android.InList(ctx.ModuleName(), ai.InApexVariants)
 
 		// Visit actually
@@ -2150,7 +2150,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			af := apexFileForNativeLibrary(ctx, ch, vctx.handleSpecialLibs)
 			af.transitiveDep = true
 
-			abInfo := ctx.Provider(ApexBundleInfoProvider).(ApexBundleInfo)
+			abInfo, _ := android.ModuleProvider(ctx, ApexBundleInfoProvider)
 			if !abInfo.Contents.DirectlyInApex(depName) && (ch.IsStubs() || ch.HasStubsVariants()) {
 				// If the dependency is a stubs lib, don't include it in this APEX,
 				// but make sure that the lib is installed on the device.
@@ -2272,7 +2272,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 }
 
 func addAconfigFiles(vctx *visitorContext, ctx android.ModuleContext, module blueprint.Module) {
-	dep := ctx.OtherModuleProvider(module, aconfig.TransitiveDeclarationsInfoProvider).(aconfig.TransitiveDeclarationsInfo)
+	dep, _ := android.OtherModuleProvider(ctx, module, aconfig.TransitiveDeclarationsInfoProvider)
 	if len(dep.AconfigFiles) > 0 && dep.AconfigFiles[ctx.ModuleName()] != nil {
 		vctx.aconfigFiles = append(vctx.aconfigFiles, dep.AconfigFiles[ctx.ModuleName()]...)
 	}
@@ -2376,7 +2376,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 // apexBootclasspathFragmentFiles returns the list of apexFile structures defining the files that
 // the bootclasspath_fragment contributes to the apex.
 func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module blueprint.Module) []apexFile {
-	bootclasspathFragmentInfo := ctx.OtherModuleProvider(module, java.BootclasspathFragmentApexContentInfoProvider).(java.BootclasspathFragmentApexContentInfo)
+	bootclasspathFragmentInfo, _ := android.OtherModuleProvider(ctx, module, java.BootclasspathFragmentApexContentInfoProvider)
 	var filesToAdd []apexFile
 
 	// Add classpaths.proto config.
@@ -2425,7 +2425,7 @@ func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module blueprint.
 // apexClasspathFragmentProtoFile returns *apexFile structure defining the classpath.proto config that
 // the module contributes to the apex; or nil if the proto config was not generated.
 func apexClasspathFragmentProtoFile(ctx android.ModuleContext, module blueprint.Module) *apexFile {
-	info := ctx.OtherModuleProvider(module, java.ClasspathFragmentProtoContentInfoProvider).(java.ClasspathFragmentProtoContentInfo)
+	info, _ := android.OtherModuleProvider(ctx, module, java.ClasspathFragmentProtoContentInfoProvider)
 	if !info.ClasspathFragmentProtoGenerated {
 		return nil
 	}
@@ -2437,7 +2437,7 @@ func apexClasspathFragmentProtoFile(ctx android.ModuleContext, module blueprint.
 // apexFileForBootclasspathFragmentContentModule creates an apexFile for a bootclasspath_fragment
 // content module, i.e. a library that is part of the bootclasspath.
 func apexFileForBootclasspathFragmentContentModule(ctx android.ModuleContext, fragmentModule blueprint.Module, javaModule javaModule) apexFile {
-	bootclasspathFragmentInfo := ctx.OtherModuleProvider(fragmentModule, java.BootclasspathFragmentApexContentInfoProvider).(java.BootclasspathFragmentApexContentInfo)
+	bootclasspathFragmentInfo, _ := android.OtherModuleProvider(ctx, fragmentModule, java.BootclasspathFragmentApexContentInfoProvider)
 
 	// Get the dexBootJar from the bootclasspath_fragment as that is responsible for performing the
 	// hidden API encpding.
@@ -2589,7 +2589,7 @@ func (a *apexBundle) checkStaticLinkingToStubLibraries(ctx android.ModuleContext
 		return
 	}
 
-	abInfo := ctx.Provider(ApexBundleInfoProvider).(ApexBundleInfo)
+	abInfo, _ := android.ModuleProvider(ctx, ApexBundleInfoProvider)
 
 	a.WalkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) bool {
 		if ccm, ok := to.(*cc.Module); ok {
@@ -2650,7 +2650,7 @@ func (a *apexBundle) checkUpdatable(ctx android.ModuleContext) {
 func (a *apexBundle) checkClasspathFragments(ctx android.ModuleContext) {
 	ctx.VisitDirectDeps(func(module android.Module) {
 		if tag := ctx.OtherModuleDependencyTag(module); tag == bcpfTag || tag == sscpfTag {
-			info := ctx.OtherModuleProvider(module, java.ClasspathFragmentProtoContentInfoProvider).(java.ClasspathFragmentProtoContentInfo)
+			info, _ := android.OtherModuleProvider(ctx, module, java.ClasspathFragmentProtoContentInfoProvider)
 			if !info.ClasspathFragmentProtoGenerated {
 				ctx.OtherModuleErrorf(module, "is included in updatable apex %v, it must not set generate_classpaths_proto to false", ctx.ModuleName())
 			}

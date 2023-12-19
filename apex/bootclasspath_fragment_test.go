@@ -152,7 +152,7 @@ func TestBootclasspathFragments_FragmentDependency(t *testing.T) {
 
 	// Check stub dex paths exported by art.
 	artFragment := result.Module("art-bootclasspath-fragment", "android_common")
-	artInfo := result.ModuleProvider(artFragment, java.HiddenAPIInfoProvider).(java.HiddenAPIInfo)
+	artInfo, _ := android.SingletonModuleProvider(result, artFragment, java.HiddenAPIInfoProvider)
 
 	bazPublicStubs := "out/soong/.intermediates/baz.stubs/android_common/dex/baz.stubs.jar"
 	bazSystemStubs := "out/soong/.intermediates/baz.stubs.system/android_common/dex/baz.stubs.system.jar"
@@ -165,7 +165,7 @@ func TestBootclasspathFragments_FragmentDependency(t *testing.T) {
 
 	// Check stub dex paths exported by other.
 	otherFragment := result.Module("other-bootclasspath-fragment", "android_common")
-	otherInfo := result.ModuleProvider(otherFragment, java.HiddenAPIInfoProvider).(java.HiddenAPIInfo)
+	otherInfo, _ := android.SingletonModuleProvider(result, otherFragment, java.HiddenAPIInfoProvider)
 
 	fooPublicStubs := "out/soong/.intermediates/foo.stubs/android_common/dex/foo.stubs.jar"
 	fooSystemStubs := "out/soong/.intermediates/foo.stubs.system/android_common/dex/foo.stubs.system.jar"
@@ -655,7 +655,7 @@ func TestBootclasspathFragmentContentsNoName(t *testing.T) {
 	// Make sure that the fragment provides the hidden API encoded dex jars to the APEX.
 	fragment := result.Module("mybootclasspathfragment", "android_common_apex10000")
 
-	info := result.ModuleProvider(fragment, java.BootclasspathFragmentApexContentInfoProvider).(java.BootclasspathFragmentApexContentInfo)
+	info, _ := android.SingletonModuleProvider(result, fragment, java.BootclasspathFragmentApexContentInfoProvider)
 
 	checkFragmentExportedDexJar := func(name string, expectedDexJar string) {
 		module := result.Module(name, "android_common_apex10000")

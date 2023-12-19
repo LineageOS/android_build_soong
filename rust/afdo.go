@@ -67,8 +67,7 @@ func (afdo *afdo) flags(ctx android.ModuleContext, flags Flags, deps PathDeps) (
 	}
 
 	ctx.VisitDirectDepsWithTag(cc.FdoProfileTag, func(m android.Module) {
-		if ctx.OtherModuleHasProvider(m, cc.FdoProfileProvider) {
-			info := ctx.OtherModuleProvider(m, cc.FdoProfileProvider).(cc.FdoProfileInfo)
+		if info, ok := android.OtherModuleProvider(ctx, m, cc.FdoProfileProvider); ok {
 			path := info.Path
 			profileUseFlag := fmt.Sprintf(afdoFlagFormat, path.String())
 			flags.RustFlags = append(flags.RustFlags, profileUseFlag)

@@ -21,14 +21,9 @@ func (this *allCodeMetadataSingleton) GenerateBuildActions(ctx android.Singleton
 
 	ctx.VisitAllModules(
 		func(module android.Module) {
-			if !ctx.ModuleHasProvider(module, CodeMetadataProviderKey) {
-				return
+			if metadata, ok := android.SingletonModuleProvider(ctx, module, CodeMetadataProviderKey); ok {
+				intermediateMetadataPaths = append(intermediateMetadataPaths, metadata.IntermediatePath)
 			}
-			intermediateMetadataPaths = append(
-				intermediateMetadataPaths, ctx.ModuleProvider(
-					module, CodeMetadataProviderKey,
-				).(CodeMetadataProviderData).IntermediatePath,
-			)
 		},
 	)
 

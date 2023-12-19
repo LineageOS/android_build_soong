@@ -1627,7 +1627,7 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 
 		addStaticDeps := func(dep string, hideSymbols bool) {
 			// If we're using snapshots, redirect to snapshot whenever possible
-			snapshot := mctx.Provider(SnapshotInfoProvider).(SnapshotInfo)
+			snapshot, _ := android.ModuleProvider(mctx, SnapshotInfoProvider)
 			if lib, ok := snapshot.StaticLibs[dep]; ok {
 				dep = lib
 			}
@@ -1714,7 +1714,7 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 				addStaticDeps(runtimeSharedLibrary, true)
 			} else if !c.static() && !c.Header() {
 				// If we're using snapshots, redirect to snapshot whenever possible
-				snapshot := mctx.Provider(SnapshotInfoProvider).(SnapshotInfo)
+				snapshot, _ := android.ModuleProvider(mctx, SnapshotInfoProvider)
 				if lib, ok := snapshot.SharedLibs[runtimeSharedLibrary]; ok {
 					runtimeSharedLibrary = lib
 				}

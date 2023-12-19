@@ -96,10 +96,8 @@ func (module *CodeMetadataModule) GenerateAndroidBuildActions(ctx android.Module
 	for _, m := range ctx.GetDirectDepsWithTag(codeDepTag) {
 		targetName := m.Name()
 		var moduleSrcs []string
-		if ctx.OtherModuleHasProvider(m, blueprint.SrcsFileProviderKey) {
-			moduleSrcs = ctx.OtherModuleProvider(
-				m, blueprint.SrcsFileProviderKey,
-			).(blueprint.SrcsFileProviderData).SrcPaths
+		if srcsFileInfo, ok := android.OtherModuleProvider(ctx, m, blueprint.SrcsFileProviderKey); ok {
+			moduleSrcs = srcsFileInfo.SrcPaths
 		}
 		if module.properties.MultiOwnership {
 			metadata := &code_metadata_internal_proto.CodeMetadataInternal_TargetOwnership{
@@ -132,7 +130,7 @@ func (module *CodeMetadataModule) GenerateAndroidBuildActions(ctx android.Module
 	)
 	android.WriteFileRule(ctx, intermediatePath, string(protoData))
 
-	ctx.SetProvider(
+	android.SetProvider(ctx,
 		CodeMetadataProviderKey,
 		CodeMetadataProviderData{IntermediatePath: intermediatePath},
 	)

@@ -275,7 +275,7 @@ var ccSnapshotAction snapshot.GenerateSnapshotAction = func(s snapshot.SnapshotS
 		var propOut string
 
 		if m.IsSnapshotLibrary() {
-			exporterInfo := ctx.ModuleProvider(m.Module(), FlagExporterInfoProvider).(FlagExporterInfo)
+			exporterInfo, _ := android.SingletonModuleProvider(ctx, m.Module(), FlagExporterInfoProvider)
 
 			// library flags
 			prop.ExportedFlags = exporterInfo.Flags
@@ -407,7 +407,7 @@ var ccSnapshotAction snapshot.GenerateSnapshotAction = func(s snapshot.SnapshotS
 
 		moduleDir := ctx.ModuleDir(module)
 		inProprietaryPath := s.Image.IsProprietaryPath(moduleDir, ctx.DeviceConfig())
-		apexInfo := ctx.ModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
+		apexInfo, _ := android.SingletonModuleProvider(ctx, module, android.ApexInfoProvider)
 
 		if s.Image.ExcludeFromSnapshot(m) {
 			if inProprietaryPath {

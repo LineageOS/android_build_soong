@@ -413,8 +413,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 
 	extraLintCheckModules := ctx.GetDirectDepsWithTag(extraLintCheckTag)
 	for _, extraLintCheckModule := range extraLintCheckModules {
-		if ctx.OtherModuleHasProvider(extraLintCheckModule, JavaInfoProvider) {
-			dep := ctx.OtherModuleProvider(extraLintCheckModule, JavaInfoProvider).(JavaInfo)
+		if dep, ok := android.OtherModuleProvider(ctx, extraLintCheckModule, JavaInfoProvider); ok {
 			l.extraLintCheckJars = append(l.extraLintCheckJars, dep.ImplementationAndResourcesJars...)
 		} else {
 			ctx.PropertyErrorf("lint.extra_check_modules",
@@ -661,7 +660,7 @@ func (l *lintSingleton) generateLintReportZips(ctx android.SingletonContext) {
 		}
 
 		if apex, ok := m.(android.ApexModule); ok && apex.NotAvailableForPlatform() {
-			apexInfo := ctx.ModuleProvider(m, android.ApexInfoProvider).(android.ApexInfo)
+			apexInfo, _ := android.SingletonModuleProvider(ctx, m, android.ApexInfoProvider)
 			if apexInfo.IsForPlatform() {
 				// There are stray platform variants of modules in apexes that are not available for
 				// the platform, and they sometimes can't be built.  Don't depend on them.

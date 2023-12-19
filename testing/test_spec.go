@@ -91,7 +91,7 @@ var TestModuleProviderKey = blueprint.NewProvider[TestModuleProviderData]()
 
 func (module *TestSpecModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	for _, m := range ctx.GetDirectDepsWithTag(testsDepTag) {
-		if !ctx.OtherModuleHasProvider(m, TestModuleProviderKey) {
+		if _, ok := android.OtherModuleProvider(ctx, m, TestModuleProviderKey); !ok {
 			ctx.ModuleErrorf(ErrTestModuleDataNotFound, m.Name())
 		}
 	}
@@ -119,7 +119,7 @@ func (module *TestSpecModule) GenerateAndroidBuildActions(ctx android.ModuleCont
 	}
 	android.WriteFileRule(ctx, intermediatePath, string(protoData))
 
-	ctx.SetProvider(
+	android.SetProvider(ctx,
 		TestSpecProviderKey, TestSpecProviderData{
 			IntermediatePath: intermediatePath,
 		},

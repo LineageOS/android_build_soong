@@ -119,7 +119,7 @@ func (a *allApexContributions) SetPrebuiltSelectionInfoProvider(ctx BaseModuleCo
 			ctx.ModuleErrorf("%s is not an apex_contributions module\n", child.Name())
 		}
 	})
-	ctx.SetProvider(PrebuiltSelectionInfoProvider, p)
+	SetProvider(ctx, PrebuiltSelectionInfoProvider, p)
 }
 
 // A provider containing metadata about whether source or prebuilt should be used
