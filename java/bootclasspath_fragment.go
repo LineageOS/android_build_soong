@@ -240,7 +240,8 @@ type BootclasspathFragmentModule struct {
 	sourceOnlyProperties SourceOnlyBootclasspathProperties
 
 	// Path to the boot image profile.
-	profilePath android.WritablePath
+	profilePath    android.WritablePath
+	profilePathErr error
 }
 
 // commonBootclasspathFragment defines the methods that are implemented by both source and prebuilt
@@ -1065,8 +1066,11 @@ func (module *PrebuiltBootclasspathFragmentModule) produceBootImageProfile(ctx a
 		return nil
 	}
 
-	di := android.FindDeapexerProviderForModule(ctx)
-	if di == nil {
+	di, err := android.FindDeapexerProviderForModule(ctx)
+	if err != nil {
+		// An error was found, possibly due to multiple apexes in the tree that export this library
+		// Defer the error till a client tries to call getProfilePath
+		module.profilePathErr = err
 		return nil // An error has been reported by FindDeapexerProviderForModule.
 	}
 
@@ -1074,6 +1078,9 @@ func (module *PrebuiltBootclasspathFragmentModule) produceBootImageProfile(ctx a
 }
 
 func (b *PrebuiltBootclasspathFragmentModule) getProfilePath() android.Path {
+	if b.profilePathErr != nil {
+		panic(b.profilePathErr.Error())
+	}
 	return b.profilePath
 }
 

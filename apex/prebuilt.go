@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/dexpreopt"
 	"android/soong/java"
 	"android/soong/provenance"
 
@@ -50,6 +51,7 @@ type prebuilt interface {
 
 type prebuiltCommon struct {
 	android.ModuleBase
+	java.Dexpreopter
 	prebuilt android.Prebuilt
 
 	// Properties common to both prebuilt_apex and apex_set.
@@ -170,50 +172,42 @@ func (p *prebuiltCommon) installable() bool {
 	return proptools.BoolDefault(p.prebuiltCommonProperties.Installable, true)
 }
 
-// initApexFilesForAndroidMk initializes the prebuiltCommon.apexFilesForAndroidMk field from the
-// modules that this depends upon.
+// To satisfy java.DexpreopterInterface
+func (p *prebuiltCommon) IsInstallable() bool {
+	return p.installable()
+}
+
+// initApexFilesForAndroidMk initializes the prebuiltCommon.requiredModuleNames field with the install only deps of the prebuilt apex
 func (p *prebuiltCommon) initApexFilesForAndroidMk(ctx android.ModuleContext) {
-	// Walk the dependencies of this module looking for the java modules that it exports.
-	ctx.WalkDeps(func(child, parent android.Module) bool {
-		tag := ctx.OtherModuleDependencyTag(child)
+	// If this apex contains a system server jar, then the dexpreopt artifacts should be added as required
+	for _, install := range p.Dexpreopter.DexpreoptBuiltInstalledForApex() {
+		p.requiredModuleNames = append(p.requiredModuleNames, install.FullModuleName())
+	}
+}
 
-		name := android.RemoveOptionalPrebuiltPrefix(ctx.OtherModuleName(child))
-		if java.IsBootclasspathFragmentContentDepTag(tag) ||
-			java.IsSystemServerClasspathFragmentContentDepTag(tag) || tag == exportedJavaLibTag {
-			// If the exported java module provides a dex jar path then add it to the list of apexFiles.
-			path := child.(interface {
-				DexJarBuildPath() java.OptionalDexJarPath
-			}).DexJarBuildPath()
-			if path.IsSet() {
-				af := apexFile{
-					module:              child,
-					moduleDir:           ctx.OtherModuleDir(child),
-					androidMkModuleName: name,
-					builtFile:           path.Path(),
-					class:               javaSharedLib,
-				}
-				if module, ok := child.(java.DexpreopterInterface); ok {
-					for _, install := range module.DexpreoptBuiltInstalledForApex() {
-						af.requiredModuleNames = append(af.requiredModuleNames, install.FullModuleName())
-					}
-				}
-				p.apexFilesForAndroidMk = append(p.apexFilesForAndroidMk, af)
-			}
-		} else if tag == exportedBootclasspathFragmentTag {
-			_, ok := child.(*java.PrebuiltBootclasspathFragmentModule)
-			if !ok {
-				ctx.PropertyErrorf("exported_bootclasspath_fragments", "%q is not a prebuilt_bootclasspath_fragment module", name)
-				return false
-			}
-			// Visit the children of the bootclasspath_fragment.
-			return true
-		} else if tag == exportedSystemserverclasspathFragmentTag {
-			// Visit the children of the systemserver_fragment.
-			return true
+// If this prebuilt has system server jar, create the rules to dexpreopt it and install it alongside the prebuilt apex
+func (p *prebuiltCommon) dexpreoptSystemServerJars(ctx android.ModuleContext) {
+	// If this apex does not export anything, return
+	if !p.hasExportedDeps() {
+		return
+	}
+	// Use apex_name to determine the api domain of this prebuilt apex
+	apexName := p.ApexVariationName()
+	di, err := android.FindDeapexerProviderForModule(ctx)
+	if err != nil {
+		ctx.ModuleErrorf(err.Error())
+	}
+	dc := dexpreopt.GetGlobalConfig(ctx)
+	systemServerJarList := dc.AllApexSystemServerJars(ctx)
+
+	for i := 0; i < systemServerJarList.Len(); i++ {
+		sscpApex := systemServerJarList.Apex(i)
+		sscpJar := systemServerJarList.Jar(i)
+		if apexName != sscpApex {
+			continue
 		}
-
-		return false
-	})
+		p.Dexpreopter.DexpreoptPrebuiltApexSystemServerJars(ctx, sscpJar, di)
+	}
 }
 
 func (p *prebuiltCommon) addRequiredModules(entries *android.AndroidMkEntries) {
@@ -246,6 +240,11 @@ func (p *prebuiltCommon) AndroidMkEntries() []android.AndroidMkEntries {
 				},
 			},
 		},
+	}
+
+	// Add the dexpreopt artifacts to androidmk
+	for _, install := range p.Dexpreopter.DexpreoptBuiltInstalledForApex() {
+		entriesList = append(entriesList, install.ToMakeEntries())
 	}
 
 	// Iterate over the apexFilesForAndroidMk list and create an AndroidMkEntries struct for each
@@ -756,6 +755,14 @@ func (p *Prebuilt) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
 	p.prebuiltApexContentsDeps(ctx)
 }
 
+func (p *prebuiltCommon) DepsMutator(ctx android.BottomUpMutatorContext) {
+	if p.hasExportedDeps() {
+		// Create a dependency from the prebuilt apex (prebuilt_apex/apex_set) to the internal deapexer module
+		// The deapexer will return a provider that will be bubbled up to the rdeps of apexes (e.g. dex_bootjars)
+		ctx.AddDependency(ctx.Module(), android.DeapexerTag, deapexerModuleName(p.BaseModuleName()))
+	}
+}
+
 var _ ApexInfoMutator = (*Prebuilt)(nil)
 
 func (p *Prebuilt) ApexInfoMutator(mctx android.TopDownMutatorContext) {
@@ -782,6 +789,9 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		p.HideFromMake()
 		return
 	}
+
+	// dexpreopt any system server jars if present
+	p.dexpreoptSystemServerJars(ctx)
 
 	// Save the files that need to be made available to Make.
 	p.initApexFilesForAndroidMk(ctx)
@@ -998,6 +1008,9 @@ func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		a.HideFromMake()
 		return
 	}
+
+	// dexpreopt any system server jars if present
+	a.dexpreoptSystemServerJars(ctx)
 
 	// Save the files that need to be made available to Make.
 	a.initApexFilesForAndroidMk(ctx)

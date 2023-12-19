@@ -272,7 +272,9 @@ func TestPrebuiltSystemserverclasspathFragmentContents(t *testing.T) {
 	ctx := result.TestContext
 
 	java.CheckModuleDependencies(t, ctx, "myapex", "android_common_myapex", []string{
+		`dex2oatd`,
 		`myapex.apex.selector`,
+		`myapex.deapexer`,
 		`prebuilt_mysystemserverclasspathfragment`,
 	})
 

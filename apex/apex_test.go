@@ -3725,7 +3725,7 @@ func ensureExactContents(t *testing.T, ctx *android.TestContext, moduleName, var
 }
 
 func ensureExactDeapexedContents(t *testing.T, ctx *android.TestContext, moduleName string, variant string, files []string) {
-	deapexer := ctx.ModuleForTests(moduleName+".deapexer", variant).Rule("deapexer")
+	deapexer := ctx.ModuleForTests(moduleName+".deapexer", variant).Description("deapex")
 	outputs := make([]string, 0, len(deapexer.ImplicitOutputs)+1)
 	if deapexer.Output != nil {
 		outputs = append(outputs, deapexer.Output.String())
@@ -8432,6 +8432,13 @@ func TestDuplicateDeapexersFromPrebuiltApexes(t *testing.T) {
 		prebuilt_bootclasspath_fragment {
 			name: "my-bootclasspath-fragment",
 			apex_available: ["com.android.myapex"],
+			hidden_api: {
+				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
+				metadata: "my-bootclasspath-fragment/metadata.csv",
+				index: "my-bootclasspath-fragment/index.csv",
+				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
+				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+			},
 			%s
 		}
 	`
@@ -8453,6 +8460,7 @@ func TestDuplicateDeapexersFromPrebuiltApexes(t *testing.T) {
 				public: {
 					jars: ["libbar.jar"],
 				},
+				shared_library: false,
 				apex_available: ["com.android.myapex"],
 			}
 		`)
@@ -8468,6 +8476,7 @@ func TestDuplicateDeapexersFromPrebuiltApexes(t *testing.T) {
 				public: {
 					jars: ["libbar.jar"],
 				},
+				shared_library: false,
 				apex_available: ["com.android.myapex"],
 			}
 		`)
