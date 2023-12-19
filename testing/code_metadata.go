@@ -20,6 +20,7 @@ import (
 	"android/soong/android"
 	"android/soong/testing/code_metadata_internal_proto"
 	"github.com/google/blueprint"
+
 	"google.golang.org/protobuf/proto"
 )
 
@@ -83,7 +84,7 @@ type CodeMetadataProviderData struct {
 	IntermediatePath android.WritablePath
 }
 
-var CodeMetadataProviderKey = blueprint.NewProvider(CodeMetadataProviderData{})
+var CodeMetadataProviderKey = blueprint.NewProvider[CodeMetadataProviderData]()
 
 func (module *CodeMetadataModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	metadataList := make(

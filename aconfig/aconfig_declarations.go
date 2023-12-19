@@ -120,7 +120,7 @@ type DeclarationsProviderData struct {
 	IntermediateDumpOutputPath  android.WritablePath
 }
 
-var DeclarationsProviderKey = blueprint.NewProvider(DeclarationsProviderData{})
+var DeclarationsProviderKey = blueprint.NewProvider[DeclarationsProviderData]()
 
 // This is used to collect the aconfig declarations info on the transitive closure,
 // the data is keyed on the container.
@@ -128,7 +128,7 @@ type TransitiveDeclarationsInfo struct {
 	AconfigFiles map[string]android.Paths
 }
 
-var TransitiveDeclarationsInfoProvider = blueprint.NewProvider(TransitiveDeclarationsInfo{})
+var TransitiveDeclarationsInfoProvider = blueprint.NewProvider[TransitiveDeclarationsInfo]()
 
 func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Get the values that came from the global RELEASE_ACONFIG_VALUE_SETS flag

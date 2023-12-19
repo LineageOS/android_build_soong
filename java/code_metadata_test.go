@@ -114,7 +114,7 @@ func TestCodeMetadata(t *testing.T) {
 	}
 }
 func runCodeMetadataTest(
-		t *testing.T, errorHandler android.FixtureErrorHandler, bp string,
+	t *testing.T, errorHandler android.FixtureErrorHandler, bp string,
 ) *android.TestResult {
 	return android.GroupFixturePreparers(
 		soongTesting.PrepareForTestWithTestingBuildComponents, prepareForJavaTest,

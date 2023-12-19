@@ -26,7 +26,7 @@ const bloatyDescriptorExt = ".bloaty.csv"
 const protoFilename = "binary_sizes.pb.gz"
 
 var (
-	fileSizeMeasurerKey blueprint.ProviderKey
+	fileSizeMeasurerKey blueprint.ProviderKey[measuredFiles]
 	pctx                = android.NewPackageContext("android/soong/bloaty")
 
 	// bloaty is used to measure a binary section sizes.
@@ -52,7 +52,7 @@ func init() {
 	pctx.SourcePathVariable("bloaty", "prebuilts/build-tools/${hostPrebuiltTag}/bin/bloaty")
 	pctx.HostBinToolVariable("bloatyMerger", "bloaty_merger")
 	android.RegisterParallelSingletonType("file_metrics", fileSizesSingleton)
-	fileSizeMeasurerKey = blueprint.NewProvider(measuredFiles{})
+	fileSizeMeasurerKey = blueprint.NewProvider[measuredFiles]()
 }
 
 // measuredFiles contains the paths of the files measured by a module.

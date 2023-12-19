@@ -325,7 +325,7 @@ type BottomUpMutatorContext interface {
 	// if the value is not of the appropriate type, or if the module is not a newly created
 	// variant of the current module.  The value should not be modified after being passed to
 	// SetVariationProvider.
-	SetVariationProvider(module blueprint.Module, provider blueprint.ProviderKey, value interface{})
+	SetVariationProvider(module blueprint.Module, provider blueprint.AnyProviderKey, value interface{})
 }
 
 type bottomUpMutatorContext struct {
@@ -746,6 +746,6 @@ func (b *bottomUpMutatorContext) CreateAliasVariation(fromVariationName, toVaria
 	b.bp.CreateAliasVariation(fromVariationName, toVariationName)
 }
 
-func (b *bottomUpMutatorContext) SetVariationProvider(module blueprint.Module, provider blueprint.ProviderKey, value interface{}) {
+func (b *bottomUpMutatorContext) SetVariationProvider(module blueprint.Module, provider blueprint.AnyProviderKey, value interface{}) {
 	b.bp.SetVariationProvider(module, provider, value)
 }

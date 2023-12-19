@@ -98,7 +98,7 @@ func (i DeapexerInfo) PrebuiltExportPath(apexRelativePath string) WritablePath {
 
 // Provider that can be used from within the `GenerateAndroidBuildActions` of a module that depends
 // on a `deapexer` module to retrieve its `DeapexerInfo`.
-var DeapexerProvider = blueprint.NewProvider(DeapexerInfo{})
+var DeapexerProvider = blueprint.NewProvider[DeapexerInfo]()
 
 // NewDeapexerInfo creates and initializes a DeapexerInfo that is suitable
 // for use with a prebuilt_apex module.
