@@ -22,7 +22,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"android/soong/aconfig"
 	"android/soong/testing"
 
 	"github.com/google/blueprint"
@@ -509,7 +508,7 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 
 	var aconfigTextFilePaths android.Paths
 	ctx.VisitDirectDepsWithTag(aconfigDeclarationTag, func(dep android.Module) {
-		if provider, ok := android.OtherModuleProvider(ctx, dep, aconfig.DeclarationsProviderKey); ok {
+		if provider, ok := android.OtherModuleProvider(ctx, dep, android.AconfigDeclarationsProviderKey); ok {
 			aconfigTextFilePaths = append(aconfigTextFilePaths, provider.IntermediateDumpOutputPath)
 		} else {
 			ctx.ModuleErrorf("Only aconfig_declarations module type is allowed for "+

@@ -62,11 +62,6 @@ var (
 			},
 		}, "cache_files")
 
-	mergeAconfigFilesRule = pctx.AndroidStaticRule("mergeAconfigFilesRule",
-		blueprint.RuleParams{
-			Command:     `${aconfig} dump --dedup --format protobuf --out $out $flags`,
-			CommandDeps: []string{"${aconfig}"},
-		}, "flags")
 	// For exported_java_aconfig_library: Generate a JAR from all
 	// java_aconfig_libraries to be consumed by apps built outside the
 	// platform
