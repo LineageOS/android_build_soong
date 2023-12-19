@@ -51,18 +51,6 @@ const (
 	ProductVariationPrefix = "product."
 )
 
-func (ctx *moduleContext) ProductSpecific() bool {
-	return ctx.ModuleContext.ProductSpecific() || ctx.mod.productSpecificModuleContext()
-}
-
-func (ctx *moduleContext) SocSpecific() bool {
-	return ctx.ModuleContext.SocSpecific() || ctx.mod.socSpecificModuleContext()
-}
-
-func (ctx *moduleContext) DeviceSpecific() bool {
-	return ctx.ModuleContext.DeviceSpecific() || ctx.mod.deviceSpecificModuleContext()
-}
-
 func (ctx *moduleContextImpl) inProduct() bool {
 	return ctx.mod.InProduct()
 }
@@ -83,20 +71,20 @@ func (ctx *moduleContextImpl) inRecovery() bool {
 	return ctx.mod.InRecovery()
 }
 
-func (c *Module) productSpecificModuleContext() bool {
+func (c *Module) InstallInProduct() bool {
 	// Additionally check if this module is inProduct() that means it is a "product" variant of a
 	// module. As well as product specific modules, product variants must be installed to /product.
 	return c.InProduct()
 }
 
-func (c *Module) socSpecificModuleContext() bool {
+func (c *Module) InstallInVendor() bool {
 	// Additionally check if this module is inVendor() that means it is a "vendor" variant of a
 	// module. As well as SoC specific modules, vendor variants must be installed to /vendor
 	// unless they have "odm_available: true".
 	return c.HasVendorVariant() && c.InVendor() && !c.VendorVariantToOdm()
 }
 
-func (c *Module) deviceSpecificModuleContext() bool {
+func (c *Module) InstallInOdm() bool {
 	// Some vendor variants want to be installed to /odm by setting "odm_available: true".
 	return c.InVendor() && c.VendorVariantToOdm()
 }
