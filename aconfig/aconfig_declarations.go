@@ -229,10 +229,16 @@ func mergeAconfigFiles(ctx android.ModuleContext, inputs android.Paths) android.
 }
 
 func SetAconfigFileMkEntries(m *android.ModuleBase, entries *android.AndroidMkEntries, aconfigFiles map[string]android.Paths) {
-	if m.InstallInVendor() {
-		entries.SetPaths("LOCAL_ACONFIG_FILES", aconfigFiles["vendor"])
-	} else {
-		// TODO(b/311155208): The container here should be system.
-		entries.SetPaths("LOCAL_ACONFIG_FILES", aconfigFiles[""])
+	// TODO(b/311155208): The default container here should be system.
+	container := ""
+
+	if m.SocSpecific() {
+		container = "vendor"
+	} else if m.ProductSpecific() {
+		container = "product"
+	} else if m.SystemExtSpecific() {
+		container = "system_ext"
 	}
+
+	entries.SetPaths("LOCAL_ACONFIG_FILES", aconfigFiles[container])
 }
