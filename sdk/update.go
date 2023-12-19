@@ -166,10 +166,7 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 			// Keep track of which multilib variants are used by the sdk.
 			s.multilibUsages = s.multilibUsages.addArchType(child.Target().Arch.ArchType)
 
-			var exportedComponentsInfo android.ExportedComponentsInfo
-			if ctx.OtherModuleHasProvider(child, android.ExportedComponentsInfoProvider) {
-				exportedComponentsInfo = ctx.OtherModuleProvider(child, android.ExportedComponentsInfoProvider).(android.ExportedComponentsInfo)
-			}
+			exportedComponentsInfo, _ := android.OtherModuleProvider(ctx, child, android.ExportedComponentsInfoProvider)
 
 			var container android.Module
 			if parent != ctx.Module() {
@@ -607,7 +604,7 @@ func (s *sdk) generateInfoData(ctx android.ModuleContext, memberVariantDeps []sd
 				name:       name,
 			}
 
-			additionalSdkInfo := ctx.OtherModuleProvider(module, android.AdditionalSdkInfoProvider).(android.AdditionalSdkInfo)
+			additionalSdkInfo, _ := android.OtherModuleProvider(ctx, module, android.AdditionalSdkInfoProvider)
 			info.memberSpecific = additionalSdkInfo.Properties
 
 			name2Info[name] = info
@@ -1171,7 +1168,7 @@ func (s *snapshotBuilder) AddPrebuiltModule(member android.SdkMember, moduleType
 
 	// The licenses are the same for all variants.
 	mctx := s.ctx
-	licenseInfo := mctx.OtherModuleProvider(variant, android.LicenseInfoProvider).(android.LicenseInfo)
+	licenseInfo, _ := android.OtherModuleProvider(mctx, variant, android.LicenseInfoProvider)
 	if len(licenseInfo.Licenses) > 0 {
 		m.AddPropertyWithTag("licenses", licenseInfo.Licenses, s.OptionalSdkMemberReferencePropertyTag())
 	}
@@ -1417,7 +1414,7 @@ func selectApexVariantsWhereAvailable(ctx *memberContext, variants []android.Mod
 		variantsByApex := make(map[string]android.Module)
 		conflictDetected := false
 		for _, variant := range list {
-			apexInfo := moduleCtx.OtherModuleProvider(variant, android.ApexInfoProvider).(android.ApexInfo)
+			apexInfo, _ := android.OtherModuleProvider(moduleCtx, variant, android.ApexInfoProvider)
 			apexVariationName := apexInfo.ApexVariationName
 			// If there are two variants for a specific APEX variation then there is conflict.
 			if _, ok := variantsByApex[apexVariationName]; ok {

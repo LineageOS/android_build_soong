@@ -64,5 +64,5 @@ func (module *ValuesModule) GenerateAndroidBuildActions(ctx android.ModuleContex
 		Package: module.properties.Package,
 		Values:  android.PathsForModuleSrc(ctx, module.properties.Srcs),
 	}
-	ctx.SetProvider(valuesProviderKey, providerData)
+	android.SetProvider(ctx, valuesProviderKey, providerData)
 }

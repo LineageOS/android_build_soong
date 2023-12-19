@@ -178,7 +178,7 @@ func (c *ClasspathFragmentBase) generateClasspathProtoBuildActions(ctx android.M
 		ClasspathFragmentProtoInstallDir: c.installDirPath,
 		ClasspathFragmentProtoOutput:     c.outputFilepath,
 	}
-	ctx.SetProvider(ClasspathFragmentProtoContentInfoProvider, classpathProtoInfo)
+	android.SetProvider(ctx, ClasspathFragmentProtoContentInfoProvider, classpathProtoInfo)
 }
 
 func writeClasspathsTextproto(ctx android.ModuleContext, output android.WritablePath, jars []classpathJar) {

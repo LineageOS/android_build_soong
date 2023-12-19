@@ -2544,8 +2544,8 @@ func TestStaticLibDepReordering(t *testing.T) {
 
 	variant := "android_arm64_armv8-a_static"
 	moduleA := ctx.ModuleForTests("a", variant).Module().(*Module)
-	actual := android.Paths(ctx.ModuleProvider(moduleA, StaticLibraryInfoProvider).(StaticLibraryInfo).
-		TransitiveStaticLibrariesForOrdering.ToList()).RelativeToTop()
+	staticLibInfo, _ := android.SingletonModuleProvider(ctx, moduleA, StaticLibraryInfoProvider)
+	actual := android.Paths(staticLibInfo.TransitiveStaticLibrariesForOrdering.ToList()).RelativeToTop()
 	expected := GetOutputPaths(ctx, variant, []string{"a", "c", "b", "d"})
 
 	if !reflect.DeepEqual(actual, expected) {
@@ -2580,8 +2580,8 @@ func TestStaticLibDepReorderingWithShared(t *testing.T) {
 
 	variant := "android_arm64_armv8-a_static"
 	moduleA := ctx.ModuleForTests("a", variant).Module().(*Module)
-	actual := android.Paths(ctx.ModuleProvider(moduleA, StaticLibraryInfoProvider).(StaticLibraryInfo).
-		TransitiveStaticLibrariesForOrdering.ToList()).RelativeToTop()
+	staticLibInfo, _ := android.SingletonModuleProvider(ctx, moduleA, StaticLibraryInfoProvider)
+	actual := android.Paths(staticLibInfo.TransitiveStaticLibrariesForOrdering.ToList()).RelativeToTop()
 	expected := GetOutputPaths(ctx, variant, []string{"a", "c", "b"})
 
 	if !reflect.DeepEqual(actual, expected) {
@@ -2681,7 +2681,7 @@ func TestLlndkLibrary(t *testing.T) {
 	checkExportedIncludeDirs := func(module, variant string, expectedDirs ...string) {
 		t.Helper()
 		m := result.ModuleForTests(module, variant).Module()
-		f := result.ModuleProvider(m, FlagExporterInfoProvider).(FlagExporterInfo)
+		f, _ := android.SingletonModuleProvider(result, m, FlagExporterInfoProvider)
 		android.AssertPathsRelativeToTopEquals(t, "exported include dirs for "+module+"["+variant+"]",
 			expectedDirs, f.IncludeDirs)
 	}
@@ -4113,7 +4113,7 @@ func TestIncludeDirsExporting(t *testing.T) {
 
 	checkIncludeDirs := func(t *testing.T, ctx *android.TestContext, module android.Module, checkers ...exportedChecker) {
 		t.Helper()
-		exported := ctx.ModuleProvider(module, FlagExporterInfoProvider).(FlagExporterInfo)
+		exported, _ := android.SingletonModuleProvider(ctx, module, FlagExporterInfoProvider)
 		name := module.Name()
 
 		for _, checker := range checkers {

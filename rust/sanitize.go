@@ -270,7 +270,7 @@ func rustSanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			}
 			// If we're using snapshots, redirect to snapshot whenever possible
 			// TODO(b/178470649): clean manual snapshot redirections
-			snapshot := mctx.Provider(cc.SnapshotInfoProvider).(cc.SnapshotInfo)
+			snapshot, _ := android.ModuleProvider(mctx, cc.SnapshotInfoProvider)
 			if lib, ok := snapshot.StaticLibs[noteDep]; ok {
 				noteDep = lib
 			}

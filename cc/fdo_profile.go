@@ -62,7 +62,7 @@ func (fp *fdoProfile) GenerateAndroidBuildActions(ctx android.ModuleContext) {}
 func (fp *fdoProfile) fdoProfileMutator(ctx android.BottomUpMutatorContext) {
 	if fp.properties.Profile != nil {
 		path := android.PathForModuleSrc(ctx, *fp.properties.Profile)
-		ctx.SetProvider(FdoProfileProvider, FdoProfileInfo{
+		android.SetProvider(ctx, FdoProfileProvider, FdoProfileInfo{
 			Path: path,
 		})
 	}

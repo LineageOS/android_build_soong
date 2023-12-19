@@ -121,7 +121,7 @@ func (j *JavaFuzzTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	_, sharedDeps := cc.CollectAllSharedDependencies(ctx)
 	for _, dep := range sharedDeps {
-		sharedLibInfo := ctx.OtherModuleProvider(dep, cc.SharedLibraryInfoProvider).(cc.SharedLibraryInfo)
+		sharedLibInfo, _ := android.OtherModuleProvider(ctx, dep, cc.SharedLibraryInfoProvider)
 		if sharedLibInfo.SharedLibrary != nil {
 			arch := "lib"
 			if sharedLibInfo.Target.Arch.ArchType.Multilib == "lib64" {

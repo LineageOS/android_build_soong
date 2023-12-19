@@ -178,7 +178,7 @@ func (proto *protobufDecorator) GenerateSource(ctx ModuleContext, deps PathDeps)
 	// stemFile must be first here as the first path in BaseSourceProvider.OutputFiles is the library entry-point.
 	proto.BaseSourceProvider.OutputFiles = append(android.Paths{stemFile}, outputs.Paths()...)
 
-	ctx.SetProvider(cc.FlagExporterInfoProvider, cc.FlagExporterInfo{
+	android.SetProvider(ctx, cc.FlagExporterInfoProvider, cc.FlagExporterInfo{
 		IncludeDirs: android.PathsForModuleSrc(ctx, proto.Properties.Exported_include_dirs),
 	})
 
