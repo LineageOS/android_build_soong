@@ -385,6 +385,10 @@ func (i BootclasspathFragmentApexContentInfo) DexBootJarPathForContentModule(mod
 	}
 }
 
+func (i BootclasspathFragmentApexContentInfo) DexBootJarPathMap() bootDexJarByModule {
+	return i.contentModuleDexJarPaths
+}
+
 func (i BootclasspathFragmentApexContentInfo) ProfilePathOnHost() android.Path {
 	return i.profilePathOnHost
 }
@@ -1034,10 +1038,6 @@ func (module *PrebuiltBootclasspathFragmentModule) produceHiddenAPIOutput(ctx an
 		return android.PathForModuleSrc(ctx, *src)
 	}
 
-	// Retrieve the dex files directly from the content modules. They in turn should retrieve the
-	// encoded dex jars from the prebuilt .apex files.
-	encodedBootDexJarsByModule := extractEncodedDexJarsFromModules(ctx, contents)
-
 	output := HiddenAPIOutput{
 		HiddenAPIFlagOutput: HiddenAPIFlagOutput{
 			AnnotationFlagsPath:   pathForSrc("hidden_api.annotation_flags", module.prebuiltProperties.Hidden_api.Annotation_flags),
@@ -1048,8 +1048,6 @@ func (module *PrebuiltBootclasspathFragmentModule) produceHiddenAPIOutput(ctx an
 			StubFlagsPath: pathForOptionalSrc(module.prebuiltProperties.Hidden_api.Stub_flags, nil),
 			AllFlagsPath:  pathForOptionalSrc(module.prebuiltProperties.Hidden_api.All_flags, nil),
 		},
-
-		EncodedBootDexFilesByModule: encodedBootDexJarsByModule,
 	}
 
 	// TODO: Temporarily fallback to stub_flags/all_flags properties until prebuilts have been updated.

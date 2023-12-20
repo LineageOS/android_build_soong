@@ -79,6 +79,10 @@ type DeapexerInfo struct {
 	//
 	// See Prebuilt.ApexInfoMutator for more information.
 	exports map[string]WritablePath
+
+	// name of the java libraries exported from the apex
+	// e.g. core-libart
+	exportedModuleNames []string
 }
 
 // ApexModuleName returns the name of the APEX module that provided the info.
@@ -97,6 +101,10 @@ func (i DeapexerInfo) PrebuiltExportPath(apexRelativePath string) WritablePath {
 	return path
 }
 
+func (i DeapexerInfo) GetExportedModuleNames() []string {
+	return i.exportedModuleNames
+}
+
 // Provider that can be used from within the `GenerateAndroidBuildActions` of a module that depends
 // on a `deapexer` module to retrieve its `DeapexerInfo`.
 var DeapexerProvider = blueprint.NewProvider[DeapexerInfo]()
@@ -105,10 +113,11 @@ var DeapexerProvider = blueprint.NewProvider[DeapexerInfo]()
 // for use with a prebuilt_apex module.
 //
 // See apex/deapexer.go for more information.
-func NewDeapexerInfo(apexModuleName string, exports map[string]WritablePath) DeapexerInfo {
+func NewDeapexerInfo(apexModuleName string, exports map[string]WritablePath, moduleNames []string) DeapexerInfo {
 	return DeapexerInfo{
-		apexModuleName: apexModuleName,
-		exports:        exports,
+		apexModuleName:      apexModuleName,
+		exports:             exports,
+		exportedModuleNames: moduleNames,
 	}
 }
 
