@@ -203,16 +203,6 @@ func (ctx *TestContext) HardCodedPreArchMutators(f RegisterMutatorFunc) {
 	ctx.PreArchMutators(f)
 }
 
-func (ctx *TestContext) ModuleProvider(m blueprint.Module, p blueprint.AnyProviderKey) any {
-	value, _ := ctx.Context.ModuleProvider(m, p)
-	return value
-}
-
-func (ctx *TestContext) ModuleHasProvider(m blueprint.Module, p blueprint.AnyProviderKey) bool {
-	_, ok := ctx.Context.ModuleProvider(m, p)
-	return ok
-}
-
 func (ctx *TestContext) moduleProvider(m blueprint.Module, p blueprint.AnyProviderKey) (any, bool) {
 	return ctx.Context.ModuleProvider(m, p)
 }
