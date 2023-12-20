@@ -474,7 +474,7 @@ func TestRuleBuilder(t *testing.T) {
 		wantCommands := []string{
 			"__SBOX_SANDBOX_DIR__/out/DepFile Flag FlagWithArg=arg FlagWithDepFile=__SBOX_SANDBOX_DIR__/out/depfile " +
 				"FlagWithInput=input FlagWithOutput=__SBOX_SANDBOX_DIR__/out/output " +
-				"FlagWithRspFileInputList=__SBOX_SANDBOX_DIR__/out/rsp Input __SBOX_SANDBOX_DIR__/out/Output " +
+				"FlagWithRspFileInputList=__SBOX_SANDBOX_DIR__/out/soong/rsp Input __SBOX_SANDBOX_DIR__/out/Output " +
 				"__SBOX_SANDBOX_DIR__/out/SymlinkOutput Text __SBOX_SANDBOX_DIR__/tools/src/Tool after command2 old cmd",
 			"command2 __SBOX_SANDBOX_DIR__/out/depfile2 input2 __SBOX_SANDBOX_DIR__/out/output2 __SBOX_SANDBOX_DIR__/tools/src/tool2",
 			"command3 input3 __SBOX_SANDBOX_DIR__/out/output2 __SBOX_SANDBOX_DIR__/out/output3 input3 __SBOX_SANDBOX_DIR__/out/output2",
