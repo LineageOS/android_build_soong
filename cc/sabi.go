@@ -194,8 +194,8 @@ func shouldCreateSourceAbiDumpForLibrary(ctx android.BaseModuleContext) bool {
 		return false
 	}
 
-	isPlatformVariant := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform()
-	if isPlatformVariant {
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
+	if apexInfo.IsForPlatform() {
 		// Bionic libraries that are installed to the bootstrap directory are not ABI checked.
 		// Only the runtime APEX variants, which are the implementation libraries of bionic NDK stubs,
 		// are checked.

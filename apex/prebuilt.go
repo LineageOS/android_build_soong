@@ -428,7 +428,7 @@ func (p *prebuiltCommon) apexInfoMutator(mctx android.TopDownMutatorContext) {
 
 	// Create contents for the prebuilt_apex and store it away for later use.
 	apexContents := android.NewApexContents(contents)
-	mctx.SetProvider(ApexBundleInfoProvider, ApexBundleInfo{
+	android.SetProvider(mctx, ApexBundleInfoProvider, ApexBundleInfo{
 		Contents: apexContents,
 	})
 

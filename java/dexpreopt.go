@@ -166,12 +166,12 @@ func init() {
 }
 
 func isApexVariant(ctx android.BaseModuleContext) bool {
-	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	return !apexInfo.IsForPlatform()
 }
 
 func forPrebuiltApex(ctx android.BaseModuleContext) bool {
-	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	return apexInfo.ForPrebuiltApex
 }
 

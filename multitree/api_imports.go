@@ -81,7 +81,7 @@ func (imports *ApiImports) DepsMutator(ctx android.BottomUpMutatorContext) {
 	headerLibs := generateNameMapWithSuffix(imports.properties.Header_libs)
 	apexSharedLibs := generateNameMapWithSuffix(imports.properties.Apex_shared_libs)
 
-	ctx.SetProvider(ApiImportsProvider, ApiImportInfo{
+	android.SetProvider(ctx, ApiImportsProvider, ApiImportInfo{
 		SharedLibs:     sharedLibs,
 		HeaderLibs:     headerLibs,
 		ApexSharedLibs: apexSharedLibs,

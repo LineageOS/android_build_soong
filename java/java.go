@@ -647,7 +647,7 @@ func (j *Library) PermittedPackagesForUpdatableBootJars() []string {
 
 func shouldUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter) bool {
 	// Store uncompressed (and aligned) any dex files from jars in APEXes.
-	if apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo); !apexInfo.IsForPlatform() {
+	if apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider); !apexInfo.IsForPlatform() {
 		return true
 	}
 
@@ -687,7 +687,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.stem = proptools.StringDefault(j.overridableDeviceProperties.Stem, ctx.ModuleName())
 
 	proguardSpecInfo := j.collectProguardSpecInfo(ctx)
-	ctx.SetProvider(ProguardSpecInfoProvider, proguardSpecInfo)
+	android.SetProvider(ctx, ProguardSpecInfoProvider, proguardSpecInfo)
 	exportedProguardFlagsFiles := proguardSpecInfo.ProguardFlagsFiles.ToList()
 	j.extraProguardFlagsFiles = append(j.extraProguardFlagsFiles, exportedProguardFlagsFiles...)
 
@@ -695,7 +695,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	writeCombinedProguardFlagsFile(ctx, combinedExportedProguardFlagFile, exportedProguardFlagsFiles)
 	j.combinedExportedProguardFlagsFile = combinedExportedProguardFlagFile
 
-	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	if !apexInfo.IsForPlatform() {
 		j.hideApexVariantFromMake = true
 	}
@@ -1216,12 +1216,12 @@ func (j *TestHost) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	j.Test.generateAndroidBuildActionsWithConfig(ctx, configs)
-	ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
+	android.SetProvider(ctx, testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 }
 
 func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.generateAndroidBuildActionsWithConfig(ctx, nil)
-	ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
+	android.SetProvider(ctx, testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 }
 
 func (j *Test) generateAndroidBuildActionsWithConfig(ctx android.ModuleContext, configs []tradefed.Config) {
@@ -1257,7 +1257,7 @@ func (j *Test) generateAndroidBuildActionsWithConfig(ctx android.ModuleContext, 
 	})
 
 	ctx.VisitDirectDepsWithTag(jniLibTag, func(dep android.Module) {
-		sharedLibInfo := ctx.OtherModuleProvider(dep, cc.SharedLibraryInfoProvider).(cc.SharedLibraryInfo)
+		sharedLibInfo, _ := android.OtherModuleProvider(ctx, dep, cc.SharedLibraryInfoProvider)
 		if sharedLibInfo.SharedLibrary != nil {
 			// Copy to an intermediate output directory to append "lib[64]" to the path,
 			// so that it's compatible with the default rpath values.
@@ -1632,7 +1632,7 @@ func (ap *JavaApiContribution) GenerateAndroidBuildActions(ctx android.ModuleCon
 		apiFile = android.PathForModuleSrc(ctx, String(apiFileString))
 	}
 
-	ctx.SetProvider(JavaApiImportProvider, JavaApiImportInfo{
+	android.SetProvider(ctx, JavaApiImportProvider, JavaApiImportInfo{
 		ApiFile:    apiFile,
 		ApiSurface: proptools.String(ap.properties.Api_surface),
 	})
@@ -1902,19 +1902,19 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		tag := ctx.OtherModuleDependencyTag(dep)
 		switch tag {
 		case javaApiContributionTag:
-			provider := ctx.OtherModuleProvider(dep, JavaApiImportProvider).(JavaApiImportInfo)
+			provider, _ := android.OtherModuleProvider(ctx, dep, JavaApiImportProvider)
 			if provider.ApiFile == nil && !ctx.Config().AllowMissingDependencies() {
 				ctx.ModuleErrorf("Error: %s has an empty api file.", dep.Name())
 			}
 			srcFilesInfo = append(srcFilesInfo, provider)
 		case libTag:
-			provider := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
+			provider, _ := android.OtherModuleProvider(ctx, dep, JavaInfoProvider)
 			classPaths = append(classPaths, provider.HeaderJars...)
 		case staticLibTag:
-			provider := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
+			provider, _ := android.OtherModuleProvider(ctx, dep, JavaInfoProvider)
 			staticLibs = append(staticLibs, provider.HeaderJars...)
 		case depApiSrcsTag:
-			provider := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
+			provider, _ := android.OtherModuleProvider(ctx, dep, JavaInfoProvider)
 			depApiSrcsStubsJar = provider.HeaderJars[0]
 		case systemModulesTag:
 			module := dep.(SystemModulesProvider)
@@ -2002,7 +2002,7 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	ctx.Phony(ctx.ModuleName(), al.stubsJar)
 
-	ctx.SetProvider(JavaInfoProvider, JavaInfo{
+	android.SetProvider(ctx, JavaInfoProvider, JavaInfo{
 		HeaderJars:                     android.PathsIfNonNil(al.stubsJar),
 		ImplementationAndResourcesJars: android.PathsIfNonNil(al.stubsJar),
 		ImplementationJars:             android.PathsIfNonNil(al.stubsJar),
@@ -2188,7 +2188,8 @@ func (j *Import) commonBuildActions(ctx android.ModuleContext) {
 	j.sdkVersion = j.SdkVersion(ctx)
 	j.minSdkVersion = j.MinSdkVersion(ctx)
 
-	if !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform() {
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
+	if !apexInfo.IsForPlatform() {
 		j.hideApexVariantFromMake = true
 	}
 
@@ -2219,8 +2220,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.collectTransitiveHeaderJars(ctx)
 	ctx.VisitDirectDeps(func(module android.Module) {
 		tag := ctx.OtherModuleDependencyTag(module)
-		if ctx.OtherModuleHasProvider(module, JavaInfoProvider) {
-			dep := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
+		if dep, ok := android.OtherModuleProvider(ctx, module, JavaInfoProvider); ok {
 			switch tag {
 			case libTag, sdkLibTag:
 				flags.classpath = append(flags.classpath, dep.HeaderJars...)
@@ -2247,7 +2247,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if ctx.Device() {
 		// If this is a variant created for a prebuilt_apex then use the dex implementation jar
 		// obtained from the associated deapexer module.
-		ai := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+		ai, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 		if ai.ForPrebuiltApex {
 			// Get the path of the dex implementation jar from the `deapexer` module.
 			di := android.FindDeapexerProviderForModule(ctx)
@@ -2320,7 +2320,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 	}
 
-	ctx.SetProvider(JavaInfoProvider, JavaInfo{
+	android.SetProvider(ctx, JavaInfoProvider, JavaInfo{
 		HeaderJars:                     android.PathsIfNonNil(j.combinedClasspathFile),
 		TransitiveLibsHeaderJars:       j.transitiveLibsHeaderJars,
 		TransitiveStaticLibsHeaderJars: j.transitiveStaticLibsHeaderJars,
@@ -2570,7 +2570,7 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ctx.PropertyErrorf("jars", "exactly one jar must be provided")
 	}
 
-	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	if !apexInfo.IsForPlatform() {
 		j.hideApexVariantFromMake = true
 	}

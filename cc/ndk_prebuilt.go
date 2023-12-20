@@ -117,13 +117,13 @@ func (ndk *ndkPrebuiltStlLinker) link(ctx ModuleContext, flags Flags,
 
 	if ndk.static() {
 		depSet := android.NewDepSetBuilder[android.Path](android.TOPOLOGICAL).Direct(lib).Build()
-		ctx.SetProvider(StaticLibraryInfoProvider, StaticLibraryInfo{
+		android.SetProvider(ctx, StaticLibraryInfoProvider, StaticLibraryInfo{
 			StaticLibrary: lib,
 
 			TransitiveStaticLibrariesForOrdering: depSet,
 		})
 	} else {
-		ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
+		android.SetProvider(ctx, SharedLibraryInfoProvider, SharedLibraryInfo{
 			SharedLibrary: lib,
 			Target:        ctx.Target(),
 		})

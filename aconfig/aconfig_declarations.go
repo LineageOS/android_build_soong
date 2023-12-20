@@ -134,16 +134,13 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 	// Get the values that came from the global RELEASE_ACONFIG_VALUE_SETS flag
 	valuesFiles := make([]android.Path, 0)
 	ctx.VisitDirectDeps(func(dep android.Module) {
-		if !ctx.OtherModuleHasProvider(dep, valueSetProviderKey) {
-			// Other modules get injected as dependencies too, for example the license modules
-			return
-		}
-		depData := ctx.OtherModuleProvider(dep, valueSetProviderKey).(valueSetProviderData)
-		paths, ok := depData.AvailablePackages[module.properties.Package]
-		if ok {
-			valuesFiles = append(valuesFiles, paths...)
-			for _, path := range paths {
-				module.properties.Values = append(module.properties.Values, path.String())
+		if depData, ok := android.OtherModuleProvider(ctx, dep, valueSetProviderKey); ok {
+			paths, ok := depData.AvailablePackages[module.properties.Package]
+			if ok {
+				valuesFiles = append(valuesFiles, paths...)
+				for _, path := range paths {
+					module.properties.Values = append(module.properties.Values, path.String())
+				}
 			}
 		}
 	})
@@ -177,7 +174,7 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 		Description: "aconfig_text",
 	})
 
-	ctx.SetProvider(DeclarationsProviderKey, DeclarationsProviderData{
+	android.SetProvider(ctx, DeclarationsProviderKey, DeclarationsProviderData{
 		Package:                     module.properties.Package,
 		Container:                   module.properties.Container,
 		IntermediateCacheOutputPath: intermediateCacheFilePath,
@@ -190,11 +187,11 @@ func CollectDependencyAconfigFiles(ctx android.ModuleContext, mergedAconfigFiles
 		*mergedAconfigFiles = make(map[string]android.Paths)
 	}
 	ctx.VisitDirectDeps(func(module android.Module) {
-		if dep := ctx.OtherModuleProvider(module, DeclarationsProviderKey).(DeclarationsProviderData); dep.IntermediateCacheOutputPath != nil {
+		if dep, _ := android.OtherModuleProvider(ctx, module, DeclarationsProviderKey); dep.IntermediateCacheOutputPath != nil {
 			(*mergedAconfigFiles)[dep.Container] = append((*mergedAconfigFiles)[dep.Container], dep.IntermediateCacheOutputPath)
 			return
 		}
-		if dep := ctx.OtherModuleProvider(module, TransitiveDeclarationsInfoProvider).(TransitiveDeclarationsInfo); len(dep.AconfigFiles) > 0 {
+		if dep, _ := android.OtherModuleProvider(ctx, module, TransitiveDeclarationsInfoProvider); len(dep.AconfigFiles) > 0 {
 			for container, v := range dep.AconfigFiles {
 				(*mergedAconfigFiles)[container] = append((*mergedAconfigFiles)[container], v...)
 			}
@@ -205,7 +202,7 @@ func CollectDependencyAconfigFiles(ctx android.ModuleContext, mergedAconfigFiles
 		(*mergedAconfigFiles)[container] = mergeAconfigFiles(ctx, aconfigFiles)
 	}
 
-	ctx.SetProvider(TransitiveDeclarationsInfoProvider, TransitiveDeclarationsInfo{
+	android.SetProvider(ctx, TransitiveDeclarationsInfoProvider, TransitiveDeclarationsInfo{
 		AconfigFiles: *mergedAconfigFiles,
 	})
 }
@@ -232,10 +229,16 @@ func mergeAconfigFiles(ctx android.ModuleContext, inputs android.Paths) android.
 }
 
 func SetAconfigFileMkEntries(m *android.ModuleBase, entries *android.AndroidMkEntries, aconfigFiles map[string]android.Paths) {
-	if m.InstallInVendor() {
-		entries.SetPaths("LOCAL_ACONFIG_FILES", aconfigFiles["vendor"])
-	} else {
-		// TODO(b/311155208): The container here should be system.
-		entries.SetPaths("LOCAL_ACONFIG_FILES", aconfigFiles[""])
+	// TODO(b/311155208): The default container here should be system.
+	container := ""
+
+	if m.SocSpecific() {
+		container = "vendor"
+	} else if m.ProductSpecific() {
+		container = "product"
+	} else if m.SystemExtSpecific() {
+		container = "system_ext"
 	}
+
+	entries.SetPaths("LOCAL_ACONFIG_FILES", aconfigFiles[container])
 }

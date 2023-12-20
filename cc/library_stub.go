@@ -244,7 +244,7 @@ func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps
 		},
 	})
 
-	ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
+	android.SetProvider(ctx, SharedLibraryInfoProvider, SharedLibraryInfo{
 		SharedLibrary: outputFile,
 		Target:        ctx.Target(),
 
@@ -262,15 +262,15 @@ func (d *apiLibraryDecorator) shareStubs(ctx ModuleContext) {
 	if len(stubs) > 0 {
 		var stubsInfo []SharedStubLibrary
 		for _, stub := range stubs {
-			stubInfo := ctx.OtherModuleProvider(stub, SharedLibraryInfoProvider).(SharedLibraryInfo)
-			flagInfo := ctx.OtherModuleProvider(stub, FlagExporterInfoProvider).(FlagExporterInfo)
+			stubInfo, _ := android.OtherModuleProvider(ctx, stub, SharedLibraryInfoProvider)
+			flagInfo, _ := android.OtherModuleProvider(ctx, stub, FlagExporterInfoProvider)
 			stubsInfo = append(stubsInfo, SharedStubLibrary{
 				Version:           moduleLibraryInterface(stub).stubsVersion(),
 				SharedLibraryInfo: stubInfo,
 				FlagExporterInfo:  flagInfo,
 			})
 		}
-		ctx.SetProvider(SharedLibraryStubsProvider, SharedLibraryStubsInfo{
+		android.SetProvider(ctx, SharedLibraryStubsProvider, SharedLibraryStubsInfo{
 			SharedStubLibraries: stubsInfo,
 
 			IsLLNDK: ctx.IsLlndk(),
