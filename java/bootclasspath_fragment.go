@@ -534,7 +534,7 @@ func (b *BootclasspathFragmentModule) provideApexContentInfo(ctx android.ModuleC
 
 	if profile != nil {
 		info.profilePathOnHost = profile
-		info.profileInstallPathInApex = profileInstallPathInApex
+		info.profileInstallPathInApex = ProfileInstallPathInApex
 	}
 
 	// Make the apex content info available for other modules.
@@ -1074,7 +1074,7 @@ func (module *PrebuiltBootclasspathFragmentModule) produceBootImageProfile(ctx a
 		return nil // An error has been reported by FindDeapexerProviderForModule.
 	}
 
-	return di.PrebuiltExportPath(profileInstallPathInApex)
+	return di.PrebuiltExportPath(ProfileInstallPathInApex)
 }
 
 func (b *PrebuiltBootclasspathFragmentModule) getProfilePath() android.Path {
@@ -1094,7 +1094,7 @@ var _ commonBootclasspathFragment = (*PrebuiltBootclasspathFragmentModule)(nil)
 func (module *PrebuiltBootclasspathFragmentModule) RequiredFilesFromPrebuiltApex(ctx android.BaseModuleContext) []string {
 	for _, apex := range module.ApexProperties.Apex_available {
 		if isProfileProviderApex(ctx, apex) {
-			return []string{profileInstallPathInApex}
+			return []string{ProfileInstallPathInApex}
 		}
 	}
 	return nil

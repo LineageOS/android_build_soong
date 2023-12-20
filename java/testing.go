@@ -383,6 +383,7 @@ func registerRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	RegisterSystemModulesBuildComponents(ctx)
 	registerSystemserverClasspathBuildComponents(ctx)
 	registerLintBuildComponents(ctx)
+	android.RegisterApexContributionsBuildComponents(ctx)
 }
 
 // gatherRequiredDepsForTest gathers the module definitions used by
@@ -570,6 +571,11 @@ func gatherRequiredDepsForTest() string {
 		}
 `
 
+	bp += `
+		all_apex_contributions {
+			name: "all_apex_contributions",
+		}
+`
 	return bp
 }
 

@@ -950,6 +950,7 @@ func TestJavaSdkLibraryImport_WithSource(t *testing.T) {
 	})
 
 	CheckModuleDependencies(t, result.TestContext, "prebuilt_sdklib", "android_common", []string{
+		`all_apex_contributions`,
 		`prebuilt_sdklib.stubs`,
 		`sdklib.impl`,
 		// This should be prebuilt_sdklib.stubs but is set to sdklib.stubs because the
@@ -1022,6 +1023,7 @@ func testJavaSdkLibraryImport_Preferred(t *testing.T, prefer string, preparer an
 	})
 
 	CheckModuleDependencies(t, result.TestContext, "prebuilt_sdklib", "android_common", []string{
+		`all_apex_contributions`,
 		`dex2oatd`,
 		`prebuilt_sdklib.stubs`,
 		`prebuilt_sdklib.stubs.source`,
@@ -1084,9 +1086,6 @@ func TestSdkLibraryImport_MetadataModuleSupersedesPreferred(t *testing.T) {
 				// mainline_module_contributions supersedes this since prebuilt is listed explicitly
 				"prebuilt_sdklib.source_preferred_using_legacy_flags",
 			],
-		}
-		all_apex_contributions {
-			name: "all_apex_contributions",
 		}
 		java_sdk_library {
 			name: "sdklib.prebuilt_preferred_using_legacy_flags",
@@ -1169,9 +1168,6 @@ func TestSdkLibraryImport_MetadataModuleSupersedesPreferred(t *testing.T) {
 		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("sdklib.source_preferred_using_legacy_flags", "sdklib.prebuilt_preferred_using_legacy_flags"),
-		android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
-			android.RegisterApexContributionsBuildComponents(ctx)
-		}),
 		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 			variables.BuildFlags = map[string]string{
 				"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES": "my_mainline_module_contributions",
