@@ -2695,7 +2695,7 @@ func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 				module.dexJarFileErr = err
 				return
 			}
-			dexJarFileApexRootRelative := apexRootRelativePathToJavaLib(module.BaseModuleName())
+			dexJarFileApexRootRelative := ApexRootRelativePathToJavaLib(module.BaseModuleName())
 			if dexOutputPath := di.PrebuiltExportPath(dexJarFileApexRootRelative); dexOutputPath != nil {
 				dexJarFile := makeDexJarPathFromPath(dexOutputPath)
 				module.dexJarFile = dexJarFile

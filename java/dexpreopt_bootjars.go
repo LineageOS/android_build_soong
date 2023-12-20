@@ -699,36 +699,55 @@ func getModulesForImage(ctx android.ModuleContext, imageConfig *bootImageConfig)
 // extractEncodedDexJarsFromModulesOrBootclasspathFragments gets the hidden API encoded dex jars for
 // the given modules.
 func extractEncodedDexJarsFromModulesOrBootclasspathFragments(ctx android.ModuleContext, apexJarModulePairs []apexJarModulePair) bootDexJarByModule {
+	apexNameToBcpInfoMap := getApexNameToBcpInfoMap(ctx)
 	encodedDexJarsByModuleName := bootDexJarByModule{}
 	for _, pair := range apexJarModulePairs {
-		var path android.Path
-		if android.IsConfiguredJarForPlatform(pair.apex) || android.IsModulePrebuilt(pair.jarModule) {
-			// This gives us the dex jar with the hidden API flags encoded from the monolithic hidden API
-			// files or the dex jar extracted from a prebuilt APEX. We can't use this for a boot jar for
-			// a source APEX because there is no guarantee that it is the same as the jar packed into the
-			// APEX. In practice, they are the same when we are building from a full source tree, but they
-			// are different when we are building from a thin manifest (e.g., master-art), where there is
-			// no monolithic hidden API files at all.
-			path = retrieveEncodedBootDexJarFromModule(ctx, pair.jarModule)
-		} else {
-			// Use exactly the same jar that is packed into the APEX.
-			fragment := getBootclasspathFragmentByApex(ctx, pair.apex)
-			if fragment == nil {
-				ctx.ModuleErrorf("Boot jar '%[1]s' is from APEX '%[2]s', but a bootclasspath_fragment for "+
-					"APEX '%[2]s' doesn't exist or is not added as a dependency of dex_bootjars",
-					pair.jarModule.Name(),
-					pair.apex)
-			}
-			bootclasspathFragmentInfo, _ := android.OtherModuleProvider(ctx, fragment, BootclasspathFragmentApexContentInfoProvider)
-			jar, err := bootclasspathFragmentInfo.DexBootJarPathForContentModule(pair.jarModule)
-			if err != nil {
-				ctx.ModuleErrorf("%s", err)
-			}
-			path = jar
-		}
-		encodedDexJarsByModuleName.addPath(pair.jarModule, path)
+		dexJarPath := getDexJarForApex(ctx, pair, apexNameToBcpInfoMap)
+		encodedDexJarsByModuleName.addPath(pair.jarModule, dexJarPath)
 	}
 	return encodedDexJarsByModuleName
+}
+
+// Returns the java libraries exported by the apex for hiddenapi and dexpreopt
+// This information can come from two mechanisms
+// 1. New: Direct deps to _selected_ apexes. The apexes return a ApexExportsInfo
+// 2. Legacy: An edge to java_library or java_import (java_sdk_library) module. For prebuilt apexes, this serves as a hook and is populated by deapexers of prebuilt apxes
+// TODO: b/308174306 - Once all mainline modules have been flagged, drop (2)
+func getDexJarForApex(ctx android.ModuleContext, pair apexJarModulePair, apexNameToBcpInfoMap map[string]android.ApexExportsInfo) android.Path {
+	if info, exists := apexNameToBcpInfoMap[pair.apex]; exists {
+		libraryName := android.RemoveOptionalPrebuiltPrefix(pair.jarModule.Name())
+		if dex, exists := info.LibraryNameToDexJarPathOnHost[libraryName]; exists {
+			return dex
+		} else {
+			ctx.ModuleErrorf("Apex %s does not provide a dex boot jar for library %s\n", pair.apex, libraryName)
+		}
+	}
+	// TODO: b/308174306 - Remove the legacy mechanism
+	if android.IsConfiguredJarForPlatform(pair.apex) || android.IsModulePrebuilt(pair.jarModule) {
+		// This gives us the dex jar with the hidden API flags encoded from the monolithic hidden API
+		// files or the dex jar extracted from a prebuilt APEX. We can't use this for a boot jar for
+		// a source APEX because there is no guarantee that it is the same as the jar packed into the
+		// APEX. In practice, they are the same when we are building from a full source tree, but they
+		// are different when we are building from a thin manifest (e.g., master-art), where there is
+		// no monolithic hidden API files at all.
+		return retrieveEncodedBootDexJarFromModule(ctx, pair.jarModule)
+	} else {
+		// Use exactly the same jar that is packed into the APEX.
+		fragment := getBootclasspathFragmentByApex(ctx, pair.apex)
+		if fragment == nil {
+			ctx.ModuleErrorf("Boot jar '%[1]s' is from APEX '%[2]s', but a bootclasspath_fragment for "+
+				"APEX '%[2]s' doesn't exist or is not added as a dependency of dex_bootjars",
+				pair.jarModule.Name(),
+				pair.apex)
+		}
+		bootclasspathFragmentInfo, _ := android.OtherModuleProvider(ctx, fragment, BootclasspathFragmentApexContentInfoProvider)
+		jar, err := bootclasspathFragmentInfo.DexBootJarPathForContentModule(pair.jarModule)
+		if err != nil {
+			ctx.ModuleErrorf("%s", err)
+		}
+		return jar
+	}
+	return nil
 }
 
 // copyBootJarsToPredefinedLocations generates commands that will copy boot jars to predefined
@@ -881,6 +900,16 @@ func getProfilePathForApex(ctx android.ModuleContext, apexName string, apexNameT
 	return fragment.(commonBootclasspathFragment).getProfilePath()
 }
 
+func getApexNameToBcpInfoMap(ctx android.ModuleContext) map[string]android.ApexExportsInfo {
+	apexNameToBcpInfoMap := map[string]android.ApexExportsInfo{}
+	ctx.VisitDirectDepsWithTag(dexpreoptBootJarDepTag, func(am android.Module) {
+		if info, exists := android.OtherModuleProvider(ctx, am, android.ApexExportsInfoProvider); exists {
+			apexNameToBcpInfoMap[info.ApexName] = info
+		}
+	})
+	return apexNameToBcpInfoMap
+}
+
 // Generate boot image build rules for a specific target.
 func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, profile android.Path) bootImageVariantOutputs {
 
@@ -923,12 +952,7 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 
 	invocationPath := outputPath.ReplaceExtension(ctx, "invocation")
 
-	apexNameToBcpInfoMap := map[string]android.ApexExportsInfo{}
-	ctx.VisitDirectDepsWithTag(dexpreoptBootJarDepTag, func(am android.Module) {
-		if info, exists := android.OtherModuleProvider(ctx, am, android.ApexExportsInfoProvider); exists {
-			apexNameToBcpInfoMap[info.ApexName] = info
-		}
-	})
+	apexNameToBcpInfoMap := getApexNameToBcpInfoMap(ctx)
 
 	cmd.Tool(globalSoong.Dex2oat).
 		Flag("--avoid-storing-invocation").
