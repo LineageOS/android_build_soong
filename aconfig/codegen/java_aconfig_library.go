@@ -17,7 +17,6 @@ package codegen
 import (
 	"fmt"
 
-	"android/soong/aconfig"
 	"android/soong/android"
 	"android/soong/java"
 
@@ -82,7 +81,7 @@ func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) GenerateSourceJarBuild
 	if len(declarationsModules) != 1 {
 		panic(fmt.Errorf("Exactly one aconfig_declarations property required"))
 	}
-	declarations, _ := android.OtherModuleProvider(ctx, declarationsModules[0], aconfig.DeclarationsProviderKey)
+	declarations, _ := android.OtherModuleProvider(ctx, declarationsModules[0], android.AconfigDeclarationsProviderKey)
 
 	// Generate the action to build the srcjar
 	srcJarPath := android.PathForModuleGen(ctx, ctx.ModuleName()+".srcjar")
