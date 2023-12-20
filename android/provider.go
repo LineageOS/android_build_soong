@@ -79,7 +79,7 @@ func SingletonModuleProvider[K any](ctx SingletonModuleProviderContext, module b
 // SetProviderContext is a helper interface that is a subset of ModuleContext, BottomUpMutatorContext, or
 // TopDownMutatorContext for use in SetProvider.
 type SetProviderContext interface {
-	SetProvider(provider blueprint.AnyProviderKey, value any)
+	setProvider(provider blueprint.AnyProviderKey, value any)
 }
 
 var _ SetProviderContext = BaseModuleContext(nil)
@@ -95,7 +95,7 @@ var _ SetProviderContext = TopDownMutatorContext(nil)
 // SetProviderContext is a helper interface that accepts ModuleContext, BottomUpMutatorContext, or
 // TopDownMutatorContext.
 func SetProvider[K any](ctx SetProviderContext, provider blueprint.ProviderKey[K], value K) {
-	ctx.SetProvider(provider, value)
+	ctx.setProvider(provider, value)
 }
 
 var _ OtherModuleProviderContext = (*otherModuleProviderAdaptor)(nil)
