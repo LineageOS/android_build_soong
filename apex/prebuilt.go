@@ -769,6 +769,25 @@ func (p *Prebuilt) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 	p.apexInfoMutator(mctx)
 }
 
+// Set a provider containing information about the jars and .prof provided by the apex
+// Apexes built from prebuilts retrieve this information by visiting its internal deapexer module
+// Used by dex_bootjars to generate the boot image
+func (p *prebuiltCommon) provideApexExportsInfo(ctx android.ModuleContext) {
+	if !p.hasExportedDeps() {
+		// nothing to do
+		return
+	}
+	if di, err := android.FindDeapexerProviderForModule(ctx); err == nil {
+		exports := android.ApexExportsInfo{
+			ApexName:          p.ApexVariationName(),
+			ProfilePathOnHost: di.PrebuiltExportPath(java.ProfileInstallPathInApex),
+		}
+		ctx.SetProvider(android.ApexExportsInfoProvider, exports)
+	} else {
+		ctx.ModuleErrorf(err.Error())
+	}
+}
+
 func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	p.apexKeysPath = writeApexKeys(ctx, p)
 	// TODO(jungjw): Check the key validity.
@@ -792,6 +811,9 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// dexpreopt any system server jars if present
 	p.dexpreoptSystemServerJars(ctx)
+
+	// provide info used for generating the boot image
+	p.provideApexExportsInfo(ctx)
 
 	// Save the files that need to be made available to Make.
 	p.initApexFilesForAndroidMk(ctx)
@@ -1011,6 +1033,9 @@ func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// dexpreopt any system server jars if present
 	a.dexpreoptSystemServerJars(ctx)
+
+	// provide info used for generating the boot image
+	a.provideApexExportsInfo(ctx)
 
 	// Save the files that need to be made available to Make.
 	a.initApexFilesForAndroidMk(ctx)
