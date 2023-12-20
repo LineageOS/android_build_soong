@@ -45,7 +45,7 @@ var (
 	frameworkBootImageName   = "boot"
 	mainlineBootImageName    = "mainline"
 	bootImageStem            = "boot"
-	profileInstallPathInApex = "etc/boot-image.prof"
+	ProfileInstallPathInApex = "etc/boot-image.prof"
 )
 
 // getImageNames returns an ordered list of image names. The order doesn't matter but needs to be
