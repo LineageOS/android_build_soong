@@ -8408,30 +8408,32 @@ func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, preparer android.F
 func TestDuplicateDeapexersFromPrebuiltApexes(t *testing.T) {
 	preparers := android.GroupFixturePreparers(
 		java.PrepareForTestWithJavaDefaultModules,
+		prepareForTestWithBootclasspathFragment,
+		dexpreopt.FixtureSetTestOnlyArtBootImageJars("com.android.art:libfoo"),
 		PrepareForTestWithApexBuildComponents,
 	).
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
-			"Multiple installable prebuilt APEXes provide ambiguous deapexers: com.android.myapex and com.mycompany.android.myapex"))
+			"Multiple installable prebuilt APEXes provide ambiguous deapexers: com.android.art and com.mycompany.android.art"))
 
 	bpBase := `
 		apex_set {
-			name: "com.android.myapex",
+			name: "com.android.art",
 			installable: true,
-			exported_bootclasspath_fragments: ["my-bootclasspath-fragment"],
+			exported_bootclasspath_fragments: ["art-bootclasspath-fragment"],
 			set: "myapex.apks",
 		}
 
 		apex_set {
-			name: "com.mycompany.android.myapex",
-			apex_name: "com.android.myapex",
+			name: "com.mycompany.android.art",
+			apex_name: "com.android.art",
 			installable: true,
-			exported_bootclasspath_fragments: ["my-bootclasspath-fragment"],
+			exported_bootclasspath_fragments: ["art-bootclasspath-fragment"],
 			set: "company-myapex.apks",
 		}
 
 		prebuilt_bootclasspath_fragment {
-			name: "my-bootclasspath-fragment",
-			apex_available: ["com.android.myapex"],
+			name: "art-bootclasspath-fragment",
+			apex_available: ["com.android.art"],
 			hidden_api: {
 				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
 				metadata: "my-bootclasspath-fragment/metadata.csv",
@@ -8448,7 +8450,7 @@ func TestDuplicateDeapexersFromPrebuiltApexes(t *testing.T) {
 			java_import {
 				name: "libfoo",
 				jars: ["libfoo.jar"],
-				apex_available: ["com.android.myapex"],
+				apex_available: ["com.android.art"],
 			}
 		`)
 	})
@@ -8461,7 +8463,7 @@ func TestDuplicateDeapexersFromPrebuiltApexes(t *testing.T) {
 					jars: ["libbar.jar"],
 				},
 				shared_library: false,
-				apex_available: ["com.android.myapex"],
+				apex_available: ["com.android.art"],
 			}
 		`)
 	})
@@ -8477,7 +8479,7 @@ func TestDuplicateDeapexersFromPrebuiltApexes(t *testing.T) {
 					jars: ["libbar.jar"],
 				},
 				shared_library: false,
-				apex_available: ["com.android.myapex"],
+				apex_available: ["com.android.art"],
 			}
 		`)
 	})
@@ -11412,4 +11414,166 @@ func TestAconfigFilesRemoveDuplicates(t *testing.T) {
 	}
 	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_foo/intermediate.pb")
 	ensureContains(t, buildParams.Output.String(), "android_common_myapex/aconfig_flags.pb")
+}
+
+// Test that the boot jars come from the _selected_ apex prebuilt
+// RELEASE_APEX_CONTIRBUTIONS_* build flags will be used to select the correct prebuilt for a specific release config
+func TestBootDexJarsMultipleApexPrebuilts(t *testing.T) {
+	checkBootDexJarPath := func(t *testing.T, ctx *android.TestContext, stem string, bootDexJarPath string) {
+		t.Helper()
+		s := ctx.ModuleForTests("dex_bootjars", "android_common")
+		foundLibfooJar := false
+		base := stem + ".jar"
+		for _, output := range s.AllOutputs() {
+			if filepath.Base(output) == base {
+				foundLibfooJar = true
+				buildRule := s.Output(output)
+				android.AssertStringEquals(t, "boot dex jar path", bootDexJarPath, buildRule.Input.String())
+			}
+		}
+		if !foundLibfooJar {
+			t.Errorf("Rule for libfoo.jar missing in dex_bootjars singleton outputs %q", android.StringPathsRelativeToTop(ctx.Config().SoongOutDir(), s.AllOutputs()))
+		}
+	}
+
+	bp := `
+		// Source APEX.
+
+		java_library {
+			name: "framework-foo",
+			srcs: ["foo.java"],
+			installable: true,
+			apex_available: [
+				"com.android.foo",
+			],
+		}
+
+		bootclasspath_fragment {
+			name: "foo-bootclasspath-fragment",
+			contents: ["framework-foo"],
+			apex_available: [
+				"com.android.foo",
+			],
+			hidden_api: {
+				split_packages: ["*"],
+			},
+		}
+
+		apex_key {
+			name: "com.android.foo.key",
+			public_key: "com.android.foo.avbpubkey",
+			private_key: "com.android.foo.pem",
+		}
+
+		apex {
+			name: "com.android.foo",
+			key: "com.android.foo.key",
+			bootclasspath_fragments: ["foo-bootclasspath-fragment"],
+			updatable: false,
+		}
+
+		// Prebuilt APEX.
+
+		java_sdk_library_import {
+			name: "framework-foo",
+			public: {
+				jars: ["foo.jar"],
+			},
+			apex_available: ["com.android.foo"],
+			shared_library: false,
+		}
+
+		prebuilt_bootclasspath_fragment {
+			name: "foo-bootclasspath-fragment",
+			contents: ["framework-foo"],
+			hidden_api: {
+				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
+				metadata: "my-bootclasspath-fragment/metadata.csv",
+				index: "my-bootclasspath-fragment/index.csv",
+				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
+				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+			},
+			apex_available: [
+				"com.android.foo",
+			],
+		}
+
+		prebuilt_apex {
+			name: "com.android.foo",
+			apex_name: "com.android.foo",
+			src: "com.android.foo-arm.apex",
+			exported_bootclasspath_fragments: ["foo-bootclasspath-fragment"],
+		}
+
+		// Another Prebuilt ART APEX
+		prebuilt_apex {
+			name: "com.android.foo.v2",
+			apex_name: "com.android.foo", // Used to determine the API domain
+			src: "com.android.foo-arm.apex",
+			exported_bootclasspath_fragments: ["foo-bootclasspath-fragment"],
+		}
+
+		// APEX contribution modules
+
+		apex_contributions {
+			name: "foo.source.contributions",
+			api_domain: "com.android.foo",
+			contents: ["com.android.foo"],
+		}
+
+		apex_contributions {
+			name: "foo.prebuilt.contributions",
+			api_domain: "com.android.foo",
+			contents: ["prebuilt_com.android.foo"],
+		}
+
+		apex_contributions {
+			name: "foo.prebuilt.v2.contributions",
+			api_domain: "com.android.foo",
+			contents: ["com.android.foo.v2"], // prebuilt_ prefix is missing because of prebuilt_rename mutator
+		}
+	`
+
+	testCases := []struct {
+		desc                      string
+		selectedApexContributions string
+		expectedBootJar           string
+	}{
+		{
+			desc:                      "Source apex com.android.foo is selected, bootjar should come from source java library",
+			selectedApexContributions: "foo.source.contributions",
+			expectedBootJar:           "out/soong/.intermediates/foo-bootclasspath-fragment/android_common_apex10000/hiddenapi-modular/encoded/framework-foo.jar",
+		},
+		{
+			desc:                      "Prebuilt apex prebuilt_com.android.foo is selected, profile should come from .prof deapexed from the prebuilt",
+			selectedApexContributions: "foo.prebuilt.contributions",
+			expectedBootJar:           "out/soong/.intermediates/com.android.foo.deapexer/android_common/deapexer/javalib/framework-foo.jar",
+		},
+		{
+			desc:                      "Prebuilt apex prebuilt_com.android.foo.v2 is selected, profile should come from .prof deapexed from the prebuilt",
+			selectedApexContributions: "foo.prebuilt.v2.contributions",
+			expectedBootJar:           "out/soong/.intermediates/com.android.foo.v2.deapexer/android_common/deapexer/javalib/framework-foo.jar",
+		},
+	}
+
+	fragment := java.ApexVariantReference{
+		Apex:   proptools.StringPtr("com.android.foo"),
+		Module: proptools.StringPtr("foo-bootclasspath-fragment"),
+	}
+
+	for _, tc := range testCases {
+		preparer := android.GroupFixturePreparers(
+			java.FixtureConfigureApexBootJars("com.android.foo:framework-foo"),
+			android.FixtureMergeMockFs(map[string][]byte{
+				"system/sepolicy/apex/com.android.foo-file_contexts": nil,
+			}),
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.BuildFlags = map[string]string{
+					"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES": tc.selectedApexContributions,
+				}
+			}),
+		)
+		ctx := testDexpreoptWithApexes(t, bp, "", preparer, fragment)
+		checkBootDexJarPath(t, ctx, "framework-foo", tc.expectedBootJar)
+	}
 }

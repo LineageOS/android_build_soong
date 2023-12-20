@@ -2382,8 +2382,9 @@ func (a *apexBundle) provideApexExportsInfo(ctx android.ModuleContext) {
 	ctx.VisitDirectDepsWithTag(bcpfTag, func(child android.Module) {
 		if info, ok := android.OtherModuleProvider(ctx, child, java.BootclasspathFragmentApexContentInfoProvider); ok {
 			exports := android.ApexExportsInfo{
-				ApexName:          a.ApexVariationName(),
-				ProfilePathOnHost: info.ProfilePathOnHost(),
+				ApexName:                      a.ApexVariationName(),
+				ProfilePathOnHost:             info.ProfilePathOnHost(),
+				LibraryNameToDexJarPathOnHost: info.DexBootJarPathMap(),
 			}
 			ctx.SetProvider(android.ApexExportsInfoProvider, exports)
 		}

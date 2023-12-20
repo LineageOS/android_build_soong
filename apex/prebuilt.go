@@ -778,9 +778,17 @@ func (p *prebuiltCommon) provideApexExportsInfo(ctx android.ModuleContext) {
 		return
 	}
 	if di, err := android.FindDeapexerProviderForModule(ctx); err == nil {
+		javaModuleToDexPath := map[string]android.Path{}
+		for _, commonModule := range di.GetExportedModuleNames() {
+			if dex := di.PrebuiltExportPath(java.ApexRootRelativePathToJavaLib(commonModule)); dex != nil {
+				javaModuleToDexPath[commonModule] = dex
+			}
+		}
+
 		exports := android.ApexExportsInfo{
-			ApexName:          p.ApexVariationName(),
-			ProfilePathOnHost: di.PrebuiltExportPath(java.ProfileInstallPathInApex),
+			ApexName:                      p.ApexVariationName(),
+			ProfilePathOnHost:             di.PrebuiltExportPath(java.ProfileInstallPathInApex),
+			LibraryNameToDexJarPathOnHost: javaModuleToDexPath,
 		}
 		ctx.SetProvider(android.ApexExportsInfoProvider, exports)
 	} else {
