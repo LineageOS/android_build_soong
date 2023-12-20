@@ -954,3 +954,15 @@ type ApexTestInterface interface {
 	// Return true if the apex bundle is an apex_test
 	IsTestApex() bool
 }
+
+var ApexExportsInfoProvider = blueprint.NewProvider[ApexExportsInfo]()
+
+// ApexExportsInfo contains information about the artifacts provided by apexes to dexpreopt and hiddenapi
+type ApexExportsInfo struct {
+	// Canonical name of this APEX. Used to determine the path to the activated APEX on
+	// device (/apex/<apex_name>)
+	ApexName string
+
+	// Path to the image profile file on host (or empty, if profile is not generated).
+	ProfilePathOnHost Path
+}
