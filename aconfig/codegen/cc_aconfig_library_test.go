@@ -29,6 +29,7 @@ var ccCodegenModeTestData = []struct {
 	{"mode: `production`,", "production"},
 	{"mode: `test`,", "test"},
 	{"mode: `exported`,", "exported"},
+	{"mode: `force-read-only`,", "force-read-only"},
 }
 
 func TestCCCodegenMode(t *testing.T) {
