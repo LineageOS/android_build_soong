@@ -75,28 +75,34 @@ type BaseModuleContext interface {
 	// It is intended for use inside the visit functions of Visit* and WalkDeps.
 	OtherModuleType(m blueprint.Module) string
 
-	// otherModuleProvider returns the value for a provider for the given module.  If the value is
-	// not set it returns nil and false.  The value returned may be a deep copy of the value originally
-	// passed to SetProvider.
-	//
-	// This method shouldn't be used directly, prefer the type-safe android.OtherModuleProvider instead.
+	// OtherModuleProvider returns the value for a provider for the given module.  If the value is
+	// not set it returns the zero value of the type of the provider, so the return value can always
+	// be type asserted to the type of the provider.  The value returned may be a deep copy of the
+	// value originally passed to SetProvider.
+	OtherModuleProvider(m blueprint.Module, provider blueprint.AnyProviderKey) any
+
+	// OtherModuleHasProvider returns true if the provider for the given module has been set.
+	OtherModuleHasProvider(m blueprint.Module, provider blueprint.AnyProviderKey) bool
+
 	otherModuleProvider(m blueprint.Module, provider blueprint.AnyProviderKey) (any, bool)
 
 	// Provider returns the value for a provider for the current module.  If the value is
-	// not set it returns nil and false.  It panics if called before the appropriate
+	// not set it returns the zero value of the type of the provider, so the return value can always
+	// be type asserted to the type of the provider.  It panics if called before the appropriate
 	// mutator or GenerateBuildActions pass for the provider.  The value returned may be a deep
 	// copy of the value originally passed to SetProvider.
-	//
-	// This method shouldn't be used directly, prefer the type-safe android.ModuleProvider instead.
+	Provider(provider blueprint.AnyProviderKey) any
+
+	// HasProvider returns true if the provider for the current module has been set.
+	HasProvider(provider blueprint.AnyProviderKey) bool
+
 	provider(provider blueprint.AnyProviderKey) (any, bool)
 
-	// setProvider sets the value for a provider for the current module.  It panics if not called
+	// SetProvider sets the value for a provider for the current module.  It panics if not called
 	// during the appropriate mutator or GenerateBuildActions pass for the provider, if the value
 	// is not of the appropriate type, or if the value has already been set.  The value should not
 	// be modified after being passed to SetProvider.
-	//
-	// This method shouldn't be used directly, prefer the type-safe android.SetProvider instead.
-	setProvider(provider blueprint.AnyProviderKey, value any)
+	SetProvider(provider blueprint.AnyProviderKey, value interface{})
 
 	GetDirectDepsWithTag(tag blueprint.DependencyTag) []Module
 
@@ -258,16 +264,35 @@ func (b *baseModuleContext) OtherModuleReverseDependencyVariantExists(name strin
 func (b *baseModuleContext) OtherModuleType(m blueprint.Module) string {
 	return b.bp.OtherModuleType(m)
 }
+func (b *baseModuleContext) OtherModuleProvider(m blueprint.Module, provider blueprint.AnyProviderKey) any {
+	value, _ := b.bp.OtherModuleProvider(m, provider)
+	return value
+}
+
+func (b *baseModuleContext) OtherModuleHasProvider(m blueprint.Module, provider blueprint.AnyProviderKey) bool {
+	_, ok := b.bp.OtherModuleProvider(m, provider)
+	return ok
+}
 
 func (b *baseModuleContext) otherModuleProvider(m blueprint.Module, provider blueprint.AnyProviderKey) (any, bool) {
 	return b.bp.OtherModuleProvider(m, provider)
+}
+
+func (b *baseModuleContext) Provider(provider blueprint.AnyProviderKey) any {
+	value, _ := b.bp.Provider(provider)
+	return value
+}
+
+func (b *baseModuleContext) HasProvider(provider blueprint.AnyProviderKey) bool {
+	_, ok := b.bp.Provider(provider)
+	return ok
 }
 
 func (b *baseModuleContext) provider(provider blueprint.AnyProviderKey) (any, bool) {
 	return b.bp.Provider(provider)
 }
 
-func (b *baseModuleContext) setProvider(provider blueprint.AnyProviderKey, value any) {
+func (b *baseModuleContext) SetProvider(provider blueprint.AnyProviderKey, value any) {
 	b.bp.SetProvider(provider, value)
 }
 
