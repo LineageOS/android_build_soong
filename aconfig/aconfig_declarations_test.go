@@ -38,7 +38,7 @@ func TestAconfigDeclarations(t *testing.T) {
 	module := result.ModuleForTests("module_name", "").Module().(*DeclarationsModule)
 
 	// Check that the provider has the right contents
-	depData, _ := android.SingletonModuleProvider(result, module, DeclarationsProviderKey)
+	depData, _ := android.SingletonModuleProvider(result, module, android.AconfigDeclarationsProviderKey)
 	android.AssertStringEquals(t, "package", depData.Package, "com.example.package")
 	android.AssertStringEquals(t, "container", depData.Container, "com.android.foo")
 	if !strings.HasSuffix(depData.IntermediateCacheOutputPath.String(), "/intermediate.pb") {

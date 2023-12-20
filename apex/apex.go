@@ -24,7 +24,6 @@ import (
 	"sort"
 	"strings"
 
-	"android/soong/aconfig"
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -2272,7 +2271,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 }
 
 func addAconfigFiles(vctx *visitorContext, ctx android.ModuleContext, module blueprint.Module) {
-	dep, _ := android.OtherModuleProvider(ctx, module, aconfig.TransitiveDeclarationsInfoProvider)
+	dep, _ := android.OtherModuleProvider(ctx, module, android.AconfigTransitiveDeclarationsInfoProvider)
 	if len(dep.AconfigFiles) > 0 && dep.AconfigFiles[ctx.ModuleName()] != nil {
 		vctx.aconfigFiles = append(vctx.aconfigFiles, dep.AconfigFiles[ctx.ModuleName()]...)
 	}
