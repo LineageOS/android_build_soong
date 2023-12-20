@@ -1423,7 +1423,7 @@ func TestJavaSdkLibraryDist(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.module, func(t *testing.T) {
-			m := result.ModuleForTests(tt.module+".stubs", "android_common").Module().(*Library)
+			m := result.ModuleForTests(apiScopePublic.exportableStubsLibraryModuleName(tt.module), "android_common").Module().(*Library)
 			dists := m.Dists()
 			if len(dists) != 1 {
 				t.Fatalf("expected exactly 1 dist entry, got %d", len(dists))
@@ -1692,4 +1692,57 @@ func TestSdkLibraryDependency(t *testing.T) {
 	barPermissions := result.ModuleForTests("bar.xml", "android_common").Rule("java_sdk_xml")
 
 	android.AssertStringDoesContain(t, "bar.xml java_sdk_xml command", barPermissions.RuleParams.Command, `dependency=\"foo\"`)
+}
+
+func TestSdkLibraryExportableStubsLibrary(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("foo"),
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.SetApiLibraries([]string{"foo"})
+		}),
+	).RunTestWithBp(t, `
+		aconfig_declarations {
+			name: "bar",
+			package: "com.example.package",
+			srcs: [
+				"bar.aconfig",
+			],
+		}
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java", "b.java"],
+			api_packages: ["foo"],
+			system: {
+				enabled: true,
+			},
+			module_lib: {
+				enabled: true,
+			},
+			test: {
+				enabled: true,
+			},
+			aconfig_declarations: [
+				"bar",
+			],
+		}
+	`)
+
+	exportableStubsLibraryModuleName := apiScopePublic.exportableStubsLibraryModuleName("foo")
+	exportableSourceStubsLibraryModuleName := apiScopePublic.exportableSourceStubsLibraryModuleName("foo")
+
+	// Check modules generation
+	topLevelModule := result.ModuleForTests(exportableStubsLibraryModuleName, "android_common")
+	result.ModuleForTests(exportableSourceStubsLibraryModuleName, "android_common")
+
+	// Check static lib dependency
+	android.AssertBoolEquals(t, "exportable top level stubs library module depends on the"+
+		"exportable source stubs library module", true,
+		CheckModuleHasDependency(t, result.TestContext, exportableStubsLibraryModuleName,
+			"android_common", exportableSourceStubsLibraryModuleName),
+	)
+	android.AssertArrayString(t, "exportable source stub library is a static lib of the"+
+		"top level exportable stubs library", []string{exportableSourceStubsLibraryModuleName},
+		topLevelModule.Module().(*Library).properties.Static_libs)
 }
