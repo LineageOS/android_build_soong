@@ -965,4 +965,7 @@ type ApexExportsInfo struct {
 
 	// Path to the image profile file on host (or empty, if profile is not generated).
 	ProfilePathOnHost Path
+
+	// Map from the apex library name (without prebuilt_ prefix) to the dex file path on host
+	LibraryNameToDexJarPathOnHost map[string]Path
 }
