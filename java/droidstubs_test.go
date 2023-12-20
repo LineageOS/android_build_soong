@@ -213,7 +213,7 @@ func TestDroidstubsSandbox(t *testing.T) {
 	}
 
 	manifest := android.RuleBuilderSboxProtoForTests(t, ctx, m.Output("metalava.sbox.textproto"))
-	if g, w := manifest.Commands[0].GetCommand(), "reference __SBOX_SANDBOX_DIR__/out/.intermediates/foo/gen/foo.txt"; !strings.Contains(g, w) {
+	if g, w := manifest.Commands[0].GetCommand(), "reference __SBOX_SANDBOX_DIR__/out/soong/.intermediates/foo/gen/foo.txt"; !strings.Contains(g, w) {
 		t.Errorf("Expected command to contain %q, got %q", w, g)
 	}
 }

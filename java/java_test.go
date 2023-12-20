@@ -2431,7 +2431,7 @@ func TestSdkLibraryProvidesSystemModulesToApiLibrary(t *testing.T) {
 	manifest := m.Output("metalava.sbox.textproto")
 	sboxProto := android.RuleBuilderSboxProtoForTests(t, result.TestContext, manifest)
 	manifestCommand := sboxProto.Commands[0].GetCommand()
-	classPathFlag := "--classpath __SBOX_SANDBOX_DIR__/out/.intermediates/bar/android_common/turbine-combined/bar.jar"
+	classPathFlag := "--classpath __SBOX_SANDBOX_DIR__/out/soong/.intermediates/bar/android_common/turbine-combined/bar.jar"
 	android.AssertStringDoesContain(t, "command expected to contain classpath flag", manifestCommand, classPathFlag)
 }
 
