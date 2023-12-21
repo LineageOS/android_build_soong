@@ -2100,6 +2100,7 @@ type Import struct {
 
 	// output file containing classes.dex and resources
 	dexJarFile        OptionalDexJarPath
+	dexJarFileErr     error
 	dexJarInstallFile android.Path
 
 	combinedClasspathFile android.Path
@@ -2250,15 +2251,18 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ai, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 		if ai.ForPrebuiltApex {
 			// Get the path of the dex implementation jar from the `deapexer` module.
-			di := android.FindDeapexerProviderForModule(ctx)
-			if di == nil {
-				return // An error has been reported by FindDeapexerProviderForModule.
+			di, err := android.FindDeapexerProviderForModule(ctx)
+			if err != nil {
+				// An error was found, possibly due to multiple apexes in the tree that export this library
+				// Defer the error till a client tries to call DexJarBuildPath
+				j.dexJarFileErr = err
+				return
 			}
-			dexJarFileApexRootRelative := apexRootRelativePathToJavaLib(j.BaseModuleName())
+			dexJarFileApexRootRelative := ApexRootRelativePathToJavaLib(j.BaseModuleName())
 			if dexOutputPath := di.PrebuiltExportPath(dexJarFileApexRootRelative); dexOutputPath != nil {
 				dexJarFile := makeDexJarPathFromPath(dexOutputPath)
 				j.dexJarFile = dexJarFile
-				installPath := android.PathForModuleInPartitionInstall(ctx, "apex", ai.ApexVariationName, apexRootRelativePathToJavaLib(j.BaseModuleName()))
+				installPath := android.PathForModuleInPartitionInstall(ctx, "apex", ai.ApexVariationName, ApexRootRelativePathToJavaLib(j.BaseModuleName()))
 				j.dexJarInstallFile = installPath
 
 				j.dexpreopter.installPath = j.dexpreopter.getInstallPath(ctx, installPath)
@@ -2375,6 +2379,9 @@ func (j *Import) ImplementationAndResourcesJars() android.Paths {
 }
 
 func (j *Import) DexJarBuildPath() OptionalDexJarPath {
+	if j.dexJarFileErr != nil {
+		panic(j.dexJarFileErr.Error())
+	}
 	return j.dexJarFile
 }
 
@@ -2415,7 +2422,7 @@ func (j *Import) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 // java_sdk_library_import with the specified base module name requires to be exported from a
 // prebuilt_apex/apex_set.
 func requiredFilesFromPrebuiltApexForImport(name string, d *dexpreopter) []string {
-	dexJarFileApexRootRelative := apexRootRelativePathToJavaLib(name)
+	dexJarFileApexRootRelative := ApexRootRelativePathToJavaLib(name)
 	// Add the dex implementation jar to the set of exported files.
 	files := []string{
 		dexJarFileApexRootRelative,
@@ -2426,9 +2433,9 @@ func requiredFilesFromPrebuiltApexForImport(name string, d *dexpreopter) []strin
 	return files
 }
 
-// apexRootRelativePathToJavaLib returns the path, relative to the root of the apex's contents, for
+// ApexRootRelativePathToJavaLib returns the path, relative to the root of the apex's contents, for
 // the java library with the specified name.
-func apexRootRelativePathToJavaLib(name string) string {
+func ApexRootRelativePathToJavaLib(name string) string {
 	return filepath.Join("javalib", name+".jar")
 }
 

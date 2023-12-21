@@ -24,7 +24,6 @@ import (
 	"github.com/google/blueprint/pathtools"
 	"github.com/google/blueprint/proptools"
 
-	"android/soong/aconfig"
 	"android/soong/android"
 	"android/soong/dexpreopt"
 	"android/soong/java/config"
@@ -1694,7 +1693,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 
 	ctx.CheckbuildFile(outputFile)
 
-	aconfig.CollectDependencyAconfigFiles(ctx, &j.mergedAconfigFiles)
+	android.CollectDependencyAconfigFiles(ctx, &j.mergedAconfigFiles)
 
 	android.SetProvider(ctx, JavaInfoProvider, JavaInfo{
 		HeaderJars:                     android.PathsIfNonNil(j.headerJarFile),

@@ -111,6 +111,9 @@ type ModuleInstallPathContext interface {
 	InstallInDebugRamdisk() bool
 	InstallInRecovery() bool
 	InstallInRoot() bool
+	InstallInOdm() bool
+	InstallInProduct() bool
+	InstallInVendor() bool
 	InstallForceOS() (*OsType, *ArchType)
 }
 
@@ -150,6 +153,18 @@ func (ctx *baseModuleContextToModuleInstallPathContext) InstallInRecovery() bool
 
 func (ctx *baseModuleContextToModuleInstallPathContext) InstallInRoot() bool {
 	return ctx.Module().InstallInRoot()
+}
+
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallInOdm() bool {
+	return ctx.Module().InstallInOdm()
+}
+
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallInProduct() bool {
+	return ctx.Module().InstallInProduct()
+}
+
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallInVendor() bool {
+	return ctx.Module().InstallInVendor()
 }
 
 func (ctx *baseModuleContextToModuleInstallPathContext) InstallForceOS() (*OsType, *ArchType) {
@@ -1866,11 +1881,11 @@ func modulePartition(ctx ModuleInstallPathContext, device bool) string {
 				// the layout of recovery partion is the same as that of system partition
 				partition = "recovery/root/system"
 			}
-		} else if ctx.SocSpecific() {
+		} else if ctx.SocSpecific() || ctx.InstallInVendor() {
 			partition = ctx.DeviceConfig().VendorPath()
-		} else if ctx.DeviceSpecific() {
+		} else if ctx.DeviceSpecific() || ctx.InstallInOdm() {
 			partition = ctx.DeviceConfig().OdmPath()
-		} else if ctx.ProductSpecific() {
+		} else if ctx.ProductSpecific() || ctx.InstallInProduct() {
 			partition = ctx.DeviceConfig().ProductPath()
 		} else if ctx.SystemExtSpecific() {
 			partition = ctx.DeviceConfig().SystemExtPath()
@@ -2066,6 +2081,9 @@ type testModuleInstallPathContext struct {
 	inDebugRamdisk  bool
 	inRecovery      bool
 	inRoot          bool
+	inOdm           bool
+	inProduct       bool
+	inVendor        bool
 	forceOS         *OsType
 	forceArch       *ArchType
 }
@@ -2106,6 +2124,18 @@ func (m testModuleInstallPathContext) InstallInRecovery() bool {
 
 func (m testModuleInstallPathContext) InstallInRoot() bool {
 	return m.inRoot
+}
+
+func (m testModuleInstallPathContext) InstallInOdm() bool {
+	return m.inOdm
+}
+
+func (m testModuleInstallPathContext) InstallInProduct() bool {
+	return m.inProduct
+}
+
+func (m testModuleInstallPathContext) InstallInVendor() bool {
+	return m.inVendor
 }
 
 func (m testModuleInstallPathContext) InstallForceOS() (*OsType, *ArchType) {

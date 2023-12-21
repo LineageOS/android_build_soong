@@ -618,8 +618,6 @@ func TestPrebuilts(t *testing.T) {
 	android.AssertStringEquals(t, "unexpected LOCAL_SOONG_MODULE_TYPE", "java_library", entries.EntryMap["LOCAL_SOONG_MODULE_TYPE"][0])
 	entries = android.AndroidMkEntriesForTest(t, ctx, barModule.Module())[0]
 	android.AssertStringEquals(t, "unexpected LOCAL_SOONG_MODULE_TYPE", "java_import", entries.EntryMap["LOCAL_SOONG_MODULE_TYPE"][0])
-	entries = android.AndroidMkEntriesForTest(t, ctx, ctx.ModuleForTests("sdklib", "android_common").Module())[0]
-	android.AssertStringEquals(t, "unexpected LOCAL_SOONG_MODULE_TYPE", "java_sdk_library_import", entries.EntryMap["LOCAL_SOONG_MODULE_TYPE"][0])
 }
 
 func assertDeepEquals(t *testing.T, message string, expected interface{}, actual interface{}) {
@@ -2433,7 +2431,7 @@ func TestSdkLibraryProvidesSystemModulesToApiLibrary(t *testing.T) {
 	manifest := m.Output("metalava.sbox.textproto")
 	sboxProto := android.RuleBuilderSboxProtoForTests(t, result.TestContext, manifest)
 	manifestCommand := sboxProto.Commands[0].GetCommand()
-	classPathFlag := "--classpath __SBOX_SANDBOX_DIR__/out/.intermediates/bar/android_common/turbine-combined/bar.jar"
+	classPathFlag := "--classpath __SBOX_SANDBOX_DIR__/out/soong/.intermediates/bar/android_common/turbine-combined/bar.jar"
 	android.AssertStringDoesContain(t, "command expected to contain classpath flag", manifestCommand, classPathFlag)
 }
 

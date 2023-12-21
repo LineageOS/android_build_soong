@@ -24,7 +24,6 @@ import (
 	"sort"
 	"strings"
 
-	"android/soong/aconfig"
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -2272,7 +2271,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 }
 
 func addAconfigFiles(vctx *visitorContext, ctx android.ModuleContext, module blueprint.Module) {
-	dep, _ := android.OtherModuleProvider(ctx, module, aconfig.TransitiveDeclarationsInfoProvider)
+	dep, _ := android.OtherModuleProvider(ctx, module, android.AconfigTransitiveDeclarationsInfoProvider)
 	if len(dep.AconfigFiles) > 0 && dep.AconfigFiles[ctx.ModuleName()] != nil {
 		vctx.aconfigFiles = append(vctx.aconfigFiles, dep.AconfigFiles[ctx.ModuleName()]...)
 	}
@@ -2371,6 +2370,25 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.buildApex(ctx)
 	a.buildApexDependencyInfo(ctx)
 	a.buildLintReports(ctx)
+
+	// Set a provider for dexpreopt of bootjars
+	a.provideApexExportsInfo(ctx)
+}
+
+// Set a provider containing information about the jars and .prof provided by the apex
+// Apexes built from source retrieve this information by visiting `bootclasspath_fragments`
+// Used by dex_bootjars to generate the boot image
+func (a *apexBundle) provideApexExportsInfo(ctx android.ModuleContext) {
+	ctx.VisitDirectDepsWithTag(bcpfTag, func(child android.Module) {
+		if info, ok := android.OtherModuleProvider(ctx, child, java.BootclasspathFragmentApexContentInfoProvider); ok {
+			exports := android.ApexExportsInfo{
+				ApexName:                      a.ApexVariationName(),
+				ProfilePathOnHost:             info.ProfilePathOnHost(),
+				LibraryNameToDexJarPathOnHost: info.DexBootJarPathMap(),
+			}
+			ctx.SetProvider(android.ApexExportsInfoProvider, exports)
+		}
+	})
 }
 
 // apexBootclasspathFragmentFiles returns the list of apexFile structures defining the files that
