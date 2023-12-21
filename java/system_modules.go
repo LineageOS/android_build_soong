@@ -55,7 +55,8 @@ var (
 			`${config.MergeZipsCmd} -j ${workDir}/module.jar ${workDir}/classes.jar $in && ` +
 			// Note: The version of the java.base module created must match the version
 			// of the jlink tool which consumes it.
-			`${config.JmodCmd} create --module-version ${config.JlinkVersion} --target-platform android ` +
+			// Use LINUX-OTHER to be compatible with JDK 21+ (b/294137077)
+			`${config.JmodCmd} create --module-version ${config.JlinkVersion} --target-platform LINUX-OTHER ` +
 			`  --class-path ${workDir}/module.jar ${workDir}/jmod/java.base.jmod && ` +
 			`${config.JlinkCmd} --module-path ${workDir}/jmod --add-modules java.base --output ${outDir} ` +
 			// Note: The system-modules jlink plugin is disabled because (a) it is not
