@@ -552,8 +552,8 @@ func DexpreoptBootJarsMutator(ctx android.BottomUpMutatorContext) {
 func addDependenciesOntoSelectedBootImageApexes(ctx android.BottomUpMutatorContext, apexes ...string) {
 	psi := android.PrebuiltSelectionInfoMap{}
 	ctx.VisitDirectDepsWithTag(apexContributionsMetadataDepTag, func(am android.Module) {
-		if ctx.OtherModuleHasProvider(am, android.PrebuiltSelectionInfoProvider) {
-			psi = ctx.OtherModuleProvider(am, android.PrebuiltSelectionInfoProvider).(android.PrebuiltSelectionInfoMap)
+		if info, exists := android.OtherModuleProvider(ctx, am, android.PrebuiltSelectionInfoProvider); exists {
+			psi = info
 		}
 	})
 	for _, apex := range apexes {
