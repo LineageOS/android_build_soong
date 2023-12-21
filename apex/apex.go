@@ -2916,15 +2916,6 @@ func makeApexAvailableBaseline() map[string][]string {
 		"wifi-nano-protos",
 		"wifi-service-pre-jarjar",
 	}
-	//
-	// Module separator
-	//
-	m[android.AvailableToAnyApex] = []string{
-		"libprofile-clang-extras",
-		"libprofile-clang-extras_ndk",
-		"libprofile-extras",
-		"libprofile-extras_ndk",
-	}
 	return m
 }
 
