@@ -2386,7 +2386,7 @@ func (a *apexBundle) provideApexExportsInfo(ctx android.ModuleContext) {
 				ProfilePathOnHost:             info.ProfilePathOnHost(),
 				LibraryNameToDexJarPathOnHost: info.DexBootJarPathMap(),
 			}
-			ctx.SetProvider(android.ApexExportsInfoProvider, exports)
+			android.SetProvider(ctx, android.ApexExportsInfoProvider, exports)
 		}
 	})
 }

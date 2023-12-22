@@ -790,7 +790,7 @@ func (p *prebuiltCommon) provideApexExportsInfo(ctx android.ModuleContext) {
 			ProfilePathOnHost:             di.PrebuiltExportPath(java.ProfileInstallPathInApex),
 			LibraryNameToDexJarPathOnHost: javaModuleToDexPath,
 		}
-		ctx.SetProvider(android.ApexExportsInfoProvider, exports)
+		android.SetProvider(ctx, android.ApexExportsInfoProvider, exports)
 	} else {
 		ctx.ModuleErrorf(err.Error())
 	}
