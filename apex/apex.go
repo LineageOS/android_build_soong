@@ -2386,7 +2386,7 @@ func (a *apexBundle) provideApexExportsInfo(ctx android.ModuleContext) {
 				ProfilePathOnHost:             info.ProfilePathOnHost(),
 				LibraryNameToDexJarPathOnHost: info.DexBootJarPathMap(),
 			}
-			ctx.SetProvider(android.ApexExportsInfoProvider, exports)
+			android.SetProvider(ctx, android.ApexExportsInfoProvider, exports)
 		}
 	})
 }
@@ -2915,15 +2915,6 @@ func makeApexAvailableBaseline() map[string][]string {
 		"wifi-lite-protos",
 		"wifi-nano-protos",
 		"wifi-service-pre-jarjar",
-	}
-	//
-	// Module separator
-	//
-	m[android.AvailableToAnyApex] = []string{
-		"libprofile-clang-extras",
-		"libprofile-clang-extras_ndk",
-		"libprofile-extras",
-		"libprofile-extras_ndk",
 	}
 	return m
 }
