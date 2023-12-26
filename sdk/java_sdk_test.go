@@ -1162,7 +1162,14 @@ java_sdk_library_import {
 }
 
 func TestSnapshotWithJavaSdkLibrary_CompileDex(t *testing.T) {
-	result := android.GroupFixturePreparers(prepareForSdkTestWithJavaSdkLibrary).RunTestWithBp(t, `
+	result := android.GroupFixturePreparers(
+		prepareForSdkTestWithJavaSdkLibrary,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.BuildFlags = map[string]string{
+				"RELEASE_HIDDEN_API_EXPORTABLE_STUBS": "true",
+			}
+		}),
+	).RunTestWithBp(t, `
 		sdk {
 			name: "mysdk",
 			java_sdk_libs: ["myjavalib"],
@@ -1214,21 +1221,22 @@ java_sdk_library_import {
 			ctx := android.ModuleInstallPathContextForTesting(result.Config)
 			dexJarBuildPath := func(name string, kind android.SdkKind) string {
 				dep := result.Module(name, "android_common").(java.SdkLibraryDependency)
-				path := dep.SdkApiStubDexJar(ctx, kind).Path()
+				path := dep.SdkApiExportableStubDexJar(ctx, kind).Path()
 				return path.RelativeToTop().String()
 			}
 
 			dexJarPath := dexJarBuildPath("myjavalib", android.SdkPublic)
-			android.AssertStringEquals(t, "source dex public stubs jar build path", "out/soong/.intermediates/myjavalib.stubs/android_common/dex/myjavalib.stubs.jar", dexJarPath)
+			android.AssertStringEquals(t, "source dex public stubs jar build path", "out/soong/.intermediates/myjavalib.stubs.exportable/android_common/dex/myjavalib.stubs.exportable.jar", dexJarPath)
 
 			dexJarPath = dexJarBuildPath("myjavalib", android.SdkSystem)
-			systemDexJar := "out/soong/.intermediates/myjavalib.stubs.system/android_common/dex/myjavalib.stubs.system.jar"
+			systemDexJar := "out/soong/.intermediates/myjavalib.stubs.exportable.system/android_common/dex/myjavalib.stubs.exportable.system.jar"
 			android.AssertStringEquals(t, "source dex system stubs jar build path", systemDexJar, dexJarPath)
 
 			// This should fall back to system as module is not available.
 			dexJarPath = dexJarBuildPath("myjavalib", android.SdkModule)
 			android.AssertStringEquals(t, "source dex module stubs jar build path", systemDexJar, dexJarPath)
 
+			// Prebuilt dex jar does not come from the exportable stubs.
 			dexJarPath = dexJarBuildPath(android.PrebuiltNameFromSource("myjavalib"), android.SdkPublic)
 			android.AssertStringEquals(t, "prebuilt dex public stubs jar build path", "out/soong/.intermediates/snapshot/prebuilt_myjavalib.stubs/android_common/dex/myjavalib.stubs.jar", dexJarPath)
 		}),
