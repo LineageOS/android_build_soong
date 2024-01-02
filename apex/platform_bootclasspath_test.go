@@ -382,6 +382,9 @@ func TestPlatformBootclasspathDependencies(t *testing.T) {
 
 	// Make sure that the myplatform-bootclasspath has the correct dependencies.
 	CheckModuleDependencies(t, result.TestContext, "myplatform-bootclasspath", "android_common", []string{
+		// source vs prebuilt selection metadata module
+		`platform:all_apex_contributions`,
+
 		// The following are stubs.
 		`platform:android_stubs_current`,
 		`platform:android_system_stubs_current`,
@@ -534,6 +537,9 @@ func TestPlatformBootclasspath_AlwaysUsePrebuiltSdks(t *testing.T) {
 
 	// Make sure that the myplatform-bootclasspath has the correct dependencies.
 	CheckModuleDependencies(t, result.TestContext, "myplatform-bootclasspath", "android_common", []string{
+		// source vs prebuilt selection metadata module
+		`platform:all_apex_contributions`,
+
 		// The following are stubs.
 		"platform:prebuilt_sdk_public_current_android",
 		"platform:prebuilt_sdk_system_current_android",
