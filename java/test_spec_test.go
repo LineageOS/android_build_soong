@@ -29,12 +29,10 @@ func TestTestSpec(t *testing.T) {
 	}`
 	result := runTestSpecTest(t, android.FixtureExpectsNoErrors, bp)
 
-	module := result.ModuleForTests(
-		"module-name", "",
-	).Module().(*soongTesting.TestSpecModule)
+	module := result.ModuleForTests("module-name", "")
 
 	// Check that the provider has the right contents
-	data, _ := android.SingletonModuleProvider(result, module, soongTesting.TestSpecProviderKey)
+	data, _ := android.SingletonModuleProvider(result, module.Module(), soongTesting.TestSpecProviderKey)
 	if !strings.HasSuffix(
 		data.IntermediatePath.String(), "/intermediateTestSpecMetadata.pb",
 	) {
@@ -44,13 +42,8 @@ func TestTestSpec(t *testing.T) {
 		)
 	}
 
-	buildParamsSlice := module.BuildParamsForTests()
-	var metadata = ""
-	for _, params := range buildParamsSlice {
-		if params.Rule.String() == "android/soong/android.writeFile" {
-			metadata = params.Args["content"]
-		}
-	}
+	metadata := android.ContentFromFileRuleForTests(t, result.TestContext,
+		module.Output(data.IntermediatePath.String()))
 
 	metadataList := make([]*test_spec_proto.TestSpec_OwnershipMetadata, 0, 2)
 	teamId := "12345"
@@ -70,9 +63,7 @@ func TestTestSpec(t *testing.T) {
 	}
 	testSpecMetadata := test_spec_proto.TestSpec{OwnershipMetadataList: metadataList}
 	protoData, _ := proto.Marshal(&testSpecMetadata)
-	rawData := string(protoData)
-	formattedData := strings.ReplaceAll(rawData, "\n", "\\n")
-	expectedMetadata := "'" + formattedData + "\\n'"
+	expectedMetadata := string(protoData)
 
 	if metadata != expectedMetadata {
 		t.Errorf(

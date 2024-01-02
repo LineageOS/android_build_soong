@@ -81,6 +81,7 @@ bootstrap_go_package {
         "prebuilt_build_tool.go",
         "proto.go",
         "provider.go",
+        "raw_files.go",
         "register.go",
         "rule_builder.go",
         "sandbox.go",
