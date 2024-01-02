@@ -191,8 +191,9 @@ func collateGloballyRegisteredSingletons() sortableComponents {
 		// Register makevars after other singletons so they can export values through makevars
 		singleton{parallel: false, name: "makevars", factory: makeVarsSingletonFunc},
 
-		// Register env and ninjadeps last so that they can track all used environment variables and
+		// Register rawfiles and ninjadeps last so that they can track all used environment variables and
 		// Ninja file dependencies stored in the config.
+		singleton{parallel: false, name: "rawfiles", factory: rawFilesSingletonFactory},
 		singleton{parallel: false, name: "ninjadeps", factory: ninjaDepsSingletonFactory},
 	)
 

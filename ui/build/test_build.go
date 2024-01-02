@@ -63,6 +63,7 @@ func testForDanglingRules(ctx Context, config Config) {
 
 	outDir := config.OutDir()
 	modulePathsDir := filepath.Join(outDir, ".module_paths")
+	rawFilesDir := filepath.Join(outDir, "soong", "raw")
 	variablesFilePath := filepath.Join(outDir, "soong", "soong.variables")
 
 	// dexpreopt.config is an input to the soong_docs action, which runs the
@@ -88,6 +89,7 @@ func testForDanglingRules(ctx Context, config Config) {
 			continue
 		}
 		if strings.HasPrefix(line, modulePathsDir) ||
+			strings.HasPrefix(line, rawFilesDir) ||
 			line == variablesFilePath ||
 			line == dexpreoptConfigFilePath ||
 			line == buildDatetimeFilePath ||

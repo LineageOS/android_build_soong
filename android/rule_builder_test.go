@@ -816,13 +816,13 @@ func TestRuleBuilderHashInputs(t *testing.T) {
 func TestRuleBuilderWithNinjaVarEscaping(t *testing.T) {
 	bp := `
 		rule_builder_test {
-			name: "foo_sbox_escaped_ninja",
+			name: "foo_sbox_escaped",
 			flags: ["${cmdFlags}"],
 			sbox: true,
 			sbox_inputs: true,
 		}
 		rule_builder_test {
-			name: "foo_sbox",
+			name: "foo_sbox_unescaped",
 			flags: ["${cmdFlags}"],
 			sbox: true,
 			sbox_inputs: true,
@@ -834,15 +834,16 @@ func TestRuleBuilderWithNinjaVarEscaping(t *testing.T) {
 		FixtureWithRootAndroidBp(bp),
 	).RunTest(t)
 
-	escapedNinjaMod := result.ModuleForTests("foo_sbox_escaped_ninja", "").Rule("writeFile")
+	escapedNinjaMod := result.ModuleForTests("foo_sbox_escaped", "").Output("sbox.textproto")
+	AssertStringEquals(t, "expected rule", "android/soong/android.rawFileCopy", escapedNinjaMod.Rule.String())
 	AssertStringDoesContain(
 		t,
 		"",
-		escapedNinjaMod.BuildParams.Args["content"],
-		"$${cmdFlags}",
+		ContentFromFileRuleForTests(t, result.TestContext, escapedNinjaMod),
+		"${cmdFlags}",
 	)
 
-	unescapedNinjaMod := result.ModuleForTests("foo_sbox", "").Rule("unescapedWriteFile")
+	unescapedNinjaMod := result.ModuleForTests("foo_sbox_unescaped", "").Rule("unescapedWriteFile")
 	AssertStringDoesContain(
 		t,
 		"",
