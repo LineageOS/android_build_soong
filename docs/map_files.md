@@ -134,6 +134,9 @@ both APEX and the LL-NDK.
 
 Historically this annotation was spelled `vndk`, but it has always meant LL-NDK.
 
+When an llndk API is deprecated, the `llndk` tag is dropped and
+`llndk-deprecate=<V>` is added.
+
 ### platform-only
 
 Indicates that the version or symbol is public in the implementation library but
