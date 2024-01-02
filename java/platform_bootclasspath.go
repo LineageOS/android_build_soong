@@ -106,6 +106,9 @@ func (b *platformBootclasspathModule) OutputFiles(tag string) (android.Paths, er
 }
 
 func (b *platformBootclasspathModule) DepsMutator(ctx android.BottomUpMutatorContext) {
+	// Create a dependency on all_apex_contributions to determine the selected mainline module
+	ctx.AddDependency(ctx.Module(), apexContributionsMetadataDepTag, "all_apex_contributions")
+
 	b.hiddenAPIDepsMutator(ctx)
 
 	if !dexpreopt.IsDex2oatNeeded(ctx) {
@@ -130,6 +133,8 @@ func (b *platformBootclasspathModule) hiddenAPIDepsMutator(ctx android.BottomUpM
 func (b *platformBootclasspathModule) BootclasspathDepsMutator(ctx android.BottomUpMutatorContext) {
 	// Add dependencies on all the ART jars.
 	global := dexpreopt.GetGlobalConfig(ctx)
+	addDependenciesOntoSelectedBootImageApexes(ctx, "com.android.art")
+	// TODO: b/308174306 - Remove the mechanism of depending on the java_sdk_library(_import) directly
 	addDependenciesOntoBootImageModules(ctx, global.ArtApexJars, platformBootclasspathArtBootJarDepTag)
 
 	// Add dependencies on all the non-updatable jars, which are on the platform or in non-updatable
@@ -138,6 +143,12 @@ func (b *platformBootclasspathModule) BootclasspathDepsMutator(ctx android.Botto
 
 	// Add dependencies on all the updatable jars, except the ART jars.
 	apexJars := dexpreopt.GetGlobalConfig(ctx).ApexBootJars
+	apexes := []string{}
+	for i := 0; i < apexJars.Len(); i++ {
+		apexes = append(apexes, apexJars.Apex(i))
+	}
+	addDependenciesOntoSelectedBootImageApexes(ctx, android.FirstUniqueStrings(apexes)...)
+	// TODO: b/308174306 - Remove the mechanism of depending on the java_sdk_library(_import) directly
 	addDependenciesOntoBootImageModules(ctx, apexJars, platformBootclasspathApexBootJarDepTag)
 
 	// Add dependencies on all the fragments.
