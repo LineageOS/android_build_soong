@@ -187,6 +187,11 @@ func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 	return nil
 }
 
+func (p *vndkPrebuiltLibraryDecorator) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *android.ModuleInfoJSON) {
+	p.libraryDecorator.moduleInfoJSON(ctx, moduleInfoJSON)
+	moduleInfoJSON.SubName += p.androidMkSuffix
+}
+
 func (p *vndkPrebuiltLibraryDecorator) MatchesWithDevice(config android.DeviceConfig) bool {
 	arches := config.Arches()
 	if len(arches) == 0 || arches[0].ArchType.String() != p.arch() {
