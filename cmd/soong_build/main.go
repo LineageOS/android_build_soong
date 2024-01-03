@@ -28,6 +28,7 @@ import (
 	"android/soong/android/allowlists"
 	"android/soong/bp2build"
 	"android/soong/shared"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/deptools"
@@ -196,7 +197,7 @@ func writeJsonModuleGraphAndActions(ctx *android.Context, cmdArgs android.CmdArg
 	ctx.Context.PrintJSONGraphAndActions(graphFile, actionsFile)
 }
 
-func writeBuildGlobsNinjaFile(ctx *android.Context) []string {
+func writeBuildGlobsNinjaFile(ctx *android.Context) {
 	ctx.EventHandler.Begin("globs_ninja_file")
 	defer ctx.EventHandler.End("globs_ninja_file")
 
@@ -208,7 +209,6 @@ func writeBuildGlobsNinjaFile(ctx *android.Context) []string {
 		SrcDir:     ctx.SrcDir(),
 	}, ctx.Config())
 	maybeQuit(err, "")
-	return bootstrap.GlobFileListFiles(globDir)
 }
 
 func writeDepFile(outputFile string, eventHandler *metrics.EventHandler, ninjaDeps []string) {
@@ -238,8 +238,7 @@ func runSoongOnlyBuild(ctx *android.Context, extraNinjaDeps []string) string {
 	maybeQuit(err, "")
 	ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 
-	globListFiles := writeBuildGlobsNinjaFile(ctx)
-	ninjaDeps = append(ninjaDeps, globListFiles...)
+	writeBuildGlobsNinjaFile(ctx)
 
 	// Convert the Soong module graph into Bazel BUILD files.
 	switch ctx.Config().BuildMode {
