@@ -391,12 +391,19 @@ func RegisterPrebuiltsPostDepsMutators(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("prebuilt_postdeps", PrebuiltPostDepsMutator).Parallel()
 }
 
+// Returns the name of the source module corresponding to a prebuilt module
+// For source modules, it returns its own name
+type baseModuleName interface {
+	BaseModuleName() string
+}
+
 // PrebuiltRenameMutator ensures that there always is a module with an
 // undecorated name.
 func PrebuiltRenameMutator(ctx BottomUpMutatorContext) {
 	m := ctx.Module()
 	if p := GetEmbeddedPrebuilt(m); p != nil {
-		name := m.base().BaseModuleName()
+		bmn, _ := m.(baseModuleName)
+		name := bmn.BaseModuleName()
 		if !ctx.OtherModuleExists(name) {
 			ctx.Rename(name)
 			p.properties.PrebuiltRenamedToSource = true
@@ -413,7 +420,8 @@ func PrebuiltSourceDepsMutator(ctx BottomUpMutatorContext) {
 	// If this module is a prebuilt, is enabled and has not been renamed to source then add a
 	// dependency onto the source if it is present.
 	if p := GetEmbeddedPrebuilt(m); p != nil && m.Enabled() && !p.properties.PrebuiltRenamedToSource {
-		name := m.base().BaseModuleName()
+		bmn, _ := m.(baseModuleName)
+		name := bmn.BaseModuleName()
 		if ctx.OtherModuleReverseDependencyVariantExists(name) {
 			ctx.AddReverseDependency(ctx.Module(), PrebuiltDepTag, name)
 			p.properties.SourceExists = true
@@ -466,6 +474,13 @@ func PrebuiltSelectModuleMutator(ctx BottomUpMutatorContext) {
 		})
 
 	} else if s, ok := ctx.Module().(Module); ok {
+		// Use `all_apex_contributions` for source vs prebuilt selection.
+		psi := PrebuiltSelectionInfoMap{}
+		ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(am Module) {
+			// The value of psi gets overwritten with the provider from the last visited prebuilt.
+			// But all prebuilts have the same value of the provider, so this should be idempontent.
+			psi, _ = OtherModuleProvider(ctx, am, PrebuiltSelectionInfoProvider)
+		})
 		ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(prebuiltModule Module) {
 			p := GetEmbeddedPrebuilt(prebuiltModule)
 			if p.usePrebuilt(ctx, s, prebuiltModule) {
@@ -475,11 +490,49 @@ func PrebuiltSelectModuleMutator(ctx BottomUpMutatorContext) {
 				s.ReplacedByPrebuilt()
 			}
 		})
+
+		// If any module in this mainline module family has been flagged using apex_contributions, disable every other module in that family
+		// Add source
+		allModules := []Module{s}
+		// Add each prebuilt
+		ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(prebuiltModule Module) {
+			allModules = append(allModules, prebuiltModule)
+		})
+		hideUnflaggedModules(ctx, psi, allModules)
+
 	}
+
 	// If this is `all_apex_contributions`, set a provider containing
 	// metadata about source vs prebuilts selection
 	if am, ok := m.(*allApexContributions); ok {
 		am.SetPrebuiltSelectionInfoProvider(ctx)
+	}
+}
+
+// If any module in this mainline module family has been flagged using apex_contributions, disable every other module in that family
+func hideUnflaggedModules(ctx BottomUpMutatorContext, psi PrebuiltSelectionInfoMap, allModulesInFamily []Module) {
+	var selectedModuleInFamily Module
+	// query all_apex_contributions to see if any module in this family has been selected
+	for _, moduleInFamily := range allModulesInFamily {
+		// validate that are no duplicates
+		if psi.IsSelected(moduleInFamily.Name()) {
+			if selectedModuleInFamily == nil {
+				// Store this so we can validate that there are no duplicates
+				selectedModuleInFamily = moduleInFamily
+			} else {
+				// There are duplicate modules from the same mainline module family
+				ctx.ModuleErrorf("Found duplicate variations of the same module in apex_contributions: %s and %s. Please remove one of these.\n", selectedModuleInFamily.Name(), moduleInFamily.Name())
+			}
+		}
+	}
+
+	// If a module has been selected, hide all other modules
+	if selectedModuleInFamily != nil {
+		for _, moduleInFamily := range allModulesInFamily {
+			if moduleInFamily.Name() != selectedModuleInFamily.Name() {
+				moduleInFamily.HideFromMake()
+			}
+		}
 	}
 }
 
@@ -489,7 +542,8 @@ func PrebuiltSelectModuleMutator(ctx BottomUpMutatorContext) {
 func PrebuiltPostDepsMutator(ctx BottomUpMutatorContext) {
 	m := ctx.Module()
 	if p := GetEmbeddedPrebuilt(m); p != nil {
-		name := m.base().BaseModuleName()
+		bmn, _ := m.(baseModuleName)
+		name := bmn.BaseModuleName()
 		if p.properties.UsePrebuilt {
 			if p.properties.SourceExists {
 				ctx.ReplaceDependenciesIf(name, func(from blueprint.Module, tag blueprint.DependencyTag, to blueprint.Module) bool {
@@ -533,13 +587,13 @@ func isSelected(psi PrebuiltSelectionInfoMap, m Module) bool {
 
 		// Stub library created by java_sdk_library_import
 		if p := GetEmbeddedPrebuilt(m); p != nil {
-			return psi.IsSelected(sln, PrebuiltNameFromSource(sln))
+			return psi.IsSelected(PrebuiltNameFromSource(sln))
 		}
 
 		// Stub library created by java_sdk_library
-		return psi.IsSelected(sln, sln)
+		return psi.IsSelected(sln)
 	}
-	return psi.IsSelected(m.base().BaseModuleName(), m.Name())
+	return psi.IsSelected(m.Name())
 }
 
 // usePrebuilt returns true if a prebuilt should be used instead of the source module.  The prebuilt
