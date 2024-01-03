@@ -24,6 +24,7 @@ import (
 
 func init() {
 	android.RegisterModuleType("phony", PhonyFactory)
+	android.RegisterModuleType("phony_rule", PhonyRuleFactory)
 }
 
 type phony struct {
@@ -68,6 +69,43 @@ func (p *phony) AndroidMk() android.AndroidMkData {
 					strings.Join(p.targetRequiredModuleNames, " "))
 			}
 			fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
+		},
+	}
+}
+
+type PhonyRule struct {
+	android.ModuleBase
+
+	properties PhonyProperties
+}
+
+type PhonyProperties struct {
+	// The Phony_deps is the set of all dependencies for this target,
+	// and it can function similarly to .PHONY in a makefile.
+	// Additionally, dependencies within it can even include genrule.
+	Phony_deps []string
+}
+
+// The phony_rule provides functionality similar to the .PHONY in a makefile.
+// It can create a phony target and include relevant dependencies associated with it.
+func PhonyRuleFactory() android.Module {
+	module := &PhonyRule{}
+	android.InitAndroidModule(module)
+	module.AddProperties(&module.properties)
+	return module
+}
+
+func (p *PhonyRule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+}
+
+func (p *PhonyRule) AndroidMk() android.AndroidMkData {
+	return android.AndroidMkData{
+		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
+			if len(p.properties.Phony_deps) > 0 {
+				depModulesStr := strings.Join(p.properties.Phony_deps, " ")
+				fmt.Fprintln(w, ".PHONY:", name)
+				fmt.Fprintln(w, name, ":", depModulesStr)
+			}
 		},
 	}
 }
