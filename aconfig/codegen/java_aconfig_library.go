@@ -30,7 +30,7 @@ type declarationsTagType struct {
 
 var declarationsTag = declarationsTagType{}
 
-var aconfigSupportedModes = []string{"production", "test", "exported"}
+var aconfigSupportedModes = []string{"production", "test", "exported", "force-read-only"}
 
 type JavaAconfigDeclarationsLibraryProperties struct {
 	// name of the aconfig_declarations module to generate a library for
@@ -39,6 +39,7 @@ type JavaAconfigDeclarationsLibraryProperties struct {
 	// default mode is "production", the other accepted modes are:
 	// "test": to generate test mode version of the library
 	// "exported": to generate exported mode version of the library
+	// "force-read-only": to generate force-read-only mode version of the library
 	// an error will be thrown if the mode is not supported
 	Mode *string
 }
