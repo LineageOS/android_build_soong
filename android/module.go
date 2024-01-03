@@ -839,8 +839,12 @@ type ModuleBase struct {
 	// katiInstalls tracks the install rules that were created by Soong but are being exported
 	// to Make to convert to ninja rules so that Make can add additional dependencies.
 	katiInstalls katiInstalls
-	katiSymlinks katiInstalls
-	testData     []DataPath
+	// katiInitRcInstalls and katiVintfInstalls track the install rules created by Soong that are
+	// allowed to have duplicates across modules and variants.
+	katiInitRcInstalls katiInstalls
+	katiVintfInstalls  katiInstalls
+	katiSymlinks       katiInstalls
+	testData           []DataPath
 
 	// The files to copy to the dist as explicitly specified in the .bp file.
 	distFiles TaggedDistFiles
@@ -862,6 +866,9 @@ type ModuleBase struct {
 
 	initRcPaths         Paths
 	vintfFragmentsPaths Paths
+
+	installedInitRcPaths         InstallPaths
+	installedVintfFragmentsPaths InstallPaths
 
 	// set of dependency module:location mappings used to populate the license metadata for
 	// apex containers.
@@ -1684,6 +1691,41 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			}
 		})
 
+		if m.Device() {
+			// Handle any init.rc and vintf fragment files requested by the module.  All files installed by this
+			// module will automatically have a dependency on the installed init.rc or vintf fragment file.
+			// The same init.rc or vintf fragment file may be requested by multiple modules or variants,
+			// so instead of installing them now just compute the install path and store it for later.
+			// The full list of all init.rc and vintf fragment install rules will be deduplicated later
+			// so only a single rule is created for each init.rc or vintf fragment file.
+
+			if !m.InVendorRamdisk() {
+				m.initRcPaths = PathsForModuleSrc(ctx, m.commonProperties.Init_rc)
+				rcDir := PathForModuleInstall(ctx, "etc", "init")
+				for _, src := range m.initRcPaths {
+					installedInitRc := rcDir.Join(ctx, src.Base())
+					m.katiInitRcInstalls = append(m.katiInitRcInstalls, katiInstall{
+						from: src,
+						to:   installedInitRc,
+					})
+					ctx.PackageFile(rcDir, src.Base(), src)
+					m.installedInitRcPaths = append(m.installedInitRcPaths, installedInitRc)
+				}
+			}
+
+			m.vintfFragmentsPaths = PathsForModuleSrc(ctx, m.commonProperties.Vintf_fragments)
+			vintfDir := PathForModuleInstall(ctx, "etc", "vintf", "manifest")
+			for _, src := range m.vintfFragmentsPaths {
+				installedVintfFragment := vintfDir.Join(ctx, src.Base())
+				m.katiVintfInstalls = append(m.katiVintfInstalls, katiInstall{
+					from: src,
+					to:   installedVintfFragment,
+				})
+				ctx.PackageFile(vintfDir, src.Base(), src)
+				m.installedVintfFragmentsPaths = append(m.installedVintfFragmentsPaths, installedVintfFragment)
+			}
+		}
+
 		licensesPropertyFlattener(ctx)
 		if ctx.Failed() {
 			return
@@ -1692,18 +1734,6 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		m.module.GenerateAndroidBuildActions(ctx)
 		if ctx.Failed() {
 			return
-		}
-
-		m.initRcPaths = PathsForModuleSrc(ctx, m.commonProperties.Init_rc)
-		rcDir := PathForModuleInstall(ctx, "etc", "init")
-		for _, src := range m.initRcPaths {
-			ctx.PackageFile(rcDir, filepath.Base(src.String()), src)
-		}
-
-		m.vintfFragmentsPaths = PathsForModuleSrc(ctx, m.commonProperties.Vintf_fragments)
-		vintfDir := PathForModuleInstall(ctx, "etc", "vintf", "manifest")
-		for _, src := range m.vintfFragmentsPaths {
-			ctx.PackageFile(vintfDir, filepath.Base(src.String()), src)
 		}
 
 		// Create the set of tagged dist files after calling GenerateAndroidBuildActions
