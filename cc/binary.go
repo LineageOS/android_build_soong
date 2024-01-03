@@ -541,6 +541,11 @@ func (binary *binaryDecorator) overriddenModules() []string {
 	return binary.Properties.Overrides
 }
 
+func (binary *binaryDecorator) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *android.ModuleInfoJSON) {
+	moduleInfoJSON.Class = []string{"EXECUTABLES"}
+	binary.baseLinker.moduleInfoJSON(ctx, moduleInfoJSON)
+}
+
 var _ overridable = (*binaryDecorator)(nil)
 
 func init() {
