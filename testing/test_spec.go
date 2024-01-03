@@ -117,7 +117,7 @@ func (module *TestSpecModule) GenerateAndroidBuildActions(ctx android.ModuleCont
 	if err != nil {
 		ctx.ModuleErrorf("Error: %s", err.Error())
 	}
-	android.WriteFileRule(ctx, intermediatePath, string(protoData))
+	android.WriteFileRuleVerbatim(ctx, intermediatePath, string(protoData))
 
 	android.SetProvider(ctx,
 		TestSpecProviderKey, TestSpecProviderData{

@@ -11436,6 +11436,20 @@ func TestBootDexJarsMultipleApexPrebuilts(t *testing.T) {
 		}
 	}
 
+	// Check that the boot jars of the selected apex are run through boot_jars_package_check
+	// This validates that the jars on the bootclasspath do not contain packages outside an allowlist
+	checkBootJarsPackageCheck := func(t *testing.T, ctx *android.TestContext, expectedBootJar string) {
+		platformBcp := ctx.ModuleForTests("platform-bootclasspath", "android_common")
+		bootJarsCheckRule := platformBcp.Rule("boot_jars_package_check")
+		android.AssertStringMatches(t, "Could not find the correct boot dex jar in package check rule", bootJarsCheckRule.RuleParams.Command, "build/soong/scripts/check_boot_jars/package_allowed_list.txt.*"+expectedBootJar)
+	}
+
+	// Check that the boot jars used to generate the monolithic hiddenapi flags come from the selected apex
+	checkBootJarsForMonolithicHiddenapi := func(t *testing.T, ctx *android.TestContext, expectedBootJar string) {
+		monolithicHiddenapiFlagsCmd := ctx.ModuleForTests("platform-bootclasspath", "android_common").Output("out/soong/hiddenapi/hiddenapi-stub-flags.txt").RuleParams.Command
+		android.AssertStringMatches(t, "Could not find the correct boot dex jar in monolithic hiddenapi flags generation command", monolithicHiddenapiFlagsCmd, "--boot-dex="+expectedBootJar)
+	}
+
 	bp := `
 		// Source APEX.
 
@@ -11575,5 +11589,7 @@ func TestBootDexJarsMultipleApexPrebuilts(t *testing.T) {
 		)
 		ctx := testDexpreoptWithApexes(t, bp, "", preparer, fragment)
 		checkBootDexJarPath(t, ctx, "framework-foo", tc.expectedBootJar)
+		checkBootJarsPackageCheck(t, ctx, tc.expectedBootJar)
+		checkBootJarsForMonolithicHiddenapi(t, ctx, tc.expectedBootJar)
 	}
 }

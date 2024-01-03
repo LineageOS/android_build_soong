@@ -25,12 +25,10 @@ func TestCodeMetadata(t *testing.T) {
 	}`
 	result := runCodeMetadataTest(t, android.FixtureExpectsNoErrors, bp)
 
-	module := result.ModuleForTests(
-		"module-name", "",
-	).Module().(*soongTesting.CodeMetadataModule)
+	module := result.ModuleForTests("module-name", "")
 
 	// Check that the provider has the right contents
-	data, _ := android.SingletonModuleProvider(result, module, soongTesting.CodeMetadataProviderKey)
+	data, _ := android.SingletonModuleProvider(result, module.Module(), soongTesting.CodeMetadataProviderKey)
 	if !strings.HasSuffix(
 		data.IntermediatePath.String(), "/intermediateCodeMetadata.pb",
 	) {
@@ -40,13 +38,8 @@ func TestCodeMetadata(t *testing.T) {
 		)
 	}
 
-	buildParamsSlice := module.BuildParamsForTests()
-	var metadata = ""
-	for _, params := range buildParamsSlice {
-		if params.Rule.String() == "android/soong/android.writeFile" {
-			metadata = params.Args["content"]
-		}
-	}
+	metadata := android.ContentFromFileRuleForTests(t, result.TestContext,
+		module.Output(data.IntermediatePath.String()))
 
 	metadataList := make([]*code_metadata_internal_proto.CodeMetadataInternal_TargetOwnership, 0, 2)
 	teamId := "12345"
@@ -63,9 +56,7 @@ func TestCodeMetadata(t *testing.T) {
 
 	CodeMetadataMetadata := code_metadata_internal_proto.CodeMetadataInternal{TargetOwnershipList: metadataList}
 	protoData, _ := proto.Marshal(&CodeMetadataMetadata)
-	rawData := string(protoData)
-	formattedData := strings.ReplaceAll(rawData, "\n", "\\n")
-	expectedMetadata := "'" + formattedData + "\\n'"
+	expectedMetadata := string(protoData)
 
 	if metadata != expectedMetadata {
 		t.Errorf(

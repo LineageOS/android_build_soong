@@ -18,6 +18,7 @@ package android
 // product variables necessary for soong_build's operation.
 
 import (
+	"android/soong/shared"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -116,6 +117,11 @@ const (
 // SoongOutDir returns the build output directory for the configuration.
 func (c Config) SoongOutDir() string {
 	return c.soongOutDir
+}
+
+// tempDir returns the path to out/soong/.temp, which is cleared at the beginning of every build.
+func (c Config) tempDir() string {
+	return shared.TempDirForOutDir(c.soongOutDir)
 }
 
 func (c Config) OutDir() string {
