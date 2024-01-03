@@ -2885,14 +2885,6 @@ func makeApexAvailableBaseline() map[string][]string {
 	//
 	// Module separator
 	//
-	m["com.android.tethering"] = []string{
-		"android.hardware.tetheroffload.config-V1.0-java",
-		"android.hardware.tetheroffload.control-V1.0-java",
-		"net-utils-framework-common",
-	}
-	//
-	// Module separator
-	//
 	m["com.android.wifi"] = []string{
 		"PlatformProperties",
 		"android.hardware.wifi-V1.0-java",
