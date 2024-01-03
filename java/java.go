@@ -26,7 +26,7 @@ import (
 	"android/soong/bazel"
 	"android/soong/bazel/cquery"
 	"android/soong/remoteexec"
-
+	"android/soong/testing"
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -1199,10 +1199,12 @@ func (j *TestHost) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	j.Test.generateAndroidBuildActionsWithConfig(ctx, configs)
+	ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 }
 
 func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.generateAndroidBuildActionsWithConfig(ctx, nil)
+	ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 }
 
 func (j *Test) generateAndroidBuildActionsWithConfig(ctx android.ModuleContext, configs []tradefed.Config) {

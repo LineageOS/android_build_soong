@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"android/soong/testing"
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -1124,6 +1125,7 @@ func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.testConfig = a.FixTestConfig(ctx, testConfig)
 	a.extraTestConfigs = android.PathsForModuleSrc(ctx, a.testProperties.Test_options.Extra_test_configs)
 	a.data = android.PathsForModuleSrc(ctx, a.testProperties.Data)
+	ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 }
 
 func (a *AndroidTest) FixTestConfig(ctx android.ModuleContext, testConfig android.Path) android.Path {

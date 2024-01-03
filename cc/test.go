@@ -154,6 +154,7 @@ func TestLibraryFactory() android.Module {
 // binary.
 func BenchmarkFactory() android.Module {
 	module := NewBenchmark(android.HostAndDeviceSupported)
+	module.testModule = true
 	return module.Init()
 }
 
@@ -482,6 +483,7 @@ func NewTest(hod android.HostOrDeviceSupported, bazelable bool) *Module {
 	module, binary := newBinary(hod, bazelable)
 	module.bazelable = bazelable
 	module.multilib = android.MultilibBoth
+	module.testModule = true
 	binary.baseInstaller = NewTestInstaller()
 
 	test := &testBinary{

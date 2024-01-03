@@ -1,0 +1,21 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+bootstrap_go_package {
+    name: "soong-testing",
+    pkgPath: "android/soong/testing",
+    deps: [
+        "blueprint",
+        "soong-android",
+        "soong-testing-test_spec_proto",
+
+    ],
+    srcs: [
+        "all_test_specs.go",
+        "test_spec.go",
+        "init.go",
+        "test.go",
+    ],
+    pluginFor: ["soong_build"],
+}
