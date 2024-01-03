@@ -63,6 +63,7 @@ bootstrap_go_package {
         "metrics.go",
         "module.go",
         "module_context.go",
+        "module_info_json.go",
         "mutator.go",
         "namespace.go",
         "neverallow.go",
