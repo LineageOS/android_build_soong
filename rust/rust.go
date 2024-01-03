@@ -20,6 +20,7 @@ import (
 
 	"android/soong/bloaty"
 	"android/soong/testing"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -69,9 +70,9 @@ type BaseProperties struct {
 	AndroidMkProcMacroLibs []string `blueprint:"mutated"`
 	AndroidMkStaticLibs    []string `blueprint:"mutated"`
 
-	ImageVariationPrefix string `blueprint:"mutated"`
-	VndkVersion          string `blueprint:"mutated"`
-	SubName              string `blueprint:"mutated"`
+	ImageVariation string `blueprint:"mutated"`
+	VndkVersion    string `blueprint:"mutated"`
+	SubName        string `blueprint:"mutated"`
 
 	// SubName is used by CC for tracking image variants / SDK versions. RustSubName is used for Rust-specific
 	// subnaming which shouldn't be visible to CC modules (such as the rlib stdlinkage subname). This should be

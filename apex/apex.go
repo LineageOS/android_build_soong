@@ -719,7 +719,7 @@ func (a *apexBundle) combineProperties(ctx android.BottomUpMutatorContext) {
 
 // getImageVariationPair returns a pair for the image variation name as its
 // prefix and suffix. The prefix indicates whether it's core/vendor/product and the
-// suffix indicates the vndk version when it's vendor or product.
+// suffix indicates the vndk version for vendor/product if vndk is enabled.
 // getImageVariation can simply join the result of this function to get the
 // image variation name.
 func (a *apexBundle) getImageVariationPair(deviceConfig android.DeviceConfig) (string, string) {
@@ -727,8 +727,8 @@ func (a *apexBundle) getImageVariationPair(deviceConfig android.DeviceConfig) (s
 		return cc.VendorVariationPrefix, a.vndkVersion(deviceConfig)
 	}
 
-	var prefix string
-	var vndkVersion string
+	prefix := android.CoreVariation
+	vndkVersion := ""
 	if deviceConfig.VndkVersion() != "" {
 		if a.SocSpecific() || a.DeviceSpecific() {
 			prefix = cc.VendorVariationPrefix
@@ -737,15 +737,18 @@ func (a *apexBundle) getImageVariationPair(deviceConfig android.DeviceConfig) (s
 			prefix = cc.ProductVariationPrefix
 			vndkVersion = deviceConfig.PlatformVndkVersion()
 		}
+	} else {
+		if a.SocSpecific() || a.DeviceSpecific() {
+			prefix = cc.VendorVariation
+		} else if a.ProductSpecific() {
+			prefix = cc.ProductVariation
+		}
 	}
 	if vndkVersion == "current" {
 		vndkVersion = deviceConfig.PlatformVndkVersion()
 	}
-	if vndkVersion != "" {
-		return prefix, vndkVersion
-	}
 
-	return android.CoreVariation, "" // The usual case
+	return prefix, vndkVersion
 }
 
 // getImageVariation returns the image variant name for this apexBundle. In most cases, it's simply
