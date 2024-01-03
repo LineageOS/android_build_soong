@@ -23,6 +23,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 
@@ -876,6 +877,10 @@ type ModuleBase struct {
 
 	// The path to the generated license metadata file for the module.
 	licenseMetadataFile WritablePath
+
+	// moduleInfoJSON can be filled out by GenerateAndroidBuildActions to write a JSON file that will
+	// be included in the final module-info.json produced by Make.
+	moduleInfoJSON *ModuleInfoJSON
 }
 
 func (m *ModuleBase) AddJSONData(d *map[string]interface{}) {
@@ -1771,9 +1776,88 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 
 	buildLicenseMetadata(ctx, m.licenseMetadataFile)
 
+	if m.moduleInfoJSON != nil {
+		var installed InstallPaths
+		installed = append(installed, m.katiInstalls.InstallPaths()...)
+		installed = append(installed, m.katiSymlinks.InstallPaths()...)
+		installed = append(installed, m.katiInitRcInstalls.InstallPaths()...)
+		installed = append(installed, m.katiVintfInstalls.InstallPaths()...)
+		installedStrings := installed.Strings()
+
+		var targetRequired, hostRequired []string
+		if ctx.Host() {
+			targetRequired = m.commonProperties.Target_required
+		} else {
+			hostRequired = m.commonProperties.Host_required
+		}
+
+		var data []string
+		for _, d := range m.testData {
+			data = append(data, d.ToRelativeInstallPath())
+		}
+
+		if m.moduleInfoJSON.Uninstallable {
+			installedStrings = nil
+			if len(m.moduleInfoJSON.CompatibilitySuites) == 1 && m.moduleInfoJSON.CompatibilitySuites[0] == "null-suite" {
+				m.moduleInfoJSON.CompatibilitySuites = nil
+				m.moduleInfoJSON.TestConfig = nil
+				m.moduleInfoJSON.AutoTestConfig = nil
+				data = nil
+			}
+		}
+
+		m.moduleInfoJSON.core = CoreModuleInfoJSON{
+			RegisterName:       m.moduleInfoRegisterName(ctx, m.moduleInfoJSON.SubName),
+			Path:               []string{ctx.ModuleDir()},
+			Installed:          installedStrings,
+			ModuleName:         m.BaseModuleName() + m.moduleInfoJSON.SubName,
+			SupportedVariants:  []string{m.moduleInfoVariant(ctx)},
+			TargetDependencies: targetRequired,
+			HostDependencies:   hostRequired,
+			Data:               data,
+		}
+		SetProvider(ctx, ModuleInfoJSONProvider, m.moduleInfoJSON)
+	}
+
 	m.buildParams = ctx.buildParams
 	m.ruleParams = ctx.ruleParams
 	m.variables = ctx.variables
+}
+
+func (m *ModuleBase) moduleInfoRegisterName(ctx ModuleContext, subName string) string {
+	name := m.BaseModuleName()
+
+	prefix := ""
+	if ctx.Host() {
+		if ctx.Os() != ctx.Config().BuildOS {
+			prefix = "host_cross_"
+		}
+	}
+	suffix := ""
+	arches := slices.Clone(ctx.Config().Targets[ctx.Os()])
+	arches = slices.DeleteFunc(arches, func(target Target) bool {
+		return target.NativeBridge != ctx.Target().NativeBridge
+	})
+	if len(arches) > 0 && ctx.Arch().ArchType != arches[0].Arch.ArchType {
+		if ctx.Arch().ArchType.Multilib == "lib32" {
+			suffix = "_32"
+		} else {
+			suffix = "_64"
+		}
+	}
+	return prefix + name + subName + suffix
+}
+
+func (m *ModuleBase) moduleInfoVariant(ctx ModuleContext) string {
+	variant := "DEVICE"
+	if ctx.Host() {
+		if ctx.Os() != ctx.Config().BuildOS {
+			variant = "HOST_CROSS"
+		} else {
+			variant = "HOST"
+		}
+	}
+	return variant
 }
 
 // Check the supplied dist structure to make sure that it is valid.
