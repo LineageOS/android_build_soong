@@ -101,15 +101,6 @@ func (c *Module) AndroidMkEntries() []android.AndroidMkEntries {
 				if len(c.Properties.AndroidMkSharedLibs) > 0 {
 					entries.AddStrings("LOCAL_SHARED_LIBRARIES", c.Properties.AndroidMkSharedLibs...)
 				}
-				if len(c.Properties.AndroidMkStaticLibs) > 0 {
-					entries.AddStrings("LOCAL_STATIC_LIBRARIES", c.Properties.AndroidMkStaticLibs...)
-				}
-				if len(c.Properties.AndroidMkWholeStaticLibs) > 0 {
-					entries.AddStrings("LOCAL_WHOLE_STATIC_LIBRARIES", c.Properties.AndroidMkWholeStaticLibs...)
-				}
-				if len(c.Properties.AndroidMkHeaderLibs) > 0 {
-					entries.AddStrings("LOCAL_HEADER_LIBRARIES", c.Properties.AndroidMkHeaderLibs...)
-				}
 				if len(c.Properties.AndroidMkRuntimeLibs) > 0 {
 					entries.AddStrings("LOCAL_RUNTIME_LIBRARIES", c.Properties.AndroidMkRuntimeLibs...)
 				}
