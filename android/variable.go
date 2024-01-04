@@ -448,7 +448,6 @@ type ProductVariables struct {
 	BuildBrokenVendorPropertyNamespace  bool     `json:",omitempty"`
 	BuildBrokenIncorrectPartitionImages bool     `json:",omitempty"`
 	BuildBrokenInputDirModules          []string `json:",omitempty"`
-	BuildBrokenDontCheckSystemSdk       bool     `json:",omitempty"`
 
 	BuildWarningBadOptionalUsesLibsAllowlist []string `json:",omitempty"`
 
