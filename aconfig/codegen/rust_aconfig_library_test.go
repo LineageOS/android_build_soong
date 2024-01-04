@@ -72,6 +72,7 @@ var rustCodegenModeTestData = []struct {
 	{"mode: `production`,", "production"},
 	{"mode: `test`,", "test"},
 	{"mode: `exported`,", "exported"},
+	{"mode: `force-read-only`,", "force-read-only"},
 }
 
 func TestRustCodegenMode(t *testing.T) {

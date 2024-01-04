@@ -227,6 +227,10 @@ func TestExportedMode(t *testing.T) {
 	testCodegenMode(t, "mode: `exported`,", "exported")
 }
 
+func TestForceReadOnlyMode(t *testing.T) {
+	testCodegenMode(t, "mode: `force-read-only`,", "force-read-only")
+}
+
 func TestUnsupportedMode(t *testing.T) {
 	testCodegenModeWithError(t, "mode: `unsupported`,", "mode: \"unsupported\" is not a supported mode")
 }
