@@ -1941,6 +1941,7 @@ var (
 		"libdl_android": true,
 		"libm":          true,
 		"libdl":         true,
+		"libz":          true,
 		// art apex
 		"libandroidio":    true,
 		"libdexfile":      true,
