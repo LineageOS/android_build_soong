@@ -17,6 +17,7 @@ package android
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/blueprint"
 )
@@ -240,6 +241,9 @@ func (p *PackagingBase) GatherPackagingSpecs(ctx ModuleContext) map[string]Packa
 // entries into the specified directory.
 func (p *PackagingBase) CopySpecsToDir(ctx ModuleContext, builder *RuleBuilder, specs map[string]PackagingSpec, dir WritablePath) (entries []string) {
 	seenDir := make(map[string]bool)
+	preparerPath := PathForModuleOut(ctx, "preparer.sh")
+	cmd := builder.Command().Tool(preparerPath)
+	var sb strings.Builder
 	for _, k := range SortedKeys(specs) {
 		ps := specs[k]
 		destPath := filepath.Join(dir.String(), ps.relPathInPackage)
@@ -247,17 +251,20 @@ func (p *PackagingBase) CopySpecsToDir(ctx ModuleContext, builder *RuleBuilder, 
 		entries = append(entries, ps.relPathInPackage)
 		if _, ok := seenDir[destDir]; !ok {
 			seenDir[destDir] = true
-			builder.Command().Text("mkdir").Flag("-p").Text(destDir)
+			sb.WriteString(fmt.Sprintf("mkdir -p %s\n", destDir))
 		}
 		if ps.symlinkTarget == "" {
-			builder.Command().Text("cp").Input(ps.srcPath).Text(destPath)
+			cmd.Implicit(ps.srcPath)
+			sb.WriteString(fmt.Sprintf("cp %s %s\n", ps.srcPath, destPath))
 		} else {
-			builder.Command().Text("ln").Flag("-sf").Text(ps.symlinkTarget).Text(destPath)
+			sb.WriteString(fmt.Sprintf("ln -sf %s %s\n", ps.symlinkTarget, destPath))
 		}
 		if ps.executable {
-			builder.Command().Text("chmod").Flag("a+x").Text(destPath)
+			sb.WriteString(fmt.Sprintf("chmod a+x %s\n", destPath))
 		}
 	}
+
+	WriteExecutableFileRuleVerbatim(ctx, preparerPath, sb.String())
 
 	return entries
 }

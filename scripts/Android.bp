@@ -254,3 +254,8 @@ python_test_host {
         "modify_permissions_allowlist.py",
     ],
 }
+
+sh_binary_host {
+    name: "keep-flagged-apis",
+    src: "keep-flagged-apis.sh",
+}

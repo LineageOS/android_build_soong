@@ -23,6 +23,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 
@@ -839,8 +840,12 @@ type ModuleBase struct {
 	// katiInstalls tracks the install rules that were created by Soong but are being exported
 	// to Make to convert to ninja rules so that Make can add additional dependencies.
 	katiInstalls katiInstalls
-	katiSymlinks katiInstalls
-	testData     []DataPath
+	// katiInitRcInstalls and katiVintfInstalls track the install rules created by Soong that are
+	// allowed to have duplicates across modules and variants.
+	katiInitRcInstalls katiInstalls
+	katiVintfInstalls  katiInstalls
+	katiSymlinks       katiInstalls
+	testData           []DataPath
 
 	// The files to copy to the dist as explicitly specified in the .bp file.
 	distFiles TaggedDistFiles
@@ -863,12 +868,19 @@ type ModuleBase struct {
 	initRcPaths         Paths
 	vintfFragmentsPaths Paths
 
+	installedInitRcPaths         InstallPaths
+	installedVintfFragmentsPaths InstallPaths
+
 	// set of dependency module:location mappings used to populate the license metadata for
 	// apex containers.
 	licenseInstallMap []string
 
 	// The path to the generated license metadata file for the module.
 	licenseMetadataFile WritablePath
+
+	// moduleInfoJSON can be filled out by GenerateAndroidBuildActions to write a JSON file that will
+	// be included in the final module-info.json produced by Make.
+	moduleInfoJSON *ModuleInfoJSON
 }
 
 func (m *ModuleBase) AddJSONData(d *map[string]interface{}) {
@@ -1684,6 +1696,41 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			}
 		})
 
+		if m.Device() {
+			// Handle any init.rc and vintf fragment files requested by the module.  All files installed by this
+			// module will automatically have a dependency on the installed init.rc or vintf fragment file.
+			// The same init.rc or vintf fragment file may be requested by multiple modules or variants,
+			// so instead of installing them now just compute the install path and store it for later.
+			// The full list of all init.rc and vintf fragment install rules will be deduplicated later
+			// so only a single rule is created for each init.rc or vintf fragment file.
+
+			if !m.InVendorRamdisk() {
+				m.initRcPaths = PathsForModuleSrc(ctx, m.commonProperties.Init_rc)
+				rcDir := PathForModuleInstall(ctx, "etc", "init")
+				for _, src := range m.initRcPaths {
+					installedInitRc := rcDir.Join(ctx, src.Base())
+					m.katiInitRcInstalls = append(m.katiInitRcInstalls, katiInstall{
+						from: src,
+						to:   installedInitRc,
+					})
+					ctx.PackageFile(rcDir, src.Base(), src)
+					m.installedInitRcPaths = append(m.installedInitRcPaths, installedInitRc)
+				}
+			}
+
+			m.vintfFragmentsPaths = PathsForModuleSrc(ctx, m.commonProperties.Vintf_fragments)
+			vintfDir := PathForModuleInstall(ctx, "etc", "vintf", "manifest")
+			for _, src := range m.vintfFragmentsPaths {
+				installedVintfFragment := vintfDir.Join(ctx, src.Base())
+				m.katiVintfInstalls = append(m.katiVintfInstalls, katiInstall{
+					from: src,
+					to:   installedVintfFragment,
+				})
+				ctx.PackageFile(vintfDir, src.Base(), src)
+				m.installedVintfFragmentsPaths = append(m.installedVintfFragmentsPaths, installedVintfFragment)
+			}
+		}
+
 		licensesPropertyFlattener(ctx)
 		if ctx.Failed() {
 			return
@@ -1692,18 +1739,6 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		m.module.GenerateAndroidBuildActions(ctx)
 		if ctx.Failed() {
 			return
-		}
-
-		m.initRcPaths = PathsForModuleSrc(ctx, m.commonProperties.Init_rc)
-		rcDir := PathForModuleInstall(ctx, "etc", "init")
-		for _, src := range m.initRcPaths {
-			ctx.PackageFile(rcDir, filepath.Base(src.String()), src)
-		}
-
-		m.vintfFragmentsPaths = PathsForModuleSrc(ctx, m.commonProperties.Vintf_fragments)
-		vintfDir := PathForModuleInstall(ctx, "etc", "vintf", "manifest")
-		for _, src := range m.vintfFragmentsPaths {
-			ctx.PackageFile(vintfDir, filepath.Base(src.String()), src)
 		}
 
 		// Create the set of tagged dist files after calling GenerateAndroidBuildActions
@@ -1741,9 +1776,88 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 
 	buildLicenseMetadata(ctx, m.licenseMetadataFile)
 
+	if m.moduleInfoJSON != nil {
+		var installed InstallPaths
+		installed = append(installed, m.katiInstalls.InstallPaths()...)
+		installed = append(installed, m.katiSymlinks.InstallPaths()...)
+		installed = append(installed, m.katiInitRcInstalls.InstallPaths()...)
+		installed = append(installed, m.katiVintfInstalls.InstallPaths()...)
+		installedStrings := installed.Strings()
+
+		var targetRequired, hostRequired []string
+		if ctx.Host() {
+			targetRequired = m.commonProperties.Target_required
+		} else {
+			hostRequired = m.commonProperties.Host_required
+		}
+
+		var data []string
+		for _, d := range m.testData {
+			data = append(data, d.ToRelativeInstallPath())
+		}
+
+		if m.moduleInfoJSON.Uninstallable {
+			installedStrings = nil
+			if len(m.moduleInfoJSON.CompatibilitySuites) == 1 && m.moduleInfoJSON.CompatibilitySuites[0] == "null-suite" {
+				m.moduleInfoJSON.CompatibilitySuites = nil
+				m.moduleInfoJSON.TestConfig = nil
+				m.moduleInfoJSON.AutoTestConfig = nil
+				data = nil
+			}
+		}
+
+		m.moduleInfoJSON.core = CoreModuleInfoJSON{
+			RegisterName:       m.moduleInfoRegisterName(ctx, m.moduleInfoJSON.SubName),
+			Path:               []string{ctx.ModuleDir()},
+			Installed:          installedStrings,
+			ModuleName:         m.BaseModuleName() + m.moduleInfoJSON.SubName,
+			SupportedVariants:  []string{m.moduleInfoVariant(ctx)},
+			TargetDependencies: targetRequired,
+			HostDependencies:   hostRequired,
+			Data:               data,
+		}
+		SetProvider(ctx, ModuleInfoJSONProvider, m.moduleInfoJSON)
+	}
+
 	m.buildParams = ctx.buildParams
 	m.ruleParams = ctx.ruleParams
 	m.variables = ctx.variables
+}
+
+func (m *ModuleBase) moduleInfoRegisterName(ctx ModuleContext, subName string) string {
+	name := m.BaseModuleName()
+
+	prefix := ""
+	if ctx.Host() {
+		if ctx.Os() != ctx.Config().BuildOS {
+			prefix = "host_cross_"
+		}
+	}
+	suffix := ""
+	arches := slices.Clone(ctx.Config().Targets[ctx.Os()])
+	arches = slices.DeleteFunc(arches, func(target Target) bool {
+		return target.NativeBridge != ctx.Target().NativeBridge
+	})
+	if len(arches) > 0 && ctx.Arch().ArchType != arches[0].Arch.ArchType {
+		if ctx.Arch().ArchType.Multilib == "lib32" {
+			suffix = "_32"
+		} else {
+			suffix = "_64"
+		}
+	}
+	return prefix + name + subName + suffix
+}
+
+func (m *ModuleBase) moduleInfoVariant(ctx ModuleContext) string {
+	variant := "DEVICE"
+	if ctx.Host() {
+		if ctx.Os() != ctx.Config().BuildOS {
+			variant = "HOST_CROSS"
+		} else {
+			variant = "HOST"
+		}
+	}
+	return variant
 }
 
 // Check the supplied dist structure to make sure that it is valid.

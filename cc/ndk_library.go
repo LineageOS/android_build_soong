@@ -486,6 +486,12 @@ func (linker *stubDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	}
 }
 
+func (linker *stubDecorator) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *android.ModuleInfoJSON) {
+	linker.libraryDecorator.moduleInfoJSON(ctx, moduleInfoJSON)
+	// Overwrites the SubName computed by libraryDecorator
+	moduleInfoJSON.SubName = ndkLibrarySuffix + "." + linker.apiLevel.String()
+}
+
 func (linker *stubDecorator) Name(name string) string {
 	return name + ndkLibrarySuffix
 }

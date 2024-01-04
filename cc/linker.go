@@ -648,6 +648,9 @@ func (linker *baseLinker) linkerSpecifiedDeps(specifiedDeps specifiedDeps) speci
 	return specifiedDeps
 }
 
+func (linker *baseLinker) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *android.ModuleInfoJSON) {
+}
+
 // Injecting version symbols
 // Some host modules want a version number, but we don't want to rebuild it every time.  Optionally add a step
 // after linking that injects a constant placeholder with the current version number.
