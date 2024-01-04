@@ -306,7 +306,7 @@ func SdkSpecFromWithConfig(config Config, str string) SdkSpec {
 func (s SdkSpec) ValidateSystemSdk(ctx EarlyModuleContext) bool {
 	// Do some early checks. This check is currently only for Java modules. And our only concern
 	// is the use of "system" SDKs.
-	if !isJava(ctx.Module()) || s.Kind != SdkSystem || ctx.DeviceConfig().BuildBrokenDontCheckSystemSdk() {
+	if !isJava(ctx.Module()) || s.Kind != SdkSystem {
 		return true
 	}
 
