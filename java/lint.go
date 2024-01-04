@@ -56,7 +56,8 @@ type LintProperties struct {
 		// Modules that provide extra lint checks
 		Extra_check_modules []string
 
-		// Name of the file that lint uses as the baseline. Defaults to "lint-baseline.xml".
+		// The lint baseline file to use. If specified, lint warnings listed in this file will be
+		// suppressed during lint checks.
 		Baseline_filename *string
 
 		// If true, baselining updatability lint checks (e.g. NewApi) is prohibited. Defaults to false.
@@ -365,19 +366,6 @@ func (l *linter) generateManifest(ctx android.ModuleContext, rule *android.RuleB
 	return manifestPath
 }
 
-func (l *linter) getBaselineFilepath(ctx android.ModuleContext) android.OptionalPath {
-	var lintBaseline android.OptionalPath
-	if lintFilename := proptools.StringDefault(l.properties.Lint.Baseline_filename, "lint-baseline.xml"); lintFilename != "" {
-		if String(l.properties.Lint.Baseline_filename) != "" {
-			// if manually specified, we require the file to exist
-			lintBaseline = android.OptionalPathForPath(android.PathForModuleSrc(ctx, lintFilename))
-		} else {
-			lintBaseline = android.ExistentPathForSource(ctx, ctx.ModuleDir(), lintFilename)
-		}
-	}
-	return lintBaseline
-}
-
 func (l *linter) lint(ctx android.ModuleContext) {
 	if !l.enabled() {
 		return
@@ -518,9 +506,8 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		cmd.FlagWithArg("--check ", checkOnly)
 	}
 
-	lintBaseline := l.getBaselineFilepath(ctx)
-	if lintBaseline.Valid() {
-		cmd.FlagWithInput("--baseline ", lintBaseline.Path())
+	if l.properties.Lint.Baseline_filename != nil {
+		cmd.FlagWithInput("--baseline ", android.PathForModuleSrc(ctx, *l.properties.Lint.Baseline_filename))
 	}
 
 	cmd.FlagWithOutput("--write-reference-baseline ", referenceBaseline)
