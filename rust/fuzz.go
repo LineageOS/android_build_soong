@@ -142,12 +142,12 @@ func (fuzz *fuzzDecorator) install(ctx ModuleContext) {
 
 		fuzz.installedSharedDeps = append(fuzz.installedSharedDeps,
 			cc.SharedLibraryInstallLocation(
-				install, ctx.Host(), installBase, ctx.Arch().ArchType.String()))
+				install, ctx.Host(), ctx.InstallInVendor(), installBase, ctx.Arch().ArchType.String()))
 
 		// Also add the dependency on the shared library symbols dir.
 		if !ctx.Host() {
 			fuzz.installedSharedDeps = append(fuzz.installedSharedDeps,
-				cc.SharedLibrarySymbolsInstallLocation(install, installBase, ctx.Arch().ArchType.String()))
+				cc.SharedLibrarySymbolsInstallLocation(install, ctx.InstallInVendor(), installBase, ctx.Arch().ArchType.String()))
 		}
 	}
 
