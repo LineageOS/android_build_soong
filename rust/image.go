@@ -184,12 +184,12 @@ func (mod *Module) HasNonSystemVariants() bool {
 }
 
 func (mod *Module) InProduct() bool {
-	return mod.Properties.ImageVariationPrefix == cc.ProductVariationPrefix
+	return mod.Properties.ImageVariation == cc.ProductVariation
 }
 
 // Returns true if the module is "vendor" variant. Usually these modules are installed in /vendor
 func (mod *Module) InVendor() bool {
-	return mod.Properties.ImageVariationPrefix == cc.VendorVariationPrefix
+	return mod.Properties.ImageVariation == cc.VendorVariation
 }
 
 func (mod *Module) SetImageVariation(ctx android.BaseModuleContext, variant string, module android.Module) {
@@ -198,9 +198,11 @@ func (mod *Module) SetImageVariation(ctx android.BaseModuleContext, variant stri
 		m.MakeAsPlatform()
 	} else if variant == android.RecoveryVariation {
 		m.MakeAsPlatform()
-	} else if strings.HasPrefix(variant, cc.VendorVariationPrefix) {
-		m.Properties.ImageVariationPrefix = cc.VendorVariationPrefix
-		m.Properties.VndkVersion = strings.TrimPrefix(variant, cc.VendorVariationPrefix)
+	} else if strings.HasPrefix(variant, cc.VendorVariation) {
+		m.Properties.ImageVariation = cc.VendorVariation
+		if strings.HasPrefix(variant, cc.VendorVariationPrefix) {
+			m.Properties.VndkVersion = strings.TrimPrefix(variant, cc.VendorVariationPrefix)
+		}
 
 		// Makefile shouldn't know vendor modules other than BOARD_VNDK_VERSION.
 		// Hide other vendor variants to avoid collision.
@@ -209,9 +211,11 @@ func (mod *Module) SetImageVariation(ctx android.BaseModuleContext, variant stri
 			m.Properties.HideFromMake = true
 			m.HideFromMake()
 		}
-	} else if strings.HasPrefix(variant, cc.ProductVariationPrefix) {
-		m.Properties.ImageVariationPrefix = cc.ProductVariationPrefix
-		m.Properties.VndkVersion = strings.TrimPrefix(variant, cc.ProductVariationPrefix)
+	} else if strings.HasPrefix(variant, cc.ProductVariation) {
+		m.Properties.ImageVariation = cc.ProductVariation
+		if strings.HasPrefix(variant, cc.ProductVariationPrefix) {
+			m.Properties.VndkVersion = strings.TrimPrefix(variant, cc.ProductVariationPrefix)
+		}
 	}
 }
 
