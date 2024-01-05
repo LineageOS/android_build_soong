@@ -1476,7 +1476,9 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 			headerAbiChecker.Exclude_symbol_tags,
 			currVersion)
 
-		addLsdumpPath(classifySourceAbiDump(ctx) + ":" + library.sAbiOutputFile.String())
+		for _, tag := range classifySourceAbiDump(ctx) {
+			addLsdumpPath(tag + ":" + library.sAbiOutputFile.String())
+		}
 
 		dumpDir := getRefAbiDumpDir(isNdk, isLlndk)
 		binderBitness := ctx.DeviceConfig().BinderBitness()
