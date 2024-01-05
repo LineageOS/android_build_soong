@@ -2109,7 +2109,7 @@ func TestJNISDK(t *testing.T) {
 		Output("libjni.so").Output.String()
 	sdkJNI := ctx.ModuleForTests("libjni", "android_arm64_armv8-a_sdk_shared").
 		Output("libjni.so").Output.String()
-	vendorJNI := ctx.ModuleForTests("libvendorjni", "android_arm64_armv8-a_shared").
+	vendorJNI := ctx.ModuleForTests("libvendorjni", "android_vendor_arm64_armv8-a_shared").
 		Output("libvendorjni.so").Output.String()
 
 	for _, test := range testCases {
