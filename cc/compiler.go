@@ -720,7 +720,7 @@ func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathD
 
 	// Compile files listed in c.Properties.Srcs into objects
 	objs := compileObjs(ctx, buildFlags, "", srcs,
-		android.PathsForModuleSrc(ctx, compiler.Properties.Tidy_disabled_srcs),
+		append(android.PathsForModuleSrc(ctx, compiler.Properties.Tidy_disabled_srcs), compiler.generatedSources...),
 		android.PathsForModuleSrc(ctx, compiler.Properties.Tidy_timeout_srcs),
 		pathDeps, compiler.cFlagsDeps)
 
