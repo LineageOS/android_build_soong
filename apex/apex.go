@@ -2853,17 +2853,6 @@ func makeApexAvailableBaseline() map[string][]string {
 	//
 	// Module separator
 	//
-	m["com.android.mediaprovider"] = []string{
-		"MediaProvider",
-		"MediaProviderGoogle",
-		"fmtlib_ndk",
-		"libbase_ndk",
-		"libfuse",
-		"libfuse_jni",
-	}
-	//
-	// Module separator
-	//
 	m["com.android.runtime"] = []string{
 		"libdebuggerd",
 		"libdebuggerd_common_headers",
