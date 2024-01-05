@@ -542,6 +542,10 @@ func (l *linter) lint(ctx android.ModuleContext) {
 	if l.buildModuleReportZip {
 		l.reports = BuildModuleLintReportZips(ctx, l.LintDepSets())
 	}
+
+	// Create a per-module phony target to run the lint check.
+	phonyName := ctx.ModuleName() + "-lint"
+	ctx.Phony(phonyName, xml)
 }
 
 func BuildModuleLintReportZips(ctx android.ModuleContext, depSets LintDepSets) android.Paths {
