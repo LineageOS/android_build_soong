@@ -17,7 +17,6 @@ package java
 import (
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
@@ -85,9 +84,9 @@ type linter struct {
 	classes                 android.Path
 	extraLintCheckJars      android.Paths
 	library                 bool
-	minSdkVersion           int
-	targetSdkVersion        int
-	compileSdkVersion       int
+	minSdkVersion           android.ApiLevel
+	targetSdkVersion        android.ApiLevel
+	compileSdkVersion       android.ApiLevel
 	compileSdkKind          android.SdkKind
 	javaLanguageLevel       string
 	kotlinLanguageLevel     string
@@ -358,8 +357,8 @@ func (l *linter) generateManifest(ctx android.ModuleContext, rule *android.RuleB
 		Text(`echo "<?xml version='1.0' encoding='utf-8'?>" &&`).
 		Text(`echo "<manifest xmlns:android='http://schemas.android.com/apk/res/android'" &&`).
 		Text(`echo "    android:versionCode='1' android:versionName='1' >" &&`).
-		Textf(`echo "  <uses-sdk android:minSdkVersion='%d' android:targetSdkVersion='%d'/>" &&`,
-			l.minSdkVersion, l.targetSdkVersion).
+		Textf(`echo "  <uses-sdk android:minSdkVersion='%s' android:targetSdkVersion='%s'/>" &&`,
+			l.minSdkVersion.String(), l.targetSdkVersion.String()).
 		Text(`echo "</manifest>"`).
 		Text(") >").Output(manifestPath)
 
@@ -371,7 +370,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		return
 	}
 
-	if l.minSdkVersion != l.compileSdkVersion {
+	if l.minSdkVersion.CompareTo(l.compileSdkVersion) == -1 {
 		l.extraMainlineLintErrors = append(l.extraMainlineLintErrors, updatabilityChecks...)
 		// Skip lint warning checks for NewApi warnings for libcore where they come from source
 		// files that reference the API they are adding (b/208656169).
@@ -485,7 +484,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		FlagWithOutput("--html ", html).
 		FlagWithOutput("--text ", text).
 		FlagWithOutput("--xml ", xml).
-		FlagWithArg("--compile-sdk-version ", strconv.Itoa(l.compileSdkVersion)).
+		FlagWithArg("--compile-sdk-version ", l.compileSdkVersion.String()).
 		FlagWithArg("--java-language-level ", l.javaLanguageLevel).
 		FlagWithArg("--kotlin-language-level ", l.kotlinLanguageLevel).
 		FlagWithArg("--url ", fmt.Sprintf(".=.,%s=out", android.PathForOutput(ctx).String())).
