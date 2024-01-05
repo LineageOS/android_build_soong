@@ -25,6 +25,7 @@ bootstrap_go_package {
         "aconfig_declarations_test.go",
         "aconfig_values_test.go",
         "aconfig_value_set_test.go",
+        "all_aconfig_declarations_test.go",
     ],
     pluginFor: ["soong_build"],
 }
