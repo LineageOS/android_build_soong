@@ -125,6 +125,12 @@ func test(t *testing.T, bp string) *android.TestResult {
 			variables.DeviceSystemSdkVersions = []string{"28"}
 			variables.DeviceVndkVersion = proptools.StringPtr("current")
 			variables.Platform_vndk_version = proptools.StringPtr("29")
+			variables.DeviceCurrentApiLevelForVendorModules = proptools.StringPtr("28")
+		}),
+		java.FixtureWithPrebuiltApis(map[string][]string{
+			"28": {},
+			"29": {},
+			"30": {},
 		}),
 		mockFS.AddToFixture(),
 		android.FixtureWithRootAndroidBp(bp),
