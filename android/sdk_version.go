@@ -16,7 +16,6 @@ package android
 
 import (
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 )
@@ -163,17 +162,6 @@ func (s SdkSpec) ForVendorPartition(ctx EarlyModuleContext) SdkSpec {
 	// If BOARD_CURRENT_API_LEVEL_FOR_VENDOR_MODULES has a numeric value,
 	// use it instead of "current" for the vendor partition.
 	currentSdkVersion := ctx.DeviceConfig().CurrentApiLevelForVendorModules()
-	// b/314011075: special case for Java modules in vendor partition. They can no longer use
-	// SDK 35 or later. Their maximum API level is limited to 34 (Android U). This is to
-	// discourage the use of Java APIs in the vendor partition which hasn't been officially
-	// supported since the Project Treble back in Android 10. We would like to eventually
-	// evacuate all Java modules from the partition, but that shall be done progressively.
-	// Note that the check for the availability of SDK 34 is to not break existing tests where
-	// any of the frozen SDK version is unavailable.
-	if isJava(ctx.Module()) && isSdkVersion34AvailableIn(ctx.Config()) {
-		currentSdkVersion = "34"
-	}
-
 	if currentSdkVersion == "current" {
 		return s
 	}
@@ -302,77 +290,26 @@ func SdkSpecFromWithConfig(config Config, str string) SdkSpec {
 	}
 }
 
-// Checks if the use of this SDK `s` is valid for the given module context `ctx`.
 func (s SdkSpec) ValidateSystemSdk(ctx EarlyModuleContext) bool {
-	// Do some early checks. This check is currently only for Java modules. And our only concern
-	// is the use of "system" SDKs.
-	if !isJava(ctx.Module()) || s.Kind != SdkSystem || ctx.DeviceConfig().BuildBrokenDontCheckSystemSdk() {
+	// Ensures that the specified system SDK version is one of BOARD_SYSTEMSDK_VERSIONS (for vendor/product Java module)
+	// Assuming that BOARD_SYSTEMSDK_VERSIONS := 28 29,
+	// sdk_version of the modules in vendor/product that use system sdk must be either system_28, system_29 or system_current
+	if s.Kind != SdkSystem || s.ApiLevel.IsPreview() {
 		return true
 	}
-
-	inVendor := ctx.DeviceSpecific() || ctx.SocSpecific()
-	inProduct := ctx.ProductSpecific()
-	isProductUnbundled := ctx.Config().EnforceProductPartitionInterface()
-	inApex := false
-	if am, ok := ctx.Module().(ApexModule); ok {
-		inApex = am.InAnyApex()
-	}
-	isUnbundled := inVendor || (inProduct && isProductUnbundled) || inApex
-
-	// Bundled modules can use any SDK
-	if !isUnbundled {
-		return true
-	}
-
-	// Unbundled modules are allowed to use BOARD_SYSTEMSDK_VERSIONS
-	supportedVersions := ctx.DeviceConfig().SystemSdkVersions()
-
-	// b/314011075: special case for vendor modules. Java modules in the vendor partition can
-	// not use SDK 35 or later. This is to discourage the use of Java APIs in the vendor
-	// partition which hasn't been officially supported since the Project Treble back in Android
-	// 10. We would like to eventually evacuate all Java modules from the partition, but that
-	// shall be done progressively.
-	if inVendor {
-		// 28 was the API when BOARD_SYSTEMSDK_VERSIONS was introduced, so that's the oldest
-		// we should allow.
-		supportedVersions = []string{}
-		for v := 28; v <= 34; v++ {
-			supportedVersions = append(supportedVersions, strconv.Itoa(v))
+	allowedVersions := ctx.DeviceConfig().PlatformSystemSdkVersions()
+	if ctx.DeviceSpecific() || ctx.SocSpecific() || (ctx.ProductSpecific() && ctx.Config().EnforceProductPartitionInterface()) {
+		systemSdkVersions := ctx.DeviceConfig().SystemSdkVersions()
+		if len(systemSdkVersions) > 0 {
+			allowedVersions = systemSdkVersions
 		}
 	}
-
-	// APEXes in the system partition are still considered as part of the platform, thus can use
-	// more SDKs from PLATFORM_SYSTEMSDK_VERSIONS
-	if inApex && !inVendor {
-		supportedVersions = ctx.DeviceConfig().PlatformSystemSdkVersions()
-	}
-
-	thisVer, err := s.EffectiveVersion(ctx)
-	if err != nil {
-		ctx.PropertyErrorf("sdk_version", "invalid sdk version %q", s.Raw)
-		return false
-	}
-
-	thisVerString := strconv.Itoa(thisVer.FinalOrPreviewInt())
-	if thisVer.IsPreview() {
-		thisVerString = *ctx.Config().productVariables.Platform_sdk_version_or_codename
-	}
-
-	if !InList(thisVerString, supportedVersions) {
+	if len(allowedVersions) > 0 && !InList(s.ApiLevel.String(), allowedVersions) {
 		ctx.PropertyErrorf("sdk_version", "incompatible sdk version %q. System SDK version should be one of %q",
-			s.Raw, supportedVersions)
+			s.Raw, allowedVersions)
 		return false
 	}
 	return true
-}
-
-func isJava(m Module) bool {
-	moduleType := reflect.TypeOf(m).String()
-	return strings.HasPrefix(moduleType, "*java.")
-}
-
-func isSdkVersion34AvailableIn(c Config) bool {
-	return c.PlatformSdkVersion().FinalInt() >= 34
 }
 
 func init() {
