@@ -16,6 +16,7 @@ package cc
 
 import (
 	"android/soong/aconfig"
+
 	"github.com/google/blueprint/proptools"
 
 	"fmt"
@@ -51,6 +52,7 @@ type AndroidMkContext interface {
 	InVendorRamdisk() bool
 	InRecovery() bool
 	NotInPlatform() bool
+	InVendorOrProduct() bool
 }
 
 type subAndroidMkProvider interface {
@@ -294,7 +296,7 @@ func (library *libraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries 
 	// they can be exceptionally used directly when APEXes are not available (e.g. during the
 	// very early stage in the boot process).
 	if len(library.Properties.Stubs.Versions) > 0 && !ctx.Host() && ctx.NotInPlatform() &&
-		!ctx.InRamdisk() && !ctx.InVendorRamdisk() && !ctx.InRecovery() && !ctx.UseVndk() && !ctx.static() {
+		!ctx.InRamdisk() && !ctx.InVendorRamdisk() && !ctx.InRecovery() && !ctx.InVendorOrProduct() && !ctx.static() {
 		if library.buildStubs() && library.isLatestStubVersion() {
 			entries.SubName = ""
 		}

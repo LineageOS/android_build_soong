@@ -24,6 +24,7 @@ import (
 	"sync"
 
 	"android/soong/android"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
 	"github.com/google/blueprint/proptools"
@@ -1777,7 +1778,7 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 	}
 
 	if Bool(library.Properties.Static_ndk_lib) && library.static() &&
-		!ctx.useVndk() && !ctx.inRamdisk() && !ctx.inVendorRamdisk() && !ctx.inRecovery() && ctx.Device() &&
+		!ctx.InVendorOrProduct() && !ctx.inRamdisk() && !ctx.inVendorRamdisk() && !ctx.inRecovery() && ctx.Device() &&
 		library.baseLinker.sanitize.isUnsanitizedVariant() &&
 		ctx.isForPlatform() && !ctx.isPreventInstall() {
 		installPath := getUnversionedLibraryInstallPath(ctx).Join(ctx, file.Base())
@@ -1897,7 +1898,7 @@ func (library *libraryDecorator) stubsVersions(ctx android.BaseMutatorContext) [
 		return nil
 	}
 
-	if library.hasLLNDKStubs() && ctx.Module().(*Module).UseVndk() {
+	if library.hasLLNDKStubs() && ctx.Module().(*Module).InVendorOrProduct() {
 		// LLNDK libraries only need a single stubs variant.
 		return []string{android.FutureApiLevel.String()}
 	}
