@@ -1342,12 +1342,10 @@ func getRefAbiDumpFile(ctx android.ModuleInstallPathContext,
 		fileName+".lsdump")
 }
 
-func getRefAbiDumpDir(isNdk, isVndk bool) string {
+func getRefAbiDumpDir(isNdk bool) string {
 	var dirName string
 	if isNdk {
 		dirName = "ndk"
-	} else if isVndk {
-		dirName = "vndk"
 	} else {
 		dirName = "platform"
 	}
@@ -1373,11 +1371,8 @@ func prevRefAbiDumpVersion(ctx ModuleContext, dumpDir string) int {
 	}
 }
 
-func currRefAbiDumpVersion(ctx ModuleContext, isVndk bool) string {
-	if isVndk {
-		// Each version of VNDK is independent, so follow the VNDK version which is the codename or PLATFORM_SDK_VERSION.
-		return ctx.Module().(*Module).VndkVersion()
-	} else if ctx.Config().PlatformSdkFinal() {
+func currRefAbiDumpVersion(ctx ModuleContext) string {
+	if ctx.Config().PlatformSdkFinal() {
 		// After sdk finalization, the ABI of the latest API level must be consistent with the source code,
 		// so choose PLATFORM_SDK_VERSION as the current version.
 		return ctx.Config().PlatformSdkVersion().String()
@@ -1426,13 +1421,13 @@ func (library *libraryDecorator) crossVersionAbiDiff(ctx android.ModuleContext, 
 }
 
 func (library *libraryDecorator) sameVersionAbiDiff(ctx android.ModuleContext, referenceDump android.Path,
-	baseName string, isLlndkOrNdk, allowExtensions bool) {
+	baseName string, isLlndkOrNdk bool) {
 
 	libName := strings.TrimSuffix(baseName, filepath.Ext(baseName))
 	errorMessage := "error: Please update ABI references with: $$ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py -l " + libName
 
 	library.sourceAbiDiff(ctx, referenceDump, baseName, "",
-		isLlndkOrNdk, allowExtensions, "current", errorMessage)
+		isLlndkOrNdk, false /* allowExtensions */, "current", errorMessage)
 }
 
 func (library *libraryDecorator) optInAbiDiff(ctx android.ModuleContext, referenceDump android.Path,
@@ -1462,10 +1457,9 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 		exportedHeaderFlags := strings.Join(SourceAbiFlags, " ")
 		headerAbiChecker := library.getHeaderAbiCheckerProperties(ctx)
 		// The logic must be consistent with classifySourceAbiDump.
-		isVndk := ctx.useVndk() && ctx.isVndk()
 		isNdk := ctx.isNdk(ctx.Config())
 		isLlndk := ctx.isImplementationForLLNDKPublic()
-		currVersion := currRefAbiDumpVersion(ctx, isVndk)
+		currVersion := currRefAbiDumpVersion(ctx)
 		library.sAbiOutputFile = transformDumpToLinkedDump(ctx, objs.sAbiDumpFiles, soFile, fileName, exportedHeaderFlags,
 			android.OptionalPathForModuleSrc(ctx, library.symbolFileForAbiCheck(ctx)),
 			headerAbiChecker.Exclude_symbol_versions,
@@ -1474,26 +1468,24 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 
 		addLsdumpPath(classifySourceAbiDump(ctx) + ":" + library.sAbiOutputFile.String())
 
-		dumpDir := getRefAbiDumpDir(isNdk, isVndk)
+		dumpDir := getRefAbiDumpDir(isNdk)
 		binderBitness := ctx.DeviceConfig().BinderBitness()
-		// If NDK or PLATFORM library, check against previous version ABI.
-		if !isVndk {
-			prevVersionInt := prevRefAbiDumpVersion(ctx, dumpDir)
-			prevVersion := strconv.Itoa(prevVersionInt)
-			prevDumpDir := filepath.Join(dumpDir, prevVersion, binderBitness)
-			prevDumpFile := getRefAbiDumpFile(ctx, prevDumpDir, fileName)
-			if prevDumpFile.Valid() {
-				library.crossVersionAbiDiff(ctx, prevDumpFile.Path(),
-					fileName, isLlndk || isNdk,
-					strconv.Itoa(prevVersionInt+1), prevVersion)
-			}
+		// Check against the previous version.
+		prevVersionInt := prevRefAbiDumpVersion(ctx, dumpDir)
+		prevVersion := strconv.Itoa(prevVersionInt)
+		prevDumpDir := filepath.Join(dumpDir, prevVersion, binderBitness)
+		prevDumpFile := getRefAbiDumpFile(ctx, prevDumpDir, fileName)
+		if prevDumpFile.Valid() {
+			library.crossVersionAbiDiff(ctx, prevDumpFile.Path(),
+				fileName, isLlndk || isNdk,
+				strconv.Itoa(prevVersionInt+1), prevVersion)
 		}
 		// Check against the current version.
 		currDumpDir := filepath.Join(dumpDir, currVersion, binderBitness)
 		currDumpFile := getRefAbiDumpFile(ctx, currDumpDir, fileName)
 		if currDumpFile.Valid() {
 			library.sameVersionAbiDiff(ctx, currDumpFile.Path(),
-				fileName, isLlndk || isNdk, ctx.IsVndkExt())
+				fileName, isLlndk || isNdk)
 		}
 		// Check against the opt-in reference dumps.
 		for i, optInDumpDir := range headerAbiChecker.Ref_dump_dirs {
