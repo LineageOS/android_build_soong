@@ -183,7 +183,6 @@ func NewTestArchContext(config Config) *TestContext {
 type TestContext struct {
 	*Context
 	preArch, preDeps, postDeps, finalDeps []RegisterMutatorFunc
-	bp2buildPreArch, bp2buildMutators     []RegisterMutatorFunc
 	NameResolver                          *NameResolver
 
 	// The list of singletons registered for the test.
@@ -217,12 +216,6 @@ func (ctx *TestContext) PostDepsMutators(f RegisterMutatorFunc) {
 
 func (ctx *TestContext) FinalDepsMutators(f RegisterMutatorFunc) {
 	ctx.finalDeps = append(ctx.finalDeps, f)
-}
-
-// PreArchBp2BuildMutators adds mutators to be register for converting Android Blueprint modules
-// into Bazel BUILD targets that should run prior to deps and conversion.
-func (ctx *TestContext) PreArchBp2BuildMutators(f RegisterMutatorFunc) {
-	ctx.bp2buildPreArch = append(ctx.bp2buildPreArch, f)
 }
 
 func (ctx *TestContext) OtherModuleProviderAdaptor() OtherModuleProviderContext {

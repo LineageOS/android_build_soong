@@ -136,10 +136,6 @@ func init() {
 	exportedVars.ExportStringList("NeverAllowNoUseIncludeDir", neverallowNoUseIncludeDir)
 }
 
-func BazelCcToolchainVars(config Config) string {
-	return BazelToolchainVars(config, exportedVars)
-}
-
 // GlobToListFileRule creates a rule that writes a list of files matching a pattern to a file.
 func GlobToListFileRule(ctx ModuleContext, pattern string, excludes []string, file WritablePath) {
 	bootstrap.GlobFile(ctx.blueprintModuleContext(), pattern, excludes, file.String())
