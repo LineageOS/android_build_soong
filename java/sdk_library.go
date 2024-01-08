@@ -628,6 +628,10 @@ type sdkLibraryProperties struct {
 	// Defaults to false.
 	Contribute_to_android_api *bool
 
+	// a list of aconfig_declarations module names that the stubs generated in this module
+	// depend on.
+	Aconfig_declarations []string
+
 	// TODO: determines whether to create HTML doc or not
 	// Html_doc *bool
 }
@@ -1698,6 +1702,7 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 		Merge_inclusion_annotations_dirs []string
 		Generate_stubs                   *bool
 		Previous_api                     *string
+		Aconfig_declarations             []string
 		Check_api                        struct {
 			Current       ApiToCheck
 			Last_released ApiToCheck
@@ -1742,6 +1747,7 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 	props.Annotations_enabled = module.sdkLibraryProperties.Annotations_enabled
 	props.Merge_annotations_dirs = module.sdkLibraryProperties.Merge_annotations_dirs
 	props.Merge_inclusion_annotations_dirs = module.sdkLibraryProperties.Merge_inclusion_annotations_dirs
+	props.Aconfig_declarations = module.sdkLibraryProperties.Aconfig_declarations
 
 	droidstubsArgs := []string{}
 	if len(module.sdkLibraryProperties.Api_packages) != 0 {

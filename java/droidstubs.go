@@ -30,6 +30,27 @@ import (
 // The values allowed for Droidstubs' Api_levels_sdk_type
 var allowedApiLevelSdkTypes = []string{"public", "system", "module-lib", "system-server"}
 
+type StubsType int
+
+const (
+	Everything StubsType = iota
+	Runtime
+	Exportable
+)
+
+func (s StubsType) String() string {
+	switch s {
+	case Everything:
+		return "everything"
+	case Runtime:
+		return "runtime"
+	case Exportable:
+		return "exportable"
+	default:
+		return ""
+	}
+}
+
 func init() {
 	RegisterStubsBuildComponents(android.InitRegistrationContext)
 }
@@ -151,6 +172,10 @@ type DroidstubsProperties struct {
 	// API surface of this module. If set, the module contributes to an API surface.
 	// For the full list of available API surfaces, refer to soong/android/sdk_version.go
 	Api_surface *string
+
+	// a list of aconfig_declarations module names that the stubs generated in this module
+	// depend on.
+	Aconfig_declarations []string
 }
 
 // Used by xsd_config
@@ -271,6 +296,12 @@ func (d *Droidstubs) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if len(d.properties.Api_levels_annotations_dirs) != 0 {
 		for _, apiLevelsAnnotationsDir := range d.properties.Api_levels_annotations_dirs {
 			ctx.AddDependency(ctx.Module(), metalavaAPILevelsAnnotationsDirTag, apiLevelsAnnotationsDir)
+		}
+	}
+
+	if len(d.properties.Aconfig_declarations) != 0 {
+		for _, aconfigDeclarationModuleName := range d.properties.Aconfig_declarations {
+			ctx.AddDependency(ctx.Module(), aconfigDeclarationTag, aconfigDeclarationModuleName)
 		}
 	}
 
@@ -538,10 +569,58 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 	return cmd
 }
 
+// Generate flagged apis related flags. Apply transformations and only revert the flagged apis
+// that are not enabled via release configurations and are not specified in aconfig_declarations
+func (d *Droidstubs) generateRevertAnnotationArgs(ctx android.ModuleContext, stubsType StubsType, aconfigFlagsPaths android.Paths) {
+
+	releasedFlaggedApisFile := android.PathForModuleOut(ctx, fmt.Sprintf("released-flagged-apis-%s.txt", stubsType.String()))
+	revertAnnotationsFile := android.PathForModuleOut(ctx, fmt.Sprintf("revert-annotations-%s.txt", stubsType.String()))
+
+	var filterArgs string
+	switch stubsType {
+	// No flagged apis specific flags need to be passed to metalava when generating
+	// everything stubs
+	case Everything:
+		return
+
+	case Runtime:
+		filterArgs = "--filter='state:ENABLED+permission:READ_ONLY' --filter='permission:READ_WRITE'"
+
+	case Exportable:
+		filterArgs = "--filter='state:ENABLED+permission:READ_ONLY'"
+
+	}
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        gatherReleasedFlaggedApisRule,
+		Inputs:      aconfigFlagsPaths,
+		Output:      releasedFlaggedApisFile,
+		Description: fmt.Sprintf("%s gather aconfig flags", stubsType),
+		Args: map[string]string{
+			"flags_path":  android.JoinPathsWithPrefix(aconfigFlagsPaths, "--cache "),
+			"filter_args": filterArgs,
+		},
+	})
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        generateMetalavaRevertAnnotationsRule,
+		Input:       releasedFlaggedApisFile,
+		Output:      revertAnnotationsFile,
+		Description: fmt.Sprintf("%s revert annotations", stubsType),
+	})
+}
+
 func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	deps := d.Javadoc.collectDeps(ctx)
 
 	javaVersion := getJavaVersion(ctx, String(d.Javadoc.properties.Java_version), android.SdkContext(d))
+
+	// If the module specifies aconfig_declarations property, "exportable" (and "runtime" eventually) stubs are generated
+	if len(deps.aconfigProtoFiles) > 0 {
+		// Files required to generate "exportable" stubs
+		stubsType := Exportable
+		d.generateRevertAnnotationArgs(ctx, stubsType, deps.aconfigProtoFiles)
+	}
 
 	// Create rule for metalava
 
