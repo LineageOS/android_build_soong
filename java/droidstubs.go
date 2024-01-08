@@ -196,6 +196,10 @@ type ApiStubsSrcProvider interface {
 	StubsSrcJar() android.Path
 }
 
+type ExportableApiStubsSrcProvider interface {
+	ExportableStubsSrcJar() android.Path
+}
+
 // Provider of information about API stubs, used by java_sdk_library.
 type ApiStubsProvider interface {
 	AnnotationsZip() android.Path
@@ -203,6 +207,14 @@ type ApiStubsProvider interface {
 	RemovedApiFilePath() android.Path
 
 	ApiStubsSrcProvider
+}
+
+type ExportableApiStubsProvider interface {
+	ExportableAnnotationsZip() android.Path
+	ExportableApiFilePath() android.Path
+	ExportableRemovedApiFilePath() android.Path
+
+	ExportableApiStubsSrcProvider
 }
 
 type currentApiTimestampProvider interface {
