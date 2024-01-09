@@ -1329,7 +1329,9 @@ type PrebuiltStubsSources struct {
 
 func (p *PrebuiltStubsSources) OutputFiles(tag string) (android.Paths, error) {
 	switch tag {
-	case "":
+	// prebuilt droidstubs does not output "exportable" stubs.
+	// Output the "everything" stubs srcjar file if the tag is ".exportable".
+	case "", ".exportable":
 		return android.Paths{p.stubsSrcJar}, nil
 	default:
 		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
