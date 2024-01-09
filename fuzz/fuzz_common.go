@@ -525,12 +525,10 @@ func (s *FuzzPackager) BuildZipFile(ctx android.SingletonContext, module android
 	builder.Build("create-"+fuzzZip.String(),
 		"Package "+module.Name()+" for "+archString+"-"+hostOrTargetString)
 
-	// Don't add modules to 'make haiku-rust' that are set to not be
-	// exported to the fuzzing infrastructure.
 	if config := fuzzModule.FuzzProperties.Fuzz_config; config != nil {
 		if strings.Contains(hostOrTargetString, "host") && !BoolDefault(config.Fuzz_on_haiku_host, true) {
 			return archDirs[archOs], false
-		} else if !BoolDefault(config.Fuzz_on_haiku_device, true) {
+		} else if !strings.Contains(hostOrTargetString, "host") && !BoolDefault(config.Fuzz_on_haiku_device, true) {
 			return archDirs[archOs], false
 		}
 	}
