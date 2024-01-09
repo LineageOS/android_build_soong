@@ -149,6 +149,7 @@ func (p *PythonTestModule) GenerateAndroidBuildActions(ctx android.ModuleContext
 	// just use buildBinary() so that the binary is not installed into the location
 	// it would be for regular binaries.
 	p.PythonLibraryModule.GenerateAndroidBuildActions(ctx)
+	android.CollectDependencyAconfigFiles(ctx, &p.mergedAconfigFiles)
 	p.buildBinary(ctx)
 
 	var configs []tradefed.Option
@@ -228,6 +229,7 @@ func (p *PythonTestModule) AndroidMkEntries() []android.AndroidMkEntries {
 			}
 
 			entries.SetBoolIfTrue("LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG", !BoolDefault(p.binaryProperties.Auto_gen_config, true))
+			android.SetAconfigFileMkEntries(&p.ModuleBase, entries, p.mergedAconfigFiles)
 
 			p.testProperties.Test_options.SetAndroidMkEntries(entries)
 		})
