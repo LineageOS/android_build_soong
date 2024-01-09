@@ -285,6 +285,6 @@ types.  Soong plugins are inherently tightly coupled to the build system
 and will require ongoing maintenance as the build system is changed; so
 plugins should be used only when absolutely required.
 
-See [art/build/art.go](https://android.googlesource.com/platform/art/+/master/build/art.go)
-or [external/llvm/soong/llvm.go](https://android.googlesource.com/platform/external/llvm/+/master/soong/llvm.go)
+See [art/build/art.go](https://android.googlesource.com/platform/art/+/main/build/art.go)
+or [external/llvm/soong/llvm.go](https://android.googlesource.com/platform/external/llvm/+/main/soong/llvm.go)
 for examples of more complex conditionals on product variables or environment variables.
