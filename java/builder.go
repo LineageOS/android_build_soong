@@ -287,7 +287,8 @@ var (
 
 	generateMetalavaRevertAnnotationsRule = pctx.AndroidStaticRule("generateMetalavaRevertAnnotationsRule",
 		blueprint.RuleParams{
-			Command: `${keep-flagged-apis} ${in} > ${out}`,
+			Command:     `${keep-flagged-apis} ${in} > ${out}`,
+			CommandDeps: []string{"${keep-flagged-apis}"},
 		})
 )
 
