@@ -182,7 +182,7 @@ type versionedHeaderProperties struct {
 }
 
 // Like ndk_headers, but preprocesses the headers with the bionic versioner:
-// https://android.googlesource.com/platform/bionic/+/master/tools/versioner/README.md.
+// https://android.googlesource.com/platform/bionic/+/main/tools/versioner/README.md.
 //
 // Unlike ndk_headers, we don't operate on a list of sources but rather a whole directory, the
 // module does not have the srcs property, and operates on a full directory (the `from` property).
@@ -267,7 +267,7 @@ func processHeadersWithVersioner(ctx android.ModuleContext, srcDir, outDir andro
 }
 
 // versioned_ndk_headers preprocesses the headers with the bionic versioner:
-// https://android.googlesource.com/platform/bionic/+/master/tools/versioner/README.md.
+// https://android.googlesource.com/platform/bionic/+/main/tools/versioner/README.md.
 // Unlike the ndk_headers soong module, versioned_ndk_headers operates on a
 // directory level specified in `from` property. This is only used to process
 // the bionic/libc/include directory.

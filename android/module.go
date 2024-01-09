@@ -326,7 +326,7 @@ type commonProperties struct {
 	// defaults module, use the `defaults_visibility` property on the defaults module;
 	// not to be confused with the `default_visibility` property on the package module.
 	//
-	// See https://android.googlesource.com/platform/build/soong/+/master/README.md#visibility for
+	// See https://android.googlesource.com/platform/build/soong/+/main/README.md#visibility for
 	// more details.
 	Visibility []string
 
