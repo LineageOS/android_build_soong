@@ -15,8 +15,6 @@
 package cc
 
 import (
-	"android/soong/aconfig"
-
 	"github.com/google/blueprint/proptools"
 
 	"fmt"
@@ -127,7 +125,7 @@ func (c *Module) AndroidMkEntries() []android.AndroidMkEntries {
 					entries.SetString("SOONG_SDK_VARIANT_MODULES",
 						"$(SOONG_SDK_VARIANT_MODULES) $(patsubst %.sdk,%,$(LOCAL_MODULE))")
 				}
-				aconfig.SetAconfigFileMkEntries(c.AndroidModuleBase(), entries, c.mergedAconfigFiles)
+				android.SetAconfigFileMkEntries(c.AndroidModuleBase(), entries, c.mergedAconfigFiles)
 			},
 		},
 		ExtraFooters: []android.AndroidMkExtraFootersFunc{
