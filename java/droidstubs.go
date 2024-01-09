@@ -87,6 +87,14 @@ type Droidstubs struct {
 
 	metadataZip android.WritablePath
 	metadataDir android.WritablePath
+
+	exportableApiFile                 android.WritablePath
+	exportableRemovedApiFile          android.WritablePath
+	exportableNullabilityWarningsFile android.WritablePath
+	exportableAnnotationsZip          android.WritablePath
+	exportableApiVersionsXml          android.WritablePath
+	exportableMetadataZip             android.WritablePath
+	exportableMetadataDir             android.WritablePath
 }
 
 type DroidstubsProperties struct {
@@ -200,6 +208,36 @@ type currentApiTimestampProvider interface {
 	CurrentApiTimestamp() android.Path
 }
 
+type annotationFlagsParams struct {
+	migratingNullability    bool
+	validatingNullability   bool
+	nullabilityWarningsFile android.WritablePath
+	annotationsZip          android.WritablePath
+}
+type stubsCommandParams struct {
+	srcJarDir               android.ModuleOutPath
+	stubsDir                android.OptionalPath
+	stubsSrcJar             android.WritablePath
+	metadataZip             android.WritablePath
+	metadataDir             android.WritablePath
+	apiVersionsXml          android.WritablePath
+	nullabilityWarningsFile android.WritablePath
+	annotationsZip          android.WritablePath
+	stubConfig              stubsCommandConfigParams
+}
+type stubsCommandConfigParams struct {
+	stubsType             StubsType
+	javaVersion           javaVersion
+	deps                  deps
+	checkApi              bool
+	generateStubs         bool
+	doApiLint             bool
+	doCheckReleased       bool
+	writeSdkValues        bool
+	migratingNullability  bool
+	validatingNullability bool
+}
+
 // droidstubs passes sources files through Metalava to generate stub .java files that only contain the API to be
 // documented, filtering out hidden classes and methods.  The resulting .java files are intended to be passed to
 // a droiddoc module to generate documentation.
@@ -310,34 +348,39 @@ func (d *Droidstubs) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
-func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, stubsDir android.OptionalPath) {
-	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") ||
-		apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released") ||
-		String(d.properties.Api_filename) != "" {
+func (d *Droidstubs) sdkValuesFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, metadataDir android.WritablePath) {
+	cmd.FlagWithArg("--sdk-values ", metadataDir.String())
+}
+
+func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, stubsDir android.OptionalPath, stubsType StubsType, checkApi bool) {
+	if checkApi || String(d.properties.Api_filename) != "" {
 		filename := proptools.StringDefault(d.properties.Api_filename, ctx.ModuleName()+"_api.txt")
-		uncheckedApiFile := android.PathForModuleOut(ctx, "metalava", filename)
+		uncheckedApiFile := android.PathForModuleOut(ctx, stubsType.String(), filename)
 		cmd.FlagWithOutput("--api ", uncheckedApiFile)
-		d.apiFile = uncheckedApiFile
+
+		if stubsType == Everything {
+			d.apiFile = uncheckedApiFile
+		} else if stubsType == Exportable {
+			d.exportableApiFile = uncheckedApiFile
+		}
 	} else if sourceApiFile := proptools.String(d.properties.Check_api.Current.Api_file); sourceApiFile != "" {
 		// If check api is disabled then make the source file available for export.
 		d.apiFile = android.PathForModuleSrc(ctx, sourceApiFile)
 	}
 
-	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") ||
-		apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released") ||
-		String(d.properties.Removed_api_filename) != "" {
+	if checkApi || String(d.properties.Removed_api_filename) != "" {
 		filename := proptools.StringDefault(d.properties.Removed_api_filename, ctx.ModuleName()+"_removed.txt")
-		uncheckedRemovedFile := android.PathForModuleOut(ctx, "metalava", filename)
+		uncheckedRemovedFile := android.PathForModuleOut(ctx, stubsType.String(), filename)
 		cmd.FlagWithOutput("--removed-api ", uncheckedRemovedFile)
-		d.removedApiFile = uncheckedRemovedFile
+
+		if stubsType == Everything {
+			d.removedApiFile = uncheckedRemovedFile
+		} else if stubsType == Exportable {
+			d.exportableRemovedApiFile = uncheckedRemovedFile
+		}
 	} else if sourceRemovedApiFile := proptools.String(d.properties.Check_api.Current.Removed_api_file); sourceRemovedApiFile != "" {
 		// If check api is disabled then make the source removed api file available for export.
 		d.removedApiFile = android.PathForModuleSrc(ctx, sourceRemovedApiFile)
-	}
-
-	if Bool(d.properties.Write_sdk_values) {
-		d.metadataDir = android.PathForModuleOut(ctx, "metalava", "metadata")
-		cmd.FlagWithArg("--sdk-values ", d.metadataDir.String())
 	}
 
 	if stubsDir.Valid() {
@@ -352,16 +395,11 @@ func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuil
 	}
 }
 
-func (d *Droidstubs) annotationsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand) {
+func (d *Droidstubs) annotationsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, params annotationFlagsParams) {
 	if Bool(d.properties.Annotations_enabled) {
 		cmd.Flag(config.MetalavaAnnotationsFlags)
 
-		validatingNullability :=
-			strings.Contains(String(d.Javadoc.properties.Args), "--validate-nullability-from-merged-stubs") ||
-				String(d.properties.Validate_nullability_from_list) != ""
-
-		migratingNullability := String(d.properties.Previous_api) != ""
-		if migratingNullability {
+		if params.migratingNullability {
 			previousApi := android.PathForModuleSrc(ctx, String(d.properties.Previous_api))
 			cmd.FlagWithInput("--migrate-nullness ", previousApi)
 		}
@@ -370,13 +408,11 @@ func (d *Droidstubs) annotationsFlags(ctx android.ModuleContext, cmd *android.Ru
 			cmd.FlagWithInput("--validate-nullability-from-list ", android.PathForModuleSrc(ctx, s))
 		}
 
-		if validatingNullability {
-			d.nullabilityWarningsFile = android.PathForModuleOut(ctx, "metalava", ctx.ModuleName()+"_nullability_warnings.txt")
-			cmd.FlagWithOutput("--nullability-warnings-txt ", d.nullabilityWarningsFile)
+		if params.validatingNullability {
+			cmd.FlagWithOutput("--nullability-warnings-txt ", params.nullabilityWarningsFile)
 		}
 
-		d.annotationsZip = android.PathForModuleOut(ctx, "metalava", ctx.ModuleName()+"_annotations.zip")
-		cmd.FlagWithOutput("--extract-annotations ", d.annotationsZip)
+		cmd.FlagWithOutput("--extract-annotations ", params.annotationsZip)
 
 		if len(d.properties.Merge_annotations_dirs) != 0 {
 			d.mergeAnnoDirFlags(ctx, cmd)
@@ -408,10 +444,10 @@ func (d *Droidstubs) inclusionAnnotationsFlags(ctx android.ModuleContext, cmd *a
 	})
 }
 
-func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand) {
+func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, stubsType StubsType, apiVersionsXml android.WritablePath) {
 	var apiVersions android.Path
 	if proptools.Bool(d.properties.Api_levels_annotations_enabled) {
-		d.apiLevelsGenerationFlags(ctx, cmd)
+		d.apiLevelsGenerationFlags(ctx, cmd, stubsType, apiVersionsXml)
 		apiVersions = d.apiVersionsXml
 	} else {
 		ctx.VisitDirectDepsWithTag(metalavaAPILevelsModuleTag, func(m android.Module) {
@@ -430,14 +466,13 @@ func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *a
 	}
 }
 
-func (d *Droidstubs) apiLevelsGenerationFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand) {
+func (d *Droidstubs) apiLevelsGenerationFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, stubsType StubsType, apiVersionsXml android.WritablePath) {
 	if len(d.properties.Api_levels_annotations_dirs) == 0 {
 		ctx.PropertyErrorf("api_levels_annotations_dirs",
 			"has to be non-empty if api levels annotations was enabled!")
 	}
 
-	d.apiVersionsXml = android.PathForModuleOut(ctx, "metalava", "api-versions.xml")
-	cmd.FlagWithOutput("--generate-api-levels ", d.apiVersionsXml)
+	cmd.FlagWithOutput("--generate-api-levels ", apiVersionsXml)
 
 	filename := proptools.StringDefault(d.properties.Api_levels_jar_filename, "android.jar")
 
@@ -569,9 +604,16 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 	return cmd
 }
 
-// Generate flagged apis related flags. Apply transformations and only revert the flagged apis
-// that are not enabled via release configurations and are not specified in aconfig_declarations
-func (d *Droidstubs) generateRevertAnnotationArgs(ctx android.ModuleContext, stubsType StubsType, aconfigFlagsPaths android.Paths) {
+// Pass flagged apis related flags to metalava. When aconfig_declarations property is not
+// defined for a module, simply revert all flagged apis annotations. If aconfig_declarations
+// property is defined, apply transformations and only revert the flagged apis that are not
+// enabled via release configurations and are not specified in aconfig_declarations
+func (d *Droidstubs) generateRevertAnnotationArgs(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, stubsType StubsType, aconfigFlagsPaths android.Paths) {
+
+	if len(aconfigFlagsPaths) == 0 {
+		cmd.Flag("--revert-annotation android.annotation.FlaggedApi")
+		return
+	}
 
 	releasedFlaggedApisFile := android.PathForModuleOut(ctx, fmt.Sprintf("released-flagged-apis-%s.txt", stubsType.String()))
 	revertAnnotationsFile := android.PathForModuleOut(ctx, fmt.Sprintf("revert-annotations-%s.txt", stubsType.String()))
@@ -608,56 +650,45 @@ func (d *Droidstubs) generateRevertAnnotationArgs(ctx android.ModuleContext, stu
 		Output:      revertAnnotationsFile,
 		Description: fmt.Sprintf("%s revert annotations", stubsType),
 	})
+
+	cmd.FlagWithInput("@", revertAnnotationsFile)
 }
 
-func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	deps := d.Javadoc.collectDeps(ctx)
-
-	javaVersion := getJavaVersion(ctx, String(d.Javadoc.properties.Java_version), android.SdkContext(d))
-
-	// If the module specifies aconfig_declarations property, "exportable" (and "runtime" eventually) stubs are generated
-	if len(deps.aconfigProtoFiles) > 0 {
-		// Files required to generate "exportable" stubs
-		stubsType := Exportable
-		d.generateRevertAnnotationArgs(ctx, stubsType, deps.aconfigProtoFiles)
-	}
-
-	// Create rule for metalava
-
-	srcJarDir := android.PathForModuleOut(ctx, "metalava", "srcjars")
-
-	rule := android.NewRuleBuilder(pctx, ctx)
-
-	rule.Sbox(android.PathForModuleOut(ctx, "metalava"),
-		android.PathForModuleOut(ctx, "metalava.sbox.textproto")).
-		SandboxInputs()
-
+func (d *Droidstubs) commonMetalavaStubCmd(ctx android.ModuleContext, rule *android.RuleBuilder,
+	params stubsCommandParams) *android.RuleBuilderCommand {
 	if BoolDefault(d.properties.High_mem, false) {
 		// This metalava run uses lots of memory, restrict the number of metalava jobs that can run in parallel.
 		rule.HighMem()
 	}
 
-	generateStubs := BoolDefault(d.properties.Generate_stubs, true)
-	var stubsDir android.OptionalPath
-	if generateStubs {
-		d.Javadoc.stubsSrcJar = android.PathForModuleOut(ctx, "metalava", ctx.ModuleName()+"-"+"stubs.srcjar")
-		stubsDir = android.OptionalPathForPath(android.PathForModuleOut(ctx, "metalava", "stubsDir"))
-		rule.Command().Text("rm -rf").Text(stubsDir.String())
-		rule.Command().Text("mkdir -p").Text(stubsDir.String())
+	if params.stubConfig.generateStubs {
+		rule.Command().Text("rm -rf").Text(params.stubsDir.String())
+		rule.Command().Text("mkdir -p").Text(params.stubsDir.String())
 	}
 
-	srcJarList := zipSyncCmd(ctx, rule, srcJarDir, d.Javadoc.srcJars)
+	srcJarList := zipSyncCmd(ctx, rule, params.srcJarDir, d.Javadoc.srcJars)
 
-	homeDir := android.PathForModuleOut(ctx, "metalava", "home")
-	cmd := metalavaCmd(ctx, rule, javaVersion, d.Javadoc.srcFiles, srcJarList,
-		deps.bootClasspath, deps.classpath, homeDir)
+	homeDir := android.PathForModuleOut(ctx, params.stubConfig.stubsType.String(), "home")
+	cmd := metalavaCmd(ctx, rule, params.stubConfig.javaVersion, d.Javadoc.srcFiles, srcJarList,
+		params.stubConfig.deps.bootClasspath, params.stubConfig.deps.classpath, homeDir)
 	cmd.Implicits(d.Javadoc.implicits)
 
-	d.stubsFlags(ctx, cmd, stubsDir)
+	d.stubsFlags(ctx, cmd, params.stubsDir, params.stubConfig.stubsType, params.stubConfig.checkApi)
 
-	d.annotationsFlags(ctx, cmd)
+	if params.stubConfig.writeSdkValues {
+		d.sdkValuesFlags(ctx, cmd, params.metadataDir)
+	}
+
+	annotationParams := annotationFlagsParams{
+		migratingNullability:    params.stubConfig.migratingNullability,
+		validatingNullability:   params.stubConfig.validatingNullability,
+		nullabilityWarningsFile: params.nullabilityWarningsFile,
+		annotationsZip:          params.annotationsZip,
+	}
+
+	d.annotationsFlags(ctx, cmd, annotationParams)
 	d.inclusionAnnotationsFlags(ctx, cmd)
-	d.apiLevelsAnnotationsFlags(ctx, cmd)
+	d.apiLevelsAnnotationsFlags(ctx, cmd, params.stubConfig.stubsType, params.apiVersionsXml)
 
 	d.expandArgs(ctx, cmd)
 
@@ -665,24 +696,105 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		cmd.ImplicitOutput(android.PathForModuleGen(ctx, o))
 	}
 
-	// Add options for the other optional tasks: API-lint and check-released.
-	// We generate separate timestamp files for them.
+	return cmd
+}
 
-	doApiLint := false
-	doCheckReleased := false
+// Sandbox rule for generating the everything stubs and other artifacts
+func (d *Droidstubs) everythingStubCmd(ctx android.ModuleContext, params stubsCommandConfigParams) {
+	srcJarDir := android.PathForModuleOut(ctx, Everything.String(), "srcjars")
+	rule := android.NewRuleBuilder(pctx, ctx)
+	rule.Sbox(android.PathForModuleOut(ctx, Everything.String()),
+		android.PathForModuleOut(ctx, "metalava.sbox.textproto")).
+		SandboxInputs()
+
+	var stubsDir android.OptionalPath
+	if params.generateStubs {
+		stubsDir = android.OptionalPathForPath(android.PathForModuleOut(ctx, Everything.String(), "stubsDir"))
+		d.Javadoc.stubsSrcJar = android.PathForModuleOut(ctx, Everything.String(), ctx.ModuleName()+"-"+"stubs.srcjar")
+	}
+
+	if params.writeSdkValues {
+		d.metadataDir = android.PathForModuleOut(ctx, Everything.String(), "metadata")
+		d.metadataZip = android.PathForModuleOut(ctx, Everything.String(), ctx.ModuleName()+"-metadata.zip")
+	}
+
+	if Bool(d.properties.Annotations_enabled) {
+		if params.validatingNullability {
+			d.nullabilityWarningsFile = android.PathForModuleOut(ctx, Everything.String(), ctx.ModuleName()+"_nullability_warnings.txt")
+		}
+		d.annotationsZip = android.PathForModuleOut(ctx, Everything.String(), ctx.ModuleName()+"_annotations.zip")
+	}
+	if Bool(d.properties.Api_levels_annotations_enabled) {
+		d.apiVersionsXml = android.PathForModuleOut(ctx, Everything.String(), "api-versions.xml")
+	}
+
+	commonCmdParams := stubsCommandParams{
+		srcJarDir:               srcJarDir,
+		stubsDir:                stubsDir,
+		stubsSrcJar:             d.Javadoc.stubsSrcJar,
+		metadataDir:             d.metadataDir,
+		apiVersionsXml:          d.apiVersionsXml,
+		nullabilityWarningsFile: d.nullabilityWarningsFile,
+		annotationsZip:          d.annotationsZip,
+		stubConfig:              params,
+	}
+
+	cmd := d.commonMetalavaStubCmd(ctx, rule, commonCmdParams)
+
+	d.everythingOptionalCmd(ctx, cmd, params.doApiLint, params.doCheckReleased)
+
+	if params.generateStubs {
+		rule.Command().
+			BuiltTool("soong_zip").
+			Flag("-write_if_changed").
+			Flag("-jar").
+			FlagWithOutput("-o ", d.Javadoc.stubsSrcJar).
+			FlagWithArg("-C ", stubsDir.String()).
+			FlagWithArg("-D ", stubsDir.String())
+	}
+
+	if params.writeSdkValues {
+		rule.Command().
+			BuiltTool("soong_zip").
+			Flag("-write_if_changed").
+			Flag("-d").
+			FlagWithOutput("-o ", d.metadataZip).
+			FlagWithArg("-C ", d.metadataDir.String()).
+			FlagWithArg("-D ", d.metadataDir.String())
+	}
+
+	// TODO: We don't really need two separate API files, but this is a reminiscence of how
+	// we used to run metalava separately for API lint and the "last_released" check. Unify them.
+	if params.doApiLint {
+		rule.Command().Text("touch").Output(d.apiLintTimestamp)
+	}
+	if params.doCheckReleased {
+		rule.Command().Text("touch").Output(d.checkLastReleasedApiTimestamp)
+	}
+
+	// TODO(b/183630617): rewrapper doesn't support restat rules
+	if !metalavaUseRbe(ctx) {
+		rule.Restat()
+	}
+
+	zipSyncCleanupCmd(rule, srcJarDir)
+
+	rule.Build("metalava", "metalava merged")
+}
+
+// Sandbox rule for generating the everything artifacts that are not run by
+// default but only run based on the module configurations
+func (d *Droidstubs) everythingOptionalCmd(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, doApiLint bool, doCheckReleased bool) {
 
 	// Add API lint options.
-
-	if BoolDefault(d.properties.Check_api.Api_lint.Enabled, false) {
-		doApiLint = true
-
+	if doApiLint {
 		newSince := android.OptionalPathForModuleSrc(ctx, d.properties.Check_api.Api_lint.New_since)
 		if newSince.Valid() {
 			cmd.FlagWithInput("--api-lint ", newSince.Path())
 		} else {
 			cmd.Flag("--api-lint")
 		}
-		d.apiLintReport = android.PathForModuleOut(ctx, "metalava", "api_lint_report.txt")
+		d.apiLintReport = android.PathForModuleOut(ctx, Everything.String(), "api_lint_report.txt")
 		cmd.FlagWithOutput("--report-even-if-suppressed ", d.apiLintReport) // TODO:  Change to ":api-lint"
 
 		// TODO(b/154317059): Clean up this allowlist by baselining and/or checking in last-released.
@@ -693,8 +805,8 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 
 		baselineFile := android.OptionalPathForModuleSrc(ctx, d.properties.Check_api.Api_lint.Baseline_file)
-		updatedBaselineOutput := android.PathForModuleOut(ctx, "metalava", "api_lint_baseline.txt")
-		d.apiLintTimestamp = android.PathForModuleOut(ctx, "metalava", "api_lint.timestamp")
+		updatedBaselineOutput := android.PathForModuleOut(ctx, Everything.String(), "api_lint_baseline.txt")
+		d.apiLintTimestamp = android.PathForModuleOut(ctx, Everything.String(), "api_lint.timestamp")
 
 		// Note this string includes a special shell quote $' ... ', which decodes the "\n"s.
 		//
@@ -735,10 +847,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	// Add "check released" options. (Detect incompatible API changes from the last public release)
-
-	if apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released") {
-		doCheckReleased = true
-
+	if doCheckReleased {
 		if len(d.Javadoc.properties.Out) > 0 {
 			ctx.PropertyErrorf("out", "out property may not be combined with check_api")
 		}
@@ -746,9 +855,9 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		apiFile := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Last_released.Api_file))
 		removedApiFile := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Last_released.Removed_api_file))
 		baselineFile := android.OptionalPathForModuleSrc(ctx, d.properties.Check_api.Last_released.Baseline_file)
-		updatedBaselineOutput := android.PathForModuleOut(ctx, "metalava", "last_released_baseline.txt")
+		updatedBaselineOutput := android.PathForModuleOut(ctx, Everything.String(), "last_released_baseline.txt")
 
-		d.checkLastReleasedApiTimestamp = android.PathForModuleOut(ctx, "metalava", "check_last_released_api.timestamp")
+		d.checkLastReleasedApiTimestamp = android.PathForModuleOut(ctx, Everything.String(), "check_last_released_api.timestamp")
 
 		cmd.FlagWithInput("--check-compatibility:api:released ", apiFile)
 		cmd.FlagWithInput("--check-compatibility:removed:released ", removedApiFile)
@@ -773,35 +882,93 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		currentApiFile := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Current.Api_file))
 		cmd.FlagWithInput("--use-same-format-as ", currentApiFile)
 	}
+}
 
-	if generateStubs {
+// Sandbox rule for generating exportable stubs and other artifacts
+func (d *Droidstubs) exportableStubCmd(ctx android.ModuleContext, params stubsCommandConfigParams) {
+	optionalCmdParams := stubsCommandParams{
+		stubConfig: params,
+	}
+
+	d.Javadoc.exportableStubsSrcJar = android.PathForModuleOut(ctx, params.stubsType.String(), ctx.ModuleName()+"-"+"stubs.srcjar")
+	optionalCmdParams.stubsSrcJar = d.Javadoc.exportableStubsSrcJar
+	if params.writeSdkValues {
+		d.exportableMetadataZip = android.PathForModuleOut(ctx, params.stubsType.String(), ctx.ModuleName()+"-metadata.zip")
+		d.exportableMetadataDir = android.PathForModuleOut(ctx, params.stubsType.String(), "metadata")
+		optionalCmdParams.metadataZip = d.exportableMetadataZip
+		optionalCmdParams.metadataDir = d.exportableMetadataDir
+	}
+
+	if Bool(d.properties.Annotations_enabled) {
+		if params.validatingNullability {
+			d.exportableNullabilityWarningsFile = android.PathForModuleOut(ctx, params.stubsType.String(), ctx.ModuleName()+"_nullability_warnings.txt")
+			optionalCmdParams.nullabilityWarningsFile = d.exportableNullabilityWarningsFile
+		}
+		d.exportableAnnotationsZip = android.PathForModuleOut(ctx, params.stubsType.String(), ctx.ModuleName()+"_annotations.zip")
+		optionalCmdParams.annotationsZip = d.exportableAnnotationsZip
+	}
+	if Bool(d.properties.Api_levels_annotations_enabled) {
+		d.exportableApiVersionsXml = android.PathForModuleOut(ctx, params.stubsType.String(), "api-versions.xml")
+		optionalCmdParams.apiVersionsXml = d.exportableApiVersionsXml
+	}
+
+	if params.checkApi || String(d.properties.Api_filename) != "" {
+		filename := proptools.StringDefault(d.properties.Api_filename, ctx.ModuleName()+"_api.txt")
+		d.exportableApiFile = android.PathForModuleOut(ctx, params.stubsType.String(), filename)
+	}
+
+	if params.checkApi || String(d.properties.Removed_api_filename) != "" {
+		filename := proptools.StringDefault(d.properties.Removed_api_filename, ctx.ModuleName()+"_api.txt")
+		d.exportableRemovedApiFile = android.PathForModuleOut(ctx, params.stubsType.String(), filename)
+	}
+
+	d.optionalStubCmd(ctx, optionalCmdParams)
+}
+
+func (d *Droidstubs) optionalStubCmd(ctx android.ModuleContext, params stubsCommandParams) {
+
+	params.srcJarDir = android.PathForModuleOut(ctx, params.stubConfig.stubsType.String(), "srcjars")
+	rule := android.NewRuleBuilder(pctx, ctx)
+	rule.Sbox(android.PathForModuleOut(ctx, params.stubConfig.stubsType.String()),
+		android.PathForModuleOut(ctx, fmt.Sprintf("metalava_%s.sbox.textproto", params.stubConfig.stubsType.String()))).
+		SandboxInputs()
+
+	if params.stubConfig.generateStubs {
+		params.stubsDir = android.OptionalPathForPath(android.PathForModuleOut(ctx, params.stubConfig.stubsType.String(), "stubsDir"))
+	}
+
+	cmd := d.commonMetalavaStubCmd(ctx, rule, params)
+
+	d.generateRevertAnnotationArgs(ctx, cmd, params.stubConfig.stubsType, params.stubConfig.deps.aconfigProtoFiles)
+
+	if params.stubConfig.doApiLint {
+		// Pass the lint baseline file as an input to resolve the lint errors.
+		// The exportable stubs generation does not update the lint baseline file.
+		// Lint baseline file update is handled by the everything stubs
+		baselineFile := android.OptionalPathForModuleSrc(ctx, d.properties.Check_api.Api_lint.Baseline_file)
+		if baselineFile.Valid() {
+			cmd.FlagWithInput("--baseline:api-lint ", baselineFile.Path())
+		}
+	}
+
+	if params.stubConfig.generateStubs {
 		rule.Command().
 			BuiltTool("soong_zip").
 			Flag("-write_if_changed").
 			Flag("-jar").
-			FlagWithOutput("-o ", d.Javadoc.stubsSrcJar).
-			FlagWithArg("-C ", stubsDir.String()).
-			FlagWithArg("-D ", stubsDir.String())
+			FlagWithOutput("-o ", params.stubsSrcJar).
+			FlagWithArg("-C ", params.stubsDir.String()).
+			FlagWithArg("-D ", params.stubsDir.String())
 	}
 
-	if Bool(d.properties.Write_sdk_values) {
-		d.metadataZip = android.PathForModuleOut(ctx, "metalava", ctx.ModuleName()+"-metadata.zip")
+	if params.stubConfig.writeSdkValues {
 		rule.Command().
 			BuiltTool("soong_zip").
 			Flag("-write_if_changed").
 			Flag("-d").
-			FlagWithOutput("-o ", d.metadataZip).
-			FlagWithArg("-C ", d.metadataDir.String()).
-			FlagWithArg("-D ", d.metadataDir.String())
-	}
-
-	// TODO: We don't really need two separate API files, but this is a reminiscence of how
-	// we used to run metalava separately for API lint and the "last_released" check. Unify them.
-	if doApiLint {
-		rule.Command().Text("touch").Output(d.apiLintTimestamp)
-	}
-	if doCheckReleased {
-		rule.Command().Text("touch").Output(d.checkLastReleasedApiTimestamp)
+			FlagWithOutput("-o ", params.metadataZip).
+			FlagWithArg("-C ", params.metadataDir.String()).
+			FlagWithArg("-D ", params.metadataDir.String())
 	}
 
 	// TODO(b/183630617): rewrapper doesn't support restat rules
@@ -809,9 +976,53 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		rule.Restat()
 	}
 
-	zipSyncCleanupCmd(rule, srcJarDir)
+	zipSyncCleanupCmd(rule, params.srcJarDir)
 
-	rule.Build("metalava", "metalava merged")
+	rule.Build(fmt.Sprintf("metalava_%s", params.stubConfig.stubsType.String()), "metalava merged")
+}
+
+func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	deps := d.Javadoc.collectDeps(ctx)
+
+	javaVersion := getJavaVersion(ctx, String(d.Javadoc.properties.Java_version), android.SdkContext(d))
+	generateStubs := BoolDefault(d.properties.Generate_stubs, true)
+
+	// Add options for the other optional tasks: API-lint and check-released.
+	// We generate separate timestamp files for them.
+	doApiLint := BoolDefault(d.properties.Check_api.Api_lint.Enabled, false)
+	doCheckReleased := apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released")
+
+	writeSdkValues := Bool(d.properties.Write_sdk_values)
+
+	annotationsEnabled := Bool(d.properties.Annotations_enabled)
+
+	migratingNullability := annotationsEnabled && String(d.properties.Previous_api) != ""
+	validatingNullability := annotationsEnabled && (strings.Contains(String(d.Javadoc.properties.Args), "--validate-nullability-from-merged-stubs") ||
+		String(d.properties.Validate_nullability_from_list) != "")
+
+	checkApi := apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") ||
+		apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released")
+
+	stubCmdParams := stubsCommandConfigParams{
+		javaVersion:           javaVersion,
+		deps:                  deps,
+		checkApi:              checkApi,
+		generateStubs:         generateStubs,
+		doApiLint:             doApiLint,
+		doCheckReleased:       doCheckReleased,
+		writeSdkValues:        writeSdkValues,
+		migratingNullability:  migratingNullability,
+		validatingNullability: validatingNullability,
+	}
+	stubCmdParams.stubsType = Everything
+	// Create default (i.e. "everything" stubs) rule for metalava
+	d.everythingStubCmd(ctx, stubCmdParams)
+
+	// The module generates "exportable" (and "runtime" eventually) stubs regardless of whether
+	// aconfig_declarations property is defined or not. If the property is not defined, the module simply
+	// strips all flagged apis to generate the "exportable" stubs
+	stubCmdParams.stubsType = Exportable
+	d.exportableStubCmd(ctx, stubCmdParams)
 
 	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") {
 
@@ -827,7 +1038,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			ctx.PropertyErrorf("baseline_file", "current API check can't have a baseline file. (module %s)", ctx.ModuleName())
 		}
 
-		d.checkCurrentApiTimestamp = android.PathForModuleOut(ctx, "metalava", "check_current_api.timestamp")
+		d.checkCurrentApiTimestamp = android.PathForModuleOut(ctx, Everything.String(), "check_current_api.timestamp")
 
 		rule := android.NewRuleBuilder(pctx, ctx)
 
@@ -870,7 +1081,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 		rule.Build("metalavaCurrentApiCheck", "check current API")
 
-		d.updateCurrentApiTimestamp = android.PathForModuleOut(ctx, "metalava", "update_current_api.timestamp")
+		d.updateCurrentApiTimestamp = android.PathForModuleOut(ctx, Everything.String(), "update_current_api.timestamp")
 
 		// update API rule
 		rule = android.NewRuleBuilder(pctx, ctx)
@@ -905,7 +1116,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 		checkNullabilityWarnings := android.PathForModuleSrc(ctx, String(d.properties.Check_nullability_warnings))
 
-		d.checkNullabilityWarningsTimestamp = android.PathForModuleOut(ctx, "metalava", "check_nullability_warnings.timestamp")
+		d.checkNullabilityWarningsTimestamp = android.PathForModuleOut(ctx, Everything.String(), "check_nullability_warnings.timestamp")
 
 		msg := fmt.Sprintf(`\n******************************\n`+
 			`The warnings encountered during nullability annotation validation did\n`+
