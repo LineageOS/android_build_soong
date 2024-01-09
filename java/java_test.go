@@ -528,6 +528,15 @@ func TestHostBinaryNoJavaDebugInfoOverride(t *testing.T) {
 	}
 }
 
+// A minimal context object for use with DexJarBuildPath
+type moduleErrorfTestCtx struct {
+}
+
+func (ctx moduleErrorfTestCtx) ModuleErrorf(format string, args ...interface{}) {
+}
+
+var _ android.ModuleErrorfContext = (*moduleErrorfTestCtx)(nil)
+
 func TestPrebuilts(t *testing.T) {
 	ctx, _ := testJava(t, `
 		java_library {
@@ -595,7 +604,8 @@ func TestPrebuilts(t *testing.T) {
 		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], barJar.String())
 	}
 
-	barDexJar := barModule.Module().(*Import).DexJarBuildPath()
+	errCtx := moduleErrorfTestCtx{}
+	barDexJar := barModule.Module().(*Import).DexJarBuildPath(errCtx)
 	if barDexJar.IsSet() {
 		t.Errorf("bar dex jar build path expected to be set, got %s", barDexJar)
 	}
@@ -608,7 +618,7 @@ func TestPrebuilts(t *testing.T) {
 		t.Errorf("foo combineJar inputs %v does not contain %q", combineJar.Inputs, bazJar.String())
 	}
 
-	bazDexJar := bazModule.Module().(*Import).DexJarBuildPath().Path()
+	bazDexJar := bazModule.Module().(*Import).DexJarBuildPath(errCtx).Path()
 	expectedDexJar := "out/soong/.intermediates/baz/android_common/dex/baz.jar"
 	android.AssertPathRelativeToTopEquals(t, "baz dex jar build path", expectedDexJar, bazDexJar)
 

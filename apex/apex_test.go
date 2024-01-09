@@ -5355,6 +5355,13 @@ func TestPrebuiltApexNameWithPlatformBootclasspath(t *testing.T) {
 	).RunTest(t)
 }
 
+// A minimal context object for use with DexJarBuildPath
+type moduleErrorfTestCtx struct {
+}
+
+func (ctx moduleErrorfTestCtx) ModuleErrorf(format string, args ...interface{}) {
+}
+
 // These tests verify that the prebuilt_apex/deapexer to java_import wiring allows for the
 // propagation of paths to dex implementation jars from the former to the latter.
 func TestPrebuiltExportDexImplementationJars(t *testing.T) {
@@ -5364,7 +5371,7 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 		t.Helper()
 		// Make sure the import has been given the correct path to the dex jar.
 		p := ctx.ModuleForTests(name, "android_common_myapex").Module().(java.UsesLibraryDependency)
-		dexJarBuildPath := p.DexJarBuildPath().PathOrNil()
+		dexJarBuildPath := p.DexJarBuildPath(moduleErrorfTestCtx{}).PathOrNil()
 		stem := android.RemoveOptionalPrebuiltPrefix(name)
 		android.AssertStringEquals(t, "DexJarBuildPath should be apex-related path.",
 			".intermediates/myapex.deapexer/android_common/deapexer/javalib/"+stem+".jar",
@@ -8491,6 +8498,8 @@ func TestDuplicateButEquivalentDeapexersFromPrebuiltApexes(t *testing.T) {
 		PrepareForTestWithApexBuildComponents,
 	)
 
+	errCtx := moduleErrorfTestCtx{}
+
 	bpBase := `
 		apex_set {
 			name: "com.android.myapex",
@@ -8540,7 +8549,7 @@ func TestDuplicateButEquivalentDeapexersFromPrebuiltApexes(t *testing.T) {
 		usesLibraryDep := module.(java.UsesLibraryDependency)
 		android.AssertPathRelativeToTopEquals(t, "dex jar path",
 			"out/soong/.intermediates/com.android.myapex.deapexer/android_common/deapexer/javalib/libfoo.jar",
-			usesLibraryDep.DexJarBuildPath().Path())
+			usesLibraryDep.DexJarBuildPath(errCtx).Path())
 	})
 
 	t.Run("java_sdk_library_import", func(t *testing.T) {
@@ -8563,7 +8572,7 @@ func TestDuplicateButEquivalentDeapexersFromPrebuiltApexes(t *testing.T) {
 		usesLibraryDep := module.(java.UsesLibraryDependency)
 		android.AssertPathRelativeToTopEquals(t, "dex jar path",
 			"out/soong/.intermediates/com.android.myapex.deapexer/android_common/deapexer/javalib/libfoo.jar",
-			usesLibraryDep.DexJarBuildPath().Path())
+			usesLibraryDep.DexJarBuildPath(errCtx).Path())
 	})
 
 	t.Run("prebuilt_bootclasspath_fragment", func(t *testing.T) {

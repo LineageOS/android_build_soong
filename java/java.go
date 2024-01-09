@@ -315,7 +315,7 @@ type ApexDependency interface {
 
 // Provides build path and install path to DEX jars.
 type UsesLibraryDependency interface {
-	DexJarBuildPath() OptionalDexJarPath
+	DexJarBuildPath(ctx android.ModuleErrorfContext) OptionalDexJarPath
 	DexJarInstallPath() android.Path
 	ClassLoaderContexts() dexpreopt.ClassLoaderContextMap
 }
@@ -2011,7 +2011,7 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 }
 
-func (al *ApiLibrary) DexJarBuildPath() OptionalDexJarPath {
+func (al *ApiLibrary) DexJarBuildPath(ctx android.ModuleErrorfContext) OptionalDexJarPath {
 	return al.dexJarFile
 }
 
@@ -2378,9 +2378,9 @@ func (j *Import) ImplementationAndResourcesJars() android.Paths {
 	return android.Paths{j.combinedClasspathFile}
 }
 
-func (j *Import) DexJarBuildPath() OptionalDexJarPath {
+func (j *Import) DexJarBuildPath(ctx android.ModuleErrorfContext) OptionalDexJarPath {
 	if j.dexJarFileErr != nil {
-		panic(j.dexJarFileErr.Error())
+		ctx.ModuleErrorf(j.dexJarFileErr.Error())
 	}
 	return j.dexJarFile
 }
@@ -2631,7 +2631,7 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 }
 
-func (j *DexImport) DexJarBuildPath() OptionalDexJarPath {
+func (j *DexImport) DexJarBuildPath(ctx android.ModuleErrorfContext) OptionalDexJarPath {
 	return j.dexJarFile
 }
 
@@ -2799,7 +2799,7 @@ func addCLCFromDep(ctx android.ModuleContext, depModule android.Module,
 	// from its CLC should be added to the current CLC.
 	if sdkLib != nil {
 		clcMap.AddContext(ctx, dexpreopt.AnySdkVersion, *sdkLib, false,
-			dep.DexJarBuildPath().PathOrNil(), dep.DexJarInstallPath(), dep.ClassLoaderContexts())
+			dep.DexJarBuildPath(ctx).PathOrNil(), dep.DexJarInstallPath(), dep.ClassLoaderContexts())
 	} else {
 		clcMap.AddContextMap(dep.ClassLoaderContexts(), depName)
 	}
