@@ -36,6 +36,7 @@ const (
 	Everything StubsType = iota
 	Runtime
 	Exportable
+	Unavailable
 )
 
 func (s StubsType) String() string {
@@ -270,21 +271,55 @@ func DroidstubsHostFactory() android.Module {
 	return module
 }
 
+func getStubsTypeAndTag(tag string) (StubsType, string, error) {
+	if len(tag) == 0 {
+		return Everything, "", nil
+	}
+	if tag[0] != '.' {
+		return Unavailable, "", fmt.Errorf("tag must begin with \".\"")
+	}
+
+	stubsType := Everything
+	// Check if the tag has a stubs type prefix (e.g. ".exportable")
+	for st := Everything; st <= Exportable; st++ {
+		if strings.HasPrefix(tag, "."+st.String()) {
+			stubsType = st
+		}
+	}
+
+	return stubsType, strings.TrimPrefix(tag, "."+stubsType.String()), nil
+}
+
+// Droidstubs' tag supports specifying with the stubs type.
+// While supporting the pre-existing tags, it also supports tags with
+// the stubs type prefix. Some examples are shown below:
+// {.annotations.zip} - pre-existing behavior. Returns the path to the
+// annotation zip.
+// {.exportable} - Returns the path to the exportable stubs src jar.
+// {.exportable.annotations.zip} - Returns the path to the exportable
+// annotations zip file.
+// {.runtime.api_versions.xml} - Runtime stubs does not generate api versions
+// xml file. For unsupported combinations, the default everything output file
+// is returned.
 func (d *Droidstubs) OutputFiles(tag string) (android.Paths, error) {
-	switch tag {
+	stubsType, prefixRemovedTag, err := getStubsTypeAndTag(tag)
+	if err != nil {
+		return nil, err
+	}
+	switch prefixRemovedTag {
 	case "":
-		return android.Paths{d.stubsSrcJar}, nil
+		return d.StubsSrcJarWithStubsType(stubsType)
 	case ".docs.zip":
-		return android.Paths{d.docZip}, nil
+		return d.DocZipWithStubsType(stubsType)
 	case ".api.txt", android.DefaultDistTag:
 		// This is the default dist path for dist properties that have no tag property.
-		return android.Paths{d.apiFile}, nil
+		return d.ApiFilePathWithStubsType(stubsType)
 	case ".removed-api.txt":
-		return android.Paths{d.removedApiFile}, nil
+		return d.RemovedApiFilePathWithStubsType(stubsType)
 	case ".annotations.zip":
-		return android.Paths{d.annotationsZip}, nil
+		return d.AnnotationsZipWithStubsType(stubsType)
 	case ".api_versions.xml":
-		return android.Paths{d.apiVersionsXml}, nil
+		return d.ApiVersionsXmlFilePathWithStubsType(stubsType)
 	default:
 		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 	}
@@ -294,16 +329,94 @@ func (d *Droidstubs) AnnotationsZip() android.Path {
 	return d.annotationsZip
 }
 
+func (d *Droidstubs) ExportableAnnotationsZip() android.Path {
+	return d.exportableAnnotationsZip
+}
+
+func (d *Droidstubs) AnnotationsZipWithStubsType(stubsType StubsType) (android.Paths, error) {
+	switch stubsType {
+	case Everything:
+		return android.Paths{d.AnnotationsZip()}, nil
+	case Exportable:
+		return android.Paths{d.ExportableAnnotationsZip()}, nil
+	default:
+		return nil, fmt.Errorf("annotations zip not supported for the stub type %s", stubsType.String())
+	}
+}
+
 func (d *Droidstubs) ApiFilePath() android.Path {
 	return d.apiFile
+}
+
+func (d *Droidstubs) ExportableApiFilePath() android.Path {
+	return d.exportableApiFile
+}
+
+func (d *Droidstubs) ApiFilePathWithStubsType(stubsType StubsType) (android.Paths, error) {
+	switch stubsType {
+	case Everything:
+		return android.Paths{d.ApiFilePath()}, nil
+	case Exportable:
+		return android.Paths{d.ExportableApiFilePath()}, nil
+	default:
+		return nil, fmt.Errorf("api file path not supported for the stub type %s", stubsType.String())
+	}
+}
+
+func (d *Droidstubs) ApiVersionsXmlFilePathWithStubsType(stubsType StubsType) (android.Paths, error) {
+	switch stubsType {
+	case Everything:
+		return android.Paths{d.apiVersionsXml}, nil
+	default:
+		return nil, fmt.Errorf("api versions xml file path not supported for the stub type %s", stubsType.String())
+	}
+}
+
+func (d *Droidstubs) DocZipWithStubsType(stubsType StubsType) (android.Paths, error) {
+	switch stubsType {
+	case Everything:
+		return android.Paths{d.docZip}, nil
+	default:
+		return nil, fmt.Errorf("docs zip not supported for the stub type %s", stubsType.String())
+	}
 }
 
 func (d *Droidstubs) RemovedApiFilePath() android.Path {
 	return d.removedApiFile
 }
 
+func (d *Droidstubs) ExportableRemovedApiFilePath() android.Path {
+	return d.exportableRemovedApiFile
+}
+
+func (d *Droidstubs) RemovedApiFilePathWithStubsType(stubsType StubsType) (android.Paths, error) {
+	switch stubsType {
+	case Everything:
+		return android.Paths{d.RemovedApiFilePath()}, nil
+	case Exportable:
+		return android.Paths{d.ExportableRemovedApiFilePath()}, nil
+	default:
+		return nil, fmt.Errorf("removed api file path not supported for the stub type %s", stubsType.String())
+	}
+}
+
 func (d *Droidstubs) StubsSrcJar() android.Path {
 	return d.stubsSrcJar
+}
+
+func (d *Droidstubs) ExportableStubsSrcJar() android.Path {
+	return d.exportableStubsSrcJar
+}
+
+func (d *Droidstubs) StubsSrcJarWithStubsType(stubsType StubsType) (android.Paths, error) {
+	switch stubsType {
+	case Everything:
+		return android.Paths{d.StubsSrcJar()}, nil
+	case Exportable:
+		return android.Paths{d.ExportableStubsSrcJar()}, nil
+	default:
+		return nil, fmt.Errorf("stubs srcjar not supported for the stub type %s", stubsType.String())
+	}
 }
 
 func (d *Droidstubs) CurrentApiTimestamp() android.Path {
