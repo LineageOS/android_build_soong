@@ -26,6 +26,7 @@ import (
 
 	"android/soong/remoteexec"
 	"android/soong/testing"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -519,6 +520,7 @@ type deps struct {
 	kotlinStdlib            android.Paths
 	kotlinAnnotations       android.Paths
 	kotlinPlugins           android.Paths
+	aconfigProtoFiles       android.Paths
 
 	disableTurbine bool
 }
