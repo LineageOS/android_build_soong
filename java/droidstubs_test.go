@@ -437,4 +437,12 @@ func TestAconfigDeclarations(t *testing.T) {
 	m := result.ModuleForTests("foo", "android_common")
 	android.AssertStringDoesContain(t, "foo generates revert annotations file",
 		strings.Join(m.AllOutputs(), ""), "revert-annotations-exportable.txt")
+
+	// revert-annotations.txt passed to exportable stubs generation metalava command
+	manifest := m.Output("metalava_exportable.sbox.textproto")
+	cmdline := String(android.RuleBuilderSboxProtoForTests(t, result.TestContext, manifest).Commands[0].Command)
+	android.AssertStringDoesContain(t, "flagged api hide command not included", cmdline, "revert-annotations-exportable.txt")
+
+	android.AssertStringDoesContain(t, "foo generates exportable stubs jar",
+		strings.Join(m.AllOutputs(), ""), "exportable/foo-stubs.srcjar")
 }
