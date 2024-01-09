@@ -208,6 +208,8 @@ type Javadoc struct {
 
 	docZip      android.WritablePath
 	stubsSrcJar android.WritablePath
+
+	exportableStubsSrcJar android.WritablePath
 }
 
 func (j *Javadoc) OutputFiles(tag string) (android.Paths, error) {

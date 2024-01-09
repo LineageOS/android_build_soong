@@ -2465,7 +2465,7 @@ func TestApiLibraryDroidstubsDependency(t *testing.T) {
 		}
 	`)
 
-	currentApiTimestampPath := "api-stubs-docs-non-updatable/android_common/metalava/check_current_api.timestamp"
+	currentApiTimestampPath := "api-stubs-docs-non-updatable/android_common/everything/check_current_api.timestamp"
 	foo := result.ModuleForTests("foo", "android_common").Module().(*ApiLibrary)
 	fooValidationPathsString := strings.Join(foo.validationPaths.Strings(), " ")
 	bar := result.ModuleForTests("bar", "android_common").Module().(*ApiLibrary)
