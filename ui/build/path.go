@@ -180,7 +180,7 @@ func SetupPath(ctx Context, config Config) {
 			// Compute the error message along with the process tree, including
 			// parents, for this log line.
 			procPrints := []string{
-				"See https://android.googlesource.com/platform/build/+/master/Changes.md#PATH_Tools for more information.",
+				"See https://android.googlesource.com/platform/build/+/main/Changes.md#PATH_Tools for more information.",
 			}
 			if len(log.Parents) > 0 {
 				procPrints = append(procPrints, "Process tree:")
