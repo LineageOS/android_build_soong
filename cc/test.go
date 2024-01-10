@@ -430,8 +430,7 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 		}
 	})
 
-	useVendor := ctx.inVendor() || ctx.useVndk()
-	testInstallBase := getTestInstallBase(useVendor)
+	testInstallBase := getTestInstallBase(ctx.InVendorOrProduct())
 	configs := getTradefedConfigOptions(ctx, &test.Properties, test.isolated(ctx), ctx.Device())
 
 	test.testConfig = tradefed.AutoGenTestConfig(ctx, tradefed.AutoGenTestConfigOptions{
