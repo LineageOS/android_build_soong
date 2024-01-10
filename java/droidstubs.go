@@ -89,6 +89,9 @@ type Droidstubs struct {
 	metadataZip android.WritablePath
 	metadataDir android.WritablePath
 
+	// Single aconfig "cache file" merged from this module and all dependencies.
+	mergedAconfigFiles map[string]android.Paths
+
 	exportableApiFile                 android.WritablePath
 	exportableRemovedApiFile          android.WritablePath
 	exportableNullabilityWarningsFile android.WritablePath
@@ -1255,6 +1258,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 		rule.Build("nullabilityWarningsCheck", "nullability warnings check")
 	}
+	android.CollectDependencyAconfigFiles(ctx, &d.mergedAconfigFiles)
 }
 
 func (d *Droidstubs) createApiContribution(ctx android.DefaultableHookContext) {
