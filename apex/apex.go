@@ -480,6 +480,9 @@ type apexBundle struct {
 	javaApisUsedByModuleFile     android.ModuleOutPath
 
 	aconfigFiles []android.Path
+
+	// Single aconfig "cache file" merged from this module and all dependencies.
+	mergedAconfigFiles map[string]android.Paths
 }
 
 // apexFileClass represents a type of file that can be included in APEX.
@@ -2356,6 +2359,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			return
 		}
 	}
+	android.CollectDependencyAconfigFiles(ctx, &a.mergedAconfigFiles)
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// 3) some fields in apexBundle struct are configured
@@ -2515,6 +2519,9 @@ func BundleFactory() android.Module {
 type Defaults struct {
 	android.ModuleBase
 	android.DefaultsModuleBase
+
+	// Single aconfig "cache file" merged from this module and all dependencies.
+	mergedAconfigFiles map[string]android.Paths
 }
 
 // apex_defaults provides defaultable properties to other apex modules.
@@ -2535,6 +2542,10 @@ func DefaultsFactory() android.Module {
 type OverrideApex struct {
 	android.ModuleBase
 	android.OverrideModuleBase
+}
+
+func (d *Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	android.CollectDependencyAconfigFiles(ctx, &d.mergedAconfigFiles)
 }
 
 func (o *OverrideApex) GenerateAndroidBuildActions(_ android.ModuleContext) {
