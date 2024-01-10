@@ -181,13 +181,13 @@ type errorfContext interface {
 
 var _ errorfContext = blueprint.SingletonContext(nil)
 
-// moduleErrorf is the interface containing the ModuleErrorf method matching
+// ModuleErrorfContext is the interface containing the ModuleErrorf method matching
 // the ModuleErrorf method in blueprint.ModuleContext.
-type moduleErrorf interface {
+type ModuleErrorfContext interface {
 	ModuleErrorf(format string, args ...interface{})
 }
 
-var _ moduleErrorf = blueprint.ModuleContext(nil)
+var _ ModuleErrorfContext = blueprint.ModuleContext(nil)
 
 // reportPathError will register an error with the attached context. It
 // attempts ctx.ModuleErrorf for a better error message first, then falls
@@ -200,7 +200,7 @@ func reportPathError(ctx PathContext, err error) {
 // attempts ctx.ModuleErrorf for a better error message first, then falls
 // back to ctx.Errorf.
 func ReportPathErrorf(ctx PathContext, format string, args ...interface{}) {
-	if mctx, ok := ctx.(moduleErrorf); ok {
+	if mctx, ok := ctx.(ModuleErrorfContext); ok {
 		mctx.ModuleErrorf(format, args...)
 	} else if ectx, ok := ctx.(errorfContext); ok {
 		ectx.Errorf(format, args...)
