@@ -34,7 +34,7 @@ func runJavaAndroidMkTest(t *testing.T, bp string) {
 		RunTestWithBp(t, bp+`
 			aconfig_declarations {
 				name: "my_aconfig_declarations_foo",
-				package: "com.example.package",
+				package: "com.example.package.foo",
 				srcs: ["foo.aconfig"],
 			}
 
@@ -45,7 +45,7 @@ func runJavaAndroidMkTest(t *testing.T, bp string) {
 
 			aconfig_declarations {
 				name: "my_aconfig_declarations_bar",
-				package: "com.example.package",
+				package: "com.example.package.bar",
 				srcs: ["bar.aconfig"],
 			}
 
