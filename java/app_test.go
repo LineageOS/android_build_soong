@@ -4347,14 +4347,14 @@ func TestAppFlagsPackages(t *testing.T) {
 		}
 		aconfig_declarations {
 			name: "bar",
-			package: "com.example.package",
+			package: "com.example.package.bar",
 			srcs: [
 				"bar.aconfig",
 			],
 		}
 		aconfig_declarations {
 			name: "baz",
-			package: "com.example.package",
+			package: "com.example.package.baz",
 			srcs: [
 				"baz.aconfig",
 			],
