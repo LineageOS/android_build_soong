@@ -15,6 +15,10 @@
 package android
 
 import (
+	"fmt"
+	"io"
+	"reflect"
+
 	"github.com/google/blueprint"
 )
 
@@ -45,6 +49,8 @@ type AconfigTransitiveDeclarationsInfo struct {
 
 var AconfigTransitiveDeclarationsInfoProvider = blueprint.NewProvider[AconfigTransitiveDeclarationsInfo]()
 
+// CollectDependencyAconfigFiles is used by some module types to provide finer dependency graphing than
+// we can do in ModuleBase.
 func CollectDependencyAconfigFiles(ctx ModuleContext, mergedAconfigFiles *map[string]Paths) {
 	if *mergedAconfigFiles == nil {
 		*mergedAconfigFiles = make(map[string]Paths)
@@ -54,7 +60,14 @@ func CollectDependencyAconfigFiles(ctx ModuleContext, mergedAconfigFiles *map[st
 			(*mergedAconfigFiles)[dep.Container] = append((*mergedAconfigFiles)[dep.Container], dep.IntermediateCacheOutputPath)
 			return
 		}
-		if dep, _ := OtherModuleProvider(ctx, module, AconfigTransitiveDeclarationsInfoProvider); len(dep.AconfigFiles) > 0 {
+		if dep, ok := OtherModuleProvider(ctx, module, aconfigPropagatingProviderKey); ok {
+			for container, v := range dep.AconfigFiles {
+				(*mergedAconfigFiles)[container] = append((*mergedAconfigFiles)[container], v...)
+			}
+		}
+		// We process these last, so that they determine the final value, eliminating any duplicates that we picked up
+		// from UpdateAndroidBuildActions.
+		if dep, ok := OtherModuleProvider(ctx, module, AconfigTransitiveDeclarationsInfoProvider); ok {
 			for container, v := range dep.AconfigFiles {
 				(*mergedAconfigFiles)[container] = append((*mergedAconfigFiles)[container], v...)
 			}
@@ -62,7 +75,7 @@ func CollectDependencyAconfigFiles(ctx ModuleContext, mergedAconfigFiles *map[st
 	})
 
 	for container, aconfigFiles := range *mergedAconfigFiles {
-		(*mergedAconfigFiles)[container] = mergeAconfigFiles(ctx, container, aconfigFiles)
+		(*mergedAconfigFiles)[container] = mergeAconfigFiles(ctx, container, aconfigFiles, false)
 	}
 
 	SetProvider(ctx, AconfigTransitiveDeclarationsInfoProvider, AconfigTransitiveDeclarationsInfo{
@@ -70,7 +83,94 @@ func CollectDependencyAconfigFiles(ctx ModuleContext, mergedAconfigFiles *map[st
 	})
 }
 
-func mergeAconfigFiles(ctx ModuleContext, container string, inputs Paths) Paths {
+func SetAconfigFileMkEntries(m *ModuleBase, entries *AndroidMkEntries, aconfigFiles map[string]Paths) {
+	setAconfigFileMkEntries(m, entries, aconfigFiles)
+}
+
+type aconfigPropagatingDeclarationsInfo struct {
+	AconfigFiles map[string]Paths
+}
+
+var aconfigPropagatingProviderKey = blueprint.NewProvider[aconfigPropagatingDeclarationsInfo]()
+
+func aconfigUpdateAndroidBuildActions(ctx ModuleContext) {
+	mergedAconfigFiles := make(map[string]Paths)
+	ctx.VisitDirectDepsIgnoreBlueprint(func(module Module) {
+		// If any of our dependencies have aconfig declarations (directly or propagated), then merge those and provide them.
+		if dep, ok := OtherModuleProvider(ctx, module, AconfigDeclarationsProviderKey); ok {
+			mergedAconfigFiles[dep.Container] = append(mergedAconfigFiles[dep.Container], dep.IntermediateCacheOutputPath)
+		}
+		if dep, ok := OtherModuleProvider(ctx, module, aconfigPropagatingProviderKey); ok {
+			for container, v := range dep.AconfigFiles {
+				mergedAconfigFiles[container] = append(mergedAconfigFiles[container], v...)
+			}
+		}
+		if dep, ok := OtherModuleProvider(ctx, module, AconfigTransitiveDeclarationsInfoProvider); ok {
+			for container, v := range dep.AconfigFiles {
+				mergedAconfigFiles[container] = append(mergedAconfigFiles[container], v...)
+			}
+		}
+	})
+	// We only need to set the provider if we have aconfig files.
+	if len(mergedAconfigFiles) > 0 {
+		for container, aconfigFiles := range mergedAconfigFiles {
+			mergedAconfigFiles[container] = mergeAconfigFiles(ctx, container, aconfigFiles, true)
+		}
+
+		SetProvider(ctx, aconfigPropagatingProviderKey, aconfigPropagatingDeclarationsInfo{
+			AconfigFiles: mergedAconfigFiles,
+		})
+	}
+}
+
+func aconfigUpdateAndroidMkData(ctx fillInEntriesContext, mod Module, data *AndroidMkData) {
+	info, ok := SingletonModuleProvider(ctx, mod, aconfigPropagatingProviderKey)
+	// If there is no aconfigPropagatingProvider, or there are no AconfigFiles, then we are done.
+	if !ok || len(info.AconfigFiles) == 0 {
+		return
+	}
+	data.Extra = append(data.Extra, func(w io.Writer, outputFile Path) {
+		AndroidMkEmitAssignList(w, "LOCAL_ACONFIG_FILES", getAconfigFilePaths(mod.base(), info.AconfigFiles).Strings())
+	})
+	// If there is a Custom writer, it needs to support this provider.
+	if data.Custom != nil {
+		switch reflect.TypeOf(mod).String() {
+		case "*aidl.aidlApi": // writes non-custom before adding .phony
+		case "*android_sdk.sdkRepoHost": // doesn't go through base_rules
+		case "*apex.apexBundle": // aconfig_file properties written
+		case "*bpf.bpf": // properties written (both for module and objs)
+		case "*genrule.Module": // writes non-custom before adding .phony
+		case "*java.SystemModules": // doesn't go through base_rules
+		case "*phony.phony": // properties written
+		case "*phony.PhonyRule": // writes phony deps and acts like `.PHONY`
+		case "*sysprop.syspropLibrary": // properties written
+		default:
+			panic(fmt.Errorf("custom make rules do not handle aconfig files for %q (%q) module %q", ctx.ModuleType(mod), reflect.TypeOf(mod), mod))
+		}
+	}
+}
+
+func aconfigUpdateAndroidMkEntries(ctx fillInEntriesContext, mod Module, entries *[]AndroidMkEntries) {
+	// If there are no entries, then we can ignore this module, even if it has aconfig files.
+	if len(*entries) == 0 {
+		return
+	}
+	info, ok := SingletonModuleProvider(ctx, mod, aconfigPropagatingProviderKey)
+	if !ok || len(info.AconfigFiles) == 0 {
+		return
+	}
+	// All of the files in the module potentially depend on the aconfig flag values.
+	for idx, _ := range *entries {
+		(*entries)[idx].ExtraEntries = append((*entries)[idx].ExtraEntries,
+			func(ctx AndroidMkExtraEntriesContext, entries *AndroidMkEntries) {
+				setAconfigFileMkEntries(mod.base(), entries, info.AconfigFiles)
+			},
+		)
+
+	}
+}
+
+func mergeAconfigFiles(ctx ModuleContext, container string, inputs Paths, generateRule bool) Paths {
 	inputs = LastUniquePaths(inputs)
 	if len(inputs) == 1 {
 		return Paths{inputs[0]}
@@ -78,22 +178,28 @@ func mergeAconfigFiles(ctx ModuleContext, container string, inputs Paths) Paths 
 
 	output := PathForModuleOut(ctx, container, "aconfig_merged.pb")
 
-	ctx.Build(pctx, BuildParams{
-		Rule:        mergeAconfigFilesRule,
-		Description: "merge aconfig files",
-		Inputs:      inputs,
-		Output:      output,
-		Args: map[string]string{
-			"flags": JoinWithPrefix(inputs.Strings(), "--cache "),
-		},
-	})
+	if generateRule {
+		ctx.Build(pctx, BuildParams{
+			Rule:        mergeAconfigFilesRule,
+			Description: "merge aconfig files",
+			Inputs:      inputs,
+			Output:      output,
+			Args: map[string]string{
+				"flags": JoinWithPrefix(inputs.Strings(), "--cache "),
+			},
+		})
+	}
 
 	return Paths{output}
 }
 
-func SetAconfigFileMkEntries(m *ModuleBase, entries *AndroidMkEntries, aconfigFiles map[string]Paths) {
+func setAconfigFileMkEntries(m *ModuleBase, entries *AndroidMkEntries, aconfigFiles map[string]Paths) {
+	entries.AddPaths("LOCAL_ACONFIG_FILES", getAconfigFilePaths(m, aconfigFiles))
+}
+
+func getAconfigFilePaths(m *ModuleBase, aconfigFiles map[string]Paths) (paths Paths) {
 	// TODO(b/311155208): The default container here should be system.
-	container := ""
+	container := "system"
 
 	if m.SocSpecific() {
 		container = "vendor"
@@ -103,5 +209,18 @@ func SetAconfigFileMkEntries(m *ModuleBase, entries *AndroidMkEntries, aconfigFi
 		container = "system_ext"
 	}
 
-	entries.SetPaths("LOCAL_ACONFIG_FILES", aconfigFiles[container])
+	paths = append(paths, aconfigFiles[container]...)
+	if container == "system" {
+		// TODO(b/311155208): Once the default container is system, we can drop this.
+		paths = append(paths, aconfigFiles[""]...)
+	}
+	if container != "system" {
+		if len(aconfigFiles[container]) == 0 && len(aconfigFiles[""]) > 0 {
+			// TODO(b/308625757): Either we guessed the container wrong, or the flag is misdeclared.
+			// For now, just include the system (aka "") container if we get here.
+			//fmt.Printf("container_mismatch: module=%v container=%v files=%v\n", m, container, aconfigFiles)
+		}
+		paths = append(paths, aconfigFiles[""]...)
+	}
+	return
 }

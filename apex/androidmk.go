@@ -124,6 +124,10 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir st
 		pathForSymbol := filepath.Join("$(PRODUCT_OUT)", "apex", apexBundleName, fi.installDir)
 		modulePath := pathForSymbol
 		fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", modulePath)
+		// AconfigUpdateAndroidMkData may have added elements to Extra.  Process them here.
+		for _, extra := range apexAndroidMkData.Extra {
+			extra(w, fi.builtFile)
+		}
 
 		// For non-flattend APEXes, the merged notice file is attached to the APEX itself.
 		// We don't need to have notice file for the individual modules in it. Otherwise,
@@ -229,6 +233,7 @@ func (a *apexBundle) writeRequiredModules(w io.Writer, moduleNames []string) {
 
 func (a *apexBundle) androidMkForType() android.AndroidMkData {
 	return android.AndroidMkData{
+		// While we do not provide a value for `Extra`, AconfigUpdateAndroidMkData may add some, which we must honor.
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
 			moduleNames := []string{}
 			if a.installable() {
@@ -269,6 +274,10 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 
 			android.AndroidMkEmitAssignList(w, "LOCAL_OVERRIDES_MODULES", a.overridableProperties.Overrides)
 			a.writeRequiredModules(w, moduleNames)
+			// AconfigUpdateAndroidMkData may have added elements to Extra.  Process them here.
+			for _, extra := range data.Extra {
+				extra(w, a.outputFile)
+			}
 
 			fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 			fmt.Fprintln(w, "ALL_MODULES.$(my_register_name).BUNDLE :=", a.bundleModuleFile.String())
