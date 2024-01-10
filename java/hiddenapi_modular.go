@@ -291,7 +291,7 @@ func hiddenAPIRetrieveDexJarBuildPath(ctx android.ModuleContext, module android.
 	if sdkLibrary, ok := module.(SdkLibraryDependency); ok {
 		dexJar = sdkLibrary.SdkApiStubDexJar(ctx, kind)
 	} else if j, ok := module.(UsesLibraryDependency); ok {
-		dexJar = j.DexJarBuildPath()
+		dexJar = j.DexJarBuildPath(ctx)
 	} else {
 		ctx.ModuleErrorf("dependency %s of module type %s does not support providing a dex jar", module, ctx.OtherModuleType(module))
 		return nil
@@ -1457,7 +1457,9 @@ func handleMissingDexBootFile(ctx android.ModuleContext, module android.Module, 
 // However, under certain conditions, e.g. errors, or special build configurations it will return
 // a path to a fake file.
 func retrieveEncodedBootDexJarFromModule(ctx android.ModuleContext, module android.Module) android.Path {
-	bootDexJar := module.(interface{ DexJarBuildPath() OptionalDexJarPath }).DexJarBuildPath()
+	bootDexJar := module.(interface {
+		DexJarBuildPath(ctx android.ModuleErrorfContext) OptionalDexJarPath
+	}).DexJarBuildPath(ctx)
 	if !bootDexJar.Valid() {
 		fake := android.PathForModuleOut(ctx, fmt.Sprintf("fake/encoded-dex/%s.jar", module.Name()))
 		handleMissingDexBootFile(ctx, module, fake, bootDexJar.InvalidReason())

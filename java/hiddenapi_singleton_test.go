@@ -309,7 +309,8 @@ func TestHiddenAPIEncoding_JavaSdkLibrary(t *testing.T) {
 		android.AssertStringEquals(t, "encode embedded java_library", unencodedDexJar, actualUnencodedDexJar.String())
 
 		// Make sure that the encoded dex jar is the exported one.
-		exportedDexJar := moduleForTests.Module().(UsesLibraryDependency).DexJarBuildPath().Path()
+		errCtx := moduleErrorfTestCtx{}
+		exportedDexJar := moduleForTests.Module().(UsesLibraryDependency).DexJarBuildPath(errCtx).Path()
 		android.AssertPathRelativeToTopEquals(t, "encode embedded java_library", encodedDexJar, exportedDexJar)
 	}
 

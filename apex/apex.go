@@ -1628,7 +1628,7 @@ func apexFileForCompatConfig(ctx android.BaseModuleContext, config java.Platform
 type javaModule interface {
 	android.Module
 	BaseModuleName() string
-	DexJarBuildPath() java.OptionalDexJarPath
+	DexJarBuildPath(ctx android.ModuleErrorfContext) java.OptionalDexJarPath
 	JacocoReportClassesFile() android.Path
 	LintDepSets() java.LintDepSets
 	Stem() string
@@ -1642,7 +1642,7 @@ var _ javaModule = (*java.SdkLibraryImport)(nil)
 
 // apexFileForJavaModule creates an apexFile for a java module's dex implementation jar.
 func apexFileForJavaModule(ctx android.BaseModuleContext, module javaModule) apexFile {
-	return apexFileForJavaModuleWithFile(ctx, module, module.DexJarBuildPath().PathOrNil())
+	return apexFileForJavaModuleWithFile(ctx, module, module.DexJarBuildPath(ctx).PathOrNil())
 }
 
 // apexFileForJavaModuleWithFile creates an apexFile for a java module with the supplied file.
