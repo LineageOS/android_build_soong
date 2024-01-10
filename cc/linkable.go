@@ -218,6 +218,7 @@ type LinkableInterface interface {
 	ProductSpecific() bool
 	InProduct() bool
 	SdkAndPlatformVariantVisibleToMake() bool
+	InVendorOrProduct() bool
 
 	// SubName returns the modules SubName, used for image and NDK/SDK variations.
 	SubName() string

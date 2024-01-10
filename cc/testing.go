@@ -571,6 +571,7 @@ var PrepareForTestWithCcDefaultModules = android.GroupFixturePreparers(
 	android.MockFS{
 		"defaults/cc/common/libc.map.txt":      nil,
 		"defaults/cc/common/libdl.map.txt":     nil,
+		"defaults/cc/common/libft2.map.txt":    nil,
 		"defaults/cc/common/libm.map.txt":      nil,
 		"defaults/cc/common/ndk_libc++_shared": nil,
 		"defaults/cc/common/crtbegin_so.c":     nil,

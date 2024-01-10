@@ -48,7 +48,7 @@ func updateImportedLibraryDependency(ctx android.BottomUpMutatorContext) {
 		return
 	}
 
-	if m.UseVndk() && apiLibrary.hasLLNDKStubs() {
+	if m.InVendorOrProduct() && apiLibrary.hasLLNDKStubs() {
 		// Add LLNDK variant dependency
 		if inList("llndk", apiLibrary.properties.Variants) {
 			variantName := BuildApiVariantName(m.BaseModuleName(), "llndk", "")
@@ -193,7 +193,7 @@ func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps
 		}
 	}
 
-	if m.UseVndk() && d.hasLLNDKStubs() {
+	if m.InVendorOrProduct() && d.hasLLNDKStubs() {
 		// LLNDK variant
 		load_cc_variant(BuildApiVariantName(m.BaseModuleName(), "llndk", ""))
 	} else if m.IsSdkVariant() {
@@ -312,7 +312,7 @@ func (d *apiLibraryDecorator) stubsVersions(ctx android.BaseMutatorContext) []st
 		}
 	}
 
-	if d.hasLLNDKStubs() && m.UseVndk() {
+	if d.hasLLNDKStubs() && m.InVendorOrProduct() {
 		// LLNDK libraries only need a single stubs variant.
 		return []string{android.FutureApiLevel.String()}
 	}
