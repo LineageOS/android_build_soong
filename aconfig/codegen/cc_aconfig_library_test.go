@@ -20,6 +20,8 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
+
+	"github.com/google/blueprint"
 )
 
 var ccCodegenModeTestData = []struct {
@@ -163,4 +165,35 @@ func TestAndroidMkCcLibrary(t *testing.T) {
 	makeVar := entry.EntryMap["LOCAL_ACONFIG_FILES"]
 	android.AssertIntEquals(t, "len(LOCAL_ACONFIG_FILES)", 1, len(makeVar))
 	android.EnsureListContainsSuffix(t, makeVar, "my_aconfig_declarations_foo/intermediate.pb")
+}
+
+func TestForceReadOnly(t *testing.T) {
+	t.Helper()
+	result := android.GroupFixturePreparers(
+		PrepareForTestWithAconfigBuildComponents,
+		cc.PrepareForTestWithCcDefaultModules).
+		ExtendWithErrorHandler(android.FixtureExpectsNoErrors).
+		RunTestWithBp(t, fmt.Sprintf(`
+			aconfig_declarations {
+				name: "my_aconfig_declarations",
+				package: "com.example.package",
+				srcs: ["foo.aconfig"],
+			}
+
+			cc_aconfig_library {
+				name: "my_cc_aconfig_library",
+				aconfig_declarations: "my_aconfig_declarations",
+				mode: "force-read-only",
+			}
+		`))
+
+	module := result.ModuleForTests("my_cc_aconfig_library", "android_arm64_armv8-a_shared").Module()
+	dependOnBaseLib := false
+	result.VisitDirectDeps(module, func(dep blueprint.Module) {
+		if dep.Name() == baseLibDep {
+			dependOnBaseLib = true
+		}
+	})
+	android.AssertBoolEquals(t, "should not have dependency on server_configuriable_flags",
+		dependOnBaseLib, false)
 }
