@@ -1929,7 +1929,7 @@ func (j *Module) ImplementationJars() android.Paths {
 	return android.Paths{j.implementationJarFile}
 }
 
-func (j *Module) DexJarBuildPath() OptionalDexJarPath {
+func (j *Module) DexJarBuildPath(ctx android.ModuleErrorfContext) OptionalDexJarPath {
 	return j.dexJarFile
 }
 

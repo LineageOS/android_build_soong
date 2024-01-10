@@ -694,7 +694,7 @@ func (paths *scopePaths) extractStubsLibraryInfoFromDependency(ctx android.Modul
 		paths.stubsImplPath = lib.ImplementationJars
 
 		libDep := dep.(UsesLibraryDependency)
-		paths.stubsDexJarPath = libDep.DexJarBuildPath()
+		paths.stubsDexJarPath = libDep.DexJarBuildPath(ctx)
 		return nil
 	} else {
 		return fmt.Errorf("expected module that has JavaInfoProvider, e.g. java_library")
@@ -2828,11 +2828,11 @@ func (module *SdkLibraryImport) SdkImplementationJars(ctx android.BaseModuleCont
 }
 
 // to satisfy UsesLibraryDependency interface
-func (module *SdkLibraryImport) DexJarBuildPath() OptionalDexJarPath {
+func (module *SdkLibraryImport) DexJarBuildPath(ctx android.ModuleErrorfContext) OptionalDexJarPath {
 	// The dex implementation jar extracted from the .apex file should be used in preference to the
 	// source.
 	if module.dexJarFileErr != nil {
-		panic(module.dexJarFileErr.Error())
+		ctx.ModuleErrorf(module.dexJarFileErr.Error())
 	}
 	if module.dexJarFile.IsSet() {
 		return module.dexJarFile
@@ -2840,7 +2840,7 @@ func (module *SdkLibraryImport) DexJarBuildPath() OptionalDexJarPath {
 	if module.implLibraryModule == nil {
 		return makeUnsetDexJarPath()
 	} else {
-		return module.implLibraryModule.DexJarBuildPath()
+		return module.implLibraryModule.DexJarBuildPath(ctx)
 	}
 }
 
