@@ -170,7 +170,7 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	cflags = append(cflags, strings.ReplaceAll(ccToolchain.Cflags(), "${config.", "${cc_config."))
 	cflags = append(cflags, strings.ReplaceAll(ccToolchain.ToolchainCflags(), "${config.", "${cc_config."))
 
-	if ctx.RustModule().UseVndk() {
+	if ctx.RustModule().InVendorOrProduct() {
 		cflags = append(cflags, "-D__ANDROID_VNDK__")
 		if ctx.RustModule().InVendor() {
 			cflags = append(cflags, "-D__ANDROID_VENDOR__")

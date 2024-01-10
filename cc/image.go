@@ -128,6 +128,12 @@ func (c *Module) InVendor() bool {
 	return c.Properties.ImageVariation == VendorVariation
 }
 
+// Returns true if the module is "vendor" or "product" variant. This replaces previous UseVndk usages
+// which were misused to check if the module variant is vendor or product.
+func (c *Module) InVendorOrProduct() bool {
+	return c.InVendor() || c.InProduct()
+}
+
 func (c *Module) InRamdisk() bool {
 	return c.ModuleBase.InRamdisk() || c.ModuleBase.InstallInRamdisk()
 }

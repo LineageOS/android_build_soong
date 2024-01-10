@@ -418,11 +418,11 @@ func VndkMutator(mctx android.BottomUpMutatorContext) {
 	lib, isLib := m.linker.(*libraryDecorator)
 	prebuiltLib, isPrebuiltLib := m.linker.(*prebuiltLibraryLinker)
 
-	if m.UseVndk() && isLib && lib.hasLLNDKStubs() {
+	if m.InVendorOrProduct() && isLib && lib.hasLLNDKStubs() {
 		m.VendorProperties.IsLLNDK = true
 		m.VendorProperties.IsVNDKPrivate = Bool(lib.Properties.Llndk.Private)
 	}
-	if m.UseVndk() && isPrebuiltLib && prebuiltLib.hasLLNDKStubs() {
+	if m.InVendorOrProduct() && isPrebuiltLib && prebuiltLib.hasLLNDKStubs() {
 		m.VendorProperties.IsLLNDK = true
 		m.VendorProperties.IsVNDKPrivate = Bool(prebuiltLib.Properties.Llndk.Private)
 	}

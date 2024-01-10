@@ -2146,7 +2146,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			}
 
 			//TODO: b/296491928 Vendor APEX should use libbinder.ndk instead of libbinder once VNDK is fully deprecated.
-			if ch.UseVndk() && ctx.Config().IsVndkDeprecated() && child.Name() == "libbinder" {
+			if ch.InVendorOrProduct() && ctx.Config().IsVndkDeprecated() && child.Name() == "libbinder" {
 				return false
 			}
 			af := apexFileForNativeLibrary(ctx, ch, vctx.handleSpecialLibs)
