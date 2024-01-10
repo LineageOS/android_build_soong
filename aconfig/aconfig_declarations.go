@@ -164,18 +164,3 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 	})
 
 }
-
-func SetAconfigFileMkEntries(m *android.ModuleBase, entries *android.AndroidMkEntries, aconfigFiles map[string]android.Paths) {
-	// TODO(b/311155208): The default container here should be system.
-	container := ""
-
-	if m.SocSpecific() {
-		container = "vendor"
-	} else if m.ProductSpecific() {
-		container = "product"
-	} else if m.SystemExtSpecific() {
-		container = "system_ext"
-	}
-
-	entries.SetPaths("LOCAL_ACONFIG_FILES", aconfigFiles[container])
-}
