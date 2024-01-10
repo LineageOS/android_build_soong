@@ -16,7 +16,7 @@
 
 // This format file defines configuration file for linkerconfig. Details on this
 // format can be found from
-// https://android.googlesource.com/platform/system/linkerconfig/+/master/README.md
+// https://android.googlesource.com/platform/system/linkerconfig/+/main/README.md
 
 syntax = "proto3";
 

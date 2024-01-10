@@ -1419,7 +1419,7 @@ func (library *libraryDecorator) sourceAbiDiff(ctx android.ModuleContext, refere
 func (library *libraryDecorator) crossVersionAbiDiff(ctx android.ModuleContext, referenceDump android.Path,
 	baseName string, isLlndkOrNdk bool, sourceVersion, prevVersion string) {
 
-	errorMessage := "error: Please follow https://android.googlesource.com/platform/development/+/master/vndk/tools/header-checker/README.md#configure-cross_version-abi-check to resolve the ABI difference between your source code and version " + prevVersion + "."
+	errorMessage := "error: Please follow https://android.googlesource.com/platform/development/+/main/vndk/tools/header-checker/README.md#configure-cross_version-abi-check to resolve the ABI difference between your source code and version " + prevVersion + "."
 
 	library.sourceAbiDiff(ctx, referenceDump, baseName, prevVersion,
 		isLlndkOrNdk, true /* allowExtensions */, sourceVersion, errorMessage)

@@ -24,7 +24,7 @@ $ WITH_TIDY=1 CLANG_ANALYZER_CHECKS=1 make
 ```
 
 The default global clang-tidy checks and flags are defined in
-[build/soong/cc/config/tidy.go](https://android.googlesource.com/platform/build/soong/+/refs/heads/master/cc/config/tidy.go).
+[build/soong/cc/config/tidy.go](https://android.googlesource.com/platform/build/soong/+/refs/heads/main/cc/config/tidy.go).
 
 
 ## Module clang-tidy properties
@@ -34,7 +34,7 @@ The global default can be overwritten by module properties in Android.bp.
 ### `tidy`, `tidy_checks`, and `ALLOW_LOCAL_TIDY_TRUE`
 
 For example, in
-[system/bpf/Android.bp](https://android.googlesource.com/platform/system/bpf/+/refs/heads/master/Android.bp),
+[system/bpf/Android.bp](https://android.googlesource.com/platform/system/bpf/+/refs/heads/main/Android.bp),
 clang-tidy is enabled explicitly and with a different check list:
 ```
 cc_defaults {
@@ -69,7 +69,7 @@ disabled, although `cert-*` is selected.
 Some modules might want to disable clang-tidy even when
 environment variable `WITH_TIDY=1` is set.
 Examples can be found in
-[system/netd/tests/Android.bp](https://android.googlesource.com/platform/system/netd/+/refs/heads/master/tests/Android.bp)
+[system/netd/tests/Android.bp](https://android.googlesource.com/platform/system/netd/+/refs/heads/main/tests/Android.bp)
 ```
 cc_test {
     name: "netd_integration_test",
@@ -78,7 +78,7 @@ cc_test {
     tidy: false,  // cuts test build time by almost 1 minute
 ```
 and in
-[bionic/tests/Android.bp](https://android.googlesource.com/platform/bionic/+/refs/heads/master/tests/Android.bp).
+[bionic/tests/Android.bp](https://android.googlesource.com/platform/bionic/+/refs/heads/main/tests/Android.bp).
 ```
 cc_test_library {
     name: "fortify_disabled_for_tidy",
@@ -97,7 +97,7 @@ The global tidy checks are enabled as warnings.
 If a C/C++ module wants to be free of certain clang-tidy warnings,
 it can chose those checks to be treated as errors.
 For example
-[system/core/libsysutils/Android.bp](https://android.googlesource.com/platform/system/core/+/refs/heads/master/libsysutils/Android.bp)
+[system/core/libsysutils/Android.bp](https://android.googlesource.com/platform/system/core/+/refs/heads/main/libsysutils/Android.bp)
 has enabled clang-tidy explicitly, selected its own tidy checks,
 and set three groups of tidy checks as errors:
 ```
@@ -130,7 +130,7 @@ to clang-tidy. This usage should now be replaced with the
 
 Some other tidy flags examples are `-format-style=` and `-header-filter=`
 For example, in
-[art/odrefresh/Android.bp](https://android.googlesource.com/platform/art/+/refs/heads/master/odrefresh/Android.bp),
+[art/odrefresh/Android.bp](https://android.googlesource.com/platform/art/+/refs/heads/main/odrefresh/Android.bp),
 we found
 ```
 cc_defaults {

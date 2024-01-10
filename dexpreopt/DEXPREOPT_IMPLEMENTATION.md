@@ -237,22 +237,22 @@ devices contains a superset of uses-library tags of the source manifest of the
 app.
 
 
-[make/core/dex_preopt.mk]: https://cs.android.com/android/platform/superproject/+/master:build/make/core/dex_preopt.mk
-[make/core/dex_preopt_config.mk]: https://cs.android.com/android/platform/superproject/+/master:build/make/core/dex_preopt_config.mk
-[make/core/dex_preopt_config_merger.py]: https://cs.android.com/android/platform/superproject/+/master:build/make/core/dex_preopt_config_merger.py
-[make/core/dex_preopt_odex_install.mk]: https://cs.android.com/android/platform/superproject/+/master:build/make/core/dex_preopt_odex_install.mk
-[soong/dexpreopt]: https://cs.android.com/android/platform/superproject/+/master:build/soong/dexpreopt
-[soong/dexpreopt/class_loader_context.go]: https://cs.android.com/android/platform/superproject/+/master:build/soong/dexpreopt/class_loader_context.go
-[soong/dexpreopt/config.go]: https://cs.android.com/android/platform/superproject/+/master:build/soong/dexpreopt/config.go
-[soong/dexpreopt/dexpreopt.go]: https://cs.android.com/android/platform/superproject/+/master:build/soong/dexpreopt/dexpreopt.go
-[soong/java]: https://cs.android.com/android/platform/superproject/+/master:build/soong/java
-[soong/java/app.go:deps]: https://cs.android.com/android/platform/superproject/+/master:build/soong/java/app.go?q=%22func%20\(u%20*usesLibrary\)%20deps%22
-[soong/java/app.go:verifyUsesLibraries]: https://cs.android.com/android/platform/superproject/+/master:build/soong/java/app.go?q=%22func%20\(u%20*usesLibrary\)%20verifyUsesLibraries%22
-[soong/java/bootclasspath_fragment.go]: https://cs.android.com/android/platform/superproject/+/master:build/soong/java/bootclasspath_fragment.go
-[soong/java/dexpreopt.go]: https://cs.android.com/android/platform/superproject/+/master:build/soong/java/dexpreopt.go
-[soong/java/dexpreopt_bootjars.go]: https://cs.android.com/android/platform/superproject/+/master:build/soong/java/dexpreopt_bootjars.go
-[soong/java/dexpreopt_config.go]: https://cs.android.com/android/platform/superproject/+/master:build/soong/java/dexpreopt_config.go
-[soong/java/java.go:addCLCFromDep]: https://cs.android.com/android/platform/superproject/+/master:build/soong/java/java.go?q=%22func%20addCLCfromDep%22
-[soong/java/platform_bootclasspath.go]: https://cs.android.com/android/platform/superproject/+/master:build/soong/java/platform_bootclasspath.go
-[soong/scripts/construct_context.py]: https://cs.android.com/android/platform/superproject/+/master:build/soong/scripts/construct_context.py
-[soong/scripts/manifest_check.py]: https://cs.android.com/android/platform/superproject/+/master:build/soong/scripts/manifest_check.py
+[make/core/dex_preopt.mk]: https://cs.android.com/android/platform/superproject/+/main:build/make/core/dex_preopt.mk
+[make/core/dex_preopt_config.mk]: https://cs.android.com/android/platform/superproject/+/main:build/make/core/dex_preopt_config.mk
+[make/core/dex_preopt_config_merger.py]: https://cs.android.com/android/platform/superproject/+/main:build/make/core/dex_preopt_config_merger.py
+[make/core/dex_preopt_odex_install.mk]: https://cs.android.com/android/platform/superproject/+/main:build/make/core/dex_preopt_odex_install.mk
+[soong/dexpreopt]: https://cs.android.com/android/platform/superproject/+/main:build/soong/dexpreopt
+[soong/dexpreopt/class_loader_context.go]: https://cs.android.com/android/platform/superproject/+/main:build/soong/dexpreopt/class_loader_context.go
+[soong/dexpreopt/config.go]: https://cs.android.com/android/platform/superproject/+/main:build/soong/dexpreopt/config.go
+[soong/dexpreopt/dexpreopt.go]: https://cs.android.com/android/platform/superproject/+/main:build/soong/dexpreopt/dexpreopt.go
+[soong/java]: https://cs.android.com/android/platform/superproject/+/main:build/soong/java
+[soong/java/app.go:deps]: https://cs.android.com/android/platform/superproject/+/main:build/soong/java/app.go?q=%22func%20\(u%20*usesLibrary\)%20deps%22
+[soong/java/app.go:verifyUsesLibraries]: https://cs.android.com/android/platform/superproject/+/main:build/soong/java/app.go?q=%22func%20\(u%20*usesLibrary\)%20verifyUsesLibraries%22
+[soong/java/bootclasspath_fragment.go]: https://cs.android.com/android/platform/superproject/+/main:build/soong/java/bootclasspath_fragment.go
+[soong/java/dexpreopt.go]: https://cs.android.com/android/platform/superproject/+/main:build/soong/java/dexpreopt.go
+[soong/java/dexpreopt_bootjars.go]: https://cs.android.com/android/platform/superproject/+/main:build/soong/java/dexpreopt_bootjars.go
+[soong/java/dexpreopt_config.go]: https://cs.android.com/android/platform/superproject/+/main:build/soong/java/dexpreopt_config.go
+[soong/java/java.go:addCLCFromDep]: https://cs.android.com/android/platform/superproject/+/main:build/soong/java/java.go?q=%22func%20addCLCfromDep%22
+[soong/java/platform_bootclasspath.go]: https://cs.android.com/android/platform/superproject/+/main:build/soong/java/platform_bootclasspath.go
+[soong/scripts/construct_context.py]: https://cs.android.com/android/platform/superproject/+/main:build/soong/scripts/construct_context.py
+[soong/scripts/manifest_check.py]: https://cs.android.com/android/platform/superproject/+/main:build/soong/scripts/manifest_check.py
