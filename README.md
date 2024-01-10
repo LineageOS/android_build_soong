@@ -603,7 +603,7 @@ ANDROID_BUILD_ENVIRONMENT_CONFIG_DIR=build/soong \
 * [Build Performance](docs/perf.md)
 * [Generating CLion Projects](docs/clion.md)
 * [Generating YouCompleteMe/VSCode compile\_commands.json file](docs/compdb.md)
-* Make-specific documentation: [build/make/README.md](https://android.googlesource.com/platform/build/+/master/README.md)
+* Make-specific documentation: [build/make/README.md](https://android.googlesource.com/platform/build/+/main/README.md)
 
 ## Developing for Soong
 

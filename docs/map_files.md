@@ -5,8 +5,8 @@ map.txt files. These files are [linker version scripts] with comments that are
 semantically meaningful to [gen_stub_libs.py]. For an example of a map file, see
 [libc.map.txt].
 
-[gen_stub_libs.py]: https://cs.android.com/android/platform/superproject/+/master:build/soong/cc/gen_stub_libs.py
-[libc.map.txt]: https://cs.android.com/android/platform/superproject/+/master:bionic/libc/libc.map.txt
+[gen_stub_libs.py]: https://cs.android.com/android/platform/superproject/+/main:build/soong/cc/gen_stub_libs.py
+[libc.map.txt]: https://cs.android.com/android/platform/superproject/+/main:bionic/libc/libc.map.txt
 [linker version scripts]: https://www.gnu.org/software/gnulib/manual/html_node/LD-Version-Scripts.html
 
 ## Basic format
