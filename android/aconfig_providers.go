@@ -68,7 +68,7 @@ func CollectDependencyAconfigFiles(ctx ModuleContext, mergedAconfigFiles *map[st
 	})
 
 	for container, aconfigFiles := range *mergedAconfigFiles {
-		(*mergedAconfigFiles)[container] = mergeAconfigFiles(ctx, aconfigFiles)
+		(*mergedAconfigFiles)[container] = mergeAconfigFiles(ctx, container, aconfigFiles)
 	}
 
 	SetProvider(ctx, AconfigTransitiveDeclarationsInfoProvider, AconfigTransitiveDeclarationsInfo{
@@ -76,13 +76,13 @@ func CollectDependencyAconfigFiles(ctx ModuleContext, mergedAconfigFiles *map[st
 	})
 }
 
-func mergeAconfigFiles(ctx ModuleContext, inputs Paths) Paths {
+func mergeAconfigFiles(ctx ModuleContext, container string, inputs Paths) Paths {
 	inputs = LastUniquePaths(inputs)
 	if len(inputs) == 1 {
 		return Paths{inputs[0]}
 	}
 
-	output := PathForModuleOut(ctx, "aconfig_merged.pb")
+	output := PathForModuleOut(ctx, container, "aconfig_merged.pb")
 
 	ctx.Build(pctx, BuildParams{
 		Rule:        mergeAconfigFilesRule,
