@@ -105,7 +105,7 @@ func (c *Module) AndroidMkEntries() []android.AndroidMkEntries {
 					entries.AddStrings("LOCAL_RUNTIME_LIBRARIES", c.Properties.AndroidMkRuntimeLibs...)
 				}
 				entries.SetString("LOCAL_SOONG_LINK_TYPE", c.makeLinkType)
-				if c.UseVndk() {
+				if c.InVendorOrProduct() {
 					entries.SetBool("LOCAL_USE_VNDK", true)
 					if c.IsVndk() && !c.static() {
 						entries.SetString("LOCAL_SOONG_VNDK_VERSION", c.VndkVersion())
