@@ -244,3 +244,30 @@ func TestWithTidy(t *testing.T) {
 		})
 	}
 }
+
+func TestWithGeneratedCode(t *testing.T) {
+	bp := `
+		cc_library_shared {
+			name: "libfoo",
+			srcs: ["foo_1.y", "foo_2.yy", "foo_3.l", "foo_4.ll", "foo_5.proto",
+			       "foo_6.aidl", "foo_7.rscript", "foo_8.fs", "foo_9.sysprop",
+			       "foo_src.cpp"],
+			tidy: true,
+		}`
+	variant := "android_arm64_armv8-a_shared"
+
+	testEnv := map[string]string{}
+	testEnv["ALLOW_LOCAL_TIDY_TRUE"] = "1"
+
+	ctx := android.GroupFixturePreparers(prepareForCcTest, android.FixtureMergeEnv(testEnv)).RunTestWithBp(t, bp)
+
+	t.Run("tidy should be only run for source code, not for generated code", func(t *testing.T) {
+		depFiles := ctx.ModuleForTests("libfoo", variant).Rule("ld").Validations.Strings()
+
+		tidyFileForCpp := "out/soong/.intermediates/libfoo/" + variant + "/obj/foo_src.tidy"
+
+		android.AssertArrayString(t,
+			"only one .tidy file for source code should exist for libfoo",
+			[]string{tidyFileForCpp}, depFiles)
+	})
+}
