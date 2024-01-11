@@ -277,7 +277,7 @@ var (
 
 	gatherReleasedFlaggedApisRule = pctx.AndroidStaticRule("gatherReleasedFlaggedApisRule",
 		blueprint.RuleParams{
-			Command: `${aconfig} dump --format bool ` +
+			Command: `${aconfig} dump-cache --format='{fully_qualified_name}={state:bool}' ` +
 				`--out ${out} ` +
 				`${flags_path} ` +
 				`${filter_args} `,
@@ -287,7 +287,8 @@ var (
 
 	generateMetalavaRevertAnnotationsRule = pctx.AndroidStaticRule("generateMetalavaRevertAnnotationsRule",
 		blueprint.RuleParams{
-			Command: `${keep-flagged-apis} ${in} > ${out}`,
+			Command:     `${keep-flagged-apis} ${in} > ${out}`,
+			CommandDeps: []string{"${keep-flagged-apis}"},
 		})
 )
 

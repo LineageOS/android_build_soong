@@ -138,7 +138,7 @@ func TestInterposer(t *testing.T) {
 			args: []string{"path_interposer_test_not_allowed"},
 
 			exitCode: 1,
-			err:      fmt.Errorf(`"path_interposer_test_not_allowed" is not allowed to be used. See https://android.googlesource.com/platform/build/+/master/Changes.md#PATH_Tools for more information.`),
+			err:      fmt.Errorf(`"path_interposer_test_not_allowed" is not allowed to be used. See https://android.googlesource.com/platform/build/+/main/Changes.md#PATH_Tools for more information.`),
 			logEntry: "path_interposer_test_not_allowed",
 		},
 	}

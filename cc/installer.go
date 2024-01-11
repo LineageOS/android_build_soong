@@ -87,7 +87,7 @@ func (installer *baseInstaller) installDir(ctx ModuleContext) android.InstallPat
 	} else if !ctx.Host() && ctx.Config().HasMultilibConflict(ctx.Arch().ArchType) {
 		dir = filepath.Join(dir, ctx.Arch().ArchType.String())
 	}
-	if installer.location == InstallInData && ctx.useVndk() {
+	if installer.location == InstallInData && ctx.InVendorOrProduct() {
 		if ctx.inProduct() {
 			dir = filepath.Join(dir, "product")
 		} else {

@@ -140,7 +140,7 @@ func BuildLinkerConfig(ctx android.ModuleContext, builder *android.RuleBuilder,
 
 // linker_config generates protobuf file from json file. This protobuf file will be used from
 // linkerconfig while generating ld.config.txt. Format of this file can be found from
-// https://android.googlesource.com/platform/system/linkerconfig/+/master/README.md
+// https://android.googlesource.com/platform/system/linkerconfig/+/main/README.md
 func LinkerConfigFactory() android.Module {
 	m := &linkerConfig{}
 	m.AddProperties(&m.properties)

@@ -11,7 +11,7 @@ build actions through a worker pool sharing a central cache of build results.
 
 To enable RBE, you need to set several environment variables before triggering
 the build. You can set them through a
-[environment variables config file](https://android.googlesource.com/platform/build/soong/+/master/README.md#environment-variables-config-file).
+[environment variables config file](https://android.googlesource.com/platform/build/soong/+/main/README.md#environment-variables-config-file).
 As an example, [build/soong/docs/rbe.json](rbe.json) is a config that enables
 RBE in the build. Once the config file is created, you need to let Soong load
 the config file by specifying `ANDROID_BUILD_ENVIRONMENT_CONFIG_DIR` environment
