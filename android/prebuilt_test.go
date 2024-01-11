@@ -741,7 +741,7 @@ func TestPrebuiltErrorCannotListBothSourceAndPrebuiltInContributions(t *testing.
 			}
 		}),
 	)
-	testPrebuiltErrorWithFixture(t, `Cannot use Soong module: prebuilt_foo from apex_contributions: my_apex_contributions because it has been added previously as: foo from apex_contributions: my_apex_contributions`, `
+	testPrebuiltErrorWithFixture(t, `Found duplicate variations of the same module in apex_contributions: foo and prebuilt_foo. Please remove one of these`, `
 		source {
 			name: "foo",
 		}
