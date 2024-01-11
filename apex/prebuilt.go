@@ -87,6 +87,12 @@ type PrebuiltCommonProperties struct {
 	// device (/apex/<apex_name>). If unspecified, follows the name property.
 	Apex_name *string
 
+	// Name of the source APEX that gets shadowed by this prebuilt
+	// e.g. com.mycompany.android.myapex
+	// If unspecified, follows the naming convention that the source apex of
+	// the prebuilt is Name() without "prebuilt_" prefix
+	Source_apex_name *string
+
 	ForceDisable bool `blueprint:"mutated"`
 
 	// whether the extracted apex file is installable.
@@ -126,7 +132,11 @@ func (p *prebuiltCommon) initPrebuiltCommon(module android.Module, properties *P
 }
 
 func (p *prebuiltCommon) ApexVariationName() string {
-	return proptools.StringDefault(p.prebuiltCommonProperties.Apex_name, p.ModuleBase.BaseModuleName())
+	return proptools.StringDefault(p.prebuiltCommonProperties.Apex_name, p.BaseModuleName())
+}
+
+func (p *prebuiltCommon) BaseModuleName() string {
+	return proptools.StringDefault(p.prebuiltCommonProperties.Source_apex_name, p.ModuleBase.BaseModuleName())
 }
 
 func (p *prebuiltCommon) Prebuilt() *android.Prebuilt {
@@ -226,6 +236,7 @@ func (p *prebuiltCommon) AndroidMkEntries() []android.AndroidMkEntries {
 			OutputFile:    android.OptionalPathForPath(p.outputApex),
 			Include:       "$(BUILD_PREBUILT)",
 			Host_required: p.hostRequired,
+			OverrideName:  p.BaseModuleName(),
 			ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 				func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 					entries.SetString("LOCAL_MODULE_PATH", p.installDir.String())
@@ -436,7 +447,7 @@ func (p *prebuiltCommon) apexInfoMutator(mctx android.TopDownMutatorContext) {
 	apexInfo := android.ApexInfo{
 		ApexVariationName: apexVariationName,
 		InApexVariants:    []string{apexVariationName},
-		InApexModules:     []string{p.ModuleBase.BaseModuleName()}, // BaseModuleName() to avoid the prebuilt_ prefix.
+		InApexModules:     []string{p.BaseModuleName()}, // BaseModuleName() to avoid the prebuilt_ prefix.
 		ApexContents:      []*android.ApexContents{apexContents},
 		ForPrebuiltApex:   true,
 	}
@@ -742,13 +753,11 @@ var _ prebuiltApexModuleCreator = (*Prebuilt)(nil)
 //     V            V            V
 //     selector  <---  deapexer  <---  exported java lib
 func (p *Prebuilt) createPrebuiltApexModules(ctx android.TopDownMutatorContext) {
-	baseModuleName := p.BaseModuleName()
-
-	apexSelectorModuleName := apexSelectorModuleName(baseModuleName)
+	apexSelectorModuleName := apexSelectorModuleName(p.Name())
 	createApexSelectorModule(ctx, apexSelectorModuleName, &p.properties.ApexFileProperties)
 
 	apexFileSource := ":" + apexSelectorModuleName
-	p.createDeapexerModuleIfNeeded(ctx, deapexerModuleName(baseModuleName), apexFileSource)
+	p.createDeapexerModuleIfNeeded(ctx, deapexerModuleName(p.Name()), apexFileSource)
 
 	// Add a source reference to retrieve the selected apex from the selector module.
 	p.prebuiltCommonProperties.Selected_apex = proptools.StringPtr(apexFileSource)
@@ -762,7 +771,7 @@ func (p *prebuiltCommon) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if p.hasExportedDeps() {
 		// Create a dependency from the prebuilt apex (prebuilt_apex/apex_set) to the internal deapexer module
 		// The deapexer will return a provider that will be bubbled up to the rdeps of apexes (e.g. dex_bootjars)
-		ctx.AddDependency(ctx.Module(), android.DeapexerTag, deapexerModuleName(p.BaseModuleName()))
+		ctx.AddDependency(ctx.Module(), android.DeapexerTag, deapexerModuleName(p.Name()))
 	}
 }
 
@@ -1002,13 +1011,11 @@ var _ prebuiltApexModuleCreator = (*ApexSet)(nil)
 // from those provided this creates an extractor module which extracts the appropriate .apex file
 // from the zip file containing them.
 func (a *ApexSet) createPrebuiltApexModules(ctx android.TopDownMutatorContext) {
-	baseModuleName := a.BaseModuleName()
-
-	apexExtractorModuleName := apexExtractorModuleName(baseModuleName)
+	apexExtractorModuleName := apexExtractorModuleName(a.Name())
 	createApexExtractorModule(ctx, apexExtractorModuleName, &a.properties.ApexExtractorProperties)
 
 	apexFileSource := ":" + apexExtractorModuleName
-	a.createDeapexerModuleIfNeeded(ctx, deapexerModuleName(baseModuleName), apexFileSource)
+	a.createDeapexerModuleIfNeeded(ctx, deapexerModuleName(a.Name()), apexFileSource)
 
 	// After passing the arch specific src properties to the creating the apex selector module
 	a.prebuiltCommonProperties.Selected_apex = proptools.StringPtr(apexFileSource)

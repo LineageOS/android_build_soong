@@ -374,7 +374,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 			java.FixtureSetBootImageInstallDirOnDevice("art", "apex/com.android.art/javalib"),
 		).RunTest(t)
 
-		ensureExactDeapexedContents(t, result.TestContext, "com.android.art", "android_common", []string{
+		ensureExactDeapexedContents(t, result.TestContext, "prebuilt_com.android.art", "android_common", []string{
 			"etc/boot-image.prof",
 			"javalib/bar.jar",
 			"javalib/foo.jar",
@@ -529,16 +529,16 @@ func TestBootclasspathFragmentInPrebuiltArtApex(t *testing.T) {
 		result := preparers.RunTestWithBp(t, fmt.Sprintf(bp, "enabled: false,"))
 
 		java.CheckModuleDependencies(t, result.TestContext, "com.android.art", "android_common_com.android.art", []string{
-			`com.android.art.apex.selector`,
-			`com.android.art.deapexer`,
 			`dex2oatd`,
 			`prebuilt_art-bootclasspath-fragment`,
+			`prebuilt_com.android.art.apex.selector`,
+			`prebuilt_com.android.art.deapexer`,
 		})
 
 		java.CheckModuleDependencies(t, result.TestContext, "art-bootclasspath-fragment", "android_common_com.android.art", []string{
-			`com.android.art.deapexer`,
 			`dex2oatd`,
 			`prebuilt_bar`,
+			`prebuilt_com.android.art.deapexer`,
 			`prebuilt_foo`,
 		})
 
@@ -548,7 +548,7 @@ func TestBootclasspathFragmentInPrebuiltArtApex(t *testing.T) {
 
 	t.Run("enabled alternative APEX", func(t *testing.T) {
 		preparers.ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
-			"Multiple installable prebuilt APEXes provide ambiguous deapexers: com.android.art and com.mycompany.android.art")).
+			"Multiple installable prebuilt APEXes provide ambiguous deapexers: prebuilt_com.android.art and prebuilt_com.mycompany.android.art")).
 			RunTestWithBp(t, fmt.Sprintf(bp, ""))
 	})
 }
