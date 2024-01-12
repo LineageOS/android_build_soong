@@ -299,7 +299,7 @@ type boolVarProps struct {
 	Conditions_default *properties
 }
 
-type soongConfigVars struct {
+type boolSoongConfigVars struct {
 	Bool_var interface{}
 }
 
@@ -307,7 +307,11 @@ type stringSoongConfigVars struct {
 	String_var interface{}
 }
 
-func Test_PropertiesToApply(t *testing.T) {
+type valueSoongConfigVars struct {
+	My_value_var interface{}
+}
+
+func Test_PropertiesToApply_Bool(t *testing.T) {
 	mt, _ := newModuleType(&ModuleTypeProperties{
 		Module_type:      "foo",
 		Config_namespace: "bar",
@@ -323,9 +327,9 @@ func Test_PropertiesToApply(t *testing.T) {
 		B: false,
 	}
 	actualProps := &struct {
-		Soong_config_variables soongConfigVars
+		Soong_config_variables boolSoongConfigVars
 	}{
-		Soong_config_variables: soongConfigVars{
+		Soong_config_variables: boolSoongConfigVars{
 			Bool_var: &boolVarProps{
 				A:                  boolVarPositive.A,
 				B:                  boolVarPositive.B,
@@ -354,6 +358,62 @@ func Test_PropertiesToApply(t *testing.T) {
 			name:      "bool_var_true",
 			config:    Config(map[string]string{"bool_var": "y"}),
 			wantProps: []interface{}{boolVarPositive},
+		},
+	}
+
+	for _, tc := range testCases {
+		gotProps, err := PropertiesToApply(mt, props, tc.config)
+		if err != nil {
+			t.Errorf("%s: Unexpected error in PropertiesToApply: %s", tc.name, err)
+		}
+
+		if !reflect.DeepEqual(gotProps, tc.wantProps) {
+			t.Errorf("%s: Expected %s, got %s", tc.name, tc.wantProps, gotProps)
+		}
+	}
+}
+
+func Test_PropertiesToApply_Value(t *testing.T) {
+	mt, _ := newModuleType(&ModuleTypeProperties{
+		Module_type:      "foo",
+		Config_namespace: "bar",
+		Value_variables:  []string{"my_value_var"},
+		Properties:       []string{"a", "b"},
+	})
+	conditionsDefault := &properties{
+		A: proptools.StringPtr("default"),
+		B: false,
+	}
+	actualProps := &struct {
+		Soong_config_variables valueSoongConfigVars
+	}{
+		Soong_config_variables: valueSoongConfigVars{
+			My_value_var: &boolVarProps{
+				A:                  proptools.StringPtr("A=%s"),
+				B:                  true,
+				Conditions_default: conditionsDefault,
+			},
+		},
+	}
+	props := reflect.ValueOf(actualProps)
+
+	testCases := []struct {
+		name      string
+		config    SoongConfig
+		wantProps []interface{}
+	}{
+		{
+			name:      "no_vendor_config",
+			config:    Config(map[string]string{}),
+			wantProps: []interface{}{conditionsDefault},
+		},
+		{
+			name:   "value_var_set",
+			config: Config(map[string]string{"my_value_var": "Hello"}),
+			wantProps: []interface{}{&properties{
+				A: proptools.StringPtr("A=Hello"),
+				B: true,
+			}},
 		},
 	}
 
