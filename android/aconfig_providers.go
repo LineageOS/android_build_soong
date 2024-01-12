@@ -49,7 +49,13 @@ func CollectDependencyAconfigFiles(ctx ModuleContext, mergedAconfigFiles *map[st
 	if *mergedAconfigFiles == nil {
 		*mergedAconfigFiles = make(map[string]Paths)
 	}
-	ctx.VisitDirectDeps(func(module Module) {
+	ctx.VisitDirectDepsBlueprint(func(module blueprint.Module) {
+		// Walk our direct dependencies, ignoring blueprint Modules and disabled Android Modules.
+		aModule, _ := module.(Module)
+		if aModule == nil || !aModule.Enabled() {
+			return
+		}
+
 		if dep, _ := OtherModuleProvider(ctx, module, AconfigDeclarationsProviderKey); dep.IntermediateCacheOutputPath != nil {
 			(*mergedAconfigFiles)[dep.Container] = append((*mergedAconfigFiles)[dep.Container], dep.IntermediateCacheOutputPath)
 			return
@@ -62,7 +68,7 @@ func CollectDependencyAconfigFiles(ctx ModuleContext, mergedAconfigFiles *map[st
 	})
 
 	for container, aconfigFiles := range *mergedAconfigFiles {
-		(*mergedAconfigFiles)[container] = mergeAconfigFiles(ctx, aconfigFiles)
+		(*mergedAconfigFiles)[container] = mergeAconfigFiles(ctx, container, aconfigFiles)
 	}
 
 	SetProvider(ctx, AconfigTransitiveDeclarationsInfoProvider, AconfigTransitiveDeclarationsInfo{
@@ -70,13 +76,13 @@ func CollectDependencyAconfigFiles(ctx ModuleContext, mergedAconfigFiles *map[st
 	})
 }
 
-func mergeAconfigFiles(ctx ModuleContext, inputs Paths) Paths {
+func mergeAconfigFiles(ctx ModuleContext, container string, inputs Paths) Paths {
 	inputs = LastUniquePaths(inputs)
 	if len(inputs) == 1 {
 		return Paths{inputs[0]}
 	}
 
-	output := PathForModuleOut(ctx, "aconfig_merged.pb")
+	output := PathForModuleOut(ctx, container, "aconfig_merged.pb")
 
 	ctx.Build(pctx, BuildParams{
 		Rule:        mergeAconfigFilesRule,
@@ -89,4 +95,19 @@ func mergeAconfigFiles(ctx ModuleContext, inputs Paths) Paths {
 	})
 
 	return Paths{output}
+}
+
+func SetAconfigFileMkEntries(m *ModuleBase, entries *AndroidMkEntries, aconfigFiles map[string]Paths) {
+	// TODO(b/311155208): The default container here should be system.
+	container := ""
+
+	if m.SocSpecific() {
+		container = "vendor"
+	} else if m.ProductSpecific() {
+		container = "product"
+	} else if m.SystemExtSpecific() {
+		container = "system_ext"
+	}
+
+	entries.SetPaths("LOCAL_ACONFIG_FILES", aconfigFiles[container])
 }

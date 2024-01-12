@@ -982,6 +982,9 @@ type AARImport struct {
 
 	sdkVersion    android.SdkSpec
 	minSdkVersion android.ApiLevel
+
+	// Single aconfig "cache file" merged from this module and all dependencies.
+	mergedAconfigFiles map[string]android.Paths
 }
 
 var _ android.OutputFileProducer = (*AARImport)(nil)
@@ -1276,6 +1279,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	android.SetProvider(ctx, JniPackageProvider, JniPackageInfo{
 		JniPackages: a.jniPackages,
 	})
+	android.CollectDependencyAconfigFiles(ctx, &a.mergedAconfigFiles)
 }
 
 func (a *AARImport) HeaderJars() android.Paths {

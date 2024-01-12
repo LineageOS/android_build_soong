@@ -5374,7 +5374,7 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 		dexJarBuildPath := p.DexJarBuildPath(moduleErrorfTestCtx{}).PathOrNil()
 		stem := android.RemoveOptionalPrebuiltPrefix(name)
 		android.AssertStringEquals(t, "DexJarBuildPath should be apex-related path.",
-			".intermediates/myapex.deapexer/android_common/deapexer/javalib/"+stem+".jar",
+			".intermediates/prebuilt_myapex.deapexer/android_common/deapexer/javalib/"+stem+".jar",
 			android.NormalizePathForTesting(dexJarBuildPath))
 	}
 
@@ -5428,8 +5428,8 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 		// Make sure that dexpreopt can access dex implementation files from the prebuilt.
 		ctx := testDexpreoptWithApexes(t, bp, "", transform)
 
-		deapexerName := deapexerModuleName("myapex")
-		android.AssertStringEquals(t, "APEX module name from deapexer name", "myapex", apexModuleName(deapexerName))
+		deapexerName := deapexerModuleName("prebuilt_myapex")
+		android.AssertStringEquals(t, "APEX module name from deapexer name", "prebuilt_myapex", apexModuleName(deapexerName))
 
 		// Make sure that the deapexer has the correct input APEX.
 		deapexer := ctx.ModuleForTests(deapexerName, "android_common")
@@ -5652,8 +5652,8 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 	`
 
 		ctx := testDexpreoptWithApexes(t, bp, "", preparer, fragment)
-		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
-		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
+		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/prebuilt_myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
+		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/prebuilt_myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
 		// Verify the correct module jars contribute to the hiddenapi index file.
 		checkHiddenAPIIndexFromClassesInputs(t, ctx, ``)
@@ -5730,8 +5730,8 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 	`
 
 		ctx := testDexpreoptWithApexes(t, bp, "", preparer, fragment)
-		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
-		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
+		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/prebuilt_myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
+		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/prebuilt_myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
 		// Verify the correct module jars contribute to the hiddenapi index file.
 		checkHiddenAPIIndexFromClassesInputs(t, ctx, ``)
@@ -5744,7 +5744,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		myApex := ctx.ModuleForTests("myapex", "android_common_myapex").Module()
 
 		overrideNames := []string{
-			"",
+			"myapex",
 			"myjavalib.myapex",
 			"libfoo.myapex",
 			"libbar.myapex",
@@ -5919,8 +5919,8 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 	`
 
 		ctx := testDexpreoptWithApexes(t, bp, "", preparer, fragment)
-		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
-		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
+		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/prebuilt_myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
+		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/prebuilt_myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
 		// Verify the correct module jars contribute to the hiddenapi index file.
 		checkHiddenAPIIndexFromClassesInputs(t, ctx, ``)
@@ -6116,8 +6116,8 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 	`
 
 		ctx := testDexpreoptWithApexes(t, bp, "", preparer, fragment)
-		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
-		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
+		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/prebuilt_myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
+		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/prebuilt_myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
 		// Verify the correct module jars contribute to the hiddenapi index file.
 		checkHiddenAPIIndexFromClassesInputs(t, ctx, ``)
@@ -8320,9 +8320,9 @@ func TestAppSetBundlePrebuilt(t *testing.T) {
 	ctx := testApex(t, bp, prepareForTestWithSantitizeHwaddress)
 
 	// Check that the extractor produces the correct output file from the correct input file.
-	extractorOutput := "out/soong/.intermediates/myapex.apex.extractor/android_common/extracted/myapex.hwasan.apks"
+	extractorOutput := "out/soong/.intermediates/prebuilt_myapex.apex.extractor/android_common/extracted/myapex.hwasan.apks"
 
-	m := ctx.ModuleForTests("myapex.apex.extractor", "android_common")
+	m := ctx.ModuleForTests("prebuilt_myapex.apex.extractor", "android_common")
 	extractedApex := m.Output(extractorOutput)
 
 	android.AssertArrayString(t, "extractor input", []string{"myapex.hwasan.apks"}, extractedApex.Inputs.Strings())
@@ -8347,10 +8347,10 @@ func TestApexSetApksModuleAssignment(t *testing.T) {
 		}
 	`)
 
-	m := ctx.ModuleForTests("myapex.apex.extractor", "android_common")
+	m := ctx.ModuleForTests("prebuilt_myapex.apex.extractor", "android_common")
 
 	// Check that the extractor produces the correct apks file from the input module
-	extractorOutput := "out/soong/.intermediates/myapex.apex.extractor/android_common/extracted/myapex.apks"
+	extractorOutput := "out/soong/.intermediates/prebuilt_myapex.apex.extractor/android_common/extracted/myapex.apks"
 	extractedApex := m.Output(extractorOutput)
 
 	android.AssertArrayString(t, "extractor input", []string{"myapex.apks"}, extractedApex.Inputs.Strings())
@@ -8420,7 +8420,7 @@ func TestDuplicateDeapexersFromPrebuiltApexes(t *testing.T) {
 		PrepareForTestWithApexBuildComponents,
 	).
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
-			"Multiple installable prebuilt APEXes provide ambiguous deapexers: com.android.art and com.mycompany.android.art"))
+			"Multiple installable prebuilt APEXes provide ambiguous deapexers: prebuilt_com.android.art and prebuilt_com.mycompany.android.art"))
 
 	bpBase := `
 		apex_set {
@@ -8548,7 +8548,7 @@ func TestDuplicateButEquivalentDeapexersFromPrebuiltApexes(t *testing.T) {
 		module := result.Module("libfoo", "android_common_com.android.myapex")
 		usesLibraryDep := module.(java.UsesLibraryDependency)
 		android.AssertPathRelativeToTopEquals(t, "dex jar path",
-			"out/soong/.intermediates/com.android.myapex.deapexer/android_common/deapexer/javalib/libfoo.jar",
+			"out/soong/.intermediates/prebuilt_com.android.myapex.deapexer/android_common/deapexer/javalib/libfoo.jar",
 			usesLibraryDep.DexJarBuildPath(errCtx).Path())
 	})
 
@@ -8571,7 +8571,7 @@ func TestDuplicateButEquivalentDeapexersFromPrebuiltApexes(t *testing.T) {
 		module := result.Module("libfoo", "android_common_com.android.myapex")
 		usesLibraryDep := module.(java.UsesLibraryDependency)
 		android.AssertPathRelativeToTopEquals(t, "dex jar path",
-			"out/soong/.intermediates/com.android.myapex.deapexer/android_common/deapexer/javalib/libfoo.jar",
+			"out/soong/.intermediates/prebuilt_com.android.myapex.deapexer/android_common/deapexer/javalib/libfoo.jar",
 			usesLibraryDep.DexJarBuildPath(errCtx).Path())
 	})
 
@@ -9144,7 +9144,7 @@ func TestApexSet(t *testing.T) {
 		}),
 	)
 
-	m := ctx.ModuleForTests("myapex.apex.extractor", "android_common")
+	m := ctx.ModuleForTests("prebuilt_myapex.apex.extractor", "android_common")
 
 	// Check extract_apks tool parameters.
 	extractedApex := m.Output("extracted/myapex.apks")
@@ -9185,7 +9185,7 @@ func TestApexSet_NativeBridge(t *testing.T) {
 		}),
 	)
 
-	m := ctx.ModuleForTests("myapex.apex.extractor", "android_common")
+	m := ctx.ModuleForTests("prebuilt_myapex.apex.extractor", "android_common")
 
 	// Check extract_apks tool parameters. No native bridge arch expected
 	extractedApex := m.Output("extracted/myapex.apks")
@@ -11106,7 +11106,7 @@ func TestAconfigFilesJavaAndCcDeps(t *testing.T) {
 		t.Fatalf("Expected 3 commands, got %d in:\n%s", len(aconfigArgs), s)
 	}
 	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_foo/intermediate.pb")
-	android.EnsureListContainsSuffix(t, aconfigArgs, "my_cc_library_bar/android_arm64_armv8-a_shared_apex10000/aconfig_merged.pb")
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_cc_library_bar/android_arm64_armv8-a_shared_apex10000/myapex/aconfig_merged.pb")
 	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_baz/intermediate.pb")
 
 	buildParams := combineAconfigRule.BuildParams
@@ -11114,7 +11114,7 @@ func TestAconfigFilesJavaAndCcDeps(t *testing.T) {
 		t.Fatalf("Expected 3 input, got %d", len(buildParams.Inputs))
 	}
 	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_foo/intermediate.pb")
-	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_cc_library_bar/android_arm64_armv8-a_shared_apex10000/aconfig_merged.pb")
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_cc_library_bar/android_arm64_armv8-a_shared_apex10000/myapex/aconfig_merged.pb")
 	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_baz/intermediate.pb")
 	ensureContains(t, buildParams.Output.String(), "android_common_myapex/aconfig_flags.pb")
 }
@@ -11253,14 +11253,14 @@ func TestAconfigFilesRustDeps(t *testing.T) {
 		t.Fatalf("Expected 2 commands, got %d in:\n%s", len(aconfigArgs), s)
 	}
 	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_foo/intermediate.pb")
-	android.EnsureListContainsSuffix(t, aconfigArgs, "my_rust_binary/android_arm64_armv8-a_apex10000/aconfig_merged.pb")
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_rust_binary/android_arm64_armv8-a_apex10000/myapex/aconfig_merged.pb")
 
 	buildParams := combineAconfigRule.BuildParams
 	if len(buildParams.Inputs) != 2 {
 		t.Fatalf("Expected 3 input, got %d", len(buildParams.Inputs))
 	}
 	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_foo/intermediate.pb")
-	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_rust_binary/android_arm64_armv8-a_apex10000/aconfig_merged.pb")
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_rust_binary/android_arm64_armv8-a_apex10000/myapex/aconfig_merged.pb")
 	ensureContains(t, buildParams.Output.String(), "android_common_myapex/aconfig_flags.pb")
 }
 
@@ -11570,12 +11570,12 @@ func TestBootDexJarsMultipleApexPrebuilts(t *testing.T) {
 		{
 			desc:                      "Prebuilt apex prebuilt_com.android.foo is selected, profile should come from .prof deapexed from the prebuilt",
 			selectedApexContributions: "foo.prebuilt.contributions",
-			expectedBootJar:           "out/soong/.intermediates/com.android.foo.deapexer/android_common/deapexer/javalib/framework-foo.jar",
+			expectedBootJar:           "out/soong/.intermediates/prebuilt_com.android.foo.deapexer/android_common/deapexer/javalib/framework-foo.jar",
 		},
 		{
 			desc:                      "Prebuilt apex prebuilt_com.android.foo.v2 is selected, profile should come from .prof deapexed from the prebuilt",
 			selectedApexContributions: "foo.prebuilt.v2.contributions",
-			expectedBootJar:           "out/soong/.intermediates/com.android.foo.v2.deapexer/android_common/deapexer/javalib/framework-foo.jar",
+			expectedBootJar:           "out/soong/.intermediates/prebuilt_com.android.foo.v2.deapexer/android_common/deapexer/javalib/framework-foo.jar",
 		},
 	}
 
@@ -11600,5 +11600,167 @@ func TestBootDexJarsMultipleApexPrebuilts(t *testing.T) {
 		checkBootDexJarPath(t, ctx, "framework-foo", tc.expectedBootJar)
 		checkBootJarsPackageCheck(t, ctx, tc.expectedBootJar)
 		checkBootJarsForMonolithicHiddenapi(t, ctx, tc.expectedBootJar)
+	}
+}
+
+// Test that product packaging installs the selected mainline module (either source or a specific prebuilt)
+// RELEASE_APEX_CONTIRBUTIONS_* build flags will be used to select the correct prebuilt for a specific release config
+func TestInstallationRulesForMultipleApexPrebuilts(t *testing.T) {
+	// check that the LOCAL_MODULE in the generated mk file matches the name used in PRODUCT_PACKAGES
+	// Since the name used in PRODUCT_PACKAGES does not contain prebuilt_ prefix, LOCAL_MODULE should not contain any prefix either
+	checkLocalModuleName := func(t *testing.T, ctx *android.TestContext, soongApexModuleName string, expectedLocalModuleName string) {
+		// Variations are created based on apex_name
+		entries := android.AndroidMkEntriesForTest(t, ctx, ctx.ModuleForTests(soongApexModuleName, "android_common_com.android.foo").Module())
+		android.AssertStringEquals(t, "LOCAL_MODULE of the prebuilt apex must match the name listed in PRODUCT_PACKAGES", expectedLocalModuleName, entries[0].EntryMap["LOCAL_MODULE"][0])
+	}
+	// for a mainline module family, check that only the flagged soong module is visible to make
+	checkHideFromMake := func(t *testing.T, ctx *android.TestContext, visibleModuleName string, hiddenModuleNames []string) {
+		variation := func(moduleName string) string {
+			ret := "android_common_com.android.foo"
+			if moduleName == "com.google.android.foo" {
+				ret = "android_common_com.google.android.foo_com.android.foo"
+			}
+			return ret
+		}
+
+		visibleModule := ctx.ModuleForTests(visibleModuleName, variation(visibleModuleName)).Module()
+		android.AssertBoolEquals(t, "Apex "+visibleModuleName+" selected using apex_contributions should be visible to make", false, visibleModule.IsHideFromMake())
+
+		for _, hiddenModuleName := range hiddenModuleNames {
+			hiddenModule := ctx.ModuleForTests(hiddenModuleName, variation(hiddenModuleName)).Module()
+			android.AssertBoolEquals(t, "Apex "+hiddenModuleName+" not selected using apex_contributions should be hidden from make", true, hiddenModule.IsHideFromMake())
+
+		}
+	}
+
+	bp := `
+		apex_key {
+			name: "com.android.foo.key",
+			public_key: "com.android.foo.avbpubkey",
+			private_key: "com.android.foo.pem",
+		}
+
+		// AOSP source apex
+		apex {
+			name: "com.android.foo",
+			key: "com.android.foo.key",
+			updatable: false,
+		}
+
+		// Google source apex
+		override_apex {
+			name: "com.google.android.foo",
+			base: "com.android.foo",
+			key: "com.android.foo.key",
+		}
+
+		// Prebuilt Google APEX.
+
+		prebuilt_apex {
+			name: "com.google.android.foo",
+			apex_name: "com.android.foo",
+			src: "com.android.foo-arm.apex",
+			prefer: true, // prefer is set to true on both the prebuilts to induce an error if flagging is not present
+		}
+
+		// Another Prebuilt Google APEX
+		prebuilt_apex {
+			name: "com.google.android.foo.v2",
+			apex_name: "com.android.foo",
+			source_apex_name: "com.google.android.foo", // source_apex_name becomes LOCAL_MODULE in the generated mk file
+			src: "com.android.foo-arm.apex",
+			prefer: true, // prefer is set to true on both the prebuilts to induce an error if flagging is not present
+		}
+
+		// APEX contribution modules
+
+		apex_contributions {
+			name: "foo.source.contributions",
+			api_domain: "com.android.foo",
+			contents: ["com.google.android.foo"],
+		}
+
+		apex_contributions {
+			name: "foo.prebuilt.contributions",
+			api_domain: "com.android.foo",
+			contents: ["prebuilt_com.google.android.foo"],
+		}
+
+		apex_contributions {
+			name: "foo.prebuilt.v2.contributions",
+			api_domain: "com.android.foo",
+			contents: ["prebuilt_com.google.android.foo.v2"],
+		}
+
+		// This is an incompatible module because it selects multiple versions of the same mainline module
+		apex_contributions {
+			name: "foo.prebuilt.duplicate.contributions",
+			api_domain: "com.android.foo",
+			contents: [
+			    "prebuilt_com.google.android.foo",
+			    "prebuilt_com.google.android.foo.v2",
+			],
+		}
+	`
+
+	testCases := []struct {
+		desc                      string
+		selectedApexContributions string
+		expectedVisibleModuleName string
+		expectedHiddenModuleNames []string
+		expectedError             string
+	}{
+		{
+			desc:                      "Source apex is selected, prebuilts should be hidden from make",
+			selectedApexContributions: "foo.source.contributions",
+			expectedVisibleModuleName: "com.google.android.foo",
+			expectedHiddenModuleNames: []string{"prebuilt_com.google.android.foo", "prebuilt_com.google.android.foo.v2"},
+		},
+		{
+			desc:                      "Prebuilt apex prebuilt_com.android.foo is selected, source and the other prebuilt should be hidden from make",
+			selectedApexContributions: "foo.prebuilt.contributions",
+			expectedVisibleModuleName: "prebuilt_com.google.android.foo",
+			expectedHiddenModuleNames: []string{"com.google.android.foo", "prebuilt_com.google.android.foo.v2"},
+		},
+		{
+			desc:                      "Prebuilt apex prebuilt_com.android.fooi.v2 is selected, source and the other prebuilt should be hidden from make",
+			selectedApexContributions: "foo.prebuilt.v2.contributions",
+			expectedVisibleModuleName: "prebuilt_com.google.android.foo.v2",
+			expectedHiddenModuleNames: []string{"com.google.android.foo", "prebuilt_com.google.android.foo"},
+		},
+		{
+			desc:                      "Multiple versions of a prebuilt apex is selected in the same release config",
+			selectedApexContributions: "foo.prebuilt.duplicate.contributions",
+			expectedError:             "Found duplicate variations of the same module in apex_contributions: prebuilt_com.google.android.foo and prebuilt_com.google.android.foo.v2",
+		},
+	}
+
+	for _, tc := range testCases {
+		preparer := android.GroupFixturePreparers(
+			android.FixtureMergeMockFs(map[string][]byte{
+				"system/sepolicy/apex/com.android.foo-file_contexts": nil,
+			}),
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.BuildFlags = map[string]string{
+					"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES": tc.selectedApexContributions,
+				}
+			}),
+		)
+		if tc.expectedError != "" {
+			preparer = preparer.ExtendWithErrorHandler(android.FixtureExpectsOneErrorPattern(tc.expectedError))
+			testApex(t, bp, preparer)
+			return
+		}
+		ctx := testApex(t, bp, preparer)
+
+		// Check that the LOCAL_MODULE of the two prebuilts is com.android.foo
+		// This ensures that product packaging can pick them for installation if it has been flagged by apex_contributions
+		checkLocalModuleName(t, ctx, "prebuilt_com.google.android.foo", "com.google.android.foo")
+		checkLocalModuleName(t, ctx, "prebuilt_com.google.android.foo.v2", "com.google.android.foo")
+
+		// Check that
+		// 1. The contents of the selected apex_contributions are visible to make
+		// 2. The rest of the apexes in the mainline module family (source or other prebuilt) is hidden from make
+		checkHideFromMake(t, ctx, tc.expectedVisibleModuleName, tc.expectedHiddenModuleNames)
 	}
 }

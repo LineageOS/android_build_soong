@@ -86,6 +86,9 @@ type AndroidAppImport struct {
 	hideApexVariantFromMake bool
 
 	provenanceMetaDataFile android.OutputPath
+
+	// Single aconfig "cache file" merged from this module and all dependencies.
+	mergedAconfigFiles map[string]android.Paths
 }
 
 type AndroidAppImportProperties struct {
@@ -377,6 +380,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		artifactPath := android.PathForModuleSrc(ctx, *a.properties.Apk)
 		a.provenanceMetaDataFile = provenance.GenerateArtifactProvenanceMetaData(ctx, artifactPath, a.installPath)
 	}
+	android.CollectDependencyAconfigFiles(ctx, &a.mergedAconfigFiles)
 
 	// TODO: androidmk converter jni libs
 }

@@ -199,7 +199,7 @@ func TestDexpreoptBootJarsWithPrebuiltArtApex(t *testing.T) {
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/foo.jar",
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/bar.jar",
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/baz.jar",
-		"out/soong/.intermediates/com.android.art.deapexer/android_common/deapexer/etc/boot-image.prof",
+		"out/soong/.intermediates/prebuilt_com.android.art.deapexer/android_common/deapexer/etc/boot-image.prof",
 		"out/soong/.intermediates/default/java/dex_bootjars/android_common/boot/boot.prof",
 	}
 
@@ -382,12 +382,12 @@ func TestDexpreoptProfileWithMultiplePrebuiltArtApexes(t *testing.T) {
 		{
 			desc:                         "Prebuilt apex prebuilt_com.android.art is selected, profile should come from .prof deapexed from the prebuilt",
 			selectedArtApexContributions: "art.prebuilt.contributions",
-			expectedProfile:              "out/soong/.intermediates/com.android.art.deapexer/android_common/deapexer/etc/boot-image.prof",
+			expectedProfile:              "out/soong/.intermediates/prebuilt_com.android.art.deapexer/android_common/deapexer/etc/boot-image.prof",
 		},
 		{
 			desc:                         "Prebuilt apex prebuilt_com.android.art.v2 is selected, profile should come from .prof deapexed from the prebuilt",
 			selectedArtApexContributions: "art.prebuilt.v2.contributions",
-			expectedProfile:              "out/soong/.intermediates/com.android.art.v2.deapexer/android_common/deapexer/etc/boot-image.prof",
+			expectedProfile:              "out/soong/.intermediates/prebuilt_com.android.art.v2.deapexer/android_common/deapexer/etc/boot-image.prof",
 		},
 	}
 	for _, tc := range testCases {
