@@ -25,7 +25,10 @@ var androidmk_denylist []string = []string{
 	"cts/",
 	"dalvik/",
 	"developers/",
-	"kernel/",
+	// Do not block other directories in kernel/, see b/319658303.
+	"kernel/configs/",
+	"kernel/prebuilts/",
+	"kernel/tests/",
 	"libcore/",
 	"libnativehelper/",
 	"pdk/",
