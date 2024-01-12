@@ -222,6 +222,11 @@ func TestBootclasspathFragment_StubLibs(t *testing.T) {
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("mysdklibrary", "myothersdklibrary", "mycoreplatform"),
 		FixtureConfigureApexBootJars("someapex:mysdklibrary"),
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.BuildFlags = map[string]string{
+				"RELEASE_HIDDEN_API_EXPORTABLE_STUBS": "true",
+			}
+		}),
 	).RunTestWithBp(t, `
 		bootclasspath_fragment {
 			name: "myfragment",
@@ -277,11 +282,11 @@ func TestBootclasspathFragment_StubLibs(t *testing.T) {
 	stubsJar := "out/soong/.intermediates/mystublib/android_common/dex/mystublib.jar"
 
 	// Stubs jars for mysdklibrary
-	publicStubsJar := "out/soong/.intermediates/mysdklibrary.stubs/android_common/dex/mysdklibrary.stubs.jar"
-	systemStubsJar := "out/soong/.intermediates/mysdklibrary.stubs.system/android_common/dex/mysdklibrary.stubs.system.jar"
+	publicStubsJar := "out/soong/.intermediates/mysdklibrary.stubs.exportable/android_common/dex/mysdklibrary.stubs.exportable.jar"
+	systemStubsJar := "out/soong/.intermediates/mysdklibrary.stubs.exportable.system/android_common/dex/mysdklibrary.stubs.exportable.system.jar"
 
 	// Stubs jars for myothersdklibrary
-	otherPublicStubsJar := "out/soong/.intermediates/myothersdklibrary.stubs/android_common/dex/myothersdklibrary.stubs.jar"
+	otherPublicStubsJar := "out/soong/.intermediates/myothersdklibrary.stubs.exportable/android_common/dex/myothersdklibrary.stubs.exportable.jar"
 
 	// Check that SdkPublic uses public stubs for all sdk libraries.
 	android.AssertPathsRelativeToTopEquals(t, "public dex stubs jar", []string{otherPublicStubsJar, publicStubsJar, stubsJar}, info.TransitiveStubDexJarsByScope.StubDexJarsForScope(PublicHiddenAPIScope))

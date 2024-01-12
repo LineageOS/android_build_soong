@@ -104,8 +104,15 @@ type apiScope struct {
 	// The name of the property in the java_sdk_library_import
 	propertyName string
 
-	// The tag to use to depend on the stubs library module.
+	// The tag to use to depend on the stubs library module if the parent module
+	// does not differentiate everything and exportable stubs (e.g. sdk_library_import).
 	stubsTag scopeDependencyTag
+
+	// The tag to use to depend on the everything stubs library module.
+	everythingStubsTag scopeDependencyTag
+
+	// The tag to use to depend on the exportable stubs library module.
+	exportableStubsTag scopeDependencyTag
 
 	// The tag to use to depend on the stubs source module (if separate from the API module).
 	stubsSourceTag scopeDependencyTag
@@ -171,6 +178,16 @@ func initApiScope(scope *apiScope) *apiScope {
 		name:             name + "-stubs",
 		apiScope:         scope,
 		depInfoExtractor: (*scopePaths).extractStubsLibraryInfoFromDependency,
+	}
+	scope.everythingStubsTag = scopeDependencyTag{
+		name:             name + "-stubs-everything",
+		apiScope:         scope,
+		depInfoExtractor: (*scopePaths).extractEverythingStubsLibraryInfoFromDependency,
+	}
+	scope.exportableStubsTag = scopeDependencyTag{
+		name:             name + "-stubs-exportable",
+		apiScope:         scope,
+		depInfoExtractor: (*scopePaths).extractExportableStubsLibraryInfoFromDependency,
 	}
 	scope.stubsSourceTag = scopeDependencyTag{
 		name:             name + "-stubs-source",
@@ -669,6 +686,11 @@ type scopePaths struct {
 	// This is not the implementation jar, it still only contains stubs.
 	stubsDexJarPath OptionalDexJarPath
 
+	// The exportable dex jar for the stubs.
+	// This is not the implementation jar, it still only contains stubs.
+	// Includes unflagged apis and flagged apis enabled by release configurations.
+	exportableStubsDexJarPath OptionalDexJarPath
+
 	// The API specification file, e.g. system_current.txt.
 	currentApiFilePath android.OptionalPath
 
@@ -695,6 +717,36 @@ func (paths *scopePaths) extractStubsLibraryInfoFromDependency(ctx android.Modul
 
 		libDep := dep.(UsesLibraryDependency)
 		paths.stubsDexJarPath = libDep.DexJarBuildPath(ctx)
+		paths.exportableStubsDexJarPath = libDep.DexJarBuildPath(ctx)
+		return nil
+	} else {
+		return fmt.Errorf("expected module that has JavaInfoProvider, e.g. java_library")
+	}
+}
+
+func (paths *scopePaths) extractEverythingStubsLibraryInfoFromDependency(ctx android.ModuleContext, dep android.Module) error {
+	if lib, ok := android.OtherModuleProvider(ctx, dep, JavaInfoProvider); ok {
+		paths.stubsHeaderPath = lib.HeaderJars
+		if !ctx.Config().ReleaseHiddenApiExportableStubs() {
+			paths.stubsImplPath = lib.ImplementationJars
+		}
+
+		libDep := dep.(UsesLibraryDependency)
+		paths.stubsDexJarPath = libDep.DexJarBuildPath(ctx)
+		return nil
+	} else {
+		return fmt.Errorf("expected module that has JavaInfoProvider, e.g. java_library")
+	}
+}
+
+func (paths *scopePaths) extractExportableStubsLibraryInfoFromDependency(ctx android.ModuleContext, dep android.Module) error {
+	if lib, ok := android.OtherModuleProvider(ctx, dep, JavaInfoProvider); ok {
+		if ctx.Config().ReleaseHiddenApiExportableStubs() {
+			paths.stubsImplPath = lib.ImplementationJars
+		}
+
+		libDep := dep.(UsesLibraryDependency)
+		paths.exportableStubsDexJarPath = libDep.DexJarBuildPath(ctx)
 		return nil
 	} else {
 		return fmt.Errorf("expected module that has JavaInfoProvider, e.g. java_library")
@@ -707,6 +759,15 @@ func (paths *scopePaths) treatDepAsApiStubsProvider(dep android.Module, action f
 		return nil
 	} else {
 		return fmt.Errorf("expected module that implements ApiStubsProvider, e.g. droidstubs")
+	}
+}
+
+func (paths *scopePaths) treatDepAsExportableApiStubsProvider(dep android.Module, action func(provider ExportableApiStubsProvider)) error {
+	if exportableApiStubsProvider, ok := dep.(ExportableApiStubsProvider); ok {
+		action(exportableApiStubsProvider)
+		return nil
+	} else {
+		return fmt.Errorf("expected module that implements ExportableApiStubsSrcProvider, e.g. droidstubs")
 	}
 }
 
@@ -725,6 +786,12 @@ func (paths *scopePaths) extractApiInfoFromApiStubsProvider(provider ApiStubsPro
 	paths.removedApiFilePath = android.OptionalPathForPath(provider.RemovedApiFilePath())
 }
 
+func (paths *scopePaths) extractApiInfoFromExportableApiStubsProvider(provider ExportableApiStubsProvider) {
+	paths.annotationsZip = android.OptionalPathForPath(provider.ExportableAnnotationsZip())
+	paths.currentApiFilePath = android.OptionalPathForPath(provider.ExportableApiFilePath())
+	paths.removedApiFilePath = android.OptionalPathForPath(provider.ExportableRemovedApiFilePath())
+}
+
 func (paths *scopePaths) extractApiInfoFromDep(ctx android.ModuleContext, dep android.Module) error {
 	return paths.treatDepAsApiStubsProvider(dep, func(provider ApiStubsProvider) {
 		paths.extractApiInfoFromApiStubsProvider(provider)
@@ -735,6 +802,10 @@ func (paths *scopePaths) extractStubsSourceInfoFromApiStubsProviders(provider Ap
 	paths.stubsSrcJar = android.OptionalPathForPath(provider.StubsSrcJar())
 }
 
+func (paths *scopePaths) extractStubsSourceInfoFromExportableApiStubsProviders(provider ExportableApiStubsSrcProvider) {
+	paths.stubsSrcJar = android.OptionalPathForPath(provider.ExportableStubsSrcJar())
+}
+
 func (paths *scopePaths) extractStubsSourceInfoFromDep(ctx android.ModuleContext, dep android.Module) error {
 	return paths.treatDepAsApiStubsSrcProvider(dep, func(provider ApiStubsSrcProvider) {
 		paths.extractStubsSourceInfoFromApiStubsProviders(provider)
@@ -742,6 +813,12 @@ func (paths *scopePaths) extractStubsSourceInfoFromDep(ctx android.ModuleContext
 }
 
 func (paths *scopePaths) extractStubsSourceAndApiInfoFromApiStubsProvider(ctx android.ModuleContext, dep android.Module) error {
+	if ctx.Config().ReleaseHiddenApiExportableStubs() {
+		return paths.treatDepAsExportableApiStubsProvider(dep, func(provider ExportableApiStubsProvider) {
+			paths.extractApiInfoFromExportableApiStubsProvider(provider)
+			paths.extractStubsSourceInfoFromExportableApiStubsProviders(provider)
+		})
+	}
 	return paths.treatDepAsApiStubsProvider(dep, func(provider ApiStubsProvider) {
 		paths.extractApiInfoFromApiStubsProvider(provider)
 		paths.extractStubsSourceInfoFromApiStubsProviders(provider)
@@ -1132,6 +1209,16 @@ func (c *commonToSdkLibraryAndImport) SdkApiStubDexJar(ctx android.BaseModuleCon
 }
 
 // to satisfy SdkLibraryDependency interface
+func (c *commonToSdkLibraryAndImport) SdkApiExportableStubDexJar(ctx android.BaseModuleContext, kind android.SdkKind) OptionalDexJarPath {
+	paths := c.selectScopePaths(ctx, kind)
+	if paths == nil {
+		return makeUnsetDexJarPath()
+	}
+
+	return paths.exportableStubsDexJarPath
+}
+
+// to satisfy SdkLibraryDependency interface
 func (c *commonToSdkLibraryAndImport) SdkRemovedTxtFile(ctx android.BaseModuleContext, kind android.SdkKind) android.OptionalPath {
 	apiScope := sdkKindToApiScope(kind)
 	paths := c.findScopePaths(apiScope)
@@ -1249,9 +1336,15 @@ type SdkLibraryDependency interface {
 	// they are identical to the corresponding header jars.
 	SdkImplementationJars(ctx android.BaseModuleContext, sdkVersion android.SdkSpec) android.Paths
 
-	// SdkApiStubDexJar returns the dex jar for the stubs. It is needed by the hiddenapi processing
-	// tool which processes dex files.
+	// SdkApiStubDexJar returns the dex jar for the stubs for the prebuilt
+	// java_sdk_library_import module. It is needed by the hiddenapi processing tool which
+	// processes dex files.
 	SdkApiStubDexJar(ctx android.BaseModuleContext, kind android.SdkKind) OptionalDexJarPath
+
+	// SdkApiExportableStubDexJar returns the exportable dex jar for the stubs for
+	// java_sdk_library module. It is needed by the hiddenapi processing tool which processes
+	// dex files.
+	SdkApiExportableStubDexJar(ctx android.BaseModuleContext, kind android.SdkKind) OptionalDexJarPath
 
 	// SdkRemovedTxtFile returns the optional path to the removed.txt file for the specified sdk kind.
 	SdkRemovedTxtFile(ctx android.BaseModuleContext, kind android.SdkKind) android.OptionalPath
@@ -1365,8 +1458,10 @@ func (module *SdkLibrary) ComponentDepsMutator(ctx android.BottomUpMutatorContex
 	for _, apiScope := range module.getGeneratedApiScopes(ctx) {
 		// Add dependencies to the stubs library
 		stubModuleName := module.stubsLibraryModuleName(apiScope)
+		ctx.AddVariationDependencies(nil, apiScope.everythingStubsTag, stubModuleName)
 
-		ctx.AddVariationDependencies(nil, apiScope.stubsTag, stubModuleName)
+		exportableStubModuleName := module.exportableStubsLibraryModuleName(apiScope)
+		ctx.AddVariationDependencies(nil, apiScope.exportableStubsTag, exportableStubModuleName)
 
 		// Add a dependency on the stubs source in order to access both stubs source and api information.
 		ctx.AddVariationDependencies(nil, apiScope.stubsSourceAndApiTag, module.stubsSourceModuleName(apiScope))

@@ -109,6 +109,17 @@ func (k SdkKind) DefaultJavaLibraryName() string {
 	}
 }
 
+func (k SdkKind) DefaultExportableJavaLibraryName() string {
+	switch k {
+	case SdkPublic, SdkSystem, SdkTest, SdkModule, SdkSystemServer:
+		return k.DefaultJavaLibraryName() + "_exportable"
+	case SdkCore:
+		return k.DefaultJavaLibraryName() + ".exportable"
+	default:
+		panic(fmt.Errorf("API surface %v does not provide exportable stubs", k))
+	}
+}
+
 // SdkSpec represents the kind and the version of an SDK for a module to build against
 type SdkSpec struct {
 	Kind     SdkKind

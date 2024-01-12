@@ -229,6 +229,7 @@ type SourceOnlyBootclasspathProperties struct {
 
 type BootclasspathFragmentModule struct {
 	android.ModuleBase
+	android.DefaultableModuleBase
 	android.ApexModuleBase
 	ClasspathFragmentBase
 
@@ -267,6 +268,7 @@ func bootclasspathFragmentFactory() android.Module {
 	android.InitApexModule(m)
 	initClasspathFragment(m, BOOTCLASSPATH)
 	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibCommon)
+	android.InitDefaultableModule(m)
 
 	android.AddLoadHook(m, func(ctx android.LoadHookContext) {
 		// If code coverage has been enabled for the framework then append the properties with
@@ -399,6 +401,11 @@ func (i BootclasspathFragmentApexContentInfo) ProfileInstallPathInApex() string 
 
 func (b *BootclasspathFragmentModule) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
 	tag := ctx.OtherModuleDependencyTag(dep)
+
+	// If the module is a default module, do not check the tag
+	if _, ok := dep.(*Defaults); ok {
+		return true
+	}
 	if IsBootclasspathFragmentContentDepTag(tag) {
 		// Boot image contents are automatically added to apex.
 		return true
