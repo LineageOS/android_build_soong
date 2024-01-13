@@ -2726,6 +2726,8 @@ func DefaultsFactory() android.Module {
 		&LintProperties{},
 		&appTestHelperAppProperties{},
 		&JavaApiLibraryProperties{},
+		&bootclasspathFragmentProperties{},
+		&SourceOnlyBootclasspathProperties{},
 	)
 
 	android.InitDefaultsModule(module)
