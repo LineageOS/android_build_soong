@@ -16,12 +16,13 @@ package soongconfig
 
 import (
 	"fmt"
-	"github.com/google/blueprint/parser"
-	"github.com/google/blueprint/proptools"
 	"io"
 	"reflect"
 	"sort"
 	"strings"
+
+	"github.com/google/blueprint/parser"
+	"github.com/google/blueprint/proptools"
 )
 
 const conditionsDefault = "conditions_default"
@@ -688,6 +689,7 @@ func (s *valueVariable) PropertiesToApply(config SoongConfig, values reflect.Val
 				continue
 			}
 			field = field.Elem()
+			kind = field.Kind()
 		}
 		switch kind {
 		case reflect.String:
