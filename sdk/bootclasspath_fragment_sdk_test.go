@@ -997,6 +997,12 @@ func testSnapshotWithBootClasspathFragment_MinSdkVersion(t *testing.T, targetBui
 			"SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE": targetBuildRelease,
 		}),
 
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.BuildFlags = map[string]string{
+				"RELEASE_HIDDEN_API_EXPORTABLE_STUBS": "true",
+			}
+		}),
+
 		android.FixtureWithRootAndroidBp(`
 			sdk {
 				name: "mysdk",
@@ -1103,7 +1109,7 @@ java_sdk_library_import {
 		// On S the stub flags should only be generated from mysdklibrary as mynewsdklibrary is not part
 		// of the snapshot.
 		expectedStubFlagsInputs := []string{
-			"out/soong/.intermediates/mysdklibrary.stubs/android_common/dex/mysdklibrary.stubs.jar",
+			"out/soong/.intermediates/mysdklibrary.stubs.exportable/android_common/dex/mysdklibrary.stubs.exportable.jar",
 			"out/soong/.intermediates/mysdklibrary/android_common/aligned/mysdklibrary.jar",
 		}
 
@@ -1184,9 +1190,9 @@ java_sdk_library_import {
 		// On tiramisu the stub flags should be generated from both mynewsdklibrary and mysdklibrary as
 		// they are both part of the snapshot.
 		expectedStubFlagsInputs := []string{
-			"out/soong/.intermediates/mynewsdklibrary.stubs/android_common/dex/mynewsdklibrary.stubs.jar",
+			"out/soong/.intermediates/mynewsdklibrary.stubs.exportable/android_common/dex/mynewsdklibrary.stubs.exportable.jar",
 			"out/soong/.intermediates/mynewsdklibrary/android_common/aligned/mynewsdklibrary.jar",
-			"out/soong/.intermediates/mysdklibrary.stubs/android_common/dex/mysdklibrary.stubs.jar",
+			"out/soong/.intermediates/mysdklibrary.stubs.exportable/android_common/dex/mysdklibrary.stubs.exportable.jar",
 			"out/soong/.intermediates/mysdklibrary/android_common/aligned/mysdklibrary.jar",
 		}
 
