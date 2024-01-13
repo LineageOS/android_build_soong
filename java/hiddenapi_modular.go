@@ -245,12 +245,22 @@ func hiddenAPIComputeMonolithicStubLibModules(config android.Config) map[*Hidden
 		testStubModules = append(testStubModules, "sdk_test_current_android")
 	} else {
 		// Use stub modules built from source
-		publicStubModules = append(publicStubModules, android.SdkPublic.DefaultJavaLibraryName())
-		systemStubModules = append(systemStubModules, android.SdkSystem.DefaultJavaLibraryName())
-		testStubModules = append(testStubModules, android.SdkTest.DefaultJavaLibraryName())
+		if config.ReleaseHiddenApiExportableStubs() {
+			publicStubModules = append(publicStubModules, android.SdkPublic.DefaultExportableJavaLibraryName())
+			systemStubModules = append(systemStubModules, android.SdkSystem.DefaultExportableJavaLibraryName())
+			testStubModules = append(testStubModules, android.SdkTest.DefaultExportableJavaLibraryName())
+		} else {
+			publicStubModules = append(publicStubModules, android.SdkPublic.DefaultJavaLibraryName())
+			systemStubModules = append(systemStubModules, android.SdkSystem.DefaultJavaLibraryName())
+			testStubModules = append(testStubModules, android.SdkTest.DefaultJavaLibraryName())
+		}
 	}
 	// We do not have prebuilts of the core platform api yet
-	corePlatformStubModules = append(corePlatformStubModules, "legacy.core.platform.api.stubs")
+	if config.ReleaseHiddenApiExportableStubs() {
+		corePlatformStubModules = append(corePlatformStubModules, "legacy.core.platform.api.stubs.exportable")
+	} else {
+		corePlatformStubModules = append(corePlatformStubModules, "legacy.core.platform.api.stubs")
+	}
 
 	// Allow products to define their own stubs for custom product jars that apps can use.
 	publicStubModules = append(publicStubModules, config.ProductHiddenAPIStubs()...)
@@ -289,7 +299,12 @@ func hiddenAPIAddStubLibDependencies(ctx android.BottomUpMutatorContext, apiScop
 func hiddenAPIRetrieveDexJarBuildPath(ctx android.ModuleContext, module android.Module, kind android.SdkKind) android.Path {
 	var dexJar OptionalDexJarPath
 	if sdkLibrary, ok := module.(SdkLibraryDependency); ok {
-		dexJar = sdkLibrary.SdkApiStubDexJar(ctx, kind)
+		if ctx.Config().ReleaseHiddenApiExportableStubs() {
+			dexJar = sdkLibrary.SdkApiExportableStubDexJar(ctx, kind)
+		} else {
+			dexJar = sdkLibrary.SdkApiStubDexJar(ctx, kind)
+		}
+
 	} else if j, ok := module.(UsesLibraryDependency); ok {
 		dexJar = j.DexJarBuildPath(ctx)
 	} else {

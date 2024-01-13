@@ -252,6 +252,11 @@ func TestPlatformBootclasspathDependencies(t *testing.T) {
 		java.FixtureWithLastReleaseApis("foo"),
 		java.PrepareForTestWithDexpreopt,
 		dexpreopt.FixtureDisableDexpreoptBootImages(false),
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.BuildFlags = map[string]string{
+				"RELEASE_HIDDEN_API_EXPORTABLE_STUBS": "true",
+			}
+		}),
 	).RunTestWithBp(t, `
 		apex {
 			name: "com.android.art",
@@ -386,10 +391,10 @@ func TestPlatformBootclasspathDependencies(t *testing.T) {
 		`platform:all_apex_contributions`,
 
 		// The following are stubs.
-		`platform:android_stubs_current`,
-		`platform:android_system_stubs_current`,
-		`platform:android_test_stubs_current`,
-		`platform:legacy.core.platform.api.stubs`,
+		`platform:android_stubs_current_exportable`,
+		`platform:android_system_stubs_current_exportable`,
+		`platform:android_test_stubs_current_exportable`,
+		`platform:legacy.core.platform.api.stubs.exportable`,
 
 		// Needed for generating the boot image.
 		`platform:dex2oatd`,
@@ -422,6 +427,9 @@ func TestPlatformBootclasspath_AlwaysUsePrebuiltSdks(t *testing.T) {
 		java.PrepareForTestWithJavaSdkLibraryFiles,
 		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 			variables.Always_use_prebuilt_sdks = proptools.BoolPtr(true)
+			variables.BuildFlags = map[string]string{
+				"RELEASE_HIDDEN_API_EXPORTABLE_STUBS": "true",
+			}
 		}),
 		java.FixtureWithPrebuiltApis(map[string][]string{
 			"current": {},
@@ -546,7 +554,7 @@ func TestPlatformBootclasspath_AlwaysUsePrebuiltSdks(t *testing.T) {
 		"platform:prebuilt_sdk_test_current_android",
 
 		// Not a prebuilt as no prebuilt existed when it was added.
-		"platform:legacy.core.platform.api.stubs",
+		"platform:legacy.core.platform.api.stubs.exportable",
 
 		// The platform_bootclasspath intentionally adds dependencies on both source and prebuilt
 		// modules when available as it does not know which one will be preferred.

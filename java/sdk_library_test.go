@@ -38,6 +38,11 @@ func TestJavaSdkLibrary(t *testing.T) {
 		android.FixtureModifyConfig(func(config android.Config) {
 			config.SetApiLibraries([]string{"foo"})
 		}),
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.BuildFlags = map[string]string{
+				"RELEASE_HIDDEN_API_EXPORTABLE_STUBS": "true",
+			}
+		}),
 	).RunTestWithBp(t, `
 		droiddoc_exported_dir {
 			name: "droiddoc-templates-sdk",
@@ -139,6 +144,9 @@ func TestJavaSdkLibrary(t *testing.T) {
 		"foo.api.public.latest",
 		"foo.api.system.latest",
 		"foo.stubs",
+		"foo.stubs.exportable",
+		"foo.stubs.exportable.system",
+		"foo.stubs.exportable.test",
 		"foo.stubs.source",
 		"foo.stubs.source.system",
 		"foo.stubs.source.test",
@@ -529,6 +537,11 @@ func TestJavaSdkLibrary_Deps(t *testing.T) {
 		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("sdklib"),
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.BuildFlags = map[string]string{
+				"RELEASE_HIDDEN_API_EXPORTABLE_STUBS": "true",
+			}
+		}),
 	).RunTestWithBp(t, `
 		java_sdk_library {
 			name: "sdklib",
@@ -547,6 +560,7 @@ func TestJavaSdkLibrary_Deps(t *testing.T) {
 		`sdklib.api.public.latest`,
 		`sdklib.impl`,
 		`sdklib.stubs`,
+		`sdklib.stubs.exportable`,
 		`sdklib.stubs.source`,
 		`sdklib.xml`,
 	})
@@ -919,6 +933,11 @@ func TestJavaSdkLibraryImport_WithSource(t *testing.T) {
 		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("sdklib"),
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.BuildFlags = map[string]string{
+				"RELEASE_HIDDEN_API_EXPORTABLE_STUBS": "true",
+			}
+		}),
 	).RunTestWithBp(t, `
 		java_sdk_library {
 			name: "sdklib",
@@ -945,6 +964,7 @@ func TestJavaSdkLibraryImport_WithSource(t *testing.T) {
 		`sdklib.api.public.latest`,
 		`sdklib.impl`,
 		`sdklib.stubs`,
+		`sdklib.stubs.exportable`,
 		`sdklib.stubs.source`,
 		`sdklib.xml`,
 	})
@@ -966,6 +986,11 @@ func testJavaSdkLibraryImport_Preferred(t *testing.T, prefer string, preparer an
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("sdklib"),
 		preparer,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.BuildFlags = map[string]string{
+				"RELEASE_HIDDEN_API_EXPORTABLE_STUBS": "true",
+			}
+		}),
 	).RunTestWithBp(t, `
 		java_sdk_library {
 			name: "sdklib",
@@ -1018,6 +1043,7 @@ func testJavaSdkLibraryImport_Preferred(t *testing.T, prefer string, preparer an
 		`sdklib.api.public.latest`,
 		`sdklib.impl`,
 		`sdklib.stubs`,
+		`sdklib.stubs.exportable`,
 		`sdklib.stubs.source`,
 		`sdklib.xml`,
 	})
