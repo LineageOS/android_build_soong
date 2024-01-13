@@ -407,6 +407,14 @@ func gatherRequiredDepsForTest() string {
 		"legacy.core.platform.api.stubs",
 		"stable.core.platform.api.stubs",
 
+		"android_stubs_current_exportable",
+		"android_system_stubs_current_exportable",
+		"android_test_stubs_current_exportable",
+		"android_module_lib_stubs_current_exportable",
+		"android_system_server_stubs_current_exportable",
+		"core.current.stubs.exportable",
+		"legacy.core.platform.api.stubs.exportable",
+
 		"kotlin-stdlib",
 		"kotlin-stdlib-jdk7",
 		"kotlin-stdlib-jdk8",
