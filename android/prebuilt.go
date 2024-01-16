@@ -277,6 +277,9 @@ func InitSingleSourcePrebuiltModule(module PrebuiltInterface, srcProps interface
 		}
 		value := srcPropsValue.FieldByIndex(srcFieldIndex)
 		if value.Kind() == reflect.Ptr {
+			if value.IsNil() {
+				return nil
+			}
 			value = value.Elem()
 		}
 		if value.Kind() != reflect.String {
