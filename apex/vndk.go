@@ -65,24 +65,27 @@ func apexVndkMutator(mctx android.TopDownMutatorContext) {
 		}
 
 		vndkVersion := ab.vndkVersion(mctx.DeviceConfig())
-		apiLevel, err := android.ApiLevelFromUser(mctx, vndkVersion)
-		if err != nil {
-			mctx.PropertyErrorf("vndk_version", "%s", err.Error())
-			return
-		}
+		if vndkVersion != "" {
+			apiLevel, err := android.ApiLevelFromUser(mctx, vndkVersion)
+			if err != nil {
+				mctx.PropertyErrorf("vndk_version", "%s", err.Error())
+				return
+			}
 
-		targets := mctx.MultiTargets()
-		if len(targets) > 0 && apiLevel.LessThan(cc.MinApiForArch(mctx, targets[0].Arch.ArchType)) &&
-			vndkVersion != mctx.DeviceConfig().PlatformVndkVersion() {
-			// Disable VNDK APEXes for VNDK versions less than the minimum supported API
-			// level for the primary architecture. This validation is skipped if the VNDK
-			// version matches the platform VNDK version, which can occur when the device
-			// config targets the 'current' VNDK (see `vndkVersion`).
-			ab.Disable()
-		}
-		if proptools.String(ab.vndkProperties.Vndk_version) != "" &&
-			apiLevel.GreaterThanOrEqualTo(android.ApiLevelOrPanic(mctx, mctx.DeviceConfig().PlatformVndkVersion())) {
-			ab.Disable()
+			targets := mctx.MultiTargets()
+			if len(targets) > 0 && apiLevel.LessThan(cc.MinApiForArch(mctx, targets[0].Arch.ArchType)) &&
+				vndkVersion != mctx.DeviceConfig().PlatformVndkVersion() {
+				// Disable VNDK APEXes for VNDK versions less than the minimum supported API
+				// level for the primary architecture. This validation is skipped if the VNDK
+				// version matches the platform VNDK version, which can occur when the device
+				// config targets the 'current' VNDK (see `vndkVersion`).
+				ab.Disable()
+			}
+			if proptools.String(ab.vndkProperties.Vndk_version) != "" &&
+				mctx.DeviceConfig().PlatformVndkVersion() != "" &&
+				apiLevel.GreaterThanOrEqualTo(android.ApiLevelOrPanic(mctx, mctx.DeviceConfig().PlatformVndkVersion())) {
+				ab.Disable()
+			}
 		}
 	}
 }
@@ -94,6 +97,11 @@ func apexVndkDepsMutator(mctx android.BottomUpMutatorContext) {
 		if vndkVersion == "" {
 			vndkVersion = mctx.DeviceConfig().PlatformVndkVersion()
 		}
+
+		if vndkVersion == "" {
+			return
+		}
+
 		if vndkVersion == mctx.DeviceConfig().PlatformVndkVersion() {
 			vndkVersion = "current"
 		} else {

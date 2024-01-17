@@ -3785,7 +3785,7 @@ func (c *Module) Object() bool {
 }
 
 func GetMakeLinkType(actx android.ModuleContext, c LinkableInterface) string {
-	if c.UseVndk() {
+	if c.InVendorOrProduct() {
 		if c.IsLlndk() {
 			if !c.IsLlndkPublic() {
 				return "native:vndk_private"
