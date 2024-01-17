@@ -1968,18 +1968,6 @@ func (c *deviceConfig) CheckVendorSeappViolations() bool {
 	return Bool(c.config.productVariables.CheckVendorSeappViolations)
 }
 
-func (c *deviceConfig) NextReleaseHideFlaggedApi() bool {
-	return Bool(c.config.productVariables.NextReleaseHideFlaggedApi)
-}
-
-func (c *deviceConfig) ReleaseExposeFlaggedApi() bool {
-	return Bool(c.config.productVariables.Release_expose_flagged_api)
-}
-
-func (c *deviceConfig) HideFlaggedApis() bool {
-	return c.NextReleaseHideFlaggedApi() && !c.ReleaseExposeFlaggedApi()
-}
-
 func (c *config) GetBuildFlag(name string) (string, bool) {
 	val, ok := c.productVariables.BuildFlags[name]
 	return val, ok
