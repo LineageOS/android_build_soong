@@ -1727,6 +1727,26 @@ android_test {
 }
 `,
 	},
+	{
+		desc: "LOCAL_PROTO_JAVA_OUTPUT_PARAMS",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_PROTO_JAVA_OUTPUT_PARAMS := enum_style=java, parcelable_messages=true
+include $(BUILD_PACKAGE)
+		`,
+		expected: `
+android_app {
+	name: "foo",
+	proto: {
+        output_params: [
+            "enum_style=java",
+            "parcelable_messages=true",
+        ],
+    },
+}
+`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {
