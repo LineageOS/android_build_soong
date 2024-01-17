@@ -6127,6 +6127,84 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 			out/soong/.intermediates/packages/modules/com.android.art/art-bootclasspath-fragment/android_common_apex10000/modular-hiddenapi/index.csv
 		`)
 	})
+
+	t.Run("Co-existing unflagged apexes should create a duplicate deapexer error in hiddenapi processing", func(t *testing.T) {
+		bp := `
+		// Source
+		apex {
+			name: "myapex",
+			enabled: false,
+			key: "myapex.key",
+			bootclasspath_fragments: ["my-bootclasspath-fragment"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		// Prebuilt
+		prebuilt_apex {
+			name: "myapex.v1",
+			source_apex_name: "myapex",
+			arch: {
+				arm64: {
+					src: "myapex-arm64.apex",
+				},
+				arm: {
+					src: "myapex-arm.apex",
+				},
+			},
+			exported_bootclasspath_fragments: ["my-bootclasspath-fragment"],
+			prefer: true,
+		}
+		prebuilt_apex {
+			name: "myapex.v2",
+			source_apex_name: "myapex",
+			arch: {
+				arm64: {
+					src: "myapex-arm64.apex",
+				},
+				arm: {
+					src: "myapex-arm.apex",
+				},
+			},
+			exported_bootclasspath_fragments: ["my-bootclasspath-fragment"],
+			prefer: true,
+		}
+
+		prebuilt_bootclasspath_fragment {
+			name: "my-bootclasspath-fragment",
+			contents: ["libfoo", "libbar"],
+			apex_available: ["myapex"],
+			hidden_api: {
+				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
+				metadata: "my-bootclasspath-fragment/metadata.csv",
+				index: "my-bootclasspath-fragment/index.csv",
+				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
+				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+			},
+			prefer: true,
+		}
+
+		java_import {
+			name: "libfoo",
+			jars: ["libfoo.jar"],
+			apex_available: ["myapex"],
+			prefer: true,
+		}
+		java_import {
+			name: "libbar",
+			jars: ["libbar.jar"],
+			apex_available: ["myapex"],
+			prefer: true,
+		}
+	`
+
+		testDexpreoptWithApexes(t, bp, "Multiple installable prebuilt APEXes provide ambiguous deapexers: prebuilt_myapex.v1 and prebuilt_myapex.v2", preparer, fragment)
+	})
+
 }
 
 func TestApexWithTests(t *testing.T) {

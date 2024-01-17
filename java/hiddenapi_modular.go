@@ -1342,7 +1342,7 @@ func extractBootDexInfoFromModules(ctx android.ModuleContext, contents []android
 // invalid, then create a fake path and either report an error immediately or defer reporting of the
 // error until the path is actually used.
 func retrieveBootDexJarFromHiddenAPIModule(ctx android.ModuleContext, module hiddenAPIModule) android.Path {
-	bootDexJar := module.bootDexJar()
+	bootDexJar := module.bootDexJar(ctx)
 	if !bootDexJar.Valid() {
 		fake := android.PathForModuleOut(ctx, fmt.Sprintf("fake/boot-dex/%s.jar", module.Name()))
 		handleMissingDexBootFile(ctx, module, fake, bootDexJar.InvalidReason())
