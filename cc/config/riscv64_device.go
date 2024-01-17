@@ -29,6 +29,8 @@ var (
 		// Equivalent to "-munaligned-access", but our clang doesn't have that yet.
 		"-Xclang -target-feature -Xclang +unaligned-scalar-mem",
 		"-Xclang -target-feature -Xclang +unaligned-vector-mem",
+		// Until https://gitlab.com/qemu-project/qemu/-/issues/1976 is fixed...
+		"-fno-vectorize",
 	}
 
 	riscv64ArchVariantCflags = map[string][]string{}
