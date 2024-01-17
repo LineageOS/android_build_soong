@@ -725,9 +725,6 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 	}
 
 	cmd.Flag(config.MetalavaFlags)
-	if ctx.DeviceConfig().HideFlaggedApis() {
-		cmd.Flag(config.MetalavaHideFlaggedApis)
-	}
 
 	return cmd
 }
