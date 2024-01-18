@@ -2264,6 +2264,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				// An error was found, possibly due to multiple apexes in the tree that export this library
 				// Defer the error till a client tries to call DexJarBuildPath
 				j.dexJarFileErr = err
+				j.initHiddenAPIError(err)
 				return
 			}
 			dexJarFileApexRootRelative := ApexRootRelativePathToJavaLib(j.BaseModuleName())
