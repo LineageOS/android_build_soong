@@ -18,6 +18,7 @@
 """This file generates project.xml and lint.xml files used to drive the Android Lint CLI tool."""
 
 import argparse
+import sys
 from xml.dom import minidom
 
 from ninja_rsp import NinjaRspFileReader
@@ -159,8 +160,8 @@ def main():
   if args.baseline_path:
     baseline = minidom.parse(args.baseline_path)
     disallowed_issues = check_baseline_for_disallowed_issues(baseline, args.disallowed_issues)
-    if bool(disallowed_issues):
-      raise RuntimeError('disallowed issues %s found in lint baseline file %s for module %s'
+    if disallowed_issues:
+      sys.exit('disallowed issues %s found in lint baseline file %s for module %s'
                          % (disallowed_issues, args.baseline_path, args.name))
 
   if args.project_out:
