@@ -22,28 +22,24 @@ type VendorSnapshotModuleInterface interface {
 	ExcludeFromVendorSnapshot() bool
 }
 
-var vendorSnapshotSingleton = SnapshotSingleton{
-	"vendor",                     // name
-	"SOONG_VENDOR_SNAPSHOT_ZIP",  // makeVar
-	android.OptionalPath{},       // snapshotZipFile
-	VendorSnapshotImageSingleton, // Image
-	false,                        // Fake
-}
-
-var vendorFakeSnapshotSingleton = SnapshotSingleton{
-	"vendor",                         // name
-	"SOONG_VENDOR_FAKE_SNAPSHOT_ZIP", // makeVar
-	android.OptionalPath{},           // snapshotZipFile
-	VendorSnapshotImageSingleton,     // Image
-	true,                             // Fake
-}
-
 func VendorSnapshotSingleton() android.Singleton {
-	return &vendorSnapshotSingleton
+	return &SnapshotSingleton{
+		"vendor",                     // name
+		"SOONG_VENDOR_SNAPSHOT_ZIP",  // makeVar
+		android.OptionalPath{},       // snapshotZipFile
+		VendorSnapshotImageSingleton, // Image
+		false,                        // Fake
+	}
 }
 
 func VendorFakeSnapshotSingleton() android.Singleton {
-	return &vendorFakeSnapshotSingleton
+	return &SnapshotSingleton{
+		"vendor",                         // name
+		"SOONG_VENDOR_FAKE_SNAPSHOT_ZIP", // makeVar
+		android.OptionalPath{},           // snapshotZipFile
+		VendorSnapshotImageSingleton,     // Image
+		true,                             // Fake
+	}
 }
 
 // Determine if a dir under source tree is an SoC-owned proprietary directory based
