@@ -64,6 +64,7 @@ var rewriteProperties = map[string](func(variableAssignmentContext) error){
 	"LOCAL_SANITIZE_DIAG":                  sanitize("diag."),
 	"LOCAL_STRIP_MODULE":                   strip(),
 	"LOCAL_CFLAGS":                         cflags,
+	"LOCAL_PROTOC_FLAGS":                   protoLocalIncludeDirs,
 	"LOCAL_PROTO_JAVA_OUTPUT_PARAMS":       protoOutputParams,
 	"LOCAL_UNINSTALLABLE_MODULE":           invert("installable"),
 	"LOCAL_PROGUARD_ENABLED":               proguardEnabled,
@@ -766,6 +767,20 @@ func protoOutputParams(ctx variableAssignmentContext) error {
 	ctx.mkvalue = ctx.mkvalue.Clone()
 	ctx.mkvalue.ReplaceLiteral(`, `, ` `)
 	return includeVariableNow(bpVariable{"proto.output_params", bpparser.ListType}, ctx)
+}
+
+func protoLocalIncludeDirs(ctx variableAssignmentContext) error {
+	// The Soong replacement for LOCAL_PROTOC_FLAGS includes "--proto_path=$(LOCAL_PATH)/..."
+	ctx.mkvalue = ctx.mkvalue.Clone()
+	if len(ctx.mkvalue.Strings) >= 1 && strings.Contains(ctx.mkvalue.Strings[0], "--proto_path=") {
+		ctx.mkvalue.Strings[0] = strings.Replace(ctx.mkvalue.Strings[0], "--proto_path=", "", 1)
+		paths, err := localizePaths(ctx)
+		if err == nil {
+			err = setVariable(ctx.file, ctx.append, ctx.prefix, "proto.local_include_dirs", paths, true)
+		}
+		return err
+	}
+	return fmt.Errorf("Currently LOCAL_PROTOC_FLAGS only support with value '--proto_path=$(LOCAL_PATH)/...'")
 }
 
 func proguardEnabled(ctx variableAssignmentContext) error {
