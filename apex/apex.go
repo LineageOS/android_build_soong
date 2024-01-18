@@ -1152,15 +1152,42 @@ func enforceAppUpdatability(mctx android.TopDownMutatorContext) {
 // Skip these mainline modules for now
 var (
 	skipStrictUpdatabilityLintAllowlist = []string{
+		// go/keep-sorted start
+		"PackageManagerTestApex",
+		"com.android.adservices",
+		"com.android.appsearch",
 		"com.android.art",
 		"com.android.art.debug",
+		"com.android.btservices",
+		"com.android.cellbroadcast",
+		"com.android.configinfrastructure",
 		"com.android.conscrypt",
+		"com.android.extservices",
+		"com.android.extservices_tplus",
+		"com.android.healthfitness",
+		"com.android.ipsec",
 		"com.android.media",
-		// test apexes
+		"com.android.mediaprovider",
+		"com.android.ondevicepersonalization",
+		"com.android.os.statsd",
+		"com.android.permission",
+		"com.android.rkpd",
+		"com.android.scheduling",
+		"com.android.tethering",
+		"com.android.uwb",
+		"com.android.wifi",
 		"test_com.android.art",
+		"test_com.android.cellbroadcast",
 		"test_com.android.conscrypt",
+		"test_com.android.extservices",
+		"test_com.android.ipsec",
 		"test_com.android.media",
+		"test_com.android.mediaprovider",
+		"test_com.android.os.statsd",
+		"test_com.android.permission",
+		"test_com.android.wifi",
 		"test_jitzygote_com.android.art",
+		// go/keep-sorted end
 	}
 
 	// TODO: b/215736885 Remove this list
