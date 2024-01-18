@@ -47,9 +47,7 @@ func defaultJavaLanguageVersion(ctx android.EarlyModuleContext, s android.SdkSpe
 	if err != nil {
 		ctx.PropertyErrorf("sdk_version", "%s", err)
 	}
-	if sdk.FinalOrFutureInt() <= 23 {
-		return JAVA_VERSION_7
-	} else if sdk.FinalOrFutureInt() <= 29 {
+	if sdk.FinalOrFutureInt() <= 29 {
 		return JAVA_VERSION_8
 	} else if sdk.FinalOrFutureInt() <= 31 {
 		return JAVA_VERSION_9

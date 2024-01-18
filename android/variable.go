@@ -73,6 +73,7 @@ type variableProperties struct {
 			Cflags              []string `android:"arch_variant"`
 			Shared_libs         []string `android:"arch_variant"`
 			Whole_static_libs   []string `android:"arch_variant"`
+			Static_libs         []string `android:"arch_variant"`
 			Exclude_static_libs []string `android:"arch_variant"`
 			Srcs                []string `android:"arch_variant"`
 			Header_libs         []string `android:"arch_variant"`
@@ -490,10 +491,6 @@ type ProductVariables struct {
 	// PartitionVarsForBazelMigrationOnlyDoNotUse are extra variables that are used to define the
 	// partition images. They should not be read from soong modules.
 	PartitionVarsForBazelMigrationOnlyDoNotUse PartitionVariables `json:",omitempty"`
-
-	NextReleaseHideFlaggedApi *bool `json:",omitempty"`
-
-	Release_expose_flagged_api *bool `json:",omitempty"`
 
 	BuildFlags map[string]string `json:",omitempty"`
 

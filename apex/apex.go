@@ -2878,22 +2878,7 @@ func makeApexAvailableBaseline() map[string][]string {
 	// Module separator
 	//
 	m["com.android.runtime"] = []string{
-		"libdebuggerd",
-		"libdebuggerd_common_headers",
-		"libdebuggerd_handler_core",
-		"libdl_static",
-		"libjemalloc5",
-		"liblinker_main",
-		"liblinker_malloc",
-		"liblzma",
-		"libprocinfo",
-		"libpropertyinfoparser",
-		"libscudo",
-		"libsystemproperties",
-		"libtombstoned_client_static",
-		"libunwindstack",
 		"libz",
-		"libziparchive",
 	}
 	return m
 }

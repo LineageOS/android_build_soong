@@ -411,6 +411,27 @@ func TestAndroidAppImport_ArchVariants(t *testing.T) {
 			installPath:  "/system/app/foo/foo.apk",
 		},
 		{
+			name: "matching arch without default",
+			bp: `
+				android_app_import {
+					name: "foo",
+					apk: "prebuilts/apk/app.apk",
+					arch: {
+						arm64: {
+							apk: "prebuilts/apk/app_arm64.apk",
+						},
+					},
+					presigned: true,
+					dex_preopt: {
+						enabled: true,
+					},
+				}
+			`,
+			expected:     "verify_uses_libraries/apk/app_arm64.apk",
+			artifactPath: "prebuilts/apk/app_arm64.apk",
+			installPath:  "/system/app/foo/foo.apk",
+		},
+		{
 			name: "no matching arch",
 			bp: `
 				android_app_import {
@@ -454,26 +475,105 @@ func TestAndroidAppImport_ArchVariants(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		ctx, _ := testJava(t, test.bp)
+		t.Run(test.name, func(t *testing.T) {
+			ctx, _ := testJava(t, test.bp)
 
-		variant := ctx.ModuleForTests("foo", "android_common")
-		if test.expected == "" {
-			if variant.Module().Enabled() {
-				t.Error("module should have been disabled, but wasn't")
+			variant := ctx.ModuleForTests("foo", "android_common")
+			if test.expected == "" {
+				if variant.Module().Enabled() {
+					t.Error("module should have been disabled, but wasn't")
+				}
+				rule := variant.MaybeRule("genProvenanceMetaData")
+				android.AssertDeepEquals(t, "Provenance metadata is not empty", android.TestingBuildParams{}, rule)
+				return
 			}
-			rule := variant.MaybeRule("genProvenanceMetaData")
-			android.AssertDeepEquals(t, "Provenance metadata is not empty", android.TestingBuildParams{}, rule)
-			continue
-		}
-		input := variant.Output("jnis-uncompressed/foo.apk").Input.String()
-		if strings.HasSuffix(input, test.expected) {
-			t.Errorf("wrong src apk, expected: %q got: %q", test.expected, input)
-		}
-		rule := variant.Rule("genProvenanceMetaData")
-		android.AssertStringEquals(t, "Invalid input", test.artifactPath, rule.Inputs[0].String())
-		android.AssertStringEquals(t, "Invalid output", "out/soong/.intermediates/provenance_metadata/foo/provenance_metadata.textproto", rule.Output.String())
-		android.AssertStringEquals(t, "Invalid args", "foo", rule.Args["module_name"])
-		android.AssertStringEquals(t, "Invalid args", test.installPath, rule.Args["install_path"])
+			input := variant.Output("jnis-uncompressed/foo.apk").Input.String()
+			if strings.HasSuffix(input, test.expected) {
+				t.Errorf("wrong src apk, expected: %q got: %q", test.expected, input)
+			}
+			rule := variant.Rule("genProvenanceMetaData")
+			android.AssertStringEquals(t, "Invalid input", test.artifactPath, rule.Inputs[0].String())
+			android.AssertStringEquals(t, "Invalid output", "out/soong/.intermediates/provenance_metadata/foo/provenance_metadata.textproto", rule.Output.String())
+			android.AssertStringEquals(t, "Invalid args", "foo", rule.Args["module_name"])
+			android.AssertStringEquals(t, "Invalid args", test.installPath, rule.Args["install_path"])
+		})
+	}
+}
+
+func TestAndroidAppImport_SoongConfigVariables(t *testing.T) {
+	testCases := []struct {
+		name         string
+		bp           string
+		expected     string
+		artifactPath string
+		metaDataPath string
+		installPath  string
+	}{
+		{
+			name: "matching arch",
+			bp: `
+				soong_config_module_type {
+					name: "my_android_app_import",
+					module_type: "android_app_import",
+					config_namespace: "my_namespace",
+					value_variables: ["my_apk_var"],
+					properties: ["apk"],
+				}
+				soong_config_value_variable {
+					name: "my_apk_var",
+				}
+				my_android_app_import {
+					name: "foo",
+					soong_config_variables: {
+						my_apk_var: {
+							apk: "prebuilts/apk/%s.apk",
+						},
+					},
+					presigned: true,
+					dex_preopt: {
+						enabled: true,
+					},
+				}
+			`,
+			expected:     "verify_uses_libraries/apk/name_from_soong_config.apk",
+			artifactPath: "prebuilts/apk/name_from_soong_config.apk",
+			installPath:  "/system/app/foo/foo.apk",
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := android.GroupFixturePreparers(
+				prepareForJavaTest,
+				android.PrepareForTestWithSoongConfigModuleBuildComponents,
+				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+					variables.VendorVars = map[string]map[string]string{
+						"my_namespace": {
+							"my_apk_var": "name_from_soong_config",
+						},
+					}
+				}),
+			).RunTestWithBp(t, test.bp).TestContext
+
+			variant := ctx.ModuleForTests("foo", "android_common")
+			if test.expected == "" {
+				if variant.Module().Enabled() {
+					t.Error("module should have been disabled, but wasn't")
+				}
+				rule := variant.MaybeRule("genProvenanceMetaData")
+				android.AssertDeepEquals(t, "Provenance metadata is not empty", android.TestingBuildParams{}, rule)
+				return
+			}
+			input := variant.Output("jnis-uncompressed/foo.apk").Input.String()
+			if strings.HasSuffix(input, test.expected) {
+				t.Errorf("wrong src apk, expected: %q got: %q", test.expected, input)
+			}
+			rule := variant.Rule("genProvenanceMetaData")
+			android.AssertStringEquals(t, "Invalid input", test.artifactPath, rule.Inputs[0].String())
+			android.AssertStringEquals(t, "Invalid output", "out/soong/.intermediates/provenance_metadata/foo/provenance_metadata.textproto", rule.Output.String())
+			android.AssertStringEquals(t, "Invalid args", "foo", rule.Args["module_name"])
+			android.AssertStringEquals(t, "Invalid args", test.installPath, rule.Args["install_path"])
+		})
 	}
 }
 
