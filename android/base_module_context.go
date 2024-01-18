@@ -26,6 +26,7 @@ import (
 // instead of a blueprint.Module, plus some extra methods that return Android-specific information
 // about the current module.
 type BaseModuleContext interface {
+	ArchModuleContext
 	EarlyModuleContext
 
 	blueprintBaseModuleContext() blueprint.BaseModuleContext
@@ -204,29 +205,12 @@ type BaseModuleContext interface {
 	// getMissingDependencies returns the list of missing dependencies.
 	// Calling this function prevents adding new dependencies.
 	getMissingDependencies() []string
-
-	Target() Target
-	TargetPrimary() bool
-
-	// The additional arch specific targets (e.g. 32/64 bit) that this module variant is
-	// responsible for creating.
-	MultiTargets() []Target
-	Arch() Arch
-	Os() OsType
-	Host() bool
-	Device() bool
-	Darwin() bool
-	Windows() bool
-	PrimaryArch() bool
 }
 
 type baseModuleContext struct {
 	bp blueprint.BaseModuleContext
 	earlyModuleContext
-	os            OsType
-	target        Target
-	multiTargets  []Target
-	targetPrimary bool
+	archModuleContext
 
 	walkPath []Module
 	tagPath  []blueprint.DependencyTag
@@ -560,47 +544,4 @@ func (b *baseModuleContext) GetPathString(skipFirst bool) string {
 		sb.WriteString(fmt.Sprintf("    -> %s", m.String()))
 	}
 	return sb.String()
-}
-
-func (b *baseModuleContext) Target() Target {
-	return b.target
-}
-
-func (b *baseModuleContext) TargetPrimary() bool {
-	return b.targetPrimary
-}
-
-func (b *baseModuleContext) MultiTargets() []Target {
-	return b.multiTargets
-}
-
-func (b *baseModuleContext) Arch() Arch {
-	return b.target.Arch
-}
-
-func (b *baseModuleContext) Os() OsType {
-	return b.os
-}
-
-func (b *baseModuleContext) Host() bool {
-	return b.os.Class == Host
-}
-
-func (b *baseModuleContext) Device() bool {
-	return b.os.Class == Device
-}
-
-func (b *baseModuleContext) Darwin() bool {
-	return b.os == Darwin
-}
-
-func (b *baseModuleContext) Windows() bool {
-	return b.os == Windows
-}
-
-func (b *baseModuleContext) PrimaryArch() bool {
-	if len(b.config.Targets[b.target.Os]) <= 1 {
-		return true
-	}
-	return b.target.Arch.ArchType == b.config.Targets[b.target.Os][0].Arch.ArchType
 }

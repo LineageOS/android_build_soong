@@ -35,6 +35,7 @@ bootstrap_go_package {
         "api_levels.go",
         "arch.go",
         "arch_list.go",
+        "arch_module_context.go",
         "base_module_context.go",
         "buildinfo_prop.go",
         "config.go",
