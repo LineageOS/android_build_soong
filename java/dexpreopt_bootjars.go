@@ -617,7 +617,8 @@ func (d *dexpreoptBootJars) GenerateAndroidBuildActions(ctx android.ModuleContex
 
 // GenerateSingletonBuildActions generates build rules for the dexpreopt config for Make.
 func (d *dexpreoptBootJars) GenerateSingletonBuildActions(ctx android.SingletonContext) {
-	d.dexpreoptConfigForMake = android.PathForOutput(ctx, getDexpreoptDirName(ctx), "dexpreopt.config")
+	d.dexpreoptConfigForMake =
+		android.PathForOutput(ctx, dexpreopt.GetDexpreoptDirName(ctx), "dexpreopt.config")
 	writeGlobalConfigForMake(ctx, d.dexpreoptConfigForMake)
 }
 
@@ -1066,8 +1067,8 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 		cmd.FlagWithArg("--instruction-set-features=", global.InstructionSetFeatures[arch])
 	}
 
-	if global.EnableUffdGc && image.target.Os == android.Android {
-		cmd.Flag("--runtime-arg").Flag("-Xgc:CMC")
+	if image.target.Os == android.Android {
+		cmd.Text("$(cat").Input(globalSoong.UffdGcFlag).Text(")")
 	}
 
 	if global.BootFlags != "" {
@@ -1235,7 +1236,7 @@ func bootFrameworkProfileRule(ctx android.ModuleContext, image *bootImageConfig)
 func dumpOatRules(ctx android.ModuleContext, image *bootImageConfig) {
 	var allPhonies android.Paths
 	name := image.name
-	global := dexpreopt.GetGlobalConfig(ctx)
+	globalSoong := dexpreopt.GetGlobalSoongConfig(ctx)
 	for _, image := range image.variants {
 		arch := image.target.Arch.ArchType
 		suffix := arch.String()
@@ -1247,6 +1248,7 @@ func dumpOatRules(ctx android.ModuleContext, image *bootImageConfig) {
 		output := android.PathForOutput(ctx, name+"."+suffix+".oatdump.txt")
 		rule := android.NewRuleBuilder(pctx, ctx)
 		imageLocationsOnHost, _ := image.imageLocations()
+
 		cmd := rule.Command().
 			BuiltTool("oatdump").
 			FlagWithInputList("--runtime-arg -Xbootclasspath:", image.dexPathsDeps.Paths(), ":").
@@ -1254,8 +1256,8 @@ func dumpOatRules(ctx android.ModuleContext, image *bootImageConfig) {
 			FlagWithArg("--image=", strings.Join(imageLocationsOnHost, ":")).Implicits(image.imagesDeps.Paths()).
 			FlagWithOutput("--output=", output).
 			FlagWithArg("--instruction-set=", arch.String())
-		if global.EnableUffdGc && image.target.Os == android.Android {
-			cmd.Flag("--runtime-arg").Flag("-Xgc:CMC")
+		if image.target.Os == android.Android {
+			cmd.Text("$(cat").Input(globalSoong.UffdGcFlag).Text(")")
 		}
 		rule.Build("dump-oat-"+name+"-"+suffix, "dump oat "+name+" "+arch.String())
 
