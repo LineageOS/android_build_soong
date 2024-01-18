@@ -1750,6 +1750,9 @@ android_app {
 }
 
 func TestEndToEnd(t *testing.T) {
+	// Skip checking Android.mk path with cleaning "ANDROID_BUILD_TOP"
+	t.Setenv("ANDROID_BUILD_TOP", "")
+
 	for i, test := range testCases {
 		expected, err := bpfix.Reformat(test.expected)
 		if err != nil {
