@@ -22,7 +22,7 @@ import (
 )
 
 func TestMinSdkVersionsOfCrtObjects(t *testing.T) {
-	ctx := testCc(t, `
+	bp := `
 		cc_object {
 			name: "crt_foo",
 			srcs: ["foo.c"],
@@ -30,8 +30,8 @@ func TestMinSdkVersionsOfCrtObjects(t *testing.T) {
 			stl: "none",
 			min_sdk_version: "28",
 			vendor_available: true,
-		}`)
-
+		}
+	`
 	variants := []struct {
 		variant string
 		num     string
@@ -43,11 +43,17 @@ func TestMinSdkVersionsOfCrtObjects(t *testing.T) {
 		{"android_arm64_armv8-a_sdk_current", "10000"},
 		{"android_vendor.29_arm64_armv8-a", "29"},
 	}
+
+	ctx := prepareForCcTest.RunTestWithBp(t, bp)
 	for _, v := range variants {
 		cflags := ctx.ModuleForTests("crt_foo", v.variant).Rule("cc").Args["cFlags"]
 		expected := "-target aarch64-linux-android" + v.num + " "
 		android.AssertStringDoesContain(t, "cflag", cflags, expected)
 	}
+	ctx = prepareForCcTestWithoutVndk.RunTestWithBp(t, bp)
+	android.AssertStringDoesContain(t, "cflag",
+		ctx.ModuleForTests("crt_foo", "android_vendor_arm64_armv8-a").Rule("cc").Args["cFlags"],
+		"-target aarch64-linux-android10000 ")
 }
 
 func TestUseCrtObjectOfCorrectVersion(t *testing.T) {

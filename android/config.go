@@ -1309,6 +1309,10 @@ func (c *config) VendorApiLevel() string {
 	return String(c.productVariables.VendorApiLevel)
 }
 
+func (c *config) VendorApiLevelFrozen() bool {
+	return c.productVariables.GetBuildFlagBool("RELEASE_BOARD_API_LEVEL_FROZEN")
+}
+
 func (c *deviceConfig) Arches() []Arch {
 	var arches []Arch
 	for _, target := range c.config.Targets[Android] {
