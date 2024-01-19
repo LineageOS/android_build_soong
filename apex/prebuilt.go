@@ -639,7 +639,7 @@ func (p *prebuiltCommon) createDeapexerModuleIfNeeded(ctx android.TopDownMutator
 			return false
 		}
 
-		name := android.RemoveOptionalPrebuiltPrefix(ctx.OtherModuleName(child))
+		name := java.ModuleStemForDeapexing(child)
 		if _, ok := tag.(android.RequiresFilesFromPrebuiltApexTag); ok {
 			commonModules = append(commonModules, name)
 
