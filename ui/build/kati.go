@@ -100,8 +100,6 @@ func runKati(ctx Context, config Config, extraSuffix string, args []string, envF
 		"--no_ninja_prelude",
 		// Support declaring phony outputs in AOSP Ninja.
 		"--use_ninja_phony_output",
-		// Support declaring symlink outputs in AOSP Ninja.
-		"--use_ninja_symlink_outputs",
 		// Regenerate the Ninja file if environment inputs have changed. e.g.
 		// CLI flags, .mk file timestamps, env vars, $(wildcard ..) and some
 		// $(shell ..) results.
