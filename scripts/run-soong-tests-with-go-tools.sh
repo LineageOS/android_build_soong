@@ -32,6 +32,12 @@ export TMPDIR=${abs_out_dir}/gotemp
 mkdir -p ${TMPDIR}
 ${GOROOT}/bin/go env
 
+# Building with the race detector enabled uses the host linker, set the
+# path to use the hermetic one.
+CLANG_VERSION=$(build/soong/scripts/get_clang_version.py)
+export CC="${TOP}/prebuilts/clang/host/${OS}-x86/${CLANG_VERSION}/bin/clang"
+export CXX="${TOP}/prebuilts/clang/host/${OS}-x86/${CLANG_VERSION}/bin/clang++"
+
 # androidmk_test.go gets confused if ANDROID_BUILD_TOP is set.
 unset ANDROID_BUILD_TOP
 
@@ -66,5 +72,6 @@ for dir in "${go_modules[@]}"; do
     (cd "$dir";
      eval ${network_jail} -- ${GOROOT}/bin/go build ./...
      eval ${network_jail} -- ${GOROOT}/bin/go test ./...
+     eval ${network_jail} -- ${GOROOT}/bin/go test -race -short ./...
     )
 done
