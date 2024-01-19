@@ -238,8 +238,7 @@ func init() {
 //
 // WARNING: All fields in this struct should be initialized in the genBootImageConfigs function.
 // Failure to do so can lead to data races if there is no synchronization enforced ordering between
-// the writer and the reader. Fields which break this rule are marked as deprecated and should be
-// removed and replaced with something else, e.g. providers.
+// the writer and the reader.
 type bootImageConfig struct {
 	// If this image is an extension, the image that it extends.
 	extends *bootImageConfig
@@ -278,16 +277,6 @@ type bootImageConfig struct {
 
 	// File path to a zip archive with all image files (or nil, if not needed).
 	zip android.WritablePath
-
-	// Rules which should be used in make to install the outputs.
-	//
-	// Deprecated: Not initialized correctly, see struct comment.
-	profileInstalls android.RuleBuilderInstalls
-
-	// Path to the license metadata file for the module that built the profile.
-	//
-	// Deprecated: Not initialized correctly, see struct comment.
-	profileLicenseMetadataFile android.OptionalPath
 
 	// Target-dependent fields.
 	variants []*bootImageVariant
@@ -602,6 +591,7 @@ func (d *dexpreoptBootJars) GenerateAndroidBuildActions(ctx android.ModuleContex
 	imageConfigs := genBootImageConfigs(ctx)
 	d.defaultBootImage = defaultBootImageConfig(ctx)
 	d.otherImages = make([]*bootImageConfig, 0, len(imageConfigs)-1)
+	var profileInstalls android.RuleBuilderInstalls
 	for _, name := range getImageNames() {
 		config := imageConfigs[name]
 		if config != d.defaultBootImage {
@@ -610,10 +600,18 @@ func (d *dexpreoptBootJars) GenerateAndroidBuildActions(ctx android.ModuleContex
 		if !config.isEnabled(ctx) {
 			continue
 		}
-		generateBootImage(ctx, config)
+		installs := generateBootImage(ctx, config)
+		profileInstalls = append(profileInstalls, installs...)
 		if config == d.defaultBootImage {
-			bootFrameworkProfileRule(ctx, config)
+			_, installs := bootFrameworkProfileRule(ctx, config)
+			profileInstalls = append(profileInstalls, installs...)
 		}
+	}
+	if len(profileInstalls) > 0 {
+		android.SetProvider(ctx, profileInstallInfoProvider, profileInstallInfo{
+			profileInstalls:            profileInstalls,
+			profileLicenseMetadataFile: android.OptionalPathForPath(ctx.LicenseMetadataFile()),
+		})
 	}
 }
 
@@ -635,7 +633,7 @@ func shouldBuildBootImages(config android.Config, global *dexpreopt.GlobalConfig
 	return true
 }
 
-func generateBootImage(ctx android.ModuleContext, imageConfig *bootImageConfig) {
+func generateBootImage(ctx android.ModuleContext, imageConfig *bootImageConfig) android.RuleBuilderInstalls {
 	apexJarModulePairs := getModulesForImage(ctx, imageConfig)
 
 	// Copy module dex jars to their predefined locations.
@@ -644,12 +642,12 @@ func generateBootImage(ctx android.ModuleContext, imageConfig *bootImageConfig) 
 
 	// Build a profile for the image config from the profile at the default path. The profile will
 	// then be used along with profiles imported from APEXes to build the boot image.
-	profile := bootImageProfileRule(ctx, imageConfig)
+	profile, profileInstalls := bootImageProfileRule(ctx, imageConfig)
 
 	// If dexpreopt of boot image jars should be skipped, stop after generating a profile.
 	global := dexpreopt.GetGlobalConfig(ctx)
 	if SkipDexpreoptBootJars(ctx) || (global.OnlyPreoptArtBootImage && imageConfig.name != "art") {
-		return
+		return profileInstalls
 	}
 
 	// Build boot image files for the android variants.
@@ -663,6 +661,8 @@ func generateBootImage(ctx android.ModuleContext, imageConfig *bootImageConfig) 
 
 	// Create a `dump-oat-<image-name>` rule that runs `oatdump` for debugging purposes.
 	dumpOatRules(ctx, imageConfig)
+
+	return profileInstalls
 }
 
 type apexJarModulePair struct {
@@ -1177,9 +1177,19 @@ func bootImageProfileRuleCommon(ctx android.ModuleContext, name string, dexFiles
 	return profile
 }
 
-func bootImageProfileRule(ctx android.ModuleContext, image *bootImageConfig) android.WritablePath {
+type profileInstallInfo struct {
+	// Rules which should be used in make to install the outputs.
+	profileInstalls android.RuleBuilderInstalls
+
+	// Path to the license metadata file for the module that built the profile.
+	profileLicenseMetadataFile android.OptionalPath
+}
+
+var profileInstallInfoProvider = blueprint.NewProvider[profileInstallInfo]()
+
+func bootImageProfileRule(ctx android.ModuleContext, image *bootImageConfig) (android.WritablePath, android.RuleBuilderInstalls) {
 	if !image.isProfileGuided() {
-		return nil
+		return nil, nil
 	}
 
 	profile := bootImageProfileRuleCommon(ctx, image.name, image.dexPathsDeps.Paths(), image.getAnyAndroidVariant().dexLocationsDeps)
@@ -1187,21 +1197,19 @@ func bootImageProfileRule(ctx android.ModuleContext, image *bootImageConfig) and
 	if image == defaultBootImageConfig(ctx) {
 		rule := android.NewRuleBuilder(pctx, ctx)
 		rule.Install(profile, "/system/etc/boot-image.prof")
-		image.profileInstalls = append(image.profileInstalls, rule.Installs()...)
-		image.profileLicenseMetadataFile = android.OptionalPathForPath(ctx.LicenseMetadataFile())
+		return profile, rule.Installs()
 	}
-
-	return profile
+	return profile, nil
 }
 
 // bootFrameworkProfileRule generates the rule to create the boot framework profile and
 // returns a path to the generated file.
-func bootFrameworkProfileRule(ctx android.ModuleContext, image *bootImageConfig) android.WritablePath {
+func bootFrameworkProfileRule(ctx android.ModuleContext, image *bootImageConfig) (android.WritablePath, android.RuleBuilderInstalls) {
 	globalSoong := dexpreopt.GetGlobalSoongConfig(ctx)
 	global := dexpreopt.GetGlobalConfig(ctx)
 
 	if global.DisableGenerateProfile || ctx.Config().UnbundledBuild() {
-		return nil
+		return nil, nil
 	}
 
 	defaultProfile := "frameworks/base/config/boot-profile.txt"
@@ -1221,10 +1229,7 @@ func bootFrameworkProfileRule(ctx android.ModuleContext, image *bootImageConfig)
 
 	rule.Install(profile, "/system/etc/boot-image.bprof")
 	rule.Build("bootFrameworkProfile", "profile boot framework jars")
-	image.profileInstalls = append(image.profileInstalls, rule.Installs()...)
-	image.profileLicenseMetadataFile = android.OptionalPathForPath(ctx.LicenseMetadataFile())
-
-	return profile
+	return profile, rule.Installs()
 }
 
 func dumpOatRules(ctx android.ModuleContext, image *bootImageConfig) {
@@ -1292,9 +1297,11 @@ func (d *dexpreoptBootJars) MakeVars(ctx android.MakeVarsContext) {
 
 	image := d.defaultBootImage
 	if image != nil {
-		ctx.Strict("DEXPREOPT_IMAGE_PROFILE_BUILT_INSTALLED", image.profileInstalls.String())
-		if image.profileLicenseMetadataFile.Valid() {
-			ctx.Strict("DEXPREOPT_IMAGE_PROFILE_LICENSE_METADATA", image.profileLicenseMetadataFile.String())
+		if profileInstallInfo, ok := android.SingletonModuleProvider(ctx, d, profileInstallInfoProvider); ok {
+			ctx.Strict("DEXPREOPT_IMAGE_PROFILE_BUILT_INSTALLED", profileInstallInfo.profileInstalls.String())
+			if profileInstallInfo.profileLicenseMetadataFile.Valid() {
+				ctx.Strict("DEXPREOPT_IMAGE_PROFILE_LICENSE_METADATA", profileInstallInfo.profileLicenseMetadataFile.String())
+			}
 		}
 
 		if SkipDexpreoptBootJars(ctx) {
