@@ -907,7 +907,30 @@ type commonToSdkLibraryAndImportProperties struct {
 type commonSdkLibraryAndImportModule interface {
 	android.Module
 
-	BaseModuleName() string
+	// Returns the name of the root java_sdk_library that creates the child stub libraries
+	// This is the `name` as it appears in Android.bp, and not the name in Soong's build graph
+	// (with the prebuilt_ prefix)
+	//
+	// e.g. in the following java_sdk_library_import
+	// java_sdk_library_import {
+	//    name: "framework-foo.v1",
+	//    source_module_name: "framework-foo",
+	// }
+	// the values returned by
+	// 1. Name(): prebuilt_framework-foo.v1 # unique
+	// 2. BaseModuleName(): framework-foo # the source
+	// 3. RootLibraryName: framework-foo.v1 # the undecordated `name` from Android.bp
+	RootLibraryName() string
+}
+
+func (m *SdkLibrary) RootLibraryName() string {
+	return m.BaseModuleName()
+}
+
+func (m *SdkLibraryImport) RootLibraryName() string {
+	// m.BaseModuleName refers to the source of the import
+	// use moduleBase.Name to get the name of the module as it appears in the .bp file
+	return m.ModuleBase.Name()
 }
 
 // Common code between sdk library and sdk library import
@@ -946,7 +969,7 @@ func (c *commonToSdkLibraryAndImport) initCommonAfterDefaultsApplied(ctx android
 		return false
 	}
 
-	namePtr := proptools.StringPtr(c.module.BaseModuleName())
+	namePtr := proptools.StringPtr(c.module.RootLibraryName())
 	c.sdkLibraryComponentProperties.SdkLibraryName = namePtr
 
 	// Only track this sdk library if this can be used as a shared library.
@@ -973,51 +996,51 @@ func (c *commonToSdkLibraryAndImport) generateCommonBuildActions(ctx android.Mod
 
 // Module name of the runtime implementation library
 func (c *commonToSdkLibraryAndImport) implLibraryModuleName() string {
-	return c.module.BaseModuleName() + ".impl"
+	return c.module.RootLibraryName() + ".impl"
 }
 
 // Module name of the XML file for the lib
 func (c *commonToSdkLibraryAndImport) xmlPermissionsModuleName() string {
-	return c.module.BaseModuleName() + sdkXmlFileSuffix
+	return c.module.RootLibraryName() + sdkXmlFileSuffix
 }
 
 // Name of the java_library module that compiles the stubs source.
 func (c *commonToSdkLibraryAndImport) stubsLibraryModuleName(apiScope *apiScope) string {
-	baseName := c.module.BaseModuleName()
+	baseName := c.module.RootLibraryName()
 	return c.namingScheme.stubsLibraryModuleName(apiScope, baseName)
 }
 
 // Name of the java_library module that compiles the exportable stubs source.
 func (c *commonToSdkLibraryAndImport) exportableStubsLibraryModuleName(apiScope *apiScope) string {
-	baseName := c.module.BaseModuleName()
+	baseName := c.module.RootLibraryName()
 	return c.namingScheme.exportableStubsLibraryModuleName(apiScope, baseName)
 }
 
 // Name of the droidstubs module that generates the stubs source and may also
 // generate/check the API.
 func (c *commonToSdkLibraryAndImport) stubsSourceModuleName(apiScope *apiScope) string {
-	baseName := c.module.BaseModuleName()
+	baseName := c.module.RootLibraryName()
 	return c.namingScheme.stubsSourceModuleName(apiScope, baseName)
 }
 
 // Name of the java_api_library module that generates the from-text stubs source
 // and compiles to a jar file.
 func (c *commonToSdkLibraryAndImport) apiLibraryModuleName(apiScope *apiScope) string {
-	baseName := c.module.BaseModuleName()
+	baseName := c.module.RootLibraryName()
 	return c.namingScheme.apiLibraryModuleName(apiScope, baseName)
 }
 
 // Name of the java_library module that compiles the stubs
 // generated from source Java files.
 func (c *commonToSdkLibraryAndImport) sourceStubsLibraryModuleName(apiScope *apiScope) string {
-	baseName := c.module.BaseModuleName()
+	baseName := c.module.RootLibraryName()
 	return c.namingScheme.sourceStubsLibraryModuleName(apiScope, baseName)
 }
 
 // Name of the java_library module that compiles the exportable stubs
 // generated from source Java files.
 func (c *commonToSdkLibraryAndImport) exportableSourceStubsLibraryModuleName(apiScope *apiScope) string {
-	baseName := c.module.BaseModuleName()
+	baseName := c.module.RootLibraryName()
 	return c.namingScheme.exportableSourceStubsLibraryModuleName(apiScope, baseName)
 }
 
@@ -1067,7 +1090,7 @@ func (c *commonToSdkLibraryAndImport) commonOutputFiles(tag string) (android.Pat
 		if scope, ok := scopeByName[scopeName]; ok {
 			paths := c.findScopePaths(scope)
 			if paths == nil {
-				return nil, fmt.Errorf("%q does not provide api scope %s", c.module.BaseModuleName(), scopeName)
+				return nil, fmt.Errorf("%q does not provide api scope %s", c.module.RootLibraryName(), scopeName)
 			}
 
 			switch component {
@@ -1103,7 +1126,7 @@ func (c *commonToSdkLibraryAndImport) commonOutputFiles(tag string) (android.Pat
 			if c.doctagPaths != nil {
 				return c.doctagPaths, nil
 			} else {
-				return nil, fmt.Errorf("no doctag_files specified on %s", c.module.BaseModuleName())
+				return nil, fmt.Errorf("no doctag_files specified on %s", c.module.RootLibraryName())
 			}
 		}
 		return nil, nil
@@ -1149,7 +1172,7 @@ func (c *commonToSdkLibraryAndImport) selectHeaderJarsForSdkVersion(ctx android.
 
 	// If a specific numeric version has been requested then use prebuilt versions of the sdk.
 	if !sdkVersion.ApiLevel.IsPreview() {
-		return PrebuiltJars(ctx, c.module.BaseModuleName(), sdkVersion)
+		return PrebuiltJars(ctx, c.module.RootLibraryName(), sdkVersion)
 	}
 
 	paths := c.selectScopePaths(ctx, sdkVersion.Kind)
@@ -1176,7 +1199,7 @@ func (c *commonToSdkLibraryAndImport) selectScopePaths(ctx android.BaseModuleCon
 				scopes = append(scopes, s.name)
 			}
 		}
-		ctx.ModuleErrorf("requires api scope %s from %s but it only has %q available", apiScope.name, c.module.BaseModuleName(), scopes)
+		ctx.ModuleErrorf("requires api scope %s from %s but it only has %q available", apiScope.name, c.module.RootLibraryName(), scopes)
 		return nil
 	}
 
@@ -1238,7 +1261,7 @@ func (c *commonToSdkLibraryAndImport) sdkComponentPropertiesForChildLibrary() in
 		SdkLibraryToImplicitlyTrack *string
 	}{}
 
-	namePtr := proptools.StringPtr(c.module.BaseModuleName())
+	namePtr := proptools.StringPtr(c.module.RootLibraryName())
 	componentProps.SdkLibraryName = namePtr
 
 	if c.sharedLibrary() {
@@ -2525,6 +2548,11 @@ type sdkLibraryImportProperties struct {
 
 	// If not empty, classes are restricted to the specified packages and their sub-packages.
 	Permitted_packages []string
+
+	// Name of the source soong module that gets shadowed by this prebuilt
+	// If unspecified, follows the naming convention that the source module of
+	// the prebuilt is Name() without "prebuilt_" prefix
+	Source_module_name *string
 }
 
 type SdkLibraryImport struct {
@@ -2638,6 +2666,10 @@ func (module *SdkLibraryImport) Name() string {
 	return module.prebuilt.Name(module.ModuleBase.Name())
 }
 
+func (module *SdkLibraryImport) BaseModuleName() string {
+	return proptools.StringDefault(module.properties.Source_module_name, module.ModuleBase.Name())
+}
+
 func (module *SdkLibraryImport) createInternalModules(mctx android.DefaultableHookContext) {
 
 	// If the build is configured to use prebuilts then force this to be preferred.
@@ -2670,15 +2702,19 @@ func (module *SdkLibraryImport) createInternalModules(mctx android.DefaultableHo
 func (module *SdkLibraryImport) createJavaImportForStubs(mctx android.DefaultableHookContext, apiScope *apiScope, scopeProperties *sdkLibraryScopeProperties) {
 	// Creates a java import for the jar with ".stubs" suffix
 	props := struct {
-		Name        *string
-		Sdk_version *string
-		Libs        []string
-		Jars        []string
-		Compile_dex *bool
+		Name                             *string
+		Source_module_name               *string
+		Created_by_java_sdk_library_name *string
+		Sdk_version                      *string
+		Libs                             []string
+		Jars                             []string
+		Compile_dex                      *bool
 
 		android.UserSuppliedPrebuiltProperties
 	}{}
 	props.Name = proptools.StringPtr(module.stubsLibraryModuleName(apiScope))
+	props.Source_module_name = proptools.StringPtr(apiScope.stubsLibraryModuleName(module.BaseModuleName()))
+	props.Created_by_java_sdk_library_name = proptools.StringPtr(module.RootLibraryName())
 	props.Sdk_version = scopeProperties.Sdk_version
 	// Prepend any of the libs from the legacy public properties to the libs for each of the
 	// scopes to avoid having to duplicate them in each scope.
@@ -2700,12 +2736,16 @@ func (module *SdkLibraryImport) createJavaImportForStubs(mctx android.Defaultabl
 
 func (module *SdkLibraryImport) createPrebuiltStubsSources(mctx android.DefaultableHookContext, apiScope *apiScope, scopeProperties *sdkLibraryScopeProperties) {
 	props := struct {
-		Name *string
-		Srcs []string
+		Name                             *string
+		Source_module_name               *string
+		Created_by_java_sdk_library_name *string
+		Srcs                             []string
 
 		android.UserSuppliedPrebuiltProperties
 	}{}
 	props.Name = proptools.StringPtr(module.stubsSourceModuleName(apiScope))
+	props.Source_module_name = proptools.StringPtr(apiScope.stubsSourceModuleName(module.BaseModuleName()))
+	props.Created_by_java_sdk_library_name = proptools.StringPtr(module.RootLibraryName())
 	props.Srcs = scopeProperties.Stub_srcs
 
 	// The stubs source is preferred if the java_sdk_library_import is preferred.
@@ -2719,13 +2759,17 @@ func (module *SdkLibraryImport) createPrebuiltApiContribution(mctx android.Defau
 	api_surface := &apiScope.name
 
 	props := struct {
-		Name        *string
-		Api_surface *string
-		Api_file    *string
-		Visibility  []string
+		Name                             *string
+		Source_module_name               *string
+		Created_by_java_sdk_library_name *string
+		Api_surface                      *string
+		Api_file                         *string
+		Visibility                       []string
 	}{}
 
 	props.Name = proptools.StringPtr(module.stubsSourceModuleName(apiScope) + ".api.contribution")
+	props.Source_module_name = proptools.StringPtr(apiScope.stubsSourceModuleName(module.BaseModuleName()) + ".api.contribution")
+	props.Created_by_java_sdk_library_name = proptools.StringPtr(module.RootLibraryName())
 	props.Api_surface = api_surface
 	props.Api_file = api_file
 	props.Visibility = []string{"//visibility:override", "//visibility:public"}
