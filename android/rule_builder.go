@@ -629,8 +629,9 @@ func (r *RuleBuilder) build(name string, desc string, ninjaEscapeCommandString b
 				name, r.sboxManifestPath.String(), r.outDir.String())
 		}
 
-		// Create a rule to write the manifest as textproto.
-		pbText, err := prototext.Marshal(&manifest)
+		// Create a rule to write the manifest as textproto. Pretty print it by indenting and
+		// splitting across multiple lines.
+		pbText, err := prototext.MarshalOptions{Indent: " "}.Marshal(&manifest)
 		if err != nil {
 			ReportPathErrorf(r.ctx, "sbox manifest failed to marshal: %q", err)
 		}
