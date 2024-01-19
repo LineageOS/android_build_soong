@@ -43,6 +43,8 @@ var (
 		// Equivalent to "-munaligned-access", but our clang doesn't have that yet.
 		"-Xclang -target-feature -Xclang +unaligned-scalar-mem",
 		"-Xclang -target-feature -Xclang +unaligned-vector-mem",
+		// Until https://gitlab.com/qemu-project/qemu/-/issues/1976 is fixed...
+		"-Wl,-mllvm,-vectorize-loops=false",
 		// We should change the default for this in clang, but for now...
 		// (https://github.com/google/android-riscv64/issues/124)
 		"-Wl,-mllvm -Wl,-jump-is-expensive=false",
