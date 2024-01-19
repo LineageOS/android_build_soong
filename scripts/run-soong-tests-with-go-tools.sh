@@ -32,11 +32,13 @@ export TMPDIR=${abs_out_dir}/gotemp
 mkdir -p ${TMPDIR}
 ${GOROOT}/bin/go env
 
-# Building with the race detector enabled uses the host linker, set the
-# path to use the hermetic one.
-CLANG_VERSION=$(build/soong/scripts/get_clang_version.py)
-export CC="${TOP}/prebuilts/clang/host/${OS}-x86/${CLANG_VERSION}/bin/clang"
-export CXX="${TOP}/prebuilts/clang/host/${OS}-x86/${CLANG_VERSION}/bin/clang++"
+if [[ ${OS} = linux ]]; then
+    # Building with the race detector enabled uses the host linker, set the
+    # path to use the hermetic one.
+    CLANG_VERSION=$(build/soong/scripts/get_clang_version.py)
+    export CC="${TOP}/prebuilts/clang/host/${OS}-x86/${CLANG_VERSION}/bin/clang"
+    export CXX="${TOP}/prebuilts/clang/host/${OS}-x86/${CLANG_VERSION}/bin/clang++"
+fi
 
 # androidmk_test.go gets confused if ANDROID_BUILD_TOP is set.
 unset ANDROID_BUILD_TOP
