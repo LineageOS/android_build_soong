@@ -31,6 +31,8 @@ var (
 		"-Xclang -target-feature -Xclang +unaligned-vector-mem",
 		// Until https://gitlab.com/qemu-project/qemu/-/issues/1976 is fixed...
 		"-fno-vectorize",
+		// (https://github.com/google/android-riscv64/issues/124)
+		"-mllvm -jump-is-expensive=false",
 	}
 
 	riscv64ArchVariantCflags = map[string][]string{}
@@ -43,7 +45,7 @@ var (
 		"-Xclang -target-feature -Xclang +unaligned-vector-mem",
 		// We should change the default for this in clang, but for now...
 		// (https://github.com/google/android-riscv64/issues/124)
-		"-mllvm -jump-is-expensive=false",
+		"-Wl,-mllvm -Wl,-jump-is-expensive=false",
 	}
 
 	riscv64Lldflags = append(riscv64Ldflags,
