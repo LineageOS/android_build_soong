@@ -16,6 +16,7 @@ package config
 
 import (
 	"runtime"
+	"slices"
 	"strings"
 
 	"android/soong/android"
@@ -400,7 +401,7 @@ func init() {
 	exportedVars.ExportStringList("CommonGlobalCflags", commonGlobalCflags)
 
 	pctx.VariableFunc("CommonGlobalCflags", func(ctx android.PackageVarContext) string {
-		flags := commonGlobalCflags
+		flags := slices.Clone(commonGlobalCflags)
 
 		// http://b/131390872
 		// Automatically initialize any uninitialized stack variables.
