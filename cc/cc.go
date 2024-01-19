@@ -1744,7 +1744,7 @@ func (ctx *moduleContextImpl) useClangLld(actx ModuleContext) bool {
 }
 
 func (ctx *moduleContextImpl) baseModuleName() string {
-	return ctx.mod.ModuleBase.BaseModuleName()
+	return ctx.mod.BaseModuleName()
 }
 
 func (ctx *moduleContextImpl) getVndkExtendsModuleName() string {
@@ -4171,6 +4171,18 @@ func (c *Module) Partition() string {
 		return p.getPartition()
 	}
 	return ""
+}
+
+type sourceModuleName interface {
+	sourceModuleName() string
+}
+
+func (c *Module) BaseModuleName() string {
+	if smn, ok := c.linker.(sourceModuleName); ok && smn.sourceModuleName() != "" {
+		// if the prebuilt module sets a source_module_name in Android.bp, use that
+		return smn.sourceModuleName()
+	}
+	return c.ModuleBase.BaseModuleName()
 }
 
 var Bool = proptools.Bool
