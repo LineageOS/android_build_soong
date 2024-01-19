@@ -138,7 +138,7 @@ func (a *avbAddHashFooter) GenerateAndroidBuildActions(ctx android.ModuleContext
 		if rollbackIndex < 0 {
 			ctx.PropertyErrorf("rollback_index", "Rollback index must be non-negative")
 		}
-		cmd.Flag(fmt.Sprintf(" --rollback_index %x", rollbackIndex))
+		cmd.Flag(fmt.Sprintf(" --rollback_index %d", rollbackIndex))
 	}
 
 	cmd.FlagWithOutput("--image ", a.output)
