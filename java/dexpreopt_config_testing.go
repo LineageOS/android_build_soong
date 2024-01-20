@@ -523,7 +523,7 @@ func checkArtBootImageConfig(t *testing.T, result *android.TestResult, mutated b
 		},
 	}
 
-	checkBootImageConfig(t, imageConfig, mutated, expected)
+	checkBootImageConfig(t, result, imageConfig, mutated, expected)
 }
 
 // getFrameworkImageConfig gets the framework bootImageConfig that was created during the test.
@@ -904,7 +904,7 @@ func checkFrameworkBootImageConfig(t *testing.T, result *android.TestResult, mut
 		profileLicenseMetadataFile: expectedLicenseMetadataFile,
 	}
 
-	checkBootImageConfig(t, imageConfig, mutated, expected)
+	checkBootImageConfig(t, result, imageConfig, mutated, expected)
 }
 
 // getMainlineImageConfig gets the framework bootImageConfig that was created during the test.
@@ -1183,7 +1183,7 @@ func CheckMainlineBootImageConfig(t *testing.T, result *android.TestResult) {
 		profileLicenseMetadataFile: expectedLicenseMetadataFile,
 	}
 
-	checkBootImageConfig(t, imageConfig, false, expected)
+	checkBootImageConfig(t, result, imageConfig, false, expected)
 }
 
 // clearMutatedFields clears fields in the expectedConfig that correspond to fields in the
@@ -1211,19 +1211,19 @@ func clearMutatedFields(expected *expectedConfig) {
 // zero value so that they will match the unmodified values in the boot image.
 //
 // It runs the checks in an image specific subtest of the current test.
-func checkBootImageConfig(t *testing.T, imageConfig *bootImageConfig, mutated bool, expected *expectedConfig) {
+func checkBootImageConfig(t *testing.T, result *android.TestResult, imageConfig *bootImageConfig, mutated bool, expected *expectedConfig) {
 	if !mutated {
 		clearMutatedFields(expected)
 	}
 
 	t.Run(imageConfig.name, func(t *testing.T) {
-		nestedCheckBootImageConfig(t, imageConfig, expected)
+		nestedCheckBootImageConfig(t, result, imageConfig, mutated, expected)
 	})
 }
 
 // nestedCheckBootImageConfig does the work of comparing the image against the expected values and
 // is run in an image specific subtest.
-func nestedCheckBootImageConfig(t *testing.T, imageConfig *bootImageConfig, expected *expectedConfig) {
+func nestedCheckBootImageConfig(t *testing.T, result *android.TestResult, imageConfig *bootImageConfig, mutated bool, expected *expectedConfig) {
 	android.AssertStringEquals(t, "name", expected.name, imageConfig.name)
 	android.AssertStringEquals(t, "stem", expected.stem, imageConfig.stem)
 	android.AssertPathRelativeToTopEquals(t, "dir", expected.dir, imageConfig.dir)
@@ -1234,8 +1234,13 @@ func nestedCheckBootImageConfig(t *testing.T, imageConfig *bootImageConfig, expe
 	android.AssertPathsRelativeToTopEquals(t, "dexPathsDeps", expected.dexPathsDeps, imageConfig.dexPathsDeps.Paths())
 	// dexPathsByModule is just a different representation of the other information in the config.
 	android.AssertPathRelativeToTopEquals(t, "zip", expected.zip, imageConfig.zip)
-	assertInstallsEqual(t, "profileInstalls", expected.profileInstalls, imageConfig.profileInstalls)
-	android.AssertStringEquals(t, "profileLicenseMetadataFile", expected.profileLicenseMetadataFile, imageConfig.profileLicenseMetadataFile.RelativeToTop().String())
+
+	if !mutated {
+		dexBootJarModule := result.ModuleForTests("dex_bootjars", "android_common")
+		profileInstallInfo, _ := android.SingletonModuleProvider(result, dexBootJarModule.Module(), profileInstallInfoProvider)
+		assertInstallsEqual(t, "profileInstalls", expected.profileInstalls, profileInstallInfo.profileInstalls)
+		android.AssertStringEquals(t, "profileLicenseMetadataFile", expected.profileLicenseMetadataFile, profileInstallInfo.profileLicenseMetadataFile.RelativeToTop().String())
+	}
 
 	android.AssertIntEquals(t, "variant count", 4, len(imageConfig.variants))
 	for i, variant := range imageConfig.variants {

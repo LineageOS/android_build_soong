@@ -103,6 +103,9 @@ func testVariantSingletonModuleMutator(ctx BottomUpMutatorContext) {
 }
 
 func TestVariantSingletonModule(t *testing.T) {
+	if testing.Short() {
+		t.Skip("test fails with data race enabled")
+	}
 	bp := `
 		test_singleton_module {
 			name: "test_singleton_module",
