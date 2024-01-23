@@ -11,6 +11,7 @@ bootstrap_go_package {
         "blueprint-metrics",
         "sbox_proto",
         "soong",
+        "soong-android_team_proto",
         "soong-android-soongconfig",
         "soong-remoteexec",
         "soong-response",
@@ -28,6 +29,7 @@ bootstrap_go_package {
     ],
     srcs: [
         "aconfig_providers.go",
+        "all_teams.go",
         "androidmk.go",
         "apex.go",
         "apex_contributions.go",
@@ -91,6 +93,7 @@ bootstrap_go_package {
         "singleton.go",
         "singleton_module.go",
         "soong_config_modules.go",
+        "team.go",
         "test_asserts.go",
         "test_suites.go",
         "testing.go",

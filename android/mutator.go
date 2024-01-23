@@ -600,6 +600,7 @@ func componentDepsMutator(ctx BottomUpMutatorContext) {
 
 func depsMutator(ctx BottomUpMutatorContext) {
 	if m := ctx.Module(); m.Enabled() {
+		m.base().baseDepsMutator(ctx)
 		m.DepsMutator(ctx)
 	}
 }
