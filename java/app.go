@@ -431,7 +431,7 @@ func (a *AndroidApp) shouldUncompressDex(ctx android.ModuleContext) bool {
 		return false
 	}
 
-	return shouldUncompressDex(ctx, &a.dexpreopter)
+	return shouldUncompressDex(ctx, android.RemoveOptionalPrebuiltPrefix(ctx.ModuleName()), &a.dexpreopter)
 }
 
 func (a *AndroidApp) shouldEmbedJnis(ctx android.BaseModuleContext) bool {
