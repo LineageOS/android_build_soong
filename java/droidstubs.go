@@ -152,6 +152,10 @@ type DroidstubsProperties struct {
 	// API surface of this module. If set, the module contributes to an API surface.
 	// For the full list of available API surfaces, refer to soong/android/sdk_version.go
 	Api_surface *string
+
+	// a list of aconfig_declarations module names that the stubs generated in this module
+	// depend on.
+	Aconfig_declarations []string
 }
 
 // Used by xsd_config

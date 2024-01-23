@@ -571,6 +571,10 @@ type sdkLibraryProperties struct {
 		Enabled *bool
 	}
 
+	// a list of aconfig_declarations module names that the stubs generated in this module
+	// depend on.
+	Aconfig_declarations []string
+
 	// TODO: determines whether to create HTML doc or not
 	// Html_doc *bool
 }
