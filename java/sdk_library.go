@@ -104,9 +104,8 @@ type apiScope struct {
 	// The name of the property in the java_sdk_library_import
 	propertyName string
 
-	// The tag to use to depend on the stubs library module if the parent module
-	// does not differentiate everything and exportable stubs (e.g. sdk_library_import).
-	stubsTag scopeDependencyTag
+	// The tag to use to depend on the prebuilt stubs library module
+	prebuiltStubsTag scopeDependencyTag
 
 	// The tag to use to depend on the everything stubs library module.
 	everythingStubsTag scopeDependencyTag
@@ -174,7 +173,7 @@ func initApiScope(scope *apiScope) *apiScope {
 	allScopeNames = append(allScopeNames, name)
 	scope.propertyName = strings.ReplaceAll(name, "-", "_")
 	scope.fieldName = proptools.FieldNameForProperty(scope.propertyName)
-	scope.stubsTag = scopeDependencyTag{
+	scope.prebuiltStubsTag = scopeDependencyTag{
 		name:             name + "-stubs",
 		apiScope:         scope,
 		depInfoExtractor: (*scopePaths).extractStubsLibraryInfoFromDependency,
@@ -2739,7 +2738,7 @@ func (module *SdkLibraryImport) ComponentDepsMutator(ctx android.BottomUpMutator
 		}
 
 		// Add dependencies to the prebuilt stubs library
-		ctx.AddVariationDependencies(nil, apiScope.stubsTag, android.PrebuiltNameFromSource(module.stubsLibraryModuleName(apiScope)))
+		ctx.AddVariationDependencies(nil, apiScope.prebuiltStubsTag, android.PrebuiltNameFromSource(module.stubsLibraryModuleName(apiScope)))
 
 		if len(scopeProperties.Stub_srcs) > 0 {
 			// Add dependencies to the prebuilt stubs source library
