@@ -587,7 +587,7 @@ func (dstubs *Droidstubs) AndroidMkEntries() []android.AndroidMkEntries {
 		outputFile = android.OptionalPathForPath(dstubs.apiFile)
 	}
 	if !outputFile.Valid() {
-		outputFile = android.OptionalPathForPath(dstubs.apiVersionsXml)
+		outputFile = android.OptionalPathForPath(dstubs.everythingArtifacts.apiVersionsXml)
 	}
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "JAVA_LIBRARIES",
@@ -598,14 +598,14 @@ func (dstubs *Droidstubs) AndroidMkEntries() []android.AndroidMkEntries {
 				if dstubs.Javadoc.stubsSrcJar != nil {
 					entries.SetPath("LOCAL_DROIDDOC_STUBS_SRCJAR", dstubs.Javadoc.stubsSrcJar)
 				}
-				if dstubs.apiVersionsXml != nil {
-					entries.SetPath("LOCAL_DROIDDOC_API_VERSIONS_XML", dstubs.apiVersionsXml)
+				if dstubs.everythingArtifacts.apiVersionsXml != nil {
+					entries.SetPath("LOCAL_DROIDDOC_API_VERSIONS_XML", dstubs.everythingArtifacts.apiVersionsXml)
 				}
-				if dstubs.annotationsZip != nil {
-					entries.SetPath("LOCAL_DROIDDOC_ANNOTATIONS_ZIP", dstubs.annotationsZip)
+				if dstubs.everythingArtifacts.annotationsZip != nil {
+					entries.SetPath("LOCAL_DROIDDOC_ANNOTATIONS_ZIP", dstubs.everythingArtifacts.annotationsZip)
 				}
-				if dstubs.metadataZip != nil {
-					entries.SetPath("LOCAL_DROIDDOC_METADATA_ZIP", dstubs.metadataZip)
+				if dstubs.everythingArtifacts.metadataZip != nil {
+					entries.SetPath("LOCAL_DROIDDOC_METADATA_ZIP", dstubs.everythingArtifacts.metadataZip)
 				}
 			},
 		},
