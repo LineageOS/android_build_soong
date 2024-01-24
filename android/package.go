@@ -35,6 +35,7 @@ type packageProperties struct {
 	Default_visibility []string
 	// Specifies the default license terms for all modules defined in this package.
 	Default_applicable_licenses []string
+	Default_team                *string `android:"path"`
 }
 
 type packageModule struct {
@@ -45,6 +46,13 @@ type packageModule struct {
 
 func (p *packageModule) GenerateAndroidBuildActions(ModuleContext) {
 	// Nothing to do.
+}
+
+func (p *packageModule) DepsMutator(ctx BottomUpMutatorContext) {
+	// Add the dependency to do a validity check
+	if p.properties.Default_team != nil {
+		ctx.AddDependency(ctx.Module(), nil, *p.properties.Default_team)
+	}
 }
 
 func (p *packageModule) GenerateBuildActions(ctx blueprint.ModuleContext) {
