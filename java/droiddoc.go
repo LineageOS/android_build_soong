@@ -182,6 +182,17 @@ func InitDroiddocModule(module android.DefaultableModule, hod android.HostOrDevi
 
 func apiCheckEnabled(ctx android.ModuleContext, apiToCheck ApiToCheck, apiVersionTag string) bool {
 	if ctx.Config().IsEnvTrue("WITHOUT_CHECK_API") {
+		if ctx.Config().BuildFromTextStub() {
+			ctx.ModuleErrorf("Generating stubs from api signature files is not available " +
+				"with WITHOUT_CHECK_API=true, as sync between the source Java files and the " +
+				"api signature files is not guaranteed.\n" +
+				"In order to utilize WITHOUT_CHECK_API, generate stubs from the source Java " +
+				"files with BUILD_FROM_SOURCE_STUB=true.\n" +
+				"However, the usage of WITHOUT_CHECK_API is not preferred as the incremental " +
+				"build is slower when generating stubs from the source Java files.\n" +
+				"Consider updating the api signature files and generating the stubs from " +
+				"them instead.")
+		}
 		return false
 	} else if String(apiToCheck.Api_file) != "" && String(apiToCheck.Removed_api_file) != "" {
 		return true
