@@ -365,15 +365,21 @@ func (x *registerMutatorsContext) BottomUpBlueprint(name string, m blueprint.Bot
 }
 
 type IncomingTransitionContext interface {
+	ArchModuleContext
+
 	// Module returns the target of the dependency edge for which the transition
 	// is being computed
 	Module() Module
 
 	// Config returns the configuration for the build.
 	Config() Config
+
+	DeviceConfig() DeviceConfig
 }
 
 type OutgoingTransitionContext interface {
+	ArchModuleContext
+
 	// Module returns the target of the dependency edge for which the transition
 	// is being computed
 	Module() Module
@@ -381,9 +387,14 @@ type OutgoingTransitionContext interface {
 	// DepTag() Returns the dependency tag through which this dependency is
 	// reached
 	DepTag() blueprint.DependencyTag
+
+	// Config returns the configuration for the build.
+	Config() Config
+
+	DeviceConfig() DeviceConfig
 }
 
-// Transition mutators implement a top-down mechanism where a module tells its
+// TransitionMutator implements a top-down mechanism where a module tells its
 // direct dependencies what variation they should be built in but the dependency
 // has the final say.
 //
@@ -448,18 +459,18 @@ type TransitionMutator interface {
 	// called on.
 	Split(ctx BaseModuleContext) []string
 
-	// Called on a module to determine which variation it wants from its direct
-	// dependencies. The dependency itself can override this decision. This method
-	// should not mutate the module itself.
+	// OutgoingTransition is called on a module to determine which variation it wants
+	// from its direct dependencies. The dependency itself can override this decision.
+	// This method should not mutate the module itself.
 	OutgoingTransition(ctx OutgoingTransitionContext, sourceVariation string) string
 
-	// Called on a module to determine which variation it should be in based on
-	// the variation modules that depend on it want. This gives the module a final
-	// say about its own variations. This method should not mutate the module
+	// IncomingTransition is called on a module to determine which variation it should
+	// be in based on the variation modules that depend on it want. This gives the module
+	// a final say about its own variations. This method should not mutate the module
 	// itself.
 	IncomingTransition(ctx IncomingTransitionContext, incomingVariation string) string
 
-	// Called after a module was split into multiple variations on each variation.
+	// Mutate is called after a module was split into multiple variations on each variation.
 	// It should not split the module any further but adding new dependencies is
 	// fine. Unlike all the other methods on TransitionMutator, this method is
 	// allowed to mutate the module.
@@ -481,6 +492,7 @@ func (a *androidTransitionMutator) Split(ctx blueprint.BaseModuleContext) []stri
 }
 
 type outgoingTransitionContextImpl struct {
+	archModuleContext
 	bp blueprint.OutgoingTransitionContext
 }
 
@@ -492,15 +504,28 @@ func (c *outgoingTransitionContextImpl) DepTag() blueprint.DependencyTag {
 	return c.bp.DepTag()
 }
 
-func (a *androidTransitionMutator) OutgoingTransition(ctx blueprint.OutgoingTransitionContext, sourceVariation string) string {
-	if _, ok := ctx.Module().(Module); ok {
-		return a.mutator.OutgoingTransition(&outgoingTransitionContextImpl{bp: ctx}, sourceVariation)
+func (c *outgoingTransitionContextImpl) Config() Config {
+	return c.bp.Config().(Config)
+}
+
+func (c *outgoingTransitionContextImpl) DeviceConfig() DeviceConfig {
+	return DeviceConfig{c.bp.Config().(Config).deviceConfig}
+}
+
+func (a *androidTransitionMutator) OutgoingTransition(bpctx blueprint.OutgoingTransitionContext, sourceVariation string) string {
+	if m, ok := bpctx.Module().(Module); ok {
+		ctx := &outgoingTransitionContextImpl{
+			archModuleContext: m.base().archModuleContextFactory(bpctx),
+			bp:                bpctx,
+		}
+		return a.mutator.OutgoingTransition(ctx, sourceVariation)
 	} else {
 		return ""
 	}
 }
 
 type incomingTransitionContextImpl struct {
+	archModuleContext
 	bp blueprint.IncomingTransitionContext
 }
 
@@ -512,9 +537,17 @@ func (c *incomingTransitionContextImpl) Config() Config {
 	return c.bp.Config().(Config)
 }
 
-func (a *androidTransitionMutator) IncomingTransition(ctx blueprint.IncomingTransitionContext, incomingVariation string) string {
-	if _, ok := ctx.Module().(Module); ok {
-		return a.mutator.IncomingTransition(&incomingTransitionContextImpl{bp: ctx}, incomingVariation)
+func (c *incomingTransitionContextImpl) DeviceConfig() DeviceConfig {
+	return DeviceConfig{c.bp.Config().(Config).deviceConfig}
+}
+
+func (a *androidTransitionMutator) IncomingTransition(bpctx blueprint.IncomingTransitionContext, incomingVariation string) string {
+	if m, ok := bpctx.Module().(Module); ok {
+		ctx := &incomingTransitionContextImpl{
+			archModuleContext: m.base().archModuleContextFactory(bpctx),
+			bp:                bpctx,
+		}
+		return a.mutator.IncomingTransition(ctx, incomingVariation)
 	} else {
 		return ""
 	}
