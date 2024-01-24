@@ -55,7 +55,6 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 		ctx.BottomUp("test_per_src", TestPerSrcMutator).Parallel()
 		ctx.BottomUp("version", versionMutator).Parallel()
 		ctx.BottomUp("begin", BeginMutator).Parallel()
-		ctx.BottomUp("fdo_profile", fdoProfileMutator).Parallel()
 	})
 
 	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
@@ -1382,7 +1381,7 @@ func (c *Module) IsVndk() bool {
 
 func (c *Module) isAfdoCompile() bool {
 	if afdo := c.afdo; afdo != nil {
-		return afdo.Properties.FdoProfilePath != nil
+		return afdo.Properties.Afdo || afdo.Properties.AfdoDep
 	}
 	return false
 }

@@ -21,7 +21,6 @@ import (
 	"android/soong/android"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/proptools"
 )
 
 // This flag needs to be in both CFlags and LdFlags to ensure correct symbol ordering
@@ -32,7 +31,7 @@ type AfdoProperties struct {
 	// automatic feedback-directed optimization using profile data.
 	Afdo bool
 
-	FdoProfilePath *string `blueprint:"mutated"`
+	AfdoDep bool `blueprint:"mutated"`
 }
 
 type afdo struct {
@@ -57,7 +56,7 @@ func (afdo *afdo) afdoEnabled() bool {
 }
 
 func (afdo *afdo) flags(ctx ModuleContext, flags Flags) Flags {
-	if afdo.Properties.Afdo {
+	if afdo.Properties.Afdo || afdo.Properties.AfdoDep {
 		// We use `-funique-internal-linkage-names` to associate profiles to the right internal
 		// functions. This option should be used before generating a profile. Because a profile
 		// generated for a binary without unique names doesn't work well building a binary with
@@ -75,60 +74,38 @@ func (afdo *afdo) flags(ctx ModuleContext, flags Flags) Flags {
 		// TODO(b/266595187): Remove the following feature once it is enabled in LLVM by default.
 		flags.Local.CFlags = append([]string{"-mllvm", "-improved-fs-discriminator=true"}, flags.Local.CFlags...)
 	}
-	if path := afdo.Properties.FdoProfilePath; path != nil {
-		// The flags are prepended to allow overriding.
-		profileUseFlag := fmt.Sprintf(afdoFlagsFormat, *path)
-		flags.Local.CFlags = append([]string{profileUseFlag}, flags.Local.CFlags...)
-		flags.Local.LdFlags = append([]string{profileUseFlag, "-Wl,-mllvm,-no-warn-sample-unused=true"}, flags.Local.LdFlags...)
+	fdoProfileDeps := ctx.GetDirectDepsWithTag(FdoProfileTag)
+	if len(fdoProfileDeps) > 0 && fdoProfileDeps[0] != nil {
+		if info, ok := android.OtherModuleProvider(ctx, fdoProfileDeps[0], FdoProfileProvider); ok {
+			fdoProfilePath := info.Path.String()
 
-		// Update CFlagsDeps and LdFlagsDeps so the module is rebuilt
-		// if profileFile gets updated
-		pathForSrc := android.PathForSource(ctx, *path)
-		flags.CFlagsDeps = append(flags.CFlagsDeps, pathForSrc)
-		flags.LdFlagsDeps = append(flags.LdFlagsDeps, pathForSrc)
+			// The flags are prepended to allow overriding.
+			profileUseFlag := fmt.Sprintf(afdoFlagsFormat, fdoProfilePath)
+			flags.Local.CFlags = append([]string{profileUseFlag}, flags.Local.CFlags...)
+			flags.Local.LdFlags = append([]string{profileUseFlag, "-Wl,-mllvm,-no-warn-sample-unused=true"}, flags.Local.LdFlags...)
+
+			// Update CFlagsDeps and LdFlagsDeps so the module is rebuilt
+			// if profileFile gets updated
+			pathForSrc := android.PathForSource(ctx, fdoProfilePath)
+			flags.CFlagsDeps = append(flags.CFlagsDeps, pathForSrc)
+			flags.LdFlagsDeps = append(flags.LdFlagsDeps, pathForSrc)
+		}
 	}
 
 	return flags
 }
 
-// FdoProfileMutator reads the FdoProfileProvider from a direct dep with FdoProfileTag
-// assigns FdoProfileInfo.Path to the FdoProfilePath mutated property
-func (c *Module) fdoProfileMutator(ctx android.BottomUpMutatorContext) {
-	if !c.Enabled() {
-		return
-	}
-
-	if !c.afdo.afdoEnabled() {
-		return
-	}
-
-	if c.Host() {
-		return
-	}
-
-	if c.static() && !c.staticBinary() {
-		return
-	}
-
-	if c, ok := ctx.Module().(*Module); ok && c.Enabled() {
-		if fdoProfileName, err := ctx.DeviceConfig().AfdoProfile(ctx.ModuleName()); fdoProfileName != "" && err == nil {
-			deps := ctx.AddFarVariationDependencies(
-				[]blueprint.Variation{
-					{Mutator: "arch", Variation: ctx.Target().ArchVariation()},
-					{Mutator: "os", Variation: "android"},
-				},
-				FdoProfileTag,
-				fdoProfileName)
-			if len(deps) > 0 && deps[0] != nil {
-				if info, ok := android.OtherModuleProvider(ctx, deps[0], FdoProfileProvider); ok {
-					c.afdo.Properties.FdoProfilePath = proptools.StringPtr(info.Path.String())
-				}
-			}
-		}
+func (a *afdo) addDep(ctx android.BottomUpMutatorContext, fdoProfileTarget string) {
+	if fdoProfileName, err := ctx.DeviceConfig().AfdoProfile(fdoProfileTarget); fdoProfileName != "" && err == nil {
+		ctx.AddFarVariationDependencies(
+			[]blueprint.Variation{
+				{Mutator: "arch", Variation: ctx.Target().ArchVariation()},
+				{Mutator: "os", Variation: "android"},
+			},
+			FdoProfileTag,
+			fdoProfileName)
 	}
 }
-
-var _ FdoProfileMutatorInterface = (*Module)(nil)
 
 func afdoPropagateViaDepTag(tag blueprint.DependencyTag) bool {
 	libTag, isLibTag := tag.(libraryDependencyTag)
@@ -172,27 +149,16 @@ func (a *afdoTransitionMutator) IncomingTransition(ctx android.IncomingTransitio
 }
 
 func (a *afdoTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, variation string) {
-	if variation == "" {
-		return
-	}
-
 	if m, ok := ctx.Module().(*Module); ok && m.afdo != nil {
-		m.Properties.PreventInstall = true
-		m.Properties.HideFromMake = true
-		m.afdo.Properties.Afdo = true
-		if fdoProfileName, err := ctx.DeviceConfig().AfdoProfile(decodeTarget(variation)); fdoProfileName != "" && err == nil {
-			deps := ctx.AddFarVariationDependencies(
-				[]blueprint.Variation{
-					{Mutator: "arch", Variation: ctx.Target().ArchVariation()},
-					{Mutator: "os", Variation: "android"},
-				},
-				FdoProfileTag,
-				fdoProfileName)
-			if len(deps) > 0 && deps[0] != nil {
-				if info, ok := android.OtherModuleProvider(ctx, deps[0], FdoProfileProvider); ok {
-					m.afdo.Properties.FdoProfilePath = proptools.StringPtr(info.Path.String())
-				}
+		if variation == "" {
+			if m.afdo.afdoEnabled() && !(m.static() && !m.staticBinary()) && !m.Host() {
+				m.afdo.addDep(ctx, ctx.ModuleName())
 			}
+		} else {
+			m.Properties.PreventInstall = true
+			m.Properties.HideFromMake = true
+			m.afdo.Properties.AfdoDep = true
+			m.afdo.addDep(ctx, decodeTarget(variation))
 		}
 	}
 }
