@@ -1194,7 +1194,8 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			`either of the two choices above and try re-building the target.\n`+
 			`If the mismatch between the stubs and the current.txt is intended,\n`+
 			`you can try re-building the target by executing the following command:\n`+
-			`m DISABLE_STUB_VALIDATION=true <your build target>\n`+
+			`m DISABLE_STUB_VALIDATION=true <your build target>.\n`+
+			`Note that DISABLE_STUB_VALIDATION=true does not bypass checkapi.\n`+
 			`******************************\n`, ctx.ModuleName())
 
 		rule.Command().
