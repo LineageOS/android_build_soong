@@ -949,7 +949,7 @@ func (b *bootclasspathFragmentSdkMemberProperties) AddToPropertySet(ctx android.
 					builder.CopyToSnapshot(p, dest)
 					dests = append(dests, dest)
 				}
-				hiddenAPISet.AddProperty(category.PropertyName, dests)
+				hiddenAPISet.AddProperty(category.PropertyName(), dests)
 			}
 		}
 	}

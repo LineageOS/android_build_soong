@@ -435,122 +435,118 @@ type HiddenAPIFlagFileProperties struct {
 	}
 }
 
-type hiddenAPIFlagFileCategory struct {
-	// PropertyName is the name of the property for this category.
-	PropertyName string
+type hiddenAPIFlagFileCategory int
 
-	// propertyValueReader retrieves the value of the property for this category from the set of
-	// properties.
-	propertyValueReader func(properties *HiddenAPIFlagFileProperties) []string
+const (
+	// The flag file category for removed members of the API.
+	//
+	// This is extracted from HiddenAPIFlagFileCategories as it is needed to add the dex signatures
+	// list of removed API members that are generated automatically from the removed.txt files provided
+	// by API stubs.
+	hiddenAPIFlagFileCategoryRemoved hiddenAPIFlagFileCategory = iota
+	hiddenAPIFlagFileCategoryUnsupported
+	hiddenAPIFlagFileCategoryMaxTargetRLowPriority
+	hiddenAPIFlagFileCategoryMaxTargetQ
+	hiddenAPIFlagFileCategoryMaxTargetP
+	hiddenAPIFlagFileCategoryMaxTargetOLowPriority
+	hiddenAPIFlagFileCategoryBlocked
+	hiddenAPIFlagFileCategoryUnsupportedPackages
+)
 
-	// commandMutator adds the appropriate command line options for this category to the supplied
-	// command
-	commandMutator func(command *android.RuleBuilderCommand, path android.Path)
-}
-
-// The flag file category for removed members of the API.
-//
-// This is extracted from HiddenAPIFlagFileCategories as it is needed to add the dex signatures
-// list of removed API members that are generated automatically from the removed.txt files provided
-// by API stubs.
-var hiddenAPIRemovedFlagFileCategory = &hiddenAPIFlagFileCategory{
-	// See HiddenAPIFlagFileProperties.Removed
-	PropertyName: "removed",
-	propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-		return properties.Hidden_api.Removed
-	},
-	commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
-		command.FlagWithInput("--unsupported ", path).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "removed")
-	},
-}
-
-type hiddenAPIFlagFileCategories []*hiddenAPIFlagFileCategory
-
-func (c hiddenAPIFlagFileCategories) byProperty(name string) *hiddenAPIFlagFileCategory {
-	for _, category := range c {
-		if category.PropertyName == name {
-			return category
-		}
+func (c hiddenAPIFlagFileCategory) PropertyName() string {
+	switch c {
+	case hiddenAPIFlagFileCategoryRemoved:
+		return "removed"
+	case hiddenAPIFlagFileCategoryUnsupported:
+		return "unsupported"
+	case hiddenAPIFlagFileCategoryMaxTargetRLowPriority:
+		return "max_target_r_low_priority"
+	case hiddenAPIFlagFileCategoryMaxTargetQ:
+		return "max_target_q"
+	case hiddenAPIFlagFileCategoryMaxTargetP:
+		return "max_target_p"
+	case hiddenAPIFlagFileCategoryMaxTargetOLowPriority:
+		return "max_target_o_low_priority"
+	case hiddenAPIFlagFileCategoryBlocked:
+		return "blocked"
+	case hiddenAPIFlagFileCategoryUnsupportedPackages:
+		return "unsupported_packages"
+	default:
+		panic(fmt.Sprintf("Unknown hidden api flag file category type: %d", c))
 	}
-	panic(fmt.Errorf("no category exists with property name %q in %v", name, c))
 }
+
+// propertyValueReader retrieves the value of the property for this category from the set of properties.
+func (c hiddenAPIFlagFileCategory) propertyValueReader(properties *HiddenAPIFlagFileProperties) []string {
+	switch c {
+	case hiddenAPIFlagFileCategoryRemoved:
+		return properties.Hidden_api.Removed
+	case hiddenAPIFlagFileCategoryUnsupported:
+		return properties.Hidden_api.Unsupported
+	case hiddenAPIFlagFileCategoryMaxTargetRLowPriority:
+		return properties.Hidden_api.Max_target_r_low_priority
+	case hiddenAPIFlagFileCategoryMaxTargetQ:
+		return properties.Hidden_api.Max_target_q
+	case hiddenAPIFlagFileCategoryMaxTargetP:
+		return properties.Hidden_api.Max_target_p
+	case hiddenAPIFlagFileCategoryMaxTargetOLowPriority:
+		return properties.Hidden_api.Max_target_o_low_priority
+	case hiddenAPIFlagFileCategoryBlocked:
+		return properties.Hidden_api.Blocked
+	case hiddenAPIFlagFileCategoryUnsupportedPackages:
+		return properties.Hidden_api.Unsupported_packages
+	default:
+		panic(fmt.Sprintf("Unknown hidden api flag file category type: %d", c))
+	}
+}
+
+// commandMutator adds the appropriate command line options for this category to the supplied command
+func (c hiddenAPIFlagFileCategory) commandMutator(command *android.RuleBuilderCommand, path android.Path) {
+	switch c {
+	case hiddenAPIFlagFileCategoryRemoved:
+		command.FlagWithInput("--unsupported ", path).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "removed")
+	case hiddenAPIFlagFileCategoryUnsupported:
+		command.FlagWithInput("--unsupported ", path)
+	case hiddenAPIFlagFileCategoryMaxTargetRLowPriority:
+		command.FlagWithInput("--max-target-r ", path).FlagWithArg("--tag ", "lo-prio")
+	case hiddenAPIFlagFileCategoryMaxTargetQ:
+		command.FlagWithInput("--max-target-q ", path)
+	case hiddenAPIFlagFileCategoryMaxTargetP:
+		command.FlagWithInput("--max-target-p ", path)
+	case hiddenAPIFlagFileCategoryMaxTargetOLowPriority:
+		command.FlagWithInput("--max-target-o ", path).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "lo-prio")
+	case hiddenAPIFlagFileCategoryBlocked:
+		command.FlagWithInput("--blocked ", path)
+	case hiddenAPIFlagFileCategoryUnsupportedPackages:
+		command.FlagWithInput("--unsupported ", path).Flag("--packages ")
+	default:
+		panic(fmt.Sprintf("Unknown hidden api flag file category type: %d", c))
+	}
+}
+
+type hiddenAPIFlagFileCategories []hiddenAPIFlagFileCategory
 
 var HiddenAPIFlagFileCategories = hiddenAPIFlagFileCategories{
 	// See HiddenAPIFlagFileProperties.Unsupported
-	{
-		PropertyName: "unsupported",
-		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Hidden_api.Unsupported
-		},
-		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
-			command.FlagWithInput("--unsupported ", path)
-		},
-	},
-	hiddenAPIRemovedFlagFileCategory,
+	hiddenAPIFlagFileCategoryUnsupported,
+	// See HiddenAPIFlagFileProperties.Removed
+	hiddenAPIFlagFileCategoryRemoved,
 	// See HiddenAPIFlagFileProperties.Max_target_r_low_priority
-	{
-		PropertyName: "max_target_r_low_priority",
-		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Hidden_api.Max_target_r_low_priority
-		},
-		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
-			command.FlagWithInput("--max-target-r ", path).FlagWithArg("--tag ", "lo-prio")
-		},
-	},
+	hiddenAPIFlagFileCategoryMaxTargetRLowPriority,
 	// See HiddenAPIFlagFileProperties.Max_target_q
-	{
-		PropertyName: "max_target_q",
-		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Hidden_api.Max_target_q
-		},
-		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
-			command.FlagWithInput("--max-target-q ", path)
-		},
-	},
+	hiddenAPIFlagFileCategoryMaxTargetQ,
 	// See HiddenAPIFlagFileProperties.Max_target_p
-	{
-		PropertyName: "max_target_p",
-		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Hidden_api.Max_target_p
-		},
-		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
-			command.FlagWithInput("--max-target-p ", path)
-		},
-	},
+	hiddenAPIFlagFileCategoryMaxTargetP,
 	// See HiddenAPIFlagFileProperties.Max_target_o_low_priority
-	{
-		PropertyName: "max_target_o_low_priority",
-		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Hidden_api.Max_target_o_low_priority
-		},
-		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
-			command.FlagWithInput("--max-target-o ", path).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "lo-prio")
-		},
-	},
+	hiddenAPIFlagFileCategoryMaxTargetOLowPriority,
 	// See HiddenAPIFlagFileProperties.Blocked
-	{
-		PropertyName: "blocked",
-		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Hidden_api.Blocked
-		},
-		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
-			command.FlagWithInput("--blocked ", path)
-		},
-	},
+	hiddenAPIFlagFileCategoryBlocked,
 	// See HiddenAPIFlagFileProperties.Unsupported_packages
-	{
-		PropertyName: "unsupported_packages",
-		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Hidden_api.Unsupported_packages
-		},
-		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
-			command.FlagWithInput("--unsupported ", path).Flag("--packages ")
-		},
-	},
+	hiddenAPIFlagFileCategoryUnsupportedPackages,
 }
 
 // FlagFilesByCategory maps a hiddenAPIFlagFileCategory to the paths to the files in that category.
-type FlagFilesByCategory map[*hiddenAPIFlagFileCategory]android.Paths
+type FlagFilesByCategory map[hiddenAPIFlagFileCategory]android.Paths
 
 // append the supplied flags files to the corresponding category in this map.
 func (s FlagFilesByCategory) append(other FlagFilesByCategory) {
@@ -1014,7 +1010,7 @@ func buildRuleToGenerateHiddenApiFlags(ctx android.BuilderContext, name, desc st
 	// If available then pass the automatically generated file containing dex signatures of removed
 	// API members to the rule so they can be marked as removed.
 	if generatedRemovedDexSignatures.Valid() {
-		hiddenAPIRemovedFlagFileCategory.commandMutator(command, generatedRemovedDexSignatures.Path())
+		hiddenAPIFlagFileCategoryRemoved.commandMutator(command, generatedRemovedDexSignatures.Path())
 	}
 
 	commitChangeForRestat(rule, tempPath, outputPath)
