@@ -1105,6 +1105,10 @@ func (module *PrebuiltBootclasspathFragmentModule) RequiredFilesFromPrebuiltApex
 	return nil
 }
 
+func (module *PrebuiltBootclasspathFragmentModule) UseProfileGuidedDexpreopt() bool {
+	return false
+}
+
 var _ android.RequiredFilesFromPrebuiltApex = (*PrebuiltBootclasspathFragmentModule)(nil)
 
 func prebuiltBootclasspathFragmentFactory() android.Module {

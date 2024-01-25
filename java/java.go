@@ -2453,6 +2453,10 @@ func (j *Import) RequiredFilesFromPrebuiltApex(_ android.BaseModuleContext) []st
 	return requiredFilesFromPrebuiltApexForImport(name, &j.dexpreopter)
 }
 
+func (j *Import) UseProfileGuidedDexpreopt() bool {
+	return proptools.Bool(j.importDexpreoptProperties.Dex_preopt.Profile_guided)
+}
+
 // Add compile time check for interface implementation
 var _ android.IDEInfo = (*Import)(nil)
 var _ android.IDECustomizedModuleName = (*Import)(nil)

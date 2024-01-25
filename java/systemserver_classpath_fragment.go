@@ -313,6 +313,10 @@ func (module *prebuiltSystemServerClasspathModule) RequiredFilesFromPrebuiltApex
 	return nil
 }
 
+func (module *prebuiltSystemServerClasspathModule) UseProfileGuidedDexpreopt() bool {
+	return false
+}
+
 var _ android.RequiredFilesFromPrebuiltApex = (*prebuiltSystemServerClasspathModule)(nil)
 
 func prebuiltSystemServerClasspathModuleFactory() android.Module {
