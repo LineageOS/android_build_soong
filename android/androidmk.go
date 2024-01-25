@@ -859,6 +859,7 @@ func translateAndroidModule(ctx SingletonContext, w io.Writer, moduleInfoJSONs *
 	}
 
 	data.fillInData(ctx, mod)
+	aconfigUpdateAndroidMkData(ctx, mod.(Module), &data)
 
 	prefix := ""
 	if amod.ArchSpecific() {
@@ -943,6 +944,7 @@ func translateAndroidMkEntriesModule(ctx SingletonContext, w io.Writer, moduleIn
 	}
 
 	entriesList := provider.AndroidMkEntries()
+	aconfigUpdateAndroidMkEntries(ctx, mod.(Module), &entriesList)
 
 	// Any new or special cases here need review to verify correct propagation of license information.
 	for _, entries := range entriesList {
