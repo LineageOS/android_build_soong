@@ -1627,6 +1627,9 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 
 			// Dexpreopting
 			j.dexpreopt(ctx, dexOutputFile)
+			if !j.IsHideFromMake() {
+				dexpreopt.CopySystemServerJarsToPredefinedLocations(ctx, j.Name(), dexOutputFile)
+			}
 
 			outputFile = dexOutputFile
 		} else {
