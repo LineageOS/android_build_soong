@@ -155,7 +155,7 @@ func TestPlatformBootclasspath_Fragments(t *testing.T) {
 	info, _ := android.SingletonModuleProvider(result, pbcp, java.MonolithicHiddenAPIInfoProvider)
 
 	for _, category := range java.HiddenAPIFlagFileCategories {
-		name := category.PropertyName
+		name := category.PropertyName()
 		message := fmt.Sprintf("category %s", name)
 		filename := strings.ReplaceAll(name, "_", "-")
 		expected := []string{fmt.Sprintf("%s.txt", filename), fmt.Sprintf("bar-%s.txt", filename)}
