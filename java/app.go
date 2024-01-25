@@ -588,7 +588,7 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) (android.Path, a
 		var extraSrcJars android.Paths
 		var extraClasspathJars android.Paths
 		var extraCombinedJars android.Paths
-		if a.useResourceProcessorBusyBox() {
+		if a.useResourceProcessorBusyBox(ctx) {
 			// When building an app with ResourceProcessorBusyBox enabled ResourceProcessorBusyBox has already
 			// created R.class files that provide IDs for resources in busybox/R.jar.  Pass that file in the
 			// classpath when compiling everything else, and add it to the final classes jar.
