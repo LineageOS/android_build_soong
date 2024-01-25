@@ -345,6 +345,10 @@ func (m *syspropLibrary) AndroidMk() android.AndroidMkData {
 			fmt.Fprintln(w, "LOCAL_MODULE :=", m.Name())
 			fmt.Fprintf(w, "LOCAL_MODULE_CLASS := FAKE\n")
 			fmt.Fprintf(w, "LOCAL_MODULE_TAGS := optional\n")
+			// AconfigUpdateAndroidMkData may have added elements to Extra.  Process them here.
+			for _, extra := range data.Extra {
+				extra(w, nil)
+			}
 			fmt.Fprintf(w, "include $(BUILD_SYSTEM)/base_rules.mk\n\n")
 			fmt.Fprintf(w, "$(LOCAL_BUILT_MODULE): %s\n", m.checkApiFileTimeStamp.String())
 			fmt.Fprintf(w, "\ttouch $@\n\n")
