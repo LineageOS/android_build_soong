@@ -535,7 +535,7 @@ func (mod *Module) isCoverageVariant() bool {
 
 var _ cc.Coverage = (*Module)(nil)
 
-func (mod *Module) IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool {
+func (mod *Module) IsNativeCoverageNeeded(ctx android.IncomingTransitionContext) bool {
 	return mod.coverage != nil && mod.coverage.Properties.NeedCoverageVariant
 }
 
