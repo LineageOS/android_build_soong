@@ -1418,7 +1418,7 @@ func (a *apexBundle) TaggedOutputs() map[string]android.Paths {
 var _ cc.Coverage = (*apexBundle)(nil)
 
 // Implements cc.Coverage
-func (a *apexBundle) IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool {
+func (a *apexBundle) IsNativeCoverageNeeded(ctx android.IncomingTransitionContext) bool {
 	return ctx.DeviceConfig().NativeCoverageEnabled()
 }
 

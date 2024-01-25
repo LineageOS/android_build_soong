@@ -68,7 +68,7 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 
 		ctx.TopDown("fuzz_deps", fuzzMutatorDeps)
 
-		ctx.BottomUp("coverage", coverageMutator).Parallel()
+		ctx.Transition("coverage", &coverageTransitionMutator{})
 
 		ctx.TopDown("afdo_deps", afdoDepsMutator)
 		ctx.BottomUp("afdo", afdoMutator).Parallel()
