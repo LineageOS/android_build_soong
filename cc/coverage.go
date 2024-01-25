@@ -22,6 +22,29 @@ import (
 	"android/soong/android"
 )
 
+var (
+ 	clangCoverageHostLdFlags = []string{
+ 		"-Wl,--no-as-needed",
+ 		"-Wl,--wrap,open",
+ 	}
+ 	clangContinuousCoverageFlags = []string{
+ 		"-mllvm",
+ 		"-runtime-counter-relocation",
+ 	}
+ 	clangCoverageCFlags = []string{
+ 		"-Wno-frame-larger-than=",
+ 	}
+ 	clangCoverageCommonFlags = []string{
+ 		"-fcoverage-mapping",
+ 		"-Wno-pass-failed",
+ 		"-D__ANDROID_CLANG_COVERAGE__",
+ 	}
+ 	clangCoverageHWASanFlags = []string{
+ 		"-mllvm",
+ 		"-hwasan-globals=0",
+ 	}
+)
+
 const profileInstrFlag = "-fprofile-instr-generate=/data/misc/trace/clang-%p-%m.profraw"
 
 type CoverageProperties struct {
@@ -102,19 +125,19 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 			// flags that the module may use.
 			flags.Local.CFlags = append(flags.Local.CFlags, "-Wno-frame-larger-than=", "-O0")
 		} else if clangCoverage {
-			flags.Local.CommonFlags = append(flags.Local.CommonFlags, profileInstrFlag,
-				"-fcoverage-mapping", "-Wno-pass-failed", "-D__ANDROID_CLANG_COVERAGE__")
+			flags.Local.CommonFlags = append(flags.Local.CommonFlags, profileInstrFlag)
+			flags.Local.CommonFlags = append(flags.Local.CommonFlags, clangCoverageCommonFlags...)
 			// Override -Wframe-larger-than.  We can expect frame size increase after
 			// coverage instrumentation.
-			flags.Local.CFlags = append(flags.Local.CFlags, "-Wno-frame-larger-than=")
+			flags.Local.CFlags = append(flags.Local.CFlags, clangCoverageCFlags...)
 			if EnableContinuousCoverage(ctx) {
-				flags.Local.CommonFlags = append(flags.Local.CommonFlags, "-mllvm", "-runtime-counter-relocation")
+				flags.Local.CommonFlags = append(flags.Local.CommonFlags, clangContinuousCoverageFlags...)
 			}
 
 			// http://b/248022906, http://b/247941801  enabling coverage and hwasan-globals
 			// instrumentation together causes duplicate-symbol errors for __llvm_profile_filename.
 			if c, ok := ctx.Module().(*Module); ok && c.sanitize.isSanitizerEnabled(Hwasan) {
-				flags.Local.CommonFlags = append(flags.Local.CommonFlags, "-mllvm", "-hwasan-globals=0")
+				flags.Local.CommonFlags = append(flags.Local.CommonFlags, clangCoverageHWASanFlags...)
 			}
 		}
 	}
