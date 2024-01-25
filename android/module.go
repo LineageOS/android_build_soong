@@ -1641,12 +1641,29 @@ func (m *ModuleBase) earlyModuleContextFactory(ctx blueprint.EarlyModuleContext)
 func (m *ModuleBase) baseModuleContextFactory(ctx blueprint.BaseModuleContext) baseModuleContext {
 	return baseModuleContext{
 		bp:                 ctx,
+		archModuleContext:  m.archModuleContextFactory(ctx),
 		earlyModuleContext: m.earlyModuleContextFactory(ctx),
-		os:                 m.commonProperties.CompileOS,
-		target:             m.commonProperties.CompileTarget,
-		targetPrimary:      m.commonProperties.CompilePrimary,
-		multiTargets:       m.commonProperties.CompileMultiTargets,
 	}
+}
+
+func (m *ModuleBase) archModuleContextFactory(ctx blueprint.IncomingTransitionContext) archModuleContext {
+	config := ctx.Config().(Config)
+	target := m.Target()
+	primaryArch := false
+	if len(config.Targets[target.Os]) <= 1 {
+		primaryArch = true
+	} else {
+		primaryArch = target.Arch.ArchType == config.Targets[target.Os][0].Arch.ArchType
+	}
+
+	return archModuleContext{
+		os:            m.commonProperties.CompileOS,
+		target:        m.commonProperties.CompileTarget,
+		targetPrimary: m.commonProperties.CompilePrimary,
+		multiTargets:  m.commonProperties.CompileMultiTargets,
+		primaryArch:   primaryArch,
+	}
+
 }
 
 func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) {
