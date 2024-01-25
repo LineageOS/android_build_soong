@@ -467,10 +467,10 @@ func TestSnapshotWithBootclasspathFragment_HiddenAPI(t *testing.T) {
 	android.AssertArrayString(t, "single packages", []string{"newlibrary.mine"}, info.SinglePackages)
 	for _, c := range HiddenAPIFlagFileCategories {
 		expectedMaxTargetQPaths := []string(nil)
-		if c.PropertyName == "max_target_q" {
+		if c.PropertyName() == "max_target_q" {
 			expectedMaxTargetQPaths = []string{"my-new-max-target-q.txt"}
 		}
-		android.AssertPathsRelativeToTopEquals(t, c.PropertyName, expectedMaxTargetQPaths, info.FlagFilesByCategory[c])
+		android.AssertPathsRelativeToTopEquals(t, c.PropertyName(), expectedMaxTargetQPaths, info.FlagFilesByCategory[c])
 	}
 
 	// Make sure that the signature-patterns.csv is passed all the appropriate package properties
