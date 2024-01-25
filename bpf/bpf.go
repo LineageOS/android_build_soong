@@ -231,6 +231,10 @@ func (bpf *bpf) AndroidMk() android.AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", obj.Base())
 				fmt.Fprintln(w, "LOCAL_MODULE_CLASS := ETC")
 				fmt.Fprintln(w, localModulePath)
+				// AconfigUpdateAndroidMkData may have added elements to Extra.  Process them here.
+				for _, extra := range data.Extra {
+					extra(w, nil)
+				}
 				fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 				fmt.Fprintln(w)
 			}

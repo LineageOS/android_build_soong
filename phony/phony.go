@@ -68,6 +68,10 @@ func (p *phony) AndroidMk() android.AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_TARGET_REQUIRED_MODULES :=",
 					strings.Join(p.targetRequiredModuleNames, " "))
 			}
+			// AconfigUpdateAndroidMkData may have added elements to Extra.  Process them here.
+			for _, extra := range data.Extra {
+				extra(w, nil)
+			}
 			fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
 		},
 	}
