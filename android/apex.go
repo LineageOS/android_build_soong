@@ -147,6 +147,13 @@ type ApexTestForInfo struct {
 
 var ApexTestForInfoProvider = blueprint.NewMutatorProvider[ApexTestForInfo]("apex_test_for")
 
+// ApexBundleInfo contains information about the dependencies of an apex
+type ApexBundleInfo struct {
+	Contents *ApexContents
+}
+
+var ApexBundleInfoProvider = blueprint.NewMutatorProvider[ApexBundleInfo]("apex_info")
+
 // DepIsInSameApex defines an interface that should be used to determine whether a given dependency
 // should be considered as part of the same APEX as the current module or not. Note: this was
 // extracted from ApexModule to make it easier to define custom subsets of the ApexModule interface
