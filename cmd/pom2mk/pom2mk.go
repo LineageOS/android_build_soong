@@ -262,7 +262,7 @@ LOCAL_STATIC_ANDROID_LIBRARIES :={{if .IsAar}} \
   {{.MkName}}-nodeps{{end}}{{range .MkAarDeps}}  \
   {{.}}{{end}}
 LOCAL_JAR_EXCLUDE_FILES := none
-LOCAL_JAVA_LANGUAGE_VERSION := 1.7
+LOCAL_JAVA_LANGUAGE_VERSION := 1.8
 LOCAL_USE_AAPT2 := true
 include $(BUILD_STATIC_JAVA_LIBRARY)
 `))
