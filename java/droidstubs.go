@@ -229,16 +229,18 @@ type stubsCommandParams struct {
 	stubConfig              stubsCommandConfigParams
 }
 type stubsCommandConfigParams struct {
-	stubsType             StubsType
-	javaVersion           javaVersion
-	deps                  deps
-	checkApi              bool
-	generateStubs         bool
-	doApiLint             bool
-	doCheckReleased       bool
-	writeSdkValues        bool
-	migratingNullability  bool
-	validatingNullability bool
+	stubsType                   StubsType
+	javaVersion                 javaVersion
+	deps                        deps
+	checkApi                    bool
+	generateStubs               bool
+	doApiLint                   bool
+	doCheckReleased             bool
+	writeSdkValues              bool
+	migratingNullability        bool
+	validatingNullability       bool
+	annotationsEnabled          bool
+	apiLevelsAnnotationsEnabled bool
 }
 
 // droidstubs passes sources files through Metalava to generate stub .java files that only contain the API to be
@@ -508,30 +510,28 @@ func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuil
 }
 
 func (d *Droidstubs) annotationsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, params annotationFlagsParams) {
-	if Bool(d.properties.Annotations_enabled) {
-		cmd.Flag(config.MetalavaAnnotationsFlags)
+	cmd.Flag(config.MetalavaAnnotationsFlags)
 
-		if params.migratingNullability {
-			previousApi := android.PathForModuleSrc(ctx, String(d.properties.Previous_api))
-			cmd.FlagWithInput("--migrate-nullness ", previousApi)
-		}
-
-		if s := String(d.properties.Validate_nullability_from_list); s != "" {
-			cmd.FlagWithInput("--validate-nullability-from-list ", android.PathForModuleSrc(ctx, s))
-		}
-
-		if params.validatingNullability {
-			cmd.FlagWithOutput("--nullability-warnings-txt ", params.nullabilityWarningsFile)
-		}
-
-		cmd.FlagWithOutput("--extract-annotations ", params.annotationsZip)
-
-		if len(d.properties.Merge_annotations_dirs) != 0 {
-			d.mergeAnnoDirFlags(ctx, cmd)
-		}
-
-		cmd.Flag(config.MetalavaAnnotationsWarningsFlags)
+	if params.migratingNullability {
+		previousApi := android.PathForModuleSrc(ctx, String(d.properties.Previous_api))
+		cmd.FlagWithInput("--migrate-nullness ", previousApi)
 	}
+
+	if s := String(d.properties.Validate_nullability_from_list); s != "" {
+		cmd.FlagWithInput("--validate-nullability-from-list ", android.PathForModuleSrc(ctx, s))
+	}
+
+	if params.validatingNullability {
+		cmd.FlagWithOutput("--nullability-warnings-txt ", params.nullabilityWarningsFile)
+	}
+
+	cmd.FlagWithOutput("--extract-annotations ", params.annotationsZip)
+
+	if len(d.properties.Merge_annotations_dirs) != 0 {
+		d.mergeAnnoDirFlags(ctx, cmd)
+	}
+
+	cmd.Flag(config.MetalavaAnnotationsWarningsFlags)
 }
 
 func (d *Droidstubs) mergeAnnoDirFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand) {
@@ -556,9 +556,11 @@ func (d *Droidstubs) inclusionAnnotationsFlags(ctx android.ModuleContext, cmd *a
 	})
 }
 
-func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, stubsType StubsType, apiVersionsXml android.WritablePath) {
+func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, params stubsCommandParams) {
 	var apiVersions android.Path
-	if proptools.Bool(d.properties.Api_levels_annotations_enabled) {
+	stubsType := params.stubConfig.stubsType
+	apiVersionsXml := params.apiVersionsXml
+	if params.stubConfig.apiLevelsAnnotationsEnabled {
 		d.apiLevelsGenerationFlags(ctx, cmd, stubsType, apiVersionsXml)
 		apiVersions = apiVersionsXml
 	} else {
@@ -807,9 +809,11 @@ func (d *Droidstubs) commonMetalavaStubCmd(ctx android.ModuleContext, rule *andr
 		annotationsZip:          params.annotationsZip,
 	}
 
-	d.annotationsFlags(ctx, cmd, annotationParams)
+	if params.stubConfig.annotationsEnabled {
+		d.annotationsFlags(ctx, cmd, annotationParams)
+	}
 	d.inclusionAnnotationsFlags(ctx, cmd)
-	d.apiLevelsAnnotationsFlags(ctx, cmd, params.stubConfig.stubsType, params.apiVersionsXml)
+	d.apiLevelsAnnotationsFlags(ctx, cmd, params)
 
 	d.expandArgs(ctx, cmd)
 
@@ -839,13 +843,13 @@ func (d *Droidstubs) everythingStubCmd(ctx android.ModuleContext, params stubsCo
 		d.everythingArtifacts.metadataZip = android.PathForModuleOut(ctx, Everything.String(), ctx.ModuleName()+"-metadata.zip")
 	}
 
-	if Bool(d.properties.Annotations_enabled) {
+	if params.annotationsEnabled {
 		if params.validatingNullability {
 			d.everythingArtifacts.nullabilityWarningsFile = android.PathForModuleOut(ctx, Everything.String(), ctx.ModuleName()+"_nullability_warnings.txt")
 		}
 		d.everythingArtifacts.annotationsZip = android.PathForModuleOut(ctx, Everything.String(), ctx.ModuleName()+"_annotations.zip")
 	}
-	if Bool(d.properties.Api_levels_annotations_enabled) {
+	if params.apiLevelsAnnotationsEnabled {
 		d.everythingArtifacts.apiVersionsXml = android.PathForModuleOut(ctx, Everything.String(), "api-versions.xml")
 	}
 
@@ -1023,7 +1027,7 @@ func (d *Droidstubs) exportableStubCmd(ctx android.ModuleContext, params stubsCo
 		optionalCmdParams.metadataDir = d.exportableArtifacts.metadataDir
 	}
 
-	if Bool(d.properties.Annotations_enabled) {
+	if params.annotationsEnabled {
 		if params.validatingNullability {
 			d.exportableArtifacts.nullabilityWarningsFile = android.PathForModuleOut(ctx, params.stubsType.String(), ctx.ModuleName()+"_nullability_warnings.txt")
 			optionalCmdParams.nullabilityWarningsFile = d.exportableArtifacts.nullabilityWarningsFile
@@ -1031,7 +1035,7 @@ func (d *Droidstubs) exportableStubCmd(ctx android.ModuleContext, params stubsCo
 		d.exportableArtifacts.annotationsZip = android.PathForModuleOut(ctx, params.stubsType.String(), ctx.ModuleName()+"_annotations.zip")
 		optionalCmdParams.annotationsZip = d.exportableArtifacts.annotationsZip
 	}
-	if Bool(d.properties.Api_levels_annotations_enabled) {
+	if params.apiLevelsAnnotationsEnabled {
 		d.exportableArtifacts.apiVersionsXml = android.PathForModuleOut(ctx, params.stubsType.String(), "api-versions.xml")
 		optionalCmdParams.apiVersionsXml = d.exportableArtifacts.apiVersionsXml
 	}
@@ -1127,16 +1131,20 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	checkApi := apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") ||
 		apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released")
 
+	apiLevelsAnnotationsEnabled := proptools.Bool(d.properties.Api_levels_annotations_enabled)
+
 	stubCmdParams := stubsCommandConfigParams{
-		javaVersion:           javaVersion,
-		deps:                  deps,
-		checkApi:              checkApi,
-		generateStubs:         generateStubs,
-		doApiLint:             doApiLint,
-		doCheckReleased:       doCheckReleased,
-		writeSdkValues:        writeSdkValues,
-		migratingNullability:  migratingNullability,
-		validatingNullability: validatingNullability,
+		javaVersion:                 javaVersion,
+		deps:                        deps,
+		checkApi:                    checkApi,
+		generateStubs:               generateStubs,
+		doApiLint:                   doApiLint,
+		doCheckReleased:             doCheckReleased,
+		writeSdkValues:              writeSdkValues,
+		migratingNullability:        migratingNullability,
+		validatingNullability:       validatingNullability,
+		annotationsEnabled:          annotationsEnabled,
+		apiLevelsAnnotationsEnabled: apiLevelsAnnotationsEnabled,
 	}
 	stubCmdParams.stubsType = Everything
 	// Create default (i.e. "everything" stubs) rule for metalava
