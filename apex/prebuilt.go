@@ -201,6 +201,10 @@ func (p *prebuiltCommon) dexpreoptSystemServerJars(ctx android.ModuleContext) {
 	if !p.hasExportedDeps() {
 		return
 	}
+	// If this prebuilt apex has not been selected, return
+	if p.IsHideFromMake() {
+		return
+	}
 	// Use apex_name to determine the api domain of this prebuilt apex
 	apexName := p.ApexVariationName()
 	di, err := android.FindDeapexerProviderForModule(ctx)
