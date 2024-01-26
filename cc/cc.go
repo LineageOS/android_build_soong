@@ -76,8 +76,7 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 		ctx.TopDown("orderfile_deps", orderfileDepsMutator)
 		ctx.BottomUp("orderfile", orderfileMutator).Parallel()
 
-		ctx.TopDown("lto_deps", ltoDepsMutator)
-		ctx.BottomUp("lto", ltoMutator).Parallel()
+		ctx.Transition("lto", &ltoTransitionMutator{})
 
 		ctx.BottomUp("check_linktype", checkLinkTypeMutator).Parallel()
 		ctx.TopDown("double_loadable", checkDoubleLoadableLibraries).Parallel()
