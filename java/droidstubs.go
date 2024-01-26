@@ -214,6 +214,7 @@ type currentApiTimestampProvider interface {
 type annotationFlagsParams struct {
 	migratingNullability    bool
 	validatingNullability   bool
+	extractAnnotations      bool
 	nullabilityWarningsFile android.WritablePath
 	annotationsZip          android.WritablePath
 }
@@ -241,6 +242,7 @@ type stubsCommandConfigParams struct {
 	validatingNullability       bool
 	annotationsEnabled          bool
 	apiLevelsAnnotationsEnabled bool
+	extractAnnotations          bool
 }
 
 // droidstubs passes sources files through Metalava to generate stub .java files that only contain the API to be
@@ -525,7 +527,9 @@ func (d *Droidstubs) annotationsFlags(ctx android.ModuleContext, cmd *android.Ru
 		cmd.FlagWithOutput("--nullability-warnings-txt ", params.nullabilityWarningsFile)
 	}
 
-	cmd.FlagWithOutput("--extract-annotations ", params.annotationsZip)
+	if params.extractAnnotations {
+		cmd.FlagWithOutput("--extract-annotations ", params.annotationsZip)
+	}
 
 	if len(d.properties.Merge_annotations_dirs) != 0 {
 		d.mergeAnnoDirFlags(ctx, cmd)
@@ -571,7 +575,9 @@ func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *a
 				} else if stubsType == Exportable {
 					apiVersions = s.exportableArtifacts.apiVersionsXml
 				} else {
-					ctx.ModuleErrorf("%s stubs type does not generate api-versions.xml file", stubsType.String())
+					// if the stubs type does not generate api-versions.xml file, default to using the
+					// everything artifacts
+					apiVersions = s.everythingArtifacts.apiVersionsXml
 				}
 			} else {
 				ctx.PropertyErrorf("api_levels_module",
@@ -805,6 +811,7 @@ func (d *Droidstubs) commonMetalavaStubCmd(ctx android.ModuleContext, rule *andr
 	annotationParams := annotationFlagsParams{
 		migratingNullability:    params.stubConfig.migratingNullability,
 		validatingNullability:   params.stubConfig.validatingNullability,
+		extractAnnotations:      params.stubConfig.extractAnnotations,
 		nullabilityWarningsFile: params.nullabilityWarningsFile,
 		annotationsZip:          params.annotationsZip,
 	}
@@ -1053,6 +1060,38 @@ func (d *Droidstubs) exportableStubCmd(ctx android.ModuleContext, params stubsCo
 	d.optionalStubCmd(ctx, optionalCmdParams)
 }
 
+// Sandbox rule for generating runtime stubs
+func (d *Droidstubs) runtimeStubCmd(ctx android.ModuleContext, params stubsCommandConfigParams) {
+
+	// We are only interested in generating the stubs srcjar,
+	// not other artifacts for the runtime stubs
+	params.checkApi = false
+	params.writeSdkValues = false
+	params.validatingNullability = false
+	params.extractAnnotations = false
+	params.apiLevelsAnnotationsEnabled = false
+
+	optionalCmdParams := stubsCommandParams{
+		stubConfig: params,
+	}
+
+	d.Javadoc.runtimeStubsSrcJar = android.PathForModuleOut(ctx, params.stubsType.String(), ctx.ModuleName()+"-"+"stubs.srcjar")
+	optionalCmdParams.stubsSrcJar = d.Javadoc.runtimeStubsSrcJar
+
+	// If aconfig_declarations property is not defined, all flagged apis symbols are stripped
+	// as no aconfig flags are enabled. In such case, the runtime stubs are identical to the
+	// exportable stubs, thus no additional metalava invocation is needed.
+	if len(d.properties.Aconfig_declarations) == 0 {
+		rule := android.NewRuleBuilder(pctx, ctx)
+		rule.Command().
+			Text("cp").Flag("-f").
+			Input(d.exportableStubsSrcJar).Output(d.runtimeStubsSrcJar)
+		rule.Build(fmt.Sprintf("metalava_%s", params.stubsType.String()), "metalava merged")
+	} else {
+		d.optionalStubCmd(ctx, optionalCmdParams)
+	}
+}
+
 func (d *Droidstubs) optionalStubCmd(ctx android.ModuleContext, params stubsCommandParams) {
 
 	params.srcJarDir = android.PathForModuleOut(ctx, params.stubConfig.stubsType.String(), "srcjars")
@@ -1124,6 +1163,8 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	annotationsEnabled := Bool(d.properties.Annotations_enabled)
 
+	extractAnnotations := annotationsEnabled
+
 	migratingNullability := annotationsEnabled && String(d.properties.Previous_api) != ""
 	validatingNullability := annotationsEnabled && (strings.Contains(String(d.Javadoc.properties.Args), "--validate-nullability-from-merged-stubs") ||
 		String(d.properties.Validate_nullability_from_list) != "")
@@ -1145,16 +1186,25 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		validatingNullability:       validatingNullability,
 		annotationsEnabled:          annotationsEnabled,
 		apiLevelsAnnotationsEnabled: apiLevelsAnnotationsEnabled,
+		extractAnnotations:          extractAnnotations,
 	}
 	stubCmdParams.stubsType = Everything
 	// Create default (i.e. "everything" stubs) rule for metalava
 	d.everythingStubCmd(ctx, stubCmdParams)
 
-	// The module generates "exportable" (and "runtime" eventually) stubs regardless of whether
+	// The module generates "exportable" stubs regardless of whether
 	// aconfig_declarations property is defined or not. If the property is not defined, the module simply
 	// strips all flagged apis to generate the "exportable" stubs
 	stubCmdParams.stubsType = Exportable
 	d.exportableStubCmd(ctx, stubCmdParams)
+
+	// "runtime" stubs do not generate any other artifacts than the stubs.
+	// Therefore, metalava does not have to run for "runtime" configuration
+	// when the module does not generate stubs.
+	if stubCmdParams.generateStubs {
+		stubCmdParams.stubsType = Runtime
+		d.runtimeStubCmd(ctx, stubCmdParams)
+	}
 
 	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") {
 
