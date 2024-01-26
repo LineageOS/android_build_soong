@@ -27,3 +27,17 @@ bootstrap_go_package {
         "team.pb.go",
     ],
 }
+
+python_library_host {
+    name: "teams-proto-py",
+    pkg_path: "teams",
+    srcs: [
+        "team.proto",
+    ],
+    libs: [
+        "libprotobuf-python",
+    ],
+    proto: {
+        canonical_path_from_root: false,
+    },
+}
