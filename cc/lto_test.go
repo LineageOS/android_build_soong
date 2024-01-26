@@ -146,8 +146,9 @@ func TestThinLtoOnlyOnStaticDep(t *testing.T) {
 		t.Errorf("'root' missing dependency on the default variant of 'foo'")
 	}
 
-	if !hasDep(result, libRootLtoNever, libFoo.Module()) {
-		t.Errorf("'root_no_lto' missing dependency on the default variant of 'foo'")
+	libFooNoLto := result.ModuleForTests("foo", "android_arm64_armv8-a_static_lto-none")
+	if !hasDep(result, libRootLtoNever, libFooNoLto.Module()) {
+		t.Errorf("'root_no_lto' missing dependency on the lto_none variant of 'foo'")
 	}
 
 	libFooCFlags := libFoo.Rule("cc").Args["cFlags"]
