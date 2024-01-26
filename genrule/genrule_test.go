@@ -287,16 +287,6 @@ func TestGenruleCmd(t *testing.T) {
 			expect: "echo foo > __SBOX_SANDBOX_DIR__/out/out2",
 		},
 		{
-			name:       "depfile",
-			moduleName: "depfile_allowed_for_test",
-			prop: `
-				out: ["out"],
-				depfile: true,
-				cmd: "echo foo > $(out) && touch $(depfile)",
-			`,
-			expect: "echo foo > __SBOX_SANDBOX_DIR__/out/out && touch __SBOX_DEPFILE__",
-		},
-		{
 			name: "gendir",
 			prop: `
 				out: ["out"],
@@ -390,24 +380,6 @@ func TestGenruleCmd(t *testing.T) {
 					cmd: "echo $(foo) > $(out)",
 			`,
 			err: `unknown variable '$(foo)'`,
-		},
-		{
-			name: "error depfile",
-			prop: `
-				out: ["out"],
-				cmd: "echo foo > $(out) && touch $(depfile)",
-			`,
-			err: "$(depfile) used without depfile property",
-		},
-		{
-			name:       "error no depfile",
-			moduleName: "depfile_allowed_for_test",
-			prop: `
-				out: ["out"],
-				depfile: true,
-				cmd: "echo foo > $(out)",
-			`,
-			err: "specified depfile=true but did not include a reference to '${depfile}' in cmd",
 		},
 		{
 			name: "error no out",
@@ -692,60 +664,6 @@ func TestGenSrcs(t *testing.T) {
 
 			android.AssertPathsRelativeToTopEquals(t, "files", test.files, gen.outputFiles)
 		})
-	}
-}
-
-func TestGenruleAllowlistingDepfile(t *testing.T) {
-	tests := []struct {
-		name       string
-		prop       string
-		err        string
-		moduleName string
-	}{
-		{
-			name: `error when module is not allowlisted`,
-			prop: `
-				depfile: true,
-				cmd: "cat $(in) > $(out) && cat $(depfile)",
-			`,
-			err: "depfile: Deprecated because with genrule sandboxing, dependencies must be known before the action is run in order to add them to the sandbox",
-		},
-		{
-			name: `no error when module is allowlisted`,
-			prop: `
-				depfile: true,
-				cmd: "cat $(in) > $(out) && cat $(depfile)",
-			`,
-			moduleName: `depfile_allowed_for_test`,
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			moduleName := "foo"
-			if test.moduleName != "" {
-				moduleName = test.moduleName
-			}
-			bp := fmt.Sprintf(`
-			gensrcs {
-			   name: "%s",
-			   srcs: ["data.txt"],
-			   %s
-			}`, moduleName, test.prop)
-
-			var expectedErrors []string
-			if test.err != "" {
-				expectedErrors = append(expectedErrors, test.err)
-			}
-			android.GroupFixturePreparers(
-				prepareForGenRuleTest,
-				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
-					variables.GenruleSandboxing = proptools.BoolPtr(true)
-				}),
-			).
-				ExtendWithErrorHandler(android.FixtureExpectsAllErrorsToMatchAPattern(expectedErrors)).
-				RunTestWithBp(t, bp)
-		})
-
 	}
 }
 
