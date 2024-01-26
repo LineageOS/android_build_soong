@@ -163,7 +163,6 @@ func TestAndroidMkCcLibrary(t *testing.T) {
 	entry := android.AndroidMkEntriesForTest(t, result.TestContext, module)[0]
 
 	makeVar := entry.EntryMap["LOCAL_ACONFIG_FILES"]
-	android.AssertIntEquals(t, "len(LOCAL_ACONFIG_FILES)", 1, len(makeVar))
 	android.EnsureListContainsSuffix(t, makeVar, "my_aconfig_declarations_foo/intermediate.pb")
 }
 

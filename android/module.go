@@ -1777,6 +1777,11 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			return
 		}
 
+		aconfigUpdateAndroidBuildActions(ctx)
+		if ctx.Failed() {
+			return
+		}
+
 		// Create the set of tagged dist files after calling GenerateAndroidBuildActions
 		// as GenerateTaggedDistFiles() calls OutputFiles(tag) and so relies on the
 		// output paths being set which must be done before or during

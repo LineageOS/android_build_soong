@@ -56,8 +56,9 @@ var (
 		"goldmont-plus": []string{
 			"-march=goldmont-plus",
 		},
-		"goldmont-without-xsaves": []string{
+		"goldmont-without-sha-xsaves": []string{
 			"-march=goldmont",
+			"-mno-sha",
 			"-mno-xsaves",
 		},
 		"haswell": []string{

@@ -1121,6 +1121,7 @@ func AndroidMkEntriesForTest(t *testing.T, ctx *TestContext, mod blueprint.Modul
 	}
 
 	entriesList := p.AndroidMkEntries()
+	aconfigUpdateAndroidMkEntries(ctx, mod.(Module), &entriesList)
 	for i, _ := range entriesList {
 		entriesList[i].fillInEntries(ctx, mod)
 	}
@@ -1136,6 +1137,7 @@ func AndroidMkDataForTest(t *testing.T, ctx *TestContext, mod blueprint.Module) 
 	}
 	data := p.AndroidMk()
 	data.fillInData(ctx, mod)
+	aconfigUpdateAndroidMkData(ctx, mod.(Module), &data)
 	return data
 }
 
