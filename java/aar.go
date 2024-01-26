@@ -159,8 +159,8 @@ func propagateRROEnforcementMutator(ctx android.TopDownMutatorContext) {
 	}
 }
 
-func (a *aapt) useResourceProcessorBusyBox() bool {
-	return BoolDefault(a.aaptProperties.Use_resource_processor, false)
+func (a *aapt) useResourceProcessorBusyBox(ctx android.BaseModuleContext) bool {
+	return BoolDefault(a.aaptProperties.Use_resource_processor, ctx.Config().UseResourceProcessorByDefault())
 }
 
 func (a *aapt) filterProduct() string {
@@ -414,7 +414,7 @@ func (a *aapt) buildActions(ctx android.ModuleContext, opts aaptBuildActionOptio
 		linkFlags = append(linkFlags, "--static-lib")
 	}
 
-	if a.isLibrary && a.useResourceProcessorBusyBox() {
+	if a.isLibrary && a.useResourceProcessorBusyBox(ctx) {
 		// When building an android_library using ResourceProcessorBusyBox the resources are merged into
 		// package-res.apk with --merge-only, but --no-static-lib-packages is not used so that R.txt only
 		// contains resources from this library.
@@ -453,7 +453,7 @@ func (a *aapt) buildActions(ctx android.ModuleContext, opts aaptBuildActionOptio
 	// of transitiveStaticLibs.
 	transitiveStaticLibs := android.ReversePaths(staticDeps.resPackages())
 
-	if a.isLibrary && a.useResourceProcessorBusyBox() {
+	if a.isLibrary && a.useResourceProcessorBusyBox(ctx) {
 		// When building an android_library with ResourceProcessorBusyBox enabled treat static library dependencies
 		// as imports.  The resources from dependencies will not be merged into this module's package-res.apk, and
 		// instead modules depending on this module will reference package-res.apk from all transitive static
@@ -515,7 +515,7 @@ func (a *aapt) buildActions(ctx android.ModuleContext, opts aaptBuildActionOptio
 		})
 	}
 
-	if !a.useResourceProcessorBusyBox() {
+	if !a.useResourceProcessorBusyBox(ctx) {
 		// the subdir "android" is required to be filtered by package names
 		srcJar = android.PathForModuleGen(ctx, "android", "R.srcjar")
 	}
@@ -542,7 +542,7 @@ func (a *aapt) buildActions(ctx android.ModuleContext, opts aaptBuildActionOptio
 		a.assetPackage = android.OptionalPathForPath(assets)
 	}
 
-	if a.useResourceProcessorBusyBox() {
+	if a.useResourceProcessorBusyBox(ctx) {
 		rJar := android.PathForModuleOut(ctx, "busybox/R.jar")
 		resourceProcessorBusyBoxGenerateBinaryR(ctx, rTxt, a.mergedManifestFile, rJar, staticDeps, a.isLibrary, a.aaptProperties.Aaptflags)
 		aapt2ExtractExtraPackages(ctx, extraPackages, rJar)
@@ -577,7 +577,7 @@ func (a *aapt) buildActions(ctx android.ModuleContext, opts aaptBuildActionOptio
 			rJar:                a.rJar,
 			assets:              a.assetPackage,
 
-			usedResourceProcessor: a.useResourceProcessorBusyBox(),
+			usedResourceProcessor: a.useResourceProcessorBusyBox(ctx),
 		}).
 		Transitive(staticResourcesNodesDepSet).Build()
 	a.rroDirsDepSet = android.NewDepSetBuilder[rroDir](android.TOPOLOGICAL).
@@ -823,7 +823,7 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 
 	ctx.CheckbuildFile(a.aapt.proguardOptionsFile)
 	ctx.CheckbuildFile(a.aapt.exportPackage)
-	if a.useResourceProcessorBusyBox() {
+	if a.useResourceProcessorBusyBox(ctx) {
 		ctx.CheckbuildFile(a.aapt.rJar)
 	} else {
 		ctx.CheckbuildFile(a.aapt.aaptSrcJar)
@@ -849,7 +849,7 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	var extraSrcJars android.Paths
 	var extraCombinedJars android.Paths
 	var extraClasspathJars android.Paths
-	if a.useResourceProcessorBusyBox() {
+	if a.useResourceProcessorBusyBox(ctx) {
 		// When building a library with ResourceProcessorBusyBox enabled ResourceProcessorBusyBox for this
 		// library and each of the transitive static android_library dependencies has already created an
 		// R.class file for the appropriate package.  Add all of those R.class files to the classpath.
@@ -889,7 +889,7 @@ func (a *AndroidLibrary) IDEInfo(dpInfo *android.IdeInfo) {
 }
 
 func (a *aapt) IDEInfo(dpInfo *android.IdeInfo) {
-	if a.useResourceProcessorBusyBox() {
+	if a.rJar != nil {
 		dpInfo.Jars = append(dpInfo.Jars, a.rJar.String())
 	}
 }
