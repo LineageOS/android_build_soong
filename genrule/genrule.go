@@ -124,13 +124,9 @@ type generatorProperties struct {
 	//  $(locations <label>): the paths to the tools, tool_files, inputs or outputs with name <label>. Use $(locations) if <label> refers to a rule that outputs two or more files.
 	//  $(in): one or more input files.
 	//  $(out): a single output file.
-	//  $(depfile): a file to which dependencies will be written, if the depfile property is set to true.
 	//  $(genDir): the sandbox directory for this tool; contains $(out).
 	//  $$: a literal $
 	Cmd *string
-
-	// Enable reading a file containing dependencies in gcc format after the command completes
-	Depfile *bool
 
 	// name of the modules (if any) that produces the host executable.   Leave empty for
 	// prebuilts or scripts that do not need a module to build them.
@@ -194,10 +190,8 @@ type taskFunc func(ctx android.ModuleContext, rawCommand string, srcFiles androi
 type generateTask struct {
 	in          android.Paths
 	out         android.WritablePaths
-	depFile     android.WritablePath
 	copyTo      android.WritablePaths // For gensrcs to set on gensrcsMerge rule.
 	genDir      android.WritablePath
-	extraTools  android.Paths // dependencies on tools used by the generator
 	extraInputs map[string][]string
 
 	cmd string
@@ -448,8 +442,6 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 			addLocationLabel(out.Rel(), outputLocation{out})
 		}
 
-		referencedDepfile := false
-
 		rawCommand, err := android.Expand(task.cmd, func(name string) (string, error) {
 			// report the error directly without returning an error to android.Expand to catch multiple errors in a
 			// single run
@@ -481,12 +473,6 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 					sandboxOuts = append(sandboxOuts, cmd.PathForOutput(out))
 				}
 				return strings.Join(proptools.ShellEscapeList(sandboxOuts), " "), nil
-			case "depfile":
-				referencedDepfile = true
-				if !Bool(g.properties.Depfile) {
-					return reportError("$(depfile) used without depfile property")
-				}
-				return "__SBOX_DEPFILE__", nil
 			case "genDir":
 				return proptools.ShellEscape(cmd.PathForOutput(task.genDir)), nil
 			default:
@@ -526,10 +512,6 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 			return
 		}
 
-		if Bool(g.properties.Depfile) && !referencedDepfile {
-			ctx.PropertyErrorf("cmd", "specified depfile=true but did not include a reference to '${depfile}' in cmd")
-			return
-		}
 		g.rawCommands = append(g.rawCommands, rawCommand)
 
 		cmd.Text(rawCommand)
@@ -538,11 +520,7 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 		cmd.ImplicitOutputs(task.out)
 		cmd.Implicits(task.in)
 		cmd.ImplicitTools(tools)
-		cmd.ImplicitTools(task.extraTools)
 		cmd.ImplicitPackagedTools(packagedTools)
-		if Bool(g.properties.Depfile) {
-			cmd.ImplicitDepFile(task.depFile)
-		}
 
 		// Create the rule to run the genrule command inside sbox.
 		rule.Build(name, desc)
@@ -583,19 +561,6 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 }
 
 func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	// Allowlist genrule to use depfile until we have a solution to remove it.
-	// TODO(b/307824623): Remove depfile property
-	if Bool(g.properties.Depfile) {
-		sandboxingAllowlistSets := getSandboxingAllowlistSets(ctx)
-		if ctx.DeviceConfig().GenruleSandboxing() && !sandboxingAllowlistSets.depfileAllowSet[g.Name()] {
-			ctx.PropertyErrorf(
-				"depfile",
-				"Deprecated because with genrule sandboxing, dependencies must be known before the action is run "+
-					"in order to add them to the sandbox. "+
-					"Please specify the dependencies explicitly so that there is no need to use depfile.")
-		}
-	}
-
 	g.generateCommonBuildActions(ctx)
 
 	// For <= 6 outputs, just embed those directly in the users. Right now, that covers >90% of
@@ -721,7 +686,6 @@ func NewGenSrcs() *Module {
 		for i, shard := range shards {
 			var commands []string
 			var outFiles android.WritablePaths
-			var commandDepFiles []string
 			var copyTo android.WritablePaths
 
 			// When sharding is enabled (i.e. len(shards) > 1), the sbox rules for each
@@ -761,12 +725,6 @@ func NewGenSrcs() *Module {
 						return in.String(), nil
 					case "out":
 						return rule.Command().PathForOutput(outFile), nil
-					case "depfile":
-						// Generate a depfile for each output file.  Store the list for
-						// later in order to combine them all into a single depfile.
-						depFile := rule.Command().PathForOutput(outFile.ReplaceExtension(ctx, "d"))
-						commandDepFiles = append(commandDepFiles, depFile)
-						return depFile, nil
 					default:
 						return "$(" + name + ")", nil
 					}
@@ -781,30 +739,14 @@ func NewGenSrcs() *Module {
 			}
 			fullCommand := strings.Join(commands, " && ")
 
-			var outputDepfile android.WritablePath
-			var extraTools android.Paths
-			if len(commandDepFiles) > 0 {
-				// Each command wrote to a depfile, but ninja can only handle one
-				// depfile per rule.  Use the dep_fixer tool at the end of the
-				// command to combine all the depfiles into a single output depfile.
-				outputDepfile = android.PathForModuleGen(ctx, genSubDir, "gensrcs.d")
-				depFixerTool := ctx.Config().HostToolPath(ctx, "dep_fixer")
-				fullCommand += fmt.Sprintf(" && %s -o $(depfile) %s",
-					rule.Command().PathForTool(depFixerTool),
-					strings.Join(commandDepFiles, " "))
-				extraTools = append(extraTools, depFixerTool)
-			}
-
 			generateTasks = append(generateTasks, generateTask{
-				in:         shard,
-				out:        outFiles,
-				depFile:    outputDepfile,
-				copyTo:     copyTo,
-				genDir:     genDir,
-				cmd:        fullCommand,
-				shard:      i,
-				shards:     len(shards),
-				extraTools: extraTools,
+				in:     shard,
+				out:    outFiles,
+				copyTo: copyTo,
+				genDir: genDir,
+				cmd:    fullCommand,
+				shard:  i,
+				shards: len(shards),
 				extraInputs: map[string][]string{
 					"data": properties.Data,
 				},
@@ -843,20 +785,14 @@ func NewGenRule() *Module {
 
 	taskGenerator := func(ctx android.ModuleContext, rawCommand string, srcFiles android.Paths) []generateTask {
 		outs := make(android.WritablePaths, len(properties.Out))
-		var depFile android.WritablePath
 		for i, out := range properties.Out {
-			outPath := android.PathForModuleGen(ctx, out)
-			if i == 0 {
-				depFile = outPath.ReplaceExtension(ctx, "d")
-			}
-			outs[i] = outPath
+			outs[i] = android.PathForModuleGen(ctx, out)
 		}
 		return []generateTask{{
-			in:      srcFiles,
-			out:     outs,
-			depFile: depFile,
-			genDir:  android.PathForModuleGen(ctx),
-			cmd:     rawCommand,
+			in:     srcFiles,
+			out:    outs,
+			genDir: android.PathForModuleGen(ctx),
+			cmd:    rawCommand,
 		}}
 	}
 
@@ -907,22 +843,18 @@ var sandboxingAllowlistKey = android.NewOnceKey("genruleSandboxingAllowlistKey")
 type sandboxingAllowlistSets struct {
 	sandboxingDenyModuleSet map[string]bool
 	sandboxingDenyPathSet   map[string]bool
-	depfileAllowSet         map[string]bool
 }
 
 func getSandboxingAllowlistSets(ctx android.PathContext) *sandboxingAllowlistSets {
 	return ctx.Config().Once(sandboxingAllowlistKey, func() interface{} {
 		sandboxingDenyModuleSet := map[string]bool{}
 		sandboxingDenyPathSet := map[string]bool{}
-		depfileAllowSet := map[string]bool{}
 
-		android.AddToStringSet(sandboxingDenyModuleSet, append(DepfileAllowList, SandboxingDenyModuleList...))
+		android.AddToStringSet(sandboxingDenyModuleSet, SandboxingDenyModuleList)
 		android.AddToStringSet(sandboxingDenyPathSet, SandboxingDenyPathList)
-		android.AddToStringSet(depfileAllowSet, DepfileAllowList)
 		return &sandboxingAllowlistSets{
 			sandboxingDenyModuleSet: sandboxingDenyModuleSet,
 			sandboxingDenyPathSet:   sandboxingDenyPathSet,
-			depfileAllowSet:         depfileAllowSet,
 		}
 	}).(*sandboxingAllowlistSets)
 }
