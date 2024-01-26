@@ -537,11 +537,17 @@ func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *a
 	var apiVersions android.Path
 	if proptools.Bool(d.properties.Api_levels_annotations_enabled) {
 		d.apiLevelsGenerationFlags(ctx, cmd, stubsType, apiVersionsXml)
-		apiVersions = d.everythingArtifacts.apiVersionsXml
+		apiVersions = apiVersionsXml
 	} else {
 		ctx.VisitDirectDepsWithTag(metalavaAPILevelsModuleTag, func(m android.Module) {
 			if s, ok := m.(*Droidstubs); ok {
-				apiVersions = s.everythingArtifacts.apiVersionsXml
+				if stubsType == Everything {
+					apiVersions = s.everythingArtifacts.apiVersionsXml
+				} else if stubsType == Exportable {
+					apiVersions = s.exportableArtifacts.apiVersionsXml
+				} else {
+					ctx.ModuleErrorf("%s stubs type does not generate api-versions.xml file", stubsType.String())
+				}
 			} else {
 				ctx.PropertyErrorf("api_levels_module",
 					"module %q is not a droidstubs module", ctx.OtherModuleName(m))
