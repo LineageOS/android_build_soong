@@ -15,12 +15,6 @@
 package genrule
 
 var (
-	DepfileAllowList = []string{
-		// go/keep-sorted start
-		"depfile_allowed_for_test",
-		// go/keep-sorted end
-	}
-
 	SandboxingDenyModuleList = []string{
 		// go/keep-sorted start
 		"aidl_camera_build_version",

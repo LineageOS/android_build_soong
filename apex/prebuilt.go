@@ -201,6 +201,10 @@ func (p *prebuiltCommon) dexpreoptSystemServerJars(ctx android.ModuleContext) {
 	if !p.hasExportedDeps() {
 		return
 	}
+	// If this prebuilt apex has not been selected, return
+	if p.IsHideFromMake() {
+		return
+	}
 	// Use apex_name to determine the api domain of this prebuilt apex
 	apexName := p.ApexVariationName()
 	di, err := android.FindDeapexerProviderForModule(ctx)
@@ -438,7 +442,7 @@ func (p *prebuiltCommon) apexInfoMutator(mctx android.TopDownMutatorContext) {
 
 	// Create contents for the prebuilt_apex and store it away for later use.
 	apexContents := android.NewApexContents(contents)
-	android.SetProvider(mctx, ApexBundleInfoProvider, ApexBundleInfo{
+	android.SetProvider(mctx, android.ApexBundleInfoProvider, android.ApexBundleInfo{
 		Contents: apexContents,
 	})
 

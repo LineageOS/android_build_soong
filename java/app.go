@@ -431,7 +431,7 @@ func (a *AndroidApp) shouldUncompressDex(ctx android.ModuleContext) bool {
 		return false
 	}
 
-	return shouldUncompressDex(ctx, &a.dexpreopter)
+	return shouldUncompressDex(ctx, android.RemoveOptionalPrebuiltPrefix(ctx.ModuleName()), &a.dexpreopter)
 }
 
 func (a *AndroidApp) shouldEmbedJnis(ctx android.BaseModuleContext) bool {
@@ -588,7 +588,7 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) (android.Path, a
 		var extraSrcJars android.Paths
 		var extraClasspathJars android.Paths
 		var extraCombinedJars android.Paths
-		if a.useResourceProcessorBusyBox() {
+		if a.useResourceProcessorBusyBox(ctx) {
 			// When building an app with ResourceProcessorBusyBox enabled ResourceProcessorBusyBox has already
 			// created R.class files that provide IDs for resources in busybox/R.jar.  Pass that file in the
 			// classpath when compiling everything else, and add it to the final classes jar.
@@ -1108,7 +1108,7 @@ func (a *AndroidApp) Privileged() bool {
 	return Bool(a.appProperties.Privileged)
 }
 
-func (a *AndroidApp) IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool {
+func (a *AndroidApp) IsNativeCoverageNeeded(ctx android.IncomingTransitionContext) bool {
 	return ctx.Device() && ctx.DeviceConfig().NativeCoverageEnabled()
 }
 
