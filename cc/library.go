@@ -1350,10 +1350,12 @@ func getRefAbiDumpFile(ctx android.ModuleInstallPathContext,
 		fileName+".lsdump")
 }
 
-func getRefAbiDumpDir(isNdk bool) string {
+func getRefAbiDumpDir(isNdk, isLlndk bool) string {
 	var dirName string
 	if isNdk {
 		dirName = "ndk"
+	} else if isLlndk {
+		dirName = "vndk"
 	} else {
 		dirName = "platform"
 	}
@@ -1476,7 +1478,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 
 		addLsdumpPath(classifySourceAbiDump(ctx) + ":" + library.sAbiOutputFile.String())
 
-		dumpDir := getRefAbiDumpDir(isNdk)
+		dumpDir := getRefAbiDumpDir(isNdk, isLlndk)
 		binderBitness := ctx.DeviceConfig().BinderBitness()
 		// Check against the previous version.
 		prevVersionInt := prevRefAbiDumpVersion(ctx, dumpDir)
