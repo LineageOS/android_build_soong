@@ -260,3 +260,22 @@ func TestJavaLintDatabaseSelectionFull(t *testing.T) {
 		}
 	}
 }
+
+func TestCantControlCheckSeverityWithFlags(t *testing.T) {
+	bp := `
+		java_library {
+			name: "foo",
+			srcs: [
+				"a.java",
+			],
+			min_sdk_version: "29",
+			sdk_version: "current",
+			lint: {
+				flags: ["--disabled", "NewApi"],
+			},
+		}
+	`
+	PrepareForTestWithJavaDefaultModules.
+		ExtendWithErrorHandler(android.FixtureExpectsOneErrorPattern("Don't use --disable, --enable, or --check in the flags field, instead use the dedicated disabled_checks, warning_checks, error_checks, or fatal_checks fields")).
+		RunTestWithBp(t, bp)
+}
