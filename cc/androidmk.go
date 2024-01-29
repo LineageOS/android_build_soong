@@ -83,8 +83,9 @@ func (c *Module) AndroidMkEntries() []android.AndroidMkEntries {
 		// causing multiple ART APEXes (com.android.art and com.android.art.debug)
 		// to be installed. And this is breaking some older devices (like marlin)
 		// where system.img is small.
-		Required: c.Properties.AndroidMkRuntimeLibs,
-		Include:  "$(BUILD_SYSTEM)/soong_cc_rust_prebuilt.mk",
+		Required:     c.Properties.AndroidMkRuntimeLibs,
+		OverrideName: c.BaseModuleName(),
+		Include:      "$(BUILD_SYSTEM)/soong_cc_rust_prebuilt.mk",
 
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
