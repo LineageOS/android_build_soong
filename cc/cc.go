@@ -73,8 +73,7 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 		ctx.TopDown("afdo_deps", afdoDepsMutator)
 		ctx.BottomUp("afdo", afdoMutator).Parallel()
 
-		ctx.TopDown("orderfile_deps", orderfileDepsMutator)
-		ctx.BottomUp("orderfile", orderfileMutator).Parallel()
+		ctx.Transition("orderfile", &orderfileTransitionMutator{})
 
 		ctx.Transition("lto", &ltoTransitionMutator{})
 
