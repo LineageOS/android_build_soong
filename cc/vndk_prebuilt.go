@@ -232,6 +232,7 @@ func vndkPrebuiltSharedLibrary() *Module {
 	prebuilt.properties.Check_elf_files = BoolPtr(false)
 	prebuilt.baseLinker.Properties.No_libcrt = BoolPtr(true)
 	prebuilt.baseLinker.Properties.Nocrt = BoolPtr(true)
+	prebuilt.baseLinker.Properties.No_crt_pad_segment = BoolPtr(true)
 
 	// Prevent default system libs (libc, libm, and libdl) from being linked
 	if prebuilt.baseLinker.Properties.System_shared_libs == nil {
