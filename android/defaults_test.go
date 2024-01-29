@@ -16,10 +16,13 @@ package android
 
 import (
 	"testing"
+
+	"github.com/google/blueprint"
 )
 
 type defaultsTestProperties struct {
-	Foo []string
+	Foo       []string
+	Path_prop []string `android:"path"`
 }
 
 type defaultsTestModule struct {
@@ -129,4 +132,41 @@ func TestDefaultsAllowMissingDependencies(t *testing.T) {
 
 	// TODO: missing transitive defaults is currently not handled
 	_ = missingTransitiveDefaults
+}
+
+func TestDefaultsPathProperties(t *testing.T) {
+	bp := `
+		defaults {
+			name: "defaults",
+			path_prop: [":gen"],
+		}
+
+		test {
+			name: "foo",
+			defaults: ["defaults"],
+		}
+
+		test {
+			name: "gen",
+		}
+	`
+
+	result := GroupFixturePreparers(
+		prepareForDefaultsTest,
+		FixtureWithRootAndroidBp(bp),
+	).RunTest(t)
+
+	collectDeps := func(m Module) []string {
+		var deps []string
+		result.VisitDirectDeps(m, func(dep blueprint.Module) {
+			deps = append(deps, result.ModuleName(dep))
+		})
+		return deps
+	}
+
+	foo := result.Module("foo", "")
+	defaults := result.Module("defaults", "")
+
+	AssertStringListContains(t, "foo should depend on gen", collectDeps(foo), "gen")
+	AssertStringListDoesNotContain(t, "defaults should not depend on gen", collectDeps(defaults), "gen")
 }
