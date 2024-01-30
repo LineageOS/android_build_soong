@@ -15,6 +15,7 @@
 package android
 
 import (
+	"cmp"
 	"fmt"
 	"path/filepath"
 	"reflect"
@@ -106,15 +107,8 @@ func SortedStringKeys[V any](m map[string]V) []string {
 	return SortedKeys(m)
 }
 
-type Ordered interface {
-	~string |
-		~float32 | ~float64 |
-		~int | ~int8 | ~int16 | ~int32 | ~int64 |
-		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
-}
-
 // SortedKeys returns the keys of the given map in the ascending order.
-func SortedKeys[T Ordered, V any](m map[T]V) []T {
+func SortedKeys[T cmp.Ordered, V any](m map[T]V) []T {
 	if len(m) == 0 {
 		return nil
 	}
