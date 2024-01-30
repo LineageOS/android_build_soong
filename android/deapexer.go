@@ -83,6 +83,10 @@ type DeapexerInfo struct {
 	// name of the java libraries exported from the apex
 	// e.g. core-libart
 	exportedModuleNames []string
+
+	// name of the java libraries exported from the apex that should be dexpreopt'd with the .prof
+	// file embedded in the apex
+	dexpreoptProfileGuidedExportedModuleNames []string
 }
 
 // ApexModuleName returns the name of the APEX module that provided the info.
@@ -121,6 +125,14 @@ func NewDeapexerInfo(apexModuleName string, exports map[string]WritablePath, mod
 	}
 }
 
+func (i *DeapexerInfo) GetDexpreoptProfileGuidedExportedModuleNames() []string {
+	return i.dexpreoptProfileGuidedExportedModuleNames
+}
+
+func (i *DeapexerInfo) AddDexpreoptProfileGuidedExportedModuleNames(names ...string) {
+	i.dexpreoptProfileGuidedExportedModuleNames = append(i.dexpreoptProfileGuidedExportedModuleNames, names...)
+}
+
 type deapexerTagStruct struct {
 	blueprint.BaseDependencyTag
 }
@@ -143,6 +155,9 @@ type RequiredFilesFromPrebuiltApex interface {
 	// the path to the extracted file will be stored in the DeapexerInfo using the APEX relative file
 	// path as the key, The path can then be retrieved using the PrebuiltExportPath(key) method.
 	RequiredFilesFromPrebuiltApex(ctx BaseModuleContext) []string
+
+	// Returns true if a transitive dependency of an apex should use a .prof file to guide dexpreopt
+	UseProfileGuidedDexpreopt() bool
 }
 
 // Marker interface that identifies dependencies on modules that may require files from a prebuilt
