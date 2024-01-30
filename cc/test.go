@@ -70,6 +70,10 @@ type TestOptions struct {
 	// Add MinApiLevelModuleController with ro.vndk.version property. If ro.vndk.version has an
 	// integer value and the value is less than the min_vndk_version, skip this module.
 	Min_vndk_version *int64
+
+	// Extra <option> tags to add to the auto generated test xml file under the test runner, e.g., GTest.
+	// The "key" is optional in each of these.
+	Test_runner_options []tradefed.Option
 }
 
 type TestBinaryProperties struct {
@@ -399,6 +403,7 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 		TestConfigTemplateProp: test.Properties.Test_config_template,
 		TestSuites:             test.testDecorator.InstallerProperties.Test_suites,
 		Config:                 configs,
+		TestRunnerOptions:      test.Properties.Test_options.Test_runner_options,
 		AutoGenConfig:          test.Properties.Auto_gen_config,
 		TestInstallBase:        testInstallBase,
 		DeviceTemplate:         "${NativeTestConfigTemplate}",
