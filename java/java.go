@@ -2090,6 +2090,11 @@ type ImportProperties struct {
 		// that depend on this module, as well as to aidl for this module.
 		Export_include_dirs []string
 	}
+
+	// Name of the source soong module that gets shadowed by this prebuilt
+	// If unspecified, follows the naming convention that the source module of
+	// the prebuilt is Name() without "prebuilt_" prefix
+	Source_module_name *string
 }
 
 type Import struct {
@@ -2163,12 +2168,16 @@ func (j *Import) PrebuiltSrcs() []string {
 	return j.properties.Jars
 }
 
+func (j *Import) BaseModuleName() string {
+	return proptools.StringDefault(j.properties.Source_module_name, j.ModuleBase.Name())
+}
+
 func (j *Import) Name() string {
 	return j.prebuilt.Name(j.ModuleBase.Name())
 }
 
 func (j *Import) Stem() string {
-	return proptools.StringDefault(j.properties.Stem, j.ModuleBase.Name())
+	return proptools.StringDefault(j.properties.Stem, j.BaseModuleName())
 }
 
 func (a *Import) JacocoReportClassesFile() android.Path {
