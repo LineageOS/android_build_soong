@@ -203,6 +203,8 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext android.SdkConte
 	// Flags specified in Android.bp
 	linkFlags = append(linkFlags, a.aaptProperties.Aaptflags...)
 
+	linkFlags = append(linkFlags, "--enable-compact-entries")
+
 	// Find implicit or explicit asset and resource dirs
 	assets := android.PathsRelativeToModuleSourceDir(android.SourceInput{
 		Context:     ctx,
