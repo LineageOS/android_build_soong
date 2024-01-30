@@ -33,6 +33,11 @@ func registerPathDepsMutator(ctx RegisterMutatorsContext) {
 // The pathDepsMutator automatically adds dependencies on any module that is listed with the
 // ":module" module reference syntax in a property that is tagged with `android:"path"`.
 func pathDepsMutator(ctx BottomUpMutatorContext) {
+	if _, ok := ctx.Module().(DefaultsModule); ok {
+		// Defaults modules shouldn't have dependencies added for path properties, they have already been
+		// squashed into the real modules.
+		return
+	}
 	props := ctx.Module().base().GetProperties()
 	addPathDepsForProps(ctx, props)
 }
