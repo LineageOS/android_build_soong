@@ -53,6 +53,10 @@ type DeapexerProperties struct {
 	// all architectures, e.g. java.
 	CommonModules []string
 
+	// List of modules that use an embedded .prof to guide optimization of the equivalent dexpreopt artifact
+	// This is a subset of CommonModules
+	DexpreoptProfileGuidedModules []string
+
 	// List of files exported from the .apex file by this module
 	//
 	// Each entry is a path from the apex root, e.g. javalib/core-libart.jar.
@@ -128,6 +132,7 @@ func (p *Deapexer) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if len(exports) > 0 {
 		// Make the information available for other modules.
 		di := android.NewDeapexerInfo(apexModuleName(ctx.ModuleName()), exports, p.properties.CommonModules)
+		di.AddDexpreoptProfileGuidedExportedModuleNames(p.properties.DexpreoptProfileGuidedModules...)
 		android.SetProvider(ctx, android.DeapexerProvider, di)
 
 		// Create a sorted list of the files that this exports.
