@@ -377,22 +377,17 @@ func IsForVndkApex(mctx android.BottomUpMutatorContext, m *Module) bool {
 			return false
 		}
 
-		// ignore prebuilt vndk modules that are newer than or equal to the platform vndk version
-		platformVndkApiLevel := android.ApiLevelOrPanic(mctx, mctx.DeviceConfig().PlatformVndkVersion())
-		if platformVndkApiLevel.LessThanOrEqualTo(android.ApiLevelOrPanic(mctx, p.Version())) {
-			return false
+		platformVndkVersion := mctx.DeviceConfig().PlatformVndkVersion()
+		if platformVndkVersion != "" {
+			// ignore prebuilt vndk modules that are newer than or equal to the platform vndk version
+			platformVndkApiLevel := android.ApiLevelOrPanic(mctx, platformVndkVersion)
+			if platformVndkApiLevel.LessThanOrEqualTo(android.ApiLevelOrPanic(mctx, p.Version())) {
+				return false
+			}
 		}
 	}
 
 	if lib, ok := m.linker.(libraryInterface); ok {
-		// VNDK APEX for VNDK-Lite devices will have VNDK-SP libraries from core variants
-		if mctx.DeviceConfig().VndkVersion() == "" {
-			// b/73296261: filter out libz.so because it is considered as LLNDK for VNDK-lite devices
-			if mctx.ModuleName() == "libz" {
-				return false
-			}
-			return m.ImageVariation().Variation == android.CoreVariation && lib.shared() && m.IsVndkSp() && !m.IsVndkExt()
-		}
 		// VNDK APEX doesn't need stub variants
 		if lib.buildStubs() {
 			return false
