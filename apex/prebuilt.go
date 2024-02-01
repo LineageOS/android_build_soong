@@ -629,6 +629,7 @@ func (p *prebuiltCommon) createDeapexerModuleIfNeeded(ctx android.TopDownMutator
 
 	// Compute the deapexer properties from the transitive dependencies of this module.
 	commonModules := []string{}
+	dexpreoptProfileGuidedModules := []string{}
 	exportedFiles := []string{}
 	ctx.WalkDeps(func(child, parent android.Module) bool {
 		tag := ctx.OtherModuleDependencyTag(child)
@@ -642,8 +643,13 @@ func (p *prebuiltCommon) createDeapexerModuleIfNeeded(ctx android.TopDownMutator
 		if _, ok := tag.(android.RequiresFilesFromPrebuiltApexTag); ok {
 			commonModules = append(commonModules, name)
 
-			requiredFiles := child.(android.RequiredFilesFromPrebuiltApex).RequiredFilesFromPrebuiltApex(ctx)
+			extract := child.(android.RequiredFilesFromPrebuiltApex)
+			requiredFiles := extract.RequiredFilesFromPrebuiltApex(ctx)
 			exportedFiles = append(exportedFiles, requiredFiles...)
+
+			if extract.UseProfileGuidedDexpreopt() {
+				dexpreoptProfileGuidedModules = append(dexpreoptProfileGuidedModules, name)
+			}
 
 			// Visit the dependencies of this module just in case they also require files from the
 			// prebuilt apex.
@@ -657,7 +663,8 @@ func (p *prebuiltCommon) createDeapexerModuleIfNeeded(ctx android.TopDownMutator
 	deapexerProperties := &DeapexerProperties{
 		// Remove any duplicates from the common modules lists as a module may be included via a direct
 		// dependency as well as transitive ones.
-		CommonModules: android.SortedUniqueStrings(commonModules),
+		CommonModules:                 android.SortedUniqueStrings(commonModules),
+		DexpreoptProfileGuidedModules: android.SortedUniqueStrings(dexpreoptProfileGuidedModules),
 	}
 
 	// Populate the exported files property in a fixed order.

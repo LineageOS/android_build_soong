@@ -24,6 +24,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/aconfig"
@@ -2520,4 +2521,106 @@ func TestDisableFromTextStubForCoverageBuild(t *testing.T) {
 		false, CheckModuleHasDependency(t, result.TestContext,
 			apiScopePublic.stubsLibraryModuleName("foo"), "android_common",
 			apiScopePublic.apiLibraryModuleName("foo")))
+}
+
+func TestMultiplePrebuilts(t *testing.T) {
+	bp := `
+		// an rdep
+		java_library {
+			name: "foo",
+			libs: ["bar"],
+		}
+
+		// multiple variations of dep
+		// source
+		java_library {
+			name: "bar",
+			srcs: ["bar.java"],
+		}
+		// prebuilt "v1"
+		java_import {
+			name: "bar",
+			jars: ["bar.jar"],
+		}
+		// prebuilt "v2"
+		java_import {
+			name: "bar.v2",
+			source_module_name: "bar",
+			jars: ["bar.v1.jar"],
+		}
+
+		// selectors
+		apex_contributions {
+			name: "myapex_contributions",
+			contents: ["%v"],
+		}
+	`
+	hasDep := func(ctx *android.TestResult, m android.Module, wantDep android.Module) bool {
+		t.Helper()
+		var found bool
+		ctx.VisitDirectDeps(m, func(dep blueprint.Module) {
+			if dep == wantDep {
+				found = true
+			}
+		})
+		return found
+	}
+
+	hasFileWithStem := func(m android.TestingModule, stem string) bool {
+		t.Helper()
+		for _, o := range m.AllOutputs() {
+			_, file := filepath.Split(o)
+			if file == stem+".jar" {
+				return true
+			}
+		}
+		return false
+	}
+
+	testCases := []struct {
+		desc                   string
+		selectedDependencyName string
+		expectedDependencyName string
+	}{
+		{
+			desc:                   "Source library is selected using apex_contributions",
+			selectedDependencyName: "bar",
+			expectedDependencyName: "bar",
+		},
+		{
+			desc:                   "Prebuilt library v1 is selected using apex_contributions",
+			selectedDependencyName: "prebuilt_bar",
+			expectedDependencyName: "prebuilt_bar",
+		},
+		{
+			desc:                   "Prebuilt library v2 is selected using apex_contributions",
+			selectedDependencyName: "prebuilt_bar.v2",
+			expectedDependencyName: "prebuilt_bar.v2",
+		},
+	}
+
+	for _, tc := range testCases {
+		ctx := android.GroupFixturePreparers(
+			prepareForJavaTest,
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.BuildFlags = map[string]string{
+					"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES": "myapex_contributions",
+				}
+			}),
+		).RunTestWithBp(t, fmt.Sprintf(bp, tc.selectedDependencyName))
+
+		// check that rdep gets the correct variation of dep
+		foo := ctx.ModuleForTests("foo", "android_common")
+		expectedDependency := ctx.ModuleForTests(tc.expectedDependencyName, "android_common")
+		android.AssertBoolEquals(t, fmt.Sprintf("expected dependency from %s to %s\n", foo.Module().Name(), tc.expectedDependencyName), true, hasDep(ctx, foo.Module(), expectedDependency.Module()))
+
+		// check that output file of dep is always bar.jar
+		// The filename should be agnostic to source/prebuilt/prebuilt_version
+		android.AssertBoolEquals(t, fmt.Sprintf("could not find bar.jar in outputs of %s. All Outputs %v\n", tc.expectedDependencyName, expectedDependency.AllOutputs()), true, hasFileWithStem(expectedDependency, "bar"))
+
+		// check LOCAL_MODULE of the selected module name
+		// the prebuilt should have the same LOCAL_MODULE when exported to make
+		entries := android.AndroidMkEntriesForTest(t, ctx.TestContext, expectedDependency.Module())[0]
+		android.AssertStringEquals(t, "unexpected LOCAL_MODULE", "bar", entries.EntryMap["LOCAL_MODULE"][0])
+	}
 }

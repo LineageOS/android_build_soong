@@ -1837,6 +1837,7 @@ func (al *ApiLibrary) extractApiSrcs(ctx android.ModuleContext, rule *android.Ru
 func (al *ApiLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	apiContributions := al.properties.Api_contributions
 	addValidations := !ctx.Config().IsEnvTrue("DISABLE_STUB_VALIDATION") &&
+		!ctx.Config().IsEnvTrue("WITHOUT_CHECK_API") &&
 		proptools.BoolDefault(al.properties.Enable_validation, true)
 	for _, apiContributionName := range apiContributions {
 		ctx.AddDependency(ctx.Module(), javaApiContributionTag, apiContributionName)
@@ -2089,6 +2090,11 @@ type ImportProperties struct {
 		// that depend on this module, as well as to aidl for this module.
 		Export_include_dirs []string
 	}
+
+	// Name of the source soong module that gets shadowed by this prebuilt
+	// If unspecified, follows the naming convention that the source module of
+	// the prebuilt is Name() without "prebuilt_" prefix
+	Source_module_name *string
 }
 
 type Import struct {
@@ -2162,12 +2168,16 @@ func (j *Import) PrebuiltSrcs() []string {
 	return j.properties.Jars
 }
 
+func (j *Import) BaseModuleName() string {
+	return proptools.StringDefault(j.properties.Source_module_name, j.ModuleBase.Name())
+}
+
 func (j *Import) Name() string {
 	return j.prebuilt.Name(j.ModuleBase.Name())
 }
 
 func (j *Import) Stem() string {
-	return proptools.StringDefault(j.properties.Stem, j.ModuleBase.Name())
+	return proptools.StringDefault(j.properties.Stem, j.BaseModuleName())
 }
 
 func (a *Import) JacocoReportClassesFile() android.Path {
@@ -2451,6 +2461,10 @@ var _ android.RequiredFilesFromPrebuiltApex = (*Import)(nil)
 func (j *Import) RequiredFilesFromPrebuiltApex(_ android.BaseModuleContext) []string {
 	name := j.BaseModuleName()
 	return requiredFilesFromPrebuiltApexForImport(name, &j.dexpreopter)
+}
+
+func (j *Import) UseProfileGuidedDexpreopt() bool {
+	return proptools.Bool(j.importDexpreoptProperties.Dex_preopt.Profile_guided)
 }
 
 // Add compile time check for interface implementation

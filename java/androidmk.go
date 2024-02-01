@@ -209,9 +209,10 @@ func (prebuilt *Import) AndroidMkEntries() []android.AndroidMkEntries {
 		return []android.AndroidMkEntries{}
 	}
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
-		Class:      "JAVA_LIBRARIES",
-		OutputFile: android.OptionalPathForPath(prebuilt.combinedClasspathFile),
-		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
+		Class:        "JAVA_LIBRARIES",
+		OverrideName: prebuilt.BaseModuleName(),
+		OutputFile:   android.OptionalPathForPath(prebuilt.combinedClasspathFile),
+		Include:      "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				entries.SetBool("LOCAL_UNINSTALLABLE_MODULE", !Bool(prebuilt.properties.Installable))

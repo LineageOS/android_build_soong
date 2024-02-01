@@ -15,6 +15,7 @@
 package android
 
 import (
+	"cmp"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -650,7 +651,7 @@ func BenchmarkFirstUniqueStrings(b *testing.B) {
 	}
 }
 
-func testSortedKeysHelper[K Ordered, V any](t *testing.T, name string, input map[K]V, expected []K) {
+func testSortedKeysHelper[K cmp.Ordered, V any](t *testing.T, name string, input map[K]V, expected []K) {
 	t.Helper()
 	t.Run(name, func(t *testing.T) {
 		actual := SortedKeys(input)

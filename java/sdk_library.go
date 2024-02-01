@@ -3019,6 +3019,10 @@ func (module *SdkLibraryImport) RequiredFilesFromPrebuiltApex(ctx android.BaseMo
 	return requiredFilesFromPrebuiltApexForImport(name, &module.dexpreopter)
 }
 
+func (j *SdkLibraryImport) UseProfileGuidedDexpreopt() bool {
+	return proptools.Bool(j.importDexpreoptProperties.Dex_preopt.Profile_guided)
+}
+
 // java_sdk_library_xml
 type sdkLibraryXml struct {
 	android.ModuleBase
