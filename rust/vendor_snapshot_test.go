@@ -553,6 +553,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		vendor: true,
 		nocrt: true,
 		no_libcrt: true,
+		no_crt_pad_segment: true,
 		stl: "none",
 		system_shared_libs: [],
 	}
@@ -857,6 +858,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		target_arch: "arm64",
 		compile_multilib: "32",
 		vendor: true,
+		no_crt_pad_segment: true,
 		arch: {
 			arm: {
 				src: "lib32.so",
@@ -870,6 +872,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		target_arch: "arm64",
 		compile_multilib: "64",
 		vendor: true,
+		no_crt_pad_segment: true,
 		arch: {
 			arm64: {
 				src: "lib64.so",
@@ -882,6 +885,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		target_arch: "arm64",
 		compile_multilib: "64",
 		vendor: true,
+		no_crt_pad_segment: true,
 		arch: {
 			arm64: {
 				src: "liblog.so",
@@ -913,6 +917,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		target_arch: "arm64",
 		compile_multilib: "both",
 		vendor: true,
+		no_crt_pad_segment: true,
 		arch: {
 			arm64: {
 				src: "libvendor_available.so",
