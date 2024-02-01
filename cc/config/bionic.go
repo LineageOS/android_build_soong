@@ -24,6 +24,7 @@ var (
 	bionicCrtBeginStaticBinary, bionicCrtEndStaticBinary   = []string{"crtbegin_static"}, []string{"crtend_android"}
 	bionicCrtBeginSharedBinary, bionicCrtEndSharedBinary   = []string{"crtbegin_dynamic"}, []string{"crtend_android"}
 	bionicCrtBeginSharedLibrary, bionicCrtEndSharedLibrary = []string{"crtbegin_so"}, []string{"crtend_so"}
+	bionicCrtPadSegmentSharedLibrary                       = []string{"crt_pad_segment"}
 )
 
 func (toolchainBionic) Bionic() bool { return true }
@@ -36,9 +37,10 @@ func (toolchainBionic) ExecutableSuffix() string { return "" }
 
 func (toolchainBionic) AvailableLibraries() []string { return nil }
 
-func (toolchainBionic) CrtBeginStaticBinary() []string  { return bionicCrtBeginStaticBinary }
-func (toolchainBionic) CrtBeginSharedBinary() []string  { return bionicCrtBeginSharedBinary }
-func (toolchainBionic) CrtBeginSharedLibrary() []string { return bionicCrtBeginSharedLibrary }
-func (toolchainBionic) CrtEndStaticBinary() []string    { return bionicCrtEndStaticBinary }
-func (toolchainBionic) CrtEndSharedBinary() []string    { return bionicCrtEndSharedBinary }
-func (toolchainBionic) CrtEndSharedLibrary() []string   { return bionicCrtEndSharedLibrary }
+func (toolchainBionic) CrtBeginStaticBinary() []string       { return bionicCrtBeginStaticBinary }
+func (toolchainBionic) CrtBeginSharedBinary() []string       { return bionicCrtBeginSharedBinary }
+func (toolchainBionic) CrtBeginSharedLibrary() []string      { return bionicCrtBeginSharedLibrary }
+func (toolchainBionic) CrtEndStaticBinary() []string         { return bionicCrtEndStaticBinary }
+func (toolchainBionic) CrtEndSharedBinary() []string         { return bionicCrtEndSharedBinary }
+func (toolchainBionic) CrtEndSharedLibrary() []string        { return bionicCrtEndSharedLibrary }
+func (toolchainBionic) CrtPadSegmentSharedLibrary() []string { return bionicCrtPadSegmentSharedLibrary }

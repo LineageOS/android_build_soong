@@ -328,12 +328,13 @@ type toolchainMusl struct {
 
 func (toolchainMusl) Musl() bool { return true }
 
-func (toolchainMusl) CrtBeginStaticBinary() []string  { return muslCrtBeginStaticBinary }
-func (toolchainMusl) CrtBeginSharedBinary() []string  { return muslCrtBeginSharedBinary }
-func (toolchainMusl) CrtBeginSharedLibrary() []string { return muslCrtBeginSharedLibrary }
-func (toolchainMusl) CrtEndStaticBinary() []string    { return muslCrtEndStaticBinary }
-func (toolchainMusl) CrtEndSharedBinary() []string    { return muslCrtEndSharedBinary }
-func (toolchainMusl) CrtEndSharedLibrary() []string   { return muslCrtEndSharedLibrary }
+func (toolchainMusl) CrtBeginStaticBinary() []string       { return muslCrtBeginStaticBinary }
+func (toolchainMusl) CrtBeginSharedBinary() []string       { return muslCrtBeginSharedBinary }
+func (toolchainMusl) CrtBeginSharedLibrary() []string      { return muslCrtBeginSharedLibrary }
+func (toolchainMusl) CrtEndStaticBinary() []string         { return muslCrtEndStaticBinary }
+func (toolchainMusl) CrtEndSharedBinary() []string         { return muslCrtEndSharedBinary }
+func (toolchainMusl) CrtEndSharedLibrary() []string        { return muslCrtEndSharedLibrary }
+func (toolchainMusl) CrtPadSegmentSharedLibrary() []string { return nil }
 
 func (toolchainMusl) DefaultSharedLibraries() []string { return MuslDefaultSharedLibraries }
 
