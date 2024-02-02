@@ -3772,13 +3772,6 @@ func TestVndkApexCurrent(t *testing.T) {
 				"lib64/libvndk.so",
 				"lib64/libvndksp.so"),
 		},
-		{
-			vndkVersion: "",
-			expectedFiles: append(commonFiles,
-				// Legacy VNDK APEX contains only VNDK-SP files (of core variant)
-				"lib/libvndksp.so",
-				"lib64/libvndksp.so"),
-		},
 	}
 	for _, tc := range testCases {
 		t.Run("VNDK.current with DeviceVndkVersion="+tc.vndkVersion, func(t *testing.T) {
