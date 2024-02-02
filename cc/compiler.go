@@ -116,6 +116,10 @@ type BaseCompilerProperties struct {
 	// if set to false, use -std=c++* instead of -std=gnu++*
 	Gnu_extensions *bool
 
+	// cc Build rules targeting BPF must set this to true. The correct fix is to
+	// ban targeting bpf in cc rules instead use bpf_rules. (b/323415017)
+	Bpf_target *bool
+
 	Yacc *YaccProperties
 	Lex  *LexProperties
 
@@ -483,6 +487,11 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		}
 	}
 
+	// bpf targets don't need the default target triple. b/308826679
+	if proptools.Bool(compiler.Properties.Bpf_target) {
+		target = "--target=bpf"
+	}
+
 	flags.Global.CFlags = append(flags.Global.CFlags, target)
 	flags.Global.AsFlags = append(flags.Global.AsFlags, target)
 	flags.Global.LdFlags = append(flags.Global.LdFlags, target)
@@ -498,8 +507,12 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 
 	flags.Global.AsFlags = append(flags.Global.AsFlags, tc.Asflags())
 	flags.Global.CppFlags = append([]string{"${config.CommonGlobalCppflags}"}, flags.Global.CppFlags...)
+
+	// bpf targets don't need the target specific toolchain cflags. b/308826679
+	if !proptools.Bool(compiler.Properties.Bpf_target) {
+		flags.Global.CommonFlags = append(flags.Global.CommonFlags, tc.Cflags())
+	}
 	flags.Global.CommonFlags = append(flags.Global.CommonFlags,
-		tc.Cflags(),
 		"${config.CommonGlobalCflags}",
 		fmt.Sprintf("${config.%sGlobalCflags}", hod))
 
@@ -521,7 +534,11 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 
 	flags.Global.YasmFlags = append(flags.Global.YasmFlags, tc.YasmFlags())
 
-	flags.Global.CommonFlags = append(flags.Global.CommonFlags, tc.ToolchainCflags())
+	// bpf targets don't need the target specific toolchain cflags. b/308826679
+	if !proptools.Bool(compiler.Properties.Bpf_target) {
+		flags.Global.CommonFlags = append(flags.Global.CommonFlags, tc.ToolchainCflags())
+	}
+
 
 	cStd := parseCStd(compiler.Properties.C_std)
 	cppStd := parseCppStd(compiler.Properties.Cpp_std)
