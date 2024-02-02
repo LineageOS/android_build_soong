@@ -88,6 +88,15 @@ var PrepareForTestByEnablingDexpreopt = android.GroupFixturePreparers(
 	FixtureModifyGlobalConfig(func(android.PathContext, *GlobalConfig) {}),
 )
 
+var PrepareForTestWithDexpreoptConfig = android.GroupFixturePreparers(
+	android.PrepareForTestWithAndroidBuildComponents,
+	android.FixtureModifyContext(func(ctx *android.TestContext) {
+		ctx.RegisterParallelSingletonType("dexpreopt-soong-config", func() android.Singleton {
+			return &globalSoongConfigSingleton{}
+		})
+	}),
+)
+
 // FixtureModifyGlobalConfig enables dexpreopt (unless modified by the mutator) and modifies the
 // configuration.
 func FixtureModifyGlobalConfig(configModifier func(ctx android.PathContext, dexpreoptConfig *GlobalConfig)) android.FixturePreparer {
@@ -193,5 +202,12 @@ func FixtureDisableDexpreoptBootImages(disable bool) android.FixturePreparer {
 func FixtureDisableDexpreopt(disable bool) android.FixturePreparer {
 	return FixtureModifyGlobalConfig(func(_ android.PathContext, dexpreoptConfig *GlobalConfig) {
 		dexpreoptConfig.DisablePreopt = disable
+	})
+}
+
+// FixtureSetEnableUffdGc sets the EnableUffdGc property in the global config.
+func FixtureSetEnableUffdGc(value string) android.FixturePreparer {
+	return FixtureModifyGlobalConfig(func(_ android.PathContext, dexpreoptConfig *GlobalConfig) {
+		dexpreoptConfig.EnableUffdGc = value
 	})
 }
