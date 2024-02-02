@@ -253,6 +253,14 @@ var (
 		// http://b/161386391 for -Wno-pointer-to-int-cast
 		"-Wno-pointer-to-int-cast",
 		"-Werror=fortify-source",
+		// http://b/315246135 temporarily disabled
+		"-Wno-error=unused-variable",
+		// http://b/315250603 temporarily disabled
+		"-Wno-error=format",
+		// Disabled because it produces many false positives. http://b/323050926
+		"-Wno-missing-field-initializers",
+		// http://b/323050889
+		"-Wno-packed-non-pod",
 
 		"-Werror=address-of-temporary",
 		"-Werror=incompatible-function-pointer-types",
@@ -356,6 +364,10 @@ var (
 		"-Wno-unqualified-std-cast-call",
 		"-Wno-array-parameter",
 		"-Wno-gnu-offsetof-extensions",
+		// TODO: Enable this warning http://b/315245071
+		"-Wno-fortify-source",
+		"-Wno-tautological-negation-compare",
+		"-Wno-tautological-undefined-compare",
 	}
 
 	llvmNextExtraCommonGlobalCflags = []string{
@@ -375,8 +387,8 @@ var (
 
 	// prebuilts/clang default settings.
 	ClangDefaultBase         = "prebuilts/clang/host"
-	ClangDefaultVersion      = "clang-r498229b"
-	ClangDefaultShortVersion = "17"
+	ClangDefaultVersion      = "clang-r510928"
+	ClangDefaultShortVersion = "18"
 
 	// Directories with warnings from Android.bp files.
 	WarningAllowedProjects = []string{
