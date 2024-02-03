@@ -333,66 +333,89 @@ func (d *Droidstubs) OutputFiles(tag string) (android.Paths, error) {
 	}
 }
 
-func (d *Droidstubs) AnnotationsZip(stubsType StubsType) (android.Path, error) {
+func (d *Droidstubs) AnnotationsZip(stubsType StubsType) (ret android.Path, err error) {
 	switch stubsType {
 	case Everything:
-		return d.everythingArtifacts.annotationsZip, nil
+		ret, err = d.everythingArtifacts.annotationsZip, nil
 	case Exportable:
-		return d.exportableArtifacts.annotationsZip, nil
+		ret, err = d.exportableArtifacts.annotationsZip, nil
 	default:
-		return nil, fmt.Errorf("annotations zip not supported for the stub type %s", stubsType.String())
+		ret, err = nil, fmt.Errorf("annotations zip not supported for the stub type %s", stubsType.String())
 	}
+	return ret, err
 }
 
-func (d *Droidstubs) ApiFilePath(stubsType StubsType) (android.Path, error) {
+func (d *Droidstubs) ApiFilePath(stubsType StubsType) (ret android.Path, err error) {
 	switch stubsType {
 	case Everything:
-		return d.apiFile, nil
+		ret, err = d.apiFile, nil
 	case Exportable:
-		return d.exportableApiFile, nil
+		ret, err = d.exportableApiFile, nil
 	default:
-		return nil, fmt.Errorf("api file path not supported for the stub type %s", stubsType.String())
+		ret, err = nil, fmt.Errorf("api file path not supported for the stub type %s", stubsType.String())
 	}
+	if ret == nil && err == nil {
+		err = fmt.Errorf("stubs srcjar is null for the stub type %s", stubsType.String())
+	}
+	return ret, err
 }
 
-func (d *Droidstubs) ApiVersionsXmlFilePath(stubsType StubsType) (android.Path, error) {
+func (d *Droidstubs) ApiVersionsXmlFilePath(stubsType StubsType) (ret android.Path, err error) {
 	switch stubsType {
 	case Everything:
-		return d.everythingArtifacts.apiVersionsXml, nil
-	default:
-		return nil, fmt.Errorf("api versions xml file path not supported for the stub type %s", stubsType.String())
-	}
-}
-
-func (d *Droidstubs) DocZip(stubsType StubsType) (android.Path, error) {
-	switch stubsType {
-	case Everything:
-		return d.docZip, nil
-	default:
-		return nil, fmt.Errorf("docs zip not supported for the stub type %s", stubsType.String())
-	}
-}
-
-func (d *Droidstubs) RemovedApiFilePath(stubsType StubsType) (android.Path, error) {
-	switch stubsType {
-	case Everything:
-		return d.removedApiFile, nil
+		ret, err = d.everythingArtifacts.apiVersionsXml, nil
 	case Exportable:
-		return d.exportableRemovedApiFile, nil
+		ret, err = d.exportableArtifacts.apiVersionsXml, nil
 	default:
-		return nil, fmt.Errorf("removed api file path not supported for the stub type %s", stubsType.String())
+		ret, err = nil, fmt.Errorf("api versions xml file path not supported for the stub type %s", stubsType.String())
 	}
+	if ret == nil && err == nil {
+		err = fmt.Errorf("api versions xml file is null for the stub type %s", stubsType.String())
+	}
+	return ret, err
 }
 
-func (d *Droidstubs) StubsSrcJar(stubsType StubsType) (android.Path, error) {
+func (d *Droidstubs) DocZip(stubsType StubsType) (ret android.Path, err error) {
 	switch stubsType {
 	case Everything:
-		return d.stubsSrcJar, nil
-	case Exportable:
-		return d.exportableStubsSrcJar, nil
+		ret, err = d.docZip, nil
 	default:
-		return nil, fmt.Errorf("stubs srcjar not supported for the stub type %s", stubsType.String())
+		ret, err = nil, fmt.Errorf("docs zip not supported for the stub type %s", stubsType.String())
 	}
+	if ret == nil && err == nil {
+		err = fmt.Errorf("docs zip is null for the stub type %s", stubsType.String())
+	}
+	return ret, err
+}
+
+func (d *Droidstubs) RemovedApiFilePath(stubsType StubsType) (ret android.Path, err error) {
+	switch stubsType {
+	case Everything:
+		ret, err = d.removedApiFile, nil
+	case Exportable:
+		ret, err = d.exportableRemovedApiFile, nil
+	default:
+		ret, err = nil, fmt.Errorf("removed api file path not supported for the stub type %s", stubsType.String())
+	}
+	if ret == nil && err == nil {
+		err = fmt.Errorf("removed api file is null for the stub type %s", stubsType.String())
+	}
+	return ret, err
+}
+
+func (d *Droidstubs) StubsSrcJar(stubsType StubsType) (ret android.Path, err error) {
+	switch stubsType {
+	case Everything:
+		ret, err = d.stubsSrcJar, nil
+	case Exportable:
+		ret, err = d.exportableStubsSrcJar, nil
+	default:
+		ret, err = nil, fmt.Errorf("stubs srcjar not supported for the stub type %s", stubsType.String())
+	}
+	if ret == nil && err == nil {
+		err = fmt.Errorf("stubs srcjar is null for the stub type %s", stubsType.String())
+	}
+	return ret, err
 }
 
 func (d *Droidstubs) CurrentApiTimestamp() android.Path {
@@ -537,11 +560,17 @@ func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *a
 	var apiVersions android.Path
 	if proptools.Bool(d.properties.Api_levels_annotations_enabled) {
 		d.apiLevelsGenerationFlags(ctx, cmd, stubsType, apiVersionsXml)
-		apiVersions = d.everythingArtifacts.apiVersionsXml
+		apiVersions = apiVersionsXml
 	} else {
 		ctx.VisitDirectDepsWithTag(metalavaAPILevelsModuleTag, func(m android.Module) {
 			if s, ok := m.(*Droidstubs); ok {
-				apiVersions = s.everythingArtifacts.apiVersionsXml
+				if stubsType == Everything {
+					apiVersions = s.everythingArtifacts.apiVersionsXml
+				} else if stubsType == Exportable {
+					apiVersions = s.exportableArtifacts.apiVersionsXml
+				} else {
+					ctx.ModuleErrorf("%s stubs type does not generate api-versions.xml file", stubsType.String())
+				}
 			} else {
 				ctx.PropertyErrorf("api_levels_module",
 					"module %q is not a droidstubs module", ctx.OtherModuleName(m))
@@ -976,8 +1005,11 @@ func (d *Droidstubs) exportableStubCmd(ctx android.ModuleContext, params stubsCo
 		stubConfig: params,
 	}
 
-	d.Javadoc.exportableStubsSrcJar = android.PathForModuleOut(ctx, params.stubsType.String(), ctx.ModuleName()+"-"+"stubs.srcjar")
-	optionalCmdParams.stubsSrcJar = d.Javadoc.exportableStubsSrcJar
+	if params.generateStubs {
+		d.Javadoc.exportableStubsSrcJar = android.PathForModuleOut(ctx, params.stubsType.String(), ctx.ModuleName()+"-"+"stubs.srcjar")
+		optionalCmdParams.stubsSrcJar = d.Javadoc.exportableStubsSrcJar
+	}
+
 	if params.writeSdkValues {
 		d.exportableArtifacts.metadataZip = android.PathForModuleOut(ctx, params.stubsType.String(), ctx.ModuleName()+"-metadata.zip")
 		d.exportableArtifacts.metadataDir = android.PathForModuleOut(ctx, params.stubsType.String(), "metadata")

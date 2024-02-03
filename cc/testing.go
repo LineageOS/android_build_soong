@@ -77,6 +77,7 @@ func commonDefaultModules() string {
 			no_libcrt: true,
 			sdk_version: "minimum",
 			nocrt: true,
+			no_crt_pad_segment: true,
 			system_shared_libs: [],
 			stl: "none",
 			check_elf_files: false,
@@ -382,6 +383,11 @@ func commonDefaultModules() string {
 			defaults: ["crt_defaults"],
 			srcs: ["crtend.c"],
 			objs: ["crtbrand"],
+		}
+
+		cc_object {
+			name: "crt_pad_segment",
+			defaults: ["crt_defaults"],
 		}
 
 		cc_object {
