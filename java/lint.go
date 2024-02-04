@@ -62,6 +62,10 @@ type LintProperties struct {
 		// If true, baselining updatability lint checks (e.g. NewApi) is prohibited. Defaults to false.
 		Strict_updatability_linting *bool
 
+		// The reverse dependency that had strict_updatability_linting set that caused this module to
+		// have it enabled, for use in error messages.
+		Strict_updatability_parents []string
+
 		// Treat the code in this module as test code for @VisibleForTesting enforcement.
 		// This will be true by default for test module types, false otherwise.
 		// If soong gets support for testonly, this flag should be replaced with that.
@@ -117,8 +121,8 @@ type LintDepSetsIntf interface {
 	LintDepSets() LintDepSets
 
 	// Methods used to propagate strict_updatability_linting values.
-	GetStrictUpdatabilityLinting() bool
-	SetStrictUpdatabilityLinting(bool)
+	GetStrictUpdatabilityLinting(ctx android.BaseModuleContext) []string
+	SetStrictUpdatabilityLinting([]string)
 }
 
 type LintDepSets struct {
@@ -213,12 +217,22 @@ func (l *linter) LintDepSets() LintDepSets {
 	return l.outputs.depSets
 }
 
-func (l *linter) GetStrictUpdatabilityLinting() bool {
-	return BoolDefault(l.properties.Lint.Strict_updatability_linting, false)
+// GetStrictUpdatabilityLinting returns a list of names of modules
+// that set strict_updatability_linting: true and affect the current module.
+// Strict updatability linting should be enabled if the result is non-empty.
+func (l *linter) GetStrictUpdatabilityLinting(ctx android.BaseModuleContext) []string {
+	result := l.properties.Lint.Strict_updatability_parents
+	if proptools.Bool(l.properties.Lint.Strict_updatability_linting) {
+		result = append(result, ctx.ModuleName())
+	}
+	return result
 }
 
-func (l *linter) SetStrictUpdatabilityLinting(strictLinting bool) {
-	l.properties.Lint.Strict_updatability_linting = &strictLinting
+// SetStrictUpdatabilityLinting adds the given list of modules to this module's
+// list of "strict updatable parent" modules. If then given list is non-empty,
+// it causes strict updatability linting to be enabled on this module.
+func (l *linter) SetStrictUpdatabilityLinting(parents []string) {
+	l.properties.Lint.Strict_updatability_parents = android.SortedUniqueStrings(append(l.properties.Lint.Strict_updatability_parents, parents...))
 }
 
 var _ LintDepSetsIntf = (*linter)(nil)
@@ -325,9 +339,10 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.Ru
 	cmd.FlagForEachArg("--error_check ", l.properties.Lint.Error_checks)
 	cmd.FlagForEachArg("--fatal_check ", l.properties.Lint.Fatal_checks)
 
-	if l.GetStrictUpdatabilityLinting() {
+	if strict_mods := l.GetStrictUpdatabilityLinting(ctx); len(strict_mods) > 0 {
 		// Verify the module does not baseline issues that endanger safe updatability.
 		if l.properties.Lint.Baseline_filename != nil {
+			cmd.FlagWithArg("--strict_updatability_parents ", proptools.ShellEscape(strings.Join(strict_mods, ",")))
 			cmd.FlagWithInput("--baseline ", android.PathForModuleSrc(ctx, *l.properties.Lint.Baseline_filename))
 			cmd.FlagForEachArg("--disallowed_issues ", updatabilityChecks)
 		}
@@ -733,11 +748,13 @@ func lintZip(ctx android.BuilderContext, paths android.Paths, outputPath android
 // Enforce the strict updatability linting to all applicable transitive dependencies.
 func enforceStrictUpdatabilityLintingMutator(ctx android.TopDownMutatorContext) {
 	m := ctx.Module()
-	if d, ok := m.(LintDepSetsIntf); ok && d.GetStrictUpdatabilityLinting() {
-		ctx.VisitDirectDepsWithTag(staticLibTag, func(d android.Module) {
-			if a, ok := d.(LintDepSetsIntf); ok {
-				a.SetStrictUpdatabilityLinting(true)
-			}
-		})
+	if d, ok := m.(LintDepSetsIntf); ok {
+		if strict_mods := d.GetStrictUpdatabilityLinting(ctx); len(strict_mods) > 0 {
+			ctx.VisitDirectDepsWithTag(staticLibTag, func(d android.Module) {
+				if a, ok := d.(LintDepSetsIntf); ok {
+					a.SetStrictUpdatabilityLinting(strict_mods)
+				}
+			})
+		}
 	}
 }
