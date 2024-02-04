@@ -204,6 +204,11 @@ func (pb PrimaryBuilderFactory) primaryBuilderInvocation(config Config) bootstra
 		commonArgs = append(commonArgs, "--build-from-source-stub")
 	}
 
+	if pb.config.moduleDebugFile != "" {
+		commonArgs = append(commonArgs, "--soong_module_debug")
+		commonArgs = append(commonArgs, pb.config.moduleDebugFile)
+	}
+
 	commonArgs = append(commonArgs, "-l", filepath.Join(pb.config.FileListDir(), "Android.bp.list"))
 	invocationEnv := make(map[string]string)
 	if pb.debugPort != "" {
