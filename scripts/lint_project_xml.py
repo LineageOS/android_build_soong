@@ -77,8 +77,6 @@ def parse_args():
                       help='file containing merged manifest for the module and its dependencies.')
   parser.add_argument('--baseline', dest='baseline_path',
                       help='file containing baseline lint issues.')
-  parser.add_argument('--strict_updatability_parents',
-                      help='reverse dependencies that set strict_updatability_linting: true, for use in error messages')
   parser.add_argument('--library', dest='library', action='store_true',
                       help='mark the module as a library.')
   parser.add_argument('--test', dest='test', action='store_true',
@@ -163,10 +161,8 @@ def main():
     baseline = minidom.parse(args.baseline_path)
     disallowed_issues = check_baseline_for_disallowed_issues(baseline, args.disallowed_issues)
     if disallowed_issues:
-      error_message = f'disallowed issues {disallowed_issues} found in lint baseline file {args.baseline_path} for module {args.name}'
-      if args.strict_updatability_parents:
-        error_message += f'. The parent modules that set strict_updatability_linting are {args.strict_updatability_parent}'
-      sys.exit(error_message)
+      sys.exit('disallowed issues %s found in lint baseline file %s for module %s'
+                         % (disallowed_issues, args.baseline_path, args.name))
 
   if args.project_out:
     with open(args.project_out, 'w') as f:

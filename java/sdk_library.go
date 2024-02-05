@@ -2968,17 +2968,17 @@ func (module *SdkLibraryImport) LintDepSets() LintDepSets {
 	}
 }
 
-func (module *SdkLibraryImport) GetStrictUpdatabilityLinting(ctx android.BaseModuleContext) []string {
+func (module *SdkLibraryImport) GetStrictUpdatabilityLinting() bool {
 	if module.implLibraryModule == nil {
-		return nil
+		return false
 	} else {
-		return module.implLibraryModule.GetStrictUpdatabilityLinting(ctx)
+		return module.implLibraryModule.GetStrictUpdatabilityLinting()
 	}
 }
 
-func (module *SdkLibraryImport) SetStrictUpdatabilityLinting(parents []string) {
+func (module *SdkLibraryImport) SetStrictUpdatabilityLinting(strictLinting bool) {
 	if module.implLibraryModule != nil {
-		module.implLibraryModule.SetStrictUpdatabilityLinting(parents)
+		module.implLibraryModule.SetStrictUpdatabilityLinting(strictLinting)
 	}
 }
 
