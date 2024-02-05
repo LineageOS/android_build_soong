@@ -171,7 +171,7 @@ func aconfigUpdateAndroidMkEntries(ctx fillInEntriesContext, mod Module, entries
 }
 
 func mergeAconfigFiles(ctx ModuleContext, container string, inputs Paths, generateRule bool) Paths {
-	inputs = LastUniquePaths(inputs)
+	inputs = SortedUniquePaths(inputs)
 	if len(inputs) == 1 {
 		return Paths{inputs[0]}
 	}
