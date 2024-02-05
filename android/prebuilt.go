@@ -547,13 +547,29 @@ func PrebuiltPostDepsMutator(ctx BottomUpMutatorContext) {
 	if p := GetEmbeddedPrebuilt(m); p != nil {
 		bmn, _ := m.(baseModuleName)
 		name := bmn.BaseModuleName()
+		psi := PrebuiltSelectionInfoMap{}
+		ctx.VisitDirectDepsWithTag(acDepTag, func(am Module) {
+			psi, _ = OtherModuleProvider(ctx, am, PrebuiltSelectionInfoProvider)
+		})
+
 		if p.properties.UsePrebuilt {
 			if p.properties.SourceExists {
 				ctx.ReplaceDependenciesIf(name, func(from blueprint.Module, tag blueprint.DependencyTag, to blueprint.Module) bool {
+					if sdkLibrary, ok := m.(interface{ SdkLibraryName() *string }); ok && sdkLibrary.SdkLibraryName() != nil {
+						// Do not replace deps to the top-level prebuilt java_sdk_library hook.
+						// This hook has been special-cased in #isSelected to be _always_ active, even in next builds
+						// for dexpreopt and hiddenapi processing.
+						// If we do not special-case this here, rdeps referring to a java_sdk_library in next builds via libs
+						// will get prebuilt stubs
+						// TODO (b/308187268): Remove this after the apexes have been added to apex_contributions
+						if psi.IsSelected(*sdkLibrary.SdkLibraryName()) {
+							return false
+						}
+					}
+
 					if t, ok := tag.(ReplaceSourceWithPrebuilt); ok {
 						return t.ReplaceSourceWithPrebuilt()
 					}
-
 					return true
 				})
 			}
@@ -584,6 +600,7 @@ func isSelected(psi PrebuiltSelectionInfoMap, m Module) bool {
 		sln := proptools.String(sdkLibrary.SdkLibraryName())
 		// This is the top-level library
 		// Do not supersede the existing prebuilts vs source selection mechanisms
+		// TODO (b/308187268): Remove this after the apexes have been added to apex_contributions
 		if sln == m.base().BaseModuleName() {
 			return false
 		}
