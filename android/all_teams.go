@@ -118,8 +118,8 @@ func (this *allTeamsSingleton) MakeVars(ctx MakeVarsContext) {
 // either the declared team data for that module or the package default team data for that module.
 func (this *allTeamsSingleton) lookupTeamForAllModules() *team_proto.AllTeams {
 	teamsProto := make([]*team_proto.Team, len(this.teams_for_mods))
-	i := 0
-	for moduleName, m := range this.teams_for_mods {
+	for i, moduleName := range SortedKeys(this.teams_for_mods) {
+		m, _ := this.teams_for_mods[moduleName]
 		teamName := m.teamName
 		var teamProperties teamProperties
 		found := false
@@ -152,7 +152,6 @@ func (this *allTeamsSingleton) lookupTeamForAllModules() *team_proto.AllTeams {
 			}
 		}
 		teamsProto[i] = teamData
-		i++
 	}
 	return &team_proto.AllTeams{Teams: teamsProto}
 }
