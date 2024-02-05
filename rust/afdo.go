@@ -44,14 +44,14 @@ func (afdo *afdo) addDep(ctx BaseModuleContext, actx android.BottomUpMutatorCont
 		if err != nil {
 			ctx.ModuleErrorf("%s", err.Error())
 		}
-		if fdoProfileName != nil {
+		if fdoProfileName != "" {
 			actx.AddFarVariationDependencies(
 				[]blueprint.Variation{
 					{Mutator: "arch", Variation: actx.Target().ArchVariation()},
 					{Mutator: "os", Variation: "android"},
 				},
 				cc.FdoProfileTag,
-				[]string{*fdoProfileName}...,
+				[]string{fdoProfileName}...,
 			)
 		}
 	}
