@@ -174,11 +174,11 @@ func TestAfdoEnabledOnStaticDepNoAfdo(t *testing.T) {
 	libBar := result.ModuleForTests("libBar", "android_arm64_armv8-a_static").Module()
 
 	if !hasDirectDep(result, libTest, libFoo.Module()) {
-		t.Errorf("libTest missing dependency on afdo variant of libFoo")
+		t.Errorf("libTest missing dependency on non-afdo variant of libFoo")
 	}
 
 	if !hasDirectDep(result, libFoo.Module(), libBar) {
-		t.Errorf("libFoo missing dependency on afdo variant of libBar")
+		t.Errorf("libFoo missing dependency on non-afdo variant of libBar")
 	}
 
 	fooVariants := result.ModuleVariantsForTests("foo")
