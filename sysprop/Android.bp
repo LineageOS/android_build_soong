@@ -11,6 +11,7 @@ bootstrap_go_package {
         "soong-android",
         "soong-cc",
         "soong-java",
+        "soong-rust",
     ],
     srcs: [
         "sysprop_library.go",
