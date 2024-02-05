@@ -102,6 +102,13 @@ func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) GenerateSourceJarBuild
 		},
 	})
 
+	// Mark our generated code as possibly needing jarjar repackaging
+	// TODO: Maybe control this with a property?
+	module.AddJarJarRenameRule(declarations.Package+".Flags", "")
+	module.AddJarJarRenameRule(declarations.Package+".FeatureFlags", "")
+	module.AddJarJarRenameRule(declarations.Package+".FeatureFlagsImpl", "")
+	module.AddJarJarRenameRule(declarations.Package+".FakeFeatureFlagsImpl", "")
+
 	return srcJarPath
 }
 
