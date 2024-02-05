@@ -248,6 +248,8 @@ type JavaInfo struct {
 	// against this module.  If empty, ImplementationJars should be used instead.
 	HeaderJars android.Paths
 
+	RepackagedHeaderJars android.Paths
+
 	// set of header jars for all transitive libs deps
 	TransitiveLibsHeaderJars *android.DepSet[android.Path]
 
