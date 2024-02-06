@@ -262,7 +262,7 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8Fl
 	var proguardRaiseDeps classpath
 	ctx.VisitDirectDepsWithTag(proguardRaiseTag, func(m android.Module) {
 		dep, _ := android.OtherModuleProvider(ctx, m, JavaInfoProvider)
-		proguardRaiseDeps = append(proguardRaiseDeps, dep.HeaderJars...)
+		proguardRaiseDeps = append(proguardRaiseDeps, dep.RepackagedHeaderJars...)
 	})
 
 	r8Flags = append(r8Flags, proguardRaiseDeps.FormJavaClassPath("-libraryjars"))
