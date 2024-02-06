@@ -55,7 +55,7 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 		ctx.BottomUp("test_per_src", TestPerSrcMutator).Parallel()
 		ctx.BottomUp("version", versionMutator).Parallel()
 		ctx.BottomUp("begin", BeginMutator).Parallel()
-		ctx.BottomUp("fdo_profile", fdoProfileMutator).Parallel()
+		ctx.BottomUp("fdo_profile", fdoProfileMutator)
 	})
 
 	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
@@ -70,7 +70,8 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 
 		ctx.Transition("coverage", &coverageTransitionMutator{})
 
-		ctx.Transition("afdo", &afdoTransitionMutator{})
+		ctx.TopDown("afdo_deps", afdoDepsMutator)
+		ctx.BottomUp("afdo", afdoMutator).Parallel()
 
 		ctx.Transition("orderfile", &orderfileTransitionMutator{})
 
@@ -2337,6 +2338,10 @@ func (c *Module) beginMutator(actx android.BottomUpMutatorContext) {
 		},
 	}
 	ctx.ctx = ctx
+
+	if !actx.Host() || !ctx.static() || ctx.staticBinary() {
+		c.afdo.addDep(ctx, actx)
+	}
 
 	c.begin(ctx)
 }
