@@ -393,6 +393,7 @@ func init() {
 // Export the name of the soong modules representing the various Java API surfaces.
 func javaSdkMakeVars(ctx MakeVarsContext) {
 	ctx.Strict("ANDROID_PUBLIC_STUBS", SdkPublic.DefaultJavaLibraryName())
+	ctx.Strict("ANDROID_PUBLIC_EXPORTABLE_STUBS", SdkPublic.DefaultExportableJavaLibraryName())
 	ctx.Strict("ANDROID_SYSTEM_STUBS", SdkSystem.DefaultJavaLibraryName())
 	ctx.Strict("ANDROID_TEST_STUBS", SdkTest.DefaultJavaLibraryName())
 	ctx.Strict("ANDROID_MODULE_LIB_STUBS", SdkModule.DefaultJavaLibraryName())
