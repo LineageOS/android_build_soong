@@ -1830,3 +1830,93 @@ func TestStubResolutionOfJavaSdkLibraryInLibs(t *testing.T) {
 	inputs := rule.Implicits.Strings()
 	android.AssertStringListContains(t, "Could not find the expected stub on classpath", inputs, "out/soong/.intermediates/sdklib.stubs/android_common/turbine-combined/sdklib.stubs.jar")
 }
+
+// test that rdep gets resolved to the correct version of a java_sdk_library (source or a specific prebuilt)
+func TestMultipleSdkLibraryPrebuilts(t *testing.T) {
+	bp := `
+		apex_contributions {
+			name: "my_mainline_module_contributions",
+			api_domain: "my_mainline_module",
+			contents: ["%s"],
+		}
+		java_sdk_library {
+			name: "sdklib",
+			srcs: ["a.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			public: {
+				enabled: true,
+			},
+		}
+		java_sdk_library_import {
+			name: "sdklib.v1", //prebuilt
+			source_module_name: "sdklib",
+			public: {
+				jars: ["a.jar"],
+				stub_srcs: ["a.java"],
+				current_api: "current.txt",
+				removed_api: "removed.txt",
+				annotations: "annotations.zip",
+			},
+		}
+		java_sdk_library_import {
+			name: "sdklib.v2", //prebuilt
+			source_module_name: "sdklib",
+			public: {
+				jars: ["a.jar"],
+				stub_srcs: ["a.java"],
+				current_api: "current.txt",
+				removed_api: "removed.txt",
+				annotations: "annotations.zip",
+			},
+		}
+		// rdeps
+		java_library {
+			name: "mymodule",
+			srcs: ["a.java"],
+			libs: ["sdklib.stubs",],
+		}
+	`
+	testCases := []struct {
+		desc                   string
+		selectedDependencyName string
+		expectedStubPath       string
+	}{
+		{
+			desc:                   "Source library is selected using apex_contributions",
+			selectedDependencyName: "sdklib",
+			expectedStubPath:       "out/soong/.intermediates/sdklib.stubs/android_common/turbine-combined/sdklib.stubs.jar",
+		},
+		{
+			desc:                   "Prebuilt library v1 is selected using apex_contributions",
+			selectedDependencyName: "prebuilt_sdklib.v1",
+			expectedStubPath:       "out/soong/.intermediates/prebuilt_sdklib.v1.stubs/android_common/combined/sdklib.stubs.jar",
+		},
+		{
+			desc:                   "Prebuilt library v2 is selected using apex_contributions",
+			selectedDependencyName: "prebuilt_sdklib.v2",
+			expectedStubPath:       "out/soong/.intermediates/prebuilt_sdklib.v2.stubs/android_common/combined/sdklib.stubs.jar",
+		},
+	}
+
+	fixture := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("sdklib", "sdklib.v1", "sdklib.v2"),
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.BuildFlags = map[string]string{
+				"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES": "my_mainline_module_contributions",
+			}
+		}),
+	)
+
+	for _, tc := range testCases {
+		result := fixture.RunTestWithBp(t, fmt.Sprintf(bp, tc.selectedDependencyName))
+
+		// Make sure that rdeps get the correct source vs prebuilt based on mainline_module_contributions
+		public := result.ModuleForTests("mymodule", "android_common")
+		rule := public.Output("javac/mymodule.jar")
+		inputs := rule.Implicits.Strings()
+		android.AssertStringListContains(t, "Could not find the expected stub on classpath", inputs, tc.expectedStubPath)
+	}
+}

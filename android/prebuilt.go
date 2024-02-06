@@ -518,7 +518,7 @@ func hideUnflaggedModules(ctx BottomUpMutatorContext, psi PrebuiltSelectionInfoM
 	// query all_apex_contributions to see if any module in this family has been selected
 	for _, moduleInFamily := range allModulesInFamily {
 		// validate that are no duplicates
-		if psi.IsSelected(moduleInFamily.Name()) {
+		if isSelected(psi, moduleInFamily) {
 			if selectedModuleInFamily == nil {
 				// Store this so we can validate that there are no duplicates
 				selectedModuleInFamily = moduleInFamily
@@ -598,22 +598,31 @@ func PrebuiltPostDepsMutator(ctx BottomUpMutatorContext) {
 func isSelected(psi PrebuiltSelectionInfoMap, m Module) bool {
 	if sdkLibrary, ok := m.(interface{ SdkLibraryName() *string }); ok && sdkLibrary.SdkLibraryName() != nil {
 		sln := proptools.String(sdkLibrary.SdkLibraryName())
+
 		// This is the top-level library
 		// Do not supersede the existing prebuilts vs source selection mechanisms
 		// TODO (b/308187268): Remove this after the apexes have been added to apex_contributions
-		if sln == m.base().BaseModuleName() {
+		if bmn, ok := m.(baseModuleName); ok && sln == bmn.BaseModuleName() {
 			return false
 		}
 
 		// Stub library created by java_sdk_library_import
-		if p := GetEmbeddedPrebuilt(m); p != nil {
-			return psi.IsSelected(PrebuiltNameFromSource(sln))
+		// java_sdk_library creates several child modules (java_import + prebuilt_stubs_sources) dynamically.
+		// This code block ensures that these child modules are selected if the top-level java_sdk_library_import is listed
+		// in the selected apex_contributions.
+		if javaImport, ok := m.(createdByJavaSdkLibraryName); ok && javaImport.CreatedByJavaSdkLibraryName() != nil {
+			return psi.IsSelected(PrebuiltNameFromSource(proptools.String(javaImport.CreatedByJavaSdkLibraryName())))
 		}
 
 		// Stub library created by java_sdk_library
 		return psi.IsSelected(sln)
 	}
 	return psi.IsSelected(m.Name())
+}
+
+// implemented by child modules of java_sdk_library_import
+type createdByJavaSdkLibraryName interface {
+	CreatedByJavaSdkLibraryName() *string
 }
 
 // usePrebuilt returns true if a prebuilt should be used instead of the source module.  The prebuilt
