@@ -2097,6 +2097,11 @@ type ImportProperties struct {
 	// If unspecified, follows the naming convention that the source module of
 	// the prebuilt is Name() without "prebuilt_" prefix
 	Source_module_name *string
+
+	// Non-nil if this java_import module was dynamically created by a java_sdk_library_import
+	// The name is the undecorated name of the java_sdk_library as it appears in the blueprint file
+	// (without any prebuilt_ prefix)
+	Created_by_java_sdk_library_name *string `blueprint:"mutated"`
 }
 
 type Import struct {
@@ -2180,6 +2185,10 @@ func (j *Import) Name() string {
 
 func (j *Import) Stem() string {
 	return proptools.StringDefault(j.properties.Stem, j.BaseModuleName())
+}
+
+func (j *Import) CreatedByJavaSdkLibraryName() *string {
+	return j.properties.Created_by_java_sdk_library_name
 }
 
 func (a *Import) JacocoReportClassesFile() android.Path {
@@ -2833,7 +2842,20 @@ func addCLCFromDep(ctx android.ModuleContext, depModule android.Module,
 type JavaApiContributionImport struct {
 	JavaApiContribution
 
-	prebuilt android.Prebuilt
+	prebuilt           android.Prebuilt
+	prebuiltProperties javaApiContributionImportProperties
+}
+
+type javaApiContributionImportProperties struct {
+	// Name of the source soong module that gets shadowed by this prebuilt
+	// If unspecified, follows the naming convention that the source module of
+	// the prebuilt is Name() without "prebuilt_" prefix
+	Source_module_name *string
+
+	// Non-nil if this java_import module was dynamically created by a java_sdk_library_import
+	// The name is the undecorated name of the java_sdk_library as it appears in the blueprint file
+	// (without any prebuilt_ prefix)
+	Created_by_java_sdk_library_name *string `blueprint:"mutated"`
 }
 
 func ApiContributionImportFactory() android.Module {
@@ -2841,7 +2863,7 @@ func ApiContributionImportFactory() android.Module {
 	android.InitAndroidModule(module)
 	android.InitDefaultableModule(module)
 	android.InitPrebuiltModule(module, &[]string{""})
-	module.AddProperties(&module.properties)
+	module.AddProperties(&module.properties, &module.prebuiltProperties)
 	module.AddProperties(&module.sdkLibraryComponentProperties)
 	return module
 }
@@ -2852,6 +2874,14 @@ func (module *JavaApiContributionImport) Prebuilt() *android.Prebuilt {
 
 func (module *JavaApiContributionImport) Name() string {
 	return module.prebuilt.Name(module.ModuleBase.Name())
+}
+
+func (j *JavaApiContributionImport) BaseModuleName() string {
+	return proptools.StringDefault(j.prebuiltProperties.Source_module_name, j.ModuleBase.Name())
+}
+
+func (j *JavaApiContributionImport) CreatedByJavaSdkLibraryName() *string {
+	return j.prebuiltProperties.Created_by_java_sdk_library_name
 }
 
 func (ap *JavaApiContributionImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
