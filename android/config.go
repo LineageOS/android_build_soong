@@ -28,7 +28,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"unicode"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
@@ -321,18 +320,6 @@ func loadConfig(config *config) error {
 	return loadFromConfigFile(&config.productVariables, absolutePath(config.ProductVariablesFileName))
 }
 
-// Checks if the string is a valid go identifier. This is equivalent to blueprint's definition
-// of an identifier, so it will match the same identifiers as those that can be used in bp files.
-func isGoIdentifier(ident string) bool {
-	for i, r := range ident {
-		valid := r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r) && i > 0
-		if !valid {
-			return false
-		}
-	}
-	return len(ident) > 0
-}
-
 // loadFromConfigFile loads and decodes configuration options from a JSON file
 // in the current working directory.
 func loadFromConfigFile(configurable *ProductVariables, filename string) error {
@@ -367,20 +354,6 @@ func loadFromConfigFile(configurable *ProductVariables, filename string) error {
 	configurable.Native_coverage = proptools.BoolPtr(
 		Bool(configurable.GcovCoverage) ||
 			Bool(configurable.ClangCoverage))
-
-	// The go scanner's definition of identifiers is c-style identifiers, but allowing unicode's
-	// definition of letters and digits. This is the same scanner that blueprint uses, so it
-	// will allow the same identifiers as are valid in bp files.
-	for namespace := range configurable.VendorVars {
-		if !isGoIdentifier(namespace) {
-			return fmt.Errorf("soong config namespaces must be valid identifiers: %q", namespace)
-		}
-		for variable := range configurable.VendorVars[namespace] {
-			if !isGoIdentifier(variable) {
-				return fmt.Errorf("soong config variables must be valid identifiers: %q", variable)
-			}
-		}
-	}
 
 	// when Platform_sdk_final is true (or PLATFORM_VERSION_CODENAME is REL), use Platform_sdk_version;
 	// if false (pre-released version, for example), use Platform_sdk_codename.
