@@ -744,8 +744,14 @@ func (d *Droidstubs) generateRevertAnnotationArgs(ctx android.ModuleContext, cmd
 		filterArgs = "--filter='state:ENABLED+permission:READ_ONLY' --filter='permission:READ_WRITE'"
 
 	case Exportable:
-		filterArgs = "--filter='state:ENABLED+permission:READ_ONLY'"
-
+		// When the build flag RELEASE_EXPORT_RUNTIME_APIS is set to true, apis marked with
+		// the flagged apis that have read_write permissions are exposed on top of the enabled
+		// and read_only apis. This is to support local override of flag values at runtime.
+		if ctx.Config().ReleaseExportRuntimeApis() {
+			filterArgs = "--filter='state:ENABLED+permission:READ_ONLY' --filter='permission:READ_WRITE'"
+		} else {
+			filterArgs = "--filter='state:ENABLED+permission:READ_ONLY'"
+		}
 	}
 
 	ctx.Build(pctx, android.BuildParams{

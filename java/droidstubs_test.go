@@ -412,3 +412,48 @@ func TestAconfigDeclarations(t *testing.T) {
 	android.AssertStringDoesContain(t, "foo generates exportable stubs jar",
 		strings.Join(m.AllOutputs(), ""), "exportable/foo-stubs.srcjar")
 }
+
+func TestReleaseExportRuntimeApis(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.BuildFlags = map[string]string{
+				"RELEASE_HIDDEN_API_EXPORTABLE_STUBS": "true",
+				"RELEASE_EXPORT_RUNTIME_APIS":         "true",
+			}
+		}),
+		android.FixtureMergeMockFs(map[string][]byte{
+			"a/A.java":      nil,
+			"a/current.txt": nil,
+			"a/removed.txt": nil,
+		}),
+	).RunTestWithBp(t, `
+	aconfig_declarations {
+		name: "bar",
+		package: "com.example.package",
+		srcs: [
+			"bar.aconfig",
+		],
+	}
+	droidstubs {
+		name: "foo",
+		srcs: ["a/A.java"],
+		api_surface: "public",
+		check_api: {
+			current: {
+				api_file: "a/current.txt",
+				removed_api_file: "a/removed.txt",
+			}
+		},
+		aconfig_declarations: [
+			"bar",
+		],
+	}
+	`)
+
+	m := result.ModuleForTests("foo", "android_common")
+
+	rule := m.Output("released-flagged-apis-exportable.txt")
+	exposeWritableApisFilter := "--filter='state:ENABLED+permission:READ_ONLY' --filter='permission:READ_WRITE'"
+	android.AssertStringEquals(t, "Filter argument expected to contain READ_WRITE permissions", exposeWritableApisFilter, rule.Args["filter_args"])
+}
