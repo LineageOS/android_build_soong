@@ -34,6 +34,7 @@ import (
 var (
 	DeviceSharedLibrary = "shared_library"
 	DeviceStaticLibrary = "static_library"
+	jarJarPrefixHandler func(ctx ModuleContext)
 )
 
 type Module interface {
@@ -1772,6 +1773,13 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			return
 		}
 
+		if jarJarPrefixHandler != nil {
+			jarJarPrefixHandler(ctx)
+			if ctx.Failed() {
+				return
+			}
+		}
+
 		m.module.GenerateAndroidBuildActions(ctx)
 		if ctx.Failed() {
 			return
@@ -1863,6 +1871,13 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	m.buildParams = ctx.buildParams
 	m.ruleParams = ctx.ruleParams
 	m.variables = ctx.variables
+}
+
+func SetJarJarPrefixHandler(handler func(ModuleContext)) {
+	if jarJarPrefixHandler != nil {
+		panic("jarJarPrefixHandler already set")
+	}
+	jarJarPrefixHandler = handler
 }
 
 func (m *ModuleBase) moduleInfoRegisterName(ctx ModuleContext, subName string) string {

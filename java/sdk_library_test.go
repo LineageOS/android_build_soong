@@ -1772,3 +1772,61 @@ func TestSdkLibraryExportableStubsLibrary(t *testing.T) {
 		"top level exportable stubs library", []string{exportableSourceStubsLibraryModuleName},
 		topLevelModule.Module().(*Library).properties.Static_libs)
 }
+
+// For java libraries depending on java_sdk_library(_import) via libs, assert that
+// rdep gets stubs of source if source is listed in apex_contributions and prebuilt has prefer (legacy mechanism)
+func TestStubResolutionOfJavaSdkLibraryInLibs(t *testing.T) {
+	bp := `
+		apex_contributions {
+			name: "my_mainline_module_contributions",
+			api_domain: "my_mainline_module",
+			contents: ["sdklib"], // source is selected using apex_contributions, but prebuilt is selected using prefer
+		}
+		java_sdk_library {
+			name: "sdklib",
+			srcs: ["a.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			public: {
+				enabled: true,
+			},
+		}
+		java_sdk_library_import {
+			name: "sdklib",
+			public: {
+				jars: ["a.jar"],
+				stub_srcs: ["a.java"],
+				current_api: "current.txt",
+				removed_api: "removed.txt",
+				annotations: "annotations.zip",
+			},
+			prefer: true, // Set prefer explicitly on the prebuilt. We will assert that rdep gets source in a test case.
+		}
+		// rdeps
+		java_library {
+			name: "mymodule",
+			srcs: ["a.java"],
+			sdk_version: "current",
+			libs: ["sdklib",], // this should be dynamically resolved to sdklib.stubs (source) or prebuilt_sdklib.stubs (prebuilt)
+		}
+	`
+
+	fixture := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("sdklib"),
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.BuildFlags = map[string]string{
+				// We can use any of the apex contribution build flags from build/soong/android/config.go#mainlineApexContributionBuildFlags here
+				"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES": "my_mainline_module_contributions",
+			}
+		}),
+	)
+
+	result := fixture.RunTestWithBp(t, bp)
+	// Make sure that rdeps get the correct source vs prebuilt based on mainline_module_contributions
+	public := result.ModuleForTests("mymodule", "android_common")
+	rule := public.Output("javac/mymodule.jar")
+	inputs := rule.Implicits.Strings()
+	android.AssertStringListContains(t, "Could not find the expected stub on classpath", inputs, "out/soong/.intermediates/sdklib.stubs/android_common/turbine-combined/sdklib.stubs.jar")
+}
