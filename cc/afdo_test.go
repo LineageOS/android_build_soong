@@ -42,6 +42,7 @@ func TestAfdoDeps(t *testing.T) {
 	bp := `
 	cc_library_shared {
 		name: "libTest",
+		host_supported: true,
 		srcs: ["test.c"],
 		static_libs: ["libFoo"],
 		afdo: true,
@@ -52,12 +53,14 @@ func TestAfdoDeps(t *testing.T) {
 
 	cc_library_static {
 		name: "libFoo",
+		host_supported: true,
 		srcs: ["foo.c"],
 		static_libs: ["libBar"],
 	}
 
 	cc_library_static {
 		name: "libBar",
+		host_supported: true,
 		srcs: ["bar.c"],
 	}
 	`
@@ -210,6 +213,52 @@ func TestAfdoDeps(t *testing.T) {
 		t.Errorf("Expected arm32 'libBar' to enable afdo, but did not find %q in cflags %q", uniqueInternalLinkageNamesCFlag, cFlags)
 	}
 
+	// Verify that the host variants don't enable afdo
+	libTestHost := result.ModuleForTests("libTest", result.Config.BuildOSTarget.String()+"_shared")
+	libFooHost := result.ModuleForTests("libFoo", result.Config.BuildOSTarget.String()+"_static_lto-thin")
+	libBarHost := result.ModuleForTests("libBar", result.Config.BuildOSTarget.String()+"_static_lto-thin")
+
+	cFlags = libTestHost.Rule("cc").Args["cFlags"]
+	if strings.Contains(cFlags, profileSampleCFlag) {
+		t.Errorf("Expected host 'libTest' to not enable afdo profile, but found %q in cflags %q", profileSampleCFlag, cFlags)
+	}
+
+	if strings.Contains(cFlags, uniqueInternalLinkageNamesCFlag) {
+		t.Errorf("Expected host 'libTest' to not enable afdo but found %q in cflags %q",
+			uniqueInternalLinkageNamesCFlag, cFlags)
+	}
+
+	ldFlags = libTestHost.Rule("ld").Args["ldFlags"]
+	if !strings.Contains(ldFlags, noAfdoLtoLdFlag) {
+		t.Errorf("Expected host 'libTest' to not enable afdo, but did not find %q in ldflags %q", noAfdoLtoLdFlag, ldFlags)
+	}
+	if strings.Contains(ldFlags, afdoLtoLdFlag) {
+		t.Errorf("Expected host 'libTest' to not enable afdo, but found %q in ldflags %q", afdoLtoLdFlag, ldFlags)
+	}
+
+	// Check dependency edge from afdo-enabled module to static deps
+	if !hasDirectDep(result, libTestHost.Module(), libFooHost.Module()) {
+		t.Errorf("host libTest missing dependency on non-afdo variant of libFoo")
+	}
+
+	if !hasDirectDep(result, libFooHost.Module(), libBarHost.Module()) {
+		t.Errorf("host libTest missing dependency on non-afdo variant of libBar")
+	}
+
+	cFlags = libFooHost.Rule("cc").Args["cFlags"]
+	if strings.Contains(cFlags, profileSampleCFlag) {
+		t.Errorf("Expected host 'libFoo' to not enable afdo profile, but found %q in cflags %q", uniqueInternalLinkageNamesCFlag, cFlags)
+	}
+	if strings.Contains(cFlags, uniqueInternalLinkageNamesCFlag) {
+		t.Errorf("Expected host 'libFoo' to not enable afdo, but found %q in cflags %q", uniqueInternalLinkageNamesCFlag, cFlags)
+	}
+	cFlags = libBarHost.Rule("cc").Args["cFlags"]
+	if strings.Contains(cFlags, profileSampleCFlag) {
+		t.Errorf("Expected host 'libBar' to not enable afdo profile, but found %q in cflags %q", uniqueInternalLinkageNamesCFlag, cFlags)
+	}
+	if strings.Contains(cFlags, uniqueInternalLinkageNamesCFlag) {
+		t.Errorf("Expected host 'libBar' to not enable afdo, but found %q in cflags %q", uniqueInternalLinkageNamesCFlag, cFlags)
+	}
 }
 
 func TestAfdoEnabledOnStaticDepNoAfdo(t *testing.T) {
