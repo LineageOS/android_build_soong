@@ -1320,6 +1320,24 @@ var _ android.PrebuiltInterface = (*PrebuiltStubsSources)(nil)
 
 type PrebuiltStubsSourcesProperties struct {
 	Srcs []string `android:"path"`
+
+	// Name of the source soong module that gets shadowed by this prebuilt
+	// If unspecified, follows the naming convention that the source module of
+	// the prebuilt is Name() without "prebuilt_" prefix
+	Source_module_name *string
+
+	// Non-nil if this prebuilt stub srcs  module was dynamically created by a java_sdk_library_import
+	// The name is the undecorated name of the java_sdk_library as it appears in the blueprint file
+	// (without any prebuilt_ prefix)
+	Created_by_java_sdk_library_name *string `blueprint:"mutated"`
+}
+
+func (j *PrebuiltStubsSources) BaseModuleName() string {
+	return proptools.StringDefault(j.properties.Source_module_name, j.ModuleBase.Name())
+}
+
+func (j *PrebuiltStubsSources) CreatedByJavaSdkLibraryName() *string {
+	return j.properties.Created_by_java_sdk_library_name
 }
 
 type PrebuiltStubsSources struct {

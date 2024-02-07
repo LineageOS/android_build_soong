@@ -1661,6 +1661,8 @@ type InstallPath struct {
 
 	// makePath indicates whether this path is for Soong (false) or Make (true).
 	makePath bool
+
+	fullPath string
 }
 
 // Will panic if called from outside a test environment.
@@ -1673,7 +1675,12 @@ func ensureTestOnly() {
 
 func (p InstallPath) RelativeToTop() Path {
 	ensureTestOnly()
-	p.soongOutDir = OutSoongDir
+	if p.makePath {
+		p.soongOutDir = OutDir
+	} else {
+		p.soongOutDir = OutSoongDir
+	}
+	p.fullPath = filepath.Join(p.soongOutDir, p.path)
 	return p
 }
 
@@ -1691,12 +1698,7 @@ var _ WritablePath = InstallPath{}
 func (p InstallPath) writablePath() {}
 
 func (p InstallPath) String() string {
-	if p.makePath {
-		// Make path starts with out/ instead of out/soong.
-		return filepath.Join(p.soongOutDir, "../", p.path)
-	} else {
-		return filepath.Join(p.soongOutDir, p.path)
-	}
+	return p.fullPath
 }
 
 // PartitionDir returns the path to the partition where the install path is rooted at. It is
@@ -1726,6 +1728,7 @@ func (p InstallPath) Join(ctx PathContext, paths ...string) InstallPath {
 
 func (p InstallPath) withRel(rel string) InstallPath {
 	p.basePath = p.basePath.withRel(rel)
+	p.fullPath = filepath.Join(p.fullPath, rel)
 	return p
 }
 
@@ -1769,6 +1772,25 @@ func osAndArch(ctx ModuleInstallPathContext) (OsType, ArchType) {
 	return os, arch
 }
 
+func pathForPartitionInstallDir(ctx PathContext, partition, partitionPath string, makePath bool) InstallPath {
+	fullPath := ctx.Config().SoongOutDir()
+	if makePath {
+		// Make path starts with out/ instead of out/soong.
+		fullPath = filepath.Join(fullPath, "../", partitionPath)
+	} else {
+		fullPath = filepath.Join(fullPath, partitionPath)
+	}
+
+	return InstallPath{
+		basePath:     basePath{partitionPath, ""},
+		soongOutDir:  ctx.Config().soongOutDir,
+		partitionDir: partitionPath,
+		partition:    partition,
+		makePath:     makePath,
+		fullPath:     fullPath,
+	}
+}
+
 func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 	pathComponents ...string) InstallPath {
 
@@ -1805,27 +1827,12 @@ func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 		reportPathError(ctx, err)
 	}
 
-	base := InstallPath{
-		basePath:     basePath{partitionPath, ""},
-		soongOutDir:  ctx.Config().soongOutDir,
-		partitionDir: partitionPath,
-		partition:    partition,
-	}
-
-	if ctx.Config().KatiEnabled() {
-		base.makePath = true
-	}
-
+	base := pathForPartitionInstallDir(ctx, partition, partitionPath, ctx.Config().KatiEnabled())
 	return base.Join(ctx, pathComponents...)
 }
 
 func pathForNdkOrSdkInstall(ctx PathContext, prefix string, paths []string) InstallPath {
-	base := InstallPath{
-		basePath:     basePath{prefix, ""},
-		soongOutDir:  ctx.Config().soongOutDir,
-		partitionDir: prefix,
-		makePath:     false,
-	}
+	base := pathForPartitionInstallDir(ctx, "", prefix, false)
 	return base.Join(ctx, paths...)
 }
 

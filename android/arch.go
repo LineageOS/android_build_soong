@@ -426,6 +426,7 @@ func osMutator(bpctx blueprint.BottomUpMutatorContext) {
 	// filters out non-Soong modules.  Now that we've handled them, create a
 	// normal android.BottomUpMutatorContext.
 	mctx := bottomUpMutatorContextFactory(bpctx, module, false)
+	defer bottomUpMutatorContextPool.Put(mctx)
 
 	base := module.base()
 
@@ -572,6 +573,7 @@ func archMutator(bpctx blueprint.BottomUpMutatorContext) {
 	// filters out non-Soong modules.  Now that we've handled them, create a
 	// normal android.BottomUpMutatorContext.
 	mctx := bottomUpMutatorContextFactory(bpctx, module, false)
+	defer bottomUpMutatorContextPool.Put(mctx)
 
 	base := module.base()
 
@@ -1058,9 +1060,7 @@ func mergePropertyStruct(ctx ArchVariantContext, dst interface{}, srcValue refle
 	// order checks the `android:"variant_prepend"` tag to handle properties where the
 	// arch-specific value needs to come before the generic value, for example for lists of
 	// include directories.
-	order := func(property string,
-		dstField, srcField reflect.StructField,
-		dstValue, srcValue interface{}) (proptools.Order, error) {
+	order := func(dstField, srcField reflect.StructField) (proptools.Order, error) {
 		if proptools.HasTag(dstField, "android", "variant_prepend") {
 			return proptools.Prepend, nil
 		} else {
