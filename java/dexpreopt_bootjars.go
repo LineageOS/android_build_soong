@@ -726,13 +726,19 @@ func (m *apexNameToApexExportsInfoMap) javaLibraryDexPathOnHost(ctx android.Modu
 	return nil, false
 }
 
+// Returns the stem of an artifact inside a prebuilt apex
+func ModuleStemForDeapexing(m android.Module) string {
+	bmn, _ := m.(interface{ BaseModuleName() string })
+	return bmn.BaseModuleName()
+}
+
 // Returns the java libraries exported by the apex for hiddenapi and dexpreopt
 // This information can come from two mechanisms
 // 1. New: Direct deps to _selected_ apexes. The apexes return a ApexExportsInfo
 // 2. Legacy: An edge to java_library or java_import (java_sdk_library) module. For prebuilt apexes, this serves as a hook and is populated by deapexers of prebuilt apxes
 // TODO: b/308174306 - Once all mainline modules have been flagged, drop (2)
 func getDexJarForApex(ctx android.ModuleContext, pair apexJarModulePair, apexNameToApexExportsInfoMap apexNameToApexExportsInfoMap) android.Path {
-	if dex, found := apexNameToApexExportsInfoMap.javaLibraryDexPathOnHost(ctx, pair.apex, android.RemoveOptionalPrebuiltPrefix(pair.jarModule.Name())); found {
+	if dex, found := apexNameToApexExportsInfoMap.javaLibraryDexPathOnHost(ctx, pair.apex, ModuleStemForDeapexing(pair.jarModule)); found {
 		return dex
 	}
 	// TODO: b/308174306 - Remove the legacy mechanism

@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 )
@@ -210,7 +211,7 @@ func (system *SystemModules) AndroidMk() android.AndroidMkData {
 // type and the one to use is selected at runtime.
 func systemModulesImportFactory() android.Module {
 	module := &systemModulesImport{}
-	module.AddProperties(&module.properties)
+	module.AddProperties(&module.properties, &module.prebuiltProperties)
 	android.InitPrebuiltModule(module, &module.properties.Libs)
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
@@ -219,11 +220,37 @@ func systemModulesImportFactory() android.Module {
 
 type systemModulesImport struct {
 	SystemModules
-	prebuilt android.Prebuilt
+	prebuilt           android.Prebuilt
+	prebuiltProperties prebuiltSystemModulesProperties
+}
+
+type prebuiltSystemModulesProperties struct {
+	// Name of the source soong module that gets shadowed by this prebuilt
+	// If unspecified, follows the naming convention that the source module of
+	// the prebuilt is Name() without "prebuilt_" prefix
+	Source_module_name *string
 }
 
 func (system *systemModulesImport) Name() string {
 	return system.prebuilt.Name(system.ModuleBase.Name())
+}
+
+// BaseModuleName returns the source module that will get shadowed by this prebuilt
+// e.g.
+//
+//	java_system_modules_import {
+//	   name: "my_system_modules.v1",
+//	   source_module_name: "my_system_modules",
+//	}
+//
+//	java_system_modules_import {
+//	   name: "my_system_modules.v2",
+//	   source_module_name: "my_system_modules",
+//	}
+//
+// `BaseModuleName` for both will return `my_system_modules`
+func (system *systemModulesImport) BaseModuleName() string {
+	return proptools.StringDefault(system.prebuiltProperties.Source_module_name, system.ModuleBase.Name())
 }
 
 func (system *systemModulesImport) Prebuilt() *android.Prebuilt {
