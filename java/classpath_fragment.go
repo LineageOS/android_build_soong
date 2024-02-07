@@ -103,8 +103,8 @@ type classpathJar struct {
 func gatherPossibleApexModuleNamesAndStems(ctx android.ModuleContext, contents []string, tag blueprint.DependencyTag) []string {
 	set := map[string]struct{}{}
 	for _, name := range contents {
-		dep := ctx.GetDirectDepWithTag(name, tag)
-		set[name] = struct{}{}
+		dep, _ := ctx.GetDirectDepWithTag(name, tag).(android.Module)
+		set[ModuleStemForDeapexing(dep)] = struct{}{}
 		if m, ok := dep.(ModuleWithStem); ok {
 			set[m.Stem()] = struct{}{}
 		} else {
