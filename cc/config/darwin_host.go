@@ -29,11 +29,6 @@ var (
 		"-fPIC",
 		"-funwind-tables",
 
-		// Workaround differences in inttypes.h between host and target.
-		//See bug 12708004.
-		"-D__STDC_FORMAT_MACROS",
-		"-D__STDC_CONSTANT_MACROS",
-
 		"-isysroot ${macSdkRoot}",
 		"-mmacosx-version-min=${macMinVersion}",
 		"-DMACOSX_DEPLOYMENT_TARGET=${macMinVersion}",
