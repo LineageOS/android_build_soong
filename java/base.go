@@ -2441,6 +2441,9 @@ func collectDirectDepsProviders(ctx android.ModuleContext) (result *JarJarProvid
 	// Gather repackage information from deps
 	// If the dep jas a JarJarProvider, it is used.  Otherwise, any BaseJarJarProvider is used.
 	ctx.VisitDirectDepsIgnoreBlueprint(func(m android.Module) {
+		if ctx.OtherModuleDependencyTag(m) == proguardRaiseTag {
+			return
+		}
 		merge := func(theirs *JarJarProviderData) {
 			for orig, renamed := range theirs.Rename {
 				if result == nil {
