@@ -383,6 +383,7 @@ type ProductVariables struct {
 
 	BoardSepolicyVers       *string `json:",omitempty"`
 	PlatformSepolicyVersion *string `json:",omitempty"`
+	TotSepolicyVersion      *string `json:",omitempty"`
 
 	SystemExtSepolicyPrebuiltApiDir *string `json:",omitempty"`
 	ProductSepolicyPrebuiltApiDir   *string `json:",omitempty"`
