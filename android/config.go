@@ -210,6 +210,12 @@ func (c Config) ReleaseDefaultModuleBuildFromSource() bool {
 		Bool(c.config.productVariables.ReleaseDefaultModuleBuildFromSource)
 }
 
+// Enables flagged apis annotated with READ_WRITE aconfig flags to be included in the stubs
+// and hiddenapi flags so that they are accessible at runtime
+func (c Config) ReleaseExportRuntimeApis() bool {
+	return c.config.productVariables.GetBuildFlagBool("RELEASE_EXPORT_RUNTIME_APIS")
+}
+
 // Enables ABI monitoring of NDK libraries
 func (c Config) ReleaseNdkAbiMonitored() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_NDK_ABI_MONITORED")
