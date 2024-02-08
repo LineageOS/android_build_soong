@@ -910,7 +910,7 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 	var validations android.Paths
 	validations = append(validations, runApexLinkerconfigValidation(ctx, unsignedOutputFile.OutputPath, imageDir.OutputPath))
 	// TODO(b/279688635) deapexer supports [ext4]
-	if suffix == imageApexSuffix && ext4 == a.payloadFsType {
+	if !a.testApex && suffix == imageApexSuffix && ext4 == a.payloadFsType {
 		validations = append(validations, runApexSepolicyTests(ctx, unsignedOutputFile.OutputPath))
 	}
 	if !a.testApex && len(a.properties.Unwanted_transitive_deps) > 0 {
