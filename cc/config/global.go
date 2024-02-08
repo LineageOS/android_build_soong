@@ -369,6 +369,8 @@ var (
 		"-Wno-fortify-source",
 		"-Wno-tautological-negation-compare",
 		"-Wno-tautological-undefined-compare",
+		// http://324323434
+		"-Wno-ambiguous-reversed-operator",
 	}
 
 	llvmNextExtraCommonGlobalCflags = []string{
