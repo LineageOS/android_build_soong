@@ -27,9 +27,8 @@ var (
 		"-DWIN32_LEAN_AND_MEAN",
 		"-Wno-unused-parameter",
 
-		// Workaround differences in inttypes.h between host and target.
-		//See bug 12708004.
-		"-D__STDC_FORMAT_MACROS",
+		// Workaround differences in <stdint.h> between host and target.
+		// Context: http://b/12708004
 		"-D__STDC_CONSTANT_MACROS",
 
 		// Use C99-compliant printf functions (%zd).
