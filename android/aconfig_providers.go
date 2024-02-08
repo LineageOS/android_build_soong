@@ -35,6 +35,7 @@ var (
 type AconfigDeclarationsProviderData struct {
 	Package                     string
 	Container                   string
+	Exportable                  bool
 	IntermediateCacheOutputPath WritablePath
 	IntermediateDumpOutputPath  WritablePath
 }
