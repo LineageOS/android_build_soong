@@ -695,18 +695,20 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 	if moduleMinSdkVersion.IsCurrent() || moduleMinSdkVersion.IsNone() {
 		minSdkVersion = ctx.Config().DefaultAppTargetSdk(ctx).String()
 
-		if java.UseApiFingerprint(ctx) {
-			minSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", java.ApiFingerprintPath(ctx).String())
-			implicitInputs = append(implicitInputs, java.ApiFingerprintPath(ctx))
+		if useApiFingerprint, fingerprintMinSdkVersion, fingerprintDeps :=
+			java.UseApiFingerprint(ctx); useApiFingerprint {
+			minSdkVersion = fingerprintMinSdkVersion
+			implicitInputs = append(implicitInputs, fingerprintDeps)
 		}
 	}
 	// apex module doesn't have a concept of target_sdk_version, hence for the time
 	// being targetSdkVersion == default targetSdkVersion of the branch.
 	targetSdkVersion := strconv.Itoa(ctx.Config().DefaultAppTargetSdk(ctx).FinalOrFutureInt())
 
-	if java.UseApiFingerprint(ctx) {
-		targetSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", java.ApiFingerprintPath(ctx).String())
-		implicitInputs = append(implicitInputs, java.ApiFingerprintPath(ctx))
+	if useApiFingerprint, fingerprintTargetSdkVersion, fingerprintDeps :=
+		java.UseApiFingerprint(ctx); useApiFingerprint {
+		targetSdkVersion = fingerprintTargetSdkVersion
+		implicitInputs = append(implicitInputs, fingerprintDeps)
 	}
 	optFlags = append(optFlags, "--target_sdk_version "+targetSdkVersion)
 	optFlags = append(optFlags, "--min_sdk_version "+minSdkVersion)
