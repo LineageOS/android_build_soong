@@ -37,7 +37,7 @@ func systemImageFactory() android.Module {
 	module := &systemImage{}
 	module.AddProperties(&module.properties)
 	module.filesystem.buildExtraFiles = module.buildExtraFiles
-	module.filesystem.filterPackagingSpecs = module.filterPackagingSpecs
+	module.filesystem.filterPackagingSpec = module.filterPackagingSpec
 	initFilesystemModule(&module.filesystem)
 	return module
 }
@@ -73,10 +73,6 @@ func (s *systemImage) buildLinkerConfigFile(ctx android.ModuleContext, root andr
 // Filter the result of GatherPackagingSpecs to discard items targeting outside "system" partition.
 // Note that "apex" module installs its contents to "apex"(fake partition) as well
 // for symbol lookup by imitating "activated" paths.
-func (s *systemImage) filterPackagingSpecs(specs map[string]android.PackagingSpec) {
-	for k, ps := range specs {
-		if ps.Partition() != "system" {
-			delete(specs, k)
-		}
-	}
+func (s *systemImage) filterPackagingSpec(ps android.PackagingSpec) bool {
+	return ps.Partition() == "system"
 }
