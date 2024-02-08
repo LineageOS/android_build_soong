@@ -40,6 +40,9 @@ type DeclarationsModule struct {
 
 		// Container(system/vendor/apex) that this module belongs to
 		Container string
+
+		// The flags will only be repackaged if this prop is true.
+		Exportable bool
 	}
 
 	intermediatePath android.WritablePath
@@ -159,6 +162,7 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 	android.SetProvider(ctx, android.AconfigDeclarationsProviderKey, android.AconfigDeclarationsProviderData{
 		Package:                     module.properties.Package,
 		Container:                   module.properties.Container,
+		Exportable:                  module.properties.Exportable,
 		IntermediateCacheOutputPath: intermediateCacheFilePath,
 		IntermediateDumpOutputPath:  intermediateDumpFilePath,
 	})
