@@ -920,15 +920,39 @@ func collectAppDeps(ctx android.ModuleContext, app appDepsInterface,
 	shouldCollectRecursiveNativeDeps bool,
 	checkNativeSdkVersion bool) ([]jniLib, android.Paths, []Certificate) {
 
-	var jniLibs []jniLib
-	var prebuiltJniPackages android.Paths
-	var certificates []Certificate
-	seenModulePaths := make(map[string]bool)
-
 	if checkNativeSdkVersion {
 		checkNativeSdkVersion = app.SdkVersion(ctx).Specified() &&
 			app.SdkVersion(ctx).Kind != android.SdkCorePlatform && !app.RequiresStableAPIs(ctx)
 	}
+	jniLib, prebuiltJniPackages := collectJniDeps(ctx, shouldCollectRecursiveNativeDeps,
+		checkNativeSdkVersion, func(dep cc.LinkableInterface) bool {
+			return !dep.IsNdk(ctx.Config()) && !dep.IsStubs()
+		})
+
+	var certificates []Certificate
+
+	ctx.VisitDirectDeps(func(module android.Module) {
+		otherName := ctx.OtherModuleName(module)
+		tag := ctx.OtherModuleDependencyTag(module)
+
+		if tag == certificateTag {
+			if dep, ok := module.(*AndroidAppCertificate); ok {
+				certificates = append(certificates, dep.Certificate)
+			} else {
+				ctx.ModuleErrorf("certificate dependency %q must be an android_app_certificate module", otherName)
+			}
+		}
+	})
+	return jniLib, prebuiltJniPackages, certificates
+}
+
+func collectJniDeps(ctx android.ModuleContext,
+	shouldCollectRecursiveNativeDeps bool,
+	checkNativeSdkVersion bool,
+	filter func(cc.LinkableInterface) bool) ([]jniLib, android.Paths) {
+	var jniLibs []jniLib
+	var prebuiltJniPackages android.Paths
+	seenModulePaths := make(map[string]bool)
 
 	ctx.WalkDeps(func(module android.Module, parent android.Module) bool {
 		otherName := ctx.OtherModuleName(module)
@@ -936,7 +960,7 @@ func collectAppDeps(ctx android.ModuleContext, app appDepsInterface,
 
 		if IsJniDepTag(tag) || cc.IsSharedDepTag(tag) {
 			if dep, ok := module.(cc.LinkableInterface); ok {
-				if dep.IsNdk(ctx.Config()) || dep.IsStubs() {
+				if filter != nil && !filter(dep) {
 					return false
 				}
 
@@ -977,18 +1001,10 @@ func collectAppDeps(ctx android.ModuleContext, app appDepsInterface,
 			prebuiltJniPackages = append(prebuiltJniPackages, info.JniPackages...)
 		}
 
-		if tag == certificateTag {
-			if dep, ok := module.(*AndroidAppCertificate); ok {
-				certificates = append(certificates, dep.Certificate)
-			} else {
-				ctx.ModuleErrorf("certificate dependency %q must be an android_app_certificate module", otherName)
-			}
-		}
-
 		return false
 	})
 
-	return jniLibs, prebuiltJniPackages, certificates
+	return jniLibs, prebuiltJniPackages
 }
 
 func (a *AndroidApp) WalkPayloadDeps(ctx android.ModuleContext, do android.PayloadDepsCallback) {
