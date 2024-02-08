@@ -1904,6 +1904,38 @@ var visibilityTests = []struct {
 				}`),
 		},
 	},
+	{
+		name: "any_partition visibility works",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				android_filesystem {
+					name: "foo",
+					deps: ["bar"],
+				}`),
+			"top/nested/Android.bp": []byte(`
+				package(default_visibility=["//visibility:private"])
+				mock_library {
+					name: "bar",
+					visibility: ["//visibility:any_partition"],
+				}`),
+		},
+	},
+	{
+		name: "any_partition visibility doesn't work for non-partitions",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				mock_library {
+					name: "foo",
+					deps: ["bar"],
+				}`),
+			"top/nested/Android.bp": []byte(`
+				mock_library {
+					name: "bar",
+					visibility: ["//visibility:any_partition"],
+				}`),
+		},
+		expectedErrors: []string{`module "foo" variant "android_common": depends on //top/nested:bar which is not visible to this module`},
+	},
 }
 
 func TestVisibility(t *testing.T) {
@@ -1925,6 +1957,8 @@ func TestVisibility(t *testing.T) {
 					ctx.RegisterModuleType("mock_library", newMockLibraryModule)
 					ctx.RegisterModuleType("mock_parent", newMockParentFactory)
 					ctx.RegisterModuleType("mock_defaults", defaultsFactory)
+					// For testing //visibility:any_partition. The module type doesn't matter, just that it's registered under the name "android_filesystem"
+					ctx.RegisterModuleType("android_filesystem", newMockLibraryModule)
 				}),
 				prepareForTestWithFakePrebuiltModules,
 				// Add additional files to the mock filesystem
