@@ -30,7 +30,8 @@ var androidmk_denylist []string = []string{
 	"libcore/",
 	"libnativehelper/",
 	"pdk/",
-	"toolchain/",
+	// Add back toolchain/ once defensive Android.mk files are removed
+	//"toolchain/",
 }
 
 func blockAndroidMks(ctx Context, androidMks []string) {
