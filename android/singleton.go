@@ -250,8 +250,8 @@ func (s *singletonContextAdaptor) FinalModule(module Module) Module {
 }
 
 func (s *singletonContextAdaptor) ModuleVariantsFromName(referer Module, name string) []Module {
-	// get qualified module name for visibility enforcement
-	qualified := createQualifiedModuleName(s.ModuleName(referer), s.ModuleDir(referer))
+	// get module reference for visibility enforcement
+	qualified := createVisibilityModuleReference(s.ModuleName(referer), s.ModuleDir(referer), s.ModuleType(referer))
 
 	modules := s.SingletonContext.ModuleVariantsFromName(referer, name)
 	result := make([]Module, 0, len(modules))
@@ -262,7 +262,7 @@ func (s *singletonContextAdaptor) ModuleVariantsFromName(referer Module, name st
 			depDir := s.ModuleDir(module)
 			depQualified := qualifiedModuleName{depDir, depName}
 			// Targets are always visible to other targets in their own package.
-			if depQualified.pkg != qualified.pkg {
+			if depQualified.pkg != qualified.name.pkg {
 				rule := effectiveVisibilityRules(s.Config(), depQualified)
 				if !rule.matches(qualified) {
 					s.ModuleErrorf(referer, "module %q references %q which is not visible to this module\nYou may need to add %q to its visibility",
