@@ -2,9 +2,11 @@
 
 import argparse
 import fnmatch
+import html
 import json
 import os
 import pathlib
+import subprocess
 import types
 import sys
 
@@ -68,21 +70,21 @@ PROVIDERS = [
 ]
 
 
-def format_node_label(node):
-    if not node.module:
-        return node.id
-    if node.module.debug:
-        module_debug = f"<tr><td>{node.module.debug}</td></tr>"
-    else:
-        module_debug = ""
+def format_node_label(node, module_formatter):
+    result = "<<table border=\"0\" cellborder=\"0\" cellspacing=\"0\" cellpadding=\"0\">"
 
-    result = (f"<<table border=\"0\" cellborder=\"0\" cellspacing=\"0\" cellpadding=\"0\">"
-            + f"<tr><td><b>{node.module.name}</b></td></tr>"
-            + module_debug
-            + f"<tr><td>{node.module.type}</td></tr>")
-    for p in node.module.providers:
-        if p.type in PROVIDERS:
-            result += "<tr><td><font color=\"#666666\">" + format_provider(p) + "</font></td></tr>"
+    # node name
+    result += f"<tr><td><b>{node.module.name if node.module else node.id}</b></td></tr>"
+
+    if node.module:
+        # node_type
+        result += f"<tr><td>{node.module.type}</td></tr>"
+
+        # module_formatter will return a list of rows
+        for row in module_formatter(node.module):
+            row = html.escape(row)
+            result += f"<tr><td><font color=\"#666666\">{row}</font></td></tr>"
+
     result += "</table>>"
     return result
 
@@ -190,10 +192,10 @@ def load_and_filter_modules(args):
             yield m
 
 
-def print_nodes(nodes):
+def print_nodes(nodes, module_formatter):
     print("digraph {")
     for node in nodes:
-        print(f"\"{node.id}\"[label={format_node_label(node)}];")
+        print(f"\"{node.id}\"[label={format_node_label(node, module_formatter)}];")
         for dep in node.deps:
             if dep in nodes:
                 print(f"\"{node.id}\" -> \"{dep.id}\";")
@@ -208,16 +210,42 @@ def get_deps(nodes, root):
         get_deps(nodes, dep)
 
 
+def new_module_formatter(args):
+    def module_formatter(module):
+        if not args.label:
+            return []
+        result = []
+        text = json.dumps(module, default=lambda o: o.__dict__)
+        for jq_filter in args.label:
+            proc = subprocess.run(["jq", jq_filter],
+                                  input=text, text=True, check=True, stdout=subprocess.PIPE)
+            if proc.stdout:
+                o = json.loads(proc.stdout)
+                if type(o) == list:
+                    for row in o:
+                        if row:
+                            result.append(row)
+                elif type(o) == dict:
+                    result.append(str(proc.stdout).strip())
+                else:
+                    if o:
+                        result.append(str(o).strip())
+        return result
+    return module_formatter
+
+
 class BetweenCommand:
     help = "Print the module graph between two nodes."
 
     def args(self, parser):
         parser.add_argument("module", nargs=2,
-                            help="The two modules")
+                            help="the two modules")
+        parser.add_argument("--label", action="append",
+                            help="jq query for each module metadata")
 
     def run(self, args):
         graph = load_graph()
-        print_nodes(graph.find_paths(args.module[0], args.module[1]))
+        print_nodes(graph.find_paths(args.module[0], args.module[1]), new_module_formatter(args))
 
 
 class DepsCommand:
@@ -226,6 +254,8 @@ class DepsCommand:
     def args(self, parser):
         parser.add_argument("module", nargs="+",
                             help="Module to print dependencies of")
+        parser.add_argument("--label", action="append",
+                            help="jq query for each module metadata")
 
     def run(self, args):
         graph = load_graph()
@@ -240,7 +270,7 @@ class DepsCommand:
             get_deps(nodes, root)
         if err:
             sys.exit(1)
-        print_nodes(nodes)
+        print_nodes(nodes, new_module_formatter(args))
 
 
 class IdCommand:
