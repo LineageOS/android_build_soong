@@ -254,7 +254,7 @@ var (
 		"-Wno-pointer-to-int-cast",
 		"-Werror=fortify-source",
 		// http://b/315246135 temporarily disabled
-		"-Wno-error=unused-variable",
+		"-Wno-unused-variable",
 		// http://b/315250603 temporarily disabled
 		"-Wno-error=format",
 		// Disabled because it produces many false positives. http://b/323050926
