@@ -311,6 +311,26 @@ class IdCommand:
             print(m.id)
 
 
+class JsonCommand:
+    help = "Print metadata about modules in json format"
+
+    def args(self, parser):
+        module_selection_args(parser)
+        parser.add_argument("--list", action="store_true",
+                            help="Print the results in a json list. If not set and multiple"
+                            + " modules are matched, the output won't be valid json.")
+
+    def run(self, args):
+        modules = load_and_filter_modules(args)
+        if args.list:
+            json.dump([m for m in modules], sys.stdout, indent=4, default=lambda o: o.__dict__)
+        else:
+            for m in modules:
+                json.dump(m, sys.stdout, indent=4, default=lambda o: o.__dict__)
+                print()
+
+
+
 class QueryCommand:
     help = "Query details about modules"
 
@@ -332,6 +352,7 @@ COMMANDS = {
     "between": BetweenCommand(),
     "deps": DepsCommand(),
     "id": IdCommand(),
+    "json": JsonCommand(),
     "query": QueryCommand(),
 }
 
