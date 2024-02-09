@@ -288,7 +288,7 @@ class DepsCommand:
         graph = load_graph()
         nodes = set()
         err = False
-        for id in sys.argv[3:]:
+        for id in args.module:
             root = graph.nodes.get(id)
             if not root:
                 sys.stderr.write(f"error: Can't find root: {id}\n")
@@ -328,7 +328,6 @@ class JsonCommand:
             for m in modules:
                 json.dump(m, sys.stdout, indent=4, default=lambda o: o.__dict__)
                 print()
-
 
 
 class QueryCommand:
