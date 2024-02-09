@@ -302,6 +302,8 @@ var (
 		// until then because it causes warnings in the _callers_, not the
 		// project itself.
 		"-Wno-deprecated-dynamic-exception-spec",
+		// http://b/324323434
+		"-Wno-ambiguous-reversed-operator",
 	}
 
 	noOverride64GlobalCflags = []string{}
@@ -369,8 +371,6 @@ var (
 		"-Wno-fortify-source",
 		"-Wno-tautological-negation-compare",
 		"-Wno-tautological-undefined-compare",
-		// http://324323434
-		"-Wno-ambiguous-reversed-operator",
 	}
 
 	llvmNextExtraCommonGlobalCflags = []string{
