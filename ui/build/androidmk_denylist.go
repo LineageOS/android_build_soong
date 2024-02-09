@@ -16,8 +16,6 @@ package build
 
 import (
 	"strings"
-
-	"android/soong/android"
 )
 
 var androidmk_denylist []string = []string{
@@ -32,16 +30,17 @@ var androidmk_denylist []string = []string{
 	"libcore/",
 	"libnativehelper/",
 	"pdk/",
-	"toolchain/",
+	// Add back toolchain/ once defensive Android.mk files are removed
+	//"toolchain/",
 }
 
-func blockAndroidMks(androidMks []string) []string {
-	return android.FilterListPred(androidMks, func(s string) bool {
+func blockAndroidMks(ctx Context, androidMks []string) {
+	for _, mkFile := range androidMks {
 		for _, d := range androidmk_denylist {
-			if strings.HasPrefix(s, d) {
-				return false
+			if strings.HasPrefix(mkFile, d) {
+				ctx.Fatalf("Found blocked Android.mk file: %s. "+
+					"Please see androidmk_denylist.go for the blocked directories and contact build system team if the file should not be blocked.", mkFile)
 			}
 		}
-		return true
-	})
+	}
 }

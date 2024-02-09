@@ -24,7 +24,12 @@ import zipfile
 # This file needs to support both python 2 and 3.
 
 
-def process_one_file(info, infile, outzip):
+def process_one_file(name, infile, outzip):
+    # Create a ZipInfo instance with a fixed date to ensure a deterministic output.
+    # Date was chosen to be the same as
+    # https://cs.android.com/android/platform/superproject/main/+/main:build/soong/jar/jar.go;l=36;drc=2863e4535eb65e15f955dc8ed48fa99b1d2a1db5
+    info = zipfile.ZipInfo(filename=name, date_time=(2008, 1, 1, 0, 0, 0))
+
     if not info.filename.endswith('.py'):
         outzip.writestr(info, infile.read())
         return
@@ -37,17 +42,15 @@ def process_one_file(info, infile, outzip):
     with tempfile.NamedTemporaryFile(prefix="Soong_precompile_", delete=False) as tmp:
         out_name = tmp.name
     try:
-        # Ensure deterministic pyc by using the hash rather than timestamp.
-        # This is required to improve caching in accelerated builds.
-        # Only works on Python 3.7+ (see https://docs.python.org/3/library/py_compile.html#py_compile.PycInvalidationMode)
-        # which should cover most updated branches and developer machines.
+        # Ensure a deterministic .pyc output by using the hash rather than the timestamp.
+        # Only works on Python 3.7+
+        # See https://docs.python.org/3/library/py_compile.html#py_compile.PycInvalidationMode
         if sys.version_info >= (3, 7):
             py_compile.compile(in_name, out_name, info.filename, doraise=True, invalidation_mode=py_compile.PycInvalidationMode.CHECKED_HASH)
         else:
             py_compile.compile(in_name, out_name, info.filename, doraise=True)
         with open(out_name, 'rb') as f:
             info.filename = info.filename + 'c'
-            # Use ZipInfo rather than str to reuse timestamps for deterministic zip files.
             outzip.writestr(info, f.read())
     finally:
         os.remove(in_name)
@@ -62,9 +65,9 @@ def main():
 
     with open(args.dst_zip, 'wb') as outf, open(args.src_zip, 'rb') as inf:
         with zipfile.ZipFile(outf, mode='w') as outzip, zipfile.ZipFile(inf, mode='r') as inzip:
-            for info in inzip.infolist():
-                with inzip.open(info.filename, mode='r') as inzipf:
-                    process_one_file(info, inzipf, outzip)
+            for name in inzip.namelist():
+                with inzip.open(name, mode='r') as inzipf:
+                    process_one_file(name, inzipf, outzip)
 
 
 if __name__ == "__main__":
