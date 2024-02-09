@@ -30,11 +30,6 @@ var (
 		"-D_FORTIFY_SOURCE=2",
 		"-fstack-protector",
 
-		// Workaround differences in inttypes.h between host and target.
-		//See bug 12708004.
-		"-D__STDC_FORMAT_MACROS",
-		"-D__STDC_CONSTANT_MACROS",
-
 		"--gcc-toolchain=${LinuxGccRoot}",
 		"-fstack-protector-strong",
 	}
