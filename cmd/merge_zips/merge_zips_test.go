@@ -103,6 +103,7 @@ func TestMergeZips(t *testing.T) {
 		stripFiles       []string
 		stripDirs        []string
 		jar              bool
+		par              bool
 		sort             bool
 		ignoreDuplicates bool
 		stripDirEntries  bool
@@ -265,6 +266,34 @@ func TestMergeZips(t *testing.T) {
 			},
 			out: []testZipEntry{withoutTimestamp, a},
 		},
+		{
+			name: "emulate par",
+			in: [][]testZipEntry{
+				{
+					testZipEntry{name: "3/main.py"},
+					testZipEntry{name: "c/main.py"},
+					testZipEntry{name: "a/main.py"},
+					testZipEntry{name: "2/main.py"},
+					testZipEntry{name: "b/main.py"},
+					testZipEntry{name: "1/main.py"},
+				},
+			},
+			out: []testZipEntry{
+				testZipEntry{name: "3/__init__.py", mode: 0700, timestamp: jar.DefaultTime},
+				testZipEntry{name: "c/__init__.py", mode: 0700, timestamp: jar.DefaultTime},
+				testZipEntry{name: "a/__init__.py", mode: 0700, timestamp: jar.DefaultTime},
+				testZipEntry{name: "2/__init__.py", mode: 0700, timestamp: jar.DefaultTime},
+				testZipEntry{name: "b/__init__.py", mode: 0700, timestamp: jar.DefaultTime},
+				testZipEntry{name: "1/__init__.py", mode: 0700, timestamp: jar.DefaultTime},
+				testZipEntry{name: "3/main.py", timestamp: jar.DefaultTime},
+				testZipEntry{name: "c/main.py", timestamp: jar.DefaultTime},
+				testZipEntry{name: "a/main.py", timestamp: jar.DefaultTime},
+				testZipEntry{name: "2/main.py", timestamp: jar.DefaultTime},
+				testZipEntry{name: "b/main.py", timestamp: jar.DefaultTime},
+				testZipEntry{name: "1/main.py", timestamp: jar.DefaultTime},
+			},
+			par: true,
+		},
 	}
 
 	for _, test := range testCases {
@@ -280,7 +309,7 @@ func TestMergeZips(t *testing.T) {
 			writer := zip.NewWriter(out)
 
 			err := mergeZips(inputZips, writer, "", "",
-				test.sort, test.jar, false, test.stripDirEntries, test.ignoreDuplicates,
+				test.sort, test.jar, test.par, test.stripDirEntries, test.ignoreDuplicates,
 				test.stripFiles, test.stripDirs, test.zipsToNotStrip)
 
 			closeErr := writer.Close()
