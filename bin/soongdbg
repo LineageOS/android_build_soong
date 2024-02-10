@@ -3,6 +3,7 @@
 import argparse
 import fnmatch
 import html
+import io
 import json
 import os
 import pathlib
@@ -192,14 +193,41 @@ def load_and_filter_modules(args):
             yield m
 
 
-def print_nodes(nodes, module_formatter):
-    print("digraph {")
+def print_args(parser):
+    parser.add_argument("--label", action="append", metavar="JQ_FILTER",
+                        help="jq query for each module metadata")
+
+    group = parser.add_argument_group("output formats",
+                                      "If no format is provided, a dot file will be written to"
+                                      + " stdout.")
+    output = group.add_mutually_exclusive_group()
+    output.add_argument("--dot", type=str, metavar="FILENAME",
+                        help="Write the graph to this file as dot (graphviz format)")
+    output.add_argument("--svg", type=str, metavar="FILENAME",
+                        help="Write the graph to this file as svg")
+
+
+def print_nodes(args, nodes, module_formatter):
+    # Generate the graphviz
+    dot = io.StringIO()
+    dot.write("digraph {\n")
     for node in nodes:
-        print(f"\"{node.id}\"[label={format_node_label(node, module_formatter)}];")
+        dot.write(f"\"{node.id}\"[label={format_node_label(node, module_formatter)}];\n")
         for dep in node.deps:
             if dep in nodes:
-                print(f"\"{node.id}\" -> \"{dep.id}\";")
-    print("}")
+                dot.write(f"\"{node.id}\" -> \"{dep.id}\";\n")
+    dot.write("}\n")
+    text = dot.getvalue()
+
+    # Write it somewhere
+    if args.dot:
+        with open(args.dot, "w") as f:
+            f.write(text)
+    elif args.svg:
+        subprocess.run(["dot", "-Tsvg", "-Nshape=box", "-o", args.svg],
+                              input=text, text=True, check=True)
+    else:
+        sys.stdout.write(text)
 
 
 def get_deps(nodes, root):
@@ -240,12 +268,12 @@ class BetweenCommand:
     def args(self, parser):
         parser.add_argument("module", nargs=2,
                             help="the two modules")
-        parser.add_argument("--label", action="append",
-                            help="jq query for each module metadata")
+        print_args(parser)
 
     def run(self, args):
         graph = load_graph()
-        print_nodes(graph.find_paths(args.module[0], args.module[1]), new_module_formatter(args))
+        print_nodes(args, graph.find_paths(args.module[0], args.module[1]),
+                    new_module_formatter(args))
 
 
 class DepsCommand:
@@ -254,8 +282,7 @@ class DepsCommand:
     def args(self, parser):
         parser.add_argument("module", nargs="+",
                             help="Module to print dependencies of")
-        parser.add_argument("--label", action="append",
-                            help="jq query for each module metadata")
+        print_args(parser)
 
     def run(self, args):
         graph = load_graph()
@@ -270,7 +297,7 @@ class DepsCommand:
             get_deps(nodes, root)
         if err:
             sys.exit(1)
-        print_nodes(nodes, new_module_formatter(args))
+        print_nodes(args, nodes, new_module_formatter(args))
 
 
 class IdCommand:
@@ -282,6 +309,26 @@ class IdCommand:
     def run(self, args):
         for m in load_and_filter_modules(args):
             print(m.id)
+
+
+class JsonCommand:
+    help = "Print metadata about modules in json format"
+
+    def args(self, parser):
+        module_selection_args(parser)
+        parser.add_argument("--list", action="store_true",
+                            help="Print the results in a json list. If not set and multiple"
+                            + " modules are matched, the output won't be valid json.")
+
+    def run(self, args):
+        modules = load_and_filter_modules(args)
+        if args.list:
+            json.dump([m for m in modules], sys.stdout, indent=4, default=lambda o: o.__dict__)
+        else:
+            for m in modules:
+                json.dump(m, sys.stdout, indent=4, default=lambda o: o.__dict__)
+                print()
+
 
 
 class QueryCommand:
@@ -305,6 +352,7 @@ COMMANDS = {
     "between": BetweenCommand(),
     "deps": DepsCommand(),
     "id": IdCommand(),
+    "json": JsonCommand(),
     "query": QueryCommand(),
 }
 
