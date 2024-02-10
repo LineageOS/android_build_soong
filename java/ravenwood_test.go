@@ -27,7 +27,7 @@ var prepareRavenwoodRuntime = android.GroupFixturePreparers(
 	}),
 	android.FixtureAddTextFile("ravenwood/Android.bp", `
 		cc_library_shared {
-			name: "ravenwood-runtime-jni",
+			name: "ravenwood-runtime-jni1",
 			host_supported: true,
 			srcs: ["jni.cpp"],
 		}
@@ -36,6 +36,14 @@ var prepareRavenwoodRuntime = android.GroupFixturePreparers(
 			host_supported: true,
 			srcs: ["jni.cpp"],
 			stem: "libred",
+			shared_libs: [
+				"ravenwood-runtime-jni3",
+			],
+		}
+		cc_library_shared {
+			name: "ravenwood-runtime-jni3",
+			host_supported: true,
+			srcs: ["jni.cpp"],
 		}
 		java_library_static {
 			name: "framework-minus-apex.ravenwood",
@@ -55,7 +63,10 @@ var prepareRavenwoodRuntime = android.GroupFixturePreparers(
 				"framework-minus-apex.ravenwood",
 				"framework-services.ravenwood",
 			],
-			jni_libs: ["ravenwood-runtime-jni", "ravenwood-runtime-jni2"],
+			jni_libs: [
+				"ravenwood-runtime-jni1",
+				"ravenwood-runtime-jni2",
+			],
 		}
 		android_ravenwood_libgroup {
 			name: "ravenwood-utils",
@@ -88,8 +99,9 @@ func TestRavenwoodRuntime(t *testing.T) {
 	runtime := ctx.ModuleForTests("ravenwood-runtime", "android_common")
 	runtime.Output(installPathPrefix + "/ravenwood-runtime/framework-minus-apex.ravenwood.jar")
 	runtime.Output(installPathPrefix + "/ravenwood-runtime/framework-services.ravenwood.jar")
-	runtime.Output(installPathPrefix + "/ravenwood-runtime/lib64/ravenwood-runtime-jni.so")
+	runtime.Output(installPathPrefix + "/ravenwood-runtime/lib64/ravenwood-runtime-jni1.so")
 	runtime.Output(installPathPrefix + "/ravenwood-runtime/lib64/libred.so")
+	runtime.Output(installPathPrefix + "/ravenwood-runtime/lib64/ravenwood-runtime-jni3.so")
 	utils := ctx.ModuleForTests("ravenwood-utils", "android_common")
 	utils.Output(installPathPrefix + "/ravenwood-utils/framework-rules.ravenwood.jar")
 }
@@ -104,7 +116,7 @@ func TestRavenwoodTest(t *testing.T) {
 		prepareRavenwoodRuntime,
 	).RunTestWithBp(t, `
 	cc_library_shared {
-		name: "jni-lib",
+		name: "jni-lib1",
 		host_supported: true,
 		srcs: ["jni.cpp"],
 	}
@@ -113,11 +125,24 @@ func TestRavenwoodTest(t *testing.T) {
 		host_supported: true,
 		srcs: ["jni.cpp"],
 		stem: "libblue",
+		shared_libs: [
+			"jni-lib3",
+		],
+	}
+	cc_library_shared {
+		name: "jni-lib3",
+		host_supported: true,
+		srcs: ["jni.cpp"],
+		stem: "libpink",
 	}
 	android_ravenwood_test {
 			name: "ravenwood-test",
 			srcs: ["Test.java"],
-			jni_libs: ["jni-lib", "jni-lib2"],
+			jni_libs: [
+				"jni-lib1",
+				"jni-lib2",
+				"ravenwood-runtime-jni2",
+			],
 			sdk_version: "test_current",
 		}
 	`)
@@ -141,14 +166,21 @@ func TestRavenwoodTest(t *testing.T) {
 	// Verify that we've emitted test artifacts in expected location
 	outputJar := module.Output(installPathPrefix + "/ravenwood-test/ravenwood-test.jar")
 	module.Output(installPathPrefix + "/ravenwood-test/ravenwood-test.config")
-	module.Output(installPathPrefix + "/ravenwood-test/lib64/jni-lib.so")
+	module.Output(installPathPrefix + "/ravenwood-test/lib64/jni-lib1.so")
 	module.Output(installPathPrefix + "/ravenwood-test/lib64/libblue.so")
+	module.Output(installPathPrefix + "/ravenwood-test/lib64/libpink.so")
+
+	// ravenwood-runtime*.so are included in the runtime, so it shouldn't be emitted.
+	for _, o := range module.AllOutputs() {
+		android.AssertStringDoesNotContain(t, "runtime libs shouldn't be included", o, "/ravenwood-test/lib64/ravenwood-runtime")
+	}
 
 	// Verify that we're going to install underlying libs
 	orderOnly := outputJar.OrderOnly.Strings()
 	android.AssertStringListContains(t, "orderOnly", orderOnly, installPathPrefix+"/ravenwood-runtime/framework-minus-apex.ravenwood.jar")
 	android.AssertStringListContains(t, "orderOnly", orderOnly, installPathPrefix+"/ravenwood-runtime/framework-services.ravenwood.jar")
-	android.AssertStringListContains(t, "orderOnly", orderOnly, installPathPrefix+"/ravenwood-runtime/lib64/ravenwood-runtime-jni.so")
+	android.AssertStringListContains(t, "orderOnly", orderOnly, installPathPrefix+"/ravenwood-runtime/lib64/ravenwood-runtime-jni1.so")
 	android.AssertStringListContains(t, "orderOnly", orderOnly, installPathPrefix+"/ravenwood-runtime/lib64/libred.so")
+	android.AssertStringListContains(t, "orderOnly", orderOnly, installPathPrefix+"/ravenwood-runtime/lib64/ravenwood-runtime-jni3.so")
 	android.AssertStringListContains(t, "orderOnly", orderOnly, installPathPrefix+"/ravenwood-utils/framework-rules.ravenwood.jar")
 }

@@ -2,9 +2,12 @@
 
 import argparse
 import fnmatch
+import html
+import io
 import json
 import os
 import pathlib
+import subprocess
 import types
 import sys
 
@@ -27,6 +30,7 @@ class Graph:
                 dep = get_or_make_node(self.nodes, d.id, None)
                 node.deps.add(dep)
                 dep.rdeps.add(node)
+                node.dep_tags.setdefault(dep, list()).append(d)
 
     def find_paths(self, id1, id2):
         # Throws KeyError if one of the names isn't found
@@ -60,6 +64,7 @@ class Node:
         self.module = module
         self.deps = set()
         self.rdeps = set()
+        self.dep_tags = {}
 
 
 PROVIDERS = [
@@ -68,21 +73,35 @@ PROVIDERS = [
 ]
 
 
-def format_node_label(node):
-    if not node.module:
-        return node.id
-    if node.module.debug:
-        module_debug = f"<tr><td>{node.module.debug}</td></tr>"
-    else:
-        module_debug = ""
+def format_dep_label(node, dep):
+    tags = node.dep_tags.get(dep)
+    labels = []
+    if tags:
+        labels = [tag.tag_type.split("/")[-1] for tag in tags]
+        labels = sorted(set(labels))
+    if labels:
+        result = "<<table border=\"0\" cellborder=\"0\" cellspacing=\"0\" cellpadding=\"0\">"
+        for label in labels:
+            result += f"<tr><td>{label}</td></tr>"
+        result += "</table>>"
+        return result
 
-    result = (f"<<table border=\"0\" cellborder=\"0\" cellspacing=\"0\" cellpadding=\"0\">"
-            + f"<tr><td><b>{node.module.name}</b></td></tr>"
-            + module_debug
-            + f"<tr><td>{node.module.type}</td></tr>")
-    for p in node.module.providers:
-        if p.type in PROVIDERS:
-            result += "<tr><td><font color=\"#666666\">" + format_provider(p) + "</font></td></tr>"
+
+def format_node_label(node, module_formatter):
+    result = "<<table border=\"0\" cellborder=\"0\" cellspacing=\"0\" cellpadding=\"0\">"
+
+    # node name
+    result += f"<tr><td><b>{node.module.name if node.module else node.id}</b></td></tr>"
+
+    if node.module:
+        # node_type
+        result += f"<tr><td>{node.module.type}</td></tr>"
+
+        # module_formatter will return a list of rows
+        for row in module_formatter(node.module):
+            row = html.escape(row)
+            result += f"<tr><td><font color=\"#666666\">{row}</font></td></tr>"
+
     result += "</table>>"
     return result
 
@@ -190,22 +209,87 @@ def load_and_filter_modules(args):
             yield m
 
 
-def print_nodes(nodes):
-    print("digraph {")
+def print_args(parser):
+    parser.add_argument("--label", action="append", metavar="JQ_FILTER",
+                        help="jq query for each module metadata")
+    parser.add_argument("--deptags", action="store_true",
+                        help="show dependency tags (makes the graph much more complex)")
+
+    group = parser.add_argument_group("output formats",
+                                      "If no format is provided, a dot file will be written to"
+                                      + " stdout.")
+    output = group.add_mutually_exclusive_group()
+    output.add_argument("--dot", type=str, metavar="FILENAME",
+                        help="Write the graph to this file as dot (graphviz format)")
+    output.add_argument("--svg", type=str, metavar="FILENAME",
+                        help="Write the graph to this file as svg")
+
+
+def print_nodes(args, nodes, module_formatter):
+    # Generate the graphviz
+    dep_tag_id = 0
+    dot = io.StringIO()
+    dot.write("digraph {\n")
+    dot.write("node [shape=box];")
+
     for node in nodes:
-        print(f"\"{node.id}\"[label={format_node_label(node)}];")
+        dot.write(f"\"{node.id}\" [label={format_node_label(node, module_formatter)}];\n")
         for dep in node.deps:
             if dep in nodes:
-                print(f"\"{node.id}\" -> \"{dep.id}\";")
-    print("}")
+                if args.deptags:
+                    dot.write(f"\"{node.id}\" -> \"__dep_tag_{dep_tag_id}\" [ arrowhead=none ];\n")
+                    dot.write(f"\"__dep_tag_{dep_tag_id}\" -> \"{dep.id}\";\n")
+                    dot.write(f"\"__dep_tag_{dep_tag_id}\""
+                                  + f"[label={format_dep_label(node, dep)} shape=ellipse"
+                                  + " color=\"#666666\" fontcolor=\"#666666\"];\n")
+                else:
+                    dot.write(f"\"{node.id}\" -> \"{dep.id}\";\n")
+                dep_tag_id += 1
+    dot.write("}\n")
+    text = dot.getvalue()
+
+    # Write it somewhere
+    if args.dot:
+        with open(args.dot, "w") as f:
+            f.write(text)
+    elif args.svg:
+        subprocess.run(["dot", "-Tsvg", "-o", args.svg],
+                              input=text, text=True, check=True)
+    else:
+        sys.stdout.write(text)
 
 
-def get_deps(nodes, root):
+def get_deps(nodes, root, maxdepth, reverse):
     if root in nodes:
         return
     nodes.add(root)
-    for dep in root.deps:
-        get_deps(nodes, dep)
+    if maxdepth != 0:
+        for dep in (root.rdeps if reverse else root.deps):
+            get_deps(nodes, dep, maxdepth-1, reverse)
+
+
+def new_module_formatter(args):
+    def module_formatter(module):
+        if not args.label:
+            return []
+        result = []
+        text = json.dumps(module, default=lambda o: o.__dict__)
+        for jq_filter in args.label:
+            proc = subprocess.run(["jq", jq_filter],
+                                  input=text, text=True, check=True, stdout=subprocess.PIPE)
+            if proc.stdout:
+                o = json.loads(proc.stdout)
+                if type(o) == list:
+                    for row in o:
+                        if row:
+                            result.append(row)
+                elif type(o) == dict:
+                    result.append(str(proc.stdout).strip())
+                else:
+                    if o:
+                        result.append(str(o).strip())
+        return result
+    return module_formatter
 
 
 class BetweenCommand:
@@ -213,11 +297,13 @@ class BetweenCommand:
 
     def args(self, parser):
         parser.add_argument("module", nargs=2,
-                            help="The two modules")
+                            help="the two modules")
+        print_args(parser)
 
     def run(self, args):
         graph = load_graph()
-        print_nodes(graph.find_paths(args.module[0], args.module[1]))
+        print_nodes(args, graph.find_paths(args.module[0], args.module[1]),
+                    new_module_formatter(args))
 
 
 class DepsCommand:
@@ -226,21 +312,26 @@ class DepsCommand:
     def args(self, parser):
         parser.add_argument("module", nargs="+",
                             help="Module to print dependencies of")
+        parser.add_argument("--reverse", action="store_true",
+                            help="traverse reverse dependencies")
+        parser.add_argument("--depth", type=int, default=-1,
+                            help="max depth of dependencies (can keep the graph size reasonable)")
+        print_args(parser)
 
     def run(self, args):
         graph = load_graph()
         nodes = set()
         err = False
-        for id in sys.argv[3:]:
+        for id in args.module:
             root = graph.nodes.get(id)
             if not root:
                 sys.stderr.write(f"error: Can't find root: {id}\n")
                 err = True
                 continue
-            get_deps(nodes, root)
+            get_deps(nodes, root, args.depth, args.reverse)
         if err:
             sys.exit(1)
-        print_nodes(nodes)
+        print_nodes(args, nodes, new_module_formatter(args))
 
 
 class IdCommand:
@@ -252,6 +343,25 @@ class IdCommand:
     def run(self, args):
         for m in load_and_filter_modules(args):
             print(m.id)
+
+
+class JsonCommand:
+    help = "Print metadata about modules in json format"
+
+    def args(self, parser):
+        module_selection_args(parser)
+        parser.add_argument("--list", action="store_true",
+                            help="Print the results in a json list. If not set and multiple"
+                            + " modules are matched, the output won't be valid json.")
+
+    def run(self, args):
+        modules = load_and_filter_modules(args)
+        if args.list:
+            json.dump([m for m in modules], sys.stdout, indent=4, default=lambda o: o.__dict__)
+        else:
+            for m in modules:
+                json.dump(m, sys.stdout, indent=4, default=lambda o: o.__dict__)
+                print()
 
 
 class QueryCommand:
@@ -275,6 +385,7 @@ COMMANDS = {
     "between": BetweenCommand(),
     "deps": DepsCommand(),
     "id": IdCommand(),
+    "json": JsonCommand(),
     "query": QueryCommand(),
 }
 
