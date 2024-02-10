@@ -254,7 +254,7 @@ var (
 		"-Wno-pointer-to-int-cast",
 		"-Werror=fortify-source",
 		// http://b/315246135 temporarily disabled
-		"-Wno-error=unused-variable",
+		"-Wno-unused-variable",
 		// http://b/315250603 temporarily disabled
 		"-Wno-error=format",
 		// Disabled because it produces many false positives. http://b/323050926
@@ -302,6 +302,8 @@ var (
 		// until then because it causes warnings in the _callers_, not the
 		// project itself.
 		"-Wno-deprecated-dynamic-exception-spec",
+		// http://b/324323434
+		"-Wno-ambiguous-reversed-operator",
 	}
 
 	noOverride64GlobalCflags = []string{}
@@ -369,8 +371,6 @@ var (
 		"-Wno-fortify-source",
 		"-Wno-tautological-negation-compare",
 		"-Wno-tautological-undefined-compare",
-		// http://324323434
-		"-Wno-ambiguous-reversed-operator",
 	}
 
 	llvmNextExtraCommonGlobalCflags = []string{
