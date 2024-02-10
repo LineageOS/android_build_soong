@@ -259,12 +259,13 @@ def print_nodes(args, nodes, module_formatter):
         sys.stdout.write(text)
 
 
-def get_deps(nodes, root):
+def get_deps(nodes, root, maxdepth, reverse):
     if root in nodes:
         return
     nodes.add(root)
-    for dep in root.deps:
-        get_deps(nodes, dep)
+    if maxdepth != 0:
+        for dep in (root.rdeps if reverse else root.deps):
+            get_deps(nodes, dep, maxdepth-1, reverse)
 
 
 def new_module_formatter(args):
@@ -311,6 +312,10 @@ class DepsCommand:
     def args(self, parser):
         parser.add_argument("module", nargs="+",
                             help="Module to print dependencies of")
+        parser.add_argument("--reverse", action="store_true",
+                            help="traverse reverse dependencies")
+        parser.add_argument("--depth", type=int, default=-1,
+                            help="max depth of dependencies (can keep the graph size reasonable)")
         print_args(parser)
 
     def run(self, args):
@@ -323,7 +328,7 @@ class DepsCommand:
                 sys.stderr.write(f"error: Can't find root: {id}\n")
                 err = True
                 continue
-            get_deps(nodes, root)
+            get_deps(nodes, root, args.depth, args.reverse)
         if err:
             sys.exit(1)
         print_nodes(args, nodes, new_module_formatter(args))
