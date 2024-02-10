@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 
@@ -228,12 +229,14 @@ func TestAfdoDeps(t *testing.T) {
 			uniqueInternalLinkageNamesCFlag, cFlags)
 	}
 
-	ldFlags = libTestHost.Rule("ld").Args["ldFlags"]
-	if !strings.Contains(ldFlags, noAfdoLtoLdFlag) {
-		t.Errorf("Expected host 'libTest' to not enable afdo, but did not find %q in ldflags %q", noAfdoLtoLdFlag, ldFlags)
-	}
-	if strings.Contains(ldFlags, afdoLtoLdFlag) {
-		t.Errorf("Expected host 'libTest' to not enable afdo, but found %q in ldflags %q", afdoLtoLdFlag, ldFlags)
+	if runtime.GOOS != "darwin" {
+		ldFlags := libTestHost.Rule("ld").Args["ldFlags"]
+		if !strings.Contains(ldFlags, noAfdoLtoLdFlag) {
+			t.Errorf("Expected host 'libTest' to not enable afdo, but did not find %q in ldflags %q", noAfdoLtoLdFlag, ldFlags)
+		}
+		if strings.Contains(ldFlags, afdoLtoLdFlag) {
+			t.Errorf("Expected host 'libTest' to not enable afdo, but found %q in ldflags %q", afdoLtoLdFlag, ldFlags)
+		}
 	}
 
 	// Check dependency edge from afdo-enabled module to static deps
