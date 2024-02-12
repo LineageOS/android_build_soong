@@ -17,6 +17,7 @@ import (
 	"android/soong/android"
 	"android/soong/tradefed"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -29,11 +30,19 @@ func RegisterRavenwoodBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("android_ravenwood_libgroup", ravenwoodLibgroupFactory)
 }
 
-var ravenwoodTag = dependencyTag{name: "ravenwood"}
-var ravenwoodJniTag = dependencyTag{name: "ravenwood-jni"}
+var ravenwoodLibContentTag = dependencyTag{name: "ravenwoodlibcontent"}
+var ravenwoodUtilsTag = dependencyTag{name: "ravenwoodutils"}
+var ravenwoodRuntimeTag = dependencyTag{name: "ravenwoodruntime"}
 
 const ravenwoodUtilsName = "ravenwood-utils"
 const ravenwoodRuntimeName = "ravenwood-runtime"
+
+type ravenwoodLibgroupJniDepProviderInfo struct {
+	// All the jni_libs module names with transient dependencies.
+	names map[string]bool
+}
+
+var ravenwoodLibgroupJniDepProvider = blueprint.NewProvider[ravenwoodLibgroupJniDepProviderInfo]()
 
 func getLibPath(archType android.ArchType) string {
 	if archType.Multilib == "lib64" {
@@ -91,10 +100,10 @@ func (r *ravenwoodTest) DepsMutator(ctx android.BottomUpMutatorContext) {
 	r.Library.DepsMutator(ctx)
 
 	// Generically depend on the runtime so that it's installed together with us
-	ctx.AddVariationDependencies(nil, ravenwoodTag, ravenwoodRuntimeName)
+	ctx.AddVariationDependencies(nil, ravenwoodRuntimeTag, ravenwoodRuntimeName)
 
 	// Directly depend on any utils so that we link against them
-	utils := ctx.AddVariationDependencies(nil, ravenwoodTag, ravenwoodUtilsName)[0]
+	utils := ctx.AddVariationDependencies(nil, ravenwoodUtilsTag, ravenwoodUtilsName)[0]
 	if utils != nil {
 		for _, lib := range utils.(*ravenwoodLibgroup).ravenwoodLibgroupProperties.Libs {
 			ctx.AddVariationDependencies(nil, libTag, lib)
@@ -103,7 +112,7 @@ func (r *ravenwoodTest) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 	// Add jni libs
 	for _, lib := range r.ravenwoodTestProperties.Jni_libs {
-		ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ravenwoodJniTag, lib)
+		ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), jniLibTag, lib)
 	}
 }
 
@@ -122,24 +131,47 @@ func (r *ravenwoodTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	r.Library.GenerateAndroidBuildActions(ctx)
 
-	// Start by depending on all files installed by dependancies
+	// Start by depending on all files installed by dependencies
 	var installDeps android.InstallPaths
-	for _, dep := range ctx.GetDirectDepsWithTag(ravenwoodTag) {
-		for _, installFile := range dep.FilesToInstall() {
+
+	// All JNI libraries included in the runtime
+	var runtimeJniModuleNames map[string]bool
+
+	if utils := ctx.GetDirectDepsWithTag(ravenwoodUtilsTag)[0]; utils != nil {
+		for _, installFile := range utils.FilesToInstall() {
 			installDeps = append(installDeps, installFile)
 		}
+		jniDeps, ok := android.OtherModuleProvider(ctx, utils, ravenwoodLibgroupJniDepProvider)
+		if ok {
+			runtimeJniModuleNames = jniDeps.names
+		}
 	}
+
+	if runtime := ctx.GetDirectDepsWithTag(ravenwoodRuntimeTag)[0]; runtime != nil {
+		for _, installFile := range runtime.FilesToInstall() {
+			installDeps = append(installDeps, installFile)
+		}
+		jniDeps, ok := android.OtherModuleProvider(ctx, runtime, ravenwoodLibgroupJniDepProvider)
+		if ok {
+			runtimeJniModuleNames = jniDeps.names
+		}
+	}
+
+	// Also remember what JNI libs are in the runtime.
 
 	// Also depend on our config
 	installPath := android.PathForModuleInstall(ctx, r.BaseModuleName())
 	installConfig := ctx.InstallFile(installPath, ctx.ModuleName()+".config", r.testConfig)
 	installDeps = append(installDeps, installConfig)
 
-	// Depend on the JNI libraries.
+	// Depend on the JNI libraries, but don't install the ones that the runtime already
+	// contains.
 	soInstallPath := installPath.Join(ctx, getLibPath(r.forceArchType))
-	for _, dep := range ctx.GetDirectDepsWithTag(ravenwoodJniTag) {
-		file := android.OutputFileForModule(ctx, dep, "")
-		installJni := ctx.InstallFile(soInstallPath, file.Base(), file)
+	for _, jniLib := range collectTransitiveJniDeps(ctx) {
+		if _, ok := runtimeJniModuleNames[jniLib.name]; ok {
+			continue // Runtime already includes it.
+		}
+		installJni := ctx.InstallFile(soInstallPath, jniLib.path.Base(), jniLib.path)
 		installDeps = append(installDeps, installJni)
 	}
 
@@ -199,10 +231,10 @@ func (r *ravenwoodLibgroup) TestSuites() []string {
 func (r *ravenwoodLibgroup) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// Always depends on our underlying libs
 	for _, lib := range r.ravenwoodLibgroupProperties.Libs {
-		ctx.AddVariationDependencies(nil, ravenwoodTag, lib)
+		ctx.AddVariationDependencies(nil, ravenwoodLibContentTag, lib)
 	}
 	for _, lib := range r.ravenwoodLibgroupProperties.Jni_libs {
-		ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ravenwoodJniTag, lib)
+		ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), jniLibTag, lib)
 	}
 }
 
@@ -210,19 +242,37 @@ func (r *ravenwoodLibgroup) GenerateAndroidBuildActions(ctx android.ModuleContex
 	r.forceOSType = ctx.Config().BuildOS
 	r.forceArchType = ctx.Config().BuildArch
 
+	// Collect the JNI dependencies, including the transitive deps.
+	jniDepNames := make(map[string]bool)
+	jniLibs := collectTransitiveJniDeps(ctx)
+
+	for _, jni := range jniLibs {
+		jniDepNames[jni.name] = true
+	}
+	android.SetProvider(ctx, ravenwoodLibgroupJniDepProvider, ravenwoodLibgroupJniDepProviderInfo{
+		names: jniDepNames,
+	})
+
 	// Install our runtime into expected location for packaging
 	installPath := android.PathForModuleInstall(ctx, r.BaseModuleName())
 	for _, lib := range r.ravenwoodLibgroupProperties.Libs {
-		libModule := ctx.GetDirectDepWithTag(lib, ravenwoodTag)
+		libModule := ctx.GetDirectDepWithTag(lib, ravenwoodLibContentTag)
 		libJar := android.OutputFileForModule(ctx, libModule, "")
 		ctx.InstallFile(installPath, lib+".jar", libJar)
 	}
 	soInstallPath := android.PathForModuleInstall(ctx, r.BaseModuleName()).Join(ctx, getLibPath(r.forceArchType))
-	for _, dep := range ctx.GetDirectDepsWithTag(ravenwoodJniTag) {
-		file := android.OutputFileForModule(ctx, dep, "")
-		ctx.InstallFile(soInstallPath, file.Base(), file)
+
+	for _, jniLib := range jniLibs {
+		ctx.InstallFile(soInstallPath, jniLib.path.Base(), jniLib.path)
 	}
 
 	// Normal build should perform install steps
 	ctx.Phony(r.BaseModuleName(), android.PathForPhony(ctx, r.BaseModuleName()+"-install"))
+}
+
+// collectTransitiveJniDeps returns all JNI dependencies, including transitive
+// ones, including NDK / stub libs. (Because Ravenwood has no "preinstalled" libraries)
+func collectTransitiveJniDeps(ctx android.ModuleContext) []jniLib {
+	libs, _ := collectJniDeps(ctx, true, false, nil)
+	return libs
 }
