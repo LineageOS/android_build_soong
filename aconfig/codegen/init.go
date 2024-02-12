@@ -77,6 +77,7 @@ func init() {
 }
 
 func RegisterBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("aconfig_declarations_group", AconfigDeclarationsGroupFactory)
 	ctx.RegisterModuleType("cc_aconfig_library", CcAconfigLibraryFactory)
 	ctx.RegisterModuleType("java_aconfig_library", JavaDeclarationsLibraryFactory)
 	ctx.RegisterModuleType("rust_aconfig_library", RustAconfigLibraryFactory)
