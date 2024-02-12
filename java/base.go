@@ -205,6 +205,13 @@ type CommonProperties struct {
 	// Note that currently not all actions implemented by android_apps are sandboxed, so you
 	// may only see this being necessary in lint builds.
 	Compile_data []string `android:"path"`
+
+	// Property signifying whether the module compiles stubs or not.
+	// Should be set to true when srcs of this module are stub files.
+	// This property does not need to be set to true when the module depends on
+	// the stubs via libs, but should be set to true when the module depends on
+	// the stubs via static libs.
+	Is_stubs_module *bool
 }
 
 // Properties that are specific to device modules. Host module factories should not add these when
@@ -532,6 +539,8 @@ type Module struct {
 	// Values that will be set in the JarJarProvider data for jarjar repackaging,
 	// and merged with our dependencies' rules.
 	jarjarRenameRules map[string]string
+
+	stubsLinkType StubsLinkType
 }
 
 func (j *Module) CheckStableSdkVersion(ctx android.BaseModuleContext) error {
@@ -1212,6 +1221,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 			ExportedPlugins:                j.exportedPluginJars,
 			ExportedPluginClasses:          j.exportedPluginClasses,
 			ExportedPluginDisableTurbine:   j.exportedDisableTurbine,
+			StubsLinkType:                  j.stubsLinkType,
 		})
 
 		j.outputFile = j.headerJarFile
@@ -1729,6 +1739,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		ExportedPluginClasses:          j.exportedPluginClasses,
 		ExportedPluginDisableTurbine:   j.exportedDisableTurbine,
 		JacocoReportClassesFile:        j.jacocoReportClassesFile,
+		StubsLinkType:                  j.stubsLinkType,
 	})
 
 	// Save the output file with no relative path so that it doesn't end up in a subdirectory when used as a resource
