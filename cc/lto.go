@@ -100,7 +100,7 @@ func (lto *lto) begin(ctx BaseModuleContext) {
 	lto.Properties.LtoEnabled = ltoEnabled
 }
 
-func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
+func (lto *lto) flags(ctx ModuleContext, flags Flags) Flags {
 	// TODO(b/131771163): CFI and Fuzzer controls LTO flags by themselves.
 	// This has be checked late because these properties can be mutated.
 	if ctx.isCfi() || ctx.isFuzzer() {
@@ -139,7 +139,7 @@ func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
 		// Reduce the inlining threshold for a better balance of binary size and
 		// performance.
 		if !ctx.Darwin() {
-			if ctx.isAfdoCompile() {
+			if ctx.isAfdoCompile(ctx) {
 				ltoLdFlags = append(ltoLdFlags, "-Wl,-plugin-opt,-import-instr-limit=40")
 			} else {
 				ltoLdFlags = append(ltoLdFlags, "-Wl,-plugin-opt,-import-instr-limit=5")

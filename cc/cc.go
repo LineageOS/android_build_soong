@@ -55,7 +55,6 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 		ctx.BottomUp("test_per_src", TestPerSrcMutator).Parallel()
 		ctx.BottomUp("version", versionMutator).Parallel()
 		ctx.BottomUp("begin", BeginMutator).Parallel()
-		ctx.BottomUp("fdo_profile", fdoProfileMutator)
 	})
 
 	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
@@ -70,8 +69,7 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 
 		ctx.Transition("coverage", &coverageTransitionMutator{})
 
-		ctx.TopDown("afdo_deps", afdoDepsMutator)
-		ctx.BottomUp("afdo", afdoMutator).Parallel()
+		ctx.Transition("afdo", &afdoTransitionMutator{})
 
 		ctx.Transition("orderfile", &orderfileTransitionMutator{})
 
@@ -527,7 +525,7 @@ type ModuleContextIntf interface {
 	selectedStl() string
 	baseModuleName() string
 	getVndkExtendsModuleName() string
-	isAfdoCompile() bool
+	isAfdoCompile(ctx ModuleContext) bool
 	isOrderfileCompile() bool
 	isCfi() bool
 	isFuzzer() bool
@@ -1381,9 +1379,9 @@ func (c *Module) IsVndk() bool {
 	return false
 }
 
-func (c *Module) isAfdoCompile() bool {
+func (c *Module) isAfdoCompile(ctx ModuleContext) bool {
 	if afdo := c.afdo; afdo != nil {
-		return afdo.Properties.FdoProfilePath != nil
+		return afdo.isAfdoCompile(ctx)
 	}
 	return false
 }
@@ -1706,8 +1704,8 @@ func (ctx *moduleContextImpl) isVndk() bool {
 	return ctx.mod.IsVndk()
 }
 
-func (ctx *moduleContextImpl) isAfdoCompile() bool {
-	return ctx.mod.isAfdoCompile()
+func (ctx *moduleContextImpl) isAfdoCompile(mctx ModuleContext) bool {
+	return ctx.mod.isAfdoCompile(mctx)
 }
 
 func (ctx *moduleContextImpl) isOrderfileCompile() bool {
@@ -2350,10 +2348,6 @@ func (c *Module) beginMutator(actx android.BottomUpMutatorContext) {
 		},
 	}
 	ctx.ctx = ctx
-
-	if !actx.Host() || !ctx.static() || ctx.staticBinary() {
-		c.afdo.addDep(ctx, actx)
-	}
 
 	c.begin(ctx)
 }
