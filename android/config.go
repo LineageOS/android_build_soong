@@ -1499,18 +1499,18 @@ func (c *deviceConfig) PgoAdditionalProfileDirs() []string {
 }
 
 // AfdoProfile returns fully qualified path associated to the given module name
-func (c *deviceConfig) AfdoProfile(name string) (*string, error) {
+func (c *deviceConfig) AfdoProfile(name string) (string, error) {
 	for _, afdoProfile := range c.config.productVariables.AfdoProfiles {
 		split := strings.Split(afdoProfile, ":")
 		if len(split) != 3 {
-			return nil, fmt.Errorf("AFDO_PROFILES has invalid value: %s. "+
+			return "", fmt.Errorf("AFDO_PROFILES has invalid value: %s. "+
 				"The expected format is <module>:<fully-qualified-path-to-fdo_profile>", afdoProfile)
 		}
 		if split[0] == name {
-			return proptools.StringPtr(strings.Join([]string{split[1], split[2]}, ":")), nil
+			return strings.Join([]string{split[1], split[2]}, ":"), nil
 		}
 	}
-	return nil, nil
+	return "", nil
 }
 
 func (c *deviceConfig) VendorSepolicyDirs() []string {
