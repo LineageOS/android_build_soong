@@ -777,6 +777,9 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	a.onDeviceDir = android.InstallPathToOnDevicePath(ctx, a.installDir)
 
 	a.classLoaderContexts = a.usesLibrary.classLoaderContextForUsesLibDeps(ctx)
+	if a.usesLibrary.shouldDisableDexpreopt {
+		a.dexpreopter.disableDexpreopt()
+	}
 
 	var noticeAssetPath android.WritablePath
 	if Bool(a.appProperties.Embed_notices) || ctx.Config().IsEnvTrue("ALWAYS_EMBED_NOTICES") {
@@ -1547,6 +1550,9 @@ type usesLibrary struct {
 
 	// Whether to enforce verify_uses_library check.
 	enforce bool
+
+	// Whether dexpreopt should be disabled
+	shouldDisableDexpreopt bool
 }
 
 func (u *usesLibrary) addLib(lib string, optional bool) {
@@ -1624,6 +1630,15 @@ func (u *usesLibrary) classLoaderContextForUsesLibDeps(ctx android.ModuleContext
 		// from implementation libraries by their name, which is different as it has a suffix.
 		if comp, ok := m.(SdkLibraryComponentDependency); ok {
 			if impl := comp.OptionalSdkLibraryImplementation(); impl != nil && *impl != dep {
+				return
+			}
+		}
+
+		// Skip java_sdk_library dependencies that provide stubs, but not an implementation.
+		// This will be restricted to optional_uses_libs
+		if sdklib, ok := m.(SdkLibraryDependency); ok {
+			if tag == usesLibOptTag && sdklib.DexJarBuildPath(ctx).PathOrNil() == nil {
+				u.shouldDisableDexpreopt = true
 				return
 			}
 		}
