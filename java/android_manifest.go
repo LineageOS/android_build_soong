@@ -152,9 +152,10 @@ func ManifestFixer(ctx android.ModuleContext, manifest android.Path,
 	if params.SdkContext != nil {
 		targetSdkVersion := targetSdkVersionForManifestFixer(ctx, params)
 
-		if UseApiFingerprint(ctx) && ctx.ModuleName() != "framework-res" {
-			targetSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", ApiFingerprintPath(ctx).String())
-			deps = append(deps, ApiFingerprintPath(ctx))
+		if useApiFingerprint, fingerprintTargetSdkVersion, fingerprintDeps :=
+			UseApiFingerprint(ctx); useApiFingerprint && ctx.ModuleName() != "framework-res" {
+			targetSdkVersion = fingerprintTargetSdkVersion
+			deps = append(deps, fingerprintDeps)
 		}
 
 		args = append(args, "--targetSdkVersion ", targetSdkVersion)
@@ -169,9 +170,10 @@ func ManifestFixer(ctx android.ModuleContext, manifest android.Path,
 			ctx.ModuleErrorf("invalid ReplaceMaxSdkVersionPlaceholder: %s", err)
 		}
 
-		if UseApiFingerprint(ctx) && ctx.ModuleName() != "framework-res" {
-			minSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", ApiFingerprintPath(ctx).String())
-			deps = append(deps, ApiFingerprintPath(ctx))
+		if useApiFingerprint, fingerprintMinSdkVersion, fingerprintDeps :=
+			UseApiFingerprint(ctx); useApiFingerprint && ctx.ModuleName() != "framework-res" {
+			minSdkVersion = fingerprintMinSdkVersion
+			deps = append(deps, fingerprintDeps)
 		}
 
 		if err != nil {
