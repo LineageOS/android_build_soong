@@ -472,8 +472,9 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 	// Add TARGET_AAPT_CHARACTERISTICS values to AAPT link flags if they exist and --product flags were not provided.
 	autogenerateRRO := proptools.Bool(a.appProperties.Generate_product_characteristics_rro)
 	hasProduct := android.PrefixInList(a.aaptProperties.Aaptflags, "--product")
-	if !autogenerateRRO && !hasProduct && len(ctx.Config().ProductAAPTCharacteristics()) > 0 {
-		aaptLinkFlags = append(aaptLinkFlags, "--product", ctx.Config().ProductAAPTCharacteristics())
+	characteristics := ctx.Config().ProductAAPTCharacteristics()
+	if !autogenerateRRO && !hasProduct && len(characteristics) > 0 && characteristics != "default" {
+		aaptLinkFlags = append(aaptLinkFlags, "--product", characteristics)
 	}
 
 	if !Bool(a.aaptProperties.Aapt_include_all_resources) {
