@@ -1165,6 +1165,7 @@ var (
 		"com.android.ondevicepersonalization",
 		"com.android.os.statsd",
 		"com.android.permission",
+		"com.android.profiling",
 		"com.android.rkpd",
 		"com.android.scheduling",
 		"com.android.tethering",
