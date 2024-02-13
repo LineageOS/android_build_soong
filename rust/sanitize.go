@@ -56,6 +56,8 @@ type SanitizeProperties struct {
 }
 
 var fuzzerFlags = []string{
+	"-Z external-clangrt=true",
+
 	"-C passes='sancov-module'",
 
 	"--cfg fuzzing",
@@ -73,11 +75,13 @@ var fuzzerFlags = []string{
 }
 
 var asanFlags = []string{
+	"-Z external-clangrt=true",
 	"-Z sanitizer=address",
 }
 
 // See cc/sanitize.go's hwasanGlobalOptions for global hwasan options.
 var hwasanFlags = []string{
+	"-Z external-clangrt=true",
 	"-Z sanitizer=hwaddress",
 	"-C target-feature=+tagged-globals",
 
@@ -200,11 +204,6 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	}
 
 	if Bool(s.Hwaddress) {
-		s.Address = nil
-	}
-
-	// TODO: Remove once b/304507701 is resolved
-	if Bool(s.Address) && ctx.Host() {
 		s.Address = nil
 	}
 
