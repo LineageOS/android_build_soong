@@ -416,17 +416,11 @@ func (a *aapt) buildActions(ctx android.ModuleContext, opts aaptBuildActionOptio
 		linkFlags = append(linkFlags, "--static-lib")
 	}
 
+	linkFlags = append(linkFlags, "--no-static-lib-packages")
 	if a.isLibrary && a.useResourceProcessorBusyBox(ctx) {
-		// When building an android_library using ResourceProcessorBusyBox the resources are merged into
-		// package-res.apk with --merge-only, but --no-static-lib-packages is not used so that R.txt only
-		// contains resources from this library.
+		// When building an android_library using ResourceProcessorBusyBox pass --merge-only to skip resource
+		// references validation until the final app link step when all static libraries are present.
 		linkFlags = append(linkFlags, "--merge-only")
-	} else {
-		// When building and app or when building an android_library without ResourceProcessorBusyBox
-		// --no-static-lib-packages is used to put all the resources into the app.  If ResourceProcessorBusyBox
-		// is used then the app's R.txt will be post-processed along with the R.txt files from dependencies to
-		// sort resources into the right packages in R.class.
-		linkFlags = append(linkFlags, "--no-static-lib-packages")
 	}
 
 	packageRes := android.PathForModuleOut(ctx, "package-res.apk")
@@ -1179,6 +1173,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		"--static-lib",
 		"--merge-only",
 		"--auto-add-overlay",
+		"--no-static-lib-packages",
 	}
 
 	linkFlags = append(linkFlags, "--manifest "+a.manifest.String())
