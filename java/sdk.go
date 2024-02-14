@@ -33,13 +33,26 @@ var sdkFrameworkAidlPathKey = android.NewOnceKey("sdkFrameworkAidlPathKey")
 var nonUpdatableFrameworkAidlPathKey = android.NewOnceKey("nonUpdatableFrameworkAidlPathKey")
 var apiFingerprintPathKey = android.NewOnceKey("apiFingerprintPathKey")
 
-func UseApiFingerprint(ctx android.BaseModuleContext) bool {
-	if ctx.Config().UnbundledBuild() &&
-		!ctx.Config().AlwaysUsePrebuiltSdks() &&
-		ctx.Config().IsEnvTrue("UNBUNDLED_BUILD_TARGET_SDK_WITH_API_FINGERPRINT") {
-		return true
+func UseApiFingerprint(ctx android.BaseModuleContext) (useApiFingerprint bool, fingerprintSdkVersion string, fingerprintDeps android.OutputPath) {
+	if ctx.Config().UnbundledBuild() && !ctx.Config().AlwaysUsePrebuiltSdks() {
+		apiFingerprintTrue := ctx.Config().IsEnvTrue("UNBUNDLED_BUILD_TARGET_SDK_WITH_API_FINGERPRINT")
+		dessertShaIsSet := ctx.Config().Getenv("UNBUNDLED_BUILD_TARGET_SDK_WITH_DESSERT_SHA") != ""
+
+		// Error when both UNBUNDLED_BUILD_TARGET_SDK_WITH_API_FINGERPRINT and UNBUNDLED_BUILD_TARGET_SDK_WITH_DESSERT_SHA are set
+		if apiFingerprintTrue && dessertShaIsSet {
+			ctx.ModuleErrorf("UNBUNDLED_BUILD_TARGET_SDK_WITH_API_FINGERPRINT=true cannot be set alongside with UNBUNDLED_BUILD_TARGET_SDK_WITH_DESSERT_SHA")
+		}
+
+		useApiFingerprint = apiFingerprintTrue || dessertShaIsSet
+		if apiFingerprintTrue {
+			fingerprintSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", ApiFingerprintPath(ctx).String())
+			fingerprintDeps = ApiFingerprintPath(ctx)
+		}
+		if dessertShaIsSet {
+			fingerprintSdkVersion = ctx.Config().Getenv("UNBUNDLED_BUILD_TARGET_SDK_WITH_DESSERT_SHA")
+		}
 	}
-	return false
+	return useApiFingerprint, fingerprintSdkVersion, fingerprintDeps
 }
 
 func defaultJavaLanguageVersion(ctx android.EarlyModuleContext, s android.SdkSpec) javaVersion {
