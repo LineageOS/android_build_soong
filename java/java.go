@@ -87,6 +87,14 @@ func RegisterJavaSdkMemberTypes() {
 	android.RegisterSdkMemberType(javaTestSdkMemberType)
 }
 
+type StubsLinkType int
+
+const (
+	Unknown StubsLinkType = iota
+	Stubs
+	Implementation
+)
+
 var (
 	// Supports adding java header libraries to module_exports and sdk.
 	javaHeaderLibsSdkMemberType = &librarySdkMemberType{
@@ -296,6 +304,11 @@ type JavaInfo struct {
 	// JacocoReportClassesFile is the path to a jar containing uninstrumented classes that will be
 	// instrumented by jacoco.
 	JacocoReportClassesFile android.Path
+
+	// StubsLinkType provides information about whether the provided jars are stub jars or
+	// implementation jars. If the provider is set by java_sdk_library, the link type is "unknown"
+	// and selection between the stub jar vs implementation jar is deferred to SdkLibrary.sdkJars(...)
+	StubsLinkType StubsLinkType
 }
 
 var JavaInfoProvider = blueprint.NewProvider[JavaInfo]()
@@ -693,6 +706,17 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.sdkVersion = j.SdkVersion(ctx)
 	j.minSdkVersion = j.MinSdkVersion(ctx)
 	j.maxSdkVersion = j.MaxSdkVersion(ctx)
+
+	// SdkLibrary.GenerateAndroidBuildActions(ctx) sets the stubsLinkType to Unknown.
+	// If the stubsLinkType has already been set to Unknown, the stubsLinkType should
+	// not be overridden.
+	if j.stubsLinkType != Unknown {
+		if proptools.Bool(j.properties.Is_stubs_module) {
+			j.stubsLinkType = Stubs
+		} else {
+			j.stubsLinkType = Implementation
+		}
+	}
 
 	j.stem = proptools.StringDefault(j.overridableDeviceProperties.Stem, ctx.ModuleName())
 
@@ -2018,6 +2042,7 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ImplementationAndResourcesJars: android.PathsIfNonNil(al.stubsJar),
 		ImplementationJars:             android.PathsIfNonNil(al.stubsJar),
 		AidlIncludeDirs:                android.Paths{},
+		StubsLinkType:                  Stubs,
 		// No aconfig libraries on api libraries
 	})
 }
@@ -2102,6 +2127,9 @@ type ImportProperties struct {
 	// The name is the undecorated name of the java_sdk_library as it appears in the blueprint file
 	// (without any prebuilt_ prefix)
 	Created_by_java_sdk_library_name *string `blueprint:"mutated"`
+
+	// Property signifying whether the module provides stubs jar or not.
+	Is_stubs_module *bool
 }
 
 type Import struct {
@@ -2132,6 +2160,8 @@ type Import struct {
 
 	sdkVersion    android.SdkSpec
 	minSdkVersion android.ApiLevel
+
+	stubsLinkType StubsLinkType
 }
 
 var _ PermittedPackagesForUpdatableBootJars = (*Import)(nil)
@@ -2225,6 +2255,12 @@ func (j *Import) commonBuildActions(ctx android.ModuleContext) {
 
 	if ctx.Windows() {
 		j.HideFromMake()
+	}
+
+	if proptools.Bool(j.properties.Is_stubs_module) {
+		j.stubsLinkType = Stubs
+	} else {
+		j.stubsLinkType = Implementation
 	}
 }
 
@@ -2359,6 +2395,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ImplementationAndResourcesJars: android.PathsIfNonNil(j.combinedClasspathFile),
 		ImplementationJars:             android.PathsIfNonNil(j.combinedClasspathFile),
 		AidlIncludeDirs:                j.exportAidlIncludeDirs,
+		StubsLinkType:                  j.stubsLinkType,
 		// TODO(b/289117800): LOCAL_ACONFIG_FILES for prebuilts
 	})
 }

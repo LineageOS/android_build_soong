@@ -1572,6 +1572,8 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 
 	// Only build an implementation library if required.
 	if module.requiresRuntimeImplementationLibrary() {
+		// stubsLinkType must be set before calling Library.GenerateAndroidBuildActions
+		module.Library.stubsLinkType = Unknown
 		module.Library.GenerateAndroidBuildActions(ctx)
 	}
 
@@ -1797,6 +1799,7 @@ type libraryProperties struct {
 		Dir     *string
 		Tag     *string
 	}
+	Is_stubs_module *bool
 }
 
 func (module *SdkLibrary) stubsLibraryProps(mctx android.DefaultableHookContext, apiScope *apiScope) libraryProperties {
@@ -1821,6 +1824,7 @@ func (module *SdkLibrary) stubsLibraryProps(mctx android.DefaultableHookContext,
 	// We compile the stubs for 1.8 in line with the main android.jar stubs, and potential
 	// interop with older developer tools that don't support 1.9.
 	props.Java_version = proptools.StringPtr("1.8")
+	props.Is_stubs_module = proptools.BoolPtr(true)
 
 	return props
 }
@@ -2709,6 +2713,7 @@ func (module *SdkLibraryImport) createJavaImportForStubs(mctx android.Defaultabl
 		Libs                             []string
 		Jars                             []string
 		Compile_dex                      *bool
+		Is_stubs_module                  *bool
 
 		android.UserSuppliedPrebuiltProperties
 	}{}
@@ -2730,6 +2735,7 @@ func (module *SdkLibraryImport) createJavaImportForStubs(mctx android.Defaultabl
 		compileDex = proptools.BoolPtr(true)
 	}
 	props.Compile_dex = compileDex
+	props.Is_stubs_module = proptools.BoolPtr(true)
 
 	mctx.CreateModule(ImportFactory, &props, module.sdkComponentPropertiesForChildLibrary())
 }
