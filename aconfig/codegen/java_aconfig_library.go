@@ -17,6 +17,7 @@ package codegen
 import (
 	"fmt"
 
+	"android/soong/aconfig"
 	"android/soong/android"
 	"android/soong/java"
 
@@ -117,6 +118,12 @@ func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) GenerateSourceJarBuild
 		module.AddJarJarRenameRule(declarations.Package+".FeatureFlagsImpl", "")
 		module.AddJarJarRenameRule(declarations.Package+".FakeFeatureFlagsImpl", "")
 	}
+
+	android.SetProvider(ctx, aconfig.CodegenInfoProvider, aconfig.CodegenInfo{
+		AconfigDeclarations:          []string{declarationsModules[0].Name()},
+		IntermediateCacheOutputPaths: android.Paths{declarations.IntermediateCacheOutputPath},
+		Srcjars:                      android.Paths{srcJarPath},
+	})
 
 	return srcJarPath
 }
