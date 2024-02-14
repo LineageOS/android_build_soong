@@ -288,6 +288,8 @@ var FirstPackedRelocationsVersion = uncheckedFinalApiLevel(23)
 // a core-for-system-modules.jar for the module-lib API scope.
 var LastWithoutModuleLibCoreSystemModules = uncheckedFinalApiLevel(31)
 
+var ApiLevelR = uncheckedFinalApiLevel(30)
+
 // ReplaceFinalizedCodenames returns the API level number associated with that API level
 // if the `raw` input is the codename of an API level has been finalized.
 // If the input is *not* a finalized codename, the input is returned unmodified.
