@@ -2383,11 +2383,26 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 // classes until a module with jarjar_prefix is reached, and all as yet unrenamed classes will then
 // be renamed from that module.
 // TODO: Add another property to suppress the forwarding of
+type DependencyUse int
+
+const (
+	RenameUseInvalid DependencyUse = iota
+	RenameUseInclude
+	RenameUseExclude
+)
+
+type RenameUseElement struct {
+	DepName   string
+	RenameUse DependencyUse
+	Why       string // token for determining where in the logic the decision was made.
+}
+
 type JarJarProviderData struct {
 	// Mapping of class names: original --> renamed.  If the value is "", the class will be
 	// renamed by the next rdep that has the jarjar_prefix attribute (or this module if it has
 	// attribute). Rdeps of that module will inherit the renaming.
-	Rename map[string]string
+	Rename    map[string]string
+	RenameUse []RenameUseElement
 }
 
 func (this JarJarProviderData) GetDebugString() string {
@@ -2451,17 +2466,112 @@ func (module *Module) addJarJarRenameRule(original string, renamed string) {
 func collectDirectDepsProviders(ctx android.ModuleContext) (result *JarJarProviderData) {
 	// Gather repackage information from deps
 	// If the dep jas a JarJarProvider, it is used.  Otherwise, any BaseJarJarProvider is used.
+
+	module := ctx.Module()
+	moduleName := module.Name()
+
 	ctx.VisitDirectDepsIgnoreBlueprint(func(m android.Module) {
-		if ctx.OtherModuleDependencyTag(m) == proguardRaiseTag {
-			return
-		}
-		merge := func(theirs *JarJarProviderData) {
-			for orig, renamed := range theirs.Rename {
-				if result == nil {
-					result = &JarJarProviderData{
-						Rename: make(map[string]string),
+		tag := ctx.OtherModuleDependencyTag(m)
+		// This logic mirrors that in (*Module).collectDeps above.  There are several places
+		// where we explicitly return RenameUseExclude, even though it is the default, to
+		// indicate that it has been verified to be the case.
+		//
+		// Note well: there are probably cases that are getting to the unconditional return
+		// and are therefore wrong.
+		shouldIncludeRenames := func() (DependencyUse, string) {
+			if moduleName == m.Name() {
+				return RenameUseInclude, "name" // If we have the same module name, include the renames.
+			}
+			if sc, ok := module.(android.SdkContext); ok {
+				if ctx.Device() {
+					sdkDep := decodeSdkDep(ctx, sc)
+					if !sdkDep.invalidVersion && sdkDep.useFiles {
+						return RenameUseExclude, "useFiles"
 					}
 				}
+			}
+			if IsJniDepTag(tag) || tag == certificateTag || tag == proguardRaiseTag {
+				return RenameUseExclude, "tags"
+			}
+			if _, ok := m.(SdkLibraryDependency); ok {
+				switch tag {
+				case sdkLibTag, libTag:
+					return RenameUseExclude, "sdklibdep" // matches collectDeps()
+				}
+				return RenameUseInvalid, "sdklibdep" // dep is not used in collectDeps()
+			} else if ji, ok := android.OtherModuleProvider(ctx, m, JavaInfoProvider); ok {
+				switch ji.StubsLinkType {
+				case Stubs:
+					return RenameUseExclude, "info"
+				case Implementation:
+					return RenameUseInclude, "info"
+				default:
+					//fmt.Printf("LJ: %v -> %v StubsLinkType unknown\n", module, m)
+					// Fall through to the heuristic logic.
+				}
+				switch reflect.TypeOf(m).String() {
+				case "*java.GeneratedJavaLibraryModule":
+					// Probably a java_aconfig_library module.
+					// TODO: make this check better.
+					return RenameUseInclude, "reflect"
+				}
+				switch tag {
+				case bootClasspathTag:
+					return RenameUseExclude, "tagswitch"
+				case sdkLibTag, libTag, instrumentationForTag:
+					return RenameUseInclude, "tagswitch"
+				case java9LibTag:
+					return RenameUseExclude, "tagswitch"
+				case staticLibTag:
+					return RenameUseInclude, "tagswitch"
+				case pluginTag:
+					return RenameUseInclude, "tagswitch"
+				case errorpronePluginTag:
+					return RenameUseInclude, "tagswitch"
+				case exportedPluginTag:
+					return RenameUseInclude, "tagswitch"
+				case kotlinStdlibTag, kotlinAnnotationsTag:
+					return RenameUseExclude, "tagswitch"
+				case kotlinPluginTag:
+					return RenameUseInclude, "tagswitch"
+				default:
+					return RenameUseExclude, "tagswitch"
+				}
+			} else if _, ok := m.(android.SourceFileProducer); ok {
+				switch tag {
+				case sdkLibTag, libTag, staticLibTag:
+					return RenameUseInclude, "srcfile"
+				default:
+					return RenameUseExclude, "srcfile"
+				}
+			} else {
+				switch tag {
+				case bootClasspathTag:
+					return RenameUseExclude, "else"
+				case systemModulesTag:
+					return RenameUseInclude, "else"
+				}
+			}
+			// If we got here, choose the safer option, which may lead to a build failure, rather
+			// than runtime failures on the device.
+			return RenameUseExclude, "end"
+		}
+
+		if result == nil {
+			result = &JarJarProviderData{
+				Rename:    make(map[string]string),
+				RenameUse: make([]RenameUseElement, 0),
+			}
+		}
+		how, why := shouldIncludeRenames()
+		result.RenameUse = append(result.RenameUse, RenameUseElement{DepName: m.Name(), RenameUse: how, Why: why})
+		if how != RenameUseInclude {
+			// Nothing to merge.
+			return
+		}
+
+		merge := func(theirs *JarJarProviderData) {
+			for orig, renamed := range theirs.Rename {
 				if preexisting, exists := (*result).Rename[orig]; !exists || preexisting == "" {
 					result.Rename[orig] = renamed
 				} else if preexisting != "" && renamed != "" && preexisting != renamed {
