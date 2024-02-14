@@ -17,6 +17,7 @@ bootstrap_go_package {
         "soong-rust",
     ],
     srcs: [
+        "aconfig_declarations_group.go",
         "cc_aconfig_library.go",
         "init.go",
         "java_aconfig_library.go",
@@ -24,6 +25,7 @@ bootstrap_go_package {
         "testing.go",
     ],
     testSrcs: [
+        "aconfig_declarations_group_test.go",
         "java_aconfig_library_test.go",
         "cc_aconfig_library_test.go",
         "rust_aconfig_library_test.go",
