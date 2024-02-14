@@ -75,6 +75,7 @@ func GatherRequiredDepsForTest() string {
 			apex_available: ["//apex_available:platform", "//apex_available:anyapex"],
 			min_sdk_version: "29",
 			vendor_available: true,
+			host_supported: true,
 			recovery_available: true,
 			llndk: {
 				symbol_file: "liblog.map.txt",
