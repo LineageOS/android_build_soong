@@ -98,6 +98,10 @@ func (a *allApexContributions) DepsMutator(ctx BottomUpMutatorContext) {
 func (a *allApexContributions) SetPrebuiltSelectionInfoProvider(ctx BaseModuleContext) {
 	addContentsToProvider := func(p *PrebuiltSelectionInfoMap, m *apexContributions) {
 		for _, content := range m.Contents() {
+			// Skip any apexes that have been added to the product specific ignore list
+			if InList(content, ctx.Config().BuildIgnoreApexContributionContents()) {
+				continue
+			}
 			if !ctx.OtherModuleExists(content) && !ctx.Config().AllowMissingDependencies() {
 				ctx.ModuleErrorf("%s listed in apex_contributions %s does not exist\n", content, m.Name())
 			}
