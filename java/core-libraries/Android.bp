@@ -64,6 +64,7 @@ java_api_library {
         "stub-annotations",
     ],
     enable_validation: false,
+    stubs_type: "everything",
 }
 
 java_library {
@@ -248,6 +249,7 @@ java_api_library {
         "stub-annotations",
     ],
     visibility: ["//visibility:private"],
+    stubs_type: "everything",
 }
 
 // Produces a dist file that is used by the
@@ -358,6 +360,7 @@ java_api_library {
     libs: [
         "stub-annotations",
     ],
+    stubs_type: "everything",
 }
 
 java_library {
@@ -446,6 +449,7 @@ java_api_library {
     libs: [
         "stub-annotations",
     ],
+    stubs_type: "everything",
 }
 
 java_library {

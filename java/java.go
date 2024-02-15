@@ -24,6 +24,7 @@ import (
 	"sort"
 	"strings"
 
+	"android/soong/aconfig"
 	"android/soong/remoteexec"
 	"android/soong/testing"
 
@@ -1863,6 +1864,10 @@ type ApiLibrary struct {
 	dexJarFile OptionalDexJarPath
 
 	validationPaths android.Paths
+
+	stubsType StubsType
+
+	aconfigProtoFiles android.Paths
 }
 
 type JavaApiLibraryProperties struct {
@@ -1904,6 +1909,20 @@ type JavaApiLibraryProperties struct {
 	// in sync with the source Java files. However, the environment variable
 	// DISABLE_STUB_VALIDATION has precedence over this property.
 	Enable_validation *bool
+
+	// Type of stubs the module should generate. Must be one of "everything", "runtime" or
+	// "exportable". Defaults to "everything".
+	// - "everything" stubs include all non-flagged apis and flagged apis, regardless of the state
+	// of the flag.
+	// - "runtime" stubs include all non-flagged apis and flagged apis that are ENABLED or
+	// READ_WRITE, and all other flagged apis are stripped.
+	// - "exportable" stubs include all non-flagged apis and flagged apis that are ENABLED and
+	// READ_ONLY, and all other flagged apis are stripped.
+	Stubs_type *string
+
+	// List of aconfig_declarations module names that the stubs generated in this module
+	// depend on.
+	Aconfig_declarations []string
 }
 
 func ApiLibraryFactory() android.Module {
@@ -2067,6 +2086,9 @@ func (al *ApiLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if al.properties.System_modules != nil {
 		ctx.AddVariationDependencies(nil, systemModulesTag, String(al.properties.System_modules))
 	}
+	for _, aconfigDeclarationsName := range al.properties.Aconfig_declarations {
+		ctx.AddDependency(ctx.Module(), aconfigDeclarationTag, aconfigDeclarationsName)
+	}
 }
 
 // Map where key is the api scope name and value is the int value
@@ -2087,7 +2109,23 @@ func (al *ApiLibrary) sortApiFilesByApiScope(ctx android.ModuleContext, srcFiles
 	return srcFilesInfo
 }
 
+var validstubsType = []StubsType{Everything, Runtime, Exportable}
+
+func (al *ApiLibrary) validateProperties(ctx android.ModuleContext) {
+	if al.properties.Stubs_type == nil {
+		ctx.ModuleErrorf("java_api_library module type must specify stubs_type property.")
+	} else {
+		al.stubsType = StringToStubsType(proptools.String(al.properties.Stubs_type))
+	}
+
+	if !android.InList(al.stubsType, validstubsType) {
+		ctx.PropertyErrorf("stubs_type", "%s is not a valid stubs_type property value. "+
+			"Must be one of %s.", proptools.String(al.properties.Stubs_type), validstubsType)
+	}
+}
+
 func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	al.validateProperties(ctx)
 
 	rule := android.NewRuleBuilder(pctx, ctx)
 
@@ -2131,6 +2169,18 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			if currentApiTimestampProvider, ok := dep.(currentApiTimestampProvider); ok {
 				al.validationPaths = append(al.validationPaths, currentApiTimestampProvider.CurrentApiTimestamp())
 			}
+		case aconfigDeclarationTag:
+			if provider, ok := android.OtherModuleProvider(ctx, dep, android.AconfigDeclarationsProviderKey); ok {
+				al.aconfigProtoFiles = append(al.aconfigProtoFiles, provider.IntermediateCacheOutputPath)
+			} else if provider, ok := android.OtherModuleProvider(ctx, dep, aconfig.CodegenInfoProvider); ok {
+				al.aconfigProtoFiles = append(al.aconfigProtoFiles, provider.IntermediateCacheOutputPaths...)
+			} else {
+				ctx.ModuleErrorf("Only aconfig_declarations and aconfig_declarations_group "+
+					"module type is allowed for flags_packages property, but %s is neither "+
+					"of these supported module types",
+					dep.Name(),
+				)
+			}
 		}
 	})
 
@@ -2155,6 +2205,8 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	al.addValidation(ctx, cmd, al.validationPaths)
+
+	generateRevertAnnotationArgs(ctx, cmd, al.stubsType, al.aconfigProtoFiles)
 
 	al.stubsSrcJar = android.PathForModuleOut(ctx, "metalava", ctx.ModuleName()+"-"+"stubs.srcjar")
 	al.stubsJarWithoutStaticLibs = android.PathForModuleOut(ctx, "metalava", "stubs.jar")

@@ -337,6 +337,7 @@ func TestGeneratedApiContributionVisibilityTest(t *testing.T) {
 			name: "bar",
 			api_surface: "public",
 			api_contributions: ["foo.api.contribution"],
+			stubs_type: "everything",
 		}
 	`
 	ctx, _ := testJavaWithFS(t, `
