@@ -48,12 +48,33 @@ func TestFileSystemDeps(t *testing.T) {
 						"bpf.o",
 					],
 				},
+				lib32: {
+					deps: [
+						"foo",
+						"libbar",
+					],
+				},
+				lib64: {
+					deps: [
+						"libbar",
+					],
+				},
 			},
+			compile_multilib: "both",
 		}
 
 		bpf {
 			name: "bpf.o",
 			srcs: ["bpf.c"],
+		}
+
+		cc_binary {
+			name: "foo",
+			compile_multilib: "prefer32",
+		}
+
+		cc_library {
+			name: "libbar",
 		}
 	`)
 
@@ -61,7 +82,12 @@ func TestFileSystemDeps(t *testing.T) {
 	result.ModuleForTests("myfilesystem", "android_common").Output("myfilesystem.img")
 
 	fs := result.ModuleForTests("myfilesystem", "android_common").Module().(*filesystem)
-	expected := []string{"etc/bpf/bpf.o"}
+	expected := []string{
+		"bin/foo",
+		"lib/libbar.so",
+		"lib64/libbar.so",
+		"etc/bpf/bpf.o",
+	}
 	for _, e := range expected {
 		android.AssertStringListContains(t, "missing entry", fs.entries, e)
 	}
