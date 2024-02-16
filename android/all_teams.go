@@ -68,10 +68,6 @@ func (this *allTeamsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	this.teams_for_mods = make(map[string]moduleTeamInfo)
 
 	ctx.VisitAllModules(func(module Module) {
-		if !module.Enabled() {
-			return
-		}
-
 		bpFile := ctx.BlueprintFile(module)
 
 		// Package Modules and Team Modules are stored in a map so we can look them up by name for
