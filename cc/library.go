@@ -1354,26 +1354,28 @@ func getRefAbiDumpFile(ctx android.ModuleInstallPathContext,
 		fileName+".lsdump")
 }
 
-func prevRefAbiDumpVersion(ctx ModuleContext, dumpDir string) int {
+// Return the previous and current SDK versions for cross-version ABI diff.
+func crossVersionAbiDiffSdkVersions(ctx ModuleContext, dumpDir string) (string, string) {
 	sdkVersionInt := ctx.Config().PlatformSdkVersion().FinalInt()
 	sdkVersionStr := ctx.Config().PlatformSdkVersion().String()
 
 	if ctx.Config().PlatformSdkFinal() {
-		return sdkVersionInt - 1
+		return strconv.Itoa(sdkVersionInt - 1), sdkVersionStr
 	} else {
 		// The platform SDK version can be upgraded before finalization while the corresponding abi dumps hasn't
 		// been generated. Thus the Cross-Version Check chooses PLATFORM_SDK_VERION - 1 as previous version.
 		// This situation could be identified by checking the existence of the PLATFORM_SDK_VERION dump directory.
 		versionedDumpDir := android.ExistentPathForSource(ctx, dumpDir, sdkVersionStr)
 		if versionedDumpDir.Valid() {
-			return sdkVersionInt
+			return sdkVersionStr, strconv.Itoa(sdkVersionInt + 1)
 		} else {
-			return sdkVersionInt - 1
+			return strconv.Itoa(sdkVersionInt - 1), sdkVersionStr
 		}
 	}
 }
 
-func currRefAbiDumpVersion(ctx ModuleContext) string {
+// Return the SDK version for same-version ABI diff.
+func currRefAbiDumpSdkVersion(ctx ModuleContext) string {
 	if ctx.Config().PlatformSdkFinal() {
 		// After sdk finalization, the ABI of the latest API level must be consistent with the source code,
 		// so choose PLATFORM_SDK_VERSION as the current version.
@@ -1458,12 +1460,13 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 		}
 		exportedHeaderFlags := strings.Join(SourceAbiFlags, " ")
 		headerAbiChecker := library.getHeaderAbiCheckerProperties(ctx)
-		currVersion := currRefAbiDumpVersion(ctx)
+		currSdkVersion := currRefAbiDumpSdkVersion(ctx)
+		currVendorVersion := ctx.Config().VendorApiLevel()
 		library.sAbiOutputFile = transformDumpToLinkedDump(ctx, objs.sAbiDumpFiles, soFile, fileName, exportedHeaderFlags,
 			android.OptionalPathForModuleSrc(ctx, library.symbolFileForAbiCheck(ctx)),
 			headerAbiChecker.Exclude_symbol_versions,
 			headerAbiChecker.Exclude_symbol_tags,
-			currVersion)
+			currSdkVersion)
 
 		for _, tag := range classifySourceAbiDump(ctx) {
 			addLsdumpPath(string(tag) + ":" + library.sAbiOutputFile.String())
@@ -1481,16 +1484,26 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 				nameExt = "llndk"
 			}
 			// Check against the previous version.
-			prevVersionInt := prevRefAbiDumpVersion(ctx, dumpDir)
-			prevVersion := strconv.Itoa(prevVersionInt)
+			var prevVersion, currVersion string
+			// If this release config does not define VendorApiLevel, fall back to the old policy.
+			if isLlndk && currVendorVersion != "" {
+				prevVersion = ctx.Config().PrevVendorApiLevel()
+				currVersion = currVendorVersion
+			} else {
+				prevVersion, currVersion = crossVersionAbiDiffSdkVersions(ctx, dumpDir)
+			}
 			prevDumpDir := filepath.Join(dumpDir, prevVersion, binderBitness)
 			prevDumpFile := getRefAbiDumpFile(ctx, prevDumpDir, fileName)
 			if prevDumpFile.Valid() {
 				library.crossVersionAbiDiff(ctx, prevDumpFile.Path(),
-					fileName, isLlndk || isNdk,
-					strconv.Itoa(prevVersionInt+1), nameExt+prevVersion)
+					fileName, isLlndk || isNdk, currVersion, nameExt+prevVersion)
 			}
 			// Check against the current version.
+			if isLlndk && currVendorVersion != "" {
+				currVersion = currVendorVersion
+			} else {
+				currVersion = currSdkVersion
+			}
 			currDumpDir := filepath.Join(dumpDir, currVersion, binderBitness)
 			currDumpFile := getRefAbiDumpFile(ctx, currDumpDir, fileName)
 			if currDumpFile.Valid() {
