@@ -1113,6 +1113,8 @@ func (a *AndroidApp) OutputFiles(tag string) (android.Paths, error) {
 		if a.rJar != nil {
 			return []android.Path{a.rJar}, nil
 		}
+	case ".apk":
+		return []android.Path{a.outputFile}, nil
 	case ".export-package.apk":
 		return []android.Path{a.exportPackage}, nil
 	case ".manifest.xml":
@@ -1207,10 +1209,10 @@ func AndroidAppFactory() android.Module {
 			Cmd   *string
 		}{
 			Name:  proptools.StringPtr(rroManifestName),
-			Tools: []string{"characteristics_rro_generator"},
+			Tools: []string{"characteristics_rro_generator", "aapt2"},
 			Out:   []string{"AndroidManifest.xml"},
-			Srcs:  []string{":" + a.Name() + "{.manifest.xml}"},
-			Cmd:   proptools.StringPtr("$(location characteristics_rro_generator) $(in) $(out)"),
+			Srcs:  []string{":" + a.Name() + "{.apk}"},
+			Cmd:   proptools.StringPtr("$(location characteristics_rro_generator) $$($(location aapt2) dump packagename $(in)) $(out)"),
 		}
 		ctx.CreateModule(genrule.GenRuleFactory, &rroManifestProperties)
 
