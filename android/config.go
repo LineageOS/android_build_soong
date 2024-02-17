@@ -1345,6 +1345,22 @@ func (c *config) VendorApiLevel() string {
 	return String(c.productVariables.VendorApiLevel)
 }
 
+func (c *config) PrevVendorApiLevel() string {
+	vendorApiLevel, err := strconv.Atoi(c.VendorApiLevel())
+	if err != nil {
+		panic(fmt.Errorf("Cannot parse vendor API level %s to an integer: %s",
+			c.VendorApiLevel(), err))
+	}
+	if vendorApiLevel < 202404 || vendorApiLevel%100 != 4 {
+		panic("Unknown vendor API level " + c.VendorApiLevel())
+	}
+	// The version before trunk stable is 34.
+	if vendorApiLevel == 202404 {
+		return "34"
+	}
+	return strconv.Itoa(vendorApiLevel - 100)
+}
+
 func (c *config) VendorApiLevelFrozen() bool {
 	return c.productVariables.GetBuildFlagBool("RELEASE_BOARD_API_LEVEL_FROZEN")
 }
@@ -2046,8 +2062,4 @@ func (c *config) AllApexContributions() []string {
 		}
 	}
 	return ret
-}
-
-func (c *config) BuildIgnoreApexContributionContents() []string {
-	return c.productVariables.BuildIgnoreApexContributionContents
 }

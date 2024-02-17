@@ -26,6 +26,7 @@ import (
 	"github.com/google/blueprint/pathtools"
 	"github.com/google/blueprint/proptools"
 
+	"android/soong/aconfig"
 	"android/soong/android"
 	"android/soong/dexpreopt"
 	"android/soong/java/config"
@@ -2544,6 +2545,8 @@ func collectDirectDepsProviders(ctx android.ModuleContext) (result *JarJarProvid
 				default:
 					return RenameUseExclude, "srcfile"
 				}
+			} else if _, ok := android.OtherModuleProvider(ctx, m, aconfig.CodegenInfoProvider); ok {
+				return RenameUseInclude, "aconfig_declarations_group"
 			} else {
 				switch tag {
 				case bootClasspathTag:
