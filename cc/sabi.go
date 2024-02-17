@@ -26,6 +26,30 @@ var (
 	lsdumpPathsLock sync.Mutex
 )
 
+type lsdumpTag string
+
+const (
+	llndkLsdumpTag    lsdumpTag = "LLNDK"
+	ndkLsdumpTag      lsdumpTag = "NDK"
+	platformLsdumpTag lsdumpTag = "PLATFORM"
+	productLsdumpTag  lsdumpTag = "PRODUCT"
+	vendorLsdumpTag   lsdumpTag = "VENDOR"
+)
+
+// Return the prebuilt ABI dump directory for a tag; an empty string for an opt-in dump.
+func (tag *lsdumpTag) dirName() string {
+	switch *tag {
+	case ndkLsdumpTag:
+		return "ndk"
+	case llndkLsdumpTag:
+		return "vndk"
+	case platformLsdumpTag:
+		return "platform"
+	default:
+		return ""
+	}
+}
+
 // Properties for ABI compatibility checker in Android.bp.
 type headerAbiCheckerProperties struct {
 	// Enable ABI checks (even if this is not an LLNDK/VNDK lib)
@@ -98,8 +122,8 @@ func (sabi *sabi) shouldCreateSourceAbiDump() bool {
 }
 
 // Returns a slice of strings that represent the ABI dumps generated for this module.
-func classifySourceAbiDump(ctx android.BaseModuleContext) []string {
-	result := []string{}
+func classifySourceAbiDump(ctx android.BaseModuleContext) []lsdumpTag {
+	result := []lsdumpTag{}
 	m := ctx.Module().(*Module)
 	headerAbiChecker := m.library.getHeaderAbiCheckerProperties(ctx)
 	if headerAbiChecker.explicitlyDisabled() {
@@ -107,21 +131,21 @@ func classifySourceAbiDump(ctx android.BaseModuleContext) []string {
 	}
 	if !m.InProduct() && !m.InVendor() {
 		if m.isImplementationForLLNDKPublic() {
-			result = append(result, "LLNDK")
+			result = append(result, llndkLsdumpTag)
 		}
 		// Return NDK if the library is both NDK and APEX.
 		// TODO(b/309880485): Split NDK and APEX ABI.
 		if m.IsNdk(ctx.Config()) {
-			result = append(result, "NDK")
+			result = append(result, ndkLsdumpTag)
 		} else if m.library.hasStubsVariants() || headerAbiChecker.enabled() {
-			result = append(result, "PLATFORM")
+			result = append(result, platformLsdumpTag)
 		}
 	} else if headerAbiChecker.enabled() {
 		if m.InProduct() {
-			result = append(result, "PRODUCT")
+			result = append(result, productLsdumpTag)
 		}
 		if m.InVendor() {
-			result = append(result, "VENDOR")
+			result = append(result, vendorLsdumpTag)
 		}
 	}
 	return result
