@@ -1350,20 +1350,25 @@ func (library *libraryDecorator) sourceAbiDiff(ctx android.ModuleContext,
 
 func (library *libraryDecorator) crossVersionAbiDiff(ctx android.ModuleContext,
 	sourceDump, referenceDump android.Path,
-	baseName string, isLlndk bool, sourceVersion, prevVersion string) {
+	baseName, nameExt string, isLlndk bool, sourceVersion, prevDumpDir string) {
 
-	errorMessage := "error: Please follow https://android.googlesource.com/platform/development/+/main/vndk/tools/header-checker/README.md#configure-cross_version-abi-check to resolve the ABI difference between your source code and version " + prevVersion + "."
+	errorMessage := "error: Please follow https://android.googlesource.com/platform/development/+/main/vndk/tools/header-checker/README.md#configure-cross_version-abi-check to resolve the difference between your source code and the ABI dumps in " + prevDumpDir
 
-	library.sourceAbiDiff(ctx, sourceDump, referenceDump, baseName, prevVersion,
+	library.sourceAbiDiff(ctx, sourceDump, referenceDump, baseName, nameExt,
 		isLlndk, true /* allowExtensions */, sourceVersion, errorMessage)
 }
 
 func (library *libraryDecorator) sameVersionAbiDiff(ctx android.ModuleContext,
 	sourceDump, referenceDump android.Path,
-	baseName, nameExt string, isLlndk bool) {
+	baseName, nameExt string, isLlndk bool, lsdumpTagName string) {
 
 	libName := strings.TrimSuffix(baseName, filepath.Ext(baseName))
-	errorMessage := "error: Please update ABI references with: $$ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py -l " + libName
+	errorMessage := "error: Please update ABI references with: $$ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py --lib " + libName + " --lib-variant " + lsdumpTagName
+
+	targetRelease := ctx.Config().Getenv("TARGET_RELEASE")
+	if targetRelease != "" {
+		errorMessage += " --release " + targetRelease
+	}
 
 	library.sourceAbiDiff(ctx, sourceDump, referenceDump, baseName, nameExt,
 		isLlndk, false /* allowExtensions */, "current", errorMessage)
@@ -1371,13 +1376,19 @@ func (library *libraryDecorator) sameVersionAbiDiff(ctx android.ModuleContext,
 
 func (library *libraryDecorator) optInAbiDiff(ctx android.ModuleContext,
 	sourceDump, referenceDump android.Path,
-	baseName, nameExt string, refDumpDir string) {
+	baseName, nameExt string, refDumpDir string, lsdumpTagName string) {
 
 	libName := strings.TrimSuffix(baseName, filepath.Ext(baseName))
-	errorMessage := "error: Please update ABI references with: $$ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py -l " + libName + " -ref-dump-dir $$ANDROID_BUILD_TOP/" + refDumpDir
+	errorMessage := "error: Please update ABI references with: $$ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py --lib " + libName + " --lib-variant " + lsdumpTagName + " --ref-dump-dir $$ANDROID_BUILD_TOP/" + refDumpDir
+
+	targetRelease := ctx.Config().Getenv("TARGET_RELEASE")
+	if targetRelease != "" {
+		errorMessage += " --release " + targetRelease
+	}
+
 	// Most opt-in libraries do not have dumps for all default architectures.
 	if ctx.Config().HasDeviceProduct() {
-		errorMessage += " -products " + ctx.Config().DeviceProduct()
+		errorMessage += " --product " + ctx.Config().DeviceProduct()
 	}
 
 	library.sourceAbiDiff(ctx, sourceDump, referenceDump, baseName, nameExt,
@@ -1402,6 +1413,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, deps PathD
 
 		var llndkDump, apexVariantDump android.Path
 		tags := classifySourceAbiDump(ctx)
+		optInTags := []lsdumpTag{}
 		for _, tag := range tags {
 			if tag == llndkLsdumpTag && currVendorVersion != "" {
 				if llndkDump == nil {
@@ -1423,6 +1435,9 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, deps PathD
 				}
 				addLsdumpPath(string(tag) + ":" + apexVariantDump.String())
 			} else {
+				if tag.dirName() == "" {
+					optInTags = append(optInTags, tag)
+				}
 				addLsdumpPath(string(tag) + ":" + implDump.String())
 			}
 		}
@@ -1467,7 +1482,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, deps PathD
 			prevDumpFile := getRefAbiDumpFile(ctx, prevDumpDir, fileName)
 			if prevDumpFile.Valid() {
 				library.crossVersionAbiDiff(ctx, sourceDump, prevDumpFile.Path(),
-					fileName, isLlndk, currVersion, nameExt+prevVersion)
+					fileName, nameExt+prevVersion, isLlndk, currVersion, prevDumpDir)
 			}
 			// Check against the current version.
 			sourceDump = implDump
@@ -1487,8 +1502,14 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, deps PathD
 			currDumpFile := getRefAbiDumpFile(ctx, currDumpDir, fileName)
 			if currDumpFile.Valid() {
 				library.sameVersionAbiDiff(ctx, sourceDump, currDumpFile.Path(),
-					fileName, nameExt, isLlndk)
+					fileName, nameExt, isLlndk, string(tag))
 			}
+		}
+
+		// Assert that a module is tagged with at most one of platformLsdumpTag, productLsdumpTag, or vendorLsdumpTag.
+		if len(headerAbiChecker.Ref_dump_dirs) > 0 && len(optInTags) != 1 {
+			ctx.ModuleErrorf("Expect exactly one opt-in lsdump tag when ref_dump_dirs are specified: %s", optInTags)
+			return
 		}
 		// Ensure that a module tagged with only platformLsdumpTag has ref_dump_dirs.
 		// Android.bp in vendor projects should be cleaned up before this is enforced for vendorLsdumpTag and productLsdumpTag.
@@ -1506,7 +1527,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, deps PathD
 			}
 			library.optInAbiDiff(ctx,
 				implDump, optInDumpFile.Path(),
-				fileName, "opt"+strconv.Itoa(i), optInDumpDirPath.String())
+				fileName, "opt"+strconv.Itoa(i), optInDumpDirPath.String(), string(optInTags[0]))
 		}
 	}
 }
