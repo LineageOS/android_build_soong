@@ -319,6 +319,9 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 
 	a.dexpreopter.enforceUsesLibs = a.usesLibrary.enforceUsesLibraries()
 	a.dexpreopter.classLoaderContexts = a.usesLibrary.classLoaderContextForUsesLibDeps(ctx)
+	if a.usesLibrary.shouldDisableDexpreopt {
+		a.dexpreopter.disableDexpreopt()
+	}
 
 	if a.usesLibrary.enforceUsesLibraries() {
 		a.usesLibrary.verifyUsesLibrariesAPK(ctx, srcApk)

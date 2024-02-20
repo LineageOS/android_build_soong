@@ -4378,3 +4378,26 @@ func TestAppFlagsPackages(t *testing.T) {
 		"--feature-flags @out/soong/.intermediates/bar/intermediate.txt --feature-flags @out/soong/.intermediates/baz/intermediate.txt",
 	)
 }
+
+// Test that dexpreopt is disabled if an optional_uses_libs exists, but does not provide an implementation.
+func TestNoDexpreoptOptionalUsesLibDoesNotHaveImpl(t *testing.T) {
+	bp := `
+		java_sdk_library_import {
+			name: "sdklib_noimpl",
+			public: {
+				jars: ["stub.jar"],
+			},
+		}
+		android_app {
+			name: "app",
+			srcs: ["a.java"],
+			sdk_version: "current",
+			optional_uses_libs: [
+				"sdklib_noimpl",
+			],
+		}
+	`
+	result := prepareForJavaTest.RunTestWithBp(t, bp)
+	dexpreopt := result.ModuleForTests("app", "android_common").MaybeRule("dexpreopt").Rule
+	android.AssertBoolEquals(t, "dexpreopt should be disabled if optional_uses_libs does not have an implementation", true, dexpreopt == nil)
+}
