@@ -494,6 +494,8 @@ type ProductVariables struct {
 	BuildFlags map[string]string `json:",omitempty"`
 
 	BuildFromSourceStub *bool `json:",omitempty"`
+
+	BuildIgnoreApexContributionContents []string `json:",omitempty"`
 }
 
 type PartitionQualifiedVariablesType struct {
