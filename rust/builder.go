@@ -122,6 +122,8 @@ func init() {
 
 func TransformSrcToBinary(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
 	outputFile android.WritablePath) buildOutput {
+	flags.GlobalRustFlags = append(flags.GlobalRustFlags, "-C lto=thin")
+
 	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "bin")
 }
 
@@ -132,16 +134,20 @@ func TransformSrctoRlib(ctx ModuleContext, mainSrc android.Path, deps PathDeps, 
 
 func TransformSrctoDylib(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
 	outputFile android.WritablePath) buildOutput {
+	flags.GlobalRustFlags = append(flags.GlobalRustFlags, "-C lto=thin")
+
 	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "dylib")
 }
 
 func TransformSrctoStatic(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
 	outputFile android.WritablePath) buildOutput {
+	flags.GlobalRustFlags = append(flags.GlobalRustFlags, "-C lto=thin")
 	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "staticlib")
 }
 
 func TransformSrctoShared(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
 	outputFile android.WritablePath) buildOutput {
+	flags.GlobalRustFlags = append(flags.GlobalRustFlags, "-C lto=thin")
 	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "cdylib")
 }
 
@@ -257,20 +263,6 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 
 	inputs = append(inputs, main)
 
-	if ctx.Config().Eng() {
-		// Per https://doc.rust-lang.org/rustc/codegen-options/index.html#codegen-units
-		// incremental building implies codegen-units=256
-		incrementalPath := android.PathForModuleOut(ctx, "rustc-incremental").String()
-		flags.GlobalRustFlags = append(flags.GlobalRustFlags, "-C incremental="+incrementalPath)
-
-	} else {
-		flags.GlobalRustFlags = append(flags.GlobalRustFlags, "-C codegen-units=1")
-
-		if !(ctx.RustModule().Rlib() || ctx.RustModule().ProcMacro()) {
-			flags.GlobalRustFlags = append(flags.GlobalRustFlags, "-C lto=thin")
-		}
-	}
-
 	// Collect rustc flags
 	rustcFlags = append(rustcFlags, flags.GlobalRustFlags...)
 	rustcFlags = append(rustcFlags, flags.RustFlags...)
@@ -285,6 +277,15 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 
 	// Suppress an implicit sysroot
 	rustcFlags = append(rustcFlags, "--sysroot=/dev/null")
+
+	// Enable incremental compilation if requested by user
+	if ctx.Config().IsEnvTrue("SOONG_RUSTC_INCREMENTAL") {
+		incrementalPath := android.PathForOutput(ctx, "rustc").String()
+
+		rustcFlags = append(rustcFlags, "-C incremental="+incrementalPath)
+	} else {
+		rustcFlags = append(rustcFlags, "-C codegen-units=1")
+	}
 
 	// Disallow experimental features
 	modulePath := ctx.ModuleDir()
