@@ -743,6 +743,9 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		setUncompressDex(ctx, &j.dexpreopter, &j.dexer)
 		j.dexpreopter.uncompressedDex = *j.dexProperties.Uncompress_dex
 		j.classLoaderContexts = j.usesLibrary.classLoaderContextForUsesLibDeps(ctx)
+		if j.usesLibrary.shouldDisableDexpreopt {
+			j.dexpreopter.disableDexpreopt()
+		}
 	}
 	j.compile(ctx, nil, nil, nil)
 
