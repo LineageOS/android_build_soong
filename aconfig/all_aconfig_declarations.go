@@ -31,7 +31,8 @@ func AllAconfigDeclarationsFactory() android.Singleton {
 }
 
 type allAconfigDeclarationsSingleton struct {
-	intermediatePath android.OutputPath
+	intermediateBinaryProtoPath android.OutputPath
+	intermediateTextProtoPath   android.OutputPath
 }
 
 func (this *allAconfigDeclarationsSingleton) GenerateBuildActions(ctx android.SingletonContext) {
@@ -59,20 +60,35 @@ func (this *allAconfigDeclarationsSingleton) GenerateBuildActions(ctx android.Si
 		panic(fmt.Errorf("Only one aconfig_declarations allowed for each package."))
 	}
 
-	// Generate build action for aconfig
-	this.intermediatePath = android.PathForIntermediates(ctx, "all_aconfig_declarations.pb")
+	// Generate build action for aconfig (binary proto output)
+	this.intermediateBinaryProtoPath = android.PathForIntermediates(ctx, "all_aconfig_declarations.pb")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        AllDeclarationsRule,
 		Inputs:      cacheFiles,
-		Output:      this.intermediatePath,
+		Output:      this.intermediateBinaryProtoPath,
 		Description: "all_aconfig_declarations",
 		Args: map[string]string{
 			"cache_files": android.JoinPathsWithPrefix(cacheFiles, "--cache "),
 		},
 	})
-	ctx.Phony("all_aconfig_declarations", this.intermediatePath)
+	ctx.Phony("all_aconfig_declarations", this.intermediateBinaryProtoPath)
+
+	// Generate build action for aconfig (text proto output)
+	this.intermediateTextProtoPath = android.PathForIntermediates(ctx, "all_aconfig_declarations.textproto")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        AllDeclarationsRuleTextProto,
+		Inputs:      cacheFiles,
+		Output:      this.intermediateTextProtoPath,
+		Description: "all_aconfig_declarations_textproto",
+		Args: map[string]string{
+			"cache_files": android.JoinPathsWithPrefix(cacheFiles, "--cache "),
+		},
+	})
+	ctx.Phony("all_aconfig_declarations_textproto", this.intermediateTextProtoPath)
 }
 
 func (this *allAconfigDeclarationsSingleton) MakeVars(ctx android.MakeVarsContext) {
-	ctx.DistForGoal("droid", this.intermediatePath)
+	ctx.DistForGoal("droid", this.intermediateBinaryProtoPath)
+	ctx.DistForGoalWithFilename("sdk", this.intermediateBinaryProtoPath, "flags.pb")
+	ctx.DistForGoalWithFilename("sdk", this.intermediateTextProtoPath, "flags.textproto")
 }
