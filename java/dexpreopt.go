@@ -102,6 +102,11 @@ type dexpreopter struct {
 	dexpreoptProperties       DexpreoptProperties
 	importDexpreoptProperties ImportDexpreoptProperties
 
+	// If true, the dexpreopt rules will not be generated
+	// Unlike Dex_preopt.Enabled which is user-facing,
+	// shouldDisableDexpreopt is a mutated propery.
+	shouldDisableDexpreopt bool
+
 	installPath         android.InstallPath
 	uncompressedDex     bool
 	isSDKLibrary        bool
@@ -194,6 +199,10 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.BaseModuleContext, libName s
 	}
 
 	if !BoolDefault(d.dexpreoptProperties.Dex_preopt.Enabled, true) {
+		return true
+	}
+
+	if d.shouldDisableDexpreopt {
 		return true
 	}
 
@@ -527,4 +536,8 @@ func (d *dexpreopter) AndroidMkEntriesForApex() []android.AndroidMkEntries {
 
 func (d *dexpreopter) OutputProfilePathOnHost() android.Path {
 	return d.outputProfilePathOnHost
+}
+
+func (d *dexpreopter) disableDexpreopt() {
+	d.shouldDisableDexpreopt = true
 }
