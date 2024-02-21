@@ -33,4 +33,4 @@ package android
 // * AOSP            - xx9990000
 // * x-mainline-prod - xx9990000
 // * master          - 990090000
-const DefaultUpdatableModuleVersion = "990090000"
+const DefaultUpdatableModuleVersion = "350090000"
