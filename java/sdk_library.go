@@ -1997,8 +1997,10 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 			tag     string
 			pattern string
 		}{
-			{tag: ".api.txt", pattern: "%s.txt"},
-			{tag: ".removed-api.txt", pattern: "%s-removed.txt"},
+			// "exportable" api files are copied to the dist directory instead of the
+			// "everything" api files.
+			{tag: ".exportable.api.txt", pattern: "%s.txt"},
+			{tag: ".exportable.removed-api.txt", pattern: "%s-removed.txt"},
 		} {
 			props.Dists = append(props.Dists, android.Dist{
 				Targets: []string{"sdk", "win_sdk"},
