@@ -681,6 +681,14 @@ func (s *valueVariable) PropertiesToApply(config SoongConfig, values reflect.Val
 	if !propStruct.IsValid() {
 		return nil, nil
 	}
+	if err := s.printfIntoPropertyRecursive(nil, propStruct, configValue); err != nil {
+		return nil, err
+	}
+
+	return values.Interface(), nil
+}
+
+func (s *valueVariable) printfIntoPropertyRecursive(fieldName []string, propStruct reflect.Value, configValue string) error {
 	for i := 0; i < propStruct.NumField(); i++ {
 		field := propStruct.Field(i)
 		kind := field.Kind()
@@ -695,23 +703,31 @@ func (s *valueVariable) PropertiesToApply(config SoongConfig, values reflect.Val
 		case reflect.String:
 			err := printfIntoProperty(field, configValue)
 			if err != nil {
-				return nil, fmt.Errorf("soong_config_variables.%s.%s: %s", s.variable, propStruct.Type().Field(i).Name, err)
+				fieldName = append(fieldName, propStruct.Type().Field(i).Name)
+				return fmt.Errorf("soong_config_variables.%s.%s: %s", s.variable, strings.Join(fieldName, "."), err)
 			}
 		case reflect.Slice:
 			for j := 0; j < field.Len(); j++ {
 				err := printfIntoProperty(field.Index(j), configValue)
 				if err != nil {
-					return nil, fmt.Errorf("soong_config_variables.%s.%s: %s", s.variable, propStruct.Type().Field(i).Name, err)
+					fieldName = append(fieldName, propStruct.Type().Field(i).Name)
+					return fmt.Errorf("soong_config_variables.%s.%s: %s", s.variable, strings.Join(fieldName, "."), err)
 				}
 			}
 		case reflect.Bool:
 			// Nothing to do
+		case reflect.Struct:
+			fieldName = append(fieldName, propStruct.Type().Field(i).Name)
+			if err := s.printfIntoPropertyRecursive(fieldName, field, configValue); err != nil {
+				return err
+			}
+			fieldName = fieldName[:len(fieldName)-1]
 		default:
-			return nil, fmt.Errorf("soong_config_variables.%s.%s: unsupported property type %q", s.variable, propStruct.Type().Field(i).Name, kind)
+			fieldName = append(fieldName, propStruct.Type().Field(i).Name)
+			return fmt.Errorf("soong_config_variables.%s.%s: unsupported property type %q", s.variable, strings.Join(fieldName, "."), kind)
 		}
 	}
-
-	return values.Interface(), nil
+	return nil
 }
 
 func printfIntoProperty(propertyValue reflect.Value, configValue string) error {
