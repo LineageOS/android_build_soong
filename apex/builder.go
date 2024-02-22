@@ -85,6 +85,18 @@ func init() {
 	pctx.HostBinToolVariable("aconfig", "aconfig")
 }
 
+type createStorageStruct struct {
+	Output_file string
+	Desc        string
+	File_type   string
+}
+
+var createStorageInfo = []createStorageStruct{
+	{"package.map", "create_aconfig_package_map_file", "package_map"},
+	{"flag.map", "create_aconfig_flag_map_file", "flag_map"},
+	{"flag.val", "create_aconfig_flag_val_file", "flag_val"},
+}
+
 var (
 	apexManifestRule = pctx.StaticRule("apexManifestRule", blueprint.RuleParams{
 		Command: `rm -f $out && ${jsonmodify} $in ` +
@@ -648,6 +660,25 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 		copyCommands = append(copyCommands, "cp -f "+apexAconfigFile.String()+" "+imageDir.String())
 		implicitInputs = append(implicitInputs, apexAconfigFile)
 		defaultReadOnlyFiles = append(defaultReadOnlyFiles, apexAconfigFile.Base())
+
+		for _, info := range createStorageInfo {
+			outputFile := android.PathForModuleOut(ctx, info.Output_file)
+			ctx.Build(pctx, android.BuildParams{
+				Rule:        aconfig.CreateStorageRule,
+				Inputs:      a.aconfigFiles,
+				Output:      outputFile,
+				Description: info.Desc,
+				Args: map[string]string{
+					"container":   ctx.ModuleName(),
+					"file_type":   info.File_type,
+					"cache_files": android.JoinPathsWithPrefix(a.aconfigFiles, "--cache "),
+				},
+			})
+
+			copyCommands = append(copyCommands, "cp -f "+outputFile.String()+" "+imageDir.String())
+			implicitInputs = append(implicitInputs, outputFile)
+			defaultReadOnlyFiles = append(defaultReadOnlyFiles, outputFile.Base())
+		}
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////
