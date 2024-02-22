@@ -429,6 +429,76 @@ func Test_PropertiesToApply_Value(t *testing.T) {
 	}
 }
 
+func Test_PropertiesToApply_Value_Nested(t *testing.T) {
+	mt, _ := newModuleType(&ModuleTypeProperties{
+		Module_type:      "foo",
+		Config_namespace: "bar",
+		Value_variables:  []string{"my_value_var"},
+		Properties:       []string{"a.b"},
+	})
+	type properties struct {
+		A struct {
+			B string
+		}
+	}
+	conditionsDefault := &properties{
+		A: struct{ B string }{
+			B: "default",
+		},
+	}
+	type valueVarProps struct {
+		A struct {
+			B string
+		}
+		Conditions_default *properties
+	}
+	actualProps := &struct {
+		Soong_config_variables valueSoongConfigVars
+	}{
+		Soong_config_variables: valueSoongConfigVars{
+			My_value_var: &valueVarProps{
+				A: struct{ B string }{
+					B: "A.B=%s",
+				},
+				Conditions_default: conditionsDefault,
+			},
+		},
+	}
+	props := reflect.ValueOf(actualProps)
+
+	testCases := []struct {
+		name      string
+		config    SoongConfig
+		wantProps []interface{}
+	}{
+		{
+			name:      "no_vendor_config",
+			config:    Config(map[string]string{}),
+			wantProps: []interface{}{conditionsDefault},
+		},
+		{
+			name:   "value_var_set",
+			config: Config(map[string]string{"my_value_var": "Hello"}),
+			wantProps: []interface{}{&properties{
+				A: struct{ B string }{
+					B: "A.B=Hello",
+				},
+			}},
+		},
+	}
+
+	for _, tc := range testCases {
+		gotProps, err := PropertiesToApply(mt, props, tc.config)
+		if err != nil {
+			t.Errorf("%s: Unexpected error in PropertiesToApply: %s", tc.name, err)
+		}
+
+		if !reflect.DeepEqual(gotProps, tc.wantProps) {
+			t.Errorf("%s: Expected %s, got %s", tc.name, tc.wantProps, gotProps)
+		}
+	}
+}
+
 func Test_PropertiesToApply_String_Error(t *testing.T) {
 	mt, _ := newModuleType(&ModuleTypeProperties{
 		Module_type:      "foo",
