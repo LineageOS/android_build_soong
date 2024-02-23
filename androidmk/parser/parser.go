@@ -413,6 +413,9 @@ loop:
 				p.accept('\t')
 				newLine = false
 				continue loop
+			} else if p.tok == '\n' {
+				p.accept('\n')
+				continue loop
 			} else if p.parseDirective() {
 				newLine = false
 				continue
