@@ -9,6 +9,7 @@ bootstrap_go_package {
         "blueprint",
         "soong",
         "soong-android",
+        "soong-bpf", // for testing
         "soong-linkerconfig",
     ],
     srcs: [
