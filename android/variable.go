@@ -498,6 +498,8 @@ type ProductVariables struct {
 	BuildIgnoreApexContributionContents []string `json:",omitempty"`
 
 	HiddenapiExportableStubs *bool `json:",omitempty"`
+
+	ExportRuntimeApis *bool `json:",omitempty"`
 }
 
 type PartitionQualifiedVariablesType struct {
