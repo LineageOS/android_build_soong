@@ -931,8 +931,8 @@ func TestAndroidResourceProcessor(t *testing.T) {
 				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
 			},
 			appCombined: []string{
-				"out/soong/.intermediates/app/android_common/busybox/R.jar",
 				"out/soong/.intermediates/app/android_common/javac/app.jar",
+				"out/soong/.intermediates/app/android_common/busybox/R.jar",
 				"out/soong/.intermediates/direct/android_common/combined/direct.jar",
 				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
 			},
@@ -1037,8 +1037,8 @@ func TestAndroidResourceProcessor(t *testing.T) {
 				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
 			},
 			appCombined: []string{
-				"out/soong/.intermediates/app/android_common/busybox/R.jar",
 				"out/soong/.intermediates/app/android_common/javac/app.jar",
+				"out/soong/.intermediates/app/android_common/busybox/R.jar",
 				"out/soong/.intermediates/direct/android_common/combined/direct.jar",
 				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
 			},
