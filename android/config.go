@@ -222,7 +222,8 @@ func (c Config) ReleaseNdkAbiMonitored() bool {
 }
 
 func (c Config) ReleaseHiddenApiExportableStubs() bool {
-	return c.config.productVariables.GetBuildFlagBool("RELEASE_HIDDEN_API_EXPORTABLE_STUBS")
+	return c.config.productVariables.GetBuildFlagBool("RELEASE_HIDDEN_API_EXPORTABLE_STUBS") ||
+		Bool(c.config.productVariables.HiddenapiExportableStubs)
 }
 
 // A DeviceConfig object represents the configuration for a particular device
