@@ -203,6 +203,15 @@ func (bpf *bpf) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 
 	}
+
+	installDir := android.PathForModuleInstall(ctx, "etc", "bpf")
+	if len(bpf.properties.Sub_dir) > 0 {
+		installDir = installDir.Join(ctx, bpf.properties.Sub_dir)
+	}
+	for _, obj := range bpf.objs {
+		ctx.PackageFile(installDir, obj.Base(), obj)
+	}
+
 	android.SetProvider(ctx, blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: srcs.Strings()})
 }
 
