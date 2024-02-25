@@ -263,10 +263,9 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	// clang: error: '-x c' after last input file has no effect [-Werror,-Wunused-command-line-argument]
 	cflags = append(cflags, "-Wno-unused-command-line-argument")
 
-	// LLVM_NEXT may contain flags that bindgen doesn't recognise. Turn off unknown flags warning.
-	if ctx.Config().IsEnvTrue("LLVM_NEXT") {
-		cflags = append(cflags, "-Wno-unknown-warning-option")
-	}
+	// The Clang version used by CXX can be newer than the one used by Bindgen, and uses warning related flags that
+	// it cannot recognize. Turn off unknown warning flags warning.
+	cflags = append(cflags, "-Wno-unknown-warning-option")
 
 	outputFile := android.PathForModuleOut(ctx, b.BaseSourceProvider.getStem(ctx)+".rs")
 
