@@ -762,3 +762,45 @@ func TestPrebuiltErrorCannotListBothSourceAndPrebuiltInContributions(t *testing.
 		}
 		`, selectMainlineModuleContritbutions)
 }
+
+// Test that apex_contributions of prebuilt modules are ignored in coverage builds
+func TestSourceIsSelectedInCoverageBuilds(t *testing.T) {
+	prebuiltMainlineContributions := GroupFixturePreparers(
+		FixtureModifyProductVariables(func(variables FixtureProductVariables) {
+			variables.BuildFlags = map[string]string{
+				"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES": "my_prebuilt_apex_contributions",
+			}
+		}),
+		FixtureMergeEnv(map[string]string{
+			"EMMA_INSTRUMENT_FRAMEWORK": "true",
+		}),
+	)
+	bp := `
+		source {
+			name: "foo",
+		}
+		prebuilt {
+			name: "foo",
+			srcs: ["prebuilt_file"],
+		}
+		apex_contributions {
+			name: "my_prebuilt_apex_contributions",
+			api_domain: "my_mainline_module",
+			contents: [
+			  "prebuilt_foo",
+			],
+		}
+		all_apex_contributions {
+			name: "all_apex_contributions",
+		}
+		`
+	ctx := GroupFixturePreparers(
+		PrepareForTestWithArchMutator,
+		PrepareForTestWithPrebuilts,
+		FixtureRegisterWithContext(registerTestPrebuiltModules),
+		prebuiltMainlineContributions).RunTestWithBp(t, bp)
+	source := ctx.ModuleForTests("foo", "android_common").Module()
+	AssertBoolEquals(t, "Source should be preferred in coverage builds", true, !source.IsHideFromMake())
+	prebuilt := ctx.ModuleForTests("prebuilt_foo", "android_common").Module()
+	AssertBoolEquals(t, "Prebuilt should not be preferred in coverage builds", false, !prebuilt.IsHideFromMake())
+}
