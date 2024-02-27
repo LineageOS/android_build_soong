@@ -15,6 +15,8 @@
 package android
 
 import (
+	"strings"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
@@ -100,6 +102,15 @@ func (a *allApexContributions) SetPrebuiltSelectionInfoProvider(ctx BaseModuleCo
 		for _, content := range m.Contents() {
 			// Skip any apexes that have been added to the product specific ignore list
 			if InList(content, ctx.Config().BuildIgnoreApexContributionContents()) {
+				continue
+			}
+			// Coverage builds for TARGET_RELEASE=foo should always build from source,
+			// even if TARGET_RELEASE=foo uses prebuilt mainline modules.
+			// This is necessary because the checked-in prebuilts were generated with
+			// instrumentation turned off.
+			//
+			// Skip any prebuilt contents in coverage builds
+			if strings.HasPrefix(content, "prebuilt_") && (ctx.Config().JavaCoverageEnabled() || ctx.DeviceConfig().NativeCoverageEnabled()) {
 				continue
 			}
 			if !ctx.OtherModuleExists(content) && !ctx.Config().AllowMissingDependencies() {
