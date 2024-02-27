@@ -534,6 +534,35 @@ func hideUnflaggedModules(ctx BottomUpMutatorContext, psi PrebuiltSelectionInfoM
 		for _, moduleInFamily := range allModulesInFamily {
 			if moduleInFamily.Name() != selectedModuleInFamily.Name() {
 				moduleInFamily.HideFromMake()
+				// If this is a prebuilt module, unset properties.UsePrebuilt
+				// properties.UsePrebuilt might evaluate to true via soong config var fallback mechanism
+				// Set it to false explicitly so that the following mutator does not replace rdeps to this unselected prebuilt
+				if p := GetEmbeddedPrebuilt(moduleInFamily); p != nil {
+					p.properties.UsePrebuilt = false
+				}
+			}
+		}
+	}
+	// Do a validation pass to make sure that multiple prebuilts of a specific module are not selected.
+	// This might happen if the prebuilts share the same soong config var namespace.
+	// This should be an error, unless one of the prebuilts has been explicitly declared in apex_contributions
+	var selectedPrebuilt Module
+	for _, moduleInFamily := range allModulesInFamily {
+		// Skip if this module is in a different namespace
+		if !moduleInFamily.ExportedToMake() {
+			continue
+		}
+		// Skip for the top-level java_sdk_library_(_import). This has some special cases that need to be addressed first.
+		// This does not run into non-determinism because PrebuiltPostDepsMutator also has the special case
+		if sdkLibrary, ok := moduleInFamily.(interface{ SdkLibraryName() *string }); ok && sdkLibrary.SdkLibraryName() != nil {
+			continue
+		}
+		if p := GetEmbeddedPrebuilt(moduleInFamily); p != nil && p.properties.UsePrebuilt {
+			if selectedPrebuilt == nil {
+				selectedPrebuilt = moduleInFamily
+			} else {
+				ctx.ModuleErrorf("Multiple prebuilt modules %v and %v have been marked as preferred for this source module. "+
+					"Please add the appropriate prebuilt module to apex_contributions for this release config.", selectedPrebuilt.Name(), moduleInFamily.Name())
 			}
 		}
 	}
@@ -562,7 +591,7 @@ func PrebuiltPostDepsMutator(ctx BottomUpMutatorContext) {
 						// If we do not special-case this here, rdeps referring to a java_sdk_library in next builds via libs
 						// will get prebuilt stubs
 						// TODO (b/308187268): Remove this after the apexes have been added to apex_contributions
-						if psi.IsSelected(*sdkLibrary.SdkLibraryName()) {
+						if psi.IsSelected(name) {
 							return false
 						}
 					}
