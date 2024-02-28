@@ -472,6 +472,35 @@ func TestAndroidAppImport_ArchVariants(t *testing.T) {
 			artifactPath: "prebuilts/apk/app_arm.apk",
 			installPath:  "/system/app/foo/foo.apk",
 		},
+		{
+			name: "matching arch and dpi_variants",
+			bp: `
+				android_app_import {
+					name: "foo",
+					apk: "prebuilts/apk/app.apk",
+					arch: {
+						arm64: {
+							apk: "prebuilts/apk/app_arm64.apk",
+							dpi_variants: {
+								mdpi: {
+									apk: "prebuilts/apk/app_arm64_mdpi.apk",
+								},
+								xhdpi: {
+									apk: "prebuilts/apk/app_arm64_xhdpi.apk",
+								},
+							},
+						},
+					},
+					presigned: true,
+					dex_preopt: {
+						enabled: true,
+					},
+				}
+			`,
+			expected:     "verify_uses_libraries/apk/app_arm64_xhdpi.apk",
+			artifactPath: "prebuilts/apk/app_arm64_xhdpi.apk",
+			installPath:  "/system/app/foo/foo.apk",
+		},
 	}
 
 	for _, test := range testCases {
