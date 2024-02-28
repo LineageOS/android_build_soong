@@ -5046,6 +5046,7 @@ func TestApexWithShBinary(t *testing.T) {
 			key: "myapex.key",
 			sh_binaries: ["myscript"],
 			updatable: false,
+			compile_multilib: "both",
 		}
 
 		apex_key {
