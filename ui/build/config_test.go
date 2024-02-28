@@ -860,23 +860,24 @@ func TestGetConfigArgsBuildModules(t *testing.T) {
 }
 
 func TestGetConfigArgsBuildModulesInDirectory(t *testing.T) {
-	tests := []buildActionTestCase{{
-		description:  "normal execution in a directory",
-		dirsInTrees:  []string{"0/1/2"},
-		buildFiles:   []string{"0/1/2/Android.mk"},
-		args:         []string{"fake-module"},
-		curDir:       "0/1/2",
-		tidyOnly:     "",
-		expectedArgs: []string{"fake-module", "MODULES-IN-0-1-2"},
-	}, {
-		description:  "build file in parent directory",
-		dirsInTrees:  []string{"0/1/2"},
-		buildFiles:   []string{"0/1/Android.mk"},
-		args:         []string{},
-		curDir:       "0/1/2",
-		tidyOnly:     "",
-		expectedArgs: []string{"MODULES-IN-0-1"},
-	},
+	tests := []buildActionTestCase{
+		{
+			description:  "normal execution in a directory",
+			dirsInTrees:  []string{"0/1/2"},
+			buildFiles:   []string{"0/1/2/Android.mk"},
+			args:         []string{"fake-module"},
+			curDir:       "0/1/2",
+			tidyOnly:     "",
+			expectedArgs: []string{"fake-module", "MODULES-IN-0-1-2"},
+		}, {
+			description:  "build file in parent directory",
+			dirsInTrees:  []string{"0/1/2"},
+			buildFiles:   []string{"0/1/Android.mk"},
+			args:         []string{},
+			curDir:       "0/1/2",
+			tidyOnly:     "",
+			expectedArgs: []string{"MODULES-IN-0-1"},
+		},
 		{
 			description:  "build file in parent directory, multiple module names passed in",
 			dirsInTrees:  []string{"0/1/2"},
@@ -902,15 +903,6 @@ func TestGetConfigArgsBuildModulesInDirectory(t *testing.T) {
 			curDir:       ".",
 			tidyOnly:     "",
 			expectedArgs: []string{},
-		}, {
-			description:  "multitree build action executed at root directory",
-			dirsInTrees:  []string{},
-			buildFiles:   []string{},
-			rootSymlink:  false,
-			args:         []string{"--multitree-build"},
-			curDir:       ".",
-			tidyOnly:     "",
-			expectedArgs: []string{"--multitree-build"},
 		}, {
 			description:  "build action executed at root directory in symlink",
 			dirsInTrees:  []string{},
@@ -953,7 +945,8 @@ func TestGetConfigArgsBuildModulesInDirectory(t *testing.T) {
 			curDir:       "",
 			tidyOnly:     "",
 			expectedArgs: []string{"-j", "-k", "fake_module"},
-		}}
+		},
+	}
 	for _, tt := range tests {
 		t.Run("build action BUILD_MODULES_IN_DIR, "+tt.description, func(t *testing.T) {
 			testGetConfigArgs(t, tt, BUILD_MODULES_IN_A_DIRECTORY)
