@@ -70,9 +70,10 @@ type AndroidAppImport struct {
 	android.ApexModuleBase
 	prebuilt android.Prebuilt
 
-	properties   AndroidAppImportProperties
-	dpiVariants  interface{}
-	archVariants interface{}
+	properties       AndroidAppImportProperties
+	dpiVariants      interface{}
+	archVariants     interface{}
+	arch_dpiVariants interface{}
 
 	outputFile  android.Path
 	certificate Certificate
@@ -155,8 +156,8 @@ func (a *AndroidAppImport) IsInstallable() bool {
 // soong config variables are applied.
 func (a *AndroidAppImport) processVariants(ctx android.DefaultableHookContext) {
 	config := ctx.Config()
+	dpiProps := reflect.ValueOf(a.dpiVariants).Elem().FieldByName(DpiGroupName)
 
-	dpiProps := reflect.ValueOf(a.dpiVariants).Elem().FieldByName("Dpi_variants")
 	// Try DPI variant matches in the reverse-priority order so that the highest priority match
 	// overwrites everything else.
 	// TODO(jungjw): Can we optimize this by making it priority order?
@@ -166,10 +167,26 @@ func (a *AndroidAppImport) processVariants(ctx android.DefaultableHookContext) {
 	if config.ProductAAPTPreferredConfig() != "" {
 		MergePropertiesFromVariant(ctx, &a.properties, dpiProps, config.ProductAAPTPreferredConfig())
 	}
-
-	archProps := reflect.ValueOf(a.archVariants).Elem().FieldByName("Arch")
+	archProps := reflect.ValueOf(a.archVariants).Elem().FieldByName(ArchGroupName)
 	archType := ctx.Config().AndroidFirstDeviceTarget.Arch.ArchType
 	MergePropertiesFromVariant(ctx, &a.properties, archProps, archType.Name)
+
+	// Process "arch" includes "dpi_variants"
+	archStructPtr := reflect.ValueOf(a.arch_dpiVariants).Elem().FieldByName(ArchGroupName)
+	if archStruct := archStructPtr.Elem(); archStruct.IsValid() {
+		archPartPropsPtr := archStruct.FieldByName(proptools.FieldNameForProperty(archType.Name))
+		if archPartProps := archPartPropsPtr.Elem(); archPartProps.IsValid() {
+			archDpiPropsPtr := archPartProps.FieldByName(DpiGroupName)
+			if archDpiProps := archDpiPropsPtr.Elem(); archDpiProps.IsValid() {
+				for i := len(config.ProductAAPTPrebuiltDPI()) - 1; i >= 0; i-- {
+					MergePropertiesFromVariant(ctx, &a.properties, archDpiProps, config.ProductAAPTPrebuiltDPI()[i])
+				}
+				if config.ProductAAPTPreferredConfig() != "" {
+					MergePropertiesFromVariant(ctx, &a.properties, archDpiProps, config.ProductAAPTPreferredConfig())
+				}
+			}
+		}
+	}
 
 	if String(a.properties.Apk) == "" {
 		// Disable this module since the apk property is still empty after processing all matching
@@ -451,18 +468,25 @@ func (a *AndroidAppImport) PrivAppAllowlist() android.OptionalPath {
 	return android.OptionalPath{}
 }
 
+const (
+	ArchGroupName = "Arch"
+	DpiGroupName  = "Dpi_variants"
+)
+
 var dpiVariantGroupType reflect.Type
 var archVariantGroupType reflect.Type
+var archdpiVariantGroupType reflect.Type
 var supportedDpis = []string{"ldpi", "mdpi", "hdpi", "xhdpi", "xxhdpi", "xxxhdpi"}
 
 func initAndroidAppImportVariantGroupTypes() {
-	dpiVariantGroupType = createVariantGroupType(supportedDpis, "Dpi_variants")
+	dpiVariantGroupType = createVariantGroupType(supportedDpis, DpiGroupName)
 
 	archNames := make([]string, len(android.ArchTypeList()))
 	for i, archType := range android.ArchTypeList() {
 		archNames[i] = archType.Name
 	}
-	archVariantGroupType = createVariantGroupType(archNames, "Arch")
+	archVariantGroupType = createVariantGroupType(archNames, ArchGroupName)
+	archdpiVariantGroupType = createArchDpiVariantGroupType(archNames, supportedDpis)
 }
 
 // Populates all variant struct properties at creation time.
@@ -472,6 +496,9 @@ func (a *AndroidAppImport) populateAllVariantStructs() {
 
 	a.archVariants = reflect.New(archVariantGroupType).Interface()
 	a.AddProperties(a.archVariants)
+
+	a.arch_dpiVariants = reflect.New(archdpiVariantGroupType).Interface()
+	a.AddProperties(a.arch_dpiVariants)
 }
 
 func (a *AndroidAppImport) Privileged() bool {
@@ -524,6 +551,42 @@ func createVariantGroupType(variants []string, variantGroupName string) reflect.
 			Type: variantGroupStruct,
 		},
 	})
+}
+
+func createArchDpiVariantGroupType(archNames []string, dpiNames []string) reflect.Type {
+	props := reflect.TypeOf((*AndroidAppImportProperties)(nil))
+
+	dpiVariantFields := make([]reflect.StructField, len(dpiNames))
+	for i, variant_dpi := range dpiNames {
+		dpiVariantFields[i] = reflect.StructField{
+			Name: proptools.FieldNameForProperty(variant_dpi),
+			Type: props,
+		}
+	}
+	dpiVariantGroupStruct := reflect.StructOf(dpiVariantFields)
+	dpi_struct := reflect.StructOf([]reflect.StructField{
+		{
+			Name: DpiGroupName,
+			Type: reflect.PointerTo(dpiVariantGroupStruct),
+		},
+	})
+
+	archVariantFields := make([]reflect.StructField, len(archNames))
+	for i, variant_arch := range archNames {
+		archVariantFields[i] = reflect.StructField{
+			Name: proptools.FieldNameForProperty(variant_arch),
+			Type: reflect.PointerTo(dpi_struct),
+		}
+	}
+	archVariantGroupStruct := reflect.StructOf(archVariantFields)
+
+	return_struct := reflect.StructOf([]reflect.StructField{
+		{
+			Name: ArchGroupName,
+			Type: reflect.PointerTo(archVariantGroupStruct),
+		},
+	})
+	return return_struct
 }
 
 // android_app_import imports a prebuilt apk with additional processing specified in the module.
