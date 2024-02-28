@@ -2024,6 +2024,7 @@ func (module *SdkLibrary) createApiLibrary(mctx android.DefaultableHookContext, 
 		Full_api_surface_stub *string
 		System_modules        *string
 		Enable_validation     *bool
+		Stubs_type            *string
 	}{}
 
 	props.Name = proptools.StringPtr(module.apiLibraryModuleName(apiScope))
@@ -2073,6 +2074,7 @@ func (module *SdkLibrary) createApiLibrary(mctx android.DefaultableHookContext, 
 
 	props.System_modules = module.deviceProperties.System_modules
 	props.Enable_validation = proptools.BoolPtr(true)
+	props.Stubs_type = proptools.StringPtr("everything")
 
 	mctx.CreateModule(ApiLibraryFactory, &props, module.sdkComponentPropertiesForChildLibrary())
 }

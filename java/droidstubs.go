@@ -52,6 +52,19 @@ func (s StubsType) String() string {
 	}
 }
 
+func StringToStubsType(s string) StubsType {
+	switch strings.ToLower(s) {
+	case Everything.String():
+		return Everything
+	case Runtime.String():
+		return Runtime
+	case Exportable.String():
+		return Exportable
+	default:
+		return Unavailable
+	}
+}
+
 func init() {
 	RegisterStubsBuildComponents(android.InitRegistrationContext)
 }
@@ -731,7 +744,7 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 // defined for a module, simply revert all flagged apis annotations. If aconfig_declarations
 // property is defined, apply transformations and only revert the flagged apis that are not
 // enabled via release configurations and are not specified in aconfig_declarations
-func (d *Droidstubs) generateRevertAnnotationArgs(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, stubsType StubsType, aconfigFlagsPaths android.Paths) {
+func generateRevertAnnotationArgs(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, stubsType StubsType, aconfigFlagsPaths android.Paths) {
 
 	if len(aconfigFlagsPaths) == 0 {
 		cmd.Flag("--revert-annotation android.annotation.FlaggedApi")
@@ -1106,7 +1119,7 @@ func (d *Droidstubs) optionalStubCmd(ctx android.ModuleContext, params stubsComm
 
 	cmd := d.commonMetalavaStubCmd(ctx, rule, params)
 
-	d.generateRevertAnnotationArgs(ctx, cmd, params.stubConfig.stubsType, params.stubConfig.deps.aconfigProtoFiles)
+	generateRevertAnnotationArgs(ctx, cmd, params.stubConfig.stubsType, params.stubConfig.deps.aconfigProtoFiles)
 
 	if params.stubConfig.doApiLint {
 		// Pass the lint baseline file as an input to resolve the lint errors.
