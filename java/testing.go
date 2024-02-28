@@ -523,10 +523,11 @@ func gatherRequiredDepsForTest() string {
 
 	for libName, droidstubs := range extraApiLibraryModules {
 		bp += fmt.Sprintf(`
-            java_api_library {
-                name: "%s",
-                api_contributions: ["%s"],
-            }
+		java_api_library {
+			name: "%s",
+			api_contributions: ["%s"],
+			stubs_type: "everything",
+		}
         `, libName, droidstubs.name+".api.contribution")
 	}
 

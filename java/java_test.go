@@ -1756,6 +1756,7 @@ func TestJavaApiContributionEmptyApiFile(t *testing.T) {
 			name: "bar",
 			api_surface: "public",
 			api_contributions: ["foo"],
+			stubs_type: "everything",
 		}
 	`)
 }
@@ -1792,12 +1793,14 @@ func TestJavaApiLibraryAndProviderLink(t *testing.T) {
 			name: "bar1",
 			api_surface: "public",
 			api_contributions: ["foo1"],
+			stubs_type: "everything",
 		}
 
 		java_api_library {
 			name: "bar2",
 			api_surface: "system",
 			api_contributions: ["foo1", "foo2"],
+			stubs_type: "everything",
 		}
 	`)
 
@@ -1885,12 +1888,14 @@ func TestJavaApiLibraryAndDefaultsLink(t *testing.T) {
 			name: "bar1",
 			api_surface: "public",
 			api_contributions: ["foo1"],
+			stubs_type: "everything",
 		}
 
 		java_api_library {
 			name: "bar2",
 			api_surface: "public",
 			defaults:["baz1"],
+			stubs_type: "everything",
 		}
 
 		java_api_library {
@@ -1898,6 +1903,7 @@ func TestJavaApiLibraryAndDefaultsLink(t *testing.T) {
 			api_surface: "system",
 			defaults:["baz1", "baz2"],
 			api_contributions: ["foo4"],
+			stubs_type: "everything",
 		}
 	`)
 
@@ -1962,12 +1968,14 @@ func TestJavaApiLibraryJarGeneration(t *testing.T) {
 			name: "bar1",
 			api_surface: "public",
 			api_contributions: ["foo1"],
+			stubs_type: "everything",
 		}
 
 		java_api_library {
 			name: "bar2",
 			api_surface: "system",
 			api_contributions: ["foo1", "foo2"],
+			stubs_type: "everything",
 		}
 	`)
 
@@ -2044,6 +2052,7 @@ func TestJavaApiLibraryLibsLink(t *testing.T) {
 			api_surface: "public",
 			api_contributions: ["foo1"],
 			libs: ["lib1"],
+			stubs_type: "everything",
 		}
 
 		java_api_library {
@@ -2051,6 +2060,7 @@ func TestJavaApiLibraryLibsLink(t *testing.T) {
 			api_surface: "system",
 			api_contributions: ["foo1", "foo2"],
 			libs: ["lib1", "lib2", "bar1"],
+			stubs_type: "everything",
 		}
 	`)
 
@@ -2130,6 +2140,7 @@ func TestJavaApiLibraryStaticLibsLink(t *testing.T) {
 			api_surface: "public",
 			api_contributions: ["foo1"],
 			static_libs: ["lib1"],
+			stubs_type: "everything",
 		}
 
 		java_api_library {
@@ -2137,6 +2148,7 @@ func TestJavaApiLibraryStaticLibsLink(t *testing.T) {
 			api_surface: "system",
 			api_contributions: ["foo1", "foo2"],
 			static_libs: ["lib1", "lib2", "bar1"],
+			stubs_type: "everything",
 		}
 	`)
 
@@ -2184,6 +2196,7 @@ func TestJavaApiLibraryFullApiSurfaceStub(t *testing.T) {
 		name: "lib1",
 		api_surface: "public",
 		api_contributions: ["foo1", "foo2"],
+		stubs_type: "everything",
 	}
 	`
 
@@ -2207,6 +2220,7 @@ func TestJavaApiLibraryFullApiSurfaceStub(t *testing.T) {
 			api_surface: "public",
 			api_contributions: ["foo1"],
 			full_api_surface_stub: "lib1",
+			stubs_type: "everything",
 		}
 	`)
 
@@ -2368,6 +2382,7 @@ func TestJavaApiContributionImport(t *testing.T) {
 		java_api_library {
 			name: "foo",
 			api_contributions: ["bar"],
+			stubs_type: "everything",
 		}
 		java_api_contribution_import {
 			name: "bar",
@@ -2394,6 +2409,7 @@ func TestJavaApiLibraryApiFilesSorting(t *testing.T) {
 				"module-lib-api-stubs-docs-non-updatable.api.contribution",
 				"api-stubs-docs-non-updatable.api.contribution",
 			],
+			stubs_type: "everything",
 		}
 	`)
 	m := ctx.ModuleForTests("foo", "android_common")
@@ -2466,6 +2482,7 @@ func TestApiLibraryDroidstubsDependency(t *testing.T) {
 				"api-stubs-docs-non-updatable.api.contribution",
 			],
 			enable_validation: true,
+			stubs_type: "everything",
 		}
 		java_api_library {
 			name: "bar",
@@ -2473,6 +2490,7 @@ func TestApiLibraryDroidstubsDependency(t *testing.T) {
 				"api-stubs-docs-non-updatable.api.contribution",
 			],
 			enable_validation: false,
+			stubs_type: "everything",
 		}
 	`)
 
@@ -2623,4 +2641,55 @@ func TestMultiplePrebuilts(t *testing.T) {
 		entries := android.AndroidMkEntriesForTest(t, ctx.TestContext, expectedDependency.Module())[0]
 		android.AssertStringEquals(t, "unexpected LOCAL_MODULE", "bar", entries.EntryMap["LOCAL_MODULE"][0])
 	}
+}
+
+func TestApiLibraryAconfigDeclarations(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+		}),
+		android.FixtureMergeMockFs(map[string][]byte{
+			"a/A.java":      nil,
+			"a/current.txt": nil,
+			"a/removed.txt": nil,
+		}),
+	).RunTestWithBp(t, `
+	aconfig_declarations {
+		name: "bar",
+		package: "com.example.package",
+		srcs: [
+			"bar.aconfig",
+		],
+	}
+	java_api_contribution {
+		name: "baz",
+		api_file: "a/current.txt",
+		api_surface: "public",
+	}
+	java_api_library {
+		name: "foo",
+		api_surface: "public",
+		api_contributions: [
+			"baz",
+		],
+		aconfig_declarations: [
+			"bar",
+		],
+		stubs_type: "exportable",
+		enable_validation: false,
+	}
+	`)
+
+	// Check if java_api_library depends on aconfig_declarations
+	android.AssertBoolEquals(t, "foo expected to depend on bar",
+		CheckModuleHasDependency(t, result.TestContext, "foo", "android_common", "bar"), true)
+
+	m := result.ModuleForTests("foo", "android_common")
+	android.AssertStringDoesContain(t, "foo generates revert annotations file",
+		strings.Join(m.AllOutputs(), ""), "revert-annotations-exportable.txt")
+
+	// revert-annotations.txt passed to exportable stubs generation metalava command
+	manifest := m.Output("metalava.sbox.textproto")
+	cmdline := String(android.RuleBuilderSboxProtoForTests(t, result.TestContext, manifest).Commands[0].Command)
+	android.AssertStringDoesContain(t, "flagged api hide command not included", cmdline, "revert-annotations-exportable.txt")
 }
