@@ -595,6 +595,9 @@ func TestMultiplePrebuilts(t *testing.T) {
 		libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
 		expectedDependency := ctx.ModuleForTests(tc.expectedDependencyName, "android_arm64_armv8-a_shared").Module()
 		android.AssertBoolEquals(t, fmt.Sprintf("expected dependency from %s to %s\n", libfoo.Name(), tc.expectedDependencyName), true, hasDep(ctx, libfoo, expectedDependency))
+		// check that LOCAL_SHARED_LIBRARIES contains libbar and not libbar.v<N>
+		entries := android.AndroidMkEntriesForTest(t, ctx, libfoo)[0]
+		android.AssertStringListContains(t, "Version should not be present in LOCAL_SHARED_LIBRARIES", entries.EntryMap["LOCAL_SHARED_LIBRARIES"], "libbar")
 
 		// check installation rules
 		// the selected soong module should be exported to make
@@ -603,7 +606,7 @@ func TestMultiplePrebuilts(t *testing.T) {
 
 		// check LOCAL_MODULE of the selected module name
 		// the prebuilt should have the same LOCAL_MODULE when exported to make
-		entries := android.AndroidMkEntriesForTest(t, ctx, libbar)[0]
+		entries = android.AndroidMkEntriesForTest(t, ctx, libbar)[0]
 		android.AssertStringEquals(t, "unexpected LOCAL_MODULE", "libbar", entries.EntryMap["LOCAL_MODULE"][0])
 	}
 }
