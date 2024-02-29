@@ -691,9 +691,10 @@ func (a *AndroidAppImport) AndroidMkEntries() []android.AndroidMkEntries {
 		return nil
 	}
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
-		Class:      "APPS",
-		OutputFile: android.OptionalPathForPath(a.outputFile),
-		Include:    "$(BUILD_SYSTEM)/soong_app_prebuilt.mk",
+		Class:        "APPS",
+		OutputFile:   android.OptionalPathForPath(a.outputFile),
+		OverrideName: a.BaseModuleName(), // TODO (spandandas): Add a test
+		Include:      "$(BUILD_SYSTEM)/soong_app_prebuilt.mk",
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				entries.SetBoolIfTrue("LOCAL_PRIVILEGED_MODULE", a.Privileged())
