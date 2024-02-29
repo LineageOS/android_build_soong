@@ -2413,7 +2413,8 @@ type JarJarProviderData struct {
 
 func (this JarJarProviderData) GetDebugString() string {
 	result := ""
-	for k, v := range this.Rename {
+	for _, k := range android.SortedKeys(this.Rename) {
+		v := this.Rename[k]
 		if strings.Contains(k, "android.companion.virtual.flags.FakeFeatureFlagsImpl") {
 			result += k + "--&gt;" + v + ";"
 		}
@@ -2669,7 +2670,8 @@ func (module *Module) collectJarJarRules(ctx android.ModuleContext) *JarJarProvi
 // to "" won't be in this list because they shouldn't be renamed yet.
 func getJarJarRuleText(provider *JarJarProviderData) string {
 	result := ""
-	for orig, renamed := range provider.Rename {
+	for _, orig := range android.SortedKeys(provider.Rename) {
+		renamed := provider.Rename[orig]
 		if renamed != "" {
 			result += "rule " + orig + " " + renamed + "\n"
 		}
