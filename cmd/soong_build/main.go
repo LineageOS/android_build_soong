@@ -76,7 +76,6 @@ func init() {
 	flag.StringVar(&cmdlineArgs.OutFile, "o", "build.ninja", "the Ninja file to output")
 	flag.StringVar(&cmdlineArgs.SoongVariables, "soong_variables", "soong.variables", "the file contains all build variables")
 	flag.BoolVar(&cmdlineArgs.EmptyNinjaFile, "empty-ninja-file", false, "write out a 0-byte ninja file")
-	flag.BoolVar(&cmdlineArgs.MultitreeBuild, "multitree-build", false, "this is a multitree build")
 	flag.BoolVar(&cmdlineArgs.BuildFromSourceStub, "build-from-source-stub", false, "build Java stubs from source files instead of API text files")
 	flag.BoolVar(&cmdlineArgs.EnsureAllowlistIntegrity, "ensure-allowlist-integrity", false, "verify that allowlisted modules are mixed-built")
 	flag.StringVar(&cmdlineArgs.ModuleDebugFile, "soong_module_debug", "", "soong module debug info file to write")
