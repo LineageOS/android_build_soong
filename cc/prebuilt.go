@@ -260,6 +260,9 @@ func (p *prebuiltLibraryLinker) nativeCoverage() bool {
 
 func (p *prebuiltLibraryLinker) disablePrebuilt() {
 	p.properties.Srcs = nil
+	p.properties.Sanitized.None.Srcs = nil
+	p.properties.Sanitized.Address.Srcs = nil
+	p.properties.Sanitized.Hwaddress.Srcs = nil
 }
 
 // Implements versionedInterface
