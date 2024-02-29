@@ -91,8 +91,6 @@ type CmdArgs struct {
 	ModuleActionsFile string
 	DocFile           string
 
-	MultitreeBuild bool
-
 	BuildFromSourceStub bool
 
 	EnsureAllowlistIntegrity bool
@@ -287,10 +285,6 @@ type config struct {
 	mockBpList string
 
 	BuildMode SoongBuildMode
-
-	// If MultitreeBuild is true then this is one inner tree of a multitree
-	// build directed by the multitree orchestrator.
-	MultitreeBuild bool
 
 	// If testAllowNonExistentPaths is true then PathForSource and PathForModuleSrc won't error
 	// in tests when a path doesn't exist.
@@ -540,8 +534,6 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 
 		moduleListFile: cmdArgs.ModuleListFile,
 		fs:             pathtools.NewOsFs(absSrcDir),
-
-		MultitreeBuild: cmdArgs.MultitreeBuild,
 
 		buildFromSourceStub: cmdArgs.BuildFromSourceStub,
 	}
