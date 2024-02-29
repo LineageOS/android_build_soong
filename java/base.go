@@ -1307,7 +1307,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		}
 	}
 
-	jars := append(android.Paths(nil), kotlinJars...)
+	jars := slices.Clone(kotlinJars)
 
 	j.compiledSrcJars = srcJars
 
@@ -1322,7 +1322,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 			// allow for the use of annotation processors that do function correctly
 			// with sharding enabled. See: b/77284273.
 		}
-		extraJars := append(android.CopyOf(extraCombinedJars), kotlinHeaderJars...)
+		extraJars := append(slices.Clone(kotlinHeaderJars), extraCombinedJars...)
 		headerJarFileWithoutDepsOrJarjar, j.headerJarFile, j.repackagedHeaderJarFile =
 			j.compileJavaHeader(ctx, uniqueJavaFiles, srcJars, deps, flags, jarName, extraJars)
 		if ctx.Failed() {
@@ -1395,6 +1395,8 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 			return
 		}
 	}
+
+	jars = append(jars, extraCombinedJars...)
 
 	j.srcJarArgs, j.srcJarDeps = resourcePathsToJarArgs(srcFiles), srcFiles
 
@@ -1481,8 +1483,6 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		})
 		jars = append(jars, servicesJar)
 	}
-
-	jars = append(android.CopyOf(extraCombinedJars), jars...)
 
 	// Combine the classes built from sources, any manifests, and any static libraries into
 	// classes.jar. If there is only one input jar this step will be skipped.
