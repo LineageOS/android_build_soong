@@ -197,9 +197,6 @@ func (pb PrimaryBuilderFactory) primaryBuilderInvocation(config Config) bootstra
 		commonArgs = append(commonArgs, "-t")
 	}
 
-	if pb.config.multitreeBuild {
-		commonArgs = append(commonArgs, "--multitree-build")
-	}
 	if pb.config.buildFromSourceStub {
 		commonArgs = append(commonArgs, "--build-from-source-stub")
 	}
@@ -304,9 +301,6 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	mainSoongBuildExtraArgs := append(baseArgs, "-o", config.SoongNinjaFile())
 	if config.EmptyNinjaFile() {
 		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--empty-ninja-file")
-	}
-	if config.MultitreeBuild() {
-		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--multitree-build")
 	}
 	if config.buildFromSourceStub {
 		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--build-from-source-stub")
