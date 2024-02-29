@@ -645,6 +645,7 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 	prebuiltSdkToolsBinDir := filepath.Join("prebuilts", "sdk", "tools", runtime.GOOS, "bin")
 
 	defaultReadOnlyFiles := []string{"apex_manifest.json", "apex_manifest.pb"}
+	aconfigDest := imageDir.Join(ctx, "etc").String()
 	if len(a.aconfigFiles) > 0 {
 		apexAconfigFile := android.PathForModuleOut(ctx, "aconfig_flags.pb")
 		ctx.Build(pctx, android.BuildParams{
@@ -657,9 +658,9 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 			},
 		})
 
-		copyCommands = append(copyCommands, "cp -f "+apexAconfigFile.String()+" "+imageDir.String())
+		copyCommands = append(copyCommands, "cp -f "+apexAconfigFile.String()+" "+aconfigDest)
 		implicitInputs = append(implicitInputs, apexAconfigFile)
-		defaultReadOnlyFiles = append(defaultReadOnlyFiles, apexAconfigFile.Base())
+		defaultReadOnlyFiles = append(defaultReadOnlyFiles, "etc/"+apexAconfigFile.Base())
 
 		for _, info := range createStorageInfo {
 			outputFile := android.PathForModuleOut(ctx, info.Output_file)
@@ -675,9 +676,9 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 				},
 			})
 
-			copyCommands = append(copyCommands, "cp -f "+outputFile.String()+" "+imageDir.String())
+			copyCommands = append(copyCommands, "cp -f "+outputFile.String()+" "+aconfigDest)
 			implicitInputs = append(implicitInputs, outputFile)
-			defaultReadOnlyFiles = append(defaultReadOnlyFiles, outputFile.Base())
+			defaultReadOnlyFiles = append(defaultReadOnlyFiles, "etc/"+outputFile.Base())
 		}
 	}
 

@@ -2075,8 +2075,10 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 				return true // track transitive dependencies
 			case *java.AndroidAppImport:
 				vctx.filesInfo = append(vctx.filesInfo, apexFilesForAndroidApp(ctx, ap)...)
+				addAconfigFiles(vctx, ctx, child)
 			case *java.AndroidTestHelperApp:
 				vctx.filesInfo = append(vctx.filesInfo, apexFilesForAndroidApp(ctx, ap)...)
+				addAconfigFiles(vctx, ctx, child)
 			case *java.AndroidAppSet:
 				appDir := "app"
 				if ap.Privileged() {
@@ -2090,6 +2092,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 				af := newApexFile(ctx, ap.OutputFile(), ap.BaseModuleName(), appDirName, appSet, ap)
 				af.certificate = java.PresignedCertificate
 				vctx.filesInfo = append(vctx.filesInfo, af)
+				addAconfigFiles(vctx, ctx, child)
 			default:
 				ctx.PropertyErrorf("apps", "%q is not an android_app module", depName)
 			}
@@ -2118,6 +2121,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 		case prebuiltTag:
 			if prebuilt, ok := child.(prebuilt_etc.PrebuiltEtcModule); ok {
 				vctx.filesInfo = append(vctx.filesInfo, apexFileForPrebuiltEtc(ctx, prebuilt, depName))
+				addAconfigFiles(vctx, ctx, child)
 			} else {
 				ctx.PropertyErrorf("prebuilts", "%q is not a prebuilt_etc module", depName)
 			}
@@ -2141,6 +2145,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 					af := apexFileForExecutable(ctx, ccTest)
 					af.class = nativeTest
 					vctx.filesInfo = append(vctx.filesInfo, af)
+					addAconfigFiles(vctx, ctx, child)
 				}
 				return true // track transitive dependencies
 			} else {
@@ -2230,11 +2235,13 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			}
 
 			vctx.filesInfo = append(vctx.filesInfo, af)
+			addAconfigFiles(vctx, ctx, child)
 			return true // track transitive dependencies
 		} else if rm, ok := child.(*rust.Module); ok {
 			af := apexFileForRustLibrary(ctx, rm)
 			af.transitiveDep = true
 			vctx.filesInfo = append(vctx.filesInfo, af)
+			addAconfigFiles(vctx, ctx, child)
 			return true // track transitive dependencies
 		}
 	} else if cc.IsTestPerSrcDepTag(depTag) {
@@ -2263,6 +2270,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			af := apexFileForRustLibrary(ctx, rustm)
 			af.transitiveDep = true
 			vctx.filesInfo = append(vctx.filesInfo, af)
+			addAconfigFiles(vctx, ctx, child)
 			return true // track transitive dependencies
 		}
 	} else if rust.IsRlibDepTag(depTag) {
@@ -2281,6 +2289,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 				return false
 			}
 			vctx.filesInfo = append(vctx.filesInfo, af)
+			addAconfigFiles(vctx, ctx, child)
 			return true // track transitive dependencies
 		default:
 			ctx.PropertyErrorf("bootclasspath_fragments",
@@ -2295,6 +2304,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			if profileAf := apexFileForJavaModuleProfile(ctx, child.(javaModule)); profileAf != nil {
 				vctx.filesInfo = append(vctx.filesInfo, *profileAf)
 			}
+			addAconfigFiles(vctx, ctx, child)
 			return true // track transitive dependencies
 		default:
 			ctx.PropertyErrorf("systemserverclasspath_fragments",
