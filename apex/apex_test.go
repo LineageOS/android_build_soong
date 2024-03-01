@@ -11128,10 +11128,10 @@ func TestAconfigFilesJavaDeps(t *testing.T) {
 		t.Fatalf("Expected 5 commands, got %d in:\n%s", len(copyCmds), s)
 	}
 
-	ensureMatches(t, copyCmds[4], "^cp -f .*/aconfig_flags.pb .*/image.apex$")
-	ensureMatches(t, copyCmds[5], "^cp -f .*/package.map .*/image.apex$")
-	ensureMatches(t, copyCmds[6], "^cp -f .*/flag.map .*/image.apex$")
-	ensureMatches(t, copyCmds[7], "^cp -f .*/flag.val .*/image.apex$")
+	ensureMatches(t, copyCmds[4], "^cp -f .*/aconfig_flags.pb .*/image.apex/etc$")
+	ensureMatches(t, copyCmds[5], "^cp -f .*/package.map .*/image.apex/etc$")
+	ensureMatches(t, copyCmds[6], "^cp -f .*/flag.map .*/image.apex/etc$")
+	ensureMatches(t, copyCmds[7], "^cp -f .*/flag.val .*/image.apex/etc$")
 
 	inputs := []string{
 		"my_aconfig_declarations_foo/intermediate.pb",
@@ -11252,10 +11252,10 @@ func TestAconfigFilesJavaAndCcDeps(t *testing.T) {
 		t.Fatalf("Expected 12 commands, got %d in:\n%s", len(copyCmds), s)
 	}
 
-	ensureMatches(t, copyCmds[8], "^cp -f .*/aconfig_flags.pb .*/image.apex$")
-	ensureMatches(t, copyCmds[9], "^cp -f .*/package.map .*/image.apex$")
-	ensureMatches(t, copyCmds[10], "^cp -f .*/flag.map .*/image.apex$")
-	ensureMatches(t, copyCmds[11], "^cp -f .*/flag.val .*/image.apex$")
+	ensureMatches(t, copyCmds[8], "^cp -f .*/aconfig_flags.pb .*/image.apex/etc$")
+	ensureMatches(t, copyCmds[9], "^cp -f .*/package.map .*/image.apex/etc$")
+	ensureMatches(t, copyCmds[10], "^cp -f .*/flag.map .*/image.apex/etc$")
+	ensureMatches(t, copyCmds[11], "^cp -f .*/flag.val .*/image.apex/etc$")
 
 	inputs := []string{
 		"my_aconfig_declarations_foo/intermediate.pb",
@@ -11393,13 +11393,15 @@ func TestAconfigFilesRustDeps(t *testing.T) {
 		t.Fatalf("Expected 26 commands, got %d in:\n%s", len(copyCmds), s)
 	}
 
-	ensureMatches(t, copyCmds[22], "^cp -f .*/aconfig_flags.pb .*/image.apex$")
-	ensureMatches(t, copyCmds[23], "^cp -f .*/package.map .*/image.apex$")
-	ensureMatches(t, copyCmds[24], "^cp -f .*/flag.map .*/image.apex$")
-	ensureMatches(t, copyCmds[25], "^cp -f .*/flag.val .*/image.apex$")
+	ensureMatches(t, copyCmds[22], "^cp -f .*/aconfig_flags.pb .*/image.apex/etc$")
+	ensureMatches(t, copyCmds[23], "^cp -f .*/package.map .*/image.apex/etc$")
+	ensureMatches(t, copyCmds[24], "^cp -f .*/flag.map .*/image.apex/etc$")
+	ensureMatches(t, copyCmds[25], "^cp -f .*/flag.val .*/image.apex/etc$")
 
 	inputs := []string{
 		"my_aconfig_declarations_foo/intermediate.pb",
+		"my_aconfig_declarations_bar/intermediate.pb",
+		"my_aconfig_declarations_baz/intermediate.pb",
 		"my_rust_binary/android_arm64_armv8-a_apex10000/myapex/aconfig_merged.pb",
 	}
 	VerifyAconfigRule(t, &mod, "combine_aconfig_declarations", inputs, "android_common_myapex/aconfig_flags.pb", "", "")
