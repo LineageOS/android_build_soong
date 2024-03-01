@@ -145,6 +145,11 @@ type AndroidAppImportProperties struct {
 	// Whether or not to skip checking the preprocessed apk for proper alignment and uncompressed
 	// JNI libs and dex files. Default is false
 	Skip_preprocessed_apk_checks *bool
+
+	// Name of the source soong module that gets shadowed by this prebuilt
+	// If unspecified, follows the naming convention that the source module of
+	// the prebuilt is Name() without "prebuilt_" prefix
+	Source_module_name *string
 }
 
 func (a *AndroidAppImport) IsInstallable() bool {
@@ -272,6 +277,10 @@ func (a *AndroidAppImport) GenerateAndroidBuildActions(ctx android.ModuleContext
 
 func (a *AndroidAppImport) InstallApkName() string {
 	return a.BaseModuleName()
+}
+
+func (a *AndroidAppImport) BaseModuleName() string {
+	return proptools.StringDefault(a.properties.Source_module_name, a.ModuleBase.Name())
 }
 
 func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext) {
