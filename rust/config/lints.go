@@ -53,6 +53,8 @@ var (
 	// It should be assumed that any warning lint will be promoted to a
 	// deny.
 	defaultClippyLints = []string{
+		// Let people hack in peace. ;)
+		"-A clippy::disallowed_names",
 		"-A clippy::type-complexity",
 		"-A clippy::unnecessary_fallible_conversions",
 		"-A clippy::unnecessary-wraps",

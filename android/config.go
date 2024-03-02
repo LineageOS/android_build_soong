@@ -91,8 +91,6 @@ type CmdArgs struct {
 	ModuleActionsFile string
 	DocFile           string
 
-	MultitreeBuild bool
-
 	BuildFromSourceStub bool
 
 	EnsureAllowlistIntegrity bool
@@ -287,10 +285,6 @@ type config struct {
 	mockBpList string
 
 	BuildMode SoongBuildMode
-
-	// If MultitreeBuild is true then this is one inner tree of a multitree
-	// build directed by the multitree orchestrator.
-	MultitreeBuild bool
 
 	// If testAllowNonExistentPaths is true then PathForSource and PathForModuleSrc won't error
 	// in tests when a path doesn't exist.
@@ -540,8 +534,6 @@ func NewConfig(cmdArgs CmdArgs, availableEnv map[string]string) (Config, error) 
 
 		moduleListFile: cmdArgs.ModuleListFile,
 		fs:             pathtools.NewOsFs(absSrcDir),
-
-		MultitreeBuild: cmdArgs.MultitreeBuild,
 
 		buildFromSourceStub: cmdArgs.BuildFromSourceStub,
 	}
@@ -2030,25 +2022,35 @@ func (c *config) UseResourceProcessorByDefault() bool {
 
 var (
 	mainlineApexContributionBuildFlags = []string{
+		"RELEASE_APEX_CONTRIBUTIONS_ADBD",
 		"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES",
 		"RELEASE_APEX_CONTRIBUTIONS_APPSEARCH",
 		"RELEASE_APEX_CONTRIBUTIONS_ART",
 		"RELEASE_APEX_CONTRIBUTIONS_BLUETOOTH",
+		"RELEASE_APEX_CONTRIBUTIONS_CAPTIVEPORTALLOGIN",
+		"RELEASE_APEX_CONTRIBUTIONS_CELLBROADCAST",
 		"RELEASE_APEX_CONTRIBUTIONS_CONFIGINFRASTRUCTURE",
 		"RELEASE_APEX_CONTRIBUTIONS_CONNECTIVITY",
 		"RELEASE_APEX_CONTRIBUTIONS_CONSCRYPT",
 		"RELEASE_APEX_CONTRIBUTIONS_CRASHRECOVERY",
 		"RELEASE_APEX_CONTRIBUTIONS_DEVICELOCK",
+		"RELEASE_APEX_CONTRIBUTIONS_DOCUMENTSUIGOOGLE",
+		"RELEASE_APEX_CONTRIBUTIONS_EXTSERVICES",
 		"RELEASE_APEX_CONTRIBUTIONS_HEALTHFITNESS",
 		"RELEASE_APEX_CONTRIBUTIONS_IPSEC",
 		"RELEASE_APEX_CONTRIBUTIONS_MEDIA",
 		"RELEASE_APEX_CONTRIBUTIONS_MEDIAPROVIDER",
+		"RELEASE_APEX_CONTRIBUTIONS_NETWORKSTACKGOOGLE",
+		"RELEASE_APEX_CONTRIBUTIONS_NEURALNETWORKS",
 		"RELEASE_APEX_CONTRIBUTIONS_ONDEVICEPERSONALIZATION",
 		"RELEASE_APEX_CONTRIBUTIONS_PERMISSION",
 		"RELEASE_APEX_CONTRIBUTIONS_REMOTEKEYPROVISIONING",
+		"RELEASE_APEX_CONTRIBUTIONS_RESOLV",
 		"RELEASE_APEX_CONTRIBUTIONS_SCHEDULING",
 		"RELEASE_APEX_CONTRIBUTIONS_SDKEXTENSIONS",
+		"RELEASE_APEX_CONTRIBUTIONS_SWCODEC",
 		"RELEASE_APEX_CONTRIBUTIONS_STATSD",
+		"RELEASE_APEX_CONTRIBUTIONS_TZDATA",
 		"RELEASE_APEX_CONTRIBUTIONS_UWB",
 		"RELEASE_APEX_CONTRIBUTIONS_WIFI",
 	}
