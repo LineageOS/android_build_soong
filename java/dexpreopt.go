@@ -187,6 +187,33 @@ func forPrebuiltApex(ctx android.BaseModuleContext) bool {
 	return apexInfo.ForPrebuiltApex
 }
 
+// For apex variant of modules, this returns true on the source variant if the prebuilt apex
+// has been selected using apex_contributions.
+// The prebuilt apex will be responsible for generating the dexpreopt rules of the deapexed java lib.
+func disableSourceApexVariant(ctx android.BaseModuleContext) bool {
+	if !isApexVariant(ctx) {
+		return false // platform variant
+	}
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
+	psi := android.PrebuiltSelectionInfoMap{}
+	ctx.VisitDirectDepsWithTag(android.PrebuiltDepTag, func(am android.Module) {
+		psi, _ = android.OtherModuleProvider(ctx, am, android.PrebuiltSelectionInfoProvider)
+	})
+	// Find the apex variant for this module
+	_, apexVariantsWithoutTestApexes, _ := android.ListSetDifference(apexInfo.InApexVariants, apexInfo.TestApexes)
+	disableSource := false
+	// find the selected apexes
+	for _, apexVariant := range apexVariantsWithoutTestApexes {
+		for _, selected := range psi.GetSelectedModulesForApiDomain(apexVariant) {
+			// If the apex_contribution for this api domain contains a prebuilt apex, disable the source variant
+			if strings.HasPrefix(selected, "prebuilt_com.google.android") {
+				disableSource = true
+			}
+		}
+	}
+	return disableSource
+}
+
 // Returns whether dexpreopt is applicable to the module.
 // When it returns true, neither profile nor dexpreopt artifacts will be generated.
 func (d *dexpreopter) dexpreoptDisabled(ctx android.BaseModuleContext, libName string) bool {
@@ -213,6 +240,10 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.BaseModuleContext, libName s
 	}
 
 	if !android.IsModulePreferred(ctx.Module()) {
+		return true
+	}
+
+	if disableSourceApexVariant(ctx) {
 		return true
 	}
 
