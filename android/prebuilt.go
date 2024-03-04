@@ -654,6 +654,17 @@ type createdByJavaSdkLibraryName interface {
 	CreatedByJavaSdkLibraryName() *string
 }
 
+// Returns true if the prebuilt variant is disabled
+// e.g. for a cc_prebuilt_library_shared, this will return
+// - true for the static variant of the module
+// - false for the shared variant of the module
+//
+// Even though this is a cc_prebuilt_library_shared, we create both the variants today
+// https://source.corp.google.com/h/googleplex-android/platform/build/soong/+/e08e32b45a18a77bc3c3e751f730539b1b374f1b:cc/library.go;l=2113-2116;drc=2c4a9779cd1921d0397a12b3d3521f4c9b30d747;bpv=1;bpt=0
+func (p *Prebuilt) variantIsDisabled(ctx BaseMutatorContext, prebuilt Module) bool {
+	return p.srcsSupplier != nil && len(p.srcsSupplier(ctx, prebuilt)) == 0
+}
+
 // usePrebuilt returns true if a prebuilt should be used instead of the source module.  The prebuilt
 // will be used if it is marked "prefer" or if the source module is disabled.
 func (p *Prebuilt) usePrebuilt(ctx BaseMutatorContext, source Module, prebuilt Module) bool {
@@ -668,7 +679,7 @@ func (p *Prebuilt) usePrebuilt(ctx BaseMutatorContext, source Module, prebuilt M
 		return false
 	}
 	// If the prebuilt module is explicitly listed in the metadata module, use that
-	if isSelected(psi, prebuilt) {
+	if isSelected(psi, prebuilt) && !p.variantIsDisabled(ctx, prebuilt) {
 		return true
 	}
 
@@ -676,7 +687,7 @@ func (p *Prebuilt) usePrebuilt(ctx BaseMutatorContext, source Module, prebuilt M
 	// fall back to the existing source vs prebuilt selection.
 	// TODO: Drop the fallback mechanisms
 
-	if p.srcsSupplier != nil && len(p.srcsSupplier(ctx, prebuilt)) == 0 {
+	if p.variantIsDisabled(ctx, prebuilt) {
 		return false
 	}
 
