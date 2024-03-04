@@ -702,3 +702,61 @@ func TestMultiplePrebuiltsPreferredUsingLegacyFlags(t *testing.T) {
 		android.AssertBoolEquals(t, fmt.Sprintf("expected dependency from %s to %s\n", libfoo.Name(), tc.expectedDependencyName), true, hasDep(ctx, libfoo, expectedDependency))
 	}
 }
+
+// If module sdk cannot provide a cc module variant (e.g. static), then the module variant from source should be used
+func TestMissingVariantInModuleSdk(t *testing.T) {
+	bp := `
+		// an rdep
+		cc_library {
+			name: "libfoo",
+			static_libs: ["libbar"],
+		}
+
+		// source
+		cc_library {
+			name: "libbar",
+		}
+		// prebuilt
+		// libbar only exists as a shared library
+		cc_prebuilt_library_shared {
+			name: "libbar",
+			srcs: ["libbar.so"],
+		}
+		// selectors
+		apex_contributions {
+			name: "myapex_contributions",
+			contents: ["prebuilt_libbar"],
+		}
+		all_apex_contributions {name: "all_apex_contributions"}
+	`
+	hasDep := func(ctx *android.TestContext, m android.Module, wantDep android.Module) bool {
+		t.Helper()
+		var found bool
+		ctx.VisitDirectDeps(m, func(dep blueprint.Module) {
+			if dep == wantDep {
+				found = true
+			}
+		})
+		return found
+	}
+
+	preparer := android.GroupFixturePreparers(
+		android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
+			android.RegisterApexContributionsBuildComponents(ctx)
+		}),
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.BuildFlags = map[string]string{
+				"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES": "myapex_contributions",
+			}
+		}),
+	)
+	ctx := testPrebuilt(t, bp, map[string][]byte{
+		"libbar.so": nil,
+		"crtx.o":    nil,
+	}, preparer)
+	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
+	sourceLibBar := ctx.ModuleForTests("libbar", "android_arm64_armv8-a_static").Module()
+	// Even though the prebuilt is listed in apex_contributions, the prebuilt does not have a static variant.
+	// Therefore source of libbar should be used.
+	android.AssertBoolEquals(t, fmt.Sprintf("expected dependency from libfoo to source libbar"), true, hasDep(ctx, libfoo, sourceLibBar))
+}
