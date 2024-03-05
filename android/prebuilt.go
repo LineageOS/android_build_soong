@@ -534,6 +534,35 @@ func hideUnflaggedModules(ctx BottomUpMutatorContext, psi PrebuiltSelectionInfoM
 		for _, moduleInFamily := range allModulesInFamily {
 			if moduleInFamily.Name() != selectedModuleInFamily.Name() {
 				moduleInFamily.HideFromMake()
+				// If this is a prebuilt module, unset properties.UsePrebuilt
+				// properties.UsePrebuilt might evaluate to true via soong config var fallback mechanism
+				// Set it to false explicitly so that the following mutator does not replace rdeps to this unselected prebuilt
+				if p := GetEmbeddedPrebuilt(moduleInFamily); p != nil {
+					p.properties.UsePrebuilt = false
+				}
+			}
+		}
+	}
+	// Do a validation pass to make sure that multiple prebuilts of a specific module are not selected.
+	// This might happen if the prebuilts share the same soong config var namespace.
+	// This should be an error, unless one of the prebuilts has been explicitly declared in apex_contributions
+	var selectedPrebuilt Module
+	for _, moduleInFamily := range allModulesInFamily {
+		// Skip if this module is in a different namespace
+		if !moduleInFamily.ExportedToMake() {
+			continue
+		}
+		// Skip for the top-level java_sdk_library_(_import). This has some special cases that need to be addressed first.
+		// This does not run into non-determinism because PrebuiltPostDepsMutator also has the special case
+		if sdkLibrary, ok := moduleInFamily.(interface{ SdkLibraryName() *string }); ok && sdkLibrary.SdkLibraryName() != nil {
+			continue
+		}
+		if p := GetEmbeddedPrebuilt(moduleInFamily); p != nil && p.properties.UsePrebuilt {
+			if selectedPrebuilt == nil {
+				selectedPrebuilt = moduleInFamily
+			} else {
+				ctx.ModuleErrorf("Multiple prebuilt modules %v and %v have been marked as preferred for this source module. "+
+					"Please add the appropriate prebuilt module to apex_contributions for this release config.", selectedPrebuilt.Name(), moduleInFamily.Name())
 			}
 		}
 	}
@@ -562,7 +591,7 @@ func PrebuiltPostDepsMutator(ctx BottomUpMutatorContext) {
 						// If we do not special-case this here, rdeps referring to a java_sdk_library in next builds via libs
 						// will get prebuilt stubs
 						// TODO (b/308187268): Remove this after the apexes have been added to apex_contributions
-						if psi.IsSelected(*sdkLibrary.SdkLibraryName()) {
+						if psi.IsSelected(name) {
 							return false
 						}
 					}
@@ -625,6 +654,17 @@ type createdByJavaSdkLibraryName interface {
 	CreatedByJavaSdkLibraryName() *string
 }
 
+// Returns true if the prebuilt variant is disabled
+// e.g. for a cc_prebuilt_library_shared, this will return
+// - true for the static variant of the module
+// - false for the shared variant of the module
+//
+// Even though this is a cc_prebuilt_library_shared, we create both the variants today
+// https://source.corp.google.com/h/googleplex-android/platform/build/soong/+/e08e32b45a18a77bc3c3e751f730539b1b374f1b:cc/library.go;l=2113-2116;drc=2c4a9779cd1921d0397a12b3d3521f4c9b30d747;bpv=1;bpt=0
+func (p *Prebuilt) variantIsDisabled(ctx BaseMutatorContext, prebuilt Module) bool {
+	return p.srcsSupplier != nil && len(p.srcsSupplier(ctx, prebuilt)) == 0
+}
+
 // usePrebuilt returns true if a prebuilt should be used instead of the source module.  The prebuilt
 // will be used if it is marked "prefer" or if the source module is disabled.
 func (p *Prebuilt) usePrebuilt(ctx BaseMutatorContext, source Module, prebuilt Module) bool {
@@ -639,7 +679,7 @@ func (p *Prebuilt) usePrebuilt(ctx BaseMutatorContext, source Module, prebuilt M
 		return false
 	}
 	// If the prebuilt module is explicitly listed in the metadata module, use that
-	if isSelected(psi, prebuilt) {
+	if isSelected(psi, prebuilt) && !p.variantIsDisabled(ctx, prebuilt) {
 		return true
 	}
 
@@ -647,7 +687,7 @@ func (p *Prebuilt) usePrebuilt(ctx BaseMutatorContext, source Module, prebuilt M
 	// fall back to the existing source vs prebuilt selection.
 	// TODO: Drop the fallback mechanisms
 
-	if p.srcsSupplier != nil && len(p.srcsSupplier(ctx, prebuilt)) == 0 {
+	if p.variantIsDisabled(ctx, prebuilt) {
 		return false
 	}
 
