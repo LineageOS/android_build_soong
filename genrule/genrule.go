@@ -292,6 +292,9 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 		for _, dir := range g.properties.Export_include_dirs {
 			g.exportedIncludeDirs = append(g.exportedIncludeDirs,
 				android.PathForModuleGen(ctx, g.subDir, ctx.ModuleDir(), dir))
+			// Also export without ModuleDir for consistency with Export_include_dirs not being set
+			g.exportedIncludeDirs = append(g.exportedIncludeDirs,
+				android.PathForModuleGen(ctx, g.subDir, dir))
 		}
 	} else {
 		g.exportedIncludeDirs = append(g.exportedIncludeDirs, android.PathForModuleGen(ctx, g.subDir))
