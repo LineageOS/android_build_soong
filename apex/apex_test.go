@@ -6199,7 +6199,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		`)
 	})
 
-	t.Run("Co-existing unflagged apexes should create a duplicate deapexer error in hiddenapi processing", func(t *testing.T) {
+	t.Run("Co-existing unflagged apexes should create a duplicate module error", func(t *testing.T) {
 		bp := `
 		// Source
 		apex {
@@ -6273,7 +6273,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		}
 	`
 
-		testDexpreoptWithApexes(t, bp, "Multiple installable prebuilt APEXes provide ambiguous deapexers: prebuilt_myapex.v1 and prebuilt_myapex.v2", preparer, fragment)
+		testDexpreoptWithApexes(t, bp, "Multiple prebuilt modules prebuilt_myapex.v1 and prebuilt_myapex.v2 have been marked as preferred for this source module", preparer, fragment)
 	})
 
 }
