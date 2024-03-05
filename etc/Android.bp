@@ -14,10 +14,12 @@ bootstrap_go_package {
     srcs: [
         "prebuilt_etc.go",
         "snapshot_etc.go",
+        "install_symlink.go",
     ],
     testSrcs: [
         "prebuilt_etc_test.go",
         "snapshot_etc_test.go",
+        "install_symlink_test.go",
     ],
     pluginFor: ["soong_build"],
 }
