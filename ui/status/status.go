@@ -41,6 +41,10 @@ type Action struct {
 	// It's optional, but one of either Description or Command should be
 	// set.
 	Command string
+
+	// ChangedInputs is the (optional) list of inputs that have changed
+	// since last time this action was run.
+	ChangedInputs []string
 }
 
 // ActionResult describes the result of running an Action.
