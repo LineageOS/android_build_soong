@@ -85,6 +85,15 @@ func (a *aconfigDecorator) GenerateSource(ctx rust.ModuleContext, deps rust.Path
 		},
 	})
 	a.BaseSourceProvider.OutputFiles = android.Paths{generatedSource}
+
+	android.SetProvider(ctx, android.CodegenInfoProvider, android.CodegenInfo{
+		ModeInfos: map[string]android.ModeInfo{
+			ctx.ModuleName(): {
+				Container: declarations.Container,
+				Mode:      mode,
+			}},
+	})
+
 	return generatedSource
 }
 

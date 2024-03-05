@@ -20,20 +20,6 @@ import (
 	"github.com/google/blueprint"
 )
 
-type CodegenInfo struct {
-	// AconfigDeclarations is the name of the aconfig_declarations modules that
-	// the codegen module is associated with
-	AconfigDeclarations []string
-
-	// Paths to the cache files of the associated aconfig_declaration modules
-	IntermediateCacheOutputPaths android.Paths
-
-	// Paths to the srcjar files generated from the java_aconfig_library modules
-	Srcjars android.Paths
-}
-
-var CodegenInfoProvider = blueprint.NewProvider[CodegenInfo]()
-
 var (
 	pctx = android.NewPackageContext("android/soong/aconfig")
 
