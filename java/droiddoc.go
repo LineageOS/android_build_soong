@@ -222,8 +222,6 @@ type Javadoc struct {
 	stubsSrcJar android.WritablePath
 
 	exportableStubsSrcJar android.WritablePath
-
-	runtimeStubsSrcJar android.WritablePath
 }
 
 func (j *Javadoc) OutputFiles(tag string) (android.Paths, error) {
