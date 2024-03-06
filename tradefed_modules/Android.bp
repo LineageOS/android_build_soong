@@ -1,0 +1,21 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+bootstrap_go_package {
+    name: "soong-tradefed-modules",
+    pkgPath: "android/soong/tradefed_modules",
+    deps: [
+        "blueprint",
+        "soong-android",
+        "soong-java",
+        "soong-tradefed",
+    ],
+    srcs: [
+        "test_module_config.go",
+    ],
+    testSrcs: [
+        "test_module_config_test.go",
+    ],
+    pluginFor: ["soong_build"],
+}
