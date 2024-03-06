@@ -137,6 +137,11 @@ func TestBasicTrait_WithoutTrait(t *testing.T) {
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_myjavalib"],
+}
+
 java_import {
     name: "myjavalib",
     prefer: false,
@@ -201,6 +206,17 @@ func TestBasicTrait_MultipleTraits(t *testing.T) {
 	CheckSnapshot(t, result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
+
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: [
+        "prebuilt_myjavalib",
+        "prebuilt_myjavalib_extra",
+        "prebuilt_myjavalib_special",
+        "prebuilt_anotherjavalib",
+        "prebuilt_anotherjavalib_special",
+    ],
+}
 
 java_test_import {
     name: "myjavalib",
