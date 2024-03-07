@@ -455,16 +455,16 @@ func (a *aapt) buildActions(ctx android.ModuleContext, opts aaptBuildActionOptio
 		// as imports.  The resources from dependencies will not be merged into this module's package-res.apk, and
 		// instead modules depending on this module will reference package-res.apk from all transitive static
 		// dependencies.
+		for _, sharedDep := range sharedDeps {
+			if sharedDep.usedResourceProcessor {
+				transitiveRJars = append(transitiveRJars, sharedDep.rJar)
+			}
+		}
 		for _, staticDep := range staticDeps {
 			linkDeps = append(linkDeps, staticDep.resPackage)
 			linkFlags = append(linkFlags, "-I "+staticDep.resPackage.String())
 			if staticDep.usedResourceProcessor {
 				transitiveRJars = append(transitiveRJars, staticDep.rJar)
-			}
-		}
-		for _, sharedDep := range sharedDeps {
-			if sharedDep.usedResourceProcessor {
-				transitiveRJars = append(transitiveRJars, sharedDep.rJar)
 			}
 		}
 	} else {
@@ -555,6 +555,10 @@ func (a *aapt) buildActions(ctx android.ModuleContext, opts aaptBuildActionOptio
 	})
 	transitiveAaptResourcePackagesFile := android.PathForModuleOut(ctx, "transitive-res-packages")
 	android.WriteFileRule(ctx, transitiveAaptResourcePackagesFile, strings.Join(transitiveAaptResourcePackages, "\n"))
+
+	// Reverse the list of R.jar files so that the current module comes first, and direct dependencies come before
+	// transitive dependencies.
+	transitiveRJars = android.ReversePaths(transitiveRJars)
 
 	a.aaptSrcJar = srcJar
 	a.transitiveAaptRJars = transitiveRJars
