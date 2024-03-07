@@ -23,7 +23,6 @@ var (
 		"--format=v2",
 		"--repeat-errors-max 10",
 		"--hide UnresolvedImport",
-		"--hide InvalidNullabilityOverride",
 
 		// Force metalava to ignore classes on the classpath when an API file contains missing classes.
 		// See b/285140653 for more information.
@@ -49,9 +48,6 @@ var (
 		// TODO(tnorbye): find owners to fix these warnings when annotation was enabled.
 		"--hide HiddenTypedefConstant",
 		"--hide SuperfluousPrefix",
-		"--hide AnnotationExtraction",
-		// b/222738070
-		"--hide BannedThrow",
 	}
 
 	MetalavaAnnotationsWarningsFlags = strings.Join(metalavaAnnotationsWarningsFlags, " ")
