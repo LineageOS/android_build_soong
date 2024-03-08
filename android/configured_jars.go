@@ -178,7 +178,7 @@ func (l *ConfiguredJarList) CopyOfApexJarPairs() []string {
 func (l *ConfiguredJarList) BuildPaths(ctx PathContext, dir OutputPath) WritablePaths {
 	paths := make(WritablePaths, l.Len())
 	for i, jar := range l.jars {
-		paths[i] = dir.Join(ctx, ModuleStem(jar)+".jar")
+		paths[i] = dir.Join(ctx, ModuleStem(ctx.Config(), l.Apex(i), jar)+".jar")
 	}
 	return paths
 }
@@ -187,8 +187,8 @@ func (l *ConfiguredJarList) BuildPaths(ctx PathContext, dir OutputPath) Writable
 // prefix.
 func (l *ConfiguredJarList) BuildPathsByModule(ctx PathContext, dir OutputPath) map[string]WritablePath {
 	paths := map[string]WritablePath{}
-	for _, jar := range l.jars {
-		paths[jar] = dir.Join(ctx, ModuleStem(jar)+".jar")
+	for i, jar := range l.jars {
+		paths[jar] = dir.Join(ctx, ModuleStem(ctx.Config(), l.Apex(i), jar)+".jar")
 	}
 	return paths
 }
@@ -228,24 +228,32 @@ func (l *ConfiguredJarList) MarshalJSON() ([]byte, error) {
 	return json.Marshal(list)
 }
 
-// ModuleStem hardcodes the stem of framework-minus-apex to return "framework".
-//
-// TODO(b/139391334): hard coded until we find a good way to query the stem of a
-// module before any other mutators are run.
-func ModuleStem(module string) string {
-	if module == "framework-minus-apex" {
-		return "framework"
+func OverrideConfiguredJarLocationFor(cfg Config, apex string, jar string) (newApex string, newJar string) {
+	for _, entry := range cfg.productVariables.ConfiguredJarLocationOverrides {
+		tuple := strings.Split(entry, ":")
+		if len(tuple) != 4 {
+			panic("malformed configured jar location override '%s', expected format: <old_apex>:<old_jar>:<new_apex>:<new_jar>")
+		}
+		if apex == tuple[0] && jar == tuple[1] {
+			return tuple[2], tuple[3]
+		}
 	}
-	return module
+	return apex, jar
+}
+
+// ModuleStem returns the overridden jar name.
+func ModuleStem(cfg Config, apex string, jar string) string {
+	_, newJar := OverrideConfiguredJarLocationFor(cfg, apex, jar)
+	return newJar
 }
 
 // DevicePaths computes the on-device paths for the list of (apex, jar) pairs,
 // based on the operating system.
 func (l *ConfiguredJarList) DevicePaths(cfg Config, ostype OsType) []string {
 	paths := make([]string, l.Len())
-	for i, jar := range l.jars {
-		apex := l.apexes[i]
-		name := ModuleStem(jar) + ".jar"
+	for i := 0; i < l.Len(); i++ {
+		apex, jar := OverrideConfiguredJarLocationFor(cfg, l.Apex(i), l.Jar(i))
+		name := jar + ".jar"
 
 		var subdir string
 		if apex == "platform" {
@@ -309,6 +317,11 @@ func splitConfiguredJarPair(str string) (string, string, error) {
 // EmptyConfiguredJarList returns an empty jar list.
 func EmptyConfiguredJarList() ConfiguredJarList {
 	return ConfiguredJarList{}
+}
+
+// IsConfiguredJarForPlatform returns true if the given apex name is a special name for the platform.
+func IsConfiguredJarForPlatform(apex string) bool {
+	return apex == "platform" || apex == "system_ext"
 }
 
 var earlyBootJarsKey = NewOnceKey("earlyBootJars")

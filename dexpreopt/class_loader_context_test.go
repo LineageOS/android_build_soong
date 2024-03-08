@@ -20,6 +20,7 @@ package dexpreopt
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
@@ -34,7 +35,7 @@ func TestCLC(t *testing.T) {
 	// │   └── android.hidl.base
 	// │
 	// └── any
-	//     ├── a
+	//     ├── a'  (a single quotation mark (') is there to test escaping)
 	//     ├── b
 	//     ├── c
 	//     ├── d
@@ -53,7 +54,7 @@ func TestCLC(t *testing.T) {
 
 	m := make(ClassLoaderContextMap)
 
-	m.AddContext(ctx, AnySdkVersion, "a", optional, buildPath(ctx, "a"), installPath(ctx, "a"), nil)
+	m.AddContext(ctx, AnySdkVersion, "a'", optional, buildPath(ctx, "a"), installPath(ctx, "a"), nil)
 	m.AddContext(ctx, AnySdkVersion, "b", optional, buildPath(ctx, "b"), installPath(ctx, "b"), nil)
 	m.AddContext(ctx, AnySdkVersion, "c", optional, buildPath(ctx, "c"), installPath(ctx, "c"), nil)
 
@@ -96,11 +97,11 @@ func TestCLC(t *testing.T) {
 
 	fixClassLoaderContext(m)
 
-	var haveStr string
-	var havePaths android.Paths
+	var actualNames []string
+	var actualPaths android.Paths
 	var haveUsesLibsReq, haveUsesLibsOpt []string
 	if valid && validationError == nil {
-		haveStr, havePaths = ComputeClassLoaderContext(m)
+		actualNames, actualPaths = ComputeClassLoaderContextDependencies(m)
 		haveUsesLibsReq, haveUsesLibsOpt = m.UsesLibs()
 	}
 
@@ -111,46 +112,44 @@ func TestCLC(t *testing.T) {
 		}
 	})
 
-	// Test that class loader context structure is correct.
-	t.Run("string", func(t *testing.T) {
-		wantStr := " --host-context-for-sdk 29 " +
-			"PCL[out/soong/" + AndroidHidlManager + ".jar]#" +
-			"PCL[out/soong/" + AndroidHidlBase + ".jar]" +
-			" --target-context-for-sdk 29 " +
-			"PCL[/system/framework/" + AndroidHidlManager + ".jar]#" +
-			"PCL[/system/framework/" + AndroidHidlBase + ".jar]" +
-			" --host-context-for-sdk any " +
-			"PCL[out/soong/a.jar]#PCL[out/soong/b.jar]#PCL[out/soong/c.jar]#PCL[out/soong/d.jar]" +
-			"{PCL[out/soong/a2.jar]#PCL[out/soong/b2.jar]#PCL[out/soong/c2.jar]" +
-			"{PCL[out/soong/a1.jar]#PCL[out/soong/b1.jar]}}#" +
-			"PCL[out/soong/f.jar]#PCL[out/soong/a3.jar]#PCL[out/soong/b3.jar]" +
-			" --target-context-for-sdk any " +
-			"PCL[/system/a.jar]#PCL[/system/b.jar]#PCL[/system/c.jar]#PCL[/system/d.jar]" +
-			"{PCL[/system/a2.jar]#PCL[/system/b2.jar]#PCL[/system/c2.jar]" +
-			"{PCL[/system/a1.jar]#PCL[/system/b1.jar]}}#" +
-			"PCL[/system/f.jar]#PCL[/system/a3.jar]#PCL[/system/b3.jar]"
-		if wantStr != haveStr {
-			t.Errorf("\nwant class loader context: %s\nhave class loader context: %s", wantStr, haveStr)
-		}
-	})
-
 	// Test that all expected build paths are gathered.
-	t.Run("paths", func(t *testing.T) {
-		wantPaths := []string{
+	t.Run("names and paths", func(t *testing.T) {
+		expectedNames := []string{
+			"a'", "a1", "a2", "a3", "android.hidl.base-V1.0-java", "android.hidl.manager-V1.0-java", "b",
+			"b1", "b2", "b3", "c", "c2", "d", "f",
+		}
+		expectedPaths := []string{
 			"out/soong/android.hidl.manager-V1.0-java.jar", "out/soong/android.hidl.base-V1.0-java.jar",
 			"out/soong/a.jar", "out/soong/b.jar", "out/soong/c.jar", "out/soong/d.jar",
 			"out/soong/a2.jar", "out/soong/b2.jar", "out/soong/c2.jar",
 			"out/soong/a1.jar", "out/soong/b1.jar",
 			"out/soong/f.jar", "out/soong/a3.jar", "out/soong/b3.jar",
 		}
-		if !reflect.DeepEqual(wantPaths, havePaths.Strings()) {
-			t.Errorf("\nwant paths: %s\nhave paths: %s", wantPaths, havePaths)
-		}
+		actualPathsStrs := actualPaths.Strings()
+		// The order does not matter.
+		sort.Strings(expectedNames)
+		sort.Strings(actualNames)
+		android.AssertArrayString(t, "", expectedNames, actualNames)
+		sort.Strings(expectedPaths)
+		sort.Strings(actualPathsStrs)
+		android.AssertArrayString(t, "", expectedPaths, actualPathsStrs)
+	})
+
+	// Test the JSON passed to construct_context.py.
+	t.Run("json", func(t *testing.T) {
+		// The tree structure within each SDK version should be kept exactly the same when serialized
+		// to JSON. The order matters because the Python script keeps the order within each SDK version
+		// as is.
+		// The JSON is passed to the Python script as a commandline flag, so quotation ('') and escaping
+		// must be performed.
+		android.AssertStringEquals(t, "", strings.TrimSpace(`
+'{"29":[{"Name":"android.hidl.manager-V1.0-java","Optional":false,"Host":"out/soong/android.hidl.manager-V1.0-java.jar","Device":"/system/framework/android.hidl.manager-V1.0-java.jar","Subcontexts":[]},{"Name":"android.hidl.base-V1.0-java","Optional":false,"Host":"out/soong/android.hidl.base-V1.0-java.jar","Device":"/system/framework/android.hidl.base-V1.0-java.jar","Subcontexts":[]}],"30":[],"42":[],"any":[{"Name":"a'\''","Optional":false,"Host":"out/soong/a.jar","Device":"/system/a.jar","Subcontexts":[]},{"Name":"b","Optional":false,"Host":"out/soong/b.jar","Device":"/system/b.jar","Subcontexts":[]},{"Name":"c","Optional":false,"Host":"out/soong/c.jar","Device":"/system/c.jar","Subcontexts":[]},{"Name":"d","Optional":false,"Host":"out/soong/d.jar","Device":"/system/d.jar","Subcontexts":[{"Name":"a2","Optional":false,"Host":"out/soong/a2.jar","Device":"/system/a2.jar","Subcontexts":[]},{"Name":"b2","Optional":false,"Host":"out/soong/b2.jar","Device":"/system/b2.jar","Subcontexts":[]},{"Name":"c2","Optional":false,"Host":"out/soong/c2.jar","Device":"/system/c2.jar","Subcontexts":[{"Name":"a1","Optional":false,"Host":"out/soong/a1.jar","Device":"/system/a1.jar","Subcontexts":[]},{"Name":"b1","Optional":false,"Host":"out/soong/b1.jar","Device":"/system/b1.jar","Subcontexts":[]}]}]},{"Name":"f","Optional":false,"Host":"out/soong/f.jar","Device":"/system/f.jar","Subcontexts":[]},{"Name":"a3","Optional":false,"Host":"out/soong/a3.jar","Device":"/system/a3.jar","Subcontexts":[]},{"Name":"b3","Optional":false,"Host":"out/soong/b3.jar","Device":"/system/b3.jar","Subcontexts":[]}]}'
+`), m.DumpForFlag())
 	})
 
 	// Test for libraries that are added by the manifest_fixer.
 	t.Run("uses libs", func(t *testing.T) {
-		wantUsesLibsReq := []string{"a", "b", "c", "d", "f", "a3", "b3"}
+		wantUsesLibsReq := []string{"a'", "b", "c", "d", "f", "a3", "b3"}
 		wantUsesLibsOpt := []string{}
 		if !reflect.DeepEqual(wantUsesLibsReq, haveUsesLibsReq) {
 			t.Errorf("\nwant required uses libs: %s\nhave required uses libs: %s", wantUsesLibsReq, haveUsesLibsReq)
@@ -234,49 +233,6 @@ func TestCLCNestedConditional(t *testing.T) {
 	m := make(ClassLoaderContextMap)
 	err := m.addContext(ctx, AnySdkVersion, "b", optional, buildPath(ctx, "b"), installPath(ctx, "b"), m1)
 	checkError(t, err, "nested class loader context shouldn't have conditional part")
-}
-
-// Test for SDK version order in conditional CLC: no matter in what order the libraries are added,
-// they end up in the order that agrees with PackageManager.
-func TestCLCSdkVersionOrder(t *testing.T) {
-	ctx := testContext()
-	optional := false
-	m := make(ClassLoaderContextMap)
-	m.AddContext(ctx, 28, "a", optional, buildPath(ctx, "a"), installPath(ctx, "a"), nil)
-	m.AddContext(ctx, 29, "b", optional, buildPath(ctx, "b"), installPath(ctx, "b"), nil)
-	m.AddContext(ctx, 30, "c", optional, buildPath(ctx, "c"), installPath(ctx, "c"), nil)
-	m.AddContext(ctx, AnySdkVersion, "d", optional, buildPath(ctx, "d"), installPath(ctx, "d"), nil)
-
-	valid, validationError := validateClassLoaderContext(m)
-
-	fixClassLoaderContext(m)
-
-	var haveStr string
-	if valid && validationError == nil {
-		haveStr, _ = ComputeClassLoaderContext(m)
-	}
-
-	// Test that validation is successful (all paths are known).
-	t.Run("validate", func(t *testing.T) {
-		if !(valid && validationError == nil) {
-			t.Errorf("invalid class loader context")
-		}
-	})
-
-	// Test that class loader context structure is correct.
-	t.Run("string", func(t *testing.T) {
-		wantStr := " --host-context-for-sdk 30 PCL[out/soong/c.jar]" +
-			" --target-context-for-sdk 30 PCL[/system/c.jar]" +
-			" --host-context-for-sdk 29 PCL[out/soong/b.jar]" +
-			" --target-context-for-sdk 29 PCL[/system/b.jar]" +
-			" --host-context-for-sdk 28 PCL[out/soong/a.jar]" +
-			" --target-context-for-sdk 28 PCL[/system/a.jar]" +
-			" --host-context-for-sdk any PCL[out/soong/d.jar]" +
-			" --target-context-for-sdk any PCL[/system/d.jar]"
-		if wantStr != haveStr {
-			t.Errorf("\nwant class loader context: %s\nhave class loader context: %s", wantStr, haveStr)
-		}
-	})
 }
 
 func TestCLCMExcludeLibs(t *testing.T) {

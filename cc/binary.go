@@ -17,13 +17,8 @@ package cc
 import (
 	"path/filepath"
 
-	"android/soong/bazel/cquery"
-
-	"github.com/google/blueprint"
-	"github.com/google/blueprint/proptools"
-
 	"android/soong/android"
-	"android/soong/bazel"
+	"github.com/google/blueprint"
 )
 
 type BinaryLinkerProperties struct {
@@ -71,14 +66,13 @@ func RegisterBinaryBuildComponents(ctx android.RegistrationContext) {
 
 // cc_binary produces a binary that is runnable on a device.
 func BinaryFactory() android.Module {
-	module, _ := newBinary(android.HostAndDeviceSupported, true)
-	module.bazelHandler = &ccBinaryBazelHandler{module: module}
+	module, _ := newBinary(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
 // cc_binary_host produces a binary that is runnable on a host.
 func BinaryHostFactory() android.Module {
-	module, _ := newBinary(android.HostSupported, true)
+	module, _ := newBinary(android.HostSupported)
 	return module.Init()
 }
 
@@ -196,10 +190,10 @@ func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 // Individual module implementations which comprise a C++ binary should call this function,
 // set some fields on the result, and then call the Init function.
 func NewBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
-	return newBinary(hod, true)
+	return newBinary(hod)
 }
 
-func newBinary(hod android.HostOrDeviceSupported, bazelable bool) (*Module, *binaryDecorator) {
+func newBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
 	module := newModule(hod, android.MultilibFirst)
 	binary := &binaryDecorator{
 		baseLinker:    NewBaseLinker(module.sanitize),
@@ -208,7 +202,6 @@ func newBinary(hod android.HostOrDeviceSupported, bazelable bool) (*Module, *bin
 	module.compiler = NewBaseCompiler()
 	module.linker = binary
 	module.installer = binary
-	module.bazelable = bazelable
 
 	// Allow module to be added as member of an sdk/module_exports.
 	module.sdkMemberTypes = []android.SdkMemberType{
@@ -452,6 +445,10 @@ func (binary *binaryDecorator) unstrippedOutputFilePath() android.Path {
 	return binary.unstrippedOutputFile
 }
 
+func (binary *binaryDecorator) strippedAllOutputFilePath() android.Path {
+	panic("Not implemented.")
+}
+
 func (binary *binaryDecorator) setSymlinkList(ctx ModuleContext) {
 	for _, symlink := range binary.Properties.Symlinks {
 		binary.symlinks = append(binary.symlinks,
@@ -512,7 +509,7 @@ func (binary *binaryDecorator) install(ctx ModuleContext, file android.Path) {
 		}
 		binary.baseInstaller.subDir = "bootstrap"
 	}
-	binary.baseInstaller.installExecutable(ctx, file)
+	binary.baseInstaller.install(ctx, file)
 
 	var preferredArchSymlinkPath android.OptionalPath
 	for _, symlink := range binary.symlinks {
@@ -567,145 +564,4 @@ func (binary *binaryDecorator) verifyHostBionicLinker(ctx ModuleContext, in, lin
 			"linker": linker.String(),
 		},
 	})
-}
-
-type ccBinaryBazelHandler struct {
-	module *Module
-}
-
-var _ BazelHandler = (*ccBinaryBazelHandler)(nil)
-
-func (handler *ccBinaryBazelHandler) QueueBazelCall(ctx android.BaseModuleContext, label string) {
-	bazelCtx := ctx.Config().BazelContext
-	bazelCtx.QueueBazelRequest(label, cquery.GetCcUnstrippedInfo, android.GetConfigKeyApexVariant(ctx, GetApexConfigKey(ctx)))
-}
-
-func (handler *ccBinaryBazelHandler) ProcessBazelQueryResponse(ctx android.ModuleContext, label string) {
-	bazelCtx := ctx.Config().BazelContext
-	info, err := bazelCtx.GetCcUnstrippedInfo(label, android.GetConfigKeyApexVariant(ctx, GetApexConfigKey(ctx)))
-	if err != nil {
-		ctx.ModuleErrorf(err.Error())
-		return
-	}
-
-	var outputFilePath android.Path = android.PathForBazelOut(ctx, info.OutputFile)
-	if len(info.TidyFiles) > 0 {
-		handler.module.tidyFiles = android.PathsForBazelOut(ctx, info.TidyFiles)
-		outputFilePath = android.AttachValidationActions(ctx, outputFilePath, handler.module.tidyFiles)
-	}
-	handler.module.outputFile = android.OptionalPathForPath(outputFilePath)
-	handler.module.linker.(*binaryDecorator).unstrippedOutputFile = android.PathForBazelOut(ctx, info.UnstrippedOutput)
-
-	handler.module.setAndroidMkVariablesFromCquery(info.CcAndroidMkInfo)
-}
-
-func binaryBp2buildAttrs(ctx android.TopDownMutatorContext, m *Module) binaryAttributes {
-	baseAttrs := bp2BuildParseBaseProps(ctx, m)
-	binaryLinkerAttrs := bp2buildBinaryLinkerProps(ctx, m)
-
-	if proptools.BoolDefault(binaryLinkerAttrs.Linkshared, true) {
-		baseAttrs.implementationDynamicDeps.Add(baseAttrs.protoDependency)
-	} else {
-		baseAttrs.implementationDeps.Add(baseAttrs.protoDependency)
-	}
-
-	attrs := binaryAttributes{
-		binaryLinkerAttrs: binaryLinkerAttrs,
-
-		Srcs:    baseAttrs.srcs,
-		Srcs_c:  baseAttrs.cSrcs,
-		Srcs_as: baseAttrs.asSrcs,
-
-		Copts:      baseAttrs.copts,
-		Cppflags:   baseAttrs.cppFlags,
-		Conlyflags: baseAttrs.conlyFlags,
-		Asflags:    baseAttrs.asFlags,
-
-		Deps:               baseAttrs.implementationDeps,
-		Dynamic_deps:       baseAttrs.implementationDynamicDeps,
-		Whole_archive_deps: baseAttrs.wholeArchiveDeps,
-		System_deps:        baseAttrs.systemDynamicDeps,
-		Runtime_deps:       baseAttrs.runtimeDeps,
-
-		Local_includes:    baseAttrs.localIncludes,
-		Absolute_includes: baseAttrs.absoluteIncludes,
-		Linkopts:          baseAttrs.linkopts,
-		Use_version_lib:   baseAttrs.useVersionLib,
-		Rtti:              baseAttrs.rtti,
-		Stl:               baseAttrs.stl,
-		Cpp_std:           baseAttrs.cppStd,
-
-		Additional_linker_inputs: baseAttrs.additionalLinkerInputs,
-
-		Strip: stripAttributes{
-			Keep_symbols:                 baseAttrs.stripKeepSymbols,
-			Keep_symbols_and_debug_frame: baseAttrs.stripKeepSymbolsAndDebugFrame,
-			Keep_symbols_list:            baseAttrs.stripKeepSymbolsList,
-			All:                          baseAttrs.stripAll,
-			None:                         baseAttrs.stripNone,
-		},
-
-		Features: baseAttrs.features,
-
-		sdkAttributes: bp2BuildParseSdkAttributes(m),
-
-		Native_coverage: baseAttrs.Native_coverage,
-	}
-
-	m.convertTidyAttributes(ctx, &attrs.tidyAttributes)
-
-	return attrs
-}
-
-func binaryBp2build(ctx android.TopDownMutatorContext, m *Module) {
-	// shared with cc_test
-	binaryAttrs := binaryBp2buildAttrs(ctx, m)
-
-	tags := android.ApexAvailableTags(m)
-	ctx.CreateBazelTargetModule(bazel.BazelTargetModuleProperties{
-		Rule_class:        "cc_binary",
-		Bzl_load_location: "//build/bazel/rules/cc:cc_binary.bzl",
-	},
-		android.CommonAttributes{Name: m.Name(), Tags: tags},
-		&binaryAttrs)
-}
-
-// binaryAttributes contains Bazel attributes corresponding to a cc binary
-type binaryAttributes struct {
-	binaryLinkerAttrs
-	Srcs    bazel.LabelListAttribute
-	Srcs_c  bazel.LabelListAttribute
-	Srcs_as bazel.LabelListAttribute
-
-	Copts      bazel.StringListAttribute
-	Cppflags   bazel.StringListAttribute
-	Conlyflags bazel.StringListAttribute
-	Asflags    bazel.StringListAttribute
-
-	Deps               bazel.LabelListAttribute
-	Dynamic_deps       bazel.LabelListAttribute
-	Whole_archive_deps bazel.LabelListAttribute
-	System_deps        bazel.LabelListAttribute
-	Runtime_deps       bazel.LabelListAttribute
-
-	Local_includes    bazel.StringListAttribute
-	Absolute_includes bazel.StringListAttribute
-
-	Linkopts                 bazel.StringListAttribute
-	Additional_linker_inputs bazel.LabelListAttribute
-	Use_version_lib          bazel.BoolAttribute
-
-	Rtti    bazel.BoolAttribute
-	Stl     *string
-	Cpp_std *string
-
-	Strip stripAttributes
-
-	Features bazel.StringListAttribute
-
-	sdkAttributes
-
-	tidyAttributes
-
-	Native_coverage *bool
 }

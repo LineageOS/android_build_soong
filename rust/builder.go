@@ -26,14 +26,14 @@ import (
 
 var (
 	_     = pctx.SourcePathVariable("rustcCmd", "${config.RustBin}/rustc")
-	_     = pctx.SourcePathVariable("mkcraterspCmd", "build/soong/scripts/mkcratersp.py")
 	rustc = pctx.AndroidStaticRule("rustc",
 		blueprint.RuleParams{
 			Command: "$envVars $rustcCmd " +
-				"-C linker=$mkcraterspCmd " +
+				"-C linker=${config.RustLinker} " +
+				"-C link-args=\"${crtBegin} ${earlyLinkFlags} ${linkFlags} ${crtEnd}\" " +
 				"--emit link -o $out --emit dep-info=$out.d.raw $in ${libFlags} $rustcFlags" +
 				" && grep \"^$out:\" $out.d.raw > $out.d",
-			CommandDeps: []string{"$rustcCmd", "$mkcraterspCmd"},
+			CommandDeps: []string{"$rustcCmd"},
 			// Rustc deps-info writes out make compatible dep files: https://github.com/rust-lang/rust/issues/7633
 			// Rustc emits unneeded dependency lines for the .d and input .rs files.
 			// Those extra lines cause ninja warning:
@@ -42,12 +42,7 @@ var (
 			Deps:    blueprint.DepsGCC,
 			Depfile: "$out.d",
 		},
-		"rustcFlags", "libFlags", "envVars")
-	rustLink = pctx.AndroidStaticRule("rustLink",
-		blueprint.RuleParams{
-			Command: "${config.RustLinker} -o $out ${crtBegin} ${config.RustLinkerArgs} @$in ${linkFlags} ${crtEnd}",
-		},
-		"linkFlags", "crtBegin", "crtEnd")
+		"rustcFlags", "earlyLinkFlags", "linkFlags", "libFlags", "crtBegin", "crtEnd", "envVars")
 
 	_       = pctx.SourcePathVariable("rustdocCmd", "${config.RustBin}/rustdoc")
 	rustdoc = pctx.AndroidStaticRule("rustdoc",
@@ -106,13 +101,14 @@ var (
 				`KYTHE_CANONICALIZE_VNAME_PATHS=prefer-relative ` +
 				`$rustExtractor $envVars ` +
 				`$rustcCmd ` +
-				`-C linker=true ` +
+				`-C linker=${config.RustLinker} ` +
+				`-C link-args="${crtBegin} ${linkFlags} ${crtEnd}" ` +
 				`$in ${libFlags} $rustcFlags`,
 			CommandDeps:    []string{"$rustExtractor", "$kytheVnames"},
 			Rspfile:        "${out}.rsp",
 			RspfileContent: "$in",
 		},
-		"rustcFlags", "libFlags", "envVars")
+		"rustcFlags", "linkFlags", "libFlags", "crtBegin", "crtEnd", "envVars")
 )
 
 type buildOutput struct {
@@ -200,7 +196,7 @@ func rustEnvVars(ctx ModuleContext, deps PathDeps) []string {
 	}
 
 	if len(deps.SrcDeps) > 0 {
-		moduleGenDir := ctx.RustModule().compiler.CargoOutDir()
+		moduleGenDir := ctx.RustModule().compiler.cargoOutDir()
 		// We must calculate an absolute path for OUT_DIR since Rust's include! macro (which normally consumes this)
 		// assumes that paths are relative to the source file.
 		var outDirPrefix string
@@ -217,6 +213,35 @@ func rustEnvVars(ctx ModuleContext, deps PathDeps) []string {
 		envVars = append(envVars, "OUT_DIR=out")
 	}
 
+	envVars = append(envVars, "ANDROID_RUST_VERSION="+config.GetRustVersion(ctx))
+
+	if ctx.RustModule().compiler.cargoEnvCompat() {
+		if bin, ok := ctx.RustModule().compiler.(*binaryDecorator); ok {
+			envVars = append(envVars, "CARGO_BIN_NAME="+bin.getStem(ctx))
+		}
+		envVars = append(envVars, "CARGO_CRATE_NAME="+ctx.RustModule().CrateName())
+		envVars = append(envVars, "CARGO_PKG_NAME="+ctx.RustModule().CrateName())
+		pkgVersion := ctx.RustModule().compiler.cargoPkgVersion()
+		if pkgVersion != "" {
+			envVars = append(envVars, "CARGO_PKG_VERSION="+pkgVersion)
+
+			// Ensure the version is in the form of "x.y.z" (approximately semver compliant).
+			//
+			// For our purposes, we don't care to enforce that these are integers since they may
+			// include other characters at times (e.g. sometimes the patch version is more than an integer).
+			if strings.Count(pkgVersion, ".") == 2 {
+				var semver_parts = strings.Split(pkgVersion, ".")
+				envVars = append(envVars, "CARGO_PKG_VERSION_MAJOR="+semver_parts[0])
+				envVars = append(envVars, "CARGO_PKG_VERSION_MINOR="+semver_parts[1])
+				envVars = append(envVars, "CARGO_PKG_VERSION_PATCH="+semver_parts[2])
+			}
+		}
+	}
+
+	if ctx.Darwin() {
+		envVars = append(envVars, "ANDROID_RUST_DARWIN=true")
+	}
+
 	return envVars
 }
 
@@ -224,9 +249,11 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	outputFile android.WritablePath, crateType string) buildOutput {
 
 	var inputs android.Paths
-	var implicits, linkImplicits, linkOrderOnly android.Paths
+	var implicits android.Paths
+	var orderOnly android.Paths
 	var output buildOutput
 	var rustcFlags, linkFlags []string
+	var earlyLinkFlags string
 
 	output.outputFile = outputFile
 	crateName := ctx.RustModule().CrateName()
@@ -255,16 +282,22 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	if ctx.Config().IsEnvTrue("SOONG_RUSTC_INCREMENTAL") {
 		incrementalPath := android.PathForOutput(ctx, "rustc").String()
 
-		rustcFlags = append(rustcFlags, "-Cincremental="+incrementalPath)
+		rustcFlags = append(rustcFlags, "-C incremental="+incrementalPath)
+	} else {
+		rustcFlags = append(rustcFlags, "-C codegen-units=1")
 	}
 
 	// Disallow experimental features
-	modulePath := android.PathForModuleSrc(ctx).String()
+	modulePath := ctx.ModuleDir()
 	if !(android.IsThirdPartyPath(modulePath) || strings.HasPrefix(modulePath, "prebuilts")) {
-		rustcFlags = append(rustcFlags, "-Zallow-features=\"custom_inner_attributes,mixed_integer_ops\"")
+		rustcFlags = append(rustcFlags, "-Zallow-features=\"\"")
 	}
 
 	// Collect linker flags
+	if !ctx.Darwin() {
+		earlyLinkFlags = "-Wl,--as-needed"
+	}
+
 	linkFlags = append(linkFlags, flags.GlobalLinkFlags...)
 	linkFlags = append(linkFlags, flags.LinkFlags...)
 
@@ -283,18 +316,18 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	implicits = append(implicits, rustLibsToPaths(deps.RLibs)...)
 	implicits = append(implicits, rustLibsToPaths(deps.DyLibs)...)
 	implicits = append(implicits, rustLibsToPaths(deps.ProcMacros)...)
-	implicits = append(implicits, deps.AfdoProfiles...)
+	implicits = append(implicits, deps.StaticLibs...)
+	implicits = append(implicits, deps.SharedLibDeps...)
 	implicits = append(implicits, deps.srcProviderFiles...)
-	implicits = append(implicits, deps.WholeStaticLibs...)
+	implicits = append(implicits, deps.AfdoProfiles...)
 
-	linkImplicits = append(linkImplicits, deps.LibDeps...)
-	linkImplicits = append(linkImplicits, deps.CrtBegin...)
-	linkImplicits = append(linkImplicits, deps.CrtEnd...)
+	implicits = append(implicits, deps.CrtBegin...)
+	implicits = append(implicits, deps.CrtEnd...)
 
-	linkOrderOnly = append(linkOrderOnly, deps.linkObjects...)
+	orderOnly = append(orderOnly, deps.SharedLibs...)
 
 	if len(deps.SrcDeps) > 0 {
-		moduleGenDir := ctx.RustModule().compiler.CargoOutDir()
+		moduleGenDir := ctx.RustModule().compiler.cargoOutDir()
 		var outputs android.WritablePaths
 
 		for _, genSrc := range deps.SrcDeps {
@@ -317,29 +350,16 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 		implicits = append(implicits, outputs.Paths()...)
 	}
 
-	envVars = append(envVars, "ANDROID_RUST_VERSION="+config.GetRustVersion(ctx))
-
-	if ctx.RustModule().compiler.CargoEnvCompat() {
-		if _, ok := ctx.RustModule().compiler.(*binaryDecorator); ok {
-			envVars = append(envVars, "CARGO_BIN_NAME="+strings.TrimSuffix(outputFile.Base(), outputFile.Ext()))
-		}
-		envVars = append(envVars, "CARGO_CRATE_NAME="+ctx.RustModule().CrateName())
-		pkgVersion := ctx.RustModule().compiler.CargoPkgVersion()
-		if pkgVersion != "" {
-			envVars = append(envVars, "CARGO_PKG_VERSION="+pkgVersion)
-		}
-	}
-
-	envVars = append(envVars, "AR=${cc_config.ClangBin}/llvm-ar")
-
 	if flags.Clippy {
 		clippyFile := android.PathForModuleOut(ctx, outputFile.Base()+".clippy")
 		ctx.Build(pctx, android.BuildParams{
-			Rule:        clippyDriver,
-			Description: "clippy " + main.Rel(),
-			Output:      clippyFile,
-			Inputs:      inputs,
-			Implicits:   implicits,
+			Rule:            clippyDriver,
+			Description:     "clippy " + main.Rel(),
+			Output:          clippyFile,
+			ImplicitOutputs: nil,
+			Inputs:          inputs,
+			Implicits:       implicits,
+			OrderOnly:       orderOnly,
 			Args: map[string]string{
 				"rustcFlags":  strings.Join(rustcFlags, " "),
 				"libFlags":    strings.Join(libFlags, " "),
@@ -351,40 +371,23 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 		implicits = append(implicits, clippyFile)
 	}
 
-	rustcOutputFile := outputFile
-	usesLinker := crateType == "bin" || crateType == "dylib" || crateType == "cdylib" || crateType == "proc-macro"
-	if usesLinker {
-		rustcOutputFile = android.PathForModuleOut(ctx, outputFile.Base()+".rsp")
-	}
-
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        rustc,
 		Description: "rustc " + main.Rel(),
-		Output:      rustcOutputFile,
+		Output:      outputFile,
 		Inputs:      inputs,
 		Implicits:   implicits,
+		OrderOnly:   orderOnly,
 		Args: map[string]string{
-			"rustcFlags": strings.Join(rustcFlags, " "),
-			"libFlags":   strings.Join(libFlags, " "),
-			"envVars":    strings.Join(envVars, " "),
+			"rustcFlags":     strings.Join(rustcFlags, " "),
+			"earlyLinkFlags": earlyLinkFlags,
+			"linkFlags":      strings.Join(linkFlags, " "),
+			"libFlags":       strings.Join(libFlags, " "),
+			"crtBegin":       strings.Join(deps.CrtBegin.Strings(), " "),
+			"crtEnd":         strings.Join(deps.CrtEnd.Strings(), " "),
+			"envVars":        strings.Join(envVars, " "),
 		},
 	})
-
-	if usesLinker {
-		ctx.Build(pctx, android.BuildParams{
-			Rule:        rustLink,
-			Description: "rustLink " + main.Rel(),
-			Output:      outputFile,
-			Inputs:      android.Paths{rustcOutputFile},
-			Implicits:   linkImplicits,
-			OrderOnly:   linkOrderOnly,
-			Args: map[string]string{
-				"linkFlags": strings.Join(linkFlags, " "),
-				"crtBegin":  strings.Join(deps.CrtBegin.Strings(), " "),
-				"crtEnd":    strings.Join(deps.CrtEnd.Strings(), " "),
-			},
-		})
-	}
 
 	if flags.EmitXrefs {
 		kytheFile := android.PathForModuleOut(ctx, outputFile.Base()+".kzip")
@@ -394,9 +397,13 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 			Output:      kytheFile,
 			Inputs:      inputs,
 			Implicits:   implicits,
+			OrderOnly:   orderOnly,
 			Args: map[string]string{
 				"rustcFlags": strings.Join(rustcFlags, " "),
+				"linkFlags":  strings.Join(linkFlags, " "),
 				"libFlags":   strings.Join(libFlags, " "),
+				"crtBegin":   strings.Join(deps.CrtBegin.Strings(), " "),
+				"crtEnd":     strings.Join(deps.CrtEnd.Strings(), " "),
 				"envVars":    strings.Join(envVars, " "),
 			},
 		})
@@ -429,7 +436,7 @@ func Rustdoc(ctx ModuleContext, main android.Path, deps PathDeps,
 	docTimestampFile := android.PathForModuleOut(ctx, "rustdoc.timestamp")
 
 	// Silence warnings about renamed lints for third-party crates
-	modulePath := android.PathForModuleSrc(ctx).String()
+	modulePath := ctx.ModuleDir()
 	if android.IsThirdPartyPath(modulePath) {
 		rustdocFlags = append(rustdocFlags, " -A warnings")
 	}

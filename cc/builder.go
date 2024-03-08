@@ -125,6 +125,14 @@ var (
 		},
 		"objcopyCmd", "prefix")
 
+	// Rule to run objcopy --remove-section=.llvm_addrsig on a partially linked object
+	noAddrSig = pctx.AndroidStaticRule("noAddrSig",
+		blueprint.RuleParams{
+			Command:     "rm -f ${out} && $objcopyCmd --remove-section=.llvm_addrsig ${in} ${out}",
+			CommandDeps: []string{"$objcopyCmd"},
+		},
+		"objcopyCmd")
+
 	_ = pctx.SourcePathVariable("stripPath", "build/soong/scripts/strip.sh")
 	_ = pctx.SourcePathVariable("xzCmd", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/xz")
 	_ = pctx.SourcePathVariable("createMiniDebugInfo", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/create_minidebuginfo")
@@ -526,7 +534,7 @@ func transformSourceToObj(ctx ModuleContext, subdir string, srcFiles, noTidySrcs
 		toolingCppflags += " ${config.NoOverride64GlobalCflags}"
 	}
 
-	modulePath := android.PathForModuleSrc(ctx).String()
+	modulePath := ctx.ModuleDir()
 	if android.IsThirdPartyPath(modulePath) {
 		cflags += " ${config.NoOverrideExternalGlobalCflags}"
 		toolingCflags += " ${config.NoOverrideExternalGlobalCflags}"
@@ -673,16 +681,11 @@ func transformSourceToObj(ctx ModuleContext, subdir string, srcFiles, noTidySrcs
 			tidyCmd := "${config.ClangBin}/clang-tidy"
 
 			rule := clangTidy
-			reducedCFlags := moduleFlags
 			if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_CLANG_TIDY") {
 				rule = clangTidyRE
-				// b/248371171, work around RBE input processor problem
-				// some cflags rejected by input processor, but usually
-				// do not affect included files or clang-tidy
-				reducedCFlags = config.TidyReduceCFlags(reducedCFlags)
 			}
 
-			sharedCFlags := shareFlags("cFlags", reducedCFlags)
+			sharedCFlags := shareFlags("cFlags", moduleFlags)
 			srcRelPath := srcFile.Rel()
 
 			// Add the .tidy rule
@@ -867,7 +870,8 @@ func transformObjToDynamicBinary(ctx android.ModuleContext,
 // into a single .ldump sAbi dump file
 func transformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Paths, soFile android.Path,
 	baseName, exportedHeaderFlags string, symbolFile android.OptionalPath,
-	excludedSymbolVersions, excludedSymbolTags []string) android.OptionalPath {
+	excludedSymbolVersions, excludedSymbolTags []string,
+	api string) android.OptionalPath {
 
 	outputFile := android.PathForModuleOut(ctx, baseName+".lsdump")
 
@@ -884,6 +888,11 @@ func transformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Path
 	for _, tag := range excludedSymbolTags {
 		symbolFilterStr += " --exclude-symbol-tag " + tag
 	}
+	apiLevelsJson := android.GetApiLevelsJson(ctx)
+	implicits = append(implicits, apiLevelsJson)
+	symbolFilterStr += " --api-map " + apiLevelsJson.String()
+	symbolFilterStr += " --api " + api
+
 	rule := sAbiLink
 	args := map[string]string{
 		"symbolFilter":        symbolFilterStr,
@@ -1008,6 +1017,21 @@ func transformBinaryPrefixSymbols(ctx android.ModuleContext, prefix string, inpu
 	})
 }
 
+// Generate a rule for running objcopy --remove-section=.llvm_addrsig on a partially linked object
+func transformObjectNoAddrSig(ctx android.ModuleContext, inputFile android.Path, outputFile android.WritablePath) {
+	objcopyCmd := "${config.ClangBin}/llvm-objcopy"
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        noAddrSig,
+		Description: "remove addrsig " + outputFile.Base(),
+		Output:      outputFile,
+		Input:       inputFile,
+		Args: map[string]string{
+			"objcopyCmd": objcopyCmd,
+		},
+	})
+}
+
 // Registers a build statement to invoke `strip` (to discard symbols and data from object files).
 func transformStrip(ctx android.ModuleContext, inputFile android.Path,
 	outputFile android.WritablePath, flags StripFlags) {
@@ -1027,6 +1051,9 @@ func transformStrip(ctx android.ModuleContext, inputFile android.Path,
 	}
 	if flags.StripKeepSymbolsAndDebugFrame {
 		args += " --keep-symbols-and-debug-frame"
+	}
+	if ctx.Windows() {
+		args += " --windows"
 	}
 
 	ctx.Build(pctx, android.BuildParams{

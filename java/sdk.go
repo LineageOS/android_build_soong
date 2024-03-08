@@ -17,8 +17,6 @@ package java
 import (
 	"fmt"
 	"path/filepath"
-	"sort"
-	"strconv"
 
 	"android/soong/android"
 	"android/soong/java/config"
@@ -27,12 +25,10 @@ import (
 )
 
 func init() {
-	android.RegisterPreSingletonType("sdk_versions", sdkPreSingletonFactory)
-	android.RegisterSingletonType("sdk", sdkSingletonFactory)
+	android.RegisterParallelSingletonType("sdk", sdkSingletonFactory)
 	android.RegisterMakeVarsProvider(pctx, sdkMakeVars)
 }
 
-var sdkVersionsKey = android.NewOnceKey("sdkVersionsKey")
 var sdkFrameworkAidlPathKey = android.NewOnceKey("sdkFrameworkAidlPathKey")
 var nonUpdatableFrameworkAidlPathKey = android.NewOnceKey("nonUpdatableFrameworkAidlPathKey")
 var apiFingerprintPathKey = android.NewOnceKey("apiFingerprintPathKey")
@@ -76,7 +72,8 @@ func systemModuleKind(sdkKind android.SdkKind, apiLevel android.ApiLevel) androi
 		// Core is by definition what is included in the system module for the public API so should
 		// just use its system modules.
 		systemModuleKind = android.SdkPublic
-	} else if systemModuleKind == android.SdkSystem || systemModuleKind == android.SdkTest {
+	} else if systemModuleKind == android.SdkSystem || systemModuleKind == android.SdkTest ||
+		systemModuleKind == android.SdkTestFrameworksCore {
 		// The core system and test APIs are currently the same as the public API so they should use
 		// its system modules.
 		systemModuleKind = android.SdkPublic
@@ -148,10 +145,10 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext)
 	toModule := func(module string, aidl android.Path) sdkDep {
 		// Select the kind of system modules needed for the sdk version.
 		systemModulesKind := systemModuleKind(sdkVersion.Kind, android.FutureApiLevel)
-		systemModules := android.JavaApiLibraryName(ctx.Config(), fmt.Sprintf("core-%s-stubs-system-modules", systemModulesKind))
+		systemModules := fmt.Sprintf("core-%s-stubs-system-modules", systemModulesKind)
 		return sdkDep{
 			useModule:          true,
-			bootclasspath:      []string{module, android.JavaApiLibraryName(ctx.Config(), config.DefaultLambdaStubsLibrary)},
+			bootclasspath:      []string{module, config.DefaultLambdaStubsLibrary},
 			systemModules:      systemModules,
 			java9Classpath:     []string{module},
 			frameworkResModule: "framework-res",
@@ -194,62 +191,24 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext)
 			bootclasspath:    corePlatformBootclasspathLibraries(ctx),
 			noFrameworksLibs: true,
 		}
-	case android.SdkPublic, android.SdkSystem, android.SdkTest:
-		return toModule(sdkVersion.Kind.JavaLibraryName(ctx.Config()), sdkFrameworkAidlPath(ctx))
+	case android.SdkPublic, android.SdkSystem, android.SdkTest, android.SdkTestFrameworksCore:
+		return toModule(sdkVersion.Kind.DefaultJavaLibraryName(), sdkFrameworkAidlPath(ctx))
 	case android.SdkCore:
 		return sdkDep{
 			useModule:        true,
-			bootclasspath:    []string{android.SdkCore.JavaLibraryName(ctx.Config()), android.JavaApiLibraryName(ctx.Config(), config.DefaultLambdaStubsLibrary)},
-			systemModules:    android.JavaApiLibraryName(ctx.Config(), "core-public-stubs-system-modules"),
+			bootclasspath:    []string{android.SdkCore.DefaultJavaLibraryName(), config.DefaultLambdaStubsLibrary},
+			systemModules:    "core-public-stubs-system-modules",
 			noFrameworksLibs: true,
 		}
 	case android.SdkModule:
 		// TODO(146757305): provide .apk and .aidl that have more APIs for modules
-		return toModule(sdkVersion.Kind.JavaLibraryName(ctx.Config()), nonUpdatableFrameworkAidlPath(ctx))
+		return toModule(sdkVersion.Kind.DefaultJavaLibraryName(), nonUpdatableFrameworkAidlPath(ctx))
 	case android.SdkSystemServer:
 		// TODO(146757305): provide .apk and .aidl that have more APIs for modules
-		return toModule(sdkVersion.Kind.JavaLibraryName(ctx.Config()), sdkFrameworkAidlPath(ctx))
+		return toModule(sdkVersion.Kind.DefaultJavaLibraryName(), sdkFrameworkAidlPath(ctx))
 	default:
 		panic(fmt.Errorf("invalid sdk %q", sdkVersion.Raw))
 	}
-}
-
-func sdkPreSingletonFactory() android.Singleton {
-	return sdkPreSingleton{}
-}
-
-type sdkPreSingleton struct{}
-
-func (sdkPreSingleton) GenerateBuildActions(ctx android.SingletonContext) {
-	sdkJars, err := ctx.GlobWithDeps("prebuilts/sdk/*/public/android.jar", nil)
-	if err != nil {
-		ctx.Errorf("failed to glob prebuilts/sdk/*/public/android.jar: %s", err.Error())
-	}
-
-	var sdkVersions []int
-	for _, sdkJar := range sdkJars {
-		dir := filepath.Base(filepath.Dir(filepath.Dir(sdkJar)))
-		v, err := strconv.Atoi(dir)
-		if scerr, ok := err.(*strconv.NumError); ok && scerr.Err == strconv.ErrSyntax {
-			continue
-		} else if err != nil {
-			ctx.Errorf("invalid sdk jar %q, %s, %v", sdkJar, err.Error())
-		}
-		sdkVersions = append(sdkVersions, v)
-	}
-
-	sort.Ints(sdkVersions)
-
-	ctx.Config().Once(sdkVersionsKey, func() interface{} { return sdkVersions })
-}
-
-func LatestSdkVersionInt(ctx android.EarlyModuleContext) int {
-	sdkVersions := ctx.Config().Get(sdkVersionsKey).([]int)
-	latestSdkVersion := 0
-	if len(sdkVersions) > 0 {
-		latestSdkVersion = sdkVersions[len(sdkVersions)-1]
-	}
-	return latestSdkVersion
 }
 
 func sdkSingletonFactory() android.Singleton {
@@ -271,9 +230,9 @@ func (sdkSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 // Create framework.aidl by extracting anything that implements android.os.Parcelable from the SDK stubs modules.
 func createSdkFrameworkAidl(ctx android.SingletonContext) {
 	stubsModules := []string{
-		android.SdkPublic.JavaLibraryName(ctx.Config()),
-		android.SdkTest.JavaLibraryName(ctx.Config()),
-		android.SdkSystem.JavaLibraryName(ctx.Config()),
+		android.SdkPublic.DefaultJavaLibraryName(),
+		android.SdkTest.DefaultJavaLibraryName(),
+		android.SdkSystem.DefaultJavaLibraryName(),
 	}
 
 	combinedAidl := sdkFrameworkAidlPath(ctx)
@@ -288,7 +247,7 @@ func createSdkFrameworkAidl(ctx android.SingletonContext) {
 
 // Creates a version of framework.aidl for the non-updatable part of the platform.
 func createNonUpdatableFrameworkAidl(ctx android.SingletonContext) {
-	stubsModules := []string{android.SdkModule.JavaLibraryName(ctx.Config())}
+	stubsModules := []string{android.SdkModule.DefaultJavaLibraryName()}
 
 	combinedAidl := nonUpdatableFrameworkAidlPath(ctx)
 	tempPath := tempPathForRestat(ctx, combinedAidl)

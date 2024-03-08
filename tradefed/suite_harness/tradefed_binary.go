@@ -35,6 +35,7 @@ type TradefedBinaryProperties struct {
 	Short_name                    string
 	Full_name                     string
 	Version                       string
+	Suite_arch                    string
 	Prepend_platform_version_name bool
 }
 
@@ -67,6 +68,7 @@ func tradefedBinaryLoadHook(tfb *TradefedBinaryProperties) func(ctx android.Load
 				Name:       &genName,
 				Short_name: tfb.Short_name,
 				Full_name:  tfb.Full_name,
+				Suite_arch: tfb.Suite_arch,
 				Version:    version,
 			})
 
@@ -78,7 +80,6 @@ func tradefedBinaryLoadHook(tfb *TradefedBinaryProperties) func(ctx android.Load
 		// Add dependencies required by all tradefed_binary modules.
 		props.Libs = []string{
 			"tradefed",
-			"tradefed-test-framework",
 			"loganalysis",
 			"compatibility-host-util",
 		}
@@ -96,6 +97,7 @@ type TradefedBinaryGenProperties struct {
 	Short_name string
 	Full_name  string
 	Version    string
+	Suite_arch string
 }
 
 type tradefedBinaryGen struct {
@@ -128,13 +130,19 @@ var tradefedBinaryGenRule = pctx.StaticRule("tradefedBinaryGenRule", blueprint.R
 func (tfg *tradefedBinaryGen) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	buildNumberFile := ctx.Config().BuildNumberFile(ctx)
 	outputFile := android.PathForModuleOut(ctx, "test-suite-info.properties")
+
+	arch := strings.ReplaceAll(tfg.properties.Suite_arch, " ", "")
+	if arch == "" {
+		arch = ctx.Config().DevicePrimaryArchType().String()
+	}
+
 	ctx.Build(pctx, android.BuildParams{
 		Rule:      tradefedBinaryGenRule,
 		Output:    outputFile,
 		OrderOnly: android.Paths{buildNumberFile},
 		Args: map[string]string{
 			"buildNumberFile": buildNumberFile.String(),
-			"arch":            ctx.Config().DevicePrimaryArchType().String(),
+			"arch":            arch,
 			"name":            tfg.properties.Short_name,
 			"fullname":        tfg.properties.Full_name,
 			"version":         tfg.properties.Version,

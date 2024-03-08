@@ -17,6 +17,8 @@ package bazel
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"reflect"
@@ -34,19 +36,6 @@ import (
 type artifactId int
 type depsetId int
 type pathFragmentId int
-
-// artifact contains relevant portions of Bazel's aquery proto, Artifact.
-// Represents a single artifact, whether it's a source file or a derived output file.
-type artifact struct {
-	Id             artifactId
-	PathFragmentId pathFragmentId
-}
-
-type pathFragment struct {
-	Id       pathFragmentId
-	Label    string
-	ParentId pathFragmentId
-}
 
 // KeyValuePair represents Bazel's aquery proto, KeyValuePair.
 type KeyValuePair struct {
@@ -68,37 +57,6 @@ type AqueryDepset struct {
 	TransitiveDepSetHashes []string
 }
 
-// depSetOfFiles contains relevant portions of Bazel's aquery proto, DepSetOfFiles.
-// Represents a data structure containing one or more files. Depsets in Bazel are an efficient
-// data structure for storing large numbers of file paths.
-type depSetOfFiles struct {
-	Id                  depsetId
-	DirectArtifactIds   []artifactId
-	TransitiveDepSetIds []depsetId
-}
-
-// action contains relevant portions of Bazel's aquery proto, Action.
-// Represents a single command line invocation in the Bazel build graph.
-type action struct {
-	Arguments            []string
-	EnvironmentVariables []KeyValuePair
-	InputDepSetIds       []depsetId
-	Mnemonic             string
-	OutputIds            []artifactId
-	TemplateContent      string
-	Substitutions        []KeyValuePair
-	FileContents         string
-}
-
-// actionGraphContainer contains relevant portions of Bazel's aquery proto, ActionGraphContainer.
-// An aquery response from Bazel contains a single ActionGraphContainer proto.
-type actionGraphContainer struct {
-	Artifacts     []artifact
-	Actions       []action
-	DepSetOfFiles []depSetOfFiles
-	PathFragments []pathFragment
-}
-
 // BuildStatement contains information to register a build statement corresponding (one to one)
 // with a Bazel action from Bazel's action graph.
 type BuildStatement struct {
@@ -116,6 +74,14 @@ type BuildStatement struct {
 	InputDepsetHashes []string
 	InputPaths        []string
 	FileContents      string
+	// If ShouldRunInSbox is true, Soong will use sbox to created an isolated environment
+	// and run the mixed build action there
+	ShouldRunInSbox bool
+	// A list of files to add as implicit deps to the outputs of this BuildStatement.
+	// Unlike most properties in BuildStatement, these paths must be relative to the root of
+	// the whole out/ folder, instead of relative to ctx.Config().BazelContext.OutputBase()
+	ImplicitDeps []string
+	IsExecutable bool
 }
 
 // A helper type for aquery processing which facilitates retrieval of path IDs from their
@@ -168,6 +134,21 @@ func newAqueryHandler(aqueryResult *analysis_v2_proto.ActionGraphContainer) (*aq
 		artifactPath, err := expandPathFragment(pathFragmentId(artifact.PathFragmentId), pathFragments)
 		if err != nil {
 			return nil, err
+		}
+		if artifact.IsTreeArtifact &&
+			!strings.HasPrefix(artifactPath, "bazel-out/io_bazel_rules_go/") &&
+			!strings.HasPrefix(artifactPath, "bazel-out/rules_java_builtin/") {
+			// Since we're using ninja as an executor, we can't use tree artifacts. Ninja only
+			// considers a file/directory "dirty" when it's mtime changes. Directories' mtimes will
+			// only change when a file in the directory is added/removed, but not when files in
+			// the directory are changed, or when files in subdirectories are changed/added/removed.
+			// Bazel handles this by walking the directory and generating a hash for it after the
+			// action runs, which we would have to do as well if we wanted to support these
+			// artifacts in mixed builds.
+			//
+			// However, there are some bazel built-in rules that use tree artifacts. Allow those,
+			// but keep in mind that they'll have incrementality issues.
+			return nil, fmt.Errorf("tree artifacts are currently not supported in mixed builds: " + artifactPath)
 		}
 		artifactIdToPath[artifactId(artifact.Id)] = artifactPath
 	}
@@ -347,13 +328,20 @@ func AqueryBuildStatements(aqueryJsonProto []byte, eventHandler *metrics.EventHa
 		defer eventHandler.End("build_statements")
 		wg := sync.WaitGroup{}
 		var errOnce sync.Once
-
+		id2targets := make(map[uint32]string, len(aqueryProto.Targets))
+		for _, t := range aqueryProto.Targets {
+			id2targets[t.GetId()] = t.GetLabel()
+		}
 		for i, actionEntry := range aqueryProto.Actions {
 			wg.Add(1)
 			go func(i int, actionEntry *analysis_v2_proto.Action) {
-				buildStatement, aErr := aqueryHandler.actionToBuildStatement(actionEntry)
-				if aErr != nil {
+				if strings.HasPrefix(id2targets[actionEntry.TargetId], "@bazel_tools//") {
+					// bazel_tools are removed depsets in `populateDepsetMaps()` so skipping
+					// conversion to build statements as well
+					buildStatements[i] = nil
+				} else if buildStatement, aErr := aqueryHandler.actionToBuildStatement(actionEntry); aErr != nil {
 					errOnce.Do(func() {
+						aErr = fmt.Errorf("%s: [%s] [%s]", aErr.Error(), actionEntry.GetMnemonic(), id2targets[actionEntry.TargetId])
 						err = aErr
 					})
 				} else {
@@ -453,8 +441,27 @@ func (a *aqueryArtifactHandler) depsetContentHashes(inputDepsetIds []uint32) ([]
 	return hashes, nil
 }
 
+// escapes the args received from aquery and creates a command string
+func commandString(actionEntry *analysis_v2_proto.Action) string {
+	argsEscaped := make([]string, len(actionEntry.Arguments))
+	for i, arg := range actionEntry.Arguments {
+		if arg == "" {
+			// If this is an empty string, add ''
+			// And not
+			// 1. (literal empty)
+			// 2. `''\'''\'''` (escaped version of '')
+			//
+			// If we had used (1), then this would appear as a whitespace when we strings.Join
+			argsEscaped[i] = "''"
+		} else {
+			argsEscaped[i] = proptools.ShellEscapeIncludingSpaces(arg)
+		}
+	}
+	return strings.Join(argsEscaped, " ")
+}
+
 func (a *aqueryArtifactHandler) normalActionBuildStatement(actionEntry *analysis_v2_proto.Action) (*BuildStatement, error) {
-	command := strings.Join(proptools.ShellEscapeListIncludingSpaces(actionEntry.Arguments), " ")
+	command := commandString(actionEntry)
 	inputDepsetHashes, err := a.depsetContentHashes(actionEntry.InputDepSetIds)
 	if err != nil {
 		return nil, err
@@ -471,6 +478,12 @@ func (a *aqueryArtifactHandler) normalActionBuildStatement(actionEntry *analysis
 		InputDepsetHashes: inputDepsetHashes,
 		Env:               actionEntry.EnvironmentVariables,
 		Mnemonic:          actionEntry.Mnemonic,
+	}
+	if buildStatement.Mnemonic == "GoToolchainBinaryBuild" {
+		// Unlike b's execution root, mixed build execution root contains a symlink to prebuilts/go
+		// This causes issues for `GOCACHE=$(mktemp -d) go build ...`
+		// To prevent this, sandbox this action in mixed builds as well
+		buildStatement.ShouldRunInSbox = true
 	}
 	return buildStatement, nil
 }
@@ -523,6 +536,7 @@ func (a *aqueryArtifactHandler) fileWriteActionBuildStatement(actionEntry *analy
 		Mnemonic:          actionEntry.Mnemonic,
 		InputDepsetHashes: depsetHashes,
 		FileContents:      actionEntry.FileContents,
+		IsExecutable:      actionEntry.IsExecutable,
 	}, nil
 }
 
@@ -546,6 +560,72 @@ func (a *aqueryArtifactHandler) symlinkTreeActionBuildStatement(actionEntry *ana
 		Mnemonic:    actionEntry.Mnemonic,
 		InputPaths:  inputPaths,
 	}, nil
+}
+
+type bazelSandwichJson struct {
+	Target         string   `json:"target"`
+	DependOnTarget *bool    `json:"depend_on_target,omitempty"`
+	ImplicitDeps   []string `json:"implicit_deps"`
+}
+
+func (a *aqueryArtifactHandler) unresolvedSymlinkActionBuildStatement(actionEntry *analysis_v2_proto.Action) (*BuildStatement, error) {
+	outputPaths, depfile, err := a.getOutputPaths(actionEntry)
+	if err != nil {
+		return nil, err
+	}
+	if len(actionEntry.InputDepSetIds) != 0 || len(outputPaths) != 1 {
+		return nil, fmt.Errorf("expected 0 inputs and 1 output to symlink action, got: input %q, output %q", actionEntry.InputDepSetIds, outputPaths)
+	}
+	target := actionEntry.UnresolvedSymlinkTarget
+	if target == "" {
+		return nil, fmt.Errorf("expected an unresolved_symlink_target, but didn't get one")
+	}
+	if filepath.Clean(target) != target {
+		return nil, fmt.Errorf("expected %q, got %q", filepath.Clean(target), target)
+	}
+	if strings.HasPrefix(target, "/") {
+		return nil, fmt.Errorf("no absolute symlinks allowed: %s", target)
+	}
+
+	out := outputPaths[0]
+	outDir := filepath.Dir(out)
+	var implicitDeps []string
+	if strings.HasPrefix(target, "bazel_sandwich:") {
+		j := bazelSandwichJson{}
+		err := json.Unmarshal([]byte(target[len("bazel_sandwich:"):]), &j)
+		if err != nil {
+			return nil, err
+		}
+		if proptools.BoolDefault(j.DependOnTarget, true) {
+			implicitDeps = append(implicitDeps, j.Target)
+		}
+		implicitDeps = append(implicitDeps, j.ImplicitDeps...)
+		dotDotsToReachCwd := ""
+		if outDir != "." {
+			dotDotsToReachCwd = strings.Repeat("../", strings.Count(outDir, "/")+1)
+		}
+		target = proptools.ShellEscapeIncludingSpaces(j.Target)
+		target = "{DOTDOTS_TO_OUTPUT_ROOT}" + dotDotsToReachCwd + target
+	} else {
+		target = proptools.ShellEscapeIncludingSpaces(target)
+	}
+
+	outDir = proptools.ShellEscapeIncludingSpaces(outDir)
+	out = proptools.ShellEscapeIncludingSpaces(out)
+	// Use absolute paths, because some soong actions don't play well with relative paths (for example, `cp -d`).
+	command := fmt.Sprintf("mkdir -p %[1]s && rm -f %[2]s && ln -sf %[3]s %[2]s", outDir, out, target)
+	symlinkPaths := outputPaths[:]
+
+	buildStatement := &BuildStatement{
+		Command:      command,
+		Depfile:      depfile,
+		OutputPaths:  outputPaths,
+		Env:          actionEntry.EnvironmentVariables,
+		Mnemonic:     actionEntry.Mnemonic,
+		SymlinkPaths: symlinkPaths,
+		ImplicitDeps: implicitDeps,
+	}
+	return buildStatement, nil
 }
 
 func (a *aqueryArtifactHandler) symlinkActionBuildStatement(actionEntry *analysis_v2_proto.Action) (*BuildStatement, error) {
@@ -653,14 +733,16 @@ func (a *aqueryArtifactHandler) actionToBuildStatement(actionEntry *analysis_v2_
 		if len(actionEntry.Arguments) < 1 {
 			return a.templateExpandActionBuildStatement(actionEntry)
 		}
-	case "FileWrite", "SourceSymlinkManifest":
+	case "FileWrite", "SourceSymlinkManifest", "RepoMappingManifest":
 		return a.fileWriteActionBuildStatement(actionEntry)
 	case "SymlinkTree":
 		return a.symlinkTreeActionBuildStatement(actionEntry)
+	case "UnresolvedSymlink":
+		return a.unresolvedSymlinkActionBuildStatement(actionEntry)
 	}
 
 	if len(actionEntry.Arguments) < 1 {
-		return nil, fmt.Errorf("received action with no command: [%s]", actionEntry.Mnemonic)
+		return nil, errors.New("received action with no command")
 	}
 	return a.normalActionBuildStatement(actionEntry)
 

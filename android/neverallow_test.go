@@ -313,45 +313,6 @@ var neverallowTests = []struct {
 			"module \"outside_art_libraries\": violates neverallow",
 		},
 	},
-	{
-		name: "disallowed makefile_goal",
-		fs: map[string][]byte{
-			"Android.bp": []byte(`
-				makefile_goal {
-					name: "foo",
-					product_out_path: "boot/trap.img"
-				}
-			`),
-		},
-		expectedErrors: []string{
-			"Only boot images.* may be imported as a makefile goal",
-		},
-	},
-	{
-		name: "disallowed makefile_goal outside external",
-		fs: map[string][]byte{
-			"project/Android.bp": []byte(`
-				makefile_goal {
-					name: "foo",
-					product_out_path: "obj/EXE/foo",
-				}
-			`),
-		},
-		expectedErrors: []string{
-			"not in allowed projects",
-		},
-	},
-	{
-		name: "allow makefile_goal within external",
-		fs: map[string][]byte{
-			"frameworks/opt/net/wifi/libwifi_hal/Android.bp": []byte(`
-				makefile_goal {
-					name: "foo",
-					product_out_path: "obj/EXE/foo",
-				}
-			`),
-		},
-	},
 	// Tests for the rule prohibiting the use of framework
 	{
 		name: "prohibit framework",
@@ -383,6 +344,38 @@ var neverallowTests = []struct {
 			`module "outside_allowed_list": violates neverallow`,
 		},
 	},
+	// Test for the rule restricting use of exclude_static_libs
+	{
+		name: `"exclude_static_libs" outside allowed directory`,
+		fs: map[string][]byte{
+			"a/b/Android.bp": []byte(`
+				java_library {
+					name: "baz",
+					exclude_static_libs: [
+						"bar",
+					],
+				}
+			`),
+		},
+		expectedErrors: []string{
+			`exclude_static_libs property is only allowed for java modules defined in build/soong, libcore, and frameworks/base/api`,
+		},
+	},
+	// Test for only allowing headers_only for framework-minus-apex-headers
+	{
+		name: `"headers_only" outside framework-minus-apex-headers modules`,
+		fs: map[string][]byte{
+			"a/b/Android.bp": []byte(`
+				java_library {
+					name: "baz",
+					headers_only: true,
+				}
+			`),
+		},
+		expectedErrors: []string{
+			`headers_only can only be used for generating framework-minus-apex headers for non-updatable modules`,
+		},
+	},
 }
 
 var prepareForNeverAllowTest = GroupFixturePreparers(
@@ -391,7 +384,6 @@ var prepareForNeverAllowTest = GroupFixturePreparers(
 		ctx.RegisterModuleType("java_library", newMockJavaLibraryModule)
 		ctx.RegisterModuleType("java_library_host", newMockJavaLibraryModule)
 		ctx.RegisterModuleType("java_device_for_host", newMockJavaLibraryModule)
-		ctx.RegisterModuleType("makefile_goal", newMockMakefileGoalModule)
 	}),
 )
 
@@ -470,9 +462,11 @@ func (p *mockCcLibraryModule) GenerateAndroidBuildActions(ModuleContext) {
 }
 
 type mockJavaLibraryProperties struct {
-	Libs           []string
-	Sdk_version    *string
-	Uncompress_dex *bool
+	Libs                []string
+	Sdk_version         *string
+	Uncompress_dex      *bool
+	Exclude_static_libs []string
+	Headers_only        *bool
 }
 
 type mockJavaLibraryModule struct {
@@ -488,23 +482,4 @@ func newMockJavaLibraryModule() Module {
 }
 
 func (p *mockJavaLibraryModule) GenerateAndroidBuildActions(ModuleContext) {
-}
-
-type mockMakefileGoalProperties struct {
-	Product_out_path *string
-}
-
-type mockMakefileGoalModule struct {
-	ModuleBase
-	properties mockMakefileGoalProperties
-}
-
-func newMockMakefileGoalModule() Module {
-	m := &mockMakefileGoalModule{}
-	m.AddProperties(&m.properties)
-	InitAndroidModule(m)
-	return m
-}
-
-func (p *mockMakefileGoalModule) GenerateAndroidBuildActions(ModuleContext) {
 }

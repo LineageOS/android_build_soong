@@ -44,6 +44,7 @@ java\.util\.function
 java\.util\.jar
 java\.util\.logging
 java\.util\.prefs
+java\.util\.random
 java\.util\.regex
 java\.util\.spi
 java\.util\.stream
@@ -72,14 +73,17 @@ javax\.xml\.transform\.stream
 javax\.xml\.validation
 javax\.xml\.xpath
 jdk\.internal
+jdk\.internal\.access
 jdk\.internal\.math
 jdk\.internal\.misc
 jdk\.internal\.ref
 jdk\.internal\.reflect
 jdk\.internal\.util
 jdk\.internal\.util\.jar
+jdk\.internal\.util\.random
 jdk\.internal\.vm\.annotation
 jdk\.net
+jdk\.random
 org\.w3c\.dom
 org\.w3c\.dom\.ls
 org\.w3c\.dom\.traversal

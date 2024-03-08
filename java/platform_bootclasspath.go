@@ -26,7 +26,7 @@ func init() {
 }
 
 func registerPlatformBootclasspathBuildComponents(ctx android.RegistrationContext) {
-	ctx.RegisterSingletonModuleType("platform_bootclasspath", platformBootclasspathFactory)
+	ctx.RegisterParallelSingletonModuleType("platform_bootclasspath", platformBootclasspathFactory)
 }
 
 // The tags used for the dependencies between the platform bootclasspath and any configured boot
@@ -57,6 +57,9 @@ type platformBootclasspathModule struct {
 
 	// Path to the monolithic hiddenapi-unsupported.csv file.
 	hiddenAPIMetadataCSV android.OutputPath
+
+	// Path to a srcjar containing all the transitive sources of the bootclasspath.
+	srcjar android.OutputPath
 }
 
 type platformBootclasspathProperties struct {
@@ -95,6 +98,8 @@ func (b *platformBootclasspathModule) OutputFiles(tag string) (android.Paths, er
 		return android.Paths{b.hiddenAPIIndexCSV}, nil
 	case "hiddenapi-metadata.csv":
 		return android.Paths{b.hiddenAPIMetadataCSV}, nil
+	case ".srcjar":
+		return android.Paths{b.srcjar}, nil
 	}
 
 	return nil, fmt.Errorf("unknown tag %s", tag)
@@ -113,7 +118,7 @@ func (b *platformBootclasspathModule) DepsMutator(ctx android.BottomUpMutatorCon
 }
 
 func (b *platformBootclasspathModule) hiddenAPIDepsMutator(ctx android.BottomUpMutatorContext) {
-	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
+	if ctx.Config().DisableHiddenApiChecks() {
 		return
 	}
 
@@ -123,15 +128,15 @@ func (b *platformBootclasspathModule) hiddenAPIDepsMutator(ctx android.BottomUpM
 }
 
 func (b *platformBootclasspathModule) BootclasspathDepsMutator(ctx android.BottomUpMutatorContext) {
-	// Add dependencies on all the modules configured in the "art" boot image.
-	artImageConfig := genBootImageConfigs(ctx)[artBootImageName]
-	addDependenciesOntoBootImageModules(ctx, artImageConfig.modules, platformBootclasspathArtBootJarDepTag)
+	// Add dependencies on all the ART jars.
+	global := dexpreopt.GetGlobalConfig(ctx)
+	addDependenciesOntoBootImageModules(ctx, global.ArtApexJars, platformBootclasspathArtBootJarDepTag)
 
-	// Add dependencies on all the non-updatable module configured in the "boot" boot image. That does
-	// not include modules configured in the "art" boot image.
+	// Add dependencies on all the non-updatable jars, which are on the platform or in non-updatable
+	// APEXes.
 	addDependenciesOntoBootImageModules(ctx, b.platformJars(ctx), platformBootclasspathBootJarDepTag)
 
-	// Add dependencies on all the apex jars.
+	// Add dependencies on all the updatable jars, except the ART jars.
 	apexJars := dexpreopt.GetGlobalConfig(ctx).ApexBootJars
 	addDependenciesOntoBootImageModules(ctx, apexJars, platformBootclasspathApexBootJarDepTag)
 
@@ -173,6 +178,18 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 	allModules = append(allModules, apexModules...)
 	b.configuredModules = allModules
 
+	var transitiveSrcFiles android.Paths
+	for _, module := range allModules {
+		depInfo := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
+		if depInfo.TransitiveSrcFiles != nil {
+			transitiveSrcFiles = append(transitiveSrcFiles, depInfo.TransitiveSrcFiles.ToList()...)
+		}
+	}
+	jarArgs := resourcePathsToJarArgs(transitiveSrcFiles)
+	jarArgs = append(jarArgs, "-srcjar") // Move srcfiles to the right package
+	b.srcjar = android.PathForModuleOut(ctx, ctx.ModuleName()+"-transitive.srcjar").OutputPath
+	TransformResourcesToJar(ctx, b.srcjar, jarArgs, transitiveSrcFiles)
+
 	// Gather all the fragments dependencies.
 	b.fragments = gatherApexModulePairDepsWithTag(ctx, bootclasspathFragmentDepTag)
 
@@ -185,9 +202,6 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 
 	bootDexJarByModule := b.generateHiddenAPIBuildActions(ctx, b.configuredModules, b.fragments)
 	buildRuleForBootJarsPackageCheck(ctx, bootDexJarByModule)
-
-	b.generateBootImageBuildActions(ctx)
-	b.copyApexBootJarsForAppsDexpreopt(ctx, apexModules)
 }
 
 // Generate classpaths.proto config
@@ -218,7 +232,8 @@ func (b *platformBootclasspathModule) configuredJars(ctx android.ModuleContext) 
 }
 
 func (b *platformBootclasspathModule) platformJars(ctx android.PathContext) android.ConfiguredJarList {
-	return defaultBootImageConfig(ctx).modules.RemoveList(artBootImageConfig(ctx).modules)
+	global := dexpreopt.GetGlobalConfig(ctx)
+	return global.BootJars.RemoveList(global.ArtApexJars)
 }
 
 // checkPlatformModules ensures that the non-updatable modules supplied are not part of an
@@ -275,10 +290,10 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 
 	bootDexJarByModule := extractBootDexJarsFromModules(ctx, modules)
 
-	// Don't run any hiddenapi rules if UNSAFE_DISABLE_HIDDENAPI_FLAGS=true. This is a performance
+	// Don't run any hiddenapi rules if hidden api checks are disabled. This is a performance
 	// optimization that can be used to reduce the incremental build time but as its name suggests it
 	// can be unsafe to use, e.g. when the changes affect anything that goes on the bootclasspath.
-	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
+	if ctx.Config().DisableHiddenApiChecks() {
 		paths := android.OutputPaths{b.hiddenAPIFlagsCSV, b.hiddenAPIIndexCSV, b.hiddenAPIMetadataCSV}
 		for _, path := range paths {
 			ctx.Build(pctx, android.BuildParams{
@@ -397,80 +412,4 @@ func (b *platformBootclasspathModule) generateHiddenApiMakeVars(ctx android.Make
 	}
 	// INTERNAL_PLATFORM_HIDDENAPI_FLAGS is used by Make rules in art/ and cts/.
 	ctx.Strict("INTERNAL_PLATFORM_HIDDENAPI_FLAGS", b.hiddenAPIFlagsCSV.String())
-}
-
-// generateBootImageBuildActions generates ninja rules related to the boot image creation.
-func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.ModuleContext) {
-	// Force the GlobalSoongConfig to be created and cached for use by the dex_bootjars
-	// GenerateSingletonBuildActions method as it cannot create it for itself.
-	dexpreopt.GetGlobalSoongConfig(ctx)
-
-	global := dexpreopt.GetGlobalConfig(ctx)
-	if !shouldBuildBootImages(ctx.Config(), global) {
-		return
-	}
-
-	frameworkBootImageConfig := defaultBootImageConfig(ctx)
-	bootFrameworkProfileRule(ctx, frameworkBootImageConfig)
-	b.generateBootImage(ctx, frameworkBootImageName)
-	b.generateBootImage(ctx, mainlineBootImageName)
-	dumpOatRules(ctx, frameworkBootImageConfig)
-}
-
-func (b *platformBootclasspathModule) generateBootImage(ctx android.ModuleContext, imageName string) {
-	imageConfig := genBootImageConfigs(ctx)[imageName]
-
-	modules := b.getModulesForImage(ctx, imageConfig)
-
-	// Copy module dex jars to their predefined locations.
-	bootDexJarsByModule := extractEncodedDexJarsFromModules(ctx, modules)
-	copyBootJarsToPredefinedLocations(ctx, bootDexJarsByModule, imageConfig.dexPathsByModule)
-
-	// Build a profile for the image config and then use that to build the boot image.
-	profile := bootImageProfileRule(ctx, imageConfig)
-
-	// If dexpreopt of boot image jars should be skipped, generate only a profile.
-	global := dexpreopt.GetGlobalConfig(ctx)
-	if global.DisablePreoptBootImages {
-		return
-	}
-
-	// Build boot image files for the android variants.
-	androidBootImageFiles := buildBootImageVariantsForAndroidOs(ctx, imageConfig, profile)
-
-	// Zip the android variant boot image files up.
-	buildBootImageZipInPredefinedLocation(ctx, imageConfig, androidBootImageFiles.byArch)
-
-	// Build boot image files for the host variants. There are use directly by ART host side tests.
-	buildBootImageVariantsForBuildOs(ctx, imageConfig, profile)
-}
-
-// Copy apex module dex jars to their predefined locations. They will be used for dexpreopt for apps.
-func (b *platformBootclasspathModule) copyApexBootJarsForAppsDexpreopt(ctx android.ModuleContext, apexModules []android.Module) {
-	config := GetApexBootConfig(ctx)
-	apexBootDexJarsByModule := extractEncodedDexJarsFromModules(ctx, apexModules)
-	copyBootJarsToPredefinedLocations(ctx, apexBootDexJarsByModule, config.dexPathsByModule)
-}
-
-func (b *platformBootclasspathModule) getModulesForImage(ctx android.ModuleContext, imageConfig *bootImageConfig) []android.Module {
-	modules := make([]android.Module, 0, imageConfig.modules.Len())
-	for i := 0; i < imageConfig.modules.Len(); i++ {
-		found := false
-		for _, module := range b.configuredModules {
-			name := android.RemoveOptionalPrebuiltPrefix(module.Name())
-			if name == imageConfig.modules.Jar(i) {
-				modules = append(modules, module)
-				found = true
-				break
-			}
-		}
-		if !found && !ctx.Config().AllowMissingDependencies() {
-			ctx.ModuleErrorf(
-				"Boot image '%s' module '%s' not added as a dependency of platform_bootclasspath",
-				imageConfig.name,
-				imageConfig.modules.Jar(i))
-			return []android.Module{}
-		}
-	}
-	return modules
 }

@@ -35,48 +35,6 @@ const (
 	ninjaWeightListFileName = ".ninja_weight_list"
 )
 
-func useNinjaBuildLog(ctx Context, config Config, cmd *Cmd) {
-	ninjaLogFile := filepath.Join(config.OutDir(), ninjaLogFileName)
-	data, err := os.ReadFile(ninjaLogFile)
-	var outputBuilder strings.Builder
-	if err == nil {
-		lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-		// ninja log: <start>	<end>	<restat>	<name>	<cmdhash>
-		// ninja weight list: <name>,<end-start+1>
-		for _, line := range lines {
-			if strings.HasPrefix(line, "#") {
-				continue
-			}
-			fields := strings.Split(line, "\t")
-			path := fields[3]
-			start, err := strconv.Atoi(fields[0])
-			if err != nil {
-				continue
-			}
-			end, err := strconv.Atoi(fields[1])
-			if err != nil {
-				continue
-			}
-			outputBuilder.WriteString(path)
-			outputBuilder.WriteString(",")
-			outputBuilder.WriteString(strconv.Itoa(end-start+1) + "\n")
-		}
-	} else {
-		// If there is no ninja log file, just pass empty ninja weight list.
-		// Because it is still efficient with critical path calculation logic even without weight.
-		ctx.Verbosef("There is an error during reading ninja log, so ninja will use empty weight list: %s", err)
-	}
-
-	weightListFile := filepath.Join(config.OutDir(), ninjaWeightListFileName)
-
-	err = os.WriteFile(weightListFile, []byte(outputBuilder.String()), 0644)
-	if err == nil {
-		cmd.Args = append(cmd.Args, "-o", "usesweightlist="+weightListFile)
-	} else {
-		ctx.Panicf("Could not write ninja weight list file %s", err)
-	}
-}
-
 // Constructs and runs the Ninja command line with a restricted set of
 // environment variables. It's important to restrict the environment Ninja runs
 // for hermeticity reasons, and to avoid spurious rebuilds.
@@ -131,7 +89,7 @@ func runNinjaForBuild(ctx Context, config Config) {
 
 	switch config.NinjaWeightListSource() {
 	case NINJA_LOG:
-		useNinjaBuildLog(ctx, config, cmd)
+		cmd.Args = append(cmd.Args, "-o", "usesninjalogasweightlist=yes")
 	case EVENLY_DISTRIBUTED:
 		// pass empty weight list means ninja considers every tasks's weight as 1(default value).
 		cmd.Args = append(cmd.Args, "-o", "usesweightlist=/dev/null")
@@ -236,6 +194,10 @@ func runNinjaForBuild(ctx Context, config Config) {
 
 			// LLVM compiler wrapper options
 			"TOOLCHAIN_RUSAGE_OUTPUT",
+
+			// We don't want this build broken flag to cause reanalysis, so allow it through to the
+			// actions.
+			"BUILD_BROKEN_INCORRECT_PARTITION_IMAGES",
 		}, config.BuildBrokenNinjaUsesEnvVars()...)...)
 	}
 

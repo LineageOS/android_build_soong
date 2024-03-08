@@ -48,15 +48,13 @@ func TestVendorSnapshotCapture(t *testing.T) {
 		crate_name: "rustvendor_available",
 		srcs: ["lib.rs"],
 		vendor_available: true,
-		include_dirs: ["rust_headers/"],
 	}
 
-	rust_library_rlib {
+	rust_library {
 		name: "librustvendor",
 		crate_name: "rustvendor",
 		srcs: ["lib.rs"],
 		vendor: true,
-		include_dirs: ["rust_headers/"],
 	}
 
 	rust_binary {
@@ -116,7 +114,7 @@ func TestVendorSnapshotCapture(t *testing.T) {
 			filepath.Join(staticDir, "libffivendor.a.json"))
 
 		// For rlib libraries, all vendor:true and vendor_available modules (including VNDK) are captured.
-		rlibVariant := fmt.Sprintf("android_vendor.29_%s_%s_rlib_rlib-std", archType, archVariant)
+		rlibVariant := fmt.Sprintf("android_vendor.29_%s_%s_rlib_dylib-std", archType, archVariant)
 		rlibDir := filepath.Join(snapshotVariantPath, archDir, "rlib")
 		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librustvendor_available", "librustvendor_available.rlib", rlibDir, rlibVariant)
 		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librustvendor", "librustvendor.rlib", rlibDir, rlibVariant)
@@ -124,6 +122,25 @@ func TestVendorSnapshotCapture(t *testing.T) {
 			filepath.Join(rlibDir, "librustvendor_available.rlib.json"))
 		jsonFiles = append(jsonFiles,
 			filepath.Join(rlibDir, "librustvendor.rlib.json"))
+
+		// For rlib libraries, all rlib-std variants vendor:true and vendor_available modules (including VNDK) are captured.
+		rlibStdVariant := fmt.Sprintf("android_vendor.29_%s_%s_rlib_rlib-std", archType, archVariant)
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librustvendor_available", "librustvendor_available.rlib-std.rlib", rlibDir, rlibStdVariant)
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librustvendor", "librustvendor.rlib-std.rlib", rlibDir, rlibStdVariant)
+		jsonFiles = append(jsonFiles,
+			filepath.Join(rlibDir, "librustvendor_available.rlib.json"))
+		jsonFiles = append(jsonFiles,
+			filepath.Join(rlibDir, "librustvendor.rlib.json"))
+
+		// For dylib libraries, all vendor:true and vendor_available modules (including VNDK) are captured.
+		dylibVariant := fmt.Sprintf("android_vendor.29_%s_%s_dylib", archType, archVariant)
+		dylibDir := filepath.Join(snapshotVariantPath, archDir, "dylib")
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librustvendor_available", "librustvendor_available.dylib.so", dylibDir, dylibVariant)
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librustvendor", "librustvendor.dylib.so", dylibDir, dylibVariant)
+		jsonFiles = append(jsonFiles,
+			filepath.Join(dylibDir, "librustvendor_available.dylib.so.json"))
+		jsonFiles = append(jsonFiles,
+			filepath.Join(dylibDir, "librustvendor.dylib.so.json"))
 
 		// For binary executables, all vendor:true and vendor_available modules are captured.
 		if archType == "arm64" {
@@ -209,21 +226,32 @@ func TestVendorSnapshotDirected(t *testing.T) {
 		archDir := fmt.Sprintf("arch-%s-%s", archType, archVariant)
 
 		sharedVariant := fmt.Sprintf("android_vendor.29_%s_%s_shared", archType, archVariant)
-		rlibVariant := fmt.Sprintf("android_vendor.29_%s_%s_rlib_rlib-std", archType, archVariant)
+		rlibVariant := fmt.Sprintf("android_vendor.29_%s_%s_rlib_dylib-std", archType, archVariant)
+		rlibRlibStdVariant := fmt.Sprintf("android_vendor.29_%s_%s_rlib_rlib-std", archType, archVariant)
 		sharedDir := filepath.Join(snapshotVariantPath, archDir, "shared")
 		rlibDir := filepath.Join(snapshotVariantPath, archDir, "rlib")
+		dylibVariant := fmt.Sprintf("android_vendor.29_%s_%s_dylib", archType, archVariant)
+		dylibDir := filepath.Join(snapshotVariantPath, archDir, "dylib")
 
 		// Included modules
 		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librustvendor_available", "librustvendor_available.rlib", rlibDir, rlibVariant)
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librustvendor_available", "librustvendor_available.rlib-std.rlib", rlibDir, rlibRlibStdVariant)
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librustvendor_available", "librustvendor_available.dylib.so", dylibDir, dylibVariant)
 		cc.CheckSnapshot(t, ctx, snapshotSingleton, "libffivendor_available", "libffivendor_available.so", sharedDir, sharedVariant)
 		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "librustvendor_available.rlib.json"))
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "librustvendor_available.rlib-std.rlib.json"))
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(dylibDir, "librustvendor_available.dylib.so.json"))
 		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "libffivendor_available.so.json"))
 
 		// Excluded modules. Modules not included in the directed vendor snapshot
 		// are still include as fake modules.
 		cc.CheckSnapshotRule(t, ctx, snapshotSingleton, "librustvendor_exclude", "librustvendor_exclude.rlib", rlibDir, rlibVariant)
+		cc.CheckSnapshotRule(t, ctx, snapshotSingleton, "librustvendor_exclude", "librustvendor_exclude.rlib-std.rlib", rlibDir, rlibRlibStdVariant)
+		cc.CheckSnapshotRule(t, ctx, snapshotSingleton, "librustvendor_exclude", "librustvendor_exclude.dylib.so", dylibDir, dylibVariant)
 		cc.CheckSnapshotRule(t, ctx, snapshotSingleton, "libffivendor_exclude", "libffivendor_exclude.so", sharedDir, sharedVariant)
 		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "librustvendor_exclude.rlib.json"))
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "librustvendor_exclude.rlib-std.rlib.json"))
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(dylibDir, "librustvendor_exclude.dylib.so.json"))
 		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "libffivendor_exclude.so.json"))
 	}
 
@@ -274,7 +302,7 @@ func TestVendorSnapshotExclude(t *testing.T) {
 			vendor_available: true,
 		}
 
-		rust_library_rlib {
+		rust_library {
 			name: "librust_exclude",
 			crate_name: "rust_exclude",
 			srcs: ["exclude.rs"],
@@ -308,6 +336,14 @@ func TestVendorSnapshotExclude(t *testing.T) {
 	cc.AssertExcludeFromVendorSnapshotIs(t, ctx, "librust_exclude", true, rlibVendorVariant)
 	cc.AssertExcludeFromVendorSnapshotIs(t, ctx, "librust_available_exclude", true, rlibVendorVariant)
 
+	cc.AssertExcludeFromVendorSnapshotIs(t, ctx, "librust_include", false, rlibDylibStdVendorVariant)
+	cc.AssertExcludeFromVendorSnapshotIs(t, ctx, "librust_exclude", true, rlibDylibStdVendorVariant)
+	cc.AssertExcludeFromVendorSnapshotIs(t, ctx, "librust_available_exclude", true, rlibDylibStdVendorVariant)
+
+	cc.AssertExcludeFromVendorSnapshotIs(t, ctx, "librust_include", false, dylibVendorVariant)
+	cc.AssertExcludeFromVendorSnapshotIs(t, ctx, "librust_exclude", true, dylibVendorVariant)
+	cc.AssertExcludeFromVendorSnapshotIs(t, ctx, "librust_available_exclude", true, dylibVendorVariant)
+
 	// Verify the content of the vendor snapshot.
 
 	snapshotDir := "vendor-snapshot"
@@ -327,14 +363,22 @@ func TestVendorSnapshotExclude(t *testing.T) {
 
 		sharedVariant := fmt.Sprintf("android_vendor.29_%s_%s_shared", archType, archVariant)
 		sharedDir := filepath.Join(snapshotVariantPath, archDir, "shared")
-		rlibVariant := fmt.Sprintf("android_vendor.29_%s_%s_rlib_rlib-std", archType, archVariant)
+
+		rlibVariant := fmt.Sprintf("android_vendor.29_%s_%s_rlib_dylib-std", archType, archVariant)
+		rlibRlibStdVariant := fmt.Sprintf("android_vendor.29_%s_%s_rlib_rlib-std", archType, archVariant)
 		rlibDir := filepath.Join(snapshotVariantPath, archDir, "rlib")
+		dylibVariant := fmt.Sprintf("android_vendor.29_%s_%s_dylib", archType, archVariant)
+		dylibDir := filepath.Join(snapshotVariantPath, archDir, "dylib")
 
 		// Included modules
 		cc.CheckSnapshot(t, ctx, snapshotSingleton, "libinclude", "libinclude.so", sharedDir, sharedVariant)
 		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "libinclude.so.json"))
 		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librust_include", "librust_include.rlib", rlibDir, rlibVariant)
 		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "librust_include.rlib.json"))
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librust_include", "librust_include.rlib-std.rlib", rlibDir, rlibRlibStdVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "librust_include.rlib-std.rlib.json"))
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librust_include", "librust_include.dylib.so", dylibDir, dylibVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(dylibDir, "librust_include.dylib.so.json"))
 
 		// Excluded modules
 		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "libexclude", "libexclude.so", sharedDir, sharedVariant)
@@ -345,6 +389,12 @@ func TestVendorSnapshotExclude(t *testing.T) {
 		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(rlibDir, "librust_exclude.rlib.json"))
 		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "librust_available_exclude", "librust_available_exclude.rlib", rlibDir, rlibVariant)
 		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(rlibDir, "librust_available_exclude.rlib.json"))
+		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "librust_available_exclude", "librust_available_exclude.rlib-std.rlib", rlibDir, rlibRlibStdVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(rlibDir, "librust_available_exclude.rlib.rlib-std.json"))
+		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "librust_exclude", "librust_exclude.dylib.so", dylibDir, dylibVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(dylibDir, "librust_exclude.dylib.so.json"))
+		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "librust_available_exclude", "librust_available_exclude.dylib.so", dylibDir, dylibVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(dylibDir, "librust_available_exclude.dylib.so.json"))
 	}
 
 	// Verify that each json file for an included module has a rule.
@@ -525,7 +575,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		srcs: ["client.rs"],
 	}
 
-	rust_library_rlib {
+	rust_library {
 		name: "libclient_rust",
 		crate_name: "client_rust",
 		vendor: true,
@@ -572,6 +622,11 @@ func TestVendorSnapshotUse(t *testing.T) {
 				rlibs: [
 					"libstd",
 					"librust_vendor_available",
+					"librust_vendor_available.rlib-std"
+				],
+				dylibs: [
+					"libstd",
+					"librust_vendor_available",
 				],
 				binaries: [
 					"bin",
@@ -597,6 +652,10 @@ func TestVendorSnapshotUse(t *testing.T) {
 					"lib32",
 				],
 				rlibs: [
+					"libstd",
+					"librust_vendor_available",
+				],
+				dylibs: [
 					"libstd",
 					"librust_vendor_available",
 				],
@@ -675,6 +734,52 @@ func TestVendorSnapshotUse(t *testing.T) {
 			},
 			arm: {
 				src: "librust_vendor_available.rlib",
+			},
+		},
+	}
+
+	vendor_snapshot_rlib {
+		name: "librust_vendor_available.rlib-std",
+		version: "30",
+		target_arch: "arm64",
+		vendor: true,
+		arch: {
+			arm64: {
+				src: "librust_vendor_available.rlib-std.rlib",
+			},
+			arm: {
+				src: "librust_vendor_available.rlib-std.rlib",
+			},
+		},
+	}
+
+	vendor_snapshot_dylib {
+		name: "libstd",
+		version: "30",
+		target_arch: "arm64",
+		vendor: true,
+		sysroot: true,
+		arch: {
+			arm64: {
+				src: "libstd.dylib.so",
+			},
+			arm: {
+				src: "libstd.dylib.so",
+			},
+		},
+	}
+
+	vendor_snapshot_dylib {
+		name: "librust_vendor_available",
+		version: "30",
+		target_arch: "arm64",
+		vendor: true,
+		arch: {
+			arm64: {
+				src: "librust_vendor_available.dylib.so",
+			},
+			arm: {
+				src: "librust_vendor_available.dylib.so",
 			},
 		},
 	}
@@ -921,6 +1026,9 @@ func TestVendorSnapshotUse(t *testing.T) {
 		"vendor/liblog.so":                              nil,
 		"vendor/libstd.rlib":                            nil,
 		"vendor/librust_vendor_available.rlib":          nil,
+		"vendor/librust_vendor_available.rlib-std.rlib": nil,
+		"vendor/libstd.dylib.so":                        nil,
+		"vendor/librust_vendor_available.dylib.so":      nil,
 		"vendor/crtbegin_so.o":                          nil,
 		"vendor/crtend_so.o":                            nil,
 		"vendor/libclang_rt.builtins-aarch64-android.a": nil,
@@ -931,7 +1039,9 @@ func TestVendorSnapshotUse(t *testing.T) {
 	}
 
 	sharedVariant := "android_vendor.30_arm64_armv8-a_shared"
-	rlibVariant := "android_vendor.30_arm64_armv8-a_rlib_rlib-std"
+	rlibVariant := "android_vendor.30_arm64_armv8-a_rlib_dylib-std"
+	rlibRlibStdVariant := "android_vendor.30_arm64_armv8-a_rlib_rlib-std"
+	dylibVariant := "android_vendor.30_arm64_armv8-a_dylib"
 	staticVariant := "android_vendor.30_arm64_armv8-a_static"
 	binaryVariant := "android_vendor.30_arm64_armv8-a"
 
@@ -941,7 +1051,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 	ctx := testRustVndkFsVersions(t, "", mockFS, "30", "current", "31")
 
 	// libclient uses libvndk.vndk.30.arm64, libvendor.vendor_static.30.arm64, libvendor_without_snapshot
-	libclientLdFlags := ctx.ModuleForTests("libclient", sharedVariant).Rule("rustLink").Args["linkFlags"]
+	libclientLdFlags := ctx.ModuleForTests("libclient", sharedVariant).Rule("rustc").Args["linkFlags"]
 	for _, input := range [][]string{
 		[]string{sharedVariant, "libvndk.vndk.30.arm64"},
 		[]string{staticVariant, "libvendor.vendor_static.30.arm64"},
@@ -953,7 +1063,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		}
 	}
 
-	libclientAndroidMkSharedLibs := ctx.ModuleForTests("libclient", sharedVariant).Module().(*Module).Properties.AndroidMkSharedLibs
+	libclientAndroidMkSharedLibs := ctx.ModuleForTests("libclient", sharedVariant).Module().(*Module).transitiveAndroidMkSharedLibs.ToList()
 	if g, w := libclientAndroidMkSharedLibs, []string{"libvndk.vendor", "libvendor_available.vendor", "lib64", "liblog.vendor", "libc.vendor", "libm.vendor", "libdl.vendor"}; !reflect.DeepEqual(g, w) {
 		t.Errorf("wanted libclient AndroidMkSharedLibs %q, got %q", w, g)
 	}
@@ -963,41 +1073,53 @@ func TestVendorSnapshotUse(t *testing.T) {
 		t.Errorf("wanted libclient AndroidMkStaticLibs %q, got %q", w, g)
 	}
 
-	libclientAndroidMkRlibs := ctx.ModuleForTests("libclient", sharedVariant).Module().(*Module).Properties.AndroidMkRlibs
-	if g, w := libclientAndroidMkRlibs, []string{"librust_vendor_available.vendor.rlib-std", "libstd.vendor"}; !reflect.DeepEqual(g, w) {
-		t.Errorf("wanted libclient libclientAndroidMkRlibs %q, got %q", w, g)
-	}
-
 	libclientAndroidMkDylibs := ctx.ModuleForTests("libclient", sharedVariant).Module().(*Module).Properties.AndroidMkDylibs
-	if len(libclientAndroidMkDylibs) > 0 {
-		t.Errorf("wanted libclient libclientAndroidMkDylibs [], got %q", libclientAndroidMkDylibs)
+	if g, w := libclientAndroidMkDylibs, []string{"librust_vendor_available.vendor", "libstd.vendor"}; !reflect.DeepEqual(g, w) {
+		t.Errorf("wanted libclient libclientAndroidMkDylibs %q, got %q", w, libclientAndroidMkDylibs)
 	}
 
-	libclient32AndroidMkSharedLibs := ctx.ModuleForTests("libclient", shared32Variant).Module().(*Module).Properties.AndroidMkSharedLibs
+	libclient32AndroidMkSharedLibs := ctx.ModuleForTests("libclient", shared32Variant).Module().(*Module).transitiveAndroidMkSharedLibs.ToList()
 	if g, w := libclient32AndroidMkSharedLibs, []string{"libvndk.vendor", "libvendor_available.vendor", "lib32", "liblog.vendor", "libc.vendor", "libm.vendor", "libdl.vendor"}; !reflect.DeepEqual(g, w) {
 		t.Errorf("wanted libclient32 AndroidMkSharedLibs %q, got %q", w, g)
 	}
 
 	libclientRustAndroidMkRlibs := ctx.ModuleForTests("libclient_rust", rlibVariant).Module().(*Module).Properties.AndroidMkRlibs
-	if g, w := libclientRustAndroidMkRlibs, []string{"librust_vendor_available.vendor.rlib-std", "libstd.vendor"}; !reflect.DeepEqual(g, w) {
-		t.Errorf("wanted libclient libclientAndroidMkRlibs %q, got %q", w, g)
+	if g, w := libclientRustAndroidMkRlibs, []string{"librust_vendor_available.vendor"}; !reflect.DeepEqual(g, w) {
+		t.Errorf("wanted rlib libclient libclientAndroidMkRlibs %q, got %q", w, g)
+	}
+
+	libclientRlibStdRustAndroidMkRlibs := ctx.ModuleForTests("libclient_rust", rlibRlibStdVariant).Module().(*Module).Properties.AndroidMkRlibs
+	if g, w := libclientRlibStdRustAndroidMkRlibs, []string{"librust_vendor_available.vendor.rlib-std", "libstd.vendor"}; !reflect.DeepEqual(g, w) {
+		t.Errorf("wanted rlib libclient libclientAndroidMkRlibs %q, got %q", w, g)
+	}
+
+	libclientRustDylibAndroidMkDylibs := ctx.ModuleForTests("libclient_rust", dylibVariant).Module().(*Module).Properties.AndroidMkDylibs
+	if g, w := libclientRustDylibAndroidMkDylibs, []string{"librust_vendor_available.vendor", "libstd.vendor"}; !reflect.DeepEqual(g, w) {
+		t.Errorf("wanted dylib libclient libclientRustDylibAndroidMkDylibs %q, got %q", w, g)
 	}
 
 	// rust vendor snapshot must have ".vendor" suffix in AndroidMk
 	librustVendorAvailableSnapshotModule := ctx.ModuleForTests("librust_vendor_available.vendor_rlib.30.arm64", rlibVariant).Module()
 	librustVendorSnapshotMkName := android.AndroidMkEntriesForTest(t, ctx, librustVendorAvailableSnapshotModule)[0].EntryMap["LOCAL_MODULE"][0]
-	expectedRustVendorSnapshotName := "librust_vendor_available.vendor.rlib-std"
+	expectedRustVendorSnapshotName := "librust_vendor_available.vendor"
 	if librustVendorSnapshotMkName != expectedRustVendorSnapshotName {
 		t.Errorf("Unexpected rust vendor snapshot name in AndroidMk: %q, expected: %q\n", librustVendorSnapshotMkName, expectedRustVendorSnapshotName)
 	}
 
-	rustVendorBinModule := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Module()
-	rustVendorBinMkRlibName := android.AndroidMkEntriesForTest(t, ctx, rustVendorBinModule)[0].EntryMap["LOCAL_RLIB_LIBRARIES"][0]
-	if rustVendorBinMkRlibName != expectedRustVendorSnapshotName {
-		t.Errorf("Unexpected rust rlib name in AndroidMk: %q, expected: %q\n", rustVendorBinMkRlibName, expectedRustVendorSnapshotName)
+	librustVendorAvailableDylibSnapshotModule := ctx.ModuleForTests("librust_vendor_available.vendor_dylib.30.arm64", dylibVariant).Module()
+	librustVendorSnapshotDylibMkName := android.AndroidMkEntriesForTest(t, ctx, librustVendorAvailableDylibSnapshotModule)[0].EntryMap["LOCAL_MODULE"][0]
+	expectedRustVendorDylibSnapshotName := "librust_vendor_available.vendor"
+	if librustVendorSnapshotDylibMkName != expectedRustVendorDylibSnapshotName {
+		t.Errorf("Unexpected rust vendor snapshot name in AndroidMk: %q, expected: %q\n", librustVendorSnapshotDylibMkName, expectedRustVendorDylibSnapshotName)
 	}
 
-	binWithoutSnapshotLdFlags := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Rule("rustLink").Args["linkFlags"]
+	rustVendorBinModule := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Module()
+	rustVendorBinMkDylibName := android.AndroidMkEntriesForTest(t, ctx, rustVendorBinModule)[0].EntryMap["LOCAL_DYLIB_LIBRARIES"][0]
+	if rustVendorBinMkDylibName != expectedRustVendorSnapshotName {
+		t.Errorf("Unexpected rust rlib name in AndroidMk: %q, expected: %q\n", rustVendorBinMkDylibName, expectedRustVendorSnapshotName)
+	}
+
+	binWithoutSnapshotLdFlags := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Rule("rustc").Args["linkFlags"]
 	libVndkStaticOutputPaths := cc.GetOutputPaths(ctx, staticVariant, []string{"libvndk.vendor_static.30.arm64"})
 	if !strings.Contains(binWithoutSnapshotLdFlags, libVndkStaticOutputPaths[0].String()) {
 		t.Errorf("libflags for bin_without_snapshot must contain %#v, but was %#v",
@@ -1051,18 +1173,18 @@ func TestRecoverySnapshotCapture(t *testing.T) {
 		crate_name: "recovery_available",
 	}
 
-	rust_library_rlib {
-		name: "librecovery_rlib",
+	rust_library {
+		name: "librecovery_rustlib",
 		recovery: true,
 		srcs: ["foo.rs"],
-		crate_name: "recovery_rlib",
+		crate_name: "recovery_rustlib",
 	}
 
-	rust_library_rlib {
-		name: "librecovery_available_rlib",
+	rust_library {
+		name: "librecovery_available_rustlib",
 		recovery_available: true,
 		srcs: ["foo.rs"],
-		crate_name: "recovery_available_rlib",
+		crate_name: "recovery_available_rustlib",
 	}
 
 	rust_binary {
@@ -1113,13 +1235,29 @@ func TestRecoverySnapshotCapture(t *testing.T) {
 			filepath.Join(staticDir, "librecovery_available.a.json"))
 
 		// For rlib libraries, all recovery:true and recovery_available modules are captured.
-		rlibVariant := fmt.Sprintf("android_recovery_%s_%s_rlib_rlib-std", archType, archVariant)
+		rlibVariant := fmt.Sprintf("android_recovery_%s_%s_rlib_dylib-std", archType, archVariant)
 		rlibDir := filepath.Join(snapshotVariantPath, archDir, "rlib")
-		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery_rlib", "librecovery_rlib.rlib", rlibDir, rlibVariant)
-		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery_available_rlib", "librecovery_available_rlib.rlib", rlibDir, rlibVariant)
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery_rustlib", "librecovery_rustlib.rlib", rlibDir, rlibVariant)
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery_available_rustlib", "librecovery_available_rustlib.rlib", rlibDir, rlibVariant)
 		jsonFiles = append(jsonFiles,
-			filepath.Join(rlibDir, "librecovery_rlib.rlib.json"),
-			filepath.Join(rlibDir, "librecovery_available_rlib.rlib.json"))
+			filepath.Join(rlibDir, "librecovery_rustlib.rlib.json"),
+			filepath.Join(rlibDir, "librecovery_available_rustlib.rlib.json"))
+
+		rlibRlibStdVariant := fmt.Sprintf("android_recovery_%s_%s_rlib_rlib-std", archType, archVariant)
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery_rustlib", "librecovery_rustlib.rlib-std.rlib", rlibDir, rlibRlibStdVariant)
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery_available_rustlib", "librecovery_available_rustlib.rlib-std.rlib", rlibDir, rlibRlibStdVariant)
+		jsonFiles = append(jsonFiles,
+			filepath.Join(rlibDir, "librecovery_rustlib.rlib-std.rlib.json"),
+			filepath.Join(rlibDir, "librecovery_available_rustlib.rlib-std.rlib.json"))
+
+		// For dylib libraries, all recovery:true and recovery_available modules are captured.
+		dylibVariant := fmt.Sprintf("android_recovery_%s_%s_dylib", archType, archVariant)
+		dylibDir := filepath.Join(snapshotVariantPath, archDir, "dylib")
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery_rustlib", "librecovery_rustlib.dylib.so", dylibDir, dylibVariant)
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery_available_rustlib", "librecovery_available_rustlib.dylib.so", dylibDir, dylibVariant)
+		jsonFiles = append(jsonFiles,
+			filepath.Join(dylibDir, "librecovery_rustlib.dylib.so.json"),
+			filepath.Join(dylibDir, "librecovery_available_rustlib.dylib.so.json"))
 
 		// For binary executables, all recovery:true and recovery_available modules are captured.
 		if archType == "arm64" {
@@ -1169,25 +1307,25 @@ func TestRecoverySnapshotExclude(t *testing.T) {
 			exclude_from_recovery_snapshot: true,
 			crate_name: "available_exclude",
 		}
-		rust_library_rlib {
-			name: "libinclude_rlib",
+		rust_library {
+			name: "libinclude_rustlib",
 			srcs: ["src/include.rs"],
 			recovery_available: true,
-			crate_name: "include_rlib",
+			crate_name: "include_rustlib",
 		}
-		rust_library_rlib {
-			name: "libexclude_rlib",
+		rust_library {
+			name: "libexclude_rustlib",
 			srcs: ["src/exclude.rs"],
 			recovery: true,
 			exclude_from_recovery_snapshot: true,
-			crate_name: "exclude_rlib",
+			crate_name: "exclude_rustlib",
 		}
-		rust_library_rlib {
-			name: "libavailable_exclude_rlib",
+		rust_library {
+			name: "libavailable_exclude_rustlib",
 			srcs: ["src/exclude.rs"],
 			recovery_available: true,
 			exclude_from_recovery_snapshot: true,
-			crate_name: "available_exclude_rlib",
+			crate_name: "available_exclude_rustlib",
 		}
 	`
 
@@ -1198,11 +1336,11 @@ func TestRecoverySnapshotExclude(t *testing.T) {
 			recovery: true,
 			crate_name: "recovery",
 		}
-		rust_library_rlib {
-			name: "librecovery_rlib",
+		rust_library {
+			name: "librecovery_rustlib",
 			srcs: ["recovery.rs"],
 			recovery: true,
-			crate_name: "recovery_rlib",
+			crate_name: "recovery_rustlib",
 		}
 	`
 
@@ -1220,14 +1358,25 @@ func TestRecoverySnapshotExclude(t *testing.T) {
 	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libinclude", false, sharedRecoveryVariant)
 	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libexclude", true, sharedRecoveryVariant)
 	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libavailable_exclude", true, sharedRecoveryVariant)
-	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libinclude_rlib", false, rlibRecoveryVariant)
-	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libexclude_rlib", true, rlibRecoveryVariant)
-	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libavailable_exclude_rlib", true, rlibRecoveryVariant)
+
+	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libinclude_rustlib", false, rlibRecoveryVariant)
+	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libexclude_rustlib", true, rlibRecoveryVariant)
+	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libavailable_exclude_rustlib", true, rlibRlibStdRecoveryVariant)
+
+	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libinclude_rustlib", false, rlibRlibStdRecoveryVariant)
+	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libexclude_rustlib", true, rlibRlibStdRecoveryVariant)
+	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libavailable_exclude_rustlib", true, rlibRlibStdRecoveryVariant)
+
+	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libinclude_rustlib", false, dylibRecoveryVariant)
+	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libexclude_rustlib", true, dylibRecoveryVariant)
+	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "libavailable_exclude_rustlib", true, dylibRecoveryVariant)
 
 	// A recovery module is excluded, but by its path not the exclude_from_recovery_snapshot property
 	// ('device/' and 'vendor/' are default excluded). See snapshot/recovery_snapshot.go for more detail.
 	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "librecovery", false, sharedRecoveryVariant)
-	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "librecovery_rlib", false, rlibRecoveryVariant)
+	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "librecovery_rustlib", false, rlibRecoveryVariant)
+	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "librecovery_rustlib", false, rlibRlibStdRecoveryVariant)
+	cc.AssertExcludeFromRecoverySnapshotIs(t, ctx, "librecovery_rustlib", false, dylibRecoveryVariant)
 
 	// Verify the content of the recovery snapshot.
 
@@ -1246,15 +1395,21 @@ func TestRecoverySnapshotExclude(t *testing.T) {
 		archDir := fmt.Sprintf("arch-%s-%s", archType, archVariant)
 
 		sharedVariant := fmt.Sprintf("android_recovery_%s_%s_shared", archType, archVariant)
-		rlibVariant := fmt.Sprintf("android_recovery_%s_%s_rlib_rlib-std", archType, archVariant)
+		rlibVariant := fmt.Sprintf("android_recovery_%s_%s_rlib_dylib-std", archType, archVariant)
+		rlibRlibStdVariant := fmt.Sprintf("android_recovery_%s_%s_rlib_rlib-std", archType, archVariant)
+		dylibVariant := fmt.Sprintf("android_recovery_%s_%s_dylib", archType, archVariant)
 		sharedDir := filepath.Join(snapshotVariantPath, archDir, "shared")
 		rlibDir := filepath.Join(snapshotVariantPath, archDir, "rlib")
+		dylibDir := filepath.Join(snapshotVariantPath, archDir, "dylib")
 
 		// Included modules
+
 		cc.CheckSnapshot(t, ctx, snapshotSingleton, "libinclude", "libinclude.so", sharedDir, sharedVariant)
 		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "libinclude.so.json"))
-		cc.CheckSnapshot(t, ctx, snapshotSingleton, "libinclude_rlib", "libinclude_rlib.rlib", rlibDir, rlibVariant)
-		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "libinclude_rlib.rlib.json"))
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "libinclude_rustlib", "libinclude_rustlib.rlib", rlibDir, rlibVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "libinclude_rustlib.rlib.json"))
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "libinclude_rustlib", "libinclude_rustlib.rlib-std.rlib", rlibDir, rlibRlibStdVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "libinclude_rustlib.rlib-std.rlib.json"))
 
 		// Excluded modules
 		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "libexclude", "libexclude.so", sharedDir, sharedVariant)
@@ -1263,12 +1418,27 @@ func TestRecoverySnapshotExclude(t *testing.T) {
 		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(sharedDir, "librecovery.so.json"))
 		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "libavailable_exclude", "libavailable_exclude.so", sharedDir, sharedVariant)
 		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(sharedDir, "libavailable_exclude.so.json"))
-		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "libexclude_rlib", "libexclude_rlib.rlib", rlibDir, rlibVariant)
-		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(rlibDir, "libexclude_rlib.rlib.json"))
-		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "librecovery_rlib", "librecovery_rlib.rlib", rlibDir, rlibVariant)
-		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(rlibDir, "librecovery_rlib.rlib.json"))
-		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "libavailable_exclude_rlib", "libavailable_exclude_rlib.rlib", rlibDir, rlibVariant)
-		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(rlibDir, "libavailable_exclude_rlib.rlib.json"))
+
+		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "libexclude_rustlib", "libexclude_rustlib.rlib", rlibDir, rlibVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(rlibDir, "libexclude_rustlib.rlib.json"))
+		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "librecovery_rustlib", "librecovery_rustlib.rlib", rlibDir, rlibVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(rlibDir, "librecovery_rustlib.rlib.json"))
+		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "libavailable_exclude_rustlib", "libavailable_exclude_rustlib.rlib", rlibDir, rlibVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(rlibDir, "libavailable_exclude_rustlib.rlib.json"))
+
+		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "libexclude_rustlib", "libexclude_rustlib.rlib-std.rlib", rlibDir, rlibRlibStdVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(rlibDir, "libexclude_rustlib.rlib-std.rlib.json"))
+		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "librecovery_rustlib", "librecovery_rustlib.rlib-std.rlib", rlibDir, rlibRlibStdVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(rlibDir, "librecovery_rustlib.rlib-std.rlib.json"))
+		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "libavailable_exclude_rustlib", "libavailable_exclude_rustlib.rlib-std.rlib", rlibDir, rlibRlibStdVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(rlibDir, "libavailable_exclude_rustlib.rlib-std.rlib.json"))
+
+		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "libexclude_rustlib", "libexclude_rustlib.dylib.so", dylibDir, dylibVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(rlibDir, "libexclude_rustlib.dylib.so.json"))
+		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "librecovery_rustlib", "librecovery_rustlib.dylib.so", dylibDir, dylibVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(rlibDir, "librecovery_rustlib.dylib.so.json"))
+		cc.CheckSnapshotExclude(t, ctx, snapshotSingleton, "libavailable_exclude_rustlib", "libavailable_exclude_rustlib.dylib.so", dylibDir, dylibVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(rlibDir, "libavailable_exclude_rustlib.dylib.so.json"))
 	}
 
 	// Verify that each json file for an included module has a rule.
@@ -1302,15 +1472,15 @@ func TestRecoverySnapshotDirected(t *testing.T) {
 		srcs: ["foo.rs"],
 	}
 
-	rust_library_rlib {
-		name: "librecovery_rlib",
+	rust_library {
+		name: "librecovery_rustlib",
 		recovery: true,
 		crate_name: "recovery",
 		srcs: ["foo.rs"],
 	}
 
-	rust_library_rlib {
-		name: "librecovery_available_rlib",
+	rust_library {
+		name: "librecovery_available_rustlib",
 		recovery_available: true,
 		crate_name: "recovery_available",
 		srcs: ["foo.rs"],
@@ -1335,7 +1505,7 @@ func TestRecoverySnapshotDirected(t *testing.T) {
 	ctx := testRustRecoveryFsVersions(t, bp, rustMockedFiles, "current", "29", "current")
 	ctx.Config().TestProductVariables.RecoverySnapshotModules = make(map[string]bool)
 	ctx.Config().TestProductVariables.RecoverySnapshotModules["librecovery"] = true
-	ctx.Config().TestProductVariables.RecoverySnapshotModules["librecovery_rlib"] = true
+	ctx.Config().TestProductVariables.RecoverySnapshotModules["librecovery_rustlib"] = true
 	ctx.Config().TestProductVariables.DirectedRecoverySnapshot = true
 
 	// Check recovery snapshot output.
@@ -1353,15 +1523,22 @@ func TestRecoverySnapshotDirected(t *testing.T) {
 		archDir := fmt.Sprintf("arch-%s-%s", archType, archVariant)
 
 		sharedVariant := fmt.Sprintf("android_recovery_%s_%s_shared", archType, archVariant)
-		rlibVariant := fmt.Sprintf("android_recovery_%s_%s_rlib_rlib-std", archType, archVariant)
+		rlibVariant := fmt.Sprintf("android_recovery_%s_%s_rlib_dylib-std", archType, archVariant)
+		rlibRlibStdVariant := fmt.Sprintf("android_recovery_%s_%s_rlib_rlib-std", archType, archVariant)
+		dylibVariant := fmt.Sprintf("android_recovery_%s_%s_dylib", archType, archVariant)
 		sharedDir := filepath.Join(snapshotVariantPath, archDir, "shared")
 		rlibDir := filepath.Join(snapshotVariantPath, archDir, "rlib")
+		dylibDir := filepath.Join(snapshotVariantPath, archDir, "dylib")
 
 		// Included modules
 		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery", "librecovery.so", sharedDir, sharedVariant)
 		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "librecovery.so.json"))
-		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery_rlib", "librecovery_rlib.rlib", rlibDir, rlibVariant)
-		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "librecovery_rlib.rlib.json"))
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery_rustlib", "librecovery_rustlib.rlib", rlibDir, rlibVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "librecovery_rustlib.rlib.json"))
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery_rustlib", "librecovery_rustlib.rlib-std.rlib", rlibDir, rlibRlibStdVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "librecovery_rustlib.rlib-std.rlib.json"))
+		cc.CheckSnapshot(t, ctx, snapshotSingleton, "librecovery_rustlib", "librecovery_rustlib.dylib.so", dylibDir, dylibVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(dylibDir, "librecovery_rustlib.dylib.so.json"))
 
 		// TODO: When Rust supports the "prefer" property for prebuilts, perform this check.
 		/*
@@ -1374,8 +1551,12 @@ func TestRecoverySnapshotDirected(t *testing.T) {
 		// are still included as fake modules.
 		cc.CheckSnapshotRule(t, ctx, snapshotSingleton, "librecovery_available", "librecovery_available.so", sharedDir, sharedVariant)
 		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "librecovery_available.so.json"))
-		cc.CheckSnapshotRule(t, ctx, snapshotSingleton, "librecovery_available_rlib", "librecovery_available_rlib.rlib", rlibDir, rlibVariant)
-		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "librecovery_available_rlib.rlib.json"))
+		cc.CheckSnapshotRule(t, ctx, snapshotSingleton, "librecovery_available_rustlib", "librecovery_available_rustlib.rlib", rlibDir, rlibVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "librecovery_available_rustlib.rlib.json"))
+		cc.CheckSnapshotRule(t, ctx, snapshotSingleton, "librecovery_available_rustlib", "librecovery_available_rustlib.rlib-std.rlib", rlibDir, rlibRlibStdVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(rlibDir, "librecovery_available_rustlib.rlib-std.rlib.json"))
+		cc.CheckSnapshotRule(t, ctx, snapshotSingleton, "librecovery_available_rustlib", "librecovery_available_rustlib.dylib.so", dylibDir, dylibVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(dylibDir, "librecovery_available_rustlib.dylib.so.json"))
 	}
 
 	// Verify that each json file for an included module has a rule.

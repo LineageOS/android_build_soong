@@ -21,7 +21,6 @@ package config
 var VndkMustUseVendorVariantList = []string{
 	"android.hardware.nfc@1.2",
 	"libbinder",
-	"libdumpstateutil",
 	"libcrypto",
 	"libexpat",
 	"libgatekeeper",

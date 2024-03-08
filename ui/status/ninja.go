@@ -20,6 +20,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -40,10 +41,11 @@ func NewNinjaReader(ctx logger.Logger, status ToolStatus, fifo string) *NinjaRea
 	}
 
 	n := &NinjaReader{
-		status: status,
-		fifo:   fifo,
-		done:   make(chan bool),
-		cancel: make(chan bool),
+		status:     status,
+		fifo:       fifo,
+		forceClose: make(chan bool),
+		done:       make(chan bool),
+		cancelOpen: make(chan bool),
 	}
 
 	go n.run()
@@ -52,10 +54,11 @@ func NewNinjaReader(ctx logger.Logger, status ToolStatus, fifo string) *NinjaRea
 }
 
 type NinjaReader struct {
-	status ToolStatus
-	fifo   string
-	done   chan bool
-	cancel chan bool
+	status     ToolStatus
+	fifo       string
+	forceClose chan bool
+	done       chan bool
+	cancelOpen chan bool
 }
 
 const NINJA_READER_CLOSE_TIMEOUT = 5 * time.Second
@@ -63,18 +66,34 @@ const NINJA_READER_CLOSE_TIMEOUT = 5 * time.Second
 // Close waits for NinjaReader to finish reading from the fifo, or 5 seconds.
 func (n *NinjaReader) Close() {
 	// Signal the goroutine to stop if it is blocking opening the fifo.
-	close(n.cancel)
+	close(n.cancelOpen)
 
+	// Ninja should already have exited or been killed, wait 5 seconds for the FIFO to be closed and any
+	// remaining messages to be processed through the NinjaReader.run goroutine.
 	timeoutCh := time.After(NINJA_READER_CLOSE_TIMEOUT)
-
 	select {
 	case <-n.done:
-		// Nothing
+		return
 	case <-timeoutCh:
-		n.status.Error(fmt.Sprintf("ninja fifo didn't finish after %s", NINJA_READER_CLOSE_TIMEOUT.String()))
+		// Channel is not closed yet
 	}
 
-	return
+	n.status.Error(fmt.Sprintf("ninja fifo didn't finish after %s", NINJA_READER_CLOSE_TIMEOUT.String()))
+
+	// Force close the reader even if the FIFO didn't close.
+	close(n.forceClose)
+
+	// Wait again for the reader thread to acknowledge the close before giving up and assuming it isn't going
+	// to send anything else.
+	timeoutCh = time.After(NINJA_READER_CLOSE_TIMEOUT)
+	select {
+	case <-n.done:
+		return
+	case <-timeoutCh:
+		// Channel is not closed yet
+	}
+
+	n.status.Verbose(fmt.Sprintf("ninja fifo didn't finish even after force closing after %s", NINJA_READER_CLOSE_TIMEOUT.String()))
 }
 
 func (n *NinjaReader) run() {
@@ -98,7 +117,7 @@ func (n *NinjaReader) run() {
 	select {
 	case f = <-fileCh:
 		// Nothing
-	case <-n.cancel:
+	case <-n.cancelOpen:
 		return
 	}
 
@@ -108,34 +127,80 @@ func (n *NinjaReader) run() {
 
 	running := map[uint32]*Action{}
 
+	msgChan := make(chan *ninja_frontend.Status)
+
+	// Read from the ninja fifo and decode the protobuf in a goroutine so the main NinjaReader.run goroutine
+	// can listen
+	go func() {
+		defer close(msgChan)
+		for {
+			size, err := readVarInt(r)
+			if err != nil {
+				if err != io.EOF {
+					n.status.Error(fmt.Sprintf("Got error reading from ninja: %s", err))
+				}
+				return
+			}
+
+			buf := make([]byte, size)
+			_, err = io.ReadFull(r, buf)
+			if err != nil {
+				if err == io.EOF {
+					n.status.Print(fmt.Sprintf("Missing message of size %d from ninja\n", size))
+				} else {
+					n.status.Error(fmt.Sprintf("Got error reading from ninja: %s", err))
+				}
+				return
+			}
+
+			msg := &ninja_frontend.Status{}
+			err = proto.Unmarshal(buf, msg)
+			if err != nil {
+				n.status.Print(fmt.Sprintf("Error reading message from ninja: %v", err))
+				continue
+			}
+
+			msgChan <- msg
+		}
+	}()
+
 	for {
-		size, err := readVarInt(r)
-		if err != nil {
-			if err != io.EOF {
-				n.status.Error(fmt.Sprintf("Got error reading from ninja: %s", err))
+		var msg *ninja_frontend.Status
+		var msgOk bool
+		select {
+		case <-n.forceClose:
+			// Close() has been called, but the reader goroutine didn't get EOF after 5 seconds
+			break
+		case msg, msgOk = <-msgChan:
+			// msg is ready or closed
+		}
+
+		if !msgOk {
+			// msgChan is closed
+			break
+		}
+
+		if msg.BuildStarted != nil {
+			parallelism := uint32(runtime.NumCPU())
+			if msg.BuildStarted.GetParallelism() > 0 {
+				parallelism = msg.BuildStarted.GetParallelism()
 			}
-			return
-		}
+			// It is estimated from total time / parallelism assumming the build is packing enough.
+			estimatedDurationFromTotal := time.Duration(msg.BuildStarted.GetEstimatedTotalTime()/parallelism) * time.Millisecond
+			// It is estimated from critical path time which is useful for small size build.
+			estimatedDurationFromCriticalPath := time.Duration(msg.BuildStarted.GetCriticalPathTime()) * time.Millisecond
+			// Select the longer one.
+			estimatedDuration := max(estimatedDurationFromTotal, estimatedDurationFromCriticalPath)
 
-		buf := make([]byte, size)
-		_, err = io.ReadFull(r, buf)
-		if err != nil {
-			if err == io.EOF {
-				n.status.Print(fmt.Sprintf("Missing message of size %d from ninja\n", size))
-			} else {
-				n.status.Error(fmt.Sprintf("Got error reading from ninja: %s", err))
+			if estimatedDuration > 0 {
+				n.status.SetEstimatedTime(time.Now().Add(estimatedDuration))
+				n.status.Verbose(fmt.Sprintf("parallelism: %d, estimated from total time: %s, critical path time: %s",
+					parallelism,
+					estimatedDurationFromTotal,
+					estimatedDurationFromCriticalPath))
+
 			}
-			return
 		}
-
-		msg := &ninja_frontend.Status{}
-		err = proto.Unmarshal(buf, msg)
-		if err != nil {
-			n.status.Print(fmt.Sprintf("Error reading message from ninja: %v", err))
-			continue
-		}
-
-		// Ignore msg.BuildStarted
 		if msg.TotalEdges != nil {
 			n.status.SetTotalActions(int(msg.TotalEdges.GetTotalEdges()))
 		}
@@ -174,6 +239,7 @@ func (n *NinjaReader) run() {
 						IOOutputKB:                 msg.EdgeFinished.GetIoOutputKb(),
 						VoluntaryContextSwitches:   msg.EdgeFinished.GetVoluntaryContextSwitches(),
 						InvoluntaryContextSwitches: msg.EdgeFinished.GetInvoluntaryContextSwitches(),
+						Tags:                       msg.EdgeFinished.GetTags(),
 					},
 				})
 			}

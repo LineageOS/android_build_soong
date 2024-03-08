@@ -16,7 +16,6 @@ package java
 
 import (
 	"android/soong/android"
-	"android/soong/bazel"
 )
 
 func init() {
@@ -34,8 +33,6 @@ func PluginFactory() android.Module {
 	module.AddProperties(&module.pluginProperties)
 
 	InitJavaModule(module, android.HostSupported)
-
-	android.InitBazelModule(module)
 
 	return module
 }
@@ -55,36 +52,4 @@ type PluginProperties struct {
 	// This necessitates disabling the turbine optimization on modules that use this plugin, which will reduce
 	// parallelism and cause more recompilation for modules that depend on modules that use this plugin.
 	Generates_api *bool
-}
-
-type pluginAttributes struct {
-	*javaCommonAttributes
-	Deps            bazel.LabelListAttribute
-	Processor_class *string
-}
-
-// ConvertWithBp2build is used to convert android_app to Bazel.
-func (p *Plugin) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
-	pluginName := p.Name()
-	commonAttrs, bp2BuildInfo := p.convertLibraryAttrsBp2Build(ctx)
-	depLabels := bp2BuildInfo.DepLabels
-
-	deps := depLabels.Deps
-	deps.Append(depLabels.StaticDeps)
-
-	var processorClass *string
-	if p.pluginProperties.Processor_class != nil {
-		processorClass = p.pluginProperties.Processor_class
-	}
-
-	attrs := &pluginAttributes{
-		javaCommonAttributes: commonAttrs,
-		Deps:                 deps,
-		Processor_class:      processorClass,
-	}
-
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class: "java_plugin",
-	}
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: pluginName}, attrs)
 }

@@ -33,19 +33,59 @@ dist_targets = [
     "win_sdk",
 ]
 
-java_library {
-    name: "core.current.stubs",
+java_defaults {
+    name: "core.current.stubs.defaults",
     visibility: ["//visibility:public"],
+    sdk_version: "none",
+    system_modules: "none",
+    dist: {
+        targets: dist_targets,
+    },
+}
+
+java_library {
+    name: "core.current.stubs.from-source",
+    defaults: [
+        "core.current.stubs.defaults",
+    ],
     static_libs: [
         "art.module.public.api.stubs",
         "conscrypt.module.public.api.stubs",
         "i18n.module.public.api.stubs",
     ],
-    sdk_version: "none",
-    system_modules: "none",
+}
 
-    dist: {
-        targets: dist_targets,
+java_api_library {
+    name: "core.current.stubs.from-text",
+    api_surface: "core",
+    api_contributions: [
+        "art.module.public.api.stubs.source.api.contribution",
+        "conscrypt.module.public.api.stubs.source.api.contribution",
+        "i18n.module.public.api.stubs.source.api.contribution",
+    ],
+    libs: [
+        "stub-annotations",
+    ],
+    enable_validation: false,
+}
+
+java_library {
+    name: "core.current.stubs",
+    defaults: [
+        "core.current.stubs.defaults",
+    ],
+    static_libs: [
+        "core.current.stubs.from-source",
+    ],
+    product_variables: {
+        build_from_text_stub: {
+            static_libs: [
+                "core.current.stubs.from-text",
+            ],
+            exclude_static_libs: [
+                "core.current.stubs.from-source",
+            ],
+        },
     },
 }
 
@@ -120,12 +160,42 @@ java_system_modules {
     ],
 }
 
+java_defaults {
+    name: "core.module_lib.stubs.defaults",
+    visibility: ["//visibility:private"],
+    sdk_version: "none",
+    system_modules: "none",
+}
+
 // A stubs target containing the parts of the public SDK & @SystemApi(MODULE_LIBRARIES) API
 // provided by the core libraries.
 //
 // Don't use this directly, use "sdk_version: module_current".
 java_library {
     name: "core.module_lib.stubs",
+    defaults: [
+        "core.module_lib.stubs.defaults",
+    ],
+    static_libs: [
+        "core.module_lib.stubs.from-source",
+    ],
+    product_variables: {
+        build_from_text_stub: {
+            static_libs: [
+                "core.module_lib.stubs.from-text",
+            ],
+            exclude_static_libs: [
+                "core.module_lib.stubs.from-source",
+            ],
+        },
+    },
+}
+
+java_library {
+    name: "core.module_lib.stubs.from-source",
+    defaults: [
+        "core.module_lib.stubs.defaults",
+    ],
     static_libs: [
         "art.module.public.api.stubs.module_lib",
 
@@ -135,8 +205,25 @@ java_library {
         "conscrypt.module.public.api.stubs",
         "i18n.module.public.api.stubs",
     ],
-    sdk_version: "none",
-    system_modules: "none",
+}
+
+java_api_library {
+    name: "core.module_lib.stubs.from-text",
+    api_surface: "module-lib",
+    api_contributions: [
+        "art.module.public.api.stubs.source.api.contribution",
+        "art.module.public.api.stubs.source.system.api.contribution",
+        "art.module.public.api.stubs.source.module_lib.api.contribution",
+
+        // Add the module-lib correspondence when Conscrypt or i18N module
+        // provides @SystemApi(MODULE_LIBRARIES). Currently, assume that only ART module provides
+        // @SystemApi(MODULE_LIBRARIES).
+        "conscrypt.module.public.api.stubs.source.api.contribution",
+        "i18n.module.public.api.stubs.source.api.contribution",
+    ],
+    libs: [
+        "stub-annotations",
+    ],
     visibility: ["//visibility:private"],
 }
 
@@ -199,18 +286,72 @@ core_platform_visibility = ["//visibility:public"]
 // API annotations are available to the dex tools that enable enforcement of runtime
 // accessibility. b/119068555
 java_library {
-    name: "legacy.core.platform.api.stubs",
+    name: "legacy.core.platform.api.stubs.from-source",
     visibility: core_platform_visibility,
-    hostdex: true,
-    compile_dex: true,
-
-    sdk_version: "none",
-    system_modules: "none",
+    defaults: [
+        "core.platform.api.stubs.defaults",
+    ],
     static_libs: [
         "art.module.public.api.stubs.module_lib",
         "conscrypt.module.platform.api.stubs",
         "legacy.i18n.module.platform.api.stubs",
     ],
+}
+
+java_defaults {
+    name: "android_core_platform_stubs_current_contributions",
+    api_surface: "core_platform",
+    api_contributions: [
+        "art.module.public.api.stubs.source.api.contribution",
+        "art.module.public.api.stubs.source.system.api.contribution",
+        "art.module.public.api.stubs.source.module_lib.api.contribution",
+        "conscrypt.module.platform.api.stubs.source.api.contribution",
+        "i18n.module.public.api.stubs.source.api.contribution",
+    ],
+}
+
+java_api_library {
+    name: "legacy.core.platform.api.stubs.from-text",
+    api_surface: "core_platform",
+    defaults: [
+        "android_core_platform_stubs_current_contributions",
+    ],
+    api_contributions: [
+        "legacy.i18n.module.platform.api.stubs.source.api.contribution",
+    ],
+    libs: [
+        "stub-annotations",
+    ],
+}
+
+java_library {
+    name: "legacy.core.platform.api.stubs",
+    visibility: core_platform_visibility,
+    defaults: [
+        "core.platform.api.stubs.defaults",
+    ],
+    static_libs: [
+        "legacy.core.platform.api.stubs.from-source",
+    ],
+    product_variables: {
+        build_from_text_stub: {
+            static_libs: [
+                "legacy.core.platform.api.stubs.from-text",
+            ],
+            exclude_static_libs: [
+                "legacy.core.platform.api.stubs.from-source",
+            ],
+        },
+    },
+}
+
+java_defaults {
+    name: "core.platform.api.stubs.defaults",
+    hostdex: true,
+    compile_dex: true,
+
+    sdk_version: "none",
+    system_modules: "none",
     patch_module: "java.base",
 }
 
@@ -233,20 +374,52 @@ java_library {
 }
 
 java_library {
-    name: "stable.core.platform.api.stubs",
+    name: "stable.core.platform.api.stubs.from-source",
     visibility: core_platform_visibility,
-    hostdex: true,
-    compile_dex: true,
-
-    sdk_version: "none",
-    system_modules: "none",
+    defaults: [
+        "core.platform.api.stubs.defaults",
+    ],
     static_libs: [
         "art.module.public.api.stubs.module_lib",
         // conscrypt only has a stable version, so it is okay to depend on it here:
         "conscrypt.module.platform.api.stubs",
         "stable.i18n.module.platform.api.stubs",
     ],
-    patch_module: "java.base",
+}
+
+java_api_library {
+    name: "stable.core.platform.api.stubs.from-text",
+    api_surface: "core_platform",
+    defaults: [
+        "android_core_platform_stubs_current_contributions",
+    ],
+    api_contributions: [
+        "stable.i18n.module.platform.api.stubs.source.api.contribution",
+    ],
+    libs: [
+        "stub-annotations",
+    ],
+}
+
+java_library {
+    name: "stable.core.platform.api.stubs",
+    visibility: core_platform_visibility,
+    defaults: [
+        "core.platform.api.stubs.defaults",
+    ],
+    static_libs: [
+        "stable.core.platform.api.stubs.from-source",
+    ],
+    product_variables: {
+        build_from_text_stub: {
+            static_libs: [
+                "stable.core.platform.api.stubs.from-text",
+            ],
+            exclude_static_libs: [
+                "stable.core.platform.api.stubs.from-source",
+            ],
+        },
+    },
 }
 
 // Same as stable.core.platform.api.stubs, but android annotations are
@@ -351,7 +524,3 @@ java_system_modules {
         "art-module-intra-core-api-stubs-system-modules-lib",
     ],
 }
-
-build = [
-    "TxtStubLibraries.bp",
-]

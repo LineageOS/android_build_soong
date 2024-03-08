@@ -18,13 +18,11 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/bazel"
 	"android/soong/java/config"
 	"android/soong/remoteexec"
 )
@@ -48,6 +46,7 @@ func RegisterStubsBuildComponents(ctx android.RegistrationContext) {
 // Droidstubs
 type Droidstubs struct {
 	Javadoc
+	embeddableInModuleAndImport
 
 	properties              DroidstubsProperties
 	apiFile                 android.Path
@@ -123,7 +122,7 @@ type DroidstubsProperties struct {
 	Generate_stubs *bool
 
 	// if set to true, provides a hint to the build system that this rule uses a lot of memory,
-	// whicih can be used for scheduling purposes
+	// which can be used for scheduling purposes
 	High_mem *bool
 
 	// if set to true, Metalava will allow framework SDK to contain API levels annotations.
@@ -172,6 +171,10 @@ type ApiStubsProvider interface {
 	ApiStubsSrcProvider
 }
 
+type currentApiTimestampProvider interface {
+	CurrentApiTimestamp() android.Path
+}
+
 // droidstubs passes sources files through Metalava to generate stub .java files that only contain the API to be
 // documented, filtering out hidden classes and methods.  The resulting .java files are intended to be passed to
 // a droiddoc module to generate documentation.
@@ -180,6 +183,7 @@ func DroidstubsFactory() android.Module {
 
 	module.AddProperties(&module.properties,
 		&module.Javadoc.properties)
+	module.initModuleAndImport(module)
 
 	InitDroiddocModule(module, android.HostAndDeviceSupported)
 
@@ -239,10 +243,15 @@ func (d *Droidstubs) StubsSrcJar() android.Path {
 	return d.stubsSrcJar
 }
 
+func (d *Droidstubs) CurrentApiTimestamp() android.Path {
+	return d.checkCurrentApiTimestamp
+}
+
 var metalavaMergeAnnotationsDirTag = dependencyTag{name: "metalava-merge-annotations-dir"}
 var metalavaMergeInclusionAnnotationsDirTag = dependencyTag{name: "metalava-merge-inclusion-annotations-dir"}
 var metalavaAPILevelsAnnotationsDirTag = dependencyTag{name: "metalava-api-levels-annotations-dir"}
 var metalavaAPILevelsModuleTag = dependencyTag{name: "metalava-api-levels-module-tag"}
+var metalavaCurrentApiTimestampTag = dependencyTag{name: "metalava-current-api-timestamp-tag"}
 
 func (d *Droidstubs) DepsMutator(ctx android.BottomUpMutatorContext) {
 	d.Javadoc.addDeps(ctx)
@@ -314,9 +323,7 @@ func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuil
 
 func (d *Droidstubs) annotationsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand) {
 	if Bool(d.properties.Annotations_enabled) {
-		cmd.Flag("--include-annotations")
-
-		cmd.FlagWithArg("--exclude-annotation ", "androidx.annotation.RequiresApi")
+		cmd.Flag(config.MetalavaAnnotationsFlags)
 
 		validatingNullability :=
 			strings.Contains(String(d.Javadoc.properties.Args), "--validate-nullability-from-merged-stubs") ||
@@ -344,14 +351,7 @@ func (d *Droidstubs) annotationsFlags(ctx android.ModuleContext, cmd *android.Ru
 			d.mergeAnnoDirFlags(ctx, cmd)
 		}
 
-		// TODO(tnorbye): find owners to fix these warnings when annotation was enabled.
-		cmd.FlagWithArg("--hide ", "HiddenTypedefConstant").
-			FlagWithArg("--hide ", "SuperfluousPrefix").
-			FlagWithArg("--hide ", "AnnotationExtraction").
-			// b/222738070
-			FlagWithArg("--hide ", "BannedThrow").
-			// b/223382732
-			FlagWithArg("--hide ", "ChangedDefault")
+		cmd.Flag(config.MetalavaAnnotationsWarningsFlags)
 	}
 }
 
@@ -498,42 +498,42 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 	if metalavaUseRbe(ctx) {
 		rule.Remoteable(android.RemoteRuleSupports{RBE: true})
 		execStrategy := ctx.Config().GetenvWithDefault("RBE_METALAVA_EXEC_STRATEGY", remoteexec.LocalExecStrategy)
+		compare := ctx.Config().IsEnvTrue("RBE_METALAVA_COMPARE")
+		remoteUpdateCache := !ctx.Config().IsEnvFalse("RBE_METALAVA_REMOTE_UPDATE_CACHE")
 		labels := map[string]string{"type": "tool", "name": "metalava"}
 		// TODO: metalava pool rejects these jobs
 		pool := ctx.Config().GetenvWithDefault("RBE_METALAVA_POOL", "java16")
 		rule.Rewrapper(&remoteexec.REParams{
-			Labels:          labels,
-			ExecStrategy:    execStrategy,
-			ToolchainInputs: []string{config.JavaCmd(ctx).String()},
-			Platform:        map[string]string{remoteexec.PoolKey: pool},
+			Labels:              labels,
+			ExecStrategy:        execStrategy,
+			ToolchainInputs:     []string{config.JavaCmd(ctx).String()},
+			Platform:            map[string]string{remoteexec.PoolKey: pool},
+			Compare:             compare,
+			NumLocalRuns:        1,
+			NumRemoteRuns:       1,
+			NoRemoteUpdateCache: !remoteUpdateCache,
 		})
 	}
 
 	cmd.BuiltTool("metalava").ImplicitTool(ctx.Config().HostJavaToolPath(ctx, "metalava.jar")).
 		Flag(config.JavacVmFlags).
-		Flag("-J--add-opens=java.base/java.util=ALL-UNNAMED").
-		FlagWithArg("-encoding ", "UTF-8").
-		FlagWithArg("-source ", javaVersion.String()).
+		Flag(config.MetalavaAddOpens).
+		FlagWithArg("--java-source ", javaVersion.String()).
 		FlagWithRspFileInputList("@", android.PathForModuleOut(ctx, "metalava.rsp"), srcs).
 		FlagWithInput("@", srcJarList)
 
-	if len(bootclasspath) > 0 {
-		cmd.FlagWithInputList("-bootclasspath ", bootclasspath.Paths(), ":")
+	// Metalava does not differentiate between bootclasspath and classpath and has not done so for
+	// years, so it is unlikely to change any time soon.
+	combinedPaths := append(([]android.Path)(nil), bootclasspath.Paths()...)
+	combinedPaths = append(combinedPaths, classpath.Paths()...)
+	if len(combinedPaths) > 0 {
+		cmd.FlagWithInputList("--classpath ", combinedPaths, ":")
 	}
 
-	if len(classpath) > 0 {
-		cmd.FlagWithInputList("-classpath ", classpath.Paths(), ":")
+	cmd.Flag(config.MetalavaFlags)
+	if ctx.DeviceConfig().HideFlaggedApis() {
+		cmd.Flag(config.MetalavaHideFlaggedApis)
 	}
-
-	cmd.Flag("--no-banner").
-		Flag("--color").
-		Flag("--quiet").
-		Flag("--format=v2").
-		FlagWithArg("--repeat-errors-max ", "10").
-		FlagWithArg("--hide ", "UnresolvedImport").
-		FlagWithArg("--hide ", "InvalidNullabilityOverride").
-		// b/223382732
-		FlagWithArg("--hide ", "ChangedDefault")
 
 	return cmd
 }
@@ -688,6 +688,13 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		cmd.FlagWithArg("--error-message:compatibility:released ", msg)
 	}
 
+	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") {
+		// Pass the current API file into metalava so it can use it as the basis for determining how to
+		// generate the output signature files (both api and removed).
+		currentApiFile := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Current.Api_file))
+		cmd.FlagWithInput("--use-same-format-as ", currentApiFile)
+	}
+
 	if generateStubs {
 		rule.Command().
 			BuiltTool("soong_zip").
@@ -768,6 +775,11 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			`         m %s-update-current-api\n\n`+
 			`      To submit the revised current.txt to the main Android repository,\n`+
 			`      you will need approval.\n`+
+			`If your build failed due to stub validation, you can resolve the errors with\n`+
+			`either of the two choices above and try re-building the target.\n`+
+			`If the mismatch between the stubs and the current.txt is intended,\n`+
+			`you can try re-building the target by executing the following command:\n`+
+			`m DISABLE_STUB_VALIDATION=true <your build target>\n`+
 			`******************************\n`, ctx.ModuleName())
 
 		rule.Command().
@@ -842,34 +854,6 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 }
 
-var _ android.ApiProvider = (*Droidstubs)(nil)
-
-type bazelJavaApiContributionAttributes struct {
-	Api         bazel.LabelAttribute
-	Api_surface *string
-}
-
-func (d *Droidstubs) ConvertWithApiBp2build(ctx android.TopDownMutatorContext) {
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "java_api_contribution",
-		Bzl_load_location: "//build/bazel/rules/apis:java_api_contribution.bzl",
-	}
-	apiFile := d.properties.Check_api.Current.Api_file
-	// Do not generate a target if check_api is not set
-	if apiFile == nil {
-		return
-	}
-	attrs := &bazelJavaApiContributionAttributes{
-		Api: *bazel.MakeLabelAttribute(
-			android.BazelLabelForModuleSrcSingle(ctx, proptools.String(apiFile)).Label,
-		),
-		Api_surface: proptools.StringPtr(bazelApiSurfaceName(d.Name())),
-	}
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{
-		Name: android.ApiContributionTargetName(ctx.ModuleName()),
-	}, attrs)
-}
-
 func (d *Droidstubs) createApiContribution(ctx android.DefaultableHookContext) {
 	api_file := d.properties.Check_api.Current.Api_file
 	api_surface := d.properties.Api_surface
@@ -909,28 +893,6 @@ var (
 	}
 )
 
-// A helper function that returns the api surface of the corresponding java_api_contribution Bazel target
-// The api_surface is populated using the naming convention of the droidstubs module.
-func bazelApiSurfaceName(name string) string {
-	// Sort the keys so that longer strings appear first
-	// Otherwise substrings like system will match both system and system_server
-	sortedKeys := make([]string, 0)
-	for key := range droidstubsModuleNamingToSdkKind {
-		sortedKeys = append(sortedKeys, key)
-	}
-	sort.Slice(sortedKeys, func(i, j int) bool {
-		return len(sortedKeys[i]) > len(sortedKeys[j])
-	})
-	for _, sortedKey := range sortedKeys {
-		if strings.Contains(name, sortedKey) {
-			sdkKind := droidstubsModuleNamingToSdkKind[sortedKey]
-			return sdkKind.String() + "api"
-		}
-	}
-	// Default is publicapi
-	return android.SdkPublic.String() + "api"
-}
-
 func StubsDefaultsFactory() android.Module {
 	module := &DocDefaults{}
 
@@ -953,6 +915,8 @@ type PrebuiltStubsSourcesProperties struct {
 type PrebuiltStubsSources struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
+	embeddableInModuleAndImport
+
 	prebuilt android.Prebuilt
 
 	properties PrebuiltStubsSourcesProperties
@@ -1031,6 +995,7 @@ func PrebuiltStubsSourcesFactory() android.Module {
 	module := &PrebuiltStubsSources{}
 
 	module.AddProperties(&module.properties)
+	module.initModuleAndImport(module)
 
 	android.InitPrebuiltModule(module, &module.properties.Srcs)
 	InitDroiddocModule(module, android.HostAndDeviceSupported)

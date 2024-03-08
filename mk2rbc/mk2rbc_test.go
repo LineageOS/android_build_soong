@@ -193,6 +193,31 @@ def init(g, handle):
 	},
 
 	{
+		desc:   "Include with trailing whitespace",
+		mkname: "product.mk",
+		in: `
+# has a trailing whitespace after cfg.mk
+include vendor/$(foo)/cfg.mk 
+`,
+		expected: `# has a trailing whitespace after cfg.mk
+load("//build/make/core:product_config.rbc", "rblf")
+load("//vendor/foo1:cfg.star|init", _cfg_init = "init")
+load("//vendor/bar/baz:cfg.star|init", _cfg1_init = "init")
+
+def init(g, handle):
+  cfg = rblf.cfg(handle)
+  _entry = {
+    "vendor/foo1/cfg.mk": ("vendor/foo1/cfg", _cfg_init),
+    "vendor/bar/baz/cfg.mk": ("vendor/bar/baz/cfg", _cfg1_init),
+  }.get("vendor/%s/cfg.mk" % _foo)
+  (_varmod, _varmod_init) = _entry if _entry else (None, None)
+  if not _varmod_init:
+    rblf.mkerror("product.mk", "Cannot find %s" % ("vendor/%s/cfg.mk" % _foo))
+  _varmod_init(g, handle)
+`,
+	},
+
+	{
 		desc:   "Synonymous inherited configurations",
 		mkname: "path/product.mk",
 		in: `
@@ -898,8 +923,6 @@ def init(g, handle):
   cfg["PRODUCT_LIST2"] += ["a"]
   cfg["PRODUCT_LIST1"] += ["b"]
   cfg["PRODUCT_LIST2"] += ["b"]
-  if cfg.get("PRODUCT_LIST3") == None:
-    cfg["PRODUCT_LIST3"] = ["a"]
   cfg["PRODUCT_LIST1"] = ["c"]
   g.setdefault("PLATFORM_LIST", [])
   g["PLATFORM_LIST"] += ["x"]
@@ -941,9 +964,10 @@ PRODUCT_LIST1 = a $(PRODUCT_LIST1)
 PRODUCT_LIST2 ?= a $(PRODUCT_LIST2)
 PRODUCT_LIST3 += a
 
-# Now doing them again should not have a setdefault because they've already been set
+# Now doing them again should not have a setdefault because they've already been set, except 2
+# which did not emit an assignment before
 PRODUCT_LIST1 = a $(PRODUCT_LIST1)
-PRODUCT_LIST2 ?= a $(PRODUCT_LIST2)
+PRODUCT_LIST2 = a $(PRODUCT_LIST2)
 PRODUCT_LIST3 += a
 `,
 		expected: `# All of these should have a setdefault because they're self-referential and not defined before
@@ -954,18 +978,15 @@ def init(g, handle):
   rblf.setdefault(handle, "PRODUCT_LIST1")
   cfg["PRODUCT_LIST1"] = (["a"] +
       cfg.get("PRODUCT_LIST1", []))
-  if cfg.get("PRODUCT_LIST2") == None:
-    rblf.setdefault(handle, "PRODUCT_LIST2")
-    cfg["PRODUCT_LIST2"] = (["a"] +
-        cfg.get("PRODUCT_LIST2", []))
   rblf.setdefault(handle, "PRODUCT_LIST3")
   cfg["PRODUCT_LIST3"] += ["a"]
-  # Now doing them again should not have a setdefault because they've already been set
+  # Now doing them again should not have a setdefault because they've already been set, except 2
+  # which did not emit an assignment before
   cfg["PRODUCT_LIST1"] = (["a"] +
       cfg["PRODUCT_LIST1"])
-  if cfg.get("PRODUCT_LIST2") == None:
-    cfg["PRODUCT_LIST2"] = (["a"] +
-        cfg["PRODUCT_LIST2"])
+  rblf.setdefault(handle, "PRODUCT_LIST2")
+  cfg["PRODUCT_LIST2"] = (["a"] +
+      cfg.get("PRODUCT_LIST2", []))
   cfg["PRODUCT_LIST3"] += ["a"]
 `,
 	},

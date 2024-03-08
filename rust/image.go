@@ -220,9 +220,6 @@ func (mod *Module) SetImageVariation(ctx android.BaseModuleContext, variant stri
 }
 
 func (mod *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
-	// Rust does not support installing to the product image yet.
-	vendorSpecific := mctx.SocSpecific() || mctx.DeviceSpecific()
-
 	if Bool(mod.VendorProperties.Double_loadable) {
 		mctx.PropertyErrorf("double_loadable",
 			"Rust modules do not yet support double loading")
@@ -230,16 +227,6 @@ func (mod *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	if Bool(mod.Properties.Vendor_ramdisk_available) {
 		if lib, ok := mod.compiler.(libraryInterface); !ok || (ok && lib.buildShared()) {
 			mctx.PropertyErrorf("vendor_ramdisk_available", "cannot be set for rust_ffi or rust_ffi_shared modules.")
-		}
-	}
-	if vendorSpecific {
-		if lib, ok := mod.compiler.(libraryInterface); ok && lib.buildDylib() {
-			mctx.PropertyErrorf("vendor", "Vendor-only dylibs are not yet supported, use rust_library_rlib.")
-		}
-	}
-	if mctx.ProductSpecific() {
-		if lib, ok := mod.compiler.(libraryInterface); ok && lib.buildDylib() {
-			mctx.PropertyErrorf("product", "Product-only dylibs are not yet supported, use rust_library_rlib.")
 		}
 	}
 

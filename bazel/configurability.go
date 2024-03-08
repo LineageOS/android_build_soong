@@ -31,15 +31,15 @@ const (
 
 	// OsType names in arch.go
 	OsAndroid     = "android"
-	osDarwin      = "darwin"
-	osLinux       = "linux_glibc"
+	OsDarwin      = "darwin"
+	OsLinux       = "linux_glibc"
 	osLinuxMusl   = "linux_musl"
 	osLinuxBionic = "linux_bionic"
-	osWindows     = "windows"
+	OsWindows     = "windows"
 
 	// Targets in arch.go
 	osArchAndroidArm        = "android_arm"
-	osArchAndroidArm64      = "android_arm64"
+	OsArchAndroidArm64      = "android_arm64"
 	osArchAndroidRiscv64    = "android_riscv64"
 	osArchAndroidX86        = "android_x86"
 	osArchAndroidX86_64     = "android_x86_64"
@@ -67,13 +67,18 @@ const (
 
 	ConditionsDefaultSelectKey = "//conditions:default"
 
-	productVariableBazelPackage = "//build/bazel/product_variables"
+	productVariableBazelPackage = "//build/bazel/product_config/config_settings"
 
-	AndroidAndInApex  = "android-in_apex"
-	AndroidAndNonApex = "android-non_apex"
+	AndroidAndInApex = "android-in_apex"
+	AndroidPlatform  = "system"
+	Unbundled_app    = "unbundled_app"
 
 	InApex  = "in_apex"
 	NonApex = "non_apex"
+
+	ErrorproneDisabled = "errorprone_disabled"
+	// TODO: b/294868620 - Remove when completing the bug
+	SanitizersEnabled = "sanitizers_enabled"
 )
 
 func PowerSetWithoutEmptySet[T any](items []T) [][]T {
@@ -128,7 +133,7 @@ func createPlatformArchMap() map[string]string {
 	}
 	result := make(map[string]string)
 	for arch, allFeatures := range archFeatures {
-		result[arch] = "//build/bazel/platforms/arch:" + arch
+		result[arch] = "//build/bazel_common_rules/platforms/arch:" + arch
 		// Sometimes we want to select on multiple features being active, so
 		// add the power set of all possible features to the map. More details
 		// in android.ModuleBase.GetArchVariantProperties
@@ -155,33 +160,33 @@ var (
 	// A map of target operating systems to the Bazel label of the
 	// constraint_value for the @platforms//os:os constraint_setting
 	platformOsMap = map[string]string{
-		OsAndroid:                  "//build/bazel/platforms/os:android",
-		osDarwin:                   "//build/bazel/platforms/os:darwin",
-		osLinux:                    "//build/bazel/platforms/os:linux_glibc",
-		osLinuxMusl:                "//build/bazel/platforms/os:linux_musl",
-		osLinuxBionic:              "//build/bazel/platforms/os:linux_bionic",
-		osWindows:                  "//build/bazel/platforms/os:windows",
+		OsAndroid:                  "//build/bazel_common_rules/platforms/os:android",
+		OsDarwin:                   "//build/bazel_common_rules/platforms/os:darwin",
+		OsLinux:                    "//build/bazel_common_rules/platforms/os:linux_glibc",
+		osLinuxMusl:                "//build/bazel_common_rules/platforms/os:linux_musl",
+		osLinuxBionic:              "//build/bazel_common_rules/platforms/os:linux_bionic",
+		OsWindows:                  "//build/bazel_common_rules/platforms/os:windows",
 		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey, // The default condition of an os select map.
 	}
 
 	platformOsArchMap = map[string]string{
-		osArchAndroidArm:           "//build/bazel/platforms/os_arch:android_arm",
-		osArchAndroidArm64:         "//build/bazel/platforms/os_arch:android_arm64",
-		osArchAndroidRiscv64:       "//build/bazel/platforms/os_arch:android_riscv64",
-		osArchAndroidX86:           "//build/bazel/platforms/os_arch:android_x86",
-		osArchAndroidX86_64:        "//build/bazel/platforms/os_arch:android_x86_64",
-		osArchDarwinArm64:          "//build/bazel/platforms/os_arch:darwin_arm64",
-		osArchDarwinX86_64:         "//build/bazel/platforms/os_arch:darwin_x86_64",
-		osArchLinuxX86:             "//build/bazel/platforms/os_arch:linux_glibc_x86",
-		osArchLinuxX86_64:          "//build/bazel/platforms/os_arch:linux_glibc_x86_64",
-		osArchLinuxMuslArm:         "//build/bazel/platforms/os_arch:linux_musl_arm",
-		osArchLinuxMuslArm64:       "//build/bazel/platforms/os_arch:linux_musl_arm64",
-		osArchLinuxMuslX86:         "//build/bazel/platforms/os_arch:linux_musl_x86",
-		osArchLinuxMuslX86_64:      "//build/bazel/platforms/os_arch:linux_musl_x86_64",
-		osArchLinuxBionicArm64:     "//build/bazel/platforms/os_arch:linux_bionic_arm64",
-		osArchLinuxBionicX86_64:    "//build/bazel/platforms/os_arch:linux_bionic_x86_64",
-		osArchWindowsX86:           "//build/bazel/platforms/os_arch:windows_x86",
-		osArchWindowsX86_64:        "//build/bazel/platforms/os_arch:windows_x86_64",
+		osArchAndroidArm:           "//build/bazel_common_rules/platforms/os_arch:android_arm",
+		OsArchAndroidArm64:         "//build/bazel_common_rules/platforms/os_arch:android_arm64",
+		osArchAndroidRiscv64:       "//build/bazel_common_rules/platforms/os_arch:android_riscv64",
+		osArchAndroidX86:           "//build/bazel_common_rules/platforms/os_arch:android_x86",
+		osArchAndroidX86_64:        "//build/bazel_common_rules/platforms/os_arch:android_x86_64",
+		osArchDarwinArm64:          "//build/bazel_common_rules/platforms/os_arch:darwin_arm64",
+		osArchDarwinX86_64:         "//build/bazel_common_rules/platforms/os_arch:darwin_x86_64",
+		osArchLinuxX86:             "//build/bazel_common_rules/platforms/os_arch:linux_glibc_x86",
+		osArchLinuxX86_64:          "//build/bazel_common_rules/platforms/os_arch:linux_glibc_x86_64",
+		osArchLinuxMuslArm:         "//build/bazel_common_rules/platforms/os_arch:linux_musl_arm",
+		osArchLinuxMuslArm64:       "//build/bazel_common_rules/platforms/os_arch:linux_musl_arm64",
+		osArchLinuxMuslX86:         "//build/bazel_common_rules/platforms/os_arch:linux_musl_x86",
+		osArchLinuxMuslX86_64:      "//build/bazel_common_rules/platforms/os_arch:linux_musl_x86_64",
+		osArchLinuxBionicArm64:     "//build/bazel_common_rules/platforms/os_arch:linux_bionic_arm64",
+		osArchLinuxBionicX86_64:    "//build/bazel_common_rules/platforms/os_arch:linux_bionic_x86_64",
+		osArchWindowsX86:           "//build/bazel_common_rules/platforms/os_arch:windows_x86",
+		osArchWindowsX86_64:        "//build/bazel_common_rules/platforms/os_arch:windows_x86_64",
 		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey, // The default condition of an os select map.
 	}
 
@@ -192,28 +197,40 @@ var (
 	// in a cyclic dependency.
 	osToArchMap = map[string][]string{
 		OsAndroid:     {archArm, archArm64, archRiscv64, archX86, archX86_64},
-		osLinux:       {archX86, archX86_64},
+		OsLinux:       {archX86, archX86_64},
 		osLinuxMusl:   {archX86, archX86_64},
-		osDarwin:      {archArm64, archX86_64},
+		OsDarwin:      {archArm64, archX86_64},
 		osLinuxBionic: {archArm64, archX86_64},
 		// TODO(cparsons): According to arch.go, this should contain archArm, archArm64, as well.
-		osWindows: {archX86, archX86_64},
+		OsWindows: {archX86, archX86_64},
 	}
 
 	osAndInApexMap = map[string]string{
 		AndroidAndInApex:           "//build/bazel/rules/apex:android-in_apex",
-		AndroidAndNonApex:          "//build/bazel/rules/apex:android-non_apex",
-		osDarwin:                   "//build/bazel/platforms/os:darwin",
-		osLinux:                    "//build/bazel/platforms/os:linux_glibc",
-		osLinuxMusl:                "//build/bazel/platforms/os:linux_musl",
-		osLinuxBionic:              "//build/bazel/platforms/os:linux_bionic",
-		osWindows:                  "//build/bazel/platforms/os:windows",
+		AndroidPlatform:            "//build/bazel/rules/apex:system",
+		Unbundled_app:              "//build/bazel/rules/apex:unbundled_app",
+		OsDarwin:                   "//build/bazel_common_rules/platforms/os:darwin",
+		OsLinux:                    "//build/bazel_common_rules/platforms/os:linux_glibc",
+		osLinuxMusl:                "//build/bazel_common_rules/platforms/os:linux_musl",
+		osLinuxBionic:              "//build/bazel_common_rules/platforms/os:linux_bionic",
+		OsWindows:                  "//build/bazel_common_rules/platforms/os:windows",
 		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey,
 	}
 
 	inApexMap = map[string]string{
 		InApex:                     "//build/bazel/rules/apex:in_apex",
 		NonApex:                    "//build/bazel/rules/apex:non_apex",
+		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey,
+	}
+
+	errorProneMap = map[string]string{
+		ErrorproneDisabled:         "//build/bazel/rules/java/errorprone:errorprone_globally_disabled",
+		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey,
+	}
+
+	// TODO: b/294868620 - Remove when completing the bug
+	sanitizersEnabledMap = map[string]string{
+		SanitizersEnabled:          "//build/bazel/rules/cc:sanitizers_enabled",
 		ConditionsDefaultConfigKey: ConditionsDefaultSelectKey,
 	}
 )
@@ -229,6 +246,9 @@ const (
 	productVariables
 	osAndInApex
 	inApex
+	errorProneDisabled
+	// TODO: b/294868620 - Remove when completing the bug
+	sanitizersEnabled
 )
 
 func osArchString(os string, arch string) string {
@@ -237,13 +257,16 @@ func osArchString(os string, arch string) string {
 
 func (ct configurationType) String() string {
 	return map[configurationType]string{
-		noConfig:         "no_config",
-		arch:             "arch",
-		os:               "os",
-		osArch:           "arch_os",
-		productVariables: "product_variables",
-		osAndInApex:      "os_in_apex",
-		inApex:           "in_apex",
+		noConfig:           "no_config",
+		arch:               "arch",
+		os:                 "os",
+		osArch:             "arch_os",
+		productVariables:   "product_variables",
+		osAndInApex:        "os_in_apex",
+		inApex:             "in_apex",
+		errorProneDisabled: "errorprone_disabled",
+		// TODO: b/294868620 - Remove when completing the bug
+		sanitizersEnabled: "sanitizers_enabled",
 	}[ct]
 }
 
@@ -268,12 +291,20 @@ func (ct configurationType) validateConfig(config string) {
 	case productVariables:
 		// do nothing
 	case osAndInApex:
-		if _, ok := osAndInApexMap[config]; !ok {
-			panic(fmt.Errorf("Unknown os+in_apex config: %s", config))
-		}
+		// do nothing
+		// this axis can contain additional per-apex keys
 	case inApex:
 		if _, ok := inApexMap[config]; !ok {
 			panic(fmt.Errorf("Unknown in_apex config: %s", config))
+		}
+	case errorProneDisabled:
+		if _, ok := errorProneMap[config]; !ok {
+			panic(fmt.Errorf("Unknown errorprone config: %s", config))
+		}
+	// TODO: b/294868620 - Remove when completing the bug
+	case sanitizersEnabled:
+		if _, ok := sanitizersEnabledMap[config]; !ok {
+			panic(fmt.Errorf("Unknown sanitizers_enabled config: %s", config))
 		}
 	default:
 		panic(fmt.Errorf("Unrecognized ConfigurationType %d", ct))
@@ -293,15 +324,22 @@ func (ca ConfigurationAxis) SelectKey(config string) string {
 	case osArch:
 		return platformOsArchMap[config]
 	case productVariables:
-		if strings.HasSuffix(config, ConditionsDefaultConfigKey) {
-			// e.g. "acme__feature1__conditions_default" or "android__board__conditions_default"
+		if config == ConditionsDefaultConfigKey {
 			return ConditionsDefaultSelectKey
 		}
 		return fmt.Sprintf("%s:%s", productVariableBazelPackage, config)
 	case osAndInApex:
-		return osAndInApexMap[config]
+		if ret, exists := osAndInApexMap[config]; exists {
+			return ret
+		}
+		return config
 	case inApex:
 		return inApexMap[config]
+	case errorProneDisabled:
+		return errorProneMap[config]
+	// TODO: b/294868620 - Remove when completing the bug
+	case sanitizersEnabled:
+		return sanitizersEnabledMap[config]
 	default:
 		panic(fmt.Errorf("Unrecognized ConfigurationType %d", ca.configurationType))
 	}
@@ -320,14 +358,19 @@ var (
 	OsAndInApexAxis = ConfigurationAxis{configurationType: osAndInApex}
 	// An axis for in_apex-specific configurations
 	InApexAxis = ConfigurationAxis{configurationType: inApex}
+
+	ErrorProneAxis = ConfigurationAxis{configurationType: errorProneDisabled}
+
+	// TODO: b/294868620 - Remove when completing the bug
+	SanitizersEnabledAxis = ConfigurationAxis{configurationType: sanitizersEnabled}
 )
 
 // ProductVariableConfigurationAxis returns an axis for the given product variable
-func ProductVariableConfigurationAxis(variable string, outerAxis ConfigurationAxis) ConfigurationAxis {
+func ProductVariableConfigurationAxis(archVariant bool, variable string) ConfigurationAxis {
 	return ConfigurationAxis{
 		configurationType: productVariables,
 		subType:           variable,
-		outerAxisType:     outerAxis.configurationType,
+		archVariant:       archVariant,
 	}
 }
 
@@ -338,8 +381,8 @@ type ConfigurationAxis struct {
 	// some configuration types (e.g. productVariables) have multiple independent axes, subType helps
 	// distinguish between them without needing to list all 17 product variables.
 	subType string
-	// used to keep track of which product variables are arch variant
-	outerAxisType configurationType
+
+	archVariant bool
 }
 
 func (ca *ConfigurationAxis) less(other ConfigurationAxis) bool {

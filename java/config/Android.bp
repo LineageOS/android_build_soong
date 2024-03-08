@@ -12,6 +12,7 @@ bootstrap_go_package {
     ],
     srcs: [
         "config.go",
+        "droidstubs.go",
         "error_prone.go",
         "kotlin.go",
         "makevars.go",

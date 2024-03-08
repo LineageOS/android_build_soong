@@ -49,8 +49,5 @@ func init() {
 		"-J--add-opens=java.base/java.util=ALL-UNNAMED", // https://youtrack.jetbrains.com/issue/KT-43704
 	}, " "))
 
-	pctx.StaticVariable("KotlincGlobalFlags", strings.Join([]string{
-		// b/222162908: prevent kotlinc from reading /tmp/build.txt
-		"-Didea.plugins.compatible.build=999.SNAPSHOT",
-	}, " "))
+	pctx.StaticVariable("KotlincGlobalFlags", strings.Join([]string{}, " "))
 }

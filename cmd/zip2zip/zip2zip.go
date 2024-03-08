@@ -128,12 +128,6 @@ func zip2zip(reader *zip.Reader, writer *zip.Writer, sortOutput, sortJava, setTi
 	}
 
 	for _, arg := range args {
-		// Reserve escaping for future implementation, so make sure no
-		// one is using \ and expecting a certain behavior.
-		if strings.Contains(arg, "\\") {
-			return fmt.Errorf("\\ characters are not currently supported")
-		}
-
 		input, output := includeSplit(arg)
 
 		var includeMatches []pair

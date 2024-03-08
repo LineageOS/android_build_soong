@@ -15,14 +15,20 @@
 package build
 
 import (
+	"android/soong/ui/tracer"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	"android/soong/bazel"
 	"android/soong/ui/metrics"
+	"android/soong/ui/metrics/metrics_proto"
 	"android/soong/ui/status"
 
 	"android/soong/shared"
@@ -30,25 +36,31 @@ import (
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/microfactory"
+
+	"google.golang.org/protobuf/proto"
 )
 
 const (
 	availableEnvFile = "soong.environment.available"
 	usedEnvFile      = "soong.environment.used"
 
-	soongBuildTag        = "build"
-	bp2buildFilesTag     = "bp2build_files"
-	bp2buildWorkspaceTag = "bp2build_workspace"
-	jsonModuleGraphTag   = "modulegraph"
-	queryviewTag         = "queryview"
-	apiBp2buildTag       = "api_bp2build"
-	soongDocsTag         = "soong_docs"
+	soongBuildTag      = "build"
+	jsonModuleGraphTag = "modulegraph"
+	queryviewTag       = "queryview"
+	soongDocsTag       = "soong_docs"
 
 	// bootstrapEpoch is used to determine if an incremental build is incompatible with the current
 	// version of bootstrap and needs cleaning before continuing the build.  Increment this for
 	// incompatible changes, for example when moving the location of the bpglob binary that is
 	// executed during bootstrap before the primary builder has had a chance to update the path.
 	bootstrapEpoch = 1
+)
+
+var (
+	// Used during parallel update of symlinks in out directory to reflect new
+	// TOP dir.
+	symlinkWg            sync.WaitGroup
+	numFound, numUpdated uint32
 )
 
 func writeEnvironmentFile(_ Context, envFile string, envDeps map[string]string) error {
@@ -161,6 +173,14 @@ type PrimaryBuilderFactory struct {
 	debugPort    string
 }
 
+func getGlobPathName(config Config) string {
+	globPathName, ok := config.TargetProductOrErr()
+	if ok != nil {
+		globPathName = soongBuildTag
+	}
+	return globPathName
+}
+
 func (pb PrimaryBuilderFactory) primaryBuilderInvocation() bootstrap.PrimaryBuilderInvocation {
 	commonArgs := make([]string, 0, 0)
 
@@ -171,8 +191,8 @@ func (pb PrimaryBuilderFactory) primaryBuilderInvocation() bootstrap.PrimaryBuil
 	if pb.config.multitreeBuild {
 		commonArgs = append(commonArgs, "--multitree-build")
 	}
-	if pb.config.buildFromTextStub {
-		commonArgs = append(commonArgs, "--build-from-text-stub")
+	if pb.config.buildFromSourceStub {
+		commonArgs = append(commonArgs, "--build-from-source-stub")
 	}
 
 	commonArgs = append(commonArgs, "-l", filepath.Join(pb.config.FileListDir(), "Android.bp.list"))
@@ -195,9 +215,14 @@ func (pb PrimaryBuilderFactory) primaryBuilderInvocation() bootstrap.PrimaryBuil
 
 	var allArgs []string
 	allArgs = append(allArgs, pb.specificArgs...)
+	globPathName := pb.name
+	// Glob path for soong build would be separated per product target
+	if pb.name == soongBuildTag {
+		globPathName = getGlobPathName(pb.config)
+	}
 	allArgs = append(allArgs,
-		"--globListDir", pb.name,
-		"--globFile", pb.config.NamedGlobFile(pb.name))
+		"--globListDir", globPathName,
+		"--globFile", pb.config.NamedGlobFile(globPathName))
 
 	allArgs = append(allArgs, commonArgs...)
 	allArgs = append(allArgs, environmentArgs(pb.config, pb.name)...)
@@ -235,7 +260,7 @@ func bootstrapEpochCleanup(ctx Context, config Config) {
 	} else if !exists {
 		// The tree is out of date for the current epoch, delete files used by bootstrap
 		// and force the primary builder to rerun.
-		os.Remove(filepath.Join(config.SoongOutDir(), "build.ninja"))
+		os.Remove(config.SoongNinjaFile())
 		for _, globFile := range bootstrapGlobFileList(config) {
 			os.Remove(globFile)
 		}
@@ -247,11 +272,9 @@ func bootstrapEpochCleanup(ctx Context, config Config) {
 
 func bootstrapGlobFileList(config Config) []string {
 	return []string{
-		config.NamedGlobFile(soongBuildTag),
-		config.NamedGlobFile(bp2buildFilesTag),
+		config.NamedGlobFile(getGlobPathName(config)),
 		config.NamedGlobFile(jsonModuleGraphTag),
 		config.NamedGlobFile(queryviewTag),
-		config.NamedGlobFile(apiBp2buildTag),
 		config.NamedGlobFile(soongDocsTag),
 	}
 }
@@ -263,36 +286,23 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	// Clean up some files for incremental builds across incompatible changes.
 	bootstrapEpochCleanup(ctx, config)
 
-	mainSoongBuildExtraArgs := []string{"-o", config.SoongNinjaFile()}
+	baseArgs := []string{"--soong_variables", config.SoongVarsFile()}
+
+	mainSoongBuildExtraArgs := append(baseArgs, "-o", config.SoongNinjaFile())
 	if config.EmptyNinjaFile() {
 		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--empty-ninja-file")
-	}
-	if config.bazelProdMode {
-		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--bazel-mode")
-	}
-	if config.bazelDevMode {
-		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--bazel-mode-dev")
-	}
-	if config.bazelStagingMode {
-		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--bazel-mode-staging")
-	}
-	if config.IsPersistentBazelEnabled() {
-		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--use-bazel-proxy")
-	}
-	if len(config.bazelForceEnabledModules) > 0 {
-		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--bazel-force-enabled-modules="+config.bazelForceEnabledModules)
 	}
 	if config.MultitreeBuild() {
 		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--multitree-build")
 	}
-	if config.buildFromTextStub {
-		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--build-from-text-stub")
+	if config.buildFromSourceStub {
+		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--build-from-source-stub")
+	}
+	if config.ensureAllowlistIntegrity {
+		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--ensure-allowlist-integrity")
 	}
 
 	queryviewDir := filepath.Join(config.SoongOutDir(), "queryview")
-	// The BUILD files will be generated in out/soong/.api_bp2build (no symlinks to src files)
-	// The final workspace will be generated in out/soong/api_bp2build
-	apiBp2buildDir := filepath.Join(config.SoongOutDir(), ".api_bp2build")
 
 	pbfs := []PrimaryBuilderFactory{
 		{
@@ -303,49 +313,32 @@ func bootstrapBlueprint(ctx Context, config Config) {
 			specificArgs: mainSoongBuildExtraArgs,
 		},
 		{
-			name:         bp2buildFilesTag,
-			description:  fmt.Sprintf("converting Android.bp files to BUILD files at %s/bp2build", config.SoongOutDir()),
-			config:       config,
-			output:       config.Bp2BuildFilesMarkerFile(),
-			specificArgs: []string{"--bp2build_marker", config.Bp2BuildFilesMarkerFile()},
-		},
-		{
-			name:         bp2buildWorkspaceTag,
-			description:  "Creating Bazel symlink forest",
-			config:       config,
-			output:       config.Bp2BuildWorkspaceMarkerFile(),
-			specificArgs: []string{"--symlink_forest_marker", config.Bp2BuildWorkspaceMarkerFile()},
-		},
-		{
 			name:        jsonModuleGraphTag,
 			description: fmt.Sprintf("generating the Soong module graph at %s", config.ModuleGraphFile()),
 			config:      config,
 			output:      config.ModuleGraphFile(),
-			specificArgs: []string{
+			specificArgs: append(baseArgs,
 				"--module_graph_file", config.ModuleGraphFile(),
 				"--module_actions_file", config.ModuleActionsFile(),
-			},
+			),
 		},
 		{
-			name:         queryviewTag,
-			description:  fmt.Sprintf("generating the Soong module graph as a Bazel workspace at %s", queryviewDir),
-			config:       config,
-			output:       config.QueryviewMarkerFile(),
-			specificArgs: []string{"--bazel_queryview_dir", queryviewDir},
+			name:        queryviewTag,
+			description: fmt.Sprintf("generating the Soong module graph as a Bazel workspace at %s", queryviewDir),
+			config:      config,
+			output:      config.QueryviewMarkerFile(),
+			specificArgs: append(baseArgs,
+				"--bazel_queryview_dir", queryviewDir,
+			),
 		},
 		{
-			name:         apiBp2buildTag,
-			description:  fmt.Sprintf("generating BUILD files for API contributions at %s", apiBp2buildDir),
-			config:       config,
-			output:       config.ApiBp2buildMarkerFile(),
-			specificArgs: []string{"--bazel_api_bp2build_dir", apiBp2buildDir},
-		},
-		{
-			name:         soongDocsTag,
-			description:  fmt.Sprintf("generating Soong docs at %s", config.SoongDocsHtml()),
-			config:       config,
-			output:       config.SoongDocsHtml(),
-			specificArgs: []string{"--soong_docs", config.SoongDocsHtml()},
+			name:        soongDocsTag,
+			description: fmt.Sprintf("generating Soong docs at %s", config.SoongDocsHtml()),
+			config:      config,
+			output:      config.SoongDocsHtml(),
+			specificArgs: append(baseArgs,
+				"--soong_docs", config.SoongDocsHtml(),
+			),
 		},
 	}
 
@@ -384,22 +377,6 @@ func bootstrapBlueprint(ctx Context, config Config) {
 			pbf.debugPort = delvePort
 		}
 		pbi := pbf.primaryBuilderInvocation()
-		// Some invocations require adjustment:
-		switch pbf.name {
-		case soongBuildTag:
-			if config.BazelBuildEnabled() {
-				// Mixed builds call Bazel from soong_build and they therefore need the
-				// Bazel workspace to be available. Make that so by adding a dependency on
-				// the bp2build marker file to the action that invokes soong_build .
-				pbi.OrderOnlyInputs = append(pbi.OrderOnlyInputs, config.Bp2BuildWorkspaceMarkerFile())
-			}
-		case bp2buildWorkspaceTag:
-			pbi.Inputs = append(pbi.Inputs,
-				config.Bp2BuildFilesMarkerFile(),
-				filepath.Join(config.FileListDir(), "bazel.list"))
-		case bp2buildFilesTag:
-			pbi.Inputs = append(pbi.Inputs, filepath.Join(config.FileListDir(), "METADATA.list"))
-		}
 		invocations = append(invocations, pbi)
 	}
 
@@ -433,23 +410,138 @@ func bootstrapBlueprint(ctx Context, config Config) {
 
 	// since `bootstrap.ninja` is regenerated unconditionally, we ignore the deps, i.e. little
 	// reason to write a `bootstrap.ninja.d` file
-	_ = bootstrap.RunBlueprint(blueprintArgs, bootstrap.DoEverything, blueprintCtx, blueprintConfig)
+	_, err := bootstrap.RunBlueprint(blueprintArgs, bootstrap.DoEverything, blueprintCtx, blueprintConfig)
+	if err != nil {
+		ctx.Fatal(err)
+	}
 }
 
-func checkEnvironmentFile(currentEnv *Environment, envFile string) {
+func checkEnvironmentFile(ctx Context, currentEnv *Environment, envFile string) {
 	getenv := func(k string) string {
 		v, _ := currentEnv.Get(k)
 		return v
 	}
 
-	if stale, _ := shared.StaleEnvFile(envFile, getenv); stale {
+	// Log the changed environment variables to ChangedEnvironmentVariable field
+	if stale, changedEnvironmentVariableList, _ := shared.StaleEnvFile(envFile, getenv); stale {
+		for _, changedEnvironmentVariable := range changedEnvironmentVariableList {
+			ctx.Metrics.AddChangedEnvironmentVariable(changedEnvironmentVariable)
+		}
 		os.Remove(envFile)
 	}
+}
+
+func updateSymlinks(ctx Context, dir, prevCWD, cwd string) error {
+	defer symlinkWg.Done()
+
+	visit := func(path string, d fs.DirEntry, err error) error {
+		if d.IsDir() && path != dir {
+			symlinkWg.Add(1)
+			go updateSymlinks(ctx, path, prevCWD, cwd)
+			return filepath.SkipDir
+		}
+		f, err := d.Info()
+		if err != nil {
+			return err
+		}
+		// If the file is not a symlink, we don't have to update it.
+		if f.Mode()&os.ModeSymlink != os.ModeSymlink {
+			return nil
+		}
+
+		atomic.AddUint32(&numFound, 1)
+		target, err := os.Readlink(path)
+		if err != nil {
+			return err
+		}
+		if strings.HasPrefix(target, prevCWD) &&
+			(len(target) == len(prevCWD) || target[len(prevCWD)] == '/') {
+			target = filepath.Join(cwd, target[len(prevCWD):])
+			if err := os.Remove(path); err != nil {
+				return err
+			}
+			if err := os.Symlink(target, path); err != nil {
+				return err
+			}
+			atomic.AddUint32(&numUpdated, 1)
+		}
+		return nil
+	}
+
+	if err := filepath.WalkDir(dir, visit); err != nil {
+		return err
+	}
+	return nil
+}
+
+func fixOutDirSymlinks(ctx Context, config Config, outDir string) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	// Record the .top as the very last thing in the function.
+	tf := filepath.Join(outDir, ".top")
+	defer func() {
+		if err := os.WriteFile(tf, []byte(cwd), 0644); err != nil {
+			fmt.Fprintf(os.Stderr, fmt.Sprintf("Unable to log CWD: %v", err))
+		}
+	}()
+
+	// Find the previous working directory if it was recorded.
+	var prevCWD string
+	pcwd, err := os.ReadFile(tf)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// No previous working directory recorded, nothing to do.
+			return nil
+		}
+		return err
+	}
+	prevCWD = strings.Trim(string(pcwd), "\n")
+
+	if prevCWD == cwd {
+		// We are in the same source dir, nothing to update.
+		return nil
+	}
+
+	symlinkWg.Add(1)
+	if err := updateSymlinks(ctx, outDir, prevCWD, cwd); err != nil {
+		return err
+	}
+	symlinkWg.Wait()
+	ctx.Println(fmt.Sprintf("Updated %d/%d symlinks in dir %v", numUpdated, numFound, outDir))
+	return nil
+}
+
+func migrateOutputSymlinks(ctx Context, config Config) error {
+	// Figure out the real out directory ("out" could be a symlink).
+	outDir := config.OutDir()
+	s, err := os.Lstat(outDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// No out dir exists, no symlinks to migrate.
+			return nil
+		}
+		return err
+	}
+	if s.Mode()&os.ModeSymlink == os.ModeSymlink {
+		target, err := filepath.EvalSymlinks(outDir)
+		if err != nil {
+			return err
+		}
+		outDir = target
+	}
+	return fixOutDirSymlinks(ctx, config, outDir)
 }
 
 func runSoong(ctx Context, config Config) {
 	ctx.BeginTrace(metrics.RunSoong, "soong")
 	defer ctx.EndTrace()
+
+	if err := migrateOutputSymlinks(ctx, config); err != nil {
+		ctx.Fatalf("failed to migrate output directory to current TOP dir: %v", err)
+	}
 
 	// We have two environment files: .available is the one with every variable,
 	// .used with the ones that were actually used. The latter is used to
@@ -462,16 +554,7 @@ func runSoong(ctx Context, config Config) {
 
 	soongBuildEnv := config.Environment().Copy()
 	soongBuildEnv.Set("TOP", os.Getenv("TOP"))
-	// For Bazel mixed builds.
-	soongBuildEnv.Set("BAZEL_PATH", "./build/bazel/bin/bazel")
-	// Bazel's HOME var is set to an output subdirectory which doesn't exist. This
-	// prevents Bazel from file I/O in the actual user HOME directory.
-	soongBuildEnv.Set("BAZEL_HOME", absPath(ctx, filepath.Join(config.BazelOutDir(), "bazelhome")))
-	soongBuildEnv.Set("BAZEL_OUTPUT_BASE", config.bazelOutputBase())
-	soongBuildEnv.Set("BAZEL_WORKSPACE", absPath(ctx, "."))
-	soongBuildEnv.Set("BAZEL_METRICS_DIR", config.BazelMetricsDir())
 	soongBuildEnv.Set("LOG_DIR", config.LogsDir())
-	soongBuildEnv.Set("BAZEL_DEPS_FILE", absPath(ctx, filepath.Join(config.BazelOutDir(), "bazel.list")))
 
 	// For Soong bootstrapping tests
 	if os.Getenv("ALLOW_MISSING_DEPENDENCIES") == "true" {
@@ -487,41 +570,31 @@ func runSoong(ctx Context, config Config) {
 		ctx.BeginTrace(metrics.RunSoong, "environment check")
 		defer ctx.EndTrace()
 
-		checkEnvironmentFile(soongBuildEnv, config.UsedEnvFile(soongBuildTag))
+		checkEnvironmentFile(ctx, soongBuildEnv, config.UsedEnvFile(soongBuildTag))
 
-		if config.BazelBuildEnabled() || config.Bp2Build() {
-			checkEnvironmentFile(soongBuildEnv, config.UsedEnvFile(bp2buildFilesTag))
-		}
+		// Remove bazel files in the event that bazel is disabled for the build.
+		// These files may have been left over from a previous bazel-enabled build.
+		cleanBazelFiles(config)
 
 		if config.JsonModuleGraph() {
-			checkEnvironmentFile(soongBuildEnv, config.UsedEnvFile(jsonModuleGraphTag))
+			checkEnvironmentFile(ctx, soongBuildEnv, config.UsedEnvFile(jsonModuleGraphTag))
 		}
 
 		if config.Queryview() {
-			checkEnvironmentFile(soongBuildEnv, config.UsedEnvFile(queryviewTag))
-		}
-
-		if config.ApiBp2build() {
-			checkEnvironmentFile(soongBuildEnv, config.UsedEnvFile(apiBp2buildTag))
+			checkEnvironmentFile(ctx, soongBuildEnv, config.UsedEnvFile(queryviewTag))
 		}
 
 		if config.SoongDocs() {
-			checkEnvironmentFile(soongBuildEnv, config.UsedEnvFile(soongDocsTag))
+			checkEnvironmentFile(ctx, soongBuildEnv, config.UsedEnvFile(soongDocsTag))
 		}
 	}()
 
 	runMicrofactory(ctx, config, "bpglob", "github.com/google/blueprint/bootstrap/bpglob",
 		map[string]string{"github.com/google/blueprint": "build/blueprint"})
 
-	ninja := func(name, ninjaFile string, targets ...string) {
-		ctx.BeginTrace(metrics.RunSoong, name)
+	ninja := func(targets ...string) {
+		ctx.BeginTrace(metrics.RunSoong, "bootstrap")
 		defer ctx.EndTrace()
-
-		if config.IsPersistentBazelEnabled() {
-			bazelProxy := bazel.NewProxyServer(ctx.Logger, config.OutDir(), filepath.Join(config.SoongOutDir(), "workspace"))
-			bazelProxy.Start()
-			defer bazelProxy.Close()
-		}
 
 		fifo := filepath.Join(config.OutDir(), ".ninja_fifo")
 		nr := status.NewNinjaReader(ctx, ctx.Status.StartTool(), fifo)
@@ -537,7 +610,7 @@ func runSoong(ctx Context, config Config) {
 			"-w", "missingoutfile=err",
 			"-j", strconv.Itoa(config.Parallel()),
 			"--frontend_file", fifo,
-			"-f", filepath.Join(config.SoongOutDir(), ninjaFile),
+			"-f", filepath.Join(config.SoongOutDir(), "bootstrap.ninja"),
 		}
 
 		if extra, ok := config.Environment().Get("SOONG_UI_NINJA_ARGS"); ok {
@@ -546,7 +619,7 @@ func runSoong(ctx Context, config Config) {
 		}
 
 		ninjaArgs = append(ninjaArgs, targets...)
-		cmd := Command(ctx, config, "soong "+name,
+		cmd := Command(ctx, config, "soong bootstrap",
 			config.PrebuiltBuildTool("ninja"), ninjaArgs...)
 
 		var ninjaEnv Environment
@@ -566,16 +639,8 @@ func runSoong(ctx Context, config Config) {
 		targets = append(targets, config.ModuleGraphFile())
 	}
 
-	if config.Bp2Build() {
-		targets = append(targets, config.Bp2BuildWorkspaceMarkerFile())
-	}
-
 	if config.Queryview() {
 		targets = append(targets, config.QueryviewMarkerFile())
-	}
-
-	if config.ApiBp2build() {
-		targets = append(targets, config.ApiBp2buildMarkerFile())
 	}
 
 	if config.SoongDocs() {
@@ -587,7 +652,11 @@ func runSoong(ctx Context, config Config) {
 		targets = append(targets, config.SoongNinjaFile())
 	}
 
-	ninja("bootstrap", "bootstrap.ninja", targets...)
+	beforeSoongTimestamp := time.Now()
+
+	ninja(targets...)
+
+	loadSoongBuildMetrics(ctx, config, beforeSoongTimestamp)
 
 	distGzipFile(ctx, config, config.SoongNinjaFile(), "soong")
 	distFile(ctx, config, config.SoongVarsFile(), "soong")
@@ -599,6 +668,67 @@ func runSoong(ctx Context, config Config) {
 
 	if config.JsonModuleGraph() {
 		distGzipFile(ctx, config, config.ModuleGraphFile(), "soong")
+	}
+}
+
+// loadSoongBuildMetrics reads out/soong_build_metrics.pb if it was generated by soong_build and copies the
+// events stored in it into the soong_ui trace to provide introspection into how long the different phases of
+// soong_build are taking.
+func loadSoongBuildMetrics(ctx Context, config Config, oldTimestamp time.Time) {
+	soongBuildMetricsFile := config.SoongBuildMetrics()
+	if metricsStat, err := os.Stat(soongBuildMetricsFile); err != nil {
+		ctx.Verbosef("Failed to stat %s: %s", soongBuildMetricsFile, err)
+		return
+	} else if !metricsStat.ModTime().After(oldTimestamp) {
+		ctx.Verbosef("%s timestamp not later after running soong, expected %s > %s",
+			soongBuildMetricsFile, metricsStat.ModTime(), oldTimestamp)
+		return
+	}
+
+	metricsData, err := os.ReadFile(soongBuildMetricsFile)
+	if err != nil {
+		ctx.Verbosef("Failed to read %s: %s", soongBuildMetricsFile, err)
+		return
+	}
+
+	soongBuildMetrics := metrics_proto.SoongBuildMetrics{}
+	err = proto.Unmarshal(metricsData, &soongBuildMetrics)
+	if err != nil {
+		ctx.Verbosef("Failed to unmarshal %s: %s", soongBuildMetricsFile, err)
+		return
+	}
+	for _, event := range soongBuildMetrics.Events {
+		desc := event.GetDescription()
+		if dot := strings.LastIndexByte(desc, '.'); dot >= 0 {
+			desc = desc[dot+1:]
+		}
+		ctx.Tracer.Complete(desc, ctx.Thread,
+			event.GetStartTime(), event.GetStartTime()+event.GetRealTime())
+	}
+	for _, event := range soongBuildMetrics.PerfCounters {
+		timestamp := event.GetTime()
+		for _, group := range event.Groups {
+			counters := make([]tracer.Counter, 0, len(group.Counters))
+			for _, counter := range group.Counters {
+				counters = append(counters, tracer.Counter{
+					Name:  counter.GetName(),
+					Value: counter.GetValue(),
+				})
+			}
+			ctx.Tracer.CountersAtTime(group.GetName(), ctx.Thread, timestamp, counters)
+		}
+	}
+}
+
+func cleanBazelFiles(config Config) {
+	files := []string{
+		shared.JoinPath(config.SoongOutDir(), "bp2build"),
+		shared.JoinPath(config.SoongOutDir(), "workspace"),
+		shared.JoinPath(config.SoongOutDir(), bazel.SoongInjectionDirName),
+		shared.JoinPath(config.OutDir(), "bazel")}
+
+	for _, f := range files {
+		os.RemoveAll(f)
 	}
 }
 

@@ -23,7 +23,7 @@ import (
 
 func init() {
 	ctx := InitRegistrationContext
-	ctx.RegisterSingletonModuleType("buildinfo_prop", buildinfoPropFactory)
+	ctx.RegisterParallelSingletonModuleType("buildinfo_prop", buildinfoPropFactory)
 }
 
 type buildinfoPropProperties struct {

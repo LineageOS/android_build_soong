@@ -97,7 +97,7 @@ func TestSystemserverclasspathFragmentContents(t *testing.T) {
 
 	ctx := result.TestContext
 
-	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
+	ensureExactContents(t, ctx, "myapex", "android_common_myapex", []string{
 		"etc/classpaths/systemserverclasspath.pb",
 		"javalib/foo.jar",
 		"javalib/bar.jar",
@@ -105,7 +105,7 @@ func TestSystemserverclasspathFragmentContents(t *testing.T) {
 		"javalib/baz.jar",
 	})
 
-	java.CheckModuleDependencies(t, ctx, "myapex", "android_common_myapex_image", []string{
+	java.CheckModuleDependencies(t, ctx, "myapex", "android_common_myapex", []string{
 		`myapex.key`,
 		`mysystemserverclasspathfragment`,
 	})
@@ -157,11 +157,11 @@ func TestSystemserverclasspathFragmentNoGeneratedProto(t *testing.T) {
 		}
 	`)
 
-	ensureExactContents(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
+	ensureExactContents(t, result.TestContext, "myapex", "android_common_myapex", []string{
 		"javalib/foo.jar",
 	})
 
-	java.CheckModuleDependencies(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
+	java.CheckModuleDependencies(t, result.TestContext, "myapex", "android_common_myapex", []string{
 		`myapex.key`,
 		`mysystemserverclasspathfragment`,
 	})
@@ -361,7 +361,7 @@ func TestSystemserverclasspathFragmentStandaloneContents(t *testing.T) {
 
 	ctx := result.TestContext
 
-	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
+	ensureExactContents(t, ctx, "myapex", "android_common_myapex", []string{
 		"etc/classpaths/systemserverclasspath.pb",
 		"javalib/foo.jar",
 		"javalib/bar.jar",

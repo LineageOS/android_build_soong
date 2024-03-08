@@ -62,7 +62,6 @@ func GenRuleFactory() android.Module {
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibBoth)
 
 	android.InitApexModule(module)
-	android.InitBazelModule(module)
 
 	return module
 }
@@ -84,7 +83,7 @@ func (g *GenruleExtraProperties) CoreVariantNeeded(ctx android.BaseModuleContext
 		return true
 	}
 
-	if ctx.DeviceConfig().ProductVndkVersion() != "" && ctx.ProductSpecific() {
+	if ctx.ProductSpecific() {
 		return false
 	}
 
@@ -134,15 +133,8 @@ func (g *GenruleExtraProperties) ExtraImageVariations(ctx android.BaseModuleCont
 		}
 	}
 
-	if ctx.DeviceConfig().ProductVndkVersion() == "" {
-		return variants
-	}
-
 	if Bool(g.Product_available) || ctx.ProductSpecific() {
 		variants = append(variants, ProductVariationPrefix+ctx.DeviceConfig().PlatformVndkVersion())
-		if vndkVersion := ctx.DeviceConfig().ProductVndkVersion(); vndkVersion != "current" {
-			variants = append(variants, ProductVariationPrefix+vndkVersion)
-		}
 	}
 
 	return variants

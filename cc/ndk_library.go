@@ -25,15 +25,13 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/bazel"
 	"android/soong/cc/config"
 )
 
 func init() {
 	pctx.HostBinToolVariable("ndkStubGenerator", "ndkstubgen")
-	pctx.HostBinToolVariable("abidiff", "abidiff")
-	pctx.HostBinToolVariable("abitidy", "abitidy")
-	pctx.HostBinToolVariable("abidw", "abidw")
+	pctx.HostBinToolVariable("stg", "stg")
+	pctx.HostBinToolVariable("stgdiff", "stgdiff")
 }
 
 var (
@@ -44,28 +42,26 @@ var (
 			CommandDeps: []string{"$ndkStubGenerator"},
 		}, "arch", "apiLevel", "apiMap", "flags")
 
-	abidw = pctx.AndroidStaticRule("abidw",
+	// $headersList should include paths to public headers. All types
+	// that are defined outside of public headers will be excluded from
+	// ABI monitoring.
+	//
+	// STG tool doesn't access content of files listed in $headersList,
+	// so there is no need to add them to dependencies.
+	stg = pctx.AndroidStaticRule("stg",
 		blueprint.RuleParams{
-			Command: "$abidw --type-id-style hash --no-corpus-path " +
-				"--no-show-locs --no-comp-dir-path -w $symbolList " +
-				"$in --out-file $out",
-			CommandDeps: []string{"$abidw"},
-		}, "symbolList")
+			Command:     "$stg -S :$symbolList --file-filter :$headersList --elf $in -o $out",
+			CommandDeps: []string{"$stg"},
+		}, "symbolList", "headersList")
 
-	abitidy = pctx.AndroidStaticRule("abitidy",
-		blueprint.RuleParams{
-			Command:     "$abitidy --all $flags -i $in -o $out",
-			CommandDeps: []string{"$abitidy"},
-		}, "flags")
-
-	abidiff = pctx.AndroidStaticRule("abidiff",
+	stgdiff = pctx.AndroidStaticRule("stgdiff",
 		blueprint.RuleParams{
 			// Need to create *some* output for ninja. We don't want to use tee
 			// because we don't want to spam the build output with "nothing
 			// changed" messages, so redirect output message to $out, and if
 			// changes were detected print the output and fail.
-			Command:     "$abidiff $args $in > $out || (cat $out && false)",
-			CommandDeps: []string{"$abidiff"},
+			Command:     "$stgdiff $args --stg $in -o $out || (cat $out && echo 'Run $$ANDROID_BUILD_TOP/development/tools/ndk/update_ndk_abi.sh to update the ABI dumps.' && false)",
+			CommandDeps: []string{"$stgdiff"},
 		}, "args")
 
 	ndkLibrarySuffix = ".ndk"
@@ -106,12 +102,6 @@ type libraryProperties struct {
 	// used. This is only needed to work around platform bugs like
 	// https://github.com/android-ndk/ndk/issues/265.
 	Unversioned_until *string
-
-	// If true, does not emit errors when APIs lacking type information are
-	// found. This is false by default and should not be enabled outside bionic,
-	// where it is enabled pending a fix for http://b/190554910 (no debug info
-	// for asm implemented symbols).
-	Allow_untyped_symbols *bool
 
 	// Headers presented by this library to the Public API Surface
 	Export_header_libs []string
@@ -326,7 +316,7 @@ func (this *stubDecorator) findPrebuiltAbiDump(ctx ModuleContext,
 	apiLevel android.ApiLevel) android.OptionalPath {
 
 	subpath := filepath.Join("prebuilts/abi-dumps/ndk", apiLevel.String(),
-		ctx.Arch().ArchType.String(), this.libraryName(ctx), "abi.xml")
+		ctx.Arch().ArchType.String(), this.libraryName(ctx), "abi.stg")
 	return android.ExistentPathForSource(ctx, subpath)
 }
 
@@ -343,50 +333,32 @@ func canDumpAbi(config android.Config) bool {
 		return false
 	}
 	// http://b/156513478
-	// http://b/277624006
-	// This step is expensive. We're not able to do anything with the outputs of
-	// this step yet (canDiffAbi is flagged off because libabigail isn't able to
-	// handle all our libraries), disable it. There's no sense in protecting
-	// against checking in code that breaks abidw since by the time any of this
-	// can be turned on we'll need to migrate to STG anyway.
-	return false
+	return config.ReleaseNdkAbiMonitored()
 }
 
 // Feature flag to disable diffing against prebuilts.
-func canDiffAbi() bool {
-	return false
+func canDiffAbi(config android.Config) bool {
+	return config.ReleaseNdkAbiMonitored()
 }
 
 func (this *stubDecorator) dumpAbi(ctx ModuleContext, symbolList android.Path) {
 	implementationLibrary := this.findImplementationLibrary(ctx)
-	abiRawPath := getNdkAbiDumpInstallBase(ctx).Join(ctx,
-		this.apiLevel.String(), ctx.Arch().ArchType.String(),
-		this.libraryName(ctx), "abi.raw.xml")
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        abidw,
-		Description: fmt.Sprintf("abidw %s", implementationLibrary),
-		Input:       implementationLibrary,
-		Output:      abiRawPath,
-		Implicit:    symbolList,
-		Args: map[string]string{
-			"symbolList": symbolList.String(),
-		},
-	})
-
 	this.abiDumpPath = getNdkAbiDumpInstallBase(ctx).Join(ctx,
 		this.apiLevel.String(), ctx.Arch().ArchType.String(),
-		this.libraryName(ctx), "abi.xml")
-	untypedFlag := "--abort-on-untyped-symbols"
-	if proptools.BoolDefault(this.properties.Allow_untyped_symbols, false) {
-		untypedFlag = ""
-	}
+		this.libraryName(ctx), "abi.stg")
+	headersList := getNdkABIHeadersFile(ctx)
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        abitidy,
-		Description: fmt.Sprintf("abitidy %s", implementationLibrary),
-		Input:       abiRawPath,
-		Output:      this.abiDumpPath,
+		Rule:        stg,
+		Description: fmt.Sprintf("stg %s", implementationLibrary),
+		Input:       implementationLibrary,
+		Implicits: []android.Path{
+			symbolList,
+			headersList,
+		},
+		Output: this.abiDumpPath,
 		Args: map[string]string{
-			"flags": untypedFlag,
+			"symbolList":  symbolList.String(),
+			"headersList": headersList.String(),
 		},
 	})
 }
@@ -405,11 +377,13 @@ func findNextApiLevel(ctx ModuleContext, apiLevel android.ApiLevel) *android.Api
 func (this *stubDecorator) diffAbi(ctx ModuleContext) {
 	// Catch any ABI changes compared to the checked-in definition of this API
 	// level.
-	abiDiffPath := android.PathForModuleOut(ctx, "abidiff.timestamp")
+	abiDiffPath := android.PathForModuleOut(ctx, "stgdiff.timestamp")
 	prebuiltAbiDump := this.findPrebuiltAbiDump(ctx, this.apiLevel)
+	missingPrebuiltErrorTemplate :=
+		"Did not find prebuilt ABI dump for %q (%q). Generate with " +
+			"//development/tools/ndk/update_ndk_abi.sh."
 	missingPrebuiltError := fmt.Sprintf(
-		"Did not find prebuilt ABI dump for %q (%q). Generate with "+
-			"//development/tools/ndk/update_ndk_abi.sh.", this.libraryName(ctx),
+		missingPrebuiltErrorTemplate, this.libraryName(ctx),
 		prebuiltAbiDump.InvalidReason())
 	if !prebuiltAbiDump.Valid() {
 		ctx.Build(pctx, android.BuildParams{
@@ -421,11 +395,14 @@ func (this *stubDecorator) diffAbi(ctx ModuleContext) {
 		})
 	} else {
 		ctx.Build(pctx, android.BuildParams{
-			Rule: abidiff,
-			Description: fmt.Sprintf("abidiff %s %s", prebuiltAbiDump,
+			Rule: stgdiff,
+			Description: fmt.Sprintf("Comparing ABI %s %s", prebuiltAbiDump,
 				this.abiDumpPath),
 			Output: abiDiffPath,
 			Inputs: android.Paths{prebuiltAbiDump.Path(), this.abiDumpPath},
+			Args: map[string]string{
+				"args": "--format=small",
+			},
 		})
 	}
 	this.abiDiffPaths = append(this.abiDiffPaths, abiDiffPath)
@@ -433,7 +410,7 @@ func (this *stubDecorator) diffAbi(ctx ModuleContext) {
 	// Also ensure that the ABI of the next API level (if there is one) matches
 	// this API level. *New* ABI is allowed, but any changes to APIs that exist
 	// in this API level are disallowed.
-	if !this.apiLevel.IsCurrent() {
+	if !this.apiLevel.IsCurrent() && prebuiltAbiDump.Valid() {
 		nextApiLevel := findNextApiLevel(ctx, this.apiLevel)
 		if nextApiLevel == nil {
 			panic(fmt.Errorf("could not determine which API level follows "+
@@ -442,23 +419,28 @@ func (this *stubDecorator) diffAbi(ctx ModuleContext) {
 		nextAbiDiffPath := android.PathForModuleOut(ctx,
 			"abidiff_next.timestamp")
 		nextAbiDump := this.findPrebuiltAbiDump(ctx, *nextApiLevel)
+		missingNextPrebuiltError := fmt.Sprintf(
+			missingPrebuiltErrorTemplate, this.libraryName(ctx),
+			nextAbiDump.InvalidReason())
 		if !nextAbiDump.Valid() {
 			ctx.Build(pctx, android.BuildParams{
 				Rule:   android.ErrorRule,
 				Output: nextAbiDiffPath,
 				Args: map[string]string{
-					"error": missingPrebuiltError,
+					"error": missingNextPrebuiltError,
 				},
 			})
 		} else {
 			ctx.Build(pctx, android.BuildParams{
-				Rule: abidiff,
-				Description: fmt.Sprintf("abidiff %s %s", this.abiDumpPath,
-					nextAbiDump),
+				Rule: stgdiff,
+				Description: fmt.Sprintf(
+					"Comparing ABI to the next API level %s %s",
+					prebuiltAbiDump, nextAbiDump),
 				Output: nextAbiDiffPath,
-				Inputs: android.Paths{this.abiDumpPath, nextAbiDump.Path()},
+				Inputs: android.Paths{
+					prebuiltAbiDump.Path(), nextAbiDump.Path()},
 				Args: map[string]string{
-					"args": "--no-added-syms",
+					"args": "--format=small --ignore=interface_addition",
 				},
 			})
 		}
@@ -487,7 +469,7 @@ func (c *stubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) O
 	c.versionScriptPath = nativeAbiResult.versionScript
 	if canDumpAbi(ctx.Config()) {
 		c.dumpAbi(ctx, nativeAbiResult.symbolList)
-		if canDiffAbi() {
+		if canDiffAbi(ctx.Config()) {
 			c.diffAbi(ctx)
 		}
 	}
@@ -580,43 +562,5 @@ func newStubLibrary() *Module {
 func NdkLibraryFactory() android.Module {
 	module := newStubLibrary()
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibBoth)
-	android.InitBazelModule(module)
 	return module
-}
-
-type bazelCcApiContributionAttributes struct {
-	Api          bazel.LabelAttribute
-	Api_surfaces bazel.StringListAttribute
-	Hdrs         bazel.LabelListAttribute
-	Library_name string
-}
-
-// Names of the cc_api_header targets in the bp2build workspace
-func apiHeaderLabels(ctx android.TopDownMutatorContext, hdrLibs []string) bazel.LabelList {
-	addSuffix := func(ctx android.BazelConversionPathContext, module blueprint.Module) string {
-		label := android.BazelModuleLabel(ctx, module)
-		return android.ApiContributionTargetName(label)
-	}
-	return android.BazelLabelForModuleDepsWithFn(ctx, hdrLibs, addSuffix)
-}
-
-func ndkLibraryBp2build(ctx android.TopDownMutatorContext, m *Module) {
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "cc_api_contribution",
-		Bzl_load_location: "//build/bazel/rules/apis:cc_api_contribution.bzl",
-	}
-	stubLibrary := m.compiler.(*stubDecorator)
-	attrs := &bazelCcApiContributionAttributes{
-		Library_name: stubLibrary.implementationModuleName(m.Name()),
-		Api_surfaces: bazel.MakeStringListAttribute(
-			[]string{android.PublicApi.String()}),
-	}
-	if symbolFile := stubLibrary.properties.Symbol_file; symbolFile != nil {
-		apiLabel := android.BazelLabelForModuleSrcSingle(ctx, proptools.String(symbolFile)).Label
-		attrs.Api = *bazel.MakeLabelAttribute(apiLabel)
-	}
-	apiHeaders := apiHeaderLabels(ctx, stubLibrary.properties.Export_header_libs)
-	attrs.Hdrs = bazel.MakeLabelListAttribute(apiHeaders)
-	apiContributionTargetName := android.ApiContributionTargetName(ctx.ModuleName())
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: apiContributionTargetName}, attrs)
 }

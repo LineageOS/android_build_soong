@@ -66,6 +66,10 @@ type LintProperties struct {
 		// This will be true by default for test module types, false otherwise.
 		// If soong gets support for testonly, this flag should be replaced with that.
 		Test *bool
+
+		// Whether to ignore the exit code of Android lint. This is the --exit_code
+		// option. Defaults to false.
+		Suppress_exit_code *bool
 	}
 }
 
@@ -89,6 +93,7 @@ type linter struct {
 	outputs                 lintOutputs
 	properties              LintProperties
 	extraMainlineLintErrors []string
+	compile_data            android.Paths
 
 	reports android.Paths
 
@@ -117,18 +122,18 @@ type LintDepSetsIntf interface {
 }
 
 type LintDepSets struct {
-	HTML, Text, XML *android.DepSet
+	HTML, Text, XML *android.DepSet[android.Path]
 }
 
 type LintDepSetsBuilder struct {
-	HTML, Text, XML *android.DepSetBuilder
+	HTML, Text, XML *android.DepSetBuilder[android.Path]
 }
 
 func NewLintDepSetBuilder() LintDepSetsBuilder {
 	return LintDepSetsBuilder{
-		HTML: android.NewDepSetBuilder(android.POSTORDER),
-		Text: android.NewDepSetBuilder(android.POSTORDER),
-		XML:  android.NewDepSetBuilder(android.POSTORDER),
+		HTML: android.NewDepSetBuilder[android.Path](android.POSTORDER),
+		Text: android.NewDepSetBuilder[android.Path](android.POSTORDER),
+		XML:  android.NewDepSetBuilder[android.Path](android.POSTORDER),
 	}
 }
 
@@ -444,7 +449,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 
 	srcsList := android.PathForModuleOut(ctx, "lint", "lint-srcs.list")
 	srcsListRsp := android.PathForModuleOut(ctx, "lint-srcs.list.rsp")
-	rule.Command().Text("cp").FlagWithRspFileInputList("", srcsListRsp, l.srcs).Output(srcsList)
+	rule.Command().Text("cp").FlagWithRspFileInputList("", srcsListRsp, l.srcs).Output(srcsList).Implicits(l.compile_data)
 
 	lintPaths := l.writeLintProjectXML(ctx, rule, srcsList)
 
@@ -487,6 +492,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 
 	cmd.BuiltTool("lint").ImplicitTool(ctx.Config().HostJavaToolPath(ctx, "lint.jar")).
 		Flag("--quiet").
+		Flag("--include-aosp-issues").
 		FlagWithInput("--project ", lintPaths.projectXML).
 		FlagWithInput("--config ", lintPaths.configXML).
 		FlagWithOutput("--html ", html).
@@ -504,7 +510,8 @@ func (l *linter) lint(ctx android.ModuleContext) {
 	rule.Temporary(lintPaths.projectXML)
 	rule.Temporary(lintPaths.configXML)
 
-	if exitCode := ctx.Config().Getenv("ANDROID_LINT_SUPPRESS_EXIT_CODE"); exitCode == "" {
+	suppressExitCode := BoolDefault(l.properties.Lint.Suppress_exit_code, false)
+	if exitCode := ctx.Config().Getenv("ANDROID_LINT_SUPPRESS_EXIT_CODE"); exitCode == "" && !suppressExitCode {
 		cmd.Flag("--exitcode")
 	}
 
@@ -553,9 +560,9 @@ func (l *linter) lint(ctx android.ModuleContext) {
 }
 
 func BuildModuleLintReportZips(ctx android.ModuleContext, depSets LintDepSets) android.Paths {
-	htmlList := depSets.HTML.ToSortedList()
-	textList := depSets.Text.ToSortedList()
-	xmlList := depSets.XML.ToSortedList()
+	htmlList := android.SortedUniquePaths(depSets.HTML.ToList())
+	textList := android.SortedUniquePaths(depSets.Text.ToList())
+	xmlList := android.SortedUniquePaths(depSets.XML.ToList())
 
 	if len(htmlList) == 0 && len(textList) == 0 && len(xmlList) == 0 {
 		return nil
@@ -705,7 +712,7 @@ func (l *lintSingleton) MakeVars(ctx android.MakeVarsContext) {
 var _ android.SingletonMakeVarsProvider = (*lintSingleton)(nil)
 
 func init() {
-	android.RegisterSingletonType("lint",
+	android.RegisterParallelSingletonType("lint",
 		func() android.Singleton { return &lintSingleton{} })
 
 	registerLintBuildComponents(android.InitRegistrationContext)

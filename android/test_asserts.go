@@ -17,6 +17,7 @@ package android
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -137,6 +138,20 @@ func AssertStringContainsEquals(t *testing.T, message string, s string, substrin
 	}
 }
 
+// AssertStringMatches checks if the string matches the given regular expression. If it does not match,
+// then an error is reported with the supplied message including a reason for why it failed.
+func AssertStringMatches(t *testing.T, message, s, expectedRex string) {
+	t.Helper()
+	ok, err := regexp.MatchString(expectedRex, s)
+	if err != nil {
+		t.Fatalf("regexp failure trying to match %s against `%s` expression: %s", s, expectedRex, err)
+		return
+	}
+	if !ok {
+		t.Errorf("%s: %s does not match regular expression %s", message, s, expectedRex)
+	}
+}
+
 // AssertStringListContains checks if the list of strings contains the expected string. If it does
 // not then it reports an error prefixed with the supplied message and including a reason for why it
 // failed.
@@ -181,6 +196,22 @@ func AssertArrayString(t *testing.T, message string, expected, actual []string) 
 			t.Errorf("%s: expected %d-th, %q (%q), actual %q (%q)",
 				message, i, expected[i], expected, actual[i], actual)
 			return
+		}
+	}
+}
+
+// Asserts that each of the Paths in actual end with the corresponding string
+// from expected. Useful to test that output paths contain expected items without
+// hard-coding where intermediate files might be located.
+func AssertPathsEndWith(t *testing.T, message string, expected []string, actual []Path) {
+	t.Helper()
+	if len(expected) != len(actual) {
+		t.Errorf("%s (length): expected %d, actual %d", message, len(expected), len(actual))
+		return
+	}
+	for i := range expected {
+		if !strings.HasSuffix(actual[i].String(), expected[i]) {
+			t.Errorf("%s (item %d): expected '%s', actual '%s'", message, i, expected[i], actual[i].String())
 		}
 	}
 }

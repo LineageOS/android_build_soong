@@ -35,7 +35,7 @@ func checkHasMemtagNote(t *testing.T, m android.TestingModule, expected MemtagNo
 	note_sync := "note_memtag_heap_sync"
 
 	found := None
-	implicits := m.Rule("rustLink").Implicits
+	implicits := m.Rule("rustc").Implicits
 	for _, lib := range implicits {
 		if strings.Contains(lib.Rel(), note_async) {
 			found = Async

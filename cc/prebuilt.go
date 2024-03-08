@@ -18,8 +18,6 @@ import (
 	"path/filepath"
 
 	"android/soong/android"
-	"android/soong/bazel"
-	"android/soong/bazel/cquery"
 )
 
 func init() {
@@ -57,13 +55,6 @@ type prebuiltLinkerProperties struct {
 	// This is needed only if this library is linked by other modules in build time.
 	// Only makes sense for the Windows target.
 	Windows_import_lib *string `android:"path,arch_variant"`
-
-	// MixedBuildsDisabled is true if and only if building this prebuilt is explicitly disabled in mixed builds for either
-	// its static or shared version on the current build variant. This is to prevent Bazel targets for build variants with
-	// which either the static or shared version is incompatible from participating in mixed buiods. Please note that this
-	// is an override and does not fully determine whether Bazel or Soong will be used. For the full determination, see
-	// cc.ProcessBazelQueryResponse, cc.QueueBazelCall, and cc.MixedBuildsDisabled.
-	MixedBuildsDisabled bool `blueprint:"mutated"`
 }
 
 type prebuiltLinker struct {
@@ -140,7 +131,7 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 		}
 
 		if p.static() {
-			depSet := android.NewDepSetBuilder(android.TOPOLOGICAL).Direct(in).Build()
+			depSet := android.NewDepSetBuilder[android.Path](android.TOPOLOGICAL).Direct(in).Build()
 			ctx.SetProvider(StaticLibraryInfoProvider, StaticLibraryInfo{
 				StaticLibrary: in,
 
@@ -261,7 +252,6 @@ func (p *prebuiltLibraryLinker) nativeCoverage() bool {
 
 func (p *prebuiltLibraryLinker) disablePrebuilt() {
 	p.properties.Srcs = nil
-	p.properties.MixedBuildsDisabled = true
 }
 
 // Implements versionedInterface
@@ -272,8 +262,6 @@ func (p *prebuiltLibraryLinker) implementationModuleName(name string) string {
 func NewPrebuiltLibrary(hod android.HostOrDeviceSupported, srcsProperty string) (*Module, *libraryDecorator) {
 	module, library := NewLibrary(hod)
 	module.compiler = nil
-	module.bazelable = true
-	module.bazelHandler = &prebuiltLibraryBazelHandler{module: module, library: library}
 
 	prebuilt := &prebuiltLibraryLinker{
 		libraryDecorator: library,
@@ -348,82 +336,6 @@ func NewPrebuiltStaticLibrary(hod android.HostOrDeviceSupported) (*Module, *libr
 	return module, library
 }
 
-type bazelPrebuiltLibraryStaticAttributes struct {
-	Static_library         bazel.LabelAttribute
-	Export_includes        bazel.StringListAttribute
-	Export_system_includes bazel.StringListAttribute
-	Alwayslink             bazel.BoolAttribute
-}
-
-// TODO(b/228623543): The below is not entirely true until the bug is fixed. For now, both targets are always generated
-// Implements bp2build for cc_prebuilt_library modules. This will generate:
-//   - Only a cc_prebuilt_library_static if the shared.enabled property is set to false across all variants.
-//   - Only a cc_prebuilt_library_shared if the static.enabled property is set to false across all variants
-//   - Both a cc_prebuilt_library_static and cc_prebuilt_library_shared if the aforementioned properties are not false across
-//     all variants
-//
-// In all cases, cc_prebuilt_library_static target names will be appended with "_bp2build_cc_library_static".
-func prebuiltLibraryBp2Build(ctx android.TopDownMutatorContext, module *Module) {
-	prebuiltLibraryStaticBp2Build(ctx, module, true)
-	prebuiltLibrarySharedBp2Build(ctx, module)
-}
-
-func prebuiltLibraryStaticBp2Build(ctx android.TopDownMutatorContext, module *Module, fullBuild bool) {
-	prebuiltAttrs := Bp2BuildParsePrebuiltLibraryProps(ctx, module, true)
-	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module, nil)
-
-	attrs := &bazelPrebuiltLibraryStaticAttributes{
-		Static_library:         prebuiltAttrs.Src,
-		Export_includes:        exportedIncludes.Includes,
-		Export_system_includes: exportedIncludes.SystemIncludes,
-		// TODO: ¿Alwayslink?
-	}
-
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "cc_prebuilt_library_static",
-		Bzl_load_location: "//build/bazel/rules/cc:cc_prebuilt_library_static.bzl",
-	}
-
-	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
-	if fullBuild {
-		name += "_bp2build_cc_library_static"
-	}
-
-	tags := android.ApexAvailableTags(module)
-	ctx.CreateBazelTargetModuleWithRestrictions(props, android.CommonAttributes{Name: name, Tags: tags}, attrs, prebuiltAttrs.Enabled)
-
-	_true := true
-	alwayslinkAttrs := *attrs
-	alwayslinkAttrs.Alwayslink.SetValue(&_true)
-	ctx.CreateBazelTargetModuleWithRestrictions(props, android.CommonAttributes{Name: name + "_alwayslink", Tags: tags}, &alwayslinkAttrs, prebuiltAttrs.Enabled)
-}
-
-type bazelPrebuiltLibrarySharedAttributes struct {
-	Shared_library         bazel.LabelAttribute
-	Export_includes        bazel.StringListAttribute
-	Export_system_includes bazel.StringListAttribute
-}
-
-func prebuiltLibrarySharedBp2Build(ctx android.TopDownMutatorContext, module *Module) {
-	prebuiltAttrs := Bp2BuildParsePrebuiltLibraryProps(ctx, module, false)
-	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module, nil)
-
-	attrs := &bazelPrebuiltLibrarySharedAttributes{
-		Shared_library:         prebuiltAttrs.Src,
-		Export_includes:        exportedIncludes.Includes,
-		Export_system_includes: exportedIncludes.SystemIncludes,
-	}
-
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "cc_prebuilt_library_shared",
-		Bzl_load_location: "//build/bazel/rules/cc:cc_prebuilt_library_shared.bzl",
-	}
-
-	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
-	tags := android.ApexAvailableTags(module)
-	ctx.CreateBazelTargetModuleWithRestrictions(props, android.CommonAttributes{Name: name, Tags: tags}, attrs, prebuiltAttrs.Enabled)
-}
-
 type prebuiltObjectProperties struct {
 	Srcs []string `android:"path,arch_variant"`
 }
@@ -433,135 +345,6 @@ type prebuiltObjectLinker struct {
 	objectLinker
 
 	properties prebuiltObjectProperties
-}
-
-type prebuiltLibraryBazelHandler struct {
-	module  *Module
-	library *libraryDecorator
-}
-
-var _ BazelHandler = (*prebuiltLibraryBazelHandler)(nil)
-
-func (h *prebuiltLibraryBazelHandler) QueueBazelCall(ctx android.BaseModuleContext, label string) {
-	if h.module.linker.(*prebuiltLibraryLinker).properties.MixedBuildsDisabled {
-		return
-	}
-	bazelCtx := ctx.Config().BazelContext
-	bazelCtx.QueueBazelRequest(label, cquery.GetCcInfo, android.GetConfigKey(ctx))
-}
-
-func (h *prebuiltLibraryBazelHandler) ProcessBazelQueryResponse(ctx android.ModuleContext, label string) {
-	if h.module.linker.(*prebuiltLibraryLinker).properties.MixedBuildsDisabled {
-		return
-	}
-	bazelCtx := ctx.Config().BazelContext
-	ccInfo, err := bazelCtx.GetCcInfo(label, android.GetConfigKey(ctx))
-	if err != nil {
-		ctx.ModuleErrorf(err.Error())
-		return
-	}
-
-	if h.module.static() {
-		if ok := h.processStaticBazelQueryResponse(ctx, label, ccInfo); !ok {
-			return
-		}
-	} else if h.module.Shared() {
-		if ok := h.processSharedBazelQueryResponse(ctx, label, ccInfo); !ok {
-			return
-		}
-	} else {
-		return
-	}
-
-	h.module.maybeUnhideFromMake()
-
-	h.module.setAndroidMkVariablesFromCquery(ccInfo.CcAndroidMkInfo)
-}
-
-func (h *prebuiltLibraryBazelHandler) processStaticBazelQueryResponse(ctx android.ModuleContext, label string, ccInfo cquery.CcInfo) bool {
-	staticLibs := ccInfo.CcStaticLibraryFiles
-	if len(staticLibs) > 1 {
-		ctx.ModuleErrorf("expected 1 static library from bazel target %q, got %s", label, staticLibs)
-		return false
-	}
-
-	// TODO(b/184543518): cc_prebuilt_library_static may have properties for re-exporting flags
-
-	// TODO(eakammer):Add stub-related flags if this library is a stub library.
-	// h.library.exportVersioningMacroIfNeeded(ctx)
-
-	// Dependencies on this library will expect collectedSnapshotHeaders to be set, otherwise
-	// validation will fail. For now, set this to an empty list.
-	// TODO(cparsons): More closely mirror the collectHeadersForSnapshot implementation.
-	h.library.collectedSnapshotHeaders = android.Paths{}
-
-	if len(staticLibs) == 0 {
-		h.module.outputFile = android.OptionalPath{}
-		return true
-	}
-
-	var outputPath android.Path = android.PathForBazelOut(ctx, staticLibs[0])
-	if len(ccInfo.TidyFiles) > 0 {
-		h.module.tidyFiles = android.PathsForBazelOut(ctx, ccInfo.TidyFiles)
-		outputPath = android.AttachValidationActions(ctx, outputPath, h.module.tidyFiles)
-	}
-
-	h.module.outputFile = android.OptionalPathForPath(outputPath)
-
-	depSet := android.NewDepSetBuilder(android.TOPOLOGICAL).Direct(outputPath).Build()
-	ctx.SetProvider(StaticLibraryInfoProvider, StaticLibraryInfo{
-		StaticLibrary:                        outputPath,
-		TransitiveStaticLibrariesForOrdering: depSet,
-	})
-
-	return true
-}
-
-func (h *prebuiltLibraryBazelHandler) processSharedBazelQueryResponse(ctx android.ModuleContext, label string, ccInfo cquery.CcInfo) bool {
-	sharedLibs := ccInfo.CcSharedLibraryFiles
-	if len(sharedLibs) > 1 {
-		ctx.ModuleErrorf("expected 1 shared library from bazel target %s, got %q", label, sharedLibs)
-		return false
-	}
-
-	// TODO(b/184543518): cc_prebuilt_library_shared may have properties for re-exporting flags
-
-	// TODO(eakammer):Add stub-related flags if this library is a stub library.
-	// h.library.exportVersioningMacroIfNeeded(ctx)
-
-	if len(sharedLibs) == 0 {
-		h.module.outputFile = android.OptionalPath{}
-		return true
-	}
-
-	var outputPath android.Path = android.PathForBazelOut(ctx, sharedLibs[0])
-	if len(ccInfo.TidyFiles) > 0 {
-		h.module.tidyFiles = android.PathsForBazelOut(ctx, ccInfo.TidyFiles)
-		outputPath = android.AttachValidationActions(ctx, outputPath, h.module.tidyFiles)
-	}
-
-	h.module.outputFile = android.OptionalPathForPath(outputPath)
-
-	// FIXME(b/214600441): We don't yet strip prebuilt shared libraries
-	h.library.unstrippedOutputFile = outputPath
-
-	var toc android.Path
-	if len(ccInfo.TocFile) > 0 {
-		toc = android.PathForBazelOut(ctx, ccInfo.TocFile)
-	} else {
-		toc = outputPath // Just reuse `out` so ninja still gets an input but won't matter
-	}
-
-	info := SharedLibraryInfo{
-		SharedLibrary:   outputPath,
-		TableOfContents: android.OptionalPathForPath(toc),
-		Target:          ctx.Target(),
-	}
-	ctx.SetProvider(SharedLibraryInfoProvider, info)
-
-	h.library.setFlagExporterInfoFromCcInfo(ctx, ccInfo)
-	h.module.maybeUnhideFromMake()
-	return true
 }
 
 func (p *prebuiltObjectLinker) prebuilt() *android.Prebuilt {
@@ -593,8 +376,6 @@ func (p *prebuiltObjectLinker) object() bool {
 
 func NewPrebuiltObject(hod android.HostOrDeviceSupported) *Module {
 	module := newObject(hod)
-	module.bazelHandler = &prebuiltObjectBazelHandler{module: module}
-	module.bazelable = true
 	prebuilt := &prebuiltObjectLinker{
 		objectLinker: objectLinker{
 			baseLinker: NewBaseLinker(nil),
@@ -604,54 +385,6 @@ func NewPrebuiltObject(hod android.HostOrDeviceSupported) *Module {
 	module.AddProperties(&prebuilt.properties)
 	android.InitPrebuiltModule(module, &prebuilt.properties.Srcs)
 	return module
-}
-
-type prebuiltObjectBazelHandler struct {
-	module *Module
-}
-
-var _ BazelHandler = (*prebuiltObjectBazelHandler)(nil)
-
-func (h *prebuiltObjectBazelHandler) QueueBazelCall(ctx android.BaseModuleContext, label string) {
-	bazelCtx := ctx.Config().BazelContext
-	bazelCtx.QueueBazelRequest(label, cquery.GetOutputFiles, android.GetConfigKey(ctx))
-}
-
-func (h *prebuiltObjectBazelHandler) ProcessBazelQueryResponse(ctx android.ModuleContext, label string) {
-	bazelCtx := ctx.Config().BazelContext
-	outputs, err := bazelCtx.GetOutputFiles(label, android.GetConfigKey(ctx))
-	if err != nil {
-		ctx.ModuleErrorf(err.Error())
-		return
-	}
-	if len(outputs) != 1 {
-		ctx.ModuleErrorf("Expected a single output for `%s`, but got:\n%v", label, outputs)
-		return
-	}
-	out := android.PathForBazelOut(ctx, outputs[0])
-	h.module.outputFile = android.OptionalPathForPath(out)
-	h.module.maybeUnhideFromMake()
-}
-
-type bazelPrebuiltObjectAttributes struct {
-	Src bazel.LabelAttribute
-}
-
-func prebuiltObjectBp2Build(ctx android.TopDownMutatorContext, module *Module) {
-	prebuiltAttrs := bp2BuildParsePrebuiltObjectProps(ctx, module)
-
-	attrs := &bazelPrebuiltObjectAttributes{
-		Src: prebuiltAttrs.Src,
-	}
-
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "cc_prebuilt_object",
-		Bzl_load_location: "//build/bazel/rules/cc:cc_prebuilt_object.bzl",
-	}
-
-	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
-	tags := android.ApexAvailableTags(module)
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name, Tags: tags}, attrs)
 }
 
 func PrebuiltObjectFactory() android.Module {
@@ -747,15 +480,9 @@ func PrebuiltBinaryFactory() android.Module {
 	return module.Init()
 }
 
-type prebuiltBinaryBazelHandler struct {
-	module    *Module
-	decorator *binaryDecorator
-}
-
 func NewPrebuiltBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
-	module, binary := newBinary(hod, true)
+	module, binary := newBinary(hod)
 	module.compiler = nil
-	module.bazelHandler = &prebuiltBinaryBazelHandler{module, binary}
 
 	prebuilt := &prebuiltBinaryLinker{
 		binaryDecorator: binary,
@@ -767,54 +494,6 @@ func NewPrebuiltBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecor
 
 	android.InitPrebuiltModule(module, &prebuilt.properties.Srcs)
 	return module, binary
-}
-
-var _ BazelHandler = (*prebuiltBinaryBazelHandler)(nil)
-
-func (h *prebuiltBinaryBazelHandler) QueueBazelCall(ctx android.BaseModuleContext, label string) {
-	bazelCtx := ctx.Config().BazelContext
-	bazelCtx.QueueBazelRequest(label, cquery.GetOutputFiles, android.GetConfigKeyApexVariant(ctx, GetApexConfigKey(ctx)))
-}
-
-func (h *prebuiltBinaryBazelHandler) ProcessBazelQueryResponse(ctx android.ModuleContext, label string) {
-	bazelCtx := ctx.Config().BazelContext
-	outputs, err := bazelCtx.GetOutputFiles(label, android.GetConfigKeyApexVariant(ctx, GetApexConfigKey(ctx)))
-	if err != nil {
-		ctx.ModuleErrorf(err.Error())
-		return
-	}
-	if len(outputs) != 1 {
-		ctx.ModuleErrorf("Expected a single output for `%s`, but got:\n%v", label, outputs)
-		return
-	}
-	out := android.PathForBazelOut(ctx, outputs[0])
-	h.module.outputFile = android.OptionalPathForPath(out)
-	h.module.maybeUnhideFromMake()
-}
-
-type bazelPrebuiltBinaryAttributes struct {
-	Src   bazel.LabelAttribute
-	Strip stripAttributes
-}
-
-func prebuiltBinaryBp2Build(ctx android.TopDownMutatorContext, module *Module) {
-	prebuiltAttrs := bp2BuildParsePrebuiltBinaryProps(ctx, module)
-
-	var la linkerAttributes
-	la.convertStripProps(ctx, module)
-	attrs := &bazelPrebuiltBinaryAttributes{
-		Src:   prebuiltAttrs.Src,
-		Strip: stripAttrsFromLinkerAttrs(&la),
-	}
-
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "cc_prebuilt_binary",
-		Bzl_load_location: "//build/bazel/rules/cc:cc_prebuilt_binary.bzl",
-	}
-
-	name := android.RemoveOptionalPrebuiltPrefix(module.Name())
-	tags := android.ApexAvailableTags(module)
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: name, Tags: tags}, attrs)
 }
 
 type Sanitized struct {

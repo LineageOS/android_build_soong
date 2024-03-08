@@ -187,7 +187,7 @@ func main() {
 			quit(fmt.Errorf("the product launcher input variables file failed to convert"))
 		}
 
-		err := writeGenerated(*launcher, mk2rbc.Launcher(outputFilePath(files[0]), outputFilePath(*inputVariables),
+		err := writeGenerated(*launcher, mk2rbc.Launcher(outputModulePath(files[0]), outputModulePath(*inputVariables),
 			mk2rbc.MakePath2ModuleName(files[0])))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s", files[0], err)
@@ -205,7 +205,7 @@ func main() {
 			quit(fmt.Errorf("the board launcher input variables file failed to convert"))
 		}
 		err := writeGenerated(*boardlauncher, mk2rbc.BoardLauncher(
-			outputFilePath(files[0]), outputFilePath(*inputVariables)))
+			outputModulePath(files[0]), outputModulePath(*inputVariables)))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s", files[0], err)
 			ok = false
@@ -400,6 +400,15 @@ func outputFilePath(mkFile string) string {
 		path = filepath.Join(*outputTop, path)
 	}
 	return path
+}
+
+func outputModulePath(mkFile string) string {
+	path := outputFilePath(mkFile)
+	path, err := mk2rbc.RelativeToCwd(path)
+	if err != nil {
+		panic(err)
+	}
+	return "//" + path
 }
 
 func writeGenerated(path string, contents string) error {

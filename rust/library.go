@@ -15,18 +15,17 @@
 package rust
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 
 	"android/soong/android"
 	"android/soong/cc"
-	"android/soong/snapshot"
 )
 
 var (
-	DylibStdlibSuffix = ".dylib-std"
-	RlibStdlibSuffix  = ".rlib-std"
+	RlibStdlibSuffix = ".rlib-std"
 )
 
 func init() {
@@ -237,10 +236,7 @@ func (library *libraryDecorator) setSource() {
 }
 
 func (library *libraryDecorator) autoDep(ctx android.BottomUpMutatorContext) autoDep {
-	if ctx.Module().(*Module).InVendor() {
-		// Vendor modules should statically link libstd.
-		return rlibAutoDep
-	} else if library.preferRlib() {
+	if library.preferRlib() {
 		return rlibAutoDep
 	} else if library.rlib() || library.static() {
 		return rlibAutoDep
@@ -252,10 +248,7 @@ func (library *libraryDecorator) autoDep(ctx android.BottomUpMutatorContext) aut
 }
 
 func (library *libraryDecorator) stdLinkage(ctx *depsContext) RustLinkage {
-	if ctx.RustModule().InVendor() {
-		// Vendor modules should statically link libstd.
-		return RlibLinkage
-	} else if library.static() || library.MutatedProperties.VariantIsStaticStd {
+	if library.static() || library.MutatedProperties.VariantIsStaticStd {
 		return RlibLinkage
 	} else if library.baseCompiler.preferRlib() {
 		return RlibLinkage
@@ -474,7 +467,15 @@ func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) F
 		library.includeDirs = append(library.includeDirs, android.PathsForModuleSrc(ctx, library.Properties.Include_dirs)...)
 	}
 	if library.shared() {
-		flags.LinkFlags = append(flags.LinkFlags, "-Wl,-soname="+library.sharedLibFilename(ctx))
+		if ctx.Darwin() {
+			flags.LinkFlags = append(
+				flags.LinkFlags,
+				"-dynamic_lib",
+				"-install_name @rpath/"+library.sharedLibFilename(ctx),
+			)
+		} else {
+			flags.LinkFlags = append(flags.LinkFlags, "-Wl,-soname="+library.sharedLibFilename(ctx))
+		}
 	}
 
 	return flags
@@ -484,7 +485,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	var outputFile android.ModuleOutPath
 	var ret buildOutput
 	var fileName string
-	srcPath := library.srcPath(ctx, deps)
+	crateRootPath := crateRootPath(ctx, library)
 
 	if library.sourceProvider != nil {
 		deps.srcProviderFiles = append(deps.srcProviderFiles, library.sourceProvider.Srcs()...)
@@ -520,7 +521,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.depLinkFlags...)
-	flags.LinkFlags = append(flags.LinkFlags, deps.linkObjects.Strings()...)
+	flags.LinkFlags = append(flags.LinkFlags, deps.linkObjects...)
 
 	if library.dylib() {
 		// We need prefer-dynamic for now to avoid linking in the static stdlib. See:
@@ -531,19 +532,18 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 
 	// Call the appropriate builder for this library type
 	if library.rlib() {
-		ret.kytheFile = TransformSrctoRlib(ctx, srcPath, deps, flags, outputFile).kytheFile
+		ret.kytheFile = TransformSrctoRlib(ctx, crateRootPath, deps, flags, outputFile).kytheFile
 	} else if library.dylib() {
-		ret.kytheFile = TransformSrctoDylib(ctx, srcPath, deps, flags, outputFile).kytheFile
+		ret.kytheFile = TransformSrctoDylib(ctx, crateRootPath, deps, flags, outputFile).kytheFile
 	} else if library.static() {
-		ret.kytheFile = TransformSrctoStatic(ctx, srcPath, deps, flags, outputFile).kytheFile
+		ret.kytheFile = TransformSrctoStatic(ctx, crateRootPath, deps, flags, outputFile).kytheFile
 	} else if library.shared() {
-		ret.kytheFile = TransformSrctoShared(ctx, srcPath, deps, flags, outputFile).kytheFile
+		ret.kytheFile = TransformSrctoShared(ctx, crateRootPath, deps, flags, outputFile).kytheFile
 	}
 
 	if library.rlib() || library.dylib() {
 		library.flagExporter.exportLinkDirs(deps.linkDirs...)
 		library.flagExporter.exportLinkObjects(deps.linkObjects...)
-		library.flagExporter.exportLibDeps(deps.LibDeps...)
 	}
 
 	if library.static() || library.shared() {
@@ -567,7 +567,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	}
 
 	if library.static() {
-		depSet := android.NewDepSetBuilder(android.TOPOLOGICAL).Direct(outputFile).Build()
+		depSet := android.NewDepSetBuilder[android.Path](android.TOPOLOGICAL).Direct(outputFile).Build()
 		ctx.SetProvider(cc.StaticLibraryInfoProvider, cc.StaticLibraryInfo{
 			StaticLibrary: outputFile,
 
@@ -580,13 +580,16 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	return ret
 }
 
-func (library *libraryDecorator) srcPath(ctx ModuleContext, _ PathDeps) android.Path {
+func (library *libraryDecorator) checkedCrateRootPath() (android.Path, error) {
 	if library.sourceProvider != nil {
+		srcs := library.sourceProvider.Srcs()
+		if len(srcs) == 0 {
+			return nil, errors.New("Source provider generated 0 sources")
+		}
 		// Assume the first source from the source provider is the library entry point.
-		return library.sourceProvider.Srcs()[0]
+		return srcs[0], nil
 	} else {
-		path, _ := srcPathFromModuleSrcs(ctx, library.baseCompiler.Properties.Srcs)
-		return path
+		return library.baseCompiler.checkedCrateRootPath()
 	}
 }
 
@@ -601,7 +604,7 @@ func (library *libraryDecorator) rustdoc(ctx ModuleContext, flags Flags,
 		return android.OptionalPath{}
 	}
 
-	return android.OptionalPathForPath(Rustdoc(ctx, library.srcPath(ctx, deps),
+	return android.OptionalPathForPath(Rustdoc(ctx, crateRootPath(ctx, library),
 		deps, flags))
 }
 
@@ -694,24 +697,6 @@ func LibraryMutator(mctx android.BottomUpMutatorContext) {
 				v.(*Module).Disable()
 			}
 
-			variation := v.(*Module).ModuleBase.ImageVariation().Variation
-			if strings.HasPrefix(variation, cc.VendorVariationPrefix) {
-				// TODO(b/204303985)
-				// Disable vendor dylibs until they are supported
-				v.(*Module).Disable()
-			}
-
-			if strings.HasPrefix(variation, cc.VendorVariationPrefix) &&
-				m.HasVendorVariant() &&
-				!snapshot.IsVendorProprietaryModule(mctx) &&
-				strings.TrimPrefix(variation, cc.VendorVariationPrefix) == mctx.DeviceConfig().VndkVersion() {
-
-				// cc.MutateImage runs before LibraryMutator, so vendor variations which are meant for rlibs only are
-				// produced for Dylibs; however, dylibs should not be enabled for boardVndkVersion for
-				// non-vendor proprietary modules.
-				v.(*Module).Disable()
-			}
-
 		case "source":
 			v.(*Module).compiler.(libraryInterface).setSource()
 			// The source variant does not produce any library.
@@ -748,15 +733,13 @@ func LibstdMutator(mctx android.BottomUpMutatorContext) {
 				dylib := modules[1].(*Module)
 				rlib.compiler.(libraryInterface).setRlibStd()
 				dylib.compiler.(libraryInterface).setDylibStd()
-				if dylib.ModuleBase.ImageVariation().Variation == android.VendorRamdiskVariation ||
-					strings.HasPrefix(dylib.ModuleBase.ImageVariation().Variation, cc.VendorVariationPrefix) {
+				if dylib.ModuleBase.ImageVariation().Variation == android.VendorRamdiskVariation {
 					// TODO(b/165791368)
-					// Disable rlibs that link against dylib-std on vendor and vendor ramdisk variations until those dylib
+					// Disable rlibs that link against dylib-std on vendor ramdisk variations until those dylib
 					// variants are properly supported.
 					dylib.Disable()
 				}
 				rlib.Properties.RustSubName += RlibStdlibSuffix
-				dylib.Properties.RustSubName += DylibStdlibSuffix
 			}
 		}
 	}

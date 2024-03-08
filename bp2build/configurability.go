@@ -279,6 +279,10 @@ func prettyPrintSelectMap(selectMap map[string]reflect.Value, defaultValue *stri
 	}
 
 	if len(selects) == 0 {
+		// If there is a default value, and there are no selects for this axis, print that without any selects.
+		if val, exists := selectMap[bazel.ConditionsDefaultSelectKey]; exists {
+			return prettyPrint(val, indent, emitZeroValues)
+		}
 		// No conditions (or all values are empty lists), so no need for a map.
 		return "", nil
 	}

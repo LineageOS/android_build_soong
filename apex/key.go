@@ -16,12 +16,8 @@ package apex
 
 import (
 	"fmt"
-	"sort"
-	"strings"
 
 	"android/soong/android"
-	"android/soong/bazel"
-
 	"github.com/google/blueprint/proptools"
 )
 
@@ -33,12 +29,10 @@ func init() {
 
 func registerApexKeyBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("apex_key", ApexKeyFactory)
-	ctx.RegisterSingletonType("apex_keys_text", apexKeysTextFactory)
 }
 
 type apexKey struct {
 	android.ModuleBase
-	android.BazelModuleBase
 
 	properties apexKeyProperties
 
@@ -60,8 +54,7 @@ type apexKeyProperties struct {
 func ApexKeyFactory() android.Module {
 	module := &apexKey{}
 	module.AddProperties(&module.properties)
-	android.InitAndroidArchModule(module, android.HostAndDeviceDefault, android.MultilibCommon)
-	android.InitBazelModule(module)
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	return module
 }
 
@@ -102,135 +95,63 @@ func (m *apexKey) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 }
 
-// //////////////////////////////////////////////////////////////////////
-// apex_keys_text
-type apexKeysText struct {
-	output android.OutputPath
+type apexKeyEntry struct {
+	name                 string
+	presigned            bool
+	publicKey            string
+	privateKey           string
+	containerCertificate string
+	containerPrivateKey  string
+	partition            string
+	signTool             string
 }
 
-func (s *apexKeysText) GenerateBuildActions(ctx android.SingletonContext) {
-	s.output = android.PathForOutput(ctx, "apexkeys.txt")
-	type apexKeyEntry struct {
-		name                 string
-		presigned            bool
-		publicKey            string
-		privateKey           string
-		containerCertificate string
-		containerPrivateKey  string
-		partition            string
-		signTool             string
+func (e apexKeyEntry) String() string {
+	signTool := ""
+	if e.signTool != "" {
+		signTool = fmt.Sprintf(" sign_tool=%q", e.signTool)
 	}
-	toString := func(e apexKeyEntry) string {
-		signTool := ""
-		if e.signTool != "" {
-			signTool = fmt.Sprintf(" sign_tool=%q", e.signTool)
+	format := "name=%q public_key=%q private_key=%q container_certificate=%q container_private_key=%q partition=%q%s\n"
+	if e.presigned {
+		return fmt.Sprintf(format, e.name, "PRESIGNED", "PRESIGNED", "PRESIGNED", "PRESIGNED", e.partition, signTool)
+	} else {
+		return fmt.Sprintf(format, e.name, e.publicKey, e.privateKey, e.containerCertificate, e.containerPrivateKey, e.partition, signTool)
+	}
+}
+
+func apexKeyEntryFor(ctx android.ModuleContext, module android.Module) apexKeyEntry {
+	switch m := module.(type) {
+	case *apexBundle:
+		pem, key := m.getCertificateAndPrivateKey(ctx)
+		return apexKeyEntry{
+			name:                 m.Name() + ".apex",
+			presigned:            false,
+			publicKey:            m.publicKeyFile.String(),
+			privateKey:           m.privateKeyFile.String(),
+			containerCertificate: pem.String(),
+			containerPrivateKey:  key.String(),
+			partition:            m.PartitionTag(ctx.DeviceConfig()),
+			signTool:             proptools.String(m.properties.Custom_sign_tool),
 		}
-		format := "name=%q public_key=%q private_key=%q container_certificate=%q container_private_key=%q partition=%q%s\n"
-		if e.presigned {
-			return fmt.Sprintf(format, e.name, "PRESIGNED", "PRESIGNED", "PRESIGNED", "PRESIGNED", e.partition, signTool)
-		} else {
-			return fmt.Sprintf(format, e.name, e.publicKey, e.privateKey, e.containerCertificate, e.containerPrivateKey, e.partition, signTool)
+	case *Prebuilt:
+		return apexKeyEntry{
+			name:      m.InstallFilename(),
+			presigned: true,
+			partition: m.PartitionTag(ctx.DeviceConfig()),
+		}
+	case *ApexSet:
+		return apexKeyEntry{
+			name:      m.InstallFilename(),
+			presigned: true,
+			partition: m.PartitionTag(ctx.DeviceConfig()),
 		}
 	}
-
-	apexKeyMap := make(map[string]apexKeyEntry)
-	ctx.VisitAllModules(func(module android.Module) {
-		if m, ok := module.(*apexBundle); ok && m.Enabled() && m.installable() {
-			pem, key := m.getCertificateAndPrivateKey(ctx)
-			apexKeyMap[m.Name()] = apexKeyEntry{
-				name:                 m.Name() + ".apex",
-				presigned:            false,
-				publicKey:            m.publicKeyFile.String(),
-				privateKey:           m.privateKeyFile.String(),
-				containerCertificate: pem.String(),
-				containerPrivateKey:  key.String(),
-				partition:            m.PartitionTag(ctx.DeviceConfig()),
-				signTool:             proptools.String(m.properties.Custom_sign_tool),
-			}
-		}
-	})
-
-	// Find prebuilts and let them override apexBundle if they are preferred
-	ctx.VisitAllModules(func(module android.Module) {
-		if m, ok := module.(*Prebuilt); ok && m.Enabled() && m.installable() &&
-			m.Prebuilt().UsePrebuilt() {
-			apexKeyMap[m.BaseModuleName()] = apexKeyEntry{
-				name:      m.InstallFilename(),
-				presigned: true,
-				partition: m.PartitionTag(ctx.DeviceConfig()),
-			}
-		}
-	})
-
-	// Find apex_set and let them override apexBundle or prebuilts. This is done in a separate pass
-	// so that apex_set are not overridden by prebuilts.
-	ctx.VisitAllModules(func(module android.Module) {
-		if m, ok := module.(*ApexSet); ok && m.Enabled() {
-			entry := apexKeyEntry{
-				name:      m.InstallFilename(),
-				presigned: true,
-				partition: m.PartitionTag(ctx.DeviceConfig()),
-			}
-			apexKeyMap[m.BaseModuleName()] = entry
-		}
-	})
-
-	// iterating over map does not give consistent ordering in golang
-	var moduleNames []string
-	for key, _ := range apexKeyMap {
-		moduleNames = append(moduleNames, key)
-	}
-	sort.Strings(moduleNames)
-
-	var filecontent strings.Builder
-	for _, name := range moduleNames {
-		filecontent.WriteString(toString(apexKeyMap[name]))
-	}
-	android.WriteFileRule(ctx, s.output, filecontent.String())
+	panic(fmt.Errorf("unknown type(%t) for apexKeyEntry", module))
 }
 
-func apexKeysTextFactory() android.Singleton {
-	return &apexKeysText{}
-}
-
-func (s *apexKeysText) MakeVars(ctx android.MakeVarsContext) {
-	ctx.Strict("SOONG_APEX_KEYS_FILE", s.output.String())
-}
-
-// For Bazel / bp2build
-
-type bazelApexKeyAttributes struct {
-	Public_key      bazel.LabelAttribute
-	Public_key_name bazel.StringAttribute
-
-	Private_key      bazel.LabelAttribute
-	Private_key_name bazel.StringAttribute
-}
-
-// ConvertWithBp2build performs conversion apexKey for bp2build
-func (m *apexKey) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
-	apexKeyBp2BuildInternal(ctx, m)
-}
-
-func apexKeyBp2BuildInternal(ctx android.TopDownMutatorContext, module *apexKey) {
-	privateKeyLabelAttribute, privateKeyNameAttribute :=
-		android.BazelStringOrLabelFromProp(ctx, module.properties.Private_key)
-
-	publicKeyLabelAttribute, publicKeyNameAttribute :=
-		android.BazelStringOrLabelFromProp(ctx, module.properties.Public_key)
-
-	attrs := &bazelApexKeyAttributes{
-		Private_key:      privateKeyLabelAttribute,
-		Private_key_name: privateKeyNameAttribute,
-
-		Public_key:      publicKeyLabelAttribute,
-		Public_key_name: publicKeyNameAttribute,
-	}
-
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "apex_key",
-		Bzl_load_location: "//build/bazel/rules/apex:apex_key.bzl",
-	}
-
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: module.Name()}, attrs)
+func writeApexKeys(ctx android.ModuleContext, module android.Module) android.WritablePath {
+	path := android.PathForModuleOut(ctx, "apexkeys.txt")
+	entry := apexKeyEntryFor(ctx, module)
+	android.WriteFileRuleVerbatim(ctx, path, entry.String())
+	return path
 }

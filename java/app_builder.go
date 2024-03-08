@@ -52,7 +52,7 @@ var combineApk = pctx.AndroidStaticRule("combineApk",
 	})
 
 func CreateAndSignAppPackage(ctx android.ModuleContext, outputFile android.WritablePath,
-	packageFile, jniJarFile, dexJarFile android.Path, certificates []Certificate, deps android.Paths, v4SignatureFile android.WritablePath, lineageFile android.Path, rotationMinSdkVersion string, shrinkResources bool) {
+	packageFile, jniJarFile, dexJarFile android.Path, certificates []Certificate, deps android.Paths, v4SignatureFile android.WritablePath, lineageFile android.Path, rotationMinSdkVersion string) {
 
 	unsignedApkName := strings.TrimSuffix(outputFile.Base(), ".apk") + "-unsigned.apk"
 	unsignedApk := android.PathForModuleOut(ctx, unsignedApkName)
@@ -71,12 +71,6 @@ func CreateAndSignAppPackage(ctx android.ModuleContext, outputFile android.Writa
 		Output:    unsignedApk,
 		Implicits: deps,
 	})
-
-	if shrinkResources {
-		shrunkenApk := android.PathForModuleOut(ctx, "resource-shrunken", unsignedApk.Base())
-		ShrinkResources(ctx, unsignedApk, shrunkenApk)
-		unsignedApk = shrunkenApk
-	}
 	SignAppPackage(ctx, outputFile, unsignedApk, certificates, v4SignatureFile, lineageFile, rotationMinSdkVersion)
 }
 
@@ -225,8 +219,6 @@ func BuildBundleModule(ctx android.ModuleContext, outputFile android.WritablePat
 	})
 }
 
-const jniJarOutputPathString = "jniJarOutput.zip"
-
 func TransformJniLibsToJar(
 	ctx android.ModuleContext,
 	outputFile android.WritablePath,
@@ -258,7 +250,10 @@ func TransformJniLibsToJar(
 		rule = zipRE
 		args["implicits"] = strings.Join(deps.Strings(), ",")
 	}
-	jniJarPath := android.PathForModuleOut(ctx, jniJarOutputPathString)
+	var jniJarPath android.WritablePath = android.PathForModuleOut(ctx, "jniJarOutput.zip")
+	if len(prebuiltJniPackages) == 0 {
+		jniJarPath = outputFile
+	}
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        rule,
 		Description: "zip jni libs",
@@ -266,12 +261,26 @@ func TransformJniLibsToJar(
 		Implicits:   deps,
 		Args:        args,
 	})
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        mergeAssetsRule,
-		Description: "merge prebuilt JNI packages",
-		Inputs:      append(prebuiltJniPackages, jniJarPath),
-		Output:      outputFile,
-	})
+	if len(prebuiltJniPackages) > 0 {
+		var mergeJniJarPath android.WritablePath = android.PathForModuleOut(ctx, "mergeJniJarOutput.zip")
+		if !uncompressJNI {
+			mergeJniJarPath = outputFile
+		}
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        mergeAssetsRule,
+			Description: "merge prebuilt JNI packages",
+			Inputs:      append(prebuiltJniPackages, jniJarPath),
+			Output:      mergeJniJarPath,
+		})
+
+		if uncompressJNI {
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   uncompressEmbeddedJniLibsRule,
+				Input:  mergeJniJarPath,
+				Output: outputFile,
+			})
+		}
+	}
 }
 
 func (a *AndroidApp) generateJavaUsedByApex(ctx android.ModuleContext) {

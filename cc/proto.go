@@ -19,7 +19,6 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/bazel"
 )
 
 const (
@@ -162,71 +161,4 @@ func protoFlags(ctx ModuleContext, flags Flags, p *android.ProtoProperties) Flag
 	}
 
 	return flags
-}
-
-type protoAttributes struct {
-	Deps            bazel.LabelListAttribute
-	Min_sdk_version *string
-}
-
-type bp2buildProtoDeps struct {
-	wholeStaticLib               *bazel.LabelAttribute
-	implementationWholeStaticLib *bazel.LabelAttribute
-	protoDep                     *bazel.LabelAttribute
-}
-
-func bp2buildProto(ctx android.Bp2buildMutatorContext, m *Module, protoSrcs bazel.LabelListAttribute) bp2buildProtoDeps {
-	var ret bp2buildProtoDeps
-
-	protoInfo, ok := android.Bp2buildProtoProperties(ctx, &m.ModuleBase, protoSrcs)
-	if !ok || protoInfo.Proto_libs.IsEmpty() {
-		return ret
-	}
-
-	var depName string
-	typ := proptools.StringDefault(protoInfo.Type, protoTypeDefault)
-	var rule_class string
-	suffix := "_cc_proto"
-	switch typ {
-	case "lite":
-		suffix += "_lite"
-		rule_class = "cc_lite_proto_library"
-		depName = "libprotobuf-cpp-lite"
-	case "full":
-		rule_class = "cc_proto_library"
-		depName = "libprotobuf-cpp-full"
-	default:
-		ctx.PropertyErrorf("proto.type", "cannot handle conversion at this time: %q", typ)
-	}
-
-	dep := android.BazelLabelForModuleDepSingle(ctx, depName)
-	ret.protoDep = &bazel.LabelAttribute{Value: &dep}
-
-	var protoAttrs protoAttributes
-	protoAttrs.Deps.SetValue(protoInfo.Proto_libs)
-	protoAttrs.Min_sdk_version = m.Properties.Min_sdk_version
-
-	name := m.Name() + suffix
-	tags := android.ApexAvailableTags(m)
-	ctx.CreateBazelTargetModule(
-		bazel.BazelTargetModuleProperties{
-			Rule_class:        rule_class,
-			Bzl_load_location: "//build/bazel/rules/cc:cc_proto.bzl",
-		},
-		android.CommonAttributes{Name: name, Tags: tags},
-		&protoAttrs)
-
-	var privateHdrs bool
-	if lib, ok := m.linker.(*libraryDecorator); ok {
-		privateHdrs = !proptools.Bool(lib.Properties.Proto.Export_proto_headers)
-	}
-
-	labelAttr := &bazel.LabelAttribute{Value: &bazel.Label{Label: ":" + name}}
-	if privateHdrs {
-		ret.implementationWholeStaticLib = labelAttr
-	} else {
-		ret.wholeStaticLib = labelAttr
-	}
-
-	return ret
 }

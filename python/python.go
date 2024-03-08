@@ -129,7 +129,6 @@ type pathMapping struct {
 type PythonLibraryModule struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
-	android.BazelModuleBase
 
 	properties      BaseProperties
 	protoProperties android.ProtoProperties
@@ -169,6 +168,7 @@ type pythonDependency interface {
 	getDataPathMappings() []pathMapping
 	getSrcsZip() android.Path
 	getPrecompiledSrcsZip() android.Path
+	getPkgPath() string
 }
 
 // getSrcsPathMappings gets this module's path mapping of src source path : runfiles destination
@@ -191,6 +191,11 @@ func (p *PythonLibraryModule) getPrecompiledSrcsZip() android.Path {
 	return p.precompiledSrcsZip
 }
 
+// getPkgPath returns the pkg_path value
+func (p *PythonLibraryModule) getPkgPath() string {
+	return String(p.properties.Pkg_path)
+}
+
 func (p *PythonLibraryModule) getBaseProperties() *BaseProperties {
 	return &p.properties
 }
@@ -201,7 +206,6 @@ func (p *PythonLibraryModule) init() android.Module {
 	p.AddProperties(&p.properties, &p.protoProperties)
 	android.InitAndroidArchModule(p, p.hod, p.multilib)
 	android.InitDefaultableModule(p)
-	android.InitBazelModule(p)
 	return p
 }
 
@@ -265,7 +269,6 @@ func versionSplitMutator() func(android.BottomUpMutatorContext) {
 			}
 			if proptools.BoolDefault(props.Version.Py2.Enabled, false) {
 				if !mctx.DeviceConfig().BuildBrokenUsesSoongPython2Modules() &&
-					mctx.ModuleName() != "par_test" &&
 					mctx.ModuleName() != "py2-cmd" &&
 					mctx.ModuleName() != "py2-stdlib" {
 					mctx.PropertyErrorf("version.py2.enabled", "Python 2 is no longer supported, please convert to python 3. This error can be temporarily overridden by setting BUILD_BROKEN_USES_SOONG_PYTHON2_MODULES := true in the product configuration")
@@ -371,7 +374,20 @@ func (p *PythonLibraryModule) AddDepsOnPythonLauncherAndStdlib(ctx android.Botto
 
 		launcherSharedLibDeps = append(launcherSharedLibDeps, "libc++")
 	case pyVersion3:
-		stdLib = "py3-stdlib"
+		var prebuiltStdLib bool
+		if targetForDeps.Os.Bionic() {
+			prebuiltStdLib = false
+		} else if ctx.Config().VendorConfig("cpython3").Bool("force_build_host") {
+			prebuiltStdLib = false
+		} else {
+			prebuiltStdLib = true
+		}
+
+		if prebuiltStdLib {
+			stdLib = "py3-stdlib-prebuilt"
+		} else {
+			stdLib = "py3-stdlib"
+		}
 
 		launcherModule = "py3-launcher"
 		if autorun {
@@ -404,6 +420,7 @@ func (p *PythonLibraryModule) AddDepsOnPythonLauncherAndStdlib(ctx android.Botto
 // GenerateAndroidBuildActions performs build actions common to all Python modules
 func (p *PythonLibraryModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	expandedSrcs := android.PathsForModuleSrcExcludes(ctx, p.properties.Srcs, p.properties.Exclude_srcs)
+	ctx.SetProvider(blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: expandedSrcs.Strings()})
 
 	// expand data files from "data" property.
 	expandedData := android.PathsForModuleSrc(ctx, p.properties.Data)
@@ -462,14 +479,19 @@ func (p *PythonLibraryModule) genModulePathMappings(ctx android.ModuleContext, p
 	destToPySrcs := make(map[string]string)
 	destToPyData := make(map[string]string)
 
+	// Disable path checks for the stdlib, as it includes a "." in the version string
+	isInternal := proptools.BoolDefault(p.properties.Is_internal, false)
+
 	for _, s := range expandedSrcs {
 		if s.Ext() != pyExt && s.Ext() != protoExt {
 			ctx.PropertyErrorf("srcs", "found non (.py|.proto) file: %q!", s.String())
 			continue
 		}
 		runfilesPath := filepath.Join(pkgPath, s.Rel())
-		if err := isValidPythonPath(runfilesPath); err != nil {
-			ctx.PropertyErrorf("srcs", err.Error())
+		if !isInternal {
+			if err := isValidPythonPath(runfilesPath); err != nil {
+				ctx.PropertyErrorf("srcs", err.Error())
+			}
 		}
 		if !checkForDuplicateOutputPath(ctx, destToPySrcs, runfilesPath, s.String(), p.Name(), p.Name()) {
 			p.srcsPathMappings = append(p.srcsPathMappings, pathMapping{dest: runfilesPath, src: s})
@@ -592,13 +614,16 @@ func (p *PythonLibraryModule) precompileSrcs(ctx android.ModuleContext) android.
 	// "cross compiling" for device here purely by virtue of host and device python bytecode
 	// being the same.
 	var stdLib android.Path
+	var stdLibPkg string
 	var launcher android.Path
-	if ctx.ModuleName() == "py3-stdlib" || ctx.ModuleName() == "py2-stdlib" {
+	if proptools.BoolDefault(p.properties.Is_internal, false) {
 		stdLib = p.srcsZip
+		stdLibPkg = p.getPkgPath()
 	} else {
 		ctx.VisitDirectDepsWithTag(hostStdLibTag, func(module android.Module) {
 			if dep, ok := module.(pythonDependency); ok {
 				stdLib = dep.getPrecompiledSrcsZip()
+				stdLibPkg = dep.getPkgPath()
 			}
 		})
 	}
@@ -637,6 +662,7 @@ func (p *PythonLibraryModule) precompileSrcs(ctx android.ModuleContext) android.
 		Description: "Precompile the python sources of " + ctx.ModuleName(),
 		Args: map[string]string{
 			"stdlibZip":     stdLib.String(),
+			"stdlibPkg":     stdLibPkg,
 			"launcher":      launcher.String(),
 			"ldLibraryPath": strings.Join(ldLibraryPath, ":"),
 		},

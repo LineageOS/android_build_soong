@@ -335,6 +335,78 @@ func TestPrebuilts(t *testing.T) {
 			prebuilt: []OsType{Android, buildOS},
 		},
 		{
+			name: "apex_contributions supersedes any source preferred via use_source_config_var",
+			modules: `
+				source {
+					name: "bar",
+				}
+
+				prebuilt {
+					name: "bar",
+					use_source_config_var: {config_namespace: "acme", var_name: "use_source"},
+					srcs: ["prebuilt_file"],
+				}
+				apex_contributions {
+					name: "my_mainline_module_contribution",
+					api_domain: "apexfoo",
+					// this metadata module contains prebuilt
+					contents: ["prebuilt_bar"],
+				}
+				all_apex_contributions {
+					name: "all_apex_contributions",
+				}
+				`,
+			preparer: FixtureModifyProductVariables(func(variables FixtureProductVariables) {
+				variables.VendorVars = map[string]map[string]string{
+					"acme": {
+						"use_source": "true",
+					},
+				}
+				variables.BuildFlags = map[string]string{
+					"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES": "my_mainline_module_contribution",
+				}
+			}),
+			// use_source_config_var indicates that source should be used
+			// but this is superseded by `my_mainline_module_contribution`
+			prebuilt: []OsType{Android, buildOS},
+		},
+		{
+			name: "apex_contributions supersedes any prebuilt preferred via use_source_config_var",
+			modules: `
+				source {
+					name: "bar",
+				}
+
+				prebuilt {
+					name: "bar",
+					use_source_config_var: {config_namespace: "acme", var_name: "use_source"},
+					srcs: ["prebuilt_file"],
+				}
+				apex_contributions {
+					name: "my_mainline_module_contribution",
+					api_domain: "apexfoo",
+					// this metadata module contains source
+					contents: ["bar"],
+				}
+				all_apex_contributions {
+					name: "all_apex_contributions",
+				}
+				`,
+			preparer: FixtureModifyProductVariables(func(variables FixtureProductVariables) {
+				variables.VendorVars = map[string]map[string]string{
+					"acme": {
+						"use_source": "false",
+					},
+				}
+				variables.BuildFlags = map[string]string{
+					"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES": "my_mainline_module_contribution",
+				}
+			}),
+			// use_source_config_var indicates that prebuilt should be used
+			// but this is superseded by `my_mainline_module_contribution`
+			prebuilt: nil,
+		},
+		{
 			name: "prebuilt use_source_config_var={acme, use_source} - acme_use_source=true",
 			modules: `
 				source {
@@ -497,6 +569,58 @@ func TestPrebuilts(t *testing.T) {
 	}
 }
 
+func testPrebuiltErrorWithFixture(t *testing.T, expectedError, bp string, fixture FixturePreparer) {
+	t.Helper()
+	fs := MockFS{
+		"prebuilt_file": nil,
+	}
+	GroupFixturePreparers(
+		PrepareForTestWithArchMutator,
+		PrepareForTestWithPrebuilts,
+		PrepareForTestWithOverrides,
+		fs.AddToFixture(),
+		FixtureRegisterWithContext(registerTestPrebuiltModules),
+		OptionalFixturePreparer(fixture),
+	).
+		ExtendWithErrorHandler(FixtureExpectsAtLeastOneErrorMatchingPattern(expectedError)).
+		RunTestWithBp(t, bp)
+
+}
+
+func testPrebuiltError(t *testing.T, expectedError, bp string) {
+	testPrebuiltErrorWithFixture(t, expectedError, bp, nil)
+}
+
+func TestPrebuiltShouldNotChangePartition(t *testing.T) {
+	testPrebuiltError(t, `partition is different`, `
+		source {
+			name: "foo",
+			vendor: true,
+		}
+		prebuilt {
+			name: "foo",
+			prefer: true,
+			srcs: ["prebuilt_file"],
+		}`)
+}
+
+func TestPrebuiltShouldNotChangePartition_WithOverride(t *testing.T) {
+	testPrebuiltError(t, `partition is different`, `
+		source {
+			name: "foo",
+			vendor: true,
+		}
+		override_source {
+			name: "bar",
+			base: "foo",
+		}
+		prebuilt {
+			name: "bar",
+			prefer: true,
+			srcs: ["prebuilt_file"],
+		}`)
+}
+
 func registerTestPrebuiltBuildComponents(ctx RegistrationContext) {
 	registerTestPrebuiltModules(ctx)
 
@@ -513,6 +637,7 @@ func registerTestPrebuiltModules(ctx RegistrationContext) {
 	ctx.RegisterModuleType("soong_config_module_type", SoongConfigModuleTypeFactory)
 	ctx.RegisterModuleType("soong_config_string_variable", SoongConfigStringVariableDummyFactory)
 	ctx.RegisterModuleType("soong_config_bool_variable", SoongConfigBoolVariableDummyFactory)
+	RegisterApexContributionsBuildComponents(ctx)
 }
 
 type prebuiltModule struct {
@@ -606,4 +731,34 @@ func newOverrideSourceModule() Module {
 	InitAndroidArchModule(m, HostAndDeviceDefault, MultilibCommon)
 	InitOverrideModule(m)
 	return m
+}
+
+func TestPrebuiltErrorCannotListBothSourceAndPrebuiltInContributions(t *testing.T) {
+	selectMainlineModuleContritbutions := GroupFixturePreparers(
+		FixtureModifyProductVariables(func(variables FixtureProductVariables) {
+			variables.BuildFlags = map[string]string{
+				"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES": "my_apex_contributions",
+			}
+		}),
+	)
+	testPrebuiltErrorWithFixture(t, `Cannot use Soong module: prebuilt_foo from apex_contributions: my_apex_contributions because it has been added previously as: foo from apex_contributions: my_apex_contributions`, `
+		source {
+			name: "foo",
+		}
+		prebuilt {
+			name: "foo",
+			srcs: ["prebuilt_file"],
+		}
+		apex_contributions {
+			name: "my_apex_contributions",
+			api_domain: "my_mainline_module",
+			contents: [
+			  "foo",
+			  "prebuilt_foo",
+			],
+		}
+		all_apex_contributions {
+			name: "all_apex_contributions",
+		}
+		`, selectMainlineModuleContritbutions)
 }

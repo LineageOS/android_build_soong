@@ -84,6 +84,9 @@ type ApexInfo struct {
 	//
 	// See Prebuilt.ApexInfoMutator for more information.
 	ForPrebuiltApex bool
+
+	// Returns the name of the test apexes that this module is included in.
+	TestApexes []string
 }
 
 var ApexInfoProvider = blueprint.NewMutatorProvider(ApexInfo{}, "apex")
@@ -287,6 +290,9 @@ type ApexProperties struct {
 
 	// See ApexModule.UniqueApexVariants()
 	UniqueApexVariationsForDeps bool `blueprint:"mutated"`
+
+	// The test apexes that includes this apex variant
+	TestApexes []string `blueprint:"mutated"`
 }
 
 // Marker interface that identifies dependencies that are excluded from APEX contents.
@@ -429,6 +435,11 @@ func (m *ApexModuleBase) TestFor() []string {
 	return nil
 }
 
+// Returns the test apexes that this module is included in.
+func (m *ApexModuleBase) TestApexes() []string {
+	return m.ApexProperties.TestApexes
+}
+
 // Implements ApexModule
 func (m *ApexModuleBase) UniqueApexVariations() bool {
 	// If needed, this will bel overridden by concrete types inheriting
@@ -449,6 +460,14 @@ const (
 	AvailableToPlatform = "//apex_available:platform"
 	AvailableToAnyApex  = "//apex_available:anyapex"
 	AvailableToGkiApex  = "com.android.gki.*"
+)
+
+var (
+	AvailableToRecognziedWildcards = []string{
+		AvailableToPlatform,
+		AvailableToAnyApex,
+		AvailableToGkiApex,
+	}
 )
 
 // CheckAvailableForApex provides the default algorithm for checking the apex availability. When the
@@ -551,12 +570,14 @@ func mergeApexVariations(ctx PathContext, apexInfos []ApexInfo) (merged []ApexIn
 			// Platform APIs is allowed for this module only when all APEXes containing
 			// the module are with `use_platform_apis: true`.
 			merged[index].UsePlatformApis = merged[index].UsePlatformApis && apexInfo.UsePlatformApis
+			merged[index].TestApexes = append(merged[index].TestApexes, apexInfo.TestApexes...)
 		} else {
 			seen[mergedName] = len(merged)
 			apexInfo.ApexVariationName = mergedName
 			apexInfo.InApexVariants = CopyOf(apexInfo.InApexVariants)
 			apexInfo.InApexModules = CopyOf(apexInfo.InApexModules)
 			apexInfo.ApexContents = append([]*ApexContents(nil), apexInfo.ApexContents...)
+			apexInfo.TestApexes = CopyOf(apexInfo.TestApexes)
 			merged = append(merged, apexInfo)
 		}
 		aliases = append(aliases, [2]string{variantName, mergedName})
@@ -604,8 +625,10 @@ func CreateApexVariations(mctx BottomUpMutatorContext, module ApexModule) []Modu
 	mctx.SetDefaultDependencyVariation(&defaultVariation)
 
 	variations := []string{defaultVariation}
+	testApexes := []string{}
 	for _, a := range apexInfos {
 		variations = append(variations, a.ApexVariationName)
+		testApexes = append(testApexes, a.TestApexes...)
 	}
 	modules := mctx.CreateVariations(variations...)
 	for i, mod := range modules {
@@ -619,6 +642,9 @@ func CreateApexVariations(mctx BottomUpMutatorContext, module ApexModule) []Modu
 		if !platformVariation {
 			mctx.SetVariationProvider(mod, ApexInfoProvider, apexInfos[i-1])
 		}
+		// Set the value of TestApexes in every single apex variant.
+		// This allows each apex variant to be aware of the test apexes in the user provided apex_available.
+		mod.(ApexModule).apexModuleBase().ApexProperties.TestApexes = testApexes
 	}
 
 	for _, alias := range aliases {
@@ -908,4 +934,23 @@ func CheckMinSdkVersion(ctx ModuleContext, minSdkVersion ApiLevel, walk WalkPayl
 		}
 		return true
 	})
+}
+
+// Construct ApiLevel object from min_sdk_version string value
+func MinSdkVersionFromValue(ctx EarlyModuleContext, value string) ApiLevel {
+	if value == "" {
+		return NoneApiLevel
+	}
+	apiLevel, err := ApiLevelFromUser(ctx, value)
+	if err != nil {
+		ctx.PropertyErrorf("min_sdk_version", "%s", err.Error())
+		return NoneApiLevel
+	}
+	return apiLevel
+}
+
+// Implemented by apexBundle.
+type ApexTestInterface interface {
+	// Return true if the apex bundle is an apex_test
+	IsTestApex() bool
 }

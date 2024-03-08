@@ -109,14 +109,11 @@ func (pcv productConfigVariable) emitSet(gctx *generationContext, asgn *assignme
 		}
 		emitAppend()
 	case asgnMaybeSet:
-		gctx.writef("if cfg.get(%q) == None:", pcv.nam)
-		gctx.indentLevel++
-		gctx.newLine()
-		if needsSetDefault {
-			emitSetDefault()
-		}
-		emitAssignment()
-		gctx.indentLevel--
+		// In mk2rbc.go we never emit a maybeSet assignment for product config variables, because
+		// they are set to empty strings before running product config.
+		panic("Should never get here")
+	default:
+		panic("Unknown assignment flavor")
 	}
 
 	gctx.setHasBeenAssigned(&pcv)

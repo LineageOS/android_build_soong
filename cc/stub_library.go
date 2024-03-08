@@ -23,11 +23,12 @@ import (
 
 func init() {
 	// Use singleton type to gather all generated soong modules.
-	android.RegisterSingletonType("stublibraries", stubLibrariesSingleton)
+	android.RegisterParallelSingletonType("stublibraries", stubLibrariesSingleton)
 }
 
 type stubLibraries struct {
-	stubLibraryMap map[string]bool
+	stubLibraryMap       map[string]bool
+	stubVendorLibraryMap map[string]bool
 
 	apiListCoverageXmlPaths []string
 }
@@ -54,6 +55,9 @@ func (s *stubLibraries) GenerateBuildActions(ctx android.SingletonContext) {
 			if IsStubTarget(m) {
 				if name := getInstalledFileName(m); name != "" {
 					s.stubLibraryMap[name] = true
+					if m.InVendor() {
+						s.stubVendorLibraryMap[name] = true
+					}
 				}
 			}
 			if m.library != nil {
@@ -67,13 +71,15 @@ func (s *stubLibraries) GenerateBuildActions(ctx android.SingletonContext) {
 
 func stubLibrariesSingleton() android.Singleton {
 	return &stubLibraries{
-		stubLibraryMap: make(map[string]bool),
+		stubLibraryMap:       make(map[string]bool),
+		stubVendorLibraryMap: make(map[string]bool),
 	}
 }
 
 func (s *stubLibraries) MakeVars(ctx android.MakeVarsContext) {
 	// Convert stub library file names into Makefile variable.
 	ctx.Strict("STUB_LIBRARIES", strings.Join(android.SortedKeys(s.stubLibraryMap), " "))
+	ctx.Strict("SOONG_STUB_VENDOR_LIBRARIES", strings.Join(android.SortedKeys(s.stubVendorLibraryMap), " "))
 
 	// Export the list of API XML files to Make.
 	sort.Strings(s.apiListCoverageXmlPaths)

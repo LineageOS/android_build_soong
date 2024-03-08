@@ -8,10 +8,15 @@ HARDWIRED_MOCK_TOP=
 
 REAL_TOP="$(readlink -f "$(dirname "$0")"/../../..)"
 
+function make_mock_top {
+  mock=$(mktemp -t -d st.XXXXX)
+  echo "$mock"
+}
+
 if [[ -n "$HARDWIRED_MOCK_TOP" ]]; then
   MOCK_TOP="$HARDWIRED_MOCK_TOP"
 else
-  MOCK_TOP=$(mktemp -t -d st.XXXXX)
+  MOCK_TOP=$(make_mock_top)
   trap cleanup_mock_top EXIT
 fi
 
@@ -50,6 +55,10 @@ function copy_directory {
 
   mkdir -p "$MOCK_TOP/$parent"
   cp -R "$REAL_TOP/$dir" "$MOCK_TOP/$parent"
+}
+
+function delete_directory {
+  rm -rf "$MOCK_TOP/$1"
 }
 
 function symlink_file {
@@ -99,6 +108,20 @@ function create_mock_soong {
   symlink_directory external/python
   symlink_directory external/sqlite
   symlink_directory external/spdx-tools
+  symlink_directory libcore
+
+  # TODO: b/286872909 - Remove these when the blocking bug is completed
+  symlink_directory external/libavc
+  symlink_directory external/libaom
+  symlink_directory external/libvpx
+  symlink_directory frameworks/base/libs/androidfw
+  symlink_directory external/libhevc
+  symlink_directory external/libexif
+  symlink_directory external/libopus
+  symlink_directory external/libmpeg2
+  symlink_directory external/expat
+  symlink_directory external/flac
+  symlink_directory system/extras/toolchain-extras
 
   touch "$MOCK_TOP/Android.bp"
 }
@@ -124,14 +147,24 @@ function create_mock_bazel {
   copy_directory build/bazel
   copy_directory build/bazel_common_rules
 
+  # This requires pulling more tools into the mock top to build partitions
+  delete_directory build/bazel/examples/partitions
+
   symlink_directory packages/modules/common/build
   symlink_directory prebuilts/bazel
   symlink_directory prebuilts/clang
   symlink_directory prebuilts/jdk
   symlink_directory external/bazel-skylib
   symlink_directory external/bazelbuild-rules_android
+  symlink_directory external/bazelbuild-rules_go
   symlink_directory external/bazelbuild-rules_license
   symlink_directory external/bazelbuild-kotlin-rules
+  symlink_directory external/bazelbuild-rules_cc
+  symlink_directory external/bazelbuild-rules_python
+  symlink_directory external/bazelbuild-rules_java
+  symlink_directory external/bazelbuild-rules_rust
+  symlink_directory external/bazelbuild-rules_testing
+  symlink_directory external/rust/crates/tinyjson
 
   symlink_file WORKSPACE
   symlink_file BUILD
@@ -169,4 +202,12 @@ function scan_and_run_tests {
     $f
     info "Completed test case \e[96;1m$f\e[0m"
   done
+}
+
+function move_mock_top {
+  MOCK_TOP2=$(make_mock_top)
+  rm -rf $MOCK_TOP2
+  mv $MOCK_TOP $MOCK_TOP2
+  MOCK_TOP=$MOCK_TOP2
+  trap cleanup_mock_top EXIT
 }

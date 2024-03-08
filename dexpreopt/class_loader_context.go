@@ -17,11 +17,11 @@ package dexpreopt
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strconv"
-	"strings"
 
 	"android/soong/android"
+
+	"github.com/google/blueprint/proptools"
 )
 
 // This comment describes the following:
@@ -310,8 +310,8 @@ func (clcMap ClassLoaderContextMap) addContext(ctx android.ModuleInstallPathCont
 	// Nested class loader context shouldn't have conditional part (it is allowed only at the top level).
 	for ver, _ := range nestedClcMap {
 		if ver != AnySdkVersion {
-			clcStr, _ := ComputeClassLoaderContext(nestedClcMap)
-			return fmt.Errorf("nested class loader context shouldn't have conditional part: %s", clcStr)
+			_, clcPaths := ComputeClassLoaderContextDependencies(nestedClcMap)
+			return fmt.Errorf("nested class loader context shouldn't have conditional part: %+v", clcPaths)
 		}
 	}
 	subcontexts := nestedClcMap[AnySdkVersion]
@@ -416,6 +416,15 @@ func (clcMap ClassLoaderContextMap) Dump() string {
 		panic(err)
 	}
 	return string(bytes)
+}
+
+func (clcMap ClassLoaderContextMap) DumpForFlag() string {
+	jsonCLC := toJsonClassLoaderContext(clcMap)
+	bytes, err := json.Marshal(jsonCLC)
+	if err != nil {
+		panic(err)
+	}
+	return proptools.ShellEscapeIncludingSpaces(string(bytes))
 }
 
 // excludeLibsFromCLCList excludes the libraries from the ClassLoaderContext in this list.
@@ -544,67 +553,28 @@ func validateClassLoaderContextRec(sdkVer int, clcs []*ClassLoaderContext) (bool
 	return true, nil
 }
 
-// Return the class loader context as a string, and a slice of build paths for all dependencies.
+// Returns a slice of library names and a slice of build paths for all possible dependencies that
+// the class loader context may refer to.
 // Perform a depth-first preorder traversal of the class loader context tree for each SDK version.
-// Return the resulting string and a slice of on-host build paths to all library dependencies.
-func ComputeClassLoaderContext(clcMap ClassLoaderContextMap) (clcStr string, paths android.Paths) {
-	// CLC for different SDK versions should come in specific order that agrees with PackageManager.
-	// Since PackageManager processes SDK versions in ascending order and prepends compatibility
-	// libraries at the front, the required order is descending, except for AnySdkVersion that has
-	// numerically the largest order, but must be the last one. Example of correct order: [30, 29,
-	// 28, AnySdkVersion]. There are Soong tests to ensure that someone doesn't change this by
-	// accident, but there is no way to guard against changes in the PackageManager, except for
-	// grepping logcat on the first boot for absence of the following messages:
-	//
-	//   `logcat | grep -E 'ClassLoaderContext [a-z ]+ mismatch`
-	//
-	versions := make([]int, 0, len(clcMap))
-	for ver, _ := range clcMap {
-		if ver != AnySdkVersion {
-			versions = append(versions, ver)
-		}
+func ComputeClassLoaderContextDependencies(clcMap ClassLoaderContextMap) (names []string, paths android.Paths) {
+	for _, clcs := range clcMap {
+		currentNames, currentPaths := ComputeClassLoaderContextDependenciesRec(clcs)
+		names = append(names, currentNames...)
+		paths = append(paths, currentPaths...)
 	}
-	sort.Sort(sort.Reverse(sort.IntSlice(versions))) // descending order
-	versions = append(versions, AnySdkVersion)
-
-	for _, sdkVer := range versions {
-		sdkVerStr := fmt.Sprintf("%d", sdkVer)
-		if sdkVer == AnySdkVersion {
-			sdkVerStr = "any" // a special keyword that means any SDK version
-		}
-		hostClc, targetClc, hostPaths := computeClassLoaderContextRec(clcMap[sdkVer])
-		if hostPaths != nil {
-			clcStr += fmt.Sprintf(" --host-context-for-sdk %s %s", sdkVerStr, hostClc)
-			clcStr += fmt.Sprintf(" --target-context-for-sdk %s %s", sdkVerStr, targetClc)
-		}
-		paths = append(paths, hostPaths...)
-	}
-	return clcStr, android.FirstUniquePaths(paths)
+	return android.FirstUniqueStrings(names), android.FirstUniquePaths(paths)
 }
 
-// Helper function for ComputeClassLoaderContext() that handles recursion.
-func computeClassLoaderContextRec(clcs []*ClassLoaderContext) (string, string, android.Paths) {
-	var paths android.Paths
-	var clcsHost, clcsTarget []string
-
+// Helper function for ComputeClassLoaderContextDependencies() that handles recursion.
+func ComputeClassLoaderContextDependenciesRec(clcs []*ClassLoaderContext) (names []string, paths android.Paths) {
 	for _, clc := range clcs {
-		subClcHost, subClcTarget, subPaths := computeClassLoaderContextRec(clc.Subcontexts)
-		if subPaths != nil {
-			subClcHost = "{" + subClcHost + "}"
-			subClcTarget = "{" + subClcTarget + "}"
-		}
-
-		clcsHost = append(clcsHost, "PCL["+clc.Host.String()+"]"+subClcHost)
-		clcsTarget = append(clcsTarget, "PCL["+clc.Device+"]"+subClcTarget)
-
+		subNames, subPaths := ComputeClassLoaderContextDependenciesRec(clc.Subcontexts)
+		names = append(names, clc.Name)
 		paths = append(paths, clc.Host)
+		names = append(names, subNames...)
 		paths = append(paths, subPaths...)
 	}
-
-	clcHost := strings.Join(clcsHost, "#")
-	clcTarget := strings.Join(clcsTarget, "#")
-
-	return clcHost, clcTarget, paths
+	return names, paths
 }
 
 // Class loader contexts that come from Make via JSON dexpreopt.config. JSON CLC representation is

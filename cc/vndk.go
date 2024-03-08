@@ -28,10 +28,12 @@ import (
 	"android/soong/snapshot"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 const (
 	llndkLibrariesTxt                = "llndk.libraries.txt"
+	llndkLibrariesTxtForApex         = "llndk.libraries.txt.apex"
 	vndkCoreLibrariesTxt             = "vndkcore.libraries.txt"
 	vndkSpLibrariesTxt               = "vndksp.libraries.txt"
 	vndkPrivateLibrariesTxt          = "vndkprivate.libraries.txt"
@@ -39,25 +41,40 @@ const (
 	vndkUsingCoreVariantLibrariesTxt = "vndkcorevariant.libraries.txt"
 )
 
-func VndkLibrariesTxtModules(vndkVersion string) []string {
+func VndkLibrariesTxtModules(vndkVersion string, ctx android.BaseModuleContext) []string {
+	// Return the list of vndk txt files for the vndk apex of the vndkVersion.
 	if vndkVersion == "current" {
-		return []string{
-			llndkLibrariesTxt,
-			vndkCoreLibrariesTxt,
-			vndkSpLibrariesTxt,
-			vndkPrivateLibrariesTxt,
-			vndkProductLibrariesTxt,
+		// We can assume all txt files are snapshotted if we find one of them.
+		currentVndkSnapshotted := ctx.OtherModuleExists(insertVndkVersion(llndkLibrariesTxt, ctx.DeviceConfig().PlatformVndkVersion()))
+		if currentVndkSnapshotted {
+			// If the current VNDK is already snapshotted (which can happen with
+			// the `next` config), use the prebuilt txt files in the snapshot.
+			// This is because the txt files built from source are probably be
+			// for the in-development version.
+			vndkVersion = ctx.DeviceConfig().PlatformVndkVersion()
+		} else {
+			// Use the txt files generated from the source
+			return []string{
+				llndkLibrariesTxtForApex,
+				vndkCoreLibrariesTxt,
+				vndkSpLibrariesTxt,
+				vndkPrivateLibrariesTxt,
+				vndkProductLibrariesTxt,
+			}
 		}
 	}
+
 	// Snapshot vndks have their own *.libraries.VER.txt files.
 	// Note that snapshots don't have "vndkcorevariant.libraries.VER.txt"
-	return []string{
-		insertVndkVersion(llndkLibrariesTxt, vndkVersion),
+	result := []string{
 		insertVndkVersion(vndkCoreLibrariesTxt, vndkVersion),
 		insertVndkVersion(vndkSpLibrariesTxt, vndkVersion),
 		insertVndkVersion(vndkPrivateLibrariesTxt, vndkVersion),
 		insertVndkVersion(vndkProductLibrariesTxt, vndkVersion),
+		insertVndkVersion(llndkLibrariesTxt, vndkVersion),
 	}
+
+	return result
 }
 
 type VndkProperties struct {
@@ -352,11 +369,19 @@ func IsForVndkApex(mctx android.BottomUpMutatorContext, m *Module) bool {
 		return false
 	}
 
-	// prebuilt vndk modules should match with device
 	// TODO(b/142675459): Use enabled: to select target device in vndk_prebuilt_shared
 	// When b/142675459 is landed, remove following check
-	if p, ok := m.linker.(*vndkPrebuiltLibraryDecorator); ok && !p.MatchesWithDevice(mctx.DeviceConfig()) {
-		return false
+	if p, ok := m.linker.(*vndkPrebuiltLibraryDecorator); ok {
+		// prebuilt vndk modules should match with device
+		if !p.MatchesWithDevice(mctx.DeviceConfig()) {
+			return false
+		}
+
+		// ignore prebuilt vndk modules that are newer than or equal to the platform vndk version
+		platformVndkApiLevel := android.ApiLevelOrPanic(mctx, mctx.DeviceConfig().PlatformVndkVersion())
+		if platformVndkApiLevel.LessThanOrEqualTo(android.ApiLevelOrPanic(mctx, p.Version())) {
+			return false
+		}
 	}
 
 	if lib, ok := m.linker.(libraryInterface); ok {
@@ -417,16 +442,17 @@ func VndkMutator(mctx android.BottomUpMutatorContext) {
 
 func init() {
 	RegisterVndkLibraryTxtTypes(android.InitRegistrationContext)
-	android.RegisterSingletonType("vndk-snapshot", VndkSnapshotSingleton)
+	android.RegisterParallelSingletonType("vndk-snapshot", VndkSnapshotSingleton)
 }
 
 func RegisterVndkLibraryTxtTypes(ctx android.RegistrationContext) {
-	ctx.RegisterSingletonModuleType("llndk_libraries_txt", llndkLibrariesTxtFactory)
-	ctx.RegisterSingletonModuleType("vndksp_libraries_txt", vndkSPLibrariesTxtFactory)
-	ctx.RegisterSingletonModuleType("vndkcore_libraries_txt", vndkCoreLibrariesTxtFactory)
-	ctx.RegisterSingletonModuleType("vndkprivate_libraries_txt", vndkPrivateLibrariesTxtFactory)
-	ctx.RegisterSingletonModuleType("vndkproduct_libraries_txt", vndkProductLibrariesTxtFactory)
-	ctx.RegisterSingletonModuleType("vndkcorevariant_libraries_txt", vndkUsingCoreVariantLibrariesTxtFactory)
+	ctx.RegisterParallelSingletonModuleType("llndk_libraries_txt", llndkLibrariesTxtFactory)
+	ctx.RegisterParallelSingletonModuleType("llndk_libraries_txt_for_apex", llndkLibrariesTxtApexOnlyFactory)
+	ctx.RegisterParallelSingletonModuleType("vndksp_libraries_txt", vndkSPLibrariesTxtFactory)
+	ctx.RegisterParallelSingletonModuleType("vndkcore_libraries_txt", vndkCoreLibrariesTxtFactory)
+	ctx.RegisterParallelSingletonModuleType("vndkprivate_libraries_txt", vndkPrivateLibrariesTxtFactory)
+	ctx.RegisterParallelSingletonModuleType("vndkproduct_libraries_txt", vndkProductLibrariesTxtFactory)
+	ctx.RegisterParallelSingletonModuleType("vndkcorevariant_libraries_txt", vndkUsingCoreVariantLibrariesTxtFactory)
 }
 
 type vndkLibrariesTxt struct {
@@ -445,20 +471,29 @@ type vndkLibrariesTxt struct {
 
 type VndkLibrariesTxtProperties struct {
 	Insert_vndk_version *bool
+	Stem                *string
 }
 
 var _ etc.PrebuiltEtcModule = &vndkLibrariesTxt{}
 var _ android.OutputFileProducer = &vndkLibrariesTxt{}
 
 // llndk_libraries_txt is a singleton module whose content is a list of LLNDK libraries
-// generated by Soong but can be referenced by other modules.
-// For example, apex_vndk can depend on these files as prebuilt.
+// generated by Soong.
 // Make uses LLNDK_LIBRARIES to determine which libraries to install.
-// HWASAN is only part of the LL-NDK in builds in which libc depends on HWASAN.
+// HWASAN is only part of the LLNDK in builds in which libc depends on HWASAN.
 // Therefore, by removing the library here, we cause it to only be installed if libc
 // depends on it.
 func llndkLibrariesTxtFactory() android.SingletonModule {
 	return newVndkLibrariesWithMakeVarFilter(llndkLibraries, "LLNDK_LIBRARIES", "libclang_rt.hwasan")
+}
+
+// llndk_libraries_txt_for_apex is a singleton module that provide the same LLNDK libraries list
+// with the llndk_libraries_txt, but skips setting make variable LLNDK_LIBRARIES. So, it must not
+// be used without installing llndk_libraries_txt singleton.
+// We include llndk_libraries_txt by default to install the llndk.libraries.txt file to system/etc.
+// This singleton module is to install the llndk.libraries.<ver>.txt file to vndk apex.
+func llndkLibrariesTxtApexOnlyFactory() android.SingletonModule {
+	return newVndkLibrariesWithMakeVarFilter(llndkLibraries, "", "libclang_rt.hwasan")
 }
 
 // vndksp_libraries_txt is a singleton module whose content is a list of VNDKSP libraries
@@ -518,12 +553,20 @@ func insertVndkVersion(filename string, vndkVersion string) string {
 	return filename
 }
 
+func (txt *vndkLibrariesTxt) DepsMutator(mctx android.BottomUpMutatorContext) {
+	versionedName := insertVndkVersion(txt.Name(), mctx.DeviceConfig().PlatformVndkVersion())
+	if mctx.OtherModuleExists(versionedName) {
+		// If the prebuilt vndk libraries txt files exist, install them instead.
+		txt.HideFromMake()
+		mctx.AddDependency(txt, nil, versionedName)
+	}
+}
+
 func (txt *vndkLibrariesTxt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	var filename string
-	if BoolDefault(txt.properties.Insert_vndk_version, true) {
-		filename = insertVndkVersion(txt.Name(), ctx.DeviceConfig().PlatformVndkVersion())
-	} else {
-		filename = txt.Name()
+	filename := proptools.StringDefault(txt.properties.Stem, txt.Name())
+
+	if Bool(txt.properties.Insert_vndk_version) {
+		filename = insertVndkVersion(filename, ctx.DeviceConfig().PlatformVndkVersion())
 	}
 
 	txt.outputFile = android.PathForModuleOut(ctx, filename).OutputPath
@@ -550,6 +593,10 @@ func (txt *vndkLibrariesTxt) AndroidMkEntries() []android.AndroidMkEntries {
 }
 
 func (txt *vndkLibrariesTxt) MakeVars(ctx android.MakeVarsContext) {
+	if txt.makeVarName == "" {
+		return
+	}
+
 	filter := func(modules []string, prefix string) []string {
 		if prefix == "" {
 			return modules

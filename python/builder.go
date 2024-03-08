@@ -73,14 +73,14 @@ var (
 
 	precompile = pctx.AndroidStaticRule("precompilePython", blueprint.RuleParams{
 		Command: `LD_LIBRARY_PATH="$ldLibraryPath" ` +
-			`PYTHONPATH=$stdlibZip/internal/stdlib ` +
+			`PYTHONPATH=$stdlibZip/internal/$stdlibPkg ` +
 			`$launcher build/soong/python/scripts/precompile_python.py $in $out`,
 		CommandDeps: []string{
 			"$stdlibZip",
 			"$launcher",
 			"build/soong/python/scripts/precompile_python.py",
 		},
-	}, "stdlibZip", "launcher", "ldLibraryPath")
+	}, "stdlibZip", "stdlibPkg", "launcher", "ldLibraryPath")
 )
 
 func init() {

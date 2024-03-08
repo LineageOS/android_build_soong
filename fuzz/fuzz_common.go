@@ -61,6 +61,7 @@ type FuzzPackager struct {
 type FileToZip struct {
 	SourceFilePath        android.Path
 	DestinationPathPrefix string
+	DestinationPath       string
 }
 
 type ArchOs struct {
@@ -164,6 +165,27 @@ func (service_privilege ServicePrivilege) isValidServicePrivilege() bool {
 		constrained,
 		nsi,
 		host_only:
+		return true
+	}
+	return false
+}
+
+type UsePlatformLibs string
+
+const (
+	unknown_use_platform_libs UsePlatformLibs = "unknown_use_platform_libs"
+	// Use the native libraries on the device, typically in /system directory
+	use_platform_libs = "use_platform_libs"
+	// Do not use any native libraries (ART will not be initialized)
+	use_none = "use_none"
+)
+
+func (use_platform_libs UsePlatformLibs) isValidUsePlatformLibs() bool {
+	switch use_platform_libs {
+	case "",
+		unknown_use_platform_libs,
+		use_platform_libs,
+		use_none:
 		return true
 	}
 	return false
@@ -283,6 +305,10 @@ func IsValidConfig(fuzzModule FuzzPackagedModule, moduleName string) bool {
 		if !config.Automatically_route_to.isValidAutomaticallyRouteTo() {
 			panic(fmt.Errorf("Invalid automatically_route_to in fuzz config in %s", moduleName))
 		}
+
+		if !config.Use_platform_libs.isValidUsePlatformLibs() {
+			panic(fmt.Errorf("Invalid use_platform_libs in fuzz config in %s", moduleName))
+		}
 	}
 	return true
 }
@@ -339,7 +365,14 @@ type FuzzConfig struct {
 	// List of modules for monitoring coverage drops in directories (e.g. "libicu")
 	Target_modules []string `json:"target_modules,omitempty"`
 	// Specifies a bug assignee to replace default ISE assignment
-	Assignee string `json:"assignee,omitempty"`
+	Triage_assignee string `json:"triage_assignee,omitempty"`
+	// Specifies libs used to initialize ART (java only, 'use_none' for no initialization)
+	Use_platform_libs UsePlatformLibs `json:"use_platform_libs,omitempty"`
+	// Specifies whether fuzz target should check presubmitted code changes for crashes.
+	// Defaults to false.
+	Use_for_presubmit *bool `json:"use_for_presubmit,omitempty"`
+	// Specify which paths to exclude from fuzzing coverage reports
+	Exclude_paths_from_reports []string `json:"exclude_paths_from_reports,omitempty"`
 }
 
 type FuzzFrameworks struct {
@@ -366,13 +399,11 @@ type FuzzProperties struct {
 }
 
 type FuzzPackagedModule struct {
-	FuzzProperties        FuzzProperties
-	Dictionary            android.Path
-	Corpus                android.Paths
-	CorpusIntermediateDir android.Path
-	Config                android.Path
-	Data                  android.Paths
-	DataIntermediateDir   android.Path
+	FuzzProperties FuzzProperties
+	Dictionary     android.Path
+	Corpus         android.Paths
+	Config         android.Path
+	Data           android.Paths
 }
 
 func GetFramework(ctx android.LoadHookContext, lang Lang) Framework {
@@ -443,7 +474,7 @@ func (s *FuzzPackager) PackageArtifacts(ctx android.SingletonContext, module and
 			FlagWithOutput("-o ", corpusZip)
 		rspFile := corpusZip.ReplaceExtension(ctx, "rsp")
 		command.FlagWithRspFileInputList("-r ", rspFile, fuzzModule.Corpus)
-		files = append(files, FileToZip{corpusZip, ""})
+		files = append(files, FileToZip{SourceFilePath: corpusZip})
 	}
 
 	// Package the data into a zipfile.
@@ -456,17 +487,17 @@ func (s *FuzzPackager) PackageArtifacts(ctx android.SingletonContext, module and
 			command.FlagWithArg("-C ", intermediateDir)
 			command.FlagWithInput("-f ", f)
 		}
-		files = append(files, FileToZip{dataZip, ""})
+		files = append(files, FileToZip{SourceFilePath: dataZip})
 	}
 
 	// The dictionary.
 	if fuzzModule.Dictionary != nil {
-		files = append(files, FileToZip{fuzzModule.Dictionary, ""})
+		files = append(files, FileToZip{SourceFilePath: fuzzModule.Dictionary})
 	}
 
 	// Additional fuzz config.
 	if fuzzModule.Config != nil && IsValidConfig(fuzzModule, module.Name()) {
-		files = append(files, FileToZip{fuzzModule.Config, ""})
+		files = append(files, FileToZip{SourceFilePath: fuzzModule.Config})
 	}
 
 	return files
@@ -485,6 +516,9 @@ func (s *FuzzPackager) BuildZipFile(ctx android.SingletonContext, module android
 		} else {
 			command.Flag("-P ''")
 		}
+		if file.DestinationPath != "" {
+			command.FlagWithArg("-e ", file.DestinationPath)
+		}
 		command.FlagWithInput("-f ", file.SourceFilePath)
 	}
 
@@ -502,7 +536,7 @@ func (s *FuzzPackager) BuildZipFile(ctx android.SingletonContext, module android
 	}
 
 	s.FuzzTargets[module.Name()] = true
-	archDirs[archOs] = append(archDirs[archOs], FileToZip{fuzzZip, ""})
+	archDirs[archOs] = append(archDirs[archOs], FileToZip{SourceFilePath: fuzzZip})
 
 	return archDirs[archOs], true
 }

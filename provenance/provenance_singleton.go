@@ -38,7 +38,9 @@ var (
 			Command: `rm -rf $out && ` +
 				`echo "# proto-file: build/soong/provenance/proto/provenance_metadata.proto" > $out && ` +
 				`echo "# proto-message: ProvenanceMetaDataList" >> $out && ` +
-				`for file in $in; do echo '' >> $out; echo 'metadata {' | cat - $$file | grep -Ev "^#.*|^$$" >> $out; echo '}' >> $out; done`,
+				`cat $out.rsp | tr ' ' '\n' | while read -r file || [ -n "$$file" ]; do echo '' >> $out; echo 'metadata {' | cat - $$file | grep -Ev "^#.*|^$$" >> $out; echo '}' >> $out; done`,
+			Rspfile:        `$out.rsp`,
+			RspfileContent: `$in`,
 		})
 )
 
@@ -51,7 +53,7 @@ func init() {
 }
 
 func RegisterProvenanceSingleton(ctx android.RegistrationContext) {
-	ctx.RegisterSingletonType("provenance_metadata_singleton", provenanceInfoSingletonFactory)
+	ctx.RegisterParallelSingletonType("provenance_metadata_singleton", provenanceInfoSingletonFactory)
 }
 
 var PrepareForTestWithProvenanceSingleton = android.FixtureRegisterWithContext(RegisterProvenanceSingleton)

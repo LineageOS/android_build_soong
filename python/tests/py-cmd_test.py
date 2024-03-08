@@ -55,22 +55,22 @@ assert_equal("sys.exec_prefix", sys.exec_prefix, sys.executable)
 assert_equal("sys.prefix", sys.prefix, sys.executable)
 assert_equal("site.ENABLE_USER_SITE", site.ENABLE_USER_SITE, None)
 
-if sys.version_info[0] == 2:
+major = sys.version_info.major
+minor = sys.version_info.minor
+
+if major == 2:
     assert_equal("len(sys.path)", len(sys.path), 4)
-    assert_equal("sys.path[0]", sys.path[0], os.path.dirname(__file__))
+    assert_equal("sys.path[0]", sys.path[0], os.path.abspath(os.path.dirname(__file__)))
     assert_equal("sys.path[1]", sys.path[1], "/extra")
     assert_equal("sys.path[2]", sys.path[2], os.path.join(sys.executable, "internal"))
     assert_equal("sys.path[3]", sys.path[3], os.path.join(sys.executable, "internal", "stdlib"))
 else:
-    assert_equal("len(sys.path)", len(sys.path), 8)
+    assert_equal("len(sys.path)", len(sys.path), 5)
     assert_equal("sys.path[0]", sys.path[0], os.path.abspath(os.path.dirname(__file__)))
     assert_equal("sys.path[1]", sys.path[1], "/extra")
-    assert_equal("sys.path[2]", sys.path[2], os.path.join(sys.executable, 'lib', 'python' + str(sys.version_info[0]) + str(sys.version_info[1]) + '.zip'))
-    assert_equal("sys.path[3]", sys.path[3], os.path.join(sys.executable, 'lib', 'python' + str(sys.version_info[0]) + '.' + str(sys.version_info[1]), '..'))
-    assert_equal("sys.path[4]", sys.path[4], os.path.join(sys.executable, 'lib', 'python' + str(sys.version_info[0]) + '.' + str(sys.version_info[1])))
-    assert_equal("sys.path[5]", sys.path[5], os.path.join(sys.executable, 'lib', 'python' + str(sys.version_info[0]) + '.' + str(sys.version_info[1]), 'lib-dynload'))
-    assert_equal("sys.path[6]", sys.path[6], os.path.join(sys.executable, "internal"))
-    assert_equal("sys.path[7]", sys.path[7], os.path.join(sys.executable, "internal", "stdlib"))
+    assert_equal("sys.path[2]", sys.path[2], os.path.join(sys.executable, 'internal', 'python' + str(sys.version_info[0]) + str(sys.version_info[1]) + '.zip'))
+    assert_equal("sys.path[3]", sys.path[3], os.path.join(sys.executable, 'internal', 'python' + str(sys.version_info[0]) + '.' + str(sys.version_info[1])))
+    assert_equal("sys.path[4]", sys.path[4], os.path.join(sys.executable, 'internal', 'python' + str(sys.version_info[0]) + '.' + str(sys.version_info[1]), 'lib-dynload'))
 
 if failed:
     sys.exit(1)

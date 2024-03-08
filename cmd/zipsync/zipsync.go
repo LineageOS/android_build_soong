@@ -29,9 +29,13 @@ import (
 var (
 	outputDir  = flag.String("d", "", "output dir")
 	outputFile = flag.String("l", "", "output list file")
-	filter     = flag.String("f", "", "optional filter pattern")
 	zipPrefix  = flag.String("zip-prefix", "", "optional prefix within the zip file to extract, stripping the prefix")
+	filter     multiFlag
 )
+
+func init() {
+	flag.Var(&filter, "f", "optional filter pattern")
+}
 
 func must(err error) {
 	if err != nil {
@@ -107,13 +111,15 @@ func main() {
 				}
 				name = strings.TrimPrefix(name, *zipPrefix)
 			}
-			if *filter != "" {
-				if match, err := filepath.Match(*filter, filepath.Base(name)); err != nil {
+
+			if filter != nil {
+				if match, err := filter.Match(filepath.Base(name)); err != nil {
 					log.Fatal(err)
 				} else if !match {
 					continue
 				}
 			}
+
 			if filepath.IsAbs(name) {
 				log.Fatalf("%q in %q is an absolute path", name, input)
 			}
@@ -150,4 +156,29 @@ func main() {
 		}
 		must(ioutil.WriteFile(*outputFile, []byte(data), 0666))
 	}
+}
+
+type multiFlag []string
+
+func (m *multiFlag) String() string {
+	return strings.Join(*m, " ")
+}
+
+func (m *multiFlag) Set(s string) error {
+	*m = append(*m, s)
+	return nil
+}
+
+func (m *multiFlag) Match(s string) (bool, error) {
+	if m == nil {
+		return false, nil
+	}
+	for _, f := range *m {
+		if match, err := filepath.Match(f, s); err != nil {
+			return false, err
+		} else if match {
+			return true, nil
+		}
+	}
+	return false, nil
 }

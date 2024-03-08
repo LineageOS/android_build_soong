@@ -26,7 +26,7 @@ import (
 // called. Dependency info file is generated in $OUT/module_bp_java_depend.json.
 
 func init() {
-	android.RegisterSingletonType("jdeps_generator", jDepsGeneratorSingleton)
+	android.RegisterParallelSingletonType("jdeps_generator", jDepsGeneratorSingleton)
 }
 
 func jDepsGeneratorSingleton() android.Singleton {
@@ -75,7 +75,7 @@ func (j *jdepsGeneratorSingleton) GenerateBuildActions(ctx android.SingletonCont
 		dpInfo.Jarjar_rules = android.FirstUniqueStrings(dpInfo.Jarjar_rules)
 		dpInfo.Jars = android.FirstUniqueStrings(dpInfo.Jars)
 		dpInfo.SrcJars = android.FirstUniqueStrings(dpInfo.SrcJars)
-		dpInfo.Paths = android.FirstUniqueStrings(dpInfo.Paths)
+		dpInfo.Paths = []string{ctx.ModuleDir(module)}
 		dpInfo.Static_libs = android.FirstUniqueStrings(dpInfo.Static_libs)
 		dpInfo.Libs = android.FirstUniqueStrings(dpInfo.Libs)
 		moduleInfos[name] = dpInfo

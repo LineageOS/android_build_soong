@@ -55,10 +55,6 @@ func TestCoverageFlags(t *testing.T) {
 	libbarNoCov := ctx.ModuleForTests("libbar_nocov", "android_arm64_armv8-a_dylib").Rule("rustc")
 	fizzCov := ctx.ModuleForTests("fizz_cov", "android_arm64_armv8-a_cov").Rule("rustc")
 	buzzNoCov := ctx.ModuleForTests("buzzNoCov", "android_arm64_armv8-a").Rule("rustc")
-	libfooCovLink := ctx.ModuleForTests("libfoo_cov", "android_arm64_armv8-a_dylib_cov").Rule("rustLink")
-	libbarNoCovLink := ctx.ModuleForTests("libbar_nocov", "android_arm64_armv8-a_dylib").Rule("rustLink")
-	fizzCovLink := ctx.ModuleForTests("fizz_cov", "android_arm64_armv8-a_cov").Rule("rustLink")
-	buzzNoCovLink := ctx.ModuleForTests("buzzNoCov", "android_arm64_armv8-a").Rule("rustLink")
 
 	rustcCoverageFlags := []string{"-C instrument-coverage", " -g "}
 	for _, flag := range rustcCoverageFlags {
@@ -84,17 +80,17 @@ func TestCoverageFlags(t *testing.T) {
 		missingErrorStr := "missing rust linker flag '%s' for '%s' module with coverage enabled; rustcFlags: %#v"
 		containsErrorStr := "contains rust linker flag '%s' for '%s' module with coverage disabled; rustcFlags: %#v"
 
-		if !strings.Contains(fizzCovLink.Args["linkFlags"], flag) {
-			t.Fatalf(missingErrorStr, flag, "fizz_cov", fizzCovLink.Args["linkFlags"])
+		if !strings.Contains(fizzCov.Args["linkFlags"], flag) {
+			t.Fatalf(missingErrorStr, flag, "fizz_cov", fizzCov.Args["linkFlags"])
 		}
-		if !strings.Contains(libfooCovLink.Args["linkFlags"], flag) {
-			t.Fatalf(missingErrorStr, flag, "libfoo_cov dylib", libfooCovLink.Args["linkFlags"])
+		if !strings.Contains(libfooCov.Args["linkFlags"], flag) {
+			t.Fatalf(missingErrorStr, flag, "libfoo_cov dylib", libfooCov.Args["linkFlags"])
 		}
-		if strings.Contains(buzzNoCovLink.Args["linkFlags"], flag) {
-			t.Fatalf(containsErrorStr, flag, "buzzNoCov", buzzNoCovLink.Args["linkFlags"])
+		if strings.Contains(buzzNoCov.Args["linkFlags"], flag) {
+			t.Fatalf(containsErrorStr, flag, "buzzNoCov", buzzNoCov.Args["linkFlags"])
 		}
-		if strings.Contains(libbarNoCovLink.Args["linkFlags"], flag) {
-			t.Fatalf(containsErrorStr, flag, "libbar_cov", libbarNoCovLink.Args["linkFlags"])
+		if strings.Contains(libbarNoCov.Args["linkFlags"], flag) {
+			t.Fatalf(containsErrorStr, flag, "libbar_cov", libbarNoCov.Args["linkFlags"])
 		}
 	}
 
@@ -107,7 +103,7 @@ func TestCoverageDeps(t *testing.T) {
 			srcs: ["foo.rs"],
 		}`)
 
-	fizz := ctx.ModuleForTests("fizz", "android_arm64_armv8-a_cov").Rule("rustLink")
+	fizz := ctx.ModuleForTests("fizz", "android_arm64_armv8-a_cov").Rule("rustc")
 	if !strings.Contains(fizz.Args["linkFlags"], "libprofile-clang-extras.a") {
 		t.Fatalf("missing expected coverage 'libprofile-clang-extras' dependency in linkFlags: %#v", fizz.Args["linkFlags"])
 	}

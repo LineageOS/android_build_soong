@@ -30,7 +30,11 @@ import (
 const (
 	hostString   = "host"
 	targetString = "target"
+	deviceString = "device"
 )
+
+// Any shared libs for these deps will also be packaged
+var artDeps = []string{"libdl_android"}
 
 func init() {
 	RegisterJavaFuzzBuildComponents(android.InitRegistrationContext)
@@ -38,7 +42,7 @@ func init() {
 
 func RegisterJavaFuzzBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("java_fuzz", JavaFuzzFactory)
-	ctx.RegisterSingletonType("java_fuzz_packaging", javaFuzzPackagingFactory)
+	ctx.RegisterParallelSingletonType("java_fuzz_packaging", javaFuzzPackagingFactory)
 }
 
 type JavaFuzzTest struct {
@@ -78,7 +82,18 @@ func JavaFuzzFactory() android.Module {
 }
 
 func (j *JavaFuzzTest) DepsMutator(ctx android.BottomUpMutatorContext) {
+	if j.Os().Class.String() == deviceString {
+		j.testProperties.Jni_libs = append(j.testProperties.Jni_libs, artDeps...)
+	}
+
 	if len(j.testProperties.Jni_libs) > 0 {
+		if j.fuzzPackagedModule.FuzzProperties.Fuzz_config == nil {
+			config := &fuzz.FuzzConfig{}
+			j.fuzzPackagedModule.FuzzProperties.Fuzz_config = config
+		}
+		// this will be used by the ingestion pipeline to determine the version
+		// of jazzer to add to the fuzzer package
+		j.fuzzPackagedModule.FuzzProperties.Fuzz_config.IsJni = proptools.BoolPtr(true)
 		for _, target := range ctx.MultiTargets() {
 			sharedLibVariations := append(target.Variations(), blueprint.Variation{Mutator: "link", Variation: "shared"})
 			ctx.AddFarVariationDependencies(sharedLibVariations, jniLibTag, j.testProperties.Jni_libs...)
@@ -150,7 +165,9 @@ func (s *javaFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 		}
 
 		hostOrTargetString := "target"
-		if javaFuzzModule.Host() {
+		if javaFuzzModule.Target().HostCross {
+			hostOrTargetString = "host_cross"
+		} else if javaFuzzModule.Host() {
 			hostOrTargetString = "host"
 		}
 
@@ -175,11 +192,15 @@ func (s *javaFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 		files = s.PackageArtifacts(ctx, module, javaFuzzModule.fuzzPackagedModule, archDir, builder)
 
 		// Add .jar
-		files = append(files, fuzz.FileToZip{javaFuzzModule.implementationJarFile, ""})
+		if !javaFuzzModule.Host() {
+			files = append(files, fuzz.FileToZip{SourceFilePath: javaFuzzModule.implementationJarFile, DestinationPathPrefix: "classes"})
+		}
+
+		files = append(files, fuzz.FileToZip{SourceFilePath: javaFuzzModule.outputFile})
 
 		// Add jni .so files
 		for _, fPath := range javaFuzzModule.jniFilePaths {
-			files = append(files, fuzz.FileToZip{fPath, ""})
+			files = append(files, fuzz.FileToZip{SourceFilePath: fPath})
 		}
 
 		archDirs[archOs], ok = s.BuildZipFile(ctx, module, javaFuzzModule.fuzzPackagedModule, files, builder, archDir, archString, hostOrTargetString, archOs, archDirs)

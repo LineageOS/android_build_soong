@@ -17,8 +17,6 @@ package android
 import (
 	"strings"
 
-	"android/soong/bazel"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
@@ -151,103 +149,4 @@ func ProtoRule(rule *RuleBuilder, protoFile Path, flags ProtoFlags, deps Paths,
 
 	rule.Command().
 		BuiltTool("dep_fixer").Flag(depFile.String())
-}
-
-// Bp2buildProtoInfo contains information necessary to pass on to language specific conversion.
-type Bp2buildProtoInfo struct {
-	Type       *string
-	Name       string
-	Proto_libs bazel.LabelList
-}
-
-type ProtoAttrs struct {
-	Srcs                bazel.LabelListAttribute
-	Strip_import_prefix *string
-	Deps                bazel.LabelListAttribute
-}
-
-// For each package in the include_dirs property a proto_library target should
-// be added to the BUILD file in that package and a mapping should be added here
-var includeDirsToProtoDeps = map[string]string{
-	"external/protobuf/src": "//external/protobuf:libprotobuf-proto",
-}
-
-// Bp2buildProtoProperties converts proto properties, creating a proto_library and returning the
-// information necessary for language-specific handling.
-func Bp2buildProtoProperties(ctx Bp2buildMutatorContext, m *ModuleBase, srcs bazel.LabelListAttribute) (Bp2buildProtoInfo, bool) {
-	var info Bp2buildProtoInfo
-	if srcs.IsEmpty() {
-		return info, false
-	}
-
-	var protoLibraries bazel.LabelList
-	var directProtoSrcs bazel.LabelList
-
-	// For filegroups that should be converted to proto_library just collect the
-	// labels of converted proto_library targets.
-	for _, protoSrc := range srcs.Value.Includes {
-		src := protoSrc.OriginalModuleName
-		if fg, ok := ToFileGroupAsLibrary(ctx, src); ok &&
-			fg.ShouldConvertToProtoLibrary(ctx) {
-			protoLibraries.Add(&bazel.Label{
-				Label: fg.GetProtoLibraryLabel(ctx),
-			})
-		} else {
-			directProtoSrcs.Add(&protoSrc)
-		}
-	}
-
-	info.Name = m.Name() + "_proto"
-
-	if len(directProtoSrcs.Includes) > 0 {
-		attrs := ProtoAttrs{
-			Srcs: bazel.MakeLabelListAttribute(directProtoSrcs),
-		}
-		attrs.Deps.Append(bazel.MakeLabelListAttribute(protoLibraries))
-
-		for axis, configToProps := range m.GetArchVariantProperties(ctx, &ProtoProperties{}) {
-			for _, rawProps := range configToProps {
-				var props *ProtoProperties
-				var ok bool
-				if props, ok = rawProps.(*ProtoProperties); !ok {
-					ctx.ModuleErrorf("Could not cast ProtoProperties to expected type")
-				}
-				if axis == bazel.NoConfigAxis {
-					info.Type = props.Proto.Type
-
-					if !proptools.BoolDefault(props.Proto.Canonical_path_from_root, canonicalPathFromRootDefault) {
-						// an empty string indicates to strips the package path
-						path := ""
-						attrs.Strip_import_prefix = &path
-					}
-
-					for _, dir := range props.Proto.Include_dirs {
-						if dep, ok := includeDirsToProtoDeps[dir]; ok {
-							attrs.Deps.Add(bazel.MakeLabelAttribute(dep))
-						} else {
-							ctx.PropertyErrorf("Could not find the proto_library target for include dir", dir)
-						}
-					}
-				} else if props.Proto.Type != info.Type && props.Proto.Type != nil {
-					ctx.ModuleErrorf("Cannot handle arch-variant types for protos at this time.")
-				}
-			}
-		}
-
-		tags := ApexAvailableTags(ctx.Module())
-
-		ctx.CreateBazelTargetModule(
-			bazel.BazelTargetModuleProperties{Rule_class: "proto_library"},
-			CommonAttributes{Name: info.Name, Tags: tags},
-			&attrs,
-		)
-
-		protoLibraries.Add(&bazel.Label{
-			Label: ":" + info.Name,
-		})
-	}
-
-	info.Proto_libs = protoLibraries
-
-	return info, true
 }

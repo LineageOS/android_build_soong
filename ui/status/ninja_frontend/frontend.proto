@@ -30,6 +30,10 @@ message Status {
     optional uint32 parallelism = 1;
     // Verbose value passed to ninja.
     optional bool verbose = 2;
+    // Critical path's running time in milliseconds
+    optional uint32 critical_path_time = 3;
+    // Total running time of every need-to-build edge in milliseconds
+    optional uint32 estimated_total_time = 4;
   }
 
   message BuildFinished {
@@ -79,6 +83,9 @@ message Status {
     optional uint64 voluntary_context_switches = 12;
     // Involuntary context switches
     optional uint64 involuntary_context_switches = 13;
+    // Arbitrary tags for build system profiling (module names and types, rule
+    // names, etc). Format of the string is implementation defined.
+    optional string tags = 14;
   }
 
   message Message {

@@ -17,6 +17,7 @@ package python
 import (
 	"fmt"
 
+	"android/soong/testing"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -39,7 +40,7 @@ func NewTest(hod android.HostOrDeviceSupported) *PythonTestModule {
 }
 
 func PythonTestHostFactory() android.Module {
-	return NewTest(android.HostSupportedNoCross).init()
+	return NewTest(android.HostSupported).init()
 }
 
 func PythonTestFactory() android.Module {
@@ -66,6 +67,10 @@ type TestProperties struct {
 
 	// Test options.
 	Test_options TestOptions
+
+	// list of device binary modules that should be installed alongside the test
+	// This property adds 64bit AND 32bit variants of the dependency
+	Data_device_bins_both []string `android:"arch_variant"`
 }
 
 type TestOptions struct {
@@ -97,11 +102,46 @@ func (p *PythonTestModule) init() android.Module {
 	p.AddProperties(&p.testProperties)
 	android.InitAndroidArchModule(p, p.hod, p.multilib)
 	android.InitDefaultableModule(p)
-	android.InitBazelModule(p)
-	if p.hod == android.HostSupportedNoCross && p.testProperties.Test_options.Unit_test == nil {
+	if p.isTestHost() && p.testProperties.Test_options.Unit_test == nil {
 		p.testProperties.Test_options.Unit_test = proptools.BoolPtr(true)
 	}
 	return p
+}
+
+func (p *PythonTestModule) isTestHost() bool {
+	return p.hod == android.HostSupported
+}
+
+var dataDeviceBinsTag = dependencyTag{name: "dataDeviceBins"}
+
+// python_test_host DepsMutator uses this method to add multilib dependencies of
+// data_device_bin_both
+func (p *PythonTestModule) addDataDeviceBinsDeps(ctx android.BottomUpMutatorContext, filter string) {
+	if len(p.testProperties.Data_device_bins_both) < 1 {
+		return
+	}
+
+	var maybeAndroidTarget *android.Target
+	androidTargetList := android.FirstTarget(ctx.Config().Targets[android.Android], filter)
+	if len(androidTargetList) > 0 {
+		maybeAndroidTarget = &androidTargetList[0]
+	}
+
+	if maybeAndroidTarget != nil {
+		ctx.AddFarVariationDependencies(
+			maybeAndroidTarget.Variations(),
+			dataDeviceBinsTag,
+			p.testProperties.Data_device_bins_both...,
+		)
+	}
+}
+
+func (p *PythonTestModule) DepsMutator(ctx android.BottomUpMutatorContext) {
+	p.PythonBinaryModule.DepsMutator(ctx)
+	if p.isTestHost() {
+		p.addDataDeviceBinsDeps(ctx, "lib32")
+		p.addDataDeviceBinsDeps(ctx, "lib64")
+	}
 }
 
 func (p *PythonTestModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -147,10 +187,14 @@ func (p *PythonTestModule) GenerateAndroidBuildActions(ctx android.ModuleContext
 		panic(fmt.Errorf("unknown python test runner '%s', should be 'tradefed' or 'mobly'", runner))
 	}
 
-	p.installedDest = ctx.InstallFile(installDir(ctx, "nativetest", "nativetest64", ctx.ModuleName()), p.installSource.Base(), p.installSource)
-
 	for _, dataSrcPath := range android.PathsForModuleSrc(ctx, p.testProperties.Data) {
 		p.data = append(p.data, android.DataPath{SrcPath: dataSrcPath})
+	}
+
+	if p.isTestHost() && len(p.testProperties.Data_device_bins_both) > 0 {
+		ctx.VisitDirectDepsWithTag(dataDeviceBinsTag, func(dep android.Module) {
+			p.data = append(p.data, android.DataPath{SrcPath: android.OutputFileForModule(ctx, dep, "")})
+		})
 	}
 
 	// Emulate the data property for java_data dependencies.
@@ -159,6 +203,12 @@ func (p *PythonTestModule) GenerateAndroidBuildActions(ctx android.ModuleContext
 			p.data = append(p.data, android.DataPath{SrcPath: javaDataSrcPath})
 		}
 	}
+
+	installDir := installDir(ctx, "nativetest", "nativetest64", ctx.ModuleName())
+	installedData := ctx.InstallTestData(installDir, p.data)
+	p.installedDest = ctx.InstallFile(installDir, p.installSource.Base(), p.installSource, installedData...)
+
+	ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 }
 
 func (p *PythonTestModule) AndroidMkEntries() []android.AndroidMkEntries {
@@ -178,8 +228,6 @@ func (p *PythonTestModule) AndroidMkEntries() []android.AndroidMkEntries {
 			}
 
 			entries.SetBoolIfTrue("LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG", !BoolDefault(p.binaryProperties.Auto_gen_config, true))
-
-			entries.AddStrings("LOCAL_TEST_DATA", android.AndroidMkDataPaths(p.data)...)
 
 			p.testProperties.Test_options.SetAndroidMkEntries(entries)
 		})

@@ -43,9 +43,7 @@ var (
 
 	armNoFixCortexA8LdFlags = []string{"-Wl,--no-fix-cortex-a8"}
 
-	armArmCflags = []string{
-		"-fstrict-aliasing",
-	}
+	armArmCflags = []string{}
 
 	armThumbCflags = []string{
 		"-mthumb",
@@ -185,12 +183,7 @@ func init() {
 	exportedVars.ExportString("ArmClangTriple", clangTriple)
 
 	exportedVars.ExportStringListStaticVariable("ArmLdflags", armLdflags)
-	exportedVars.ExportStringList("ArmLldflags", armLldflags)
-	pctx.VariableFunc("ArmLldflags", func(ctx android.PackageVarContext) string {
-		maxPageSizeFlag := "-Wl,-z,max-page-size=" + ctx.Config().MaxPageSizeSupported()
-		flags := append(armLldflags, maxPageSizeFlag)
-		return strings.Join(flags, " ")
-	})
+	exportedVars.ExportStringListStaticVariable("ArmLldflags", armLldflags)
 
 	exportedVars.ExportStringListStaticVariable("ArmFixCortexA8LdFlags", armFixCortexA8LdFlags)
 	exportedVars.ExportStringListStaticVariable("ArmNoFixCortexA8LdFlags", armNoFixCortexA8LdFlags)

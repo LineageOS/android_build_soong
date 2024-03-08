@@ -48,6 +48,7 @@ const (
 	SdkPublic
 	SdkSystem
 	SdkTest
+	SdkTestFrameworksCore
 	SdkModule
 	SdkSystemServer
 	SdkPrivate
@@ -67,6 +68,8 @@ func (k SdkKind) String() string {
 		return "system"
 	case SdkTest:
 		return "test"
+	case SdkTestFrameworksCore:
+		return "test_frameworks_core"
 	case SdkCore:
 		return "core"
 	case SdkCorePlatform:
@@ -84,22 +87,6 @@ func (k SdkKind) String() string {
 	}
 }
 
-// JavaLibraryName returns the soong module containing the Java APIs of that API surface.
-func (k SdkKind) JavaLibraryName(c Config) string {
-	name := k.DefaultJavaLibraryName()
-	return JavaApiLibraryName(c, name)
-}
-
-// JavaApiLibraryName returns the name of .txt equivalent of a java_library, but does
-// not check if either module exists.
-// TODO: Return .txt (single-tree or multi-tree equivalents) based on config
-func JavaApiLibraryName(c Config, name string) string {
-	if c.BuildFromTextStub() {
-		return name + ".from-text"
-	}
-	return name
-}
-
 func (k SdkKind) DefaultJavaLibraryName() string {
 	switch k {
 	case SdkPublic:
@@ -108,6 +95,8 @@ func (k SdkKind) DefaultJavaLibraryName() string {
 		return "android_system_stubs_current"
 	case SdkTest:
 		return "android_test_stubs_current"
+	case SdkTestFrameworksCore:
+		return "android_test_frameworks_core_stubs_current"
 	case SdkCore:
 		return "core.current.stubs"
 	case SdkModule:
@@ -153,7 +142,7 @@ func (s SdkSpec) Stable() bool {
 		return true
 	case SdkCore, SdkPublic, SdkSystem, SdkModule, SdkSystemServer:
 		return true
-	case SdkCorePlatform, SdkTest, SdkPrivate:
+	case SdkCorePlatform, SdkTest, SdkTestFrameworksCore, SdkPrivate:
 		return false
 	default:
 		panic(fmt.Errorf("unknown SdkKind=%v", s.Kind))
@@ -201,7 +190,8 @@ func (s SdkSpec) UsePrebuilt(ctx EarlyModuleContext) bool {
 		return ctx.Config().AlwaysUsePrebuiltSdks()
 	} else if !s.ApiLevel.IsPreview() {
 		// validation check
-		if s.Kind != SdkPublic && s.Kind != SdkSystem && s.Kind != SdkTest && s.Kind != SdkModule && s.Kind != SdkSystemServer {
+		if s.Kind != SdkPublic && s.Kind != SdkSystem && s.Kind != SdkTest &&
+			s.Kind != SdkTestFrameworksCore && s.Kind != SdkModule && s.Kind != SdkSystemServer {
 			panic(fmt.Errorf("prebuilt SDK is not not available for SdkKind=%q", s.Kind))
 			return false
 		}
@@ -282,6 +272,8 @@ func SdkSpecFromWithConfig(config Config, str string) SdkSpec {
 			kind = SdkSystem
 		case "test":
 			kind = SdkTest
+		case "test_frameworks_core":
+			kind = SdkTestFrameworksCore
 		case "module":
 			kind = SdkModule
 		case "system_server":
@@ -326,11 +318,10 @@ func init() {
 
 // Export the name of the soong modules representing the various Java API surfaces.
 func javaSdkMakeVars(ctx MakeVarsContext) {
-	ctx.Strict("ANDROID_PUBLIC_STUBS", SdkPublic.JavaLibraryName(ctx.Config()))
-	ctx.Strict("ANDROID_SYSTEM_STUBS", SdkSystem.JavaLibraryName(ctx.Config()))
-	ctx.Strict("ANDROID_TEST_STUBS", SdkTest.JavaLibraryName(ctx.Config()))
-	ctx.Strict("ANDROID_MODULE_LIB_STUBS", SdkModule.JavaLibraryName(ctx.Config()))
-	ctx.Strict("ANDROID_SYSTEM_SERVER_STUBS", SdkSystemServer.JavaLibraryName(ctx.Config()))
-	// TODO (jihoonkang): Create a .txt equivalent for core.current.stubs
-	ctx.Strict("ANDROID_CORE_STUBS", SdkCore.JavaLibraryName(ctx.Config()))
+	ctx.Strict("ANDROID_PUBLIC_STUBS", SdkPublic.DefaultJavaLibraryName())
+	ctx.Strict("ANDROID_SYSTEM_STUBS", SdkSystem.DefaultJavaLibraryName())
+	ctx.Strict("ANDROID_TEST_STUBS", SdkTest.DefaultJavaLibraryName())
+	ctx.Strict("ANDROID_MODULE_LIB_STUBS", SdkModule.DefaultJavaLibraryName())
+	ctx.Strict("ANDROID_SYSTEM_SERVER_STUBS", SdkSystemServer.DefaultJavaLibraryName())
+	ctx.Strict("ANDROID_CORE_STUBS", SdkCore.DefaultJavaLibraryName())
 }

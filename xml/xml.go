@@ -16,7 +16,6 @@ package xml
 
 import (
 	"android/soong/android"
-	"android/soong/bazel"
 	"android/soong/etc"
 
 	"github.com/google/blueprint"
@@ -68,8 +67,6 @@ type prebuiltEtcXmlProperties struct {
 }
 
 type prebuiltEtcXml struct {
-	android.BazelModuleBase
-
 	etc.PrebuiltEtc
 
 	properties prebuiltEtcXmlProperties
@@ -132,40 +129,5 @@ func PrebuiltEtcXmlFactory() android.Module {
 	etc.InitPrebuiltEtcModule(&module.PrebuiltEtc, "etc")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
-	android.InitBazelModule(module)
 	return module
-}
-
-type bazelPrebuiltEtcXmlAttributes struct {
-	Src               bazel.LabelAttribute
-	Filename          bazel.LabelAttribute
-	Dir               string
-	Installable       bazel.BoolAttribute
-	Filename_from_src bazel.BoolAttribute
-	Schema            *string
-}
-
-func (p *prebuiltEtcXml) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
-	baseAttrs := p.PrebuiltEtc.Bp2buildHelper(ctx)
-
-	var schema *string
-	if p.properties.Schema != nil {
-		schema = p.properties.Schema
-	}
-
-	attrs := &bazelPrebuiltEtcXmlAttributes{
-		Src:               baseAttrs.Src,
-		Filename:          baseAttrs.Filename,
-		Dir:               baseAttrs.Dir,
-		Installable:       baseAttrs.Installable,
-		Filename_from_src: baseAttrs.Filename_from_src,
-		Schema:            schema,
-	}
-
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "prebuilt_xml",
-		Bzl_load_location: "//build/bazel/rules/prebuilt_xml.bzl",
-	}
-
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: p.Name()}, attrs)
 }

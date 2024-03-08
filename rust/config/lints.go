@@ -46,6 +46,7 @@ var (
 		"-A deprecated",
 		"-D missing-docs",
 		"-D warnings",
+		"-D unsafe_op_in_unsafe_fn",
 	}
 	// Default Clippy lints. These are applied on top of defaultRustcLints.
 	// It should be assumed that any warning lint will be promoted to a
@@ -55,6 +56,7 @@ var (
 		"-A clippy::unnecessary-wraps",
 		"-A clippy::unusual-byte-groupings",
 		"-A clippy::upper-case-acronyms",
+		"-D clippy::undocumented_unsafe_blocks",
 	}
 
 	// Rust lints for vendor code.

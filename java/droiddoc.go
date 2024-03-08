@@ -135,6 +135,9 @@ type DroiddocProperties struct {
 	// At some point, this might be improved to show more warnings.
 	Todo_file *string `android:"path"`
 
+	// A file containing a baseline for allowed lint errors.
+	Lint_baseline *string `android:"path"`
+
 	// directory under current module source that provide additional resources (images).
 	Resourcesdir *string
 
@@ -299,7 +302,7 @@ func (j *Javadoc) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Op
 	}
 
 	flags = append(flags, android.JoinWithPrefix(aidlIncludes.Strings(), "-I"))
-	flags = append(flags, "-I"+android.PathForModuleSrc(ctx).String())
+	flags = append(flags, "-I"+ctx.ModuleDir())
 	if src := android.ExistentPathForSource(ctx, ctx.ModuleDir(), "src"); src.Valid() {
 		flags = append(flags, "-I"+src.String())
 	}
@@ -608,6 +611,11 @@ func (d *Droiddoc) doclavaDocsFlags(ctx android.ModuleContext, cmd *android.Rule
 		FlagWithArg("-Xmaxerrs ", "10").
 		FlagWithArg("-Xmaxwarns ", "10").
 		Flag("-J--add-exports=jdk.javadoc/jdk.javadoc.internal.doclets.formats.html=ALL-UNNAMED").
+		Flag("-J--add-exports=jdk.javadoc/jdk.javadoc.internal.tool=ALL-UNNAMED").
+		Flag("-J--add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED").
+		Flag("-J--add-exports=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED").
+		Flag("-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED").
+		Flag("-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED").
 		Flag("-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED").
 		FlagWithArg("-hdf page.build ", ctx.Config().BuildId()+"-$(cat "+buildNumberFile.String()+")").OrderOnly(buildNumberFile).
 		FlagWithArg("-hdf page.now ", `"$(date -d @$(cat `+ctx.Config().Getenv("BUILD_DATETIME_FILE")+`) "+%d %b %Y %k:%M")" `)
@@ -659,6 +667,10 @@ func (d *Droiddoc) doclavaDocsFlags(ctx android.ModuleContext, cmd *android.Rule
 			ImplicitOutput(android.PathForModuleOut(ctx, String(d.properties.Todo_file)))
 	}
 
+	if String(d.properties.Lint_baseline) != "" {
+		cmd.FlagWithInput("-lintbaseline ", android.PathForModuleSrc(ctx, String(d.properties.Lint_baseline)))
+	}
+
 	if String(d.properties.Resourcesdir) != "" {
 		// TODO: should we add files under resourcesDir to the implicits? It seems that
 		// resourcesDir is one sub dir of htmlDir
@@ -694,7 +706,6 @@ func javadocCmd(ctx android.ModuleContext, rule *android.RuleBuilder, srcs andro
 	cmd := rule.Command().
 		BuiltTool("soong_javac_wrapper").Tool(config.JavadocCmd(ctx)).
 		Flag(config.JavacVmFlags).
-		FlagWithArg("-encoding ", "UTF-8").
 		FlagWithRspFileInputList("@", android.PathForModuleOut(ctx, "javadoc.rsp"), srcs).
 		FlagWithInput("@", srcJarList)
 

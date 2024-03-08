@@ -32,7 +32,7 @@ type GlobalConfig struct {
 	DisablePreoptBootImages bool     // disable prepot for boot images
 	DisablePreoptModules    []string // modules with preopt disabled by product-specific config
 
-	OnlyPreoptBootImageAndSystemServer bool // only preopt jars in the boot image or system server
+	OnlyPreoptArtBootImage bool // only preopt jars in the ART boot image
 
 	PreoptWithUpdatableBcp bool // If updatable boot jars are included in dexpreopt or not.
 
@@ -45,7 +45,8 @@ type GlobalConfig struct {
 	BootJars     android.ConfiguredJarList // modules for jars that form the boot class path
 	ApexBootJars android.ConfiguredJarList // jars within apex that form the boot class path
 
-	ArtApexJars android.ConfiguredJarList // modules for jars that are in the ART APEX
+	ArtApexJars              android.ConfiguredJarList // modules for jars that are in the ART APEX
+	TestOnlyArtBootImageJars android.ConfiguredJarList // modules for jars to be included in the ART boot image for testing
 
 	SystemServerJars               android.ConfiguredJarList // system_server classpath jars on the platform
 	SystemServerApps               []string                  // apps that are loaded into system server
@@ -183,8 +184,6 @@ type ModuleConfig struct {
 	PreoptBootClassPathDexFiles     android.Paths // file paths of boot class path files
 	PreoptBootClassPathDexLocations []string      // virtual locations of boot class path files
 
-	PreoptExtractedApk bool // Overrides OnlyPreoptModules
-
 	NoCreateAppImage    bool
 	ForceCreateAppImage bool
 
@@ -197,7 +196,7 @@ var pctx = android.NewPackageContext("android/soong/dexpreopt")
 
 func init() {
 	pctx.Import("android/soong/android")
-	android.RegisterSingletonType("dexpreopt-soong-config", func() android.Singleton {
+	android.RegisterParallelSingletonType("dexpreopt-soong-config", func() android.Singleton {
 		return &globalSoongConfigSingleton{}
 	})
 }
@@ -321,7 +320,7 @@ func getGlobalConfigRaw(ctx android.PathContext) globalConfigAndRaw {
 				missingDepsCtx.AddMissingDependencies([]string{err.Error()})
 			}
 		} else {
-			android.ReportPathErrorf(ctx, "%w", err)
+			android.ReportPathErrorf(ctx, "%s", err)
 		}
 	}
 
@@ -690,44 +689,45 @@ func (s *globalSoongConfigSingleton) MakeVars(ctx android.MakeVarsContext) {
 
 func GlobalConfigForTests(ctx android.PathContext) *GlobalConfig {
 	return &GlobalConfig{
-		DisablePreopt:                      false,
-		DisablePreoptModules:               nil,
-		OnlyPreoptBootImageAndSystemServer: false,
-		HasSystemOther:                     false,
-		PatternsOnSystemOther:              nil,
-		DisableGenerateProfile:             false,
-		ProfileDir:                         "",
-		BootJars:                           android.EmptyConfiguredJarList(),
-		ApexBootJars:                       android.EmptyConfiguredJarList(),
-		ArtApexJars:                        android.EmptyConfiguredJarList(),
-		SystemServerJars:                   android.EmptyConfiguredJarList(),
-		SystemServerApps:                   nil,
-		ApexSystemServerJars:               android.EmptyConfiguredJarList(),
-		StandaloneSystemServerJars:         android.EmptyConfiguredJarList(),
-		ApexStandaloneSystemServerJars:     android.EmptyConfiguredJarList(),
-		SpeedApps:                          nil,
-		PreoptFlags:                        nil,
-		DefaultCompilerFilter:              "",
-		SystemServerCompilerFilter:         "",
-		GenerateDMFiles:                    false,
-		NoDebugInfo:                        false,
-		DontResolveStartupStrings:          false,
-		AlwaysSystemServerDebugInfo:        false,
-		NeverSystemServerDebugInfo:         false,
-		AlwaysOtherDebugInfo:               false,
-		NeverOtherDebugInfo:                false,
-		IsEng:                              false,
-		SanitizeLite:                       false,
-		DefaultAppImages:                   false,
-		Dex2oatXmx:                         "",
-		Dex2oatXms:                         "",
-		EmptyDirectory:                     "empty_dir",
-		CpuVariant:                         nil,
-		InstructionSetFeatures:             nil,
-		BootImageProfiles:                  nil,
-		BootFlags:                          "",
-		Dex2oatImageXmx:                    "",
-		Dex2oatImageXms:                    "",
+		DisablePreopt:                  false,
+		DisablePreoptModules:           nil,
+		OnlyPreoptArtBootImage:         false,
+		HasSystemOther:                 false,
+		PatternsOnSystemOther:          nil,
+		DisableGenerateProfile:         false,
+		ProfileDir:                     "",
+		BootJars:                       android.EmptyConfiguredJarList(),
+		ApexBootJars:                   android.EmptyConfiguredJarList(),
+		ArtApexJars:                    android.EmptyConfiguredJarList(),
+		TestOnlyArtBootImageJars:       android.EmptyConfiguredJarList(),
+		SystemServerJars:               android.EmptyConfiguredJarList(),
+		SystemServerApps:               nil,
+		ApexSystemServerJars:           android.EmptyConfiguredJarList(),
+		StandaloneSystemServerJars:     android.EmptyConfiguredJarList(),
+		ApexStandaloneSystemServerJars: android.EmptyConfiguredJarList(),
+		SpeedApps:                      nil,
+		PreoptFlags:                    nil,
+		DefaultCompilerFilter:          "",
+		SystemServerCompilerFilter:     "",
+		GenerateDMFiles:                false,
+		NoDebugInfo:                    false,
+		DontResolveStartupStrings:      false,
+		AlwaysSystemServerDebugInfo:    false,
+		NeverSystemServerDebugInfo:     false,
+		AlwaysOtherDebugInfo:           false,
+		NeverOtherDebugInfo:            false,
+		IsEng:                          false,
+		SanitizeLite:                   false,
+		DefaultAppImages:               false,
+		Dex2oatXmx:                     "",
+		Dex2oatXms:                     "",
+		EmptyDirectory:                 "empty_dir",
+		CpuVariant:                     nil,
+		InstructionSetFeatures:         nil,
+		BootImageProfiles:              nil,
+		BootFlags:                      "",
+		Dex2oatImageXmx:                "",
+		Dex2oatImageXms:                "",
 	}
 }
 

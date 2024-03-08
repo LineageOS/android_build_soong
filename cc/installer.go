@@ -59,6 +59,8 @@ type baseInstaller struct {
 	relative string
 	location installLocation
 
+	installDeps android.InstallPaths
+
 	path android.InstallPath
 }
 
@@ -97,11 +99,12 @@ func (installer *baseInstaller) installDir(ctx ModuleContext) android.InstallPat
 }
 
 func (installer *baseInstaller) install(ctx ModuleContext, file android.Path) {
-	installer.path = ctx.InstallFile(installer.installDir(ctx), file.Base(), file)
+	installer.path = ctx.InstallFile(installer.installDir(ctx), file.Base(), file, installer.installDeps...)
 }
 
-func (installer *baseInstaller) installExecutable(ctx ModuleContext, file android.Path) {
-	installer.path = ctx.InstallExecutable(installer.installDir(ctx), file.Base(), file)
+func (installer *baseInstaller) installTestData(ctx ModuleContext, data []android.DataPath) {
+	installedData := ctx.InstallTestData(installer.installDir(ctx), data)
+	installer.installDeps = append(installer.installDeps, installedData...)
 }
 
 func (installer *baseInstaller) everInstallable() bool {

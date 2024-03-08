@@ -21,10 +21,11 @@ import (
 	_ "android/soong/cc/config"
 )
 
-var pctx = android.NewPackageContext("android/soong/rust/config")
-
 var (
-	RustDefaultVersion = "1.68.0"
+	pctx         = android.NewPackageContext("android/soong/rust/config")
+	ExportedVars = android.NewExportedVariables(pctx)
+
+	RustDefaultVersion = "1.73.0"
 	RustDefaultBase    = "prebuilts/rust/"
 	DefaultEdition     = "2021"
 	Stdlibs            = []string{
@@ -41,8 +42,8 @@ var (
 	}
 
 	GlobalRustFlags = []string{
+		"-Z stack-protector=strong",
 		"-Z remap-cwd-prefix=.",
-		"-C codegen-units=1",
 		"-C debuginfo=2",
 		"-C opt-level=3",
 		"-C relocation-model=pic",
@@ -50,18 +51,27 @@ var (
 		"-C force-unwind-tables=yes",
 		// Use v0 mangling to distinguish from C++ symbols
 		"-C symbol-mangling-version=v0",
-		"--color always",
-		// TODO (b/267698452): Temporary workaround until the "no unstable
-		// features" policy is enforced.
-		"-A stable-features",
-		"-Zdylib-lto",
+		"--color=always",
+		"-Z dylib-lto",
+		"-Z link-native-libraries=no",
+	}
+
+	LinuxHostGlobalLinkFlags = []string{
+		"-lc",
+		"-lrt",
+		"-ldl",
+		"-lpthread",
+		"-lm",
+		"-lgcc_s",
+		"-Wl,--compress-debug-sections=zstd",
 	}
 
 	deviceGlobalRustFlags = []string{
 		"-C panic=abort",
-		"-Z link-native-libraries=no",
 		// Generate additional debug info for AutoFDO
 		"-Z debug-info-for-profiling",
+		// Android has ELF TLS on platform
+		"-Z tls-model=global-dynamic",
 	}
 
 	deviceGlobalLinkFlags = []string{
@@ -77,18 +87,13 @@ var (
 		"-Wl,--use-android-relr-tags",
 		"-Wl,--no-undefined",
 		"-B${cc_config.ClangBin}",
+		"-Wl,--compress-debug-sections=zstd",
 	}
 )
 
 func init() {
 	pctx.SourcePathVariable("RustDefaultBase", RustDefaultBase)
-	pctx.VariableConfigMethod("HostPrebuiltTag", func(config android.Config) string {
-		if config.UseHostMusl() {
-			return "linux-musl-x86"
-		} else {
-			return config.PrebuiltOS()
-		}
-	})
+	pctx.VariableConfigMethod("HostPrebuiltTag", HostPrebuiltTag)
 
 	pctx.VariableFunc("RustBase", func(ctx android.PackageVarContext) string {
 		if override := ctx.Config().Getenv("RUST_PREBUILTS_BASE"); override != "" {
@@ -104,10 +109,28 @@ func init() {
 
 	pctx.ImportAs("cc_config", "android/soong/cc/config")
 	pctx.StaticVariable("RustLinker", "${cc_config.ClangBin}/clang++")
-	pctx.StaticVariable("RustLinkerArgs", "-Wl,--as-needed")
 
 	pctx.StaticVariable("DeviceGlobalLinkFlags", strings.Join(deviceGlobalLinkFlags, " "))
 
+	ExportedVars.ExportStringStaticVariable("RUST_DEFAULT_VERSION", RustDefaultVersion)
+	ExportedVars.ExportStringListStaticVariable("GLOBAL_RUSTC_FLAGS", GlobalRustFlags)
+	ExportedVars.ExportStringListStaticVariable("LINUX_HOST_GLOBAL_LINK_FLAGS", LinuxHostGlobalLinkFlags)
+
+	ExportedVars.ExportStringListStaticVariable("DEVICE_GLOBAL_RUSTC_FLAGS", deviceGlobalRustFlags)
+	ExportedVars.ExportStringListStaticVariable("DEVICE_GLOBAL_LINK_FLAGS",
+		android.RemoveListFromList(deviceGlobalLinkFlags, []string{
+			// The cc_config flags are retrieved from cc_toolchain by rust rules.
+			"${cc_config.DeviceGlobalLldflags}",
+			"-B${cc_config.ClangBin}",
+		}))
+}
+
+func HostPrebuiltTag(config android.Config) string {
+	if config.UseHostMusl() {
+		return "linux-musl-x86"
+	} else {
+		return config.PrebuiltOS()
+	}
 }
 
 func getRustVersionPctx(ctx android.PackageVarContext) string {

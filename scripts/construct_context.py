@@ -19,6 +19,7 @@
 from __future__ import print_function
 
 import argparse
+import json
 import sys
 
 from manifest import compare_version_gt
@@ -33,20 +34,14 @@ def parse_args(args):
         dest='sdk',
         help='specify target SDK version (as it appears in the manifest)')
     parser.add_argument(
-        '--host-context-for-sdk',
-        dest='host_contexts',
-        action='append',
-        nargs=2,
-        metavar=('sdk', 'context'),
-        help='specify context on host for a given SDK version or "any" version')
+        '--context-json',
+        default='',
+        dest='context_json',
+    )
     parser.add_argument(
-        '--target-context-for-sdk',
-        dest='target_contexts',
-        action='append',
-        nargs=2,
-        metavar=('sdk', 'context'),
-        help='specify context on target for a given SDK version or "any" '
-        'version'
+        '--product-packages',
+        default='',
+        dest='product_packages_file',
     )
     return parser.parse_args(args)
 
@@ -55,28 +50,69 @@ def parse_args(args):
 # context regardless of the target SDK version.
 any_sdk = 'any'
 
-
-# We assume that the order of context arguments passed to this script is
-# correct (matches the order computed by package manager). It is possible to
-# sort them here, but Soong needs to use deterministic order anyway, so it can
-# as well use the correct order.
-def construct_context(versioned_contexts, target_sdk):
-    context = []
-    for [sdk, ctx] in versioned_contexts:
-        if sdk == any_sdk or compare_version_gt(sdk, target_sdk):
-            context.append(ctx)
-    return context
+context_sep = '#'
 
 
-def construct_contexts(args):
-    host_context = construct_context(args.host_contexts, args.sdk)
-    target_context = construct_context(args.target_contexts, args.sdk)
-    context_sep = '#'
+def encode_class_loader(context, product_packages):
+    host_sub_contexts, target_sub_contexts = encode_class_loaders(
+            context['Subcontexts'], product_packages)
+
+    return ('PCL[%s]%s' % (context['Host'], host_sub_contexts),
+            'PCL[%s]%s' % (context['Device'], target_sub_contexts))
+
+
+def encode_class_loaders(contexts, product_packages):
+    host_contexts = []
+    target_contexts = []
+
+    for context in contexts:
+        if not context['Optional'] or context['Name'] in product_packages:
+            host_context, target_context = encode_class_loader(
+                    context, product_packages)
+            host_contexts.append(host_context)
+            target_contexts.append(target_context)
+
+    if host_contexts:
+        return ('{%s}' % context_sep.join(host_contexts),
+                '{%s}' % context_sep.join(target_contexts))
+    else:
+        return '', ''
+
+
+def construct_context_args(target_sdk, context_json, product_packages):
+    all_contexts = []
+
+    # CLC for different SDK versions should come in specific order that agrees
+    # with PackageManager. Since PackageManager processes SDK versions in
+    # ascending order and prepends compatibility libraries at the front, the
+    # required order is descending, except for any_sdk that has numerically
+    # the largest order, but must be the last one. Example of correct order:
+    # [30, 29, 28, any_sdk]. There are Python tests to ensure that someone
+    # doesn't change this by accident, but there is no way to guard against
+    # changes in the PackageManager, except for grepping logcat on the first
+    # boot for absence of the following messages:
+    #
+    #   `logcat | grep -E 'ClassLoaderContext [a-z ]+ mismatch`
+
+    for sdk, contexts in sorted(
+            ((sdk, contexts)
+             for sdk, contexts in context_json.items()
+             if sdk != any_sdk and compare_version_gt(sdk, target_sdk)),
+            key=lambda item: int(item[0]), reverse=True):
+        all_contexts += contexts
+
+    if any_sdk in context_json:
+        all_contexts += context_json[any_sdk]
+
+    host_contexts, target_contexts = encode_class_loaders(
+            all_contexts, product_packages)
+
     return (
-        'class_loader_context_arg=--class-loader-context=PCL[]{%s} ; ' %
-        context_sep.join(host_context) +
-        'stored_class_loader_context_arg=--stored-class-loader-context=PCL[]{%s}' #pylint: disable=line-too-long
-        % context_sep.join(target_context))
+        'class_loader_context_arg=--class-loader-context=PCL[]%s ; ' %
+        host_contexts +
+        'stored_class_loader_context_arg='
+        '--stored-class-loader-context=PCL[]%s'
+        % target_contexts)
 
 
 def main():
@@ -85,12 +121,12 @@ def main():
         args = parse_args(sys.argv[1:])
         if not args.sdk:
             raise SystemExit('target sdk version is not set')
-        if not args.host_contexts:
-            args.host_contexts = []
-        if not args.target_contexts:
-            args.target_contexts = []
 
-        print(construct_contexts(args))
+        context_json = json.loads(args.context_json)
+        with open(args.product_packages_file, 'r') as f:
+            product_packages = set(line.strip() for line in f if line.strip())
+
+        print(construct_context_args(args.sdk, context_json, product_packages))
 
     # pylint: disable=broad-except
     except Exception as err:

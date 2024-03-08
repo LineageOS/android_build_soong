@@ -295,3 +295,159 @@ func TestSmartStatusOutputWidthChange(t *testing.T) {
 		t.Errorf("want:\n%q\ngot:\n%q", w, g)
 	}
 }
+
+func TestSmartStatusDoesntHideAfterSucecss(t *testing.T) {
+	os.Setenv(tableHeightEnVar, "")
+
+	smart := &fakeSmartTerminal{termWidth: 40}
+	stat := NewStatusOutput(smart, "", false, false, false)
+	smartStat := stat.(*smartStatusOutput)
+	smartStat.sigwinchHandled = make(chan bool)
+
+	runner := newRunner(stat, 2)
+
+	action1 := &status.Action{Description: "action1"}
+	result1 := status.ActionResult{
+		Action: action1,
+		Output: "Output1",
+	}
+
+	action2 := &status.Action{Description: "action2"}
+	result2 := status.ActionResult{
+		Action: action2,
+		Output: "Output2",
+	}
+
+	runner.startAction(action1)
+	runner.startAction(action2)
+	runner.finishAction(result1)
+	runner.finishAction(result2)
+
+	stat.Flush()
+
+	w := "\r\x1b[1m[  0% 0/2] action1\x1b[0m\x1b[K\r\x1b[1m[  0% 0/2] action2\x1b[0m\x1b[K\r\x1b[1m[ 50% 1/2] action1\x1b[0m\x1b[K\nOutput1\n\r\x1b[1m[100% 2/2] action2\x1b[0m\x1b[K\nOutput2\n"
+
+	if g := smart.String(); g != w {
+		t.Errorf("want:\n%q\ngot:\n%q", w, g)
+	}
+}
+
+func TestSmartStatusHideAfterFailure(t *testing.T) {
+	os.Setenv(tableHeightEnVar, "")
+
+	smart := &fakeSmartTerminal{termWidth: 40}
+	stat := NewStatusOutput(smart, "", false, false, false)
+	smartStat := stat.(*smartStatusOutput)
+	smartStat.sigwinchHandled = make(chan bool)
+
+	runner := newRunner(stat, 2)
+
+	action1 := &status.Action{Description: "action1"}
+	result1 := status.ActionResult{
+		Action: action1,
+		Output: "Output1",
+		Error:  fmt.Errorf("Error1"),
+	}
+
+	action2 := &status.Action{Description: "action2"}
+	result2 := status.ActionResult{
+		Action: action2,
+		Output: "Output2",
+	}
+
+	runner.startAction(action1)
+	runner.startAction(action2)
+	runner.finishAction(result1)
+	runner.finishAction(result2)
+
+	stat.Flush()
+
+	w := "\r\x1b[1m[  0% 0/2] action1\x1b[0m\x1b[K\r\x1b[1m[  0% 0/2] action2\x1b[0m\x1b[K\r\x1b[1m[ 50% 1/2] action1\x1b[0m\x1b[K\nFAILED: \nOutput1\n\r\x1b[1m[100% 2/2] action2\x1b[0m\x1b[K\nThere was 1 action that completed after the action that failed. See verbose.log.gz for its output.\n"
+
+	if g := smart.String(); g != w {
+		t.Errorf("want:\n%q\ngot:\n%q", w, g)
+	}
+}
+
+func TestSmartStatusHideAfterFailurePlural(t *testing.T) {
+	os.Setenv(tableHeightEnVar, "")
+
+	smart := &fakeSmartTerminal{termWidth: 40}
+	stat := NewStatusOutput(smart, "", false, false, false)
+	smartStat := stat.(*smartStatusOutput)
+	smartStat.sigwinchHandled = make(chan bool)
+
+	runner := newRunner(stat, 2)
+
+	action1 := &status.Action{Description: "action1"}
+	result1 := status.ActionResult{
+		Action: action1,
+		Output: "Output1",
+		Error:  fmt.Errorf("Error1"),
+	}
+
+	action2 := &status.Action{Description: "action2"}
+	result2 := status.ActionResult{
+		Action: action2,
+		Output: "Output2",
+	}
+
+	action3 := &status.Action{Description: "action3"}
+	result3 := status.ActionResult{
+		Action: action3,
+		Output: "Output3",
+	}
+
+	runner.startAction(action1)
+	runner.startAction(action2)
+	runner.startAction(action3)
+	runner.finishAction(result1)
+	runner.finishAction(result2)
+	runner.finishAction(result3)
+
+	stat.Flush()
+
+	w := "\r\x1b[1m[  0% 0/2] action1\x1b[0m\x1b[K\r\x1b[1m[  0% 0/2] action2\x1b[0m\x1b[K\r\x1b[1m[  0% 0/2] action3\x1b[0m\x1b[K\r\x1b[1m[ 50% 1/2] action1\x1b[0m\x1b[K\nFAILED: \nOutput1\n\r\x1b[1m[100% 2/2] action2\x1b[0m\x1b[K\r\x1b[1m[150% 3/2] action3\x1b[0m\x1b[K\nThere were 2 actions that completed after the action that failed. See verbose.log.gz for their output.\n"
+
+	if g := smart.String(); g != w {
+		t.Errorf("want:\n%q\ngot:\n%q", w, g)
+	}
+}
+
+func TestSmartStatusDontHideErrorAfterFailure(t *testing.T) {
+	os.Setenv(tableHeightEnVar, "")
+
+	smart := &fakeSmartTerminal{termWidth: 40}
+	stat := NewStatusOutput(smart, "", false, false, false)
+	smartStat := stat.(*smartStatusOutput)
+	smartStat.sigwinchHandled = make(chan bool)
+
+	runner := newRunner(stat, 2)
+
+	action1 := &status.Action{Description: "action1"}
+	result1 := status.ActionResult{
+		Action: action1,
+		Output: "Output1",
+		Error:  fmt.Errorf("Error1"),
+	}
+
+	action2 := &status.Action{Description: "action2"}
+	result2 := status.ActionResult{
+		Action: action2,
+		Output: "Output2",
+		Error:  fmt.Errorf("Error1"),
+	}
+
+	runner.startAction(action1)
+	runner.startAction(action2)
+	runner.finishAction(result1)
+	runner.finishAction(result2)
+
+	stat.Flush()
+
+	w := "\r\x1b[1m[  0% 0/2] action1\x1b[0m\x1b[K\r\x1b[1m[  0% 0/2] action2\x1b[0m\x1b[K\r\x1b[1m[ 50% 1/2] action1\x1b[0m\x1b[K\nFAILED: \nOutput1\n\r\x1b[1m[100% 2/2] action2\x1b[0m\x1b[K\nFAILED: \nOutput2\n"
+
+	if g := smart.String(); g != w {
+		t.Errorf("want:\n%q\ngot:\n%q", w, g)
+	}
+}

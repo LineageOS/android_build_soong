@@ -17,7 +17,6 @@ package build
 import (
 	"bytes"
 	"fmt"
-	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -59,37 +58,9 @@ const (
 	FILEMODE_USER_EXECUTE = FILEMODE_EXECUTE << FILEMODE_USER_SHIFT
 )
 
-// Ensures that files and directories in the out dir can be deleted.
-// For example, Bazen can generate output directories where the write bit isn't set, causing 'm' clean' to fail.
-func ensureOutDirRemovable(ctx Context, config Config) {
-	err := filepath.WalkDir(config.OutDir(), func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			info, err := d.Info()
-			if err != nil {
-				return err
-			}
-			// Equivalent to running chmod u+rwx on each directory
-			newMode := info.Mode() | FILEMODE_USER_READ | FILEMODE_USER_WRITE | FILEMODE_USER_EXECUTE
-			if err := os.Chmod(path, newMode); err != nil {
-				return err
-			}
-		}
-		// Continue walking the out dir...
-		return nil
-	})
-	if err != nil && !os.IsNotExist(err) {
-		// Display the error, but don't crash.
-		ctx.Println(err.Error())
-	}
-}
-
 // Remove everything under the out directory. Don't remove the out directory
 // itself in case it's a symlink.
 func clean(ctx Context, config Config) {
-	ensureOutDirRemovable(ctx, config)
 	removeGlobs(ctx, filepath.Join(config.OutDir(), "*"))
 	ctx.Println("Entire build directory removed.")
 }
@@ -166,6 +137,7 @@ func installClean(ctx Context, config Config) {
 		productOut("obj/NOTICE_FILES"),
 		productOut("obj/PACKAGING"),
 		productOut("ramdisk"),
+		productOut("ramdisk_16k"),
 		productOut("debug_ramdisk"),
 		productOut("vendor_ramdisk"),
 		productOut("vendor_debug_ramdisk"),

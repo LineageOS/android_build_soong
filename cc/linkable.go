@@ -2,7 +2,6 @@ package cc
 
 import (
 	"android/soong/android"
-	"android/soong/bazel/cquery"
 	"android/soong/fuzz"
 	"android/soong/snapshot"
 
@@ -87,8 +86,26 @@ type Snapshottable interface {
 	// SnapshotStaticLibs returns the list of static library dependencies for this module.
 	SnapshotStaticLibs() []string
 
+	// SnapshotDylibs returns the list of dylib library dependencies for this module.
+	SnapshotDylibs() []string
+
+	// SnapshotRlibs returns the list of rlib library dependencies for this module.
+	SnapshotRlibs() []string
+
 	// IsSnapshotPrebuilt returns true if this module is a snapshot prebuilt.
 	IsSnapshotPrebuilt() bool
+
+	// IsSnapshotSanitizer returns true if this snapshot module implements SnapshotSanitizer.
+	IsSnapshotSanitizer() bool
+
+	// IsSnapshotSanitizerAvailable returns true if this snapshot module has a sanitizer source available (cfi, hwasan).
+	IsSnapshotSanitizerAvailable(t SanitizerType) bool
+
+	// SetSnapshotSanitizerVariation sets the sanitizer variation type for this snapshot module.
+	SetSnapshotSanitizerVariation(t SanitizerType, enabled bool)
+
+	// IsSnapshotUnsanitizedVariant returns true if this is the unsanitized snapshot module variant.
+	IsSnapshotUnsanitizedVariant() bool
 }
 
 // LinkableInterface is an interface for a type of module that is linkable in a C++ library.
@@ -99,6 +116,9 @@ type LinkableInterface interface {
 	Module() android.Module
 	CcLibrary() bool
 	CcLibraryInterface() bool
+
+	// RustLibraryInterface returns true if this is a Rust library module
+	RustLibraryInterface() bool
 
 	// BaseModuleName returns the android.ModuleBase.BaseModuleName() value for this module.
 	BaseModuleName() string
@@ -130,7 +150,7 @@ type LinkableInterface interface {
 
 	// FuzzSharedLibraries returns the shared library dependencies for this module.
 	// Expects that IsFuzzModule returns true.
-	FuzzSharedLibraries() android.Paths
+	FuzzSharedLibraries() android.RuleBuilderInstalls
 
 	Device() bool
 	Host() bool
@@ -235,6 +255,9 @@ type LinkableInterface interface {
 
 	// Dylib returns true if this is an dylib module.
 	Dylib() bool
+
+	// RlibStd returns true if this is an rlib which links against an rlib libstd.
+	RlibStd() bool
 
 	// Static returns true if this is a static library module.
 	Static() bool
@@ -342,7 +365,7 @@ type SharedLibraryInfo struct {
 	TableOfContents android.OptionalPath
 
 	// should be obtained from static analogue
-	TransitiveStaticLibrariesForOrdering *android.DepSet
+	TransitiveStaticLibrariesForOrdering *android.DepSet[android.Path]
 }
 
 var SharedLibraryInfoProvider = blueprint.NewProvider(SharedLibraryInfo{})
@@ -384,7 +407,7 @@ type StaticLibraryInfo struct {
 	// This isn't the actual transitive DepSet, shared library dependencies have been
 	// converted into static library analogues.  It is only used to order the static
 	// library dependencies that were specified for the current module.
-	TransitiveStaticLibrariesForOrdering *android.DepSet
+	TransitiveStaticLibrariesForOrdering *android.DepSet[android.Path]
 }
 
 var StaticLibraryInfoProvider = blueprint.NewProvider(StaticLibraryInfo{})
@@ -407,19 +430,3 @@ type FlagExporterInfo struct {
 }
 
 var FlagExporterInfoProvider = blueprint.NewProvider(FlagExporterInfo{})
-
-// flagExporterInfoFromCcInfo populates FlagExporterInfo provider with information from Bazel.
-func flagExporterInfoFromCcInfo(ctx android.ModuleContext, ccInfo cquery.CcInfo) FlagExporterInfo {
-
-	includes := android.PathsForBazelOut(ctx, ccInfo.Includes)
-	systemIncludes := android.PathsForBazelOut(ctx, ccInfo.SystemIncludes)
-	headers := android.PathsForBazelOut(ctx, ccInfo.Headers)
-
-	return FlagExporterInfo{
-		IncludeDirs:       android.FirstUniquePaths(includes),
-		SystemIncludeDirs: android.FirstUniquePaths(systemIncludes),
-		GeneratedHeaders:  headers,
-		// necessary to ensure generated headers are considered implicit deps of dependent actions
-		Deps: headers,
-	}
-}

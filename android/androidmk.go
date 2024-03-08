@@ -42,7 +42,7 @@ func init() {
 }
 
 func RegisterAndroidMkBuildComponents(ctx RegistrationContext) {
-	ctx.RegisterSingletonType("androidmk", AndroidMkSingleton)
+	ctx.RegisterParallelSingletonType("androidmk", AndroidMkSingleton)
 }
 
 // Enable androidmk support.
@@ -486,17 +486,6 @@ func (a *AndroidMkEntries) GetDistForGoals(mod blueprint.Module) []string {
 	return generateDistContributionsForMake(distContributions)
 }
 
-// Write the license variables to Make for AndroidMkData.Custom(..) methods that do not call WriteAndroidMkData(..)
-// It's required to propagate the license metadata even for module types that have non-standard interfaces to Make.
-func (a *AndroidMkEntries) WriteLicenseVariables(w io.Writer) {
-	AndroidMkEmitAssignList(w, "LOCAL_LICENSE_KINDS", a.EntryMap["LOCAL_LICENSE_KINDS"])
-	AndroidMkEmitAssignList(w, "LOCAL_LICENSE_CONDITIONS", a.EntryMap["LOCAL_LICENSE_CONDITIONS"])
-	AndroidMkEmitAssignList(w, "LOCAL_NOTICE_FILE", a.EntryMap["LOCAL_NOTICE_FILE"])
-	if pn, ok := a.EntryMap["LOCAL_LICENSE_PACKAGE_NAME"]; ok {
-		AndroidMkEmitAssignList(w, "LOCAL_LICENSE_PACKAGE_NAME", pn)
-	}
-}
-
 // fillInEntries goes through the common variable processing and calls the extra data funcs to
 // generate and fill in AndroidMkEntries's in-struct data, ready to be flushed to a file.
 type fillInEntriesContext interface {
@@ -534,15 +523,6 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint
 	// Collect make variable assignment entries.
 	a.SetString("LOCAL_PATH", ctx.ModuleDir(mod))
 	a.SetString("LOCAL_MODULE", name+a.SubName)
-	a.AddStrings("LOCAL_LICENSE_KINDS", base.commonProperties.Effective_license_kinds...)
-	a.AddStrings("LOCAL_LICENSE_CONDITIONS", base.commonProperties.Effective_license_conditions...)
-	a.AddStrings("LOCAL_NOTICE_FILE", base.commonProperties.Effective_license_text.Strings()...)
-	// TODO(b/151177513): Does this code need to set LOCAL_MODULE_IS_CONTAINER ?
-	if base.commonProperties.Effective_package_name != nil {
-		a.SetString("LOCAL_LICENSE_PACKAGE_NAME", *base.commonProperties.Effective_package_name)
-	} else if len(base.commonProperties.Effective_licenses) > 0 {
-		a.SetString("LOCAL_LICENSE_PACKAGE_NAME", strings.Join(base.commonProperties.Effective_licenses, " "))
-	}
 	a.SetString("LOCAL_MODULE_CLASS", a.Class)
 	a.SetString("LOCAL_PREBUILT_MODULE_FILE", a.OutputFile.String())
 	a.AddStrings("LOCAL_REQUIRED_MODULES", a.Required...)
@@ -558,6 +538,10 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint
 		a.SetPath("LOCAL_SOONG_INSTALLED_MODULE", base.katiInstalls[len(base.katiInstalls)-1].to)
 		a.SetString("LOCAL_SOONG_INSTALL_PAIRS", base.katiInstalls.BuiltInstalled())
 		a.SetPaths("LOCAL_SOONG_INSTALL_SYMLINKS", base.katiSymlinks.InstallPaths().Paths())
+	}
+
+	if len(base.testData) > 0 {
+		a.AddStrings("LOCAL_TEST_DATA", androidMkDataPaths(base.testData)...)
 	}
 
 	if am, ok := mod.(ApexModule); ok {
@@ -956,10 +940,13 @@ func shouldSkipAndroidMkProcessing(module *ModuleBase) bool {
 
 // A utility func to format LOCAL_TEST_DATA outputs. See the comments on DataPath to understand how
 // to use this func.
-func AndroidMkDataPaths(data []DataPath) []string {
+func androidMkDataPaths(data []DataPath) []string {
 	var testFiles []string
 	for _, d := range data {
 		rel := d.SrcPath.Rel()
+		if d.WithoutRel {
+			rel = d.SrcPath.Base()
+		}
 		path := d.SrcPath.String()
 		// LOCAL_TEST_DATA requires the rel portion of the path to be removed from the path.
 		if !strings.HasSuffix(path, rel) {

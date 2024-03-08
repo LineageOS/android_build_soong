@@ -62,7 +62,6 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 
 	result := android.GroupFixturePreparers(
 		PrepareForTestWithJavaDefaultModules,
-		PrepareForTestWithOverlayBuildComponents,
 		android.FixtureModifyConfig(android.SetKatiEnabledForTests),
 		fs.AddToFixture(),
 	).RunTestWithBp(t, bp)
@@ -330,7 +329,6 @@ func TestEnforceRRO_propagatesToDependencies(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			result := android.GroupFixturePreparers(
 				PrepareForTestWithJavaDefaultModules,
-				PrepareForTestWithOverlayBuildComponents,
 				fs.AddToFixture(),
 				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 					variables.ProductResourceOverlays = productResourceOverlays

@@ -19,8 +19,6 @@ import (
 	"strings"
 
 	"android/soong/android"
-	"android/soong/bazel"
-	"android/soong/bazel/cquery"
 )
 
 //
@@ -48,33 +46,6 @@ type objectLinker struct {
 	// Location of the object in the sysroot. Empty if the object is not
 	// included in the NDK.
 	ndkSysrootPath android.Path
-}
-
-type objectBazelHandler struct {
-	module *Module
-}
-
-var _ BazelHandler = (*objectBazelHandler)(nil)
-
-func (handler *objectBazelHandler) QueueBazelCall(ctx android.BaseModuleContext, label string) {
-	bazelCtx := ctx.Config().BazelContext
-	bazelCtx.QueueBazelRequest(label, cquery.GetOutputFiles, android.GetConfigKeyApexVariant(ctx, GetApexConfigKey(ctx)))
-}
-
-func (handler *objectBazelHandler) ProcessBazelQueryResponse(ctx android.ModuleContext, label string) {
-	bazelCtx := ctx.Config().BazelContext
-	objPaths, err := bazelCtx.GetOutputFiles(label, android.GetConfigKeyApexVariant(ctx, GetApexConfigKey(ctx)))
-	if err != nil {
-		ctx.ModuleErrorf(err.Error())
-		return
-	}
-
-	if len(objPaths) != 1 {
-		ctx.ModuleErrorf("expected exactly one object file for '%s', but got %s", label, objPaths)
-		return
-	}
-
-	handler.module.outputFile = android.OptionalPathForPath(android.PathForBazelOut(ctx, objPaths[0]))
 }
 
 type ObjectLinkerProperties struct {
@@ -125,113 +96,13 @@ func ObjectFactory() android.Module {
 		baseLinker: NewBaseLinker(module.sanitize),
 	}
 	module.compiler = NewBaseCompiler()
-	module.bazelHandler = &objectBazelHandler{module: module}
 
 	// Clang's address-significance tables are incompatible with ld -r.
 	module.compiler.appendCflags([]string{"-fno-addrsig"})
 
 	module.sdkMemberTypes = []android.SdkMemberType{ccObjectSdkMemberType}
 
-	module.bazelable = true
 	return module.Init()
-}
-
-// For bp2build conversion.
-type bazelObjectAttributes struct {
-	Srcs                bazel.LabelListAttribute
-	Srcs_as             bazel.LabelListAttribute
-	Hdrs                bazel.LabelListAttribute
-	Objs                bazel.LabelListAttribute
-	Deps                bazel.LabelListAttribute
-	System_dynamic_deps bazel.LabelListAttribute
-	Copts               bazel.StringListAttribute
-	Asflags             bazel.StringListAttribute
-	Local_includes      bazel.StringListAttribute
-	Absolute_includes   bazel.StringListAttribute
-	Stl                 *string
-	Linker_script       bazel.LabelAttribute
-	Crt                 *bool
-	sdkAttributes
-}
-
-// objectBp2Build is the bp2build converter from cc_object modules to the
-// Bazel equivalent target, plus any necessary include deps for the cc_object.
-func objectBp2Build(ctx android.TopDownMutatorContext, m *Module) {
-	if m.compiler == nil {
-		// a cc_object must have access to the compiler decorator for its props.
-		ctx.ModuleErrorf("compiler must not be nil for a cc_object module")
-	}
-
-	// Set arch-specific configurable attributes
-	baseAttributes := bp2BuildParseBaseProps(ctx, m)
-	compilerAttrs := baseAttributes.compilerAttributes
-	var objs bazel.LabelListAttribute
-	var deps bazel.LabelListAttribute
-	systemDynamicDeps := bazel.LabelListAttribute{ForceSpecifyEmptyList: true}
-
-	var linkerScript bazel.LabelAttribute
-
-	for axis, configToProps := range m.GetArchVariantProperties(ctx, &ObjectLinkerProperties{}) {
-		for config, props := range configToProps {
-			if objectLinkerProps, ok := props.(*ObjectLinkerProperties); ok {
-				if objectLinkerProps.Linker_script != nil {
-					label := android.BazelLabelForModuleSrcSingle(ctx, *objectLinkerProps.Linker_script)
-					linkerScript.SetSelectValue(axis, config, label)
-				}
-				objs.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, objectLinkerProps.Objs))
-				systemSharedLibs := objectLinkerProps.System_shared_libs
-				if len(systemSharedLibs) > 0 {
-					systemSharedLibs = android.FirstUniqueStrings(systemSharedLibs)
-				}
-				systemDynamicDeps.SetSelectValue(axis, config, bazelLabelForSharedDeps(ctx, systemSharedLibs))
-				deps.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, objectLinkerProps.Static_libs))
-				deps.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, objectLinkerProps.Shared_libs))
-				deps.SetSelectValue(axis, config, android.BazelLabelForModuleDeps(ctx, objectLinkerProps.Header_libs))
-				// static_libs, shared_libs, and header_libs have variant_prepend tag
-				deps.Prepend = true
-			}
-		}
-	}
-	objs.ResolveExcludes()
-
-	// Don't split cc_object srcs across languages. Doing so would add complexity,
-	// and this isn't typically done for cc_object.
-	srcs := compilerAttrs.srcs
-	srcs.Append(compilerAttrs.cSrcs)
-
-	asFlags := compilerAttrs.asFlags
-	if compilerAttrs.asSrcs.IsEmpty() {
-		// Skip asflags for BUILD file simplicity if there are no assembly sources.
-		asFlags = bazel.MakeStringListAttribute(nil)
-	}
-
-	attrs := &bazelObjectAttributes{
-		Srcs:                srcs,
-		Srcs_as:             compilerAttrs.asSrcs,
-		Objs:                objs,
-		Deps:                deps,
-		System_dynamic_deps: systemDynamicDeps,
-		Copts:               compilerAttrs.copts,
-		Asflags:             asFlags,
-		Local_includes:      compilerAttrs.localIncludes,
-		Absolute_includes:   compilerAttrs.absoluteIncludes,
-		Stl:                 compilerAttrs.stl,
-		Linker_script:       linkerScript,
-		Crt:                 m.linker.(*objectLinker).Properties.Crt,
-		sdkAttributes:       bp2BuildParseSdkAttributes(m),
-	}
-
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "cc_object",
-		Bzl_load_location: "//build/bazel/rules/cc:cc_object.bzl",
-	}
-
-	tags := android.ApexAvailableTags(m)
-
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{
-		Name: m.Name(),
-		Tags: tags,
-	}, attrs)
 }
 
 func (object *objectLinker) appendLdflags(flags []string) {
@@ -309,6 +180,8 @@ func (object *objectLinker) link(ctx ModuleContext,
 			})
 		}
 	} else {
+		outputAddrSig := android.PathForModuleOut(ctx, "addrsig", outputName)
+
 		if String(object.Properties.Prefix_symbols) != "" {
 			input := android.PathForModuleOut(ctx, "unprefixed", outputName)
 			transformBinaryPrefixSymbols(ctx, String(object.Properties.Prefix_symbols), input,
@@ -316,7 +189,12 @@ func (object *objectLinker) link(ctx ModuleContext,
 			output = input
 		}
 
-		transformObjsToObj(ctx, objs.objFiles, builderFlags, output, flags.LdFlagsDeps)
+		transformObjsToObj(ctx, objs.objFiles, builderFlags, outputAddrSig, flags.LdFlagsDeps)
+
+		// ld -r reorders symbols and invalidates the .llvm_addrsig section, which then causes warnings
+		// if the resulting object is used with ld --icf=safe.  Strip the .llvm_addrsig section to
+		// prevent the warnings.
+		transformObjectNoAddrSig(ctx, outputAddrSig, output)
 	}
 
 	ctx.CheckbuildFile(outputFile)
@@ -339,6 +217,10 @@ func (object *objectLinker) linkerSpecifiedDeps(specifiedDeps specifiedDeps) spe
 
 func (object *objectLinker) unstrippedOutputFilePath() android.Path {
 	return nil
+}
+
+func (object *objectLinker) strippedAllOutputFilePath() android.Path {
+	panic("Not implemented.")
 }
 
 func (object *objectLinker) nativeCoverage() bool {

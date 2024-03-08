@@ -1,20 +1,10 @@
 package bp2build
 
 import (
-	"android/soong/starlark_fmt"
-	"encoding/json"
-	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 
 	"android/soong/android"
-	"android/soong/cc"
-	cc_config "android/soong/cc/config"
-	java_config "android/soong/java/config"
-
-	"android/soong/apex"
-
 	"github.com/google/blueprint/proptools"
 )
 
@@ -24,91 +14,7 @@ type BazelFile struct {
 	Contents string
 }
 
-// PRIVATE: Use CreateSoongInjectionDirFiles instead
-func soongInjectionFiles(cfg android.Config, metrics CodegenMetrics) ([]BazelFile, error) {
-	var files []BazelFile
-
-	files = append(files, newFile("android", GeneratedBuildFileName, "")) // Creates a //cc_toolchain package.
-	files = append(files, newFile("android", "constants.bzl", android.BazelCcToolchainVars(cfg)))
-
-	files = append(files, newFile("cc_toolchain", GeneratedBuildFileName, "")) // Creates a //cc_toolchain package.
-	files = append(files, newFile("cc_toolchain", "config_constants.bzl", cc_config.BazelCcToolchainVars(cfg)))
-	files = append(files, newFile("cc_toolchain", "sanitizer_constants.bzl", cc.BazelCcSanitizerToolchainVars(cfg)))
-
-	files = append(files, newFile("java_toolchain", GeneratedBuildFileName, "")) // Creates a //java_toolchain package.
-	files = append(files, newFile("java_toolchain", "constants.bzl", java_config.BazelJavaToolchainVars(cfg)))
-
-	files = append(files, newFile("apex_toolchain", GeneratedBuildFileName, "")) // Creates a //apex_toolchain package.
-	apexToolchainVars, err := apex.BazelApexToolchainVars()
-	if err != nil {
-		return nil, err
-	}
-	files = append(files, newFile("apex_toolchain", "constants.bzl", apexToolchainVars))
-
-	files = append(files, newFile("metrics", "converted_modules.txt", strings.Join(metrics.Serialize().ConvertedModules, "\n")))
-
-	convertedModulePathMap, err := json.MarshalIndent(metrics.convertedModulePathMap, "", "\t")
-	if err != nil {
-		panic(err)
-	}
-	files = append(files, newFile("metrics", GeneratedBuildFileName, "")) // Creates a //metrics package.
-	files = append(files, newFile("metrics", "converted_modules_path_map.json", string(convertedModulePathMap)))
-	files = append(files, newFile("metrics", "converted_modules_path_map.bzl", "modules = "+strings.ReplaceAll(string(convertedModulePathMap), "\\", "\\\\")))
-
-	files = append(files, newFile("product_config", "soong_config_variables.bzl", cfg.Bp2buildSoongConfigDefinitions.String()))
-
-	files = append(files, newFile("product_config", "arch_configuration.bzl", android.StarlarkArchConfigurations()))
-
-	apiLevelsContent, err := json.Marshal(android.GetApiLevelsMap(cfg))
-	if err != nil {
-		return nil, err
-	}
-	files = append(files, newFile("api_levels", GeneratedBuildFileName, `exports_files(["api_levels.json"])`))
-	// TODO(b/269691302)  value of apiLevelsContent is product variable dependent and should be avoided for soong injection
-	files = append(files, newFile("api_levels", "api_levels.json", string(apiLevelsContent)))
-	files = append(files, newFile("api_levels", "api_levels.bzl", android.StarlarkApiLevelConfigs(cfg)))
-	files = append(files, newFile("api_levels", "platform_versions.bzl", platformVersionContents(cfg)))
-
-	files = append(files, newFile("allowlists", GeneratedBuildFileName, ""))
-	files = append(files, newFile("allowlists", "env.bzl", android.EnvironmentVarsFile(cfg)))
-	// TODO(b/262781701): Create an alternate soong_build entrypoint for writing out these files only when requested
-	files = append(files, newFile("allowlists", "mixed_build_prod_allowlist.txt", strings.Join(android.GetBazelEnabledModules(android.BazelProdMode), "\n")+"\n"))
-	files = append(files, newFile("allowlists", "mixed_build_staging_allowlist.txt", strings.Join(android.GetBazelEnabledModules(android.BazelStagingMode), "\n")+"\n"))
-
-	return files, nil
-}
-
-func platformVersionContents(cfg android.Config) string {
-	// Despite these coming from cfg.productVariables, they are actually hardcoded in global
-	// makefiles, not set in individual product config makesfiles, so they're safe to just export
-	// and load() directly.
-
-	platformVersionActiveCodenames := make([]string, 0, len(cfg.PlatformVersionActiveCodenames()))
-	for _, codename := range cfg.PlatformVersionActiveCodenames() {
-		platformVersionActiveCodenames = append(platformVersionActiveCodenames, fmt.Sprintf("%q", codename))
-	}
-
-	platformSdkVersion := "None"
-	if cfg.RawPlatformSdkVersion() != nil {
-		platformSdkVersion = strconv.Itoa(*cfg.RawPlatformSdkVersion())
-	}
-
-	return fmt.Sprintf(`
-platform_versions = struct(
-    platform_sdk_final = %s,
-    platform_sdk_version = %s,
-    platform_sdk_codename = %q,
-    platform_version_active_codenames = [%s],
-)
-`, starlark_fmt.PrintBool(cfg.PlatformSdkFinal()), platformSdkVersion, cfg.PlatformSdkCodename(), strings.Join(platformVersionActiveCodenames, ", "))
-}
-
-func CreateBazelFiles(
-	cfg android.Config,
-	ruleShims map[string]RuleShim,
-	buildToTargets map[string]BazelTargets,
-	mode CodegenMode) []BazelFile {
-
+func CreateBazelFiles(ruleShims map[string]RuleShim, buildToTargets map[string]BazelTargets, mode CodegenMode) []BazelFile {
 	var files []BazelFile
 
 	if mode == QueryView {
@@ -141,20 +47,7 @@ func createBuildFiles(buildToTargets map[string]BazelTargets, mode CodegenMode) 
 		targets.sort()
 
 		var content string
-		if mode == Bp2Build || mode == ApiBp2build {
-			content = `# READ THIS FIRST:
-# This file was automatically generated by bp2build for the Bazel migration project.
-# Feel free to edit or test it, but do *not* check it into your version control system.
-`
-			content += targets.LoadStatements()
-			content += "\n\n"
-			// Get package rule from the handcrafted BUILD file, otherwise emit the default one.
-			prText := "package(default_visibility = [\"//visibility:public\"])\n"
-			if pr := targets.packageRule(); pr != nil {
-				prText = pr.content
-			}
-			content += prText
-		} else if mode == QueryView {
+		if mode == QueryView {
 			content = soongModuleLoad
 		}
 		if content != "" {
@@ -177,14 +70,6 @@ func newFile(dir, basename, content string) BazelFile {
 
 const (
 	bazelRulesSubDir = "build/bazel/queryview_rules"
-
-	// additional files:
-	//  * workspace file
-	//  * base BUILD file
-	//  * rules BUILD file
-	//  * rules providers.bzl file
-	//  * rules soong_module.bzl file
-	numAdditionalFiles = 5
 )
 
 var (

@@ -38,13 +38,6 @@ var testCases = []struct {
 	storedFiles []string
 	err         error
 }{
-	{
-		name: "unsupported \\",
-
-		args: []string{"a\\b:b"},
-
-		err: fmt.Errorf("\\ characters are not currently supported"),
-	},
 	{ // This is modelled after the update package build rules in build/make/core/Makefile
 		name: "filter globs",
 
@@ -406,6 +399,13 @@ var testCases = []struct {
 			"b/a/b",
 		},
 	},
+	{
+		name: "escaping",
+
+		inputFiles:  []string{"a"},
+		args:        []string{"\\a"},
+		outputFiles: []string{"a"},
+	},
 }
 
 func errorString(e error) string {
@@ -468,6 +468,56 @@ func TestZip2Zip(t *testing.T) {
 				t.Fatalf("Stored file list does not match:\nwant: %v\n got: %v", testCase.storedFiles, storedFiles)
 			}
 		})
+	}
+}
+
+// TestZip2Zip64 tests that zip2zip on zip file larger than 4GB produces a valid zip file.
+func TestZip2Zip64(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow test in short mode")
+	}
+	inputBuf := &bytes.Buffer{}
+	outputBuf := &bytes.Buffer{}
+
+	inputWriter := zip.NewWriter(inputBuf)
+	w, err := inputWriter.CreateHeaderAndroid(&zip.FileHeader{
+		Name:   "a",
+		Method: zip.Store,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf := make([]byte, 4*1024*1024)
+	for i := 0; i < 1025; i++ {
+		w.Write(buf)
+	}
+	w, err = inputWriter.CreateHeaderAndroid(&zip.FileHeader{
+		Name:   "b",
+		Method: zip.Store,
+	})
+	for i := 0; i < 1025; i++ {
+		w.Write(buf)
+	}
+	inputWriter.Close()
+	inputBytes := inputBuf.Bytes()
+
+	inputReader, err := zip.NewReader(bytes.NewReader(inputBytes), int64(len(inputBytes)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	outputWriter := zip.NewWriter(outputBuf)
+	err = zip2zip(inputReader, outputWriter, false, false, false,
+		nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	outputWriter.Close()
+	outputBytes := outputBuf.Bytes()
+	_, err = zip.NewReader(bytes.NewReader(outputBytes), int64(len(outputBytes)))
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

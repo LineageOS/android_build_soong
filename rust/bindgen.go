@@ -29,7 +29,7 @@ var (
 	defaultBindgenFlags = []string{""}
 
 	// bindgen should specify its own Clang revision so updating Clang isn't potentially blocked on bindgen failures.
-	bindgenClangVersion = "clang-r487747c"
+	bindgenClangVersion = "clang-r498229b"
 
 	_ = pctx.VariableFunc("bindgenClangVersion", func(ctx android.PackageVarContext) string {
 		if override := ctx.Config().Getenv("LLVM_BINDGEN_PREBUILTS_VERSION"); override != "" {
@@ -61,15 +61,18 @@ var (
 		"${cc_config.ClangBase}/${bindgenHostPrebuiltTag}/${bindgenClangVersion}/${bindgenClangLibdir}")
 
 	//TODO(ivanlozano) Switch this to RuleBuilder
+	//
+	//TODO Pass the flag files directly to bindgen e.g. with @file when it supports that.
+	//See https://github.com/rust-lang/rust-bindgen/issues/2508.
 	bindgen = pctx.AndroidStaticRule("bindgen",
 		blueprint.RuleParams{
 			Command: "CLANG_PATH=$bindgenClang LIBCLANG_PATH=$bindgenLibClang RUSTFMT=${config.RustBin}/rustfmt " +
-				"$cmd $flags $in -o $out -- -MD -MF $out.d $cflags",
+				"$cmd $flags $$(cat $flagfiles) $in -o $out -- -MD -MF $out.d $cflags",
 			CommandDeps: []string{"$cmd"},
 			Deps:        blueprint.DepsGCC,
 			Depfile:     "$out.d",
 		},
-		"cmd", "flags", "cflags")
+		"cmd", "flags", "flagfiles", "cflags")
 )
 
 func init() {
@@ -89,6 +92,9 @@ type BindgenProperties struct {
 
 	// list of bindgen-specific flags and options
 	Bindgen_flags []string `android:"arch_variant"`
+
+	// list of files containing extra bindgen flags
+	Bindgen_flag_files []string `android:"arch_variant"`
 
 	// module name of a custom binary/script which should be used instead of the 'bindgen' binary. This custom
 	// binary must expect arguments in a similar fashion to bindgen, e.g.
@@ -118,18 +124,20 @@ func (b *bindgenDecorator) getStdVersion(ctx ModuleContext, src android.Path) (s
 		ctx.PropertyErrorf("c_std", "c_std and cpp_std cannot both be defined at the same time.")
 	}
 
-	if String(b.ClangProperties.Cpp_std) != "" {
+	if b.ClangProperties.Cpp_std != nil {
+		isCpp = true
 		if String(b.ClangProperties.Cpp_std) == "experimental" {
 			stdVersion = cc_config.ExperimentalCppStdVersion
-		} else if String(b.ClangProperties.Cpp_std) == "default" {
+		} else if String(b.ClangProperties.Cpp_std) == "default" || String(b.ClangProperties.Cpp_std) == "" {
 			stdVersion = cc_config.CppStdVersion
 		} else {
 			stdVersion = String(b.ClangProperties.Cpp_std)
 		}
 	} else if b.ClangProperties.C_std != nil {
+		isCpp = false
 		if String(b.ClangProperties.C_std) == "experimental" {
 			stdVersion = cc_config.ExperimentalCStdVersion
-		} else if String(b.ClangProperties.C_std) == "default" {
+		} else if String(b.ClangProperties.C_std) == "default" || String(b.ClangProperties.C_std) == "" {
 			stdVersion = cc_config.CStdVersion
 		} else {
 			stdVersion = String(b.ClangProperties.C_std)
@@ -166,6 +174,15 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 		cflags = append(cflags, "-D__ANDROID_VNDK__")
 		if ctx.RustModule().InVendor() {
 			cflags = append(cflags, "-D__ANDROID_VENDOR__")
+
+			vendorApiLevel := ctx.Config().VendorApiLevel()
+			if vendorApiLevel == "" {
+				// TODO(b/314036847): This is a fallback for UDC targets.
+				// This must be a build failure when UDC is no longer built
+				// from this source tree.
+				vendorApiLevel = ctx.Config().PlatformSdkVersion().String()
+			}
+			cflags = append(cflags, "-D__ANDROID_VENDOR_API__="+vendorApiLevel)
 		} else if ctx.RustModule().InProduct() {
 			cflags = append(cflags, "-D__ANDROID_PRODUCT__")
 		}
@@ -216,6 +233,14 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	bindgenFlags := defaultBindgenFlags
 	bindgenFlags = append(bindgenFlags, esc(b.Properties.Bindgen_flags)...)
 
+	// cat reads from stdin if its command line is empty,
+	// so we pass in /dev/null if there are no other flag files
+	bindgenFlagFiles := []string{"/dev/null"}
+	for _, flagFile := range b.Properties.Bindgen_flag_files {
+		bindgenFlagFiles = append(bindgenFlagFiles, android.PathForModuleSrc(ctx, flagFile).String())
+		implicits = append(implicits, android.PathForModuleSrc(ctx, flagFile))
+	}
+
 	wrapperFile := android.OptionalPathForModuleSrc(ctx, b.Properties.Wrapper_src)
 	if !wrapperFile.Valid() {
 		ctx.PropertyErrorf("wrapper_src", "invalid path to wrapper source")
@@ -247,7 +272,7 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 
 	var cmd, cmdDesc string
 	if b.Properties.Custom_bindgen != "" {
-		cmd = ctx.GetDirectDepWithTag(b.Properties.Custom_bindgen, customBindgenDepTag).(*Module).HostToolPath().String()
+		cmd = ctx.GetDirectDepWithTag(b.Properties.Custom_bindgen, customBindgenDepTag).(android.HostToolProvider).HostToolPath().String()
 		cmdDesc = b.Properties.Custom_bindgen
 	} else {
 		cmd = "$bindgenCmd"
@@ -261,9 +286,10 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 		Input:       wrapperFile.Path(),
 		Implicits:   implicits,
 		Args: map[string]string{
-			"cmd":    cmd,
-			"flags":  strings.Join(bindgenFlags, " "),
-			"cflags": strings.Join(cflags, " "),
+			"cmd":       cmd,
+			"flags":     strings.Join(bindgenFlags, " "),
+			"flagfiles": strings.Join(bindgenFlagFiles, " "),
+			"cflags":    strings.Join(cflags, " "),
 		},
 	})
 
@@ -279,7 +305,7 @@ func (b *bindgenDecorator) SourceProviderProps() []interface{} {
 // rust_bindgen generates Rust FFI bindings to C libraries using bindgen given a wrapper header as the primary input.
 // Bindgen has a number of flags to control the generated source, and additional flags can be passed to clang to ensure
 // the header and generated source is appropriately handled. It is recommended to add it as a dependency in the
-// rlibs, dylibs or rustlibs property. It may also be added in the srcs property for external crates, using the ":"
+// rlibs or rustlibs property. It may also be added in the srcs property for external crates, using the ":"
 // prefix.
 func RustBindgenFactory() android.Module {
 	module, _ := NewRustBindgen(android.HostAndDeviceSupported)

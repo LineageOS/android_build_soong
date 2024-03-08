@@ -9,12 +9,8 @@ source "$(dirname "$0")/lib.sh"
 function test_m_clean_works {
   setup
 
-  # Create a directory with files that cannot be removed
-  mkdir -p out/bad_directory_permissions
-  touch out/bad_directory_permissions/unremovable_file
-  # File permissions are fine but directory permissions are bad
-  chmod a+rwx out/bad_directory_permissions/unremovable_file
-  chmod a-rwx out/bad_directory_permissions
+  mkdir -p out/some_directory
+  touch out/some_directory/some_file
 
   run_soong clean
 }

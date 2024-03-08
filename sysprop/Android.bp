@@ -9,7 +9,6 @@ bootstrap_go_package {
         "blueprint",
         "soong",
         "soong-android",
-        "soong-bp2build",
         "soong-cc",
         "soong-java",
     ],
@@ -19,7 +18,6 @@ bootstrap_go_package {
     ],
     testSrcs: [
         "sysprop_test.go",
-        "sysprop_library_conversion_test.go",
     ],
     pluginFor: ["soong_build"],
 }

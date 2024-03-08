@@ -22,8 +22,6 @@ import (
 	"strings"
 
 	"android/soong/android"
-	"android/soong/bazel"
-	"android/soong/bazel/cquery"
 	"android/soong/cc"
 
 	"github.com/google/blueprint"
@@ -98,7 +96,6 @@ type BpfProperties struct {
 
 type bpf struct {
 	android.ModuleBase
-	android.BazelModuleBase
 
 	properties BpfProperties
 
@@ -153,7 +150,7 @@ func (bpf *bpf) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		// The architecture doesn't matter here, but asm/types.h is included by linux/types.h.
 		"-isystem bionic/libc/kernel/uapi/asm-arm64",
 		"-isystem bionic/libc/kernel/android/uapi",
-		"-I       frameworks/libs/net/common/native/bpf_headers/include/bpf",
+		"-I       packages/modules/Connectivity/staticlibs/native/bpf_headers/include/bpf",
 		// TODO(b/149785767): only give access to specific file with AID_* constants
 		"-I       system/core/libcutils/include",
 		"-I " + ctx.ModuleDir(),
@@ -206,6 +203,7 @@ func (bpf *bpf) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 
 	}
+	ctx.SetProvider(blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: srcs.Strings()})
 }
 
 func (bpf *bpf) AndroidMk() android.AndroidMkData {
@@ -229,7 +227,6 @@ func (bpf *bpf) AndroidMk() android.AndroidMkData {
 				names = append(names, objName)
 				fmt.Fprintln(w, "include $(CLEAR_VARS)", " # bpf.bpf.obj")
 				fmt.Fprintln(w, "LOCAL_MODULE := ", objName)
-				data.Entries.WriteLicenseVariables(w)
 				fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", obj.String())
 				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", obj.Base())
 				fmt.Fprintln(w, "LOCAL_MODULE_CLASS := ETC")
@@ -239,40 +236,10 @@ func (bpf *bpf) AndroidMk() android.AndroidMkData {
 			}
 			fmt.Fprintln(w, "include $(CLEAR_VARS)", " # bpf.bpf")
 			fmt.Fprintln(w, "LOCAL_MODULE := ", name)
-			data.Entries.WriteLicenseVariables(w)
 			android.AndroidMkEmitAssignList(w, "LOCAL_REQUIRED_MODULES", names)
 			fmt.Fprintln(w, "include $(BUILD_PHONY_PACKAGE)")
 		},
 	}
-}
-
-var _ android.MixedBuildBuildable = (*bpf)(nil)
-
-func (bpf *bpf) IsMixedBuildSupported(ctx android.BaseModuleContext) bool {
-	return true
-}
-
-func (bpf *bpf) QueueBazelCall(ctx android.BaseModuleContext) {
-	bazelCtx := ctx.Config().BazelContext
-	bazelCtx.QueueBazelRequest(
-		bpf.GetBazelLabel(ctx, bpf),
-		cquery.GetOutputFiles,
-		android.GetConfigKey(ctx))
-}
-
-func (bpf *bpf) ProcessBazelQueryResponse(ctx android.ModuleContext) {
-	bazelCtx := ctx.Config().BazelContext
-	objPaths, err := bazelCtx.GetOutputFiles(bpf.GetBazelLabel(ctx, bpf), android.GetConfigKey(ctx))
-	if err != nil {
-		ctx.ModuleErrorf(err.Error())
-		return
-	}
-
-	bazelOuts := android.Paths{}
-	for _, p := range objPaths {
-		bazelOuts = append(bazelOuts, android.PathForBazelOut(ctx, p))
-	}
-	bpf.objs = bazelOuts
 }
 
 // Implements OutputFileFileProducer interface so that the obj output can be used in the data property
@@ -298,39 +265,5 @@ func BpfFactory() android.Module {
 	module.AddProperties(&module.properties)
 
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
-	android.InitBazelModule(module)
 	return module
-}
-
-type bazelBpfAttributes struct {
-	Srcs              bazel.LabelListAttribute
-	Copts             bazel.StringListAttribute
-	Absolute_includes bazel.StringListAttribute
-	Btf               *bool
-	// TODO(b/249528391): Add support for sub_dir
-}
-
-// bpf bp2build converter
-func (b *bpf) ConvertWithBp2build(ctx android.TopDownMutatorContext) {
-	if ctx.ModuleType() != "bpf" {
-		return
-	}
-
-	srcs := bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, b.properties.Srcs))
-	copts := bazel.MakeStringListAttribute(b.properties.Cflags)
-	absolute_includes := bazel.MakeStringListAttribute(b.properties.Include_dirs)
-	btf := b.properties.Btf
-
-	attrs := bazelBpfAttributes{
-		Srcs:              srcs,
-		Copts:             copts,
-		Absolute_includes: absolute_includes,
-		Btf:               btf,
-	}
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "bpf",
-		Bzl_load_location: "//build/bazel/rules/bpf:bpf.bzl",
-	}
-
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{Name: b.Name()}, &attrs)
 }

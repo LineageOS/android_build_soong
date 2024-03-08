@@ -46,6 +46,10 @@ var (
 		"-Wl,--no-undefined-version",
 	}
 
+	linuxCrossLldflags = append(linuxCrossLdflags,
+		"-Wl,--compress-debug-sections=zstd",
+	)
+
 	// Embed the linker into host bionic binaries. This is needed to support host bionic,
 	// as the linux kernel requires that the ELF interpreter referenced by PT_INTERP be
 	// either an absolute path, or relative from CWD. To work around this, we extract
@@ -60,6 +64,7 @@ var (
 func init() {
 	exportedVars.ExportStringListStaticVariable("LinuxBionicArm64Cflags", linuxCrossCflags)
 	exportedVars.ExportStringListStaticVariable("LinuxBionicArm64Ldflags", linuxCrossLdflags)
+	exportedVars.ExportStringListStaticVariable("LinuxBionicArm64Lldflags", linuxCrossLldflags)
 }
 
 // toolchain config for ARM64 Linux CrossHost. Almost everything is the same as the ARM64 Android

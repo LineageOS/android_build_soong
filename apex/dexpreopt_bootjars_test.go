@@ -138,8 +138,8 @@ func testDexpreoptBoot(t *testing.T, ruleFile string, expectedInputs, expectedOu
 		prepareForTestWithArtApex,
 	).RunTestWithBp(t, fmt.Sprintf(bp, preferPrebuilt))
 
-	platformBootclasspath := result.ModuleForTests("platform-bootclasspath", "android_common")
-	rule := platformBootclasspath.Output(ruleFile)
+	dexBootJars := result.ModuleForTests("dex_bootjars", "android_common")
+	rule := dexBootJars.Output(ruleFile)
 
 	inputs := rule.Implicits.Strings()
 	sort.Strings(inputs)
@@ -155,15 +155,15 @@ func testDexpreoptBoot(t *testing.T, ruleFile string, expectedInputs, expectedOu
 }
 
 func TestDexpreoptBootJarsWithSourceArtApex(t *testing.T) {
-	ruleFile := "boot.art"
+	ruleFile := "out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot.art"
 
 	expectedInputs := []string{
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/core-oj.jar",
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/foo.jar",
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/bar.jar",
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/baz.jar",
-		"out/soong/dexpreopt_arm64/dex_artjars/boot.prof",
-		"out/soong/dexpreopt_arm64/dex_bootjars/boot.prof",
+		"out/soong/.intermediates/art-bootclasspath-fragment/android_common_apex10000/art-bootclasspath-fragment/boot.prof",
+		"out/soong/.intermediates/default/java/dex_bootjars/android_common/boot/boot.prof",
 	}
 
 	expectedOutputs := []string{
@@ -192,7 +192,7 @@ func TestDexpreoptBootJarsWithSourceArtApex(t *testing.T) {
 // The only difference is that the ART profile should be deapexed from the prebuilt APEX. Other
 // inputs and outputs should be the same as above.
 func TestDexpreoptBootJarsWithPrebuiltArtApex(t *testing.T) {
-	ruleFile := "boot.art"
+	ruleFile := "out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot.art"
 
 	expectedInputs := []string{
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/core-oj.jar",
@@ -200,7 +200,7 @@ func TestDexpreoptBootJarsWithPrebuiltArtApex(t *testing.T) {
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/bar.jar",
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/baz.jar",
 		"out/soong/.intermediates/com.android.art.deapexer/android_common/deapexer/etc/boot-image.prof",
-		"out/soong/dexpreopt_arm64/dex_bootjars/boot.prof",
+		"out/soong/.intermediates/default/java/dex_bootjars/android_common/boot/boot.prof",
 	}
 
 	expectedOutputs := []string{

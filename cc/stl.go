@@ -80,8 +80,7 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 			return ""
 		}
 		s = deduplicateStlInput(s)
-		archHasNDKStl := ctx.Arch().ArchType != android.Riscv64
-		if ctx.useSdk() && ctx.Device() && archHasNDKStl {
+		if ctx.useSdk() && ctx.Device() {
 			switch s {
 			case "", "system":
 				return "ndk_system"
@@ -120,11 +119,6 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 	}()
 }
 
-func needsLibAndroidSupport(ctx BaseModuleContext) bool {
-	version := nativeApiLevelOrPanic(ctx, ctx.sdkVersion())
-	return version.LessThan(android.FirstNonLibAndroidSupportVersion)
-}
-
 func staticUnwinder(ctx android.BaseModuleContext) string {
 	vndkVersion := ctx.Module().(*Module).VndkVersion()
 
@@ -140,8 +134,6 @@ func staticUnwinder(ctx android.BaseModuleContext) string {
 	return "libunwind"
 }
 
-// Should be kept up to date with
-// https://cs.android.com/android/platform/superproject/+/master:build/bazel/rules/cc/stl.bzl;l=46;drc=21771b671ae08565033768a6d3d151c54f887fa2
 func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 	switch stl.Properties.SelectedStl {
 	case "libstdc++":
@@ -178,16 +170,12 @@ func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 		// The system STL doesn't have a prebuilt (it uses the system's libstdc++), but it does have
 		// its own includes. The includes are handled in CCBase.Flags().
 		deps.SharedLibs = append([]string{"libstdc++"}, deps.SharedLibs...)
+		deps.HeaderLibs = append([]string{"ndk_system"}, deps.HeaderLibs...)
 	case "ndk_libc++_shared", "ndk_libc++_static":
 		if stl.Properties.SelectedStl == "ndk_libc++_shared" {
 			deps.SharedLibs = append(deps.SharedLibs, stl.Properties.SelectedStl)
 		} else {
 			deps.StaticLibs = append(deps.StaticLibs, stl.Properties.SelectedStl, "ndk_libc++abi")
-		}
-		if needsLibAndroidSupport(ctx) {
-			// Use LateStaticLibs for ndk_libandroid_support so that its include directories
-			// come after ndk_libc++_static or ndk_libc++_shared.
-			deps.LateStaticLibs = append(deps.LateStaticLibs, "ndk_libandroid_support")
 		}
 		deps.StaticLibs = append(deps.StaticLibs, "ndk_libunwind")
 	default:
@@ -197,8 +185,6 @@ func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 	return deps
 }
 
-// Should be kept up to date with
-// https://cs.android.com/android/platform/superproject/+/master:build/bazel/rules/cc/stl.bzl;l=94;drc=5bc8e39d2637927dc57dd0850210d43d348a1341
 func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 	switch stl.Properties.SelectedStl {
 	case "libc++", "libc++_static":
@@ -230,8 +216,7 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 	case "libstdc++":
 		// Nothing
 	case "ndk_system":
-		ndkSrcRoot := android.PathForSource(ctx, "prebuilts/ndk/current/sources/cxx-stl/system/include")
-		flags.Local.CFlags = append(flags.Local.CFlags, "-isystem "+ndkSrcRoot.String())
+		// Nothing: The exports of ndk_system will be added automatically to the local cflags
 	case "ndk_libc++_shared", "ndk_libc++_static":
 		if ctx.Arch().ArchType == android.Arm {
 			// Make sure the _Unwind_XXX symbols are not re-exported.

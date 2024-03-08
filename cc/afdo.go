@@ -24,17 +24,8 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
-// TODO(b/267229066): Remove globalAfdoProfileProjects after implementing bp2build converter for fdo_profile
-var (
-	globalAfdoProfileProjects = []string{
-		"vendor/google_data/pgo_profile/sampling/",
-		"toolchain/pgo-profiles/sampling/",
-	}
-)
-
-var afdoProfileProjectsConfigKey = android.NewOnceKey("AfdoProfileProjects")
-
-const afdoCFlagsFormat = "-fprofile-sample-use=%s"
+// This flag needs to be in both CFlags and LdFlags to ensure correct symbol ordering
+const afdoFlagsFormat = "-fprofile-sample-use=%s -fprofile-sample-accurate"
 
 func recordMissingAfdoProfileFile(ctx android.BaseModuleContext, missing string) {
 	getNamedMapForConfig(ctx.Config(), modulesMissingProfileFileKey).Store(missing, true)
@@ -63,6 +54,13 @@ func (afdo *afdo) props() []interface{} {
 	return []interface{}{&afdo.Properties}
 }
 
+func (afdo *afdo) begin(ctx BaseModuleContext) {
+	// Disable on eng builds for faster build.
+	if ctx.Config().Eng() {
+		afdo.Properties.Afdo = false
+	}
+}
+
 // afdoEnabled returns true for binaries and shared libraries
 // that set afdo prop to True and there is a profile available
 func (afdo *afdo) afdoEnabled() bool {
@@ -83,10 +81,14 @@ func (afdo *afdo) flags(ctx ModuleContext, flags Flags) Flags {
 		// 3. Make the profile searchable by the build system. So it's used the next time the binary
 		//	  is built.
 		flags.Local.CFlags = append([]string{"-funique-internal-linkage-names"}, flags.Local.CFlags...)
+		// Flags for Flow Sensitive AutoFDO
+		flags.Local.CFlags = append([]string{"-mllvm", "-enable-fs-discriminator=true"}, flags.Local.CFlags...)
+		// TODO(b/266595187): Remove the following feature once it is enabled in LLVM by default.
+		flags.Local.CFlags = append([]string{"-mllvm", "-improved-fs-discriminator=true"}, flags.Local.CFlags...)
 	}
 	if path := afdo.Properties.FdoProfilePath; path != nil {
 		// The flags are prepended to allow overriding.
-		profileUseFlag := fmt.Sprintf(afdoCFlagsFormat, *path)
+		profileUseFlag := fmt.Sprintf(afdoFlagsFormat, *path)
 		flags.Local.CFlags = append([]string{profileUseFlag}, flags.Local.CFlags...)
 		flags.Local.LdFlags = append([]string{profileUseFlag, "-Wl,-mllvm,-no-warn-sample-unused=true"}, flags.Local.LdFlags...)
 
@@ -127,6 +129,10 @@ func (afdo *afdo) addDep(ctx BaseModuleContext, actx android.BottomUpMutatorCont
 // assigns FdoProfileInfo.Path to the FdoProfilePath mutated property
 func (c *Module) fdoProfileMutator(ctx android.BottomUpMutatorContext) {
 	if !c.Enabled() {
+		return
+	}
+
+	if !c.afdo.afdoEnabled() {
 		return
 	}
 

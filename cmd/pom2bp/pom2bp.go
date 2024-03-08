@@ -556,7 +556,8 @@ var bpTemplate = template.Must(template.New("bp").Parse(`
     {{- end}}
     {{- end}}
     {{- if .IsApk}}
-    presigned: true
+    preprocessed: true,
+    presigned: true,
     {{- end}}
 
 }

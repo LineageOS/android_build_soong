@@ -35,7 +35,7 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 	envCopy["PATH"] = os.Getenv("PATH")
 
 	config := &config{
-		productVariables: productVariables{
+		productVariables: ProductVariables{
 			DeviceName:                          stringPtr("test_device"),
 			DeviceProduct:                       stringPtr("test_product"),
 			Platform_sdk_version:                intPtr(30),
@@ -61,11 +61,7 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		// passed to PathForSource or PathForModuleSrc.
 		TestAllowNonExistentPaths: true,
 
-		BazelContext:              noopBazelContext{},
-		BuildMode:                 BazelProdMode,
-		mixedBuildDisabledModules: make(map[string]struct{}),
-		mixedBuildEnabledModules:  make(map[string]struct{}),
-		bazelForceEnabledModules:  make(map[string]struct{}),
+		BuildMode: AnalysisNoBazel,
 	}
 	config.deviceConfig = &deviceConfig{
 		config: config,

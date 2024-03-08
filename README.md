@@ -26,8 +26,6 @@ review request is enough. For more substantial changes, file a bug in our
 [bug tracker](https://issuetracker.google.com/issues/new?component=381517) or
 or write us at android-building@googlegroups.com .
 
-For Googlers, see our [internal documentation](http://go/soong).
-
 ## Android.bp file format
 
 By design, Android.bp files are very simple.  There are no conditionals or
@@ -565,6 +563,12 @@ modules (`cc_defaults`, `java_defaults`, etc.), which can then be referenced
 by all of the vendor's other modules using the normal namespace and visibility
 rules.
 
+`soongConfigTraceMutator` enables modules affected by soong config variables to
+write outputs into a hashed directory path. It does this by recording accesses
+to soong config variables on each module, and then accumulating records of each
+module's all dependencies. `m soong_config_trace` builds information about
+hashes to `$OUT_DIR/soong/soong_config_trace.json`.
+
 ## Build logic
 
 The build logic is written in Go using the
@@ -644,8 +648,8 @@ invocations are run in the debugger, e.g., running
 SOONG_DELVE=2345 SOONG_DELVE_STEPS='build,modulegraph' m
 ```
 results in only `build` (main build step) and `modulegraph` being run in the debugger.
-The allowed step names are `api_bp2build`, `bp2build_files`, `bp2build_workspace`,
-`build`, `modulegraph`, `queryview`, `soong_docs`.
+The allowed step names are `bp2build_files`, `bp2build_workspace`, `build`,
+`modulegraph`, `queryview`, `soong_docs`.
 
 Note setting or unsetting `SOONG_DELVE` causes a recompilation of `soong_build`. This
 is because in order to debug the binary, it needs to be built with debug

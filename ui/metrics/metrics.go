@@ -32,7 +32,6 @@ package metrics
 // of what an event is and how the metrics system is a stack based system.
 
 import (
-	"fmt"
 	"os"
 	"runtime"
 	"strings"
@@ -228,21 +227,17 @@ func (m *Metrics) SetBuildDateTime(buildTimestamp time.Time) {
 	m.metrics.BuildDateTimestamp = proto.Int64(buildTimestamp.UnixNano() / int64(time.Second))
 }
 
-func (m *Metrics) UpdateTotalRealTime(data []byte) error {
-	if err := proto.Unmarshal(data, &m.metrics); err != nil {
-		return fmt.Errorf("Failed to unmarshal proto", err)
-	}
-	startTime := *m.metrics.Total.StartTime
-	endTime := uint64(time.Now().UnixNano())
-
-	*m.metrics.Total.RealTime = *proto.Uint64(endTime - startTime)
-	return nil
-}
-
 // SetBuildCommand adds the build command specified by the user to the
 // list of collected metrics.
 func (m *Metrics) SetBuildCommand(cmd []string) {
 	m.metrics.BuildCommand = proto.String(strings.Join(cmd, " "))
+}
+
+// AddChangedEnvironmentVariable adds the changed environment variable to
+// ChangedEnvironmentVariable field.
+func (m *Metrics) AddChangedEnvironmentVariable(ChangedEnvironmentVariable string) {
+	m.metrics.ChangedEnvironmentVariable = append(m.metrics.ChangedEnvironmentVariable,
+		ChangedEnvironmentVariable)
 }
 
 // Dump exports the collected metrics from the executed build to the file at

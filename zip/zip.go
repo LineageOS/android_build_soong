@@ -80,6 +80,7 @@ type pathMapping struct {
 
 type FileArg struct {
 	PathPrefixInZip, SourcePrefixToStrip string
+	ExplicitPathInZip                    string
 	SourceFiles                          []string
 	JunkPaths                            bool
 	GlobDir                              string
@@ -124,6 +125,10 @@ func (b *FileArgsBuilder) File(name string) *FileArgsBuilder {
 	arg := b.state
 	arg.SourceFiles = []string{name}
 	b.fileArgs = append(b.fileArgs, arg)
+
+	if b.state.ExplicitPathInZip != "" {
+		b.state.ExplicitPathInZip = ""
+	}
 	return b
 }
 
@@ -186,6 +191,12 @@ func (b *FileArgsBuilder) RspFile(name string) *FileArgsBuilder {
 		arg.SourceFiles[i] = pathtools.MatchEscape(arg.SourceFiles[i])
 	}
 	b.fileArgs = append(b.fileArgs, arg)
+	return b
+}
+
+// ExplicitPathInZip sets the path in the zip file for the next File call.
+func (b *FileArgsBuilder) ExplicitPathInZip(s string) *FileArgsBuilder {
+	b.state.ExplicitPathInZip = s
 	return b
 }
 
@@ -271,6 +282,8 @@ type ZipArgs struct {
 	StoreSymlinks            bool
 	IgnoreMissingFiles       bool
 	Sha256Checksum           bool
+	DoNotWrite               bool
+	Quiet                    bool
 
 	Stderr     io.Writer
 	Filesystem pathtools.FileSystem
@@ -328,7 +341,9 @@ func zipTo(args ZipArgs, w io.Writer) error {
 					Err:  os.ErrNotExist,
 				}
 				if args.IgnoreMissingFiles {
-					fmt.Fprintln(z.stderr, "warning:", err)
+					if !args.Quiet {
+						fmt.Fprintln(z.stderr, "warning:", err)
+					}
 				} else {
 					return err
 				}
@@ -345,7 +360,9 @@ func zipTo(args ZipArgs, w io.Writer) error {
 					Err:  os.ErrNotExist,
 				}
 				if args.IgnoreMissingFiles {
-					fmt.Fprintln(z.stderr, "warning:", err)
+					if !args.Quiet {
+						fmt.Fprintln(z.stderr, "warning:", err)
+					}
 				} else {
 					return err
 				}
@@ -356,7 +373,9 @@ func zipTo(args ZipArgs, w io.Writer) error {
 					Err:  syscall.ENOTDIR,
 				}
 				if args.IgnoreMissingFiles {
-					fmt.Fprintln(z.stderr, "warning:", err)
+					if !args.Quiet {
+						fmt.Fprintln(z.stderr, "warning:", err)
+					}
 				} else {
 					return err
 				}
@@ -389,7 +408,9 @@ func Zip(args ZipArgs) error {
 
 	var zipErr error
 
-	if !args.WriteIfChanged {
+	if args.DoNotWrite {
+		out = io.Discard
+	} else if !args.WriteIfChanged {
 		f, err := os.Create(args.OutputFilePath)
 		if err != nil {
 			return err
@@ -410,7 +431,7 @@ func Zip(args ZipArgs) error {
 		return zipErr
 	}
 
-	if args.WriteIfChanged {
+	if args.WriteIfChanged && !args.DoNotWrite {
 		err := pathtools.WriteFileIfChanged(args.OutputFilePath, buf.Bytes(), 0666)
 		if err != nil {
 			return err
@@ -425,7 +446,9 @@ func fillPathPairs(fa FileArg, src string, pathMappings *[]pathMapping,
 
 	var dest string
 
-	if fa.JunkPaths {
+	if fa.ExplicitPathInZip != "" {
+		dest = fa.ExplicitPathInZip
+	} else if fa.JunkPaths {
 		dest = filepath.Base(src)
 	} else {
 		var err error

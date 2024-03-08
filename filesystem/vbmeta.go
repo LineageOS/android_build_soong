@@ -63,6 +63,17 @@ type vbmetaProperties struct {
 
 	// List of chained partitions that this vbmeta deletages the verification.
 	Chained_partitions []chainedPartitionProperties
+
+	// List of key-value pair of avb properties
+	Avb_properties []avbProperty
+}
+
+type avbProperty struct {
+	// Key of given avb property
+	Key *string
+
+	// Value of given avb property
+	Value *string
 }
 
 type chainedPartitionProperties struct {
@@ -134,6 +145,20 @@ func (v *vbmeta) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return
 	}
 	cmd.FlagWithArg("--rollback_index_location ", strconv.Itoa(ril))
+
+	for _, avb_prop := range v.properties.Avb_properties {
+		key := proptools.String(avb_prop.Key)
+		if key == "" {
+			ctx.PropertyErrorf("avb_properties", "key must be specified")
+			continue
+		}
+		value := proptools.String(avb_prop.Value)
+		if value == "" {
+			ctx.PropertyErrorf("avb_properties", "value must be specified")
+			continue
+		}
+		cmd.FlagWithArg("--prop ", key+":"+value)
+	}
 
 	for _, p := range ctx.GetDirectDepsWithTag(vbmetaPartitionDep) {
 		f, ok := p.(Filesystem)

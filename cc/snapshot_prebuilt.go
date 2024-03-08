@@ -100,6 +100,7 @@ const (
 	snapshotBinarySuffix = "_binary."
 	snapshotObjectSuffix = "_object."
 	SnapshotRlibSuffix   = "_rlib."
+	SnapshotDylibSuffix  = "_dylib."
 )
 
 type SnapshotProperties struct {
@@ -107,6 +108,7 @@ type SnapshotProperties struct {
 	Static_libs []string `android:"arch_variant"`
 	Shared_libs []string `android:"arch_variant"`
 	Rlibs       []string `android:"arch_variant"`
+	Dylibs      []string `android:"arch_variant"`
 	Vndk_libs   []string `android:"arch_variant"`
 	Binaries    []string `android:"arch_variant"`
 	Objects     []string `android:"arch_variant"`
@@ -186,6 +188,7 @@ func (s *snapshotModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 	staticLibs := collectSnapshotMap(s.properties.Static_libs, snapshotSuffix, SnapshotStaticSuffix)
 	sharedLibs := collectSnapshotMap(s.properties.Shared_libs, snapshotSuffix, SnapshotSharedSuffix)
 	rlibs := collectSnapshotMap(s.properties.Rlibs, snapshotSuffix, SnapshotRlibSuffix)
+	dylibs := collectSnapshotMap(s.properties.Dylibs, snapshotSuffix, SnapshotDylibSuffix)
 	vndkLibs := collectSnapshotMap(s.properties.Vndk_libs, "", vndkSuffix)
 	for k, v := range vndkLibs {
 		sharedLibs[k] = v
@@ -198,11 +201,12 @@ func (s *snapshotModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 		StaticLibs: staticLibs,
 		SharedLibs: sharedLibs,
 		Rlibs:      rlibs,
+		Dylibs:     dylibs,
 	})
 }
 
 type SnapshotInfo struct {
-	HeaderLibs, Binaries, Objects, StaticLibs, SharedLibs, Rlibs map[string]string
+	HeaderLibs, Binaries, Objects, StaticLibs, SharedLibs, Rlibs, Dylibs map[string]string
 }
 
 var SnapshotInfoProvider = blueprint.NewMutatorProvider(SnapshotInfo{}, "deps")
@@ -399,11 +403,11 @@ type SnapshotLibraryProperties struct {
 	Sanitize_minimal_dep *bool `android:"arch_variant"`
 }
 
-type snapshotSanitizer interface {
-	isSanitizerAvailable(t SanitizerType) bool
-	setSanitizerVariation(t SanitizerType, enabled bool)
-	isSanitizerEnabled(t SanitizerType) bool
-	isUnsanitizedVariant() bool
+type SnapshotSanitizer interface {
+	IsSanitizerAvailable(t SanitizerType) bool
+	SetSanitizerVariation(t SanitizerType, enabled bool)
+	IsSanitizerEnabled(t SanitizerType) bool
+	IsUnsanitizedVariant() bool
 }
 
 type snapshotLibraryDecorator struct {
@@ -456,9 +460,9 @@ func (p *snapshotLibraryDecorator) link(ctx ModuleContext, flags Flags, deps Pat
 		return p.libraryDecorator.link(ctx, flags, deps, objs)
 	}
 
-	if p.isSanitizerEnabled(cfi) {
+	if p.IsSanitizerEnabled(cfi) {
 		p.properties = p.sanitizerProperties.Cfi
-	} else if p.isSanitizerEnabled(Hwasan) {
+	} else if p.IsSanitizerEnabled(Hwasan) {
 		p.properties = p.sanitizerProperties.Hwasan
 	}
 
@@ -499,7 +503,7 @@ func (p *snapshotLibraryDecorator) link(ctx ModuleContext, flags Flags, deps Pat
 	}
 
 	if p.static() {
-		depSet := android.NewDepSetBuilder(android.TOPOLOGICAL).Direct(in).Build()
+		depSet := android.NewDepSetBuilder[android.Path](android.TOPOLOGICAL).Direct(in).Build()
 		ctx.SetProvider(StaticLibraryInfoProvider, StaticLibraryInfo{
 			StaticLibrary: in,
 
@@ -522,9 +526,9 @@ func (p *snapshotLibraryDecorator) nativeCoverage() bool {
 	return false
 }
 
-var _ snapshotSanitizer = (*snapshotLibraryDecorator)(nil)
+var _ SnapshotSanitizer = (*snapshotLibraryDecorator)(nil)
 
-func (p *snapshotLibraryDecorator) isSanitizerAvailable(t SanitizerType) bool {
+func (p *snapshotLibraryDecorator) IsSanitizerAvailable(t SanitizerType) bool {
 	switch t {
 	case cfi:
 		return p.sanitizerProperties.Cfi.Src != nil
@@ -535,23 +539,23 @@ func (p *snapshotLibraryDecorator) isSanitizerAvailable(t SanitizerType) bool {
 	}
 }
 
-func (p *snapshotLibraryDecorator) setSanitizerVariation(t SanitizerType, enabled bool) {
-	if !enabled || p.isSanitizerEnabled(t) {
+func (p *snapshotLibraryDecorator) SetSanitizerVariation(t SanitizerType, enabled bool) {
+	if !enabled || p.IsSanitizerEnabled(t) {
 		return
 	}
-	if !p.isUnsanitizedVariant() {
+	if !p.IsUnsanitizedVariant() {
 		panic(fmt.Errorf("snapshot Sanitizer must be one of Cfi or Hwasan but not both"))
 	}
 	p.sanitizerProperties.SanitizerVariation = t
 }
 
-func (p *snapshotLibraryDecorator) isSanitizerEnabled(t SanitizerType) bool {
+func (p *snapshotLibraryDecorator) IsSanitizerEnabled(t SanitizerType) bool {
 	return p.sanitizerProperties.SanitizerVariation == t
 }
 
-func (p *snapshotLibraryDecorator) isUnsanitizedVariant() bool {
-	return !p.isSanitizerEnabled(Asan) &&
-		!p.isSanitizerEnabled(Hwasan)
+func (p *snapshotLibraryDecorator) IsUnsanitizedVariant() bool {
+	return !p.IsSanitizerEnabled(Asan) &&
+		!p.IsSanitizerEnabled(Hwasan)
 }
 
 func snapshotLibraryFactory(image SnapshotImage, moduleSuffix string) (*Module, *snapshotLibraryDecorator) {

@@ -65,7 +65,7 @@ func TestKatiNormalCase(t *testing.T) {
 	parser.parseLine("out/build-aosp_arm.ninja is missing, regenerating...")
 	output.Expect(t, Counts{})
 
-	parser.parseLine("[1/1] initializing build system ...")
+	parser.parseLine("[1/1] initializing legacy Make module parser ...")
 	output.Expect(t, Counts{
 		TotalActions:    1,
 		RunningActions:  1,
@@ -86,14 +86,14 @@ func TestKatiNormalCase(t *testing.T) {
 	parser.parseLine(msg)
 
 	// Start the next line to flush the previous result
-	parser.parseLine("[4/5] finishing build rules ...")
+	parser.parseLine("[4/5] finishing legacy Make module parsing ...")
 
 	msg += "\n"
 	if output.result.Output != msg {
 		t.Errorf("output for action did not match:\nwant: %q\n got: %q\n", msg, output.result.Output)
 	}
 
-	parser.parseLine("[5/5] writing build rules ...")
+	parser.parseLine("[5/5] writing legacy Make module rules ...")
 	parser.parseLine("*kati*: verbose msg")
 	parser.flushAction()
 
@@ -118,7 +118,7 @@ func TestKatiExtraIncludes(t *testing.T) {
 		st: status.StartTool(),
 	}
 
-	parser.parseLine("[1/1] initializing build system ...")
+	parser.parseLine("[1/1] initializing legacy Make module parser ...")
 	parser.parseLine("[2/5] including out/soong/Android-aosp_arm.mk ...")
 	output.Expect(t, Counts{
 		TotalActions:    5,
@@ -145,7 +145,7 @@ func TestKatiExtraIncludes(t *testing.T) {
 		FinishedActions: 3,
 	})
 
-	parser.parseLine("[3/5] finishing build rules ...")
+	parser.parseLine("[3/5] finishing legacy Make module parsing ...")
 
 	output.Expect(t, Counts{
 		TotalActions:    7,
@@ -164,7 +164,7 @@ func TestKatiFailOnError(t *testing.T) {
 		st: status.StartTool(),
 	}
 
-	parser.parseLine("[1/1] initializing build system ...")
+	parser.parseLine("[1/1] initializing legacy Make module parser ...")
 	parser.parseLine("[2/5] inclduing out/soong/Android-aosp_arm.mk ...")
 	parser.parseLine("build/make/tools/Android.mk:19: error: testing")
 	parser.flushAction()

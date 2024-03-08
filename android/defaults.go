@@ -117,11 +117,6 @@ type DefaultsVisibilityProperties struct {
 
 type DefaultsModuleBase struct {
 	DefaultableModuleBase
-
-	// Included to support setting bazel_module.label for multiple Soong modules to the same Bazel
-	// target. This is primarily useful for modules that were architecture specific and instead are
-	// handled in Bazel as a select().
-	BazelModuleBase
 }
 
 // The common pattern for defaults modules is to register separate instances of
@@ -164,7 +159,6 @@ func (d *DefaultsModuleBase) isDefaults() bool {
 type DefaultsModule interface {
 	Module
 	Defaults
-	Bazelable
 }
 
 func (d *DefaultsModuleBase) properties() []interface{} {
@@ -177,10 +171,6 @@ func (d *DefaultsModuleBase) productVariableProperties() interface{} {
 
 func (d *DefaultsModuleBase) GenerateAndroidBuildActions(ctx ModuleContext) {}
 
-// ConvertWithBp2build to fulfill Bazelable interface; however, at this time defaults module are
-// *NOT* converted with bp2build
-func (defaultable *DefaultsModuleBase) ConvertWithBp2build(ctx TopDownMutatorContext) {}
-
 func InitDefaultsModule(module DefaultsModule) {
 	commonProperties := &commonProperties{}
 
@@ -190,8 +180,6 @@ func InitDefaultsModule(module DefaultsModule) {
 		&ApexProperties{},
 		&distProperties{})
 
-	// Bazel module must be initialized _before_ Defaults to be included in cc_defaults module.
-	InitBazelModule(module)
 	initAndroidModuleBase(module)
 	initProductVariableModule(module)
 	initArchModule(module)
@@ -221,60 +209,10 @@ func InitDefaultsModule(module DefaultsModule) {
 
 var _ Defaults = (*DefaultsModuleBase)(nil)
 
-// applyNamespacedVariableDefaults only runs in bp2build mode for
-// defaultable/defaults modules. Its purpose is to merge namespaced product
-// variable props from defaults deps, even if those defaults are custom module
-// types created from soong_config_module_type, e.g. one that's wrapping a
-// cc_defaults or java_defaults.
-func applyNamespacedVariableDefaults(defaultDep Defaults, ctx TopDownMutatorContext) {
-	var dep, b Bazelable
-
-	dep, ok := defaultDep.(Bazelable)
-	if !ok {
-		if depMod, ok := defaultDep.(Module); ok {
-			// Track that this dependency hasn't been converted to bp2build yet.
-			ctx.AddUnconvertedBp2buildDep(depMod.Name())
-			return
-		} else {
-			panic("Expected default dep to be a Module.")
-		}
-	}
-
-	b, ok = ctx.Module().(Bazelable)
-	if !ok {
-		return
-	}
-
-	// namespacedVariableProps is a map from namespaces (e.g. acme, android,
-	// vendor_foo) to a slice of soong_config_variable struct pointers,
-	// containing properties for that particular module.
-	src := dep.namespacedVariableProps()
-	dst := b.namespacedVariableProps()
-	if dst == nil {
-		dst = make(namespacedVariableProperties)
-	}
-
-	// Propagate all soong_config_variable structs from the dep. We'll merge the
-	// actual property values later in variable.go.
-	for namespace := range src {
-		if dst[namespace] == nil {
-			dst[namespace] = []interface{}{}
-		}
-		for _, i := range src[namespace] {
-			dst[namespace] = append(dst[namespace], i)
-		}
-	}
-
-	b.setNamespacedVariableProps(dst)
-}
-
 func (defaultable *DefaultableModuleBase) applyDefaults(ctx TopDownMutatorContext,
 	defaultsList []Defaults) {
 
 	for _, defaults := range defaultsList {
-		if ctx.Config().BuildMode == Bp2build {
-			applyNamespacedVariableDefaults(defaults, ctx)
-		}
 		for _, prop := range defaultable.defaultableProperties {
 			if prop == defaultable.defaultableVariableProperties {
 				defaultable.applyDefaultVariableProperties(ctx, defaults, prop)

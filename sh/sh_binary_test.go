@@ -9,6 +9,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/java"
 )
 
 func TestMain(m *testing.M) {
@@ -17,6 +18,7 @@ func TestMain(m *testing.M) {
 
 var prepareForShTest = android.GroupFixturePreparers(
 	cc.PrepareForTestWithCcBuildComponents,
+	java.PrepareForTestWithJavaDefaultModules,
 	PrepareForTestWithShBuildComponents,
 	android.FixtureMergeMockFs(android.MockFS{
 		"test.sh":            nil,
@@ -133,7 +135,7 @@ func TestShTest_dataModules(t *testing.T) {
 		if arch == "darwin_x86_64" {
 			libExt = ".dylib"
 		}
-		relocated := variant.Output("relocated/lib64/libbar" + libExt)
+		relocated := variant.Output(filepath.Join("out/soong/.intermediates/foo", arch, "relocated/lib64/libbar"+libExt))
 		expectedInput := "out/soong/.intermediates/libbar/" + arch + "_shared/libbar" + libExt
 		android.AssertPathRelativeToTopEquals(t, "relocation input", expectedInput, relocated.Input)
 
@@ -202,18 +204,19 @@ func TestShTestHost_dataDeviceModules(t *testing.T) {
 	`)
 
 	buildOS := config.BuildOS.String()
-	variant := ctx.ModuleForTests("foo", buildOS+"_x86_64")
+	variant := buildOS + "_x86_64"
+	foo := ctx.ModuleForTests("foo", variant)
 
-	relocated := variant.Output("relocated/lib64/libbar.so")
+	relocated := foo.Output(filepath.Join("out/soong/.intermediates/foo", variant, "relocated/lib64/libbar.so"))
 	expectedInput := "out/soong/.intermediates/libbar/android_arm64_armv8-a_shared/libbar.so"
 	android.AssertPathRelativeToTopEquals(t, "relocation input", expectedInput, relocated.Input)
 
-	mod := variant.Module().(*ShTest)
+	mod := foo.Module().(*ShTest)
 	entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
 	expectedData := []string{
 		"out/soong/.intermediates/bar/android_arm64_armv8-a/:bar",
 		// libbar has been relocated, and so has a variant that matches the host arch.
-		"out/soong/.intermediates/foo/" + buildOS + "_x86_64/relocated/:lib64/libbar.so",
+		"out/soong/.intermediates/foo/" + variant + "/relocated/:lib64/libbar.so",
 	}
 	actualData := entries.EntryMap["LOCAL_TEST_DATA"]
 	android.AssertStringPathsRelativeToTopEquals(t, "LOCAL_TEST_DATA", config, expectedData, actualData)
@@ -254,4 +257,40 @@ func TestShTestHost_dataDeviceModulesAutogenTradefedConfig(t *testing.T) {
 	if !strings.Contains(autogen.Args["extraConfigs"], expectedBinAutogenConfig) {
 		t.Errorf("foo extraConfings %v does not contain %q", autogen.Args["extraConfigs"], expectedBinAutogenConfig)
 	}
+}
+
+func TestShTestHost_javaData(t *testing.T) {
+	ctx, config := testShBinary(t, `
+		sh_test_host {
+			name: "foo",
+			src: "test.sh",
+			filename: "test.sh",
+			data: [
+				"testdata/data1",
+				"testdata/sub/data2",
+			],
+			java_data: [
+				"javalib",
+			],
+		}
+
+		java_library_host {
+			name: "javalib",
+			srcs: [],
+		}
+	`)
+	buildOS := ctx.Config().BuildOS.String()
+	mod := ctx.ModuleForTests("foo", buildOS+"_x86_64").Module().(*ShTest)
+	if !mod.Host() {
+		t.Errorf("host bit is not set for a sh_test_host module.")
+	}
+	expectedData := []string{
+		":testdata/data1",
+		":testdata/sub/data2",
+		"out/soong/.intermediates/javalib/" + buildOS + "_common/combined/:javalib.jar",
+	}
+
+	entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
+	actualData := entries.EntryMap["LOCAL_TEST_DATA"]
+	android.AssertStringPathsRelativeToTopEquals(t, "LOCAL_TEST_DATA", config, expectedData, actualData)
 }

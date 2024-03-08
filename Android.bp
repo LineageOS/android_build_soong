@@ -130,3 +130,8 @@ buildinfo_prop {
     // Currently, only microdroid can refer to buildinfo.prop
     visibility: ["//packages/modules/Virtualization/microdroid"],
 }
+
+// container for apex_contributions selected using build flags
+all_apex_contributions {
+    name: "all_apex_contributions",
+}

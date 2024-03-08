@@ -19,9 +19,6 @@ import (
 	"strconv"
 
 	"android/soong/android"
-	"android/soong/bazel"
-
-	"github.com/google/blueprint/proptools"
 )
 
 const (
@@ -140,58 +137,4 @@ func protoFlags(ctx android.ModuleContext, j *CommonProperties, p *android.Proto
 	flags.proto.OutParams = append(flags.proto.OutParams, j.Proto.Output_params...)
 
 	return flags
-}
-
-type protoAttributes struct {
-	Deps         bazel.LabelListAttribute
-	Sdk_version  bazel.StringAttribute
-	Java_version bazel.StringAttribute
-}
-
-func bp2buildProto(ctx android.Bp2buildMutatorContext, m *Module, protoSrcs bazel.LabelListAttribute) *bazel.Label {
-	protoInfo, ok := android.Bp2buildProtoProperties(ctx, &m.ModuleBase, protoSrcs)
-	if !ok {
-		return nil
-	}
-
-	typ := proptools.StringDefault(protoInfo.Type, protoTypeDefault)
-	var rule_class string
-	suffix := "_java_proto"
-	switch typ {
-	case "nano":
-		suffix += "_nano"
-		rule_class = "java_nano_proto_library"
-	case "micro":
-		suffix += "_micro"
-		rule_class = "java_micro_proto_library"
-	case "lite":
-		suffix += "_lite"
-		rule_class = "java_lite_proto_library"
-	case "stream":
-		suffix += "_stream"
-		rule_class = "java_stream_proto_library"
-	case "full":
-		rule_class = "java_proto_library"
-	default:
-		ctx.PropertyErrorf("proto.type", "cannot handle conversion at this time: %q", typ)
-	}
-
-	protoLabel := bazel.Label{Label: ":" + m.Name() + "_proto"}
-	protoAttrs := &protoAttributes{
-		Deps:         bazel.MakeSingleLabelListAttribute(protoLabel),
-		Java_version: bazel.StringAttribute{Value: m.properties.Java_version},
-		Sdk_version:  bazel.StringAttribute{Value: m.deviceProperties.Sdk_version},
-	}
-
-	name := m.Name() + suffix
-
-	ctx.CreateBazelTargetModule(
-		bazel.BazelTargetModuleProperties{
-			Rule_class:        rule_class,
-			Bzl_load_location: "//build/bazel/rules/java:proto.bzl",
-		},
-		android.CommonAttributes{Name: name},
-		protoAttrs)
-
-	return &bazel.Label{Label: ":" + name}
 }

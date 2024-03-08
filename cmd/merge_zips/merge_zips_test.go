@@ -22,40 +22,45 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"android/soong/jar"
 	"android/soong/third_party/zip"
 )
 
 type testZipEntry struct {
-	name   string
-	mode   os.FileMode
-	data   []byte
-	method uint16
+	name      string
+	mode      os.FileMode
+	data      []byte
+	method    uint16
+	timestamp time.Time
 }
 
 var (
-	A     = testZipEntry{"A", 0755, []byte("foo"), zip.Deflate}
-	a     = testZipEntry{"a", 0755, []byte("foo"), zip.Deflate}
-	a2    = testZipEntry{"a", 0755, []byte("FOO2"), zip.Deflate}
-	a3    = testZipEntry{"a", 0755, []byte("Foo3"), zip.Deflate}
-	bDir  = testZipEntry{"b/", os.ModeDir | 0755, nil, zip.Deflate}
-	bbDir = testZipEntry{"b/b/", os.ModeDir | 0755, nil, zip.Deflate}
-	bbb   = testZipEntry{"b/b/b", 0755, nil, zip.Deflate}
-	ba    = testZipEntry{"b/a", 0755, []byte("foo"), zip.Deflate}
-	bc    = testZipEntry{"b/c", 0755, []byte("bar"), zip.Deflate}
-	bd    = testZipEntry{"b/d", 0700, []byte("baz"), zip.Deflate}
-	be    = testZipEntry{"b/e", 0700, []byte(""), zip.Deflate}
+	A     = testZipEntry{"A", 0755, []byte("foo"), zip.Deflate, jar.DefaultTime}
+	a     = testZipEntry{"a", 0755, []byte("foo"), zip.Deflate, jar.DefaultTime}
+	a2    = testZipEntry{"a", 0755, []byte("FOO2"), zip.Deflate, jar.DefaultTime}
+	a3    = testZipEntry{"a", 0755, []byte("Foo3"), zip.Deflate, jar.DefaultTime}
+	bDir  = testZipEntry{"b/", os.ModeDir | 0755, nil, zip.Deflate, jar.DefaultTime}
+	bbDir = testZipEntry{"b/b/", os.ModeDir | 0755, nil, zip.Deflate, jar.DefaultTime}
+	bbb   = testZipEntry{"b/b/b", 0755, nil, zip.Deflate, jar.DefaultTime}
+	ba    = testZipEntry{"b/a", 0755, []byte("foo"), zip.Deflate, jar.DefaultTime}
+	bc    = testZipEntry{"b/c", 0755, []byte("bar"), zip.Deflate, jar.DefaultTime}
+	bd    = testZipEntry{"b/d", 0700, []byte("baz"), zip.Deflate, jar.DefaultTime}
+	be    = testZipEntry{"b/e", 0700, []byte(""), zip.Deflate, jar.DefaultTime}
 
-	service1a        = testZipEntry{"META-INF/services/service1", 0755, []byte("class1\nclass2\n"), zip.Store}
-	service1b        = testZipEntry{"META-INF/services/service1", 0755, []byte("class1\nclass3\n"), zip.Deflate}
-	service1combined = testZipEntry{"META-INF/services/service1", 0755, []byte("class1\nclass2\nclass3\n"), zip.Store}
-	service2         = testZipEntry{"META-INF/services/service2", 0755, []byte("class1\nclass2\n"), zip.Deflate}
+	withTimestamp    = testZipEntry{"timestamped", 0755, nil, zip.Store, jar.DefaultTime.Add(time.Hour)}
+	withoutTimestamp = testZipEntry{"timestamped", 0755, nil, zip.Store, jar.DefaultTime}
 
-	metainfDir     = testZipEntry{jar.MetaDir, os.ModeDir | 0755, nil, zip.Deflate}
-	manifestFile   = testZipEntry{jar.ManifestFile, 0755, []byte("manifest"), zip.Deflate}
-	manifestFile2  = testZipEntry{jar.ManifestFile, 0755, []byte("manifest2"), zip.Deflate}
-	moduleInfoFile = testZipEntry{jar.ModuleInfoClass, 0755, []byte("module-info"), zip.Deflate}
+	service1a        = testZipEntry{"META-INF/services/service1", 0755, []byte("class1\nclass2\n"), zip.Store, jar.DefaultTime}
+	service1b        = testZipEntry{"META-INF/services/service1", 0755, []byte("class1\nclass3\n"), zip.Deflate, jar.DefaultTime}
+	service1combined = testZipEntry{"META-INF/services/service1", 0755, []byte("class1\nclass2\nclass3\n"), zip.Store, jar.DefaultTime}
+	service2         = testZipEntry{"META-INF/services/service2", 0755, []byte("class1\nclass2\n"), zip.Deflate, jar.DefaultTime}
+
+	metainfDir     = testZipEntry{jar.MetaDir, os.ModeDir | 0755, nil, zip.Deflate, jar.DefaultTime}
+	manifestFile   = testZipEntry{jar.ManifestFile, 0755, []byte("manifest"), zip.Deflate, jar.DefaultTime}
+	manifestFile2  = testZipEntry{jar.ManifestFile, 0755, []byte("manifest2"), zip.Deflate, jar.DefaultTime}
+	moduleInfoFile = testZipEntry{jar.ModuleInfoClass, 0755, []byte("module-info"), zip.Deflate, jar.DefaultTime}
 )
 
 type testInputZip struct {
@@ -252,6 +257,14 @@ func TestMergeZips(t *testing.T) {
 			jar: true,
 			out: []testZipEntry{service1combined, service2},
 		},
+		{
+			name: "strip timestamps",
+			in: [][]testZipEntry{
+				{withTimestamp},
+				{a},
+			},
+			out: []testZipEntry{withoutTimestamp, a},
+		},
 	}
 
 	for _, test := range testCases {
@@ -307,6 +320,7 @@ func testZipEntriesToBuf(entries []testZipEntry) []byte {
 		}
 		fh.SetMode(e.mode)
 		fh.Method = e.method
+		fh.SetModTime(e.timestamp)
 		fh.UncompressedSize64 = uint64(len(e.data))
 		fh.CRC32 = crc32.ChecksumIEEE(e.data)
 		if fh.Method == zip.Store {
@@ -354,7 +368,7 @@ func dumpZip(buf []byte) string {
 	var ret string
 
 	for _, f := range zr.File {
-		ret += fmt.Sprintf("%v: %v %v %08x\n", f.Name, f.Mode(), f.UncompressedSize64, f.CRC32)
+		ret += fmt.Sprintf("%v: %v %v %08x %s\n", f.Name, f.Mode(), f.UncompressedSize64, f.CRC32, f.ModTime())
 	}
 
 	return ret

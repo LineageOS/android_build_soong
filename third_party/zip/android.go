@@ -56,6 +56,11 @@ func (w *Writer) CopyFrom(orig *File, newName string) error {
 	if err := writeHeader(w.cw, fh); err != nil {
 		return err
 	}
+
+	// Strip the extras again in case writeHeader added the local file header extras that are incorrect for the
+	// central directory.
+	fh.Extra = stripExtras(fh.Extra)
+
 	dataOffset, err := orig.DataOffset()
 	if err != nil {
 		return err

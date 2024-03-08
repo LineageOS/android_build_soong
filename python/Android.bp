@@ -10,10 +10,10 @@ bootstrap_go_package {
         "soong-android",
         "soong-tradefed",
         "soong-cc",
+        "soong-testing",
     ],
     srcs: [
         "binary.go",
-        "bp2build.go",
         "builder.go",
         "defaults.go",
         "library.go",

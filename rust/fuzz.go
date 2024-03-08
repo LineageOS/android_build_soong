@@ -15,23 +15,23 @@
 package rust
 
 import (
-	"path/filepath"
-
 	"android/soong/android"
 	"android/soong/cc"
 	"android/soong/fuzz"
 	"android/soong/rust/config"
+	"path/filepath"
 )
 
 func init() {
 	android.RegisterModuleType("rust_fuzz", RustFuzzFactory)
+	android.RegisterModuleType("rust_fuzz_host", RustFuzzHostFactory)
 }
 
 type fuzzDecorator struct {
 	*binaryDecorator
 
 	fuzzPackagedModule  fuzz.FuzzPackagedModule
-	sharedLibraries     android.Paths
+	sharedLibraries     android.RuleBuilderInstalls
 	installedSharedDeps []string
 }
 
@@ -40,6 +40,11 @@ var _ compiler = (*fuzzDecorator)(nil)
 // rust_binary produces a binary that is runnable on a device.
 func RustFuzzFactory() android.Module {
 	module, _ := NewRustFuzz(android.HostAndDeviceSupported)
+	return module.Init()
+}
+
+func RustFuzzHostFactory() android.Module {
+	module, _ := NewRustFuzz(android.HostSupported)
 	return module.Init()
 }
 
@@ -54,6 +59,25 @@ func NewRustFuzz(hod android.HostOrDeviceSupported) (*Module, *fuzzDecorator) {
 	fuzz.binaryDecorator.baseCompiler.dir64 = "fuzz"
 	fuzz.binaryDecorator.baseCompiler.location = InstallInData
 	module.sanitize.SetSanitizer(cc.Fuzzer, true)
+
+	// The fuzzer runtime is not present for darwin or bionic host modules, so disable rust_fuzz modules for these.
+	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
+
+		extraProps := struct {
+			Target struct {
+				Darwin struct {
+					Enabled *bool
+				}
+				Linux_bionic struct {
+					Enabled *bool
+				}
+			}
+		}{}
+		extraProps.Target.Darwin.Enabled = cc.BoolPtr(false)
+		extraProps.Target.Linux_bionic.Enabled = cc.BoolPtr(false)
+		ctx.AppendProperties(&extraProps)
+	})
+
 	module.compiler = fuzz
 	return module, fuzz
 }
@@ -106,12 +130,6 @@ func (fuzzer *fuzzDecorator) autoDep(ctx android.BottomUpMutatorContext) autoDep
 }
 
 func (fuzz *fuzzDecorator) install(ctx ModuleContext) {
-	fuzz.binaryDecorator.baseCompiler.dir = filepath.Join(
-		"fuzz", ctx.Target().Arch.ArchType.String(), ctx.ModuleName())
-	fuzz.binaryDecorator.baseCompiler.dir64 = filepath.Join(
-		"fuzz", ctx.Target().Arch.ArchType.String(), ctx.ModuleName())
-	fuzz.binaryDecorator.baseCompiler.install(ctx)
-
 	fuzz.fuzzPackagedModule = cc.PackageFuzzModule(ctx, fuzz.fuzzPackagedModule, pctx)
 
 	installBase := "fuzz"
@@ -119,15 +137,43 @@ func (fuzz *fuzzDecorator) install(ctx ModuleContext) {
 	// Grab the list of required shared libraries.
 	fuzz.sharedLibraries, _ = cc.CollectAllSharedDependencies(ctx)
 
-	for _, lib := range fuzz.sharedLibraries {
+	for _, ruleBuilderInstall := range fuzz.sharedLibraries {
+		install := ruleBuilderInstall.To
+
 		fuzz.installedSharedDeps = append(fuzz.installedSharedDeps,
 			cc.SharedLibraryInstallLocation(
-				lib, ctx.Host(), installBase, ctx.Arch().ArchType.String()))
+				install, ctx.Host(), installBase, ctx.Arch().ArchType.String()))
 
 		// Also add the dependency on the shared library symbols dir.
 		if !ctx.Host() {
 			fuzz.installedSharedDeps = append(fuzz.installedSharedDeps,
-				cc.SharedLibrarySymbolsInstallLocation(lib, installBase, ctx.Arch().ArchType.String()))
+				cc.SharedLibrarySymbolsInstallLocation(install, installBase, ctx.Arch().ArchType.String()))
 		}
 	}
+
+	var fuzzData []android.DataPath
+	for _, d := range fuzz.fuzzPackagedModule.Corpus {
+		fuzzData = append(fuzzData, android.DataPath{SrcPath: d, RelativeInstallPath: "corpus", WithoutRel: true})
+	}
+
+	for _, d := range fuzz.fuzzPackagedModule.Data {
+		fuzzData = append(fuzzData, android.DataPath{SrcPath: d, RelativeInstallPath: "data"})
+	}
+
+	if d := fuzz.fuzzPackagedModule.Dictionary; d != nil {
+		fuzzData = append(fuzzData, android.DataPath{SrcPath: d, WithoutRel: true})
+	}
+
+	if d := fuzz.fuzzPackagedModule.Config; d != nil {
+		fuzzData = append(fuzzData, android.DataPath{SrcPath: d, WithoutRel: true})
+	}
+
+	fuzz.binaryDecorator.baseCompiler.dir = filepath.Join(
+		"fuzz", ctx.Target().Arch.ArchType.String(), ctx.ModuleName())
+	fuzz.binaryDecorator.baseCompiler.dir64 = filepath.Join(
+		"fuzz", ctx.Target().Arch.ArchType.String(), ctx.ModuleName())
+	fuzz.binaryDecorator.baseCompiler.installTestData(ctx, fuzzData)
+
+	fuzz.binaryDecorator.baseCompiler.install(ctx)
+
 }

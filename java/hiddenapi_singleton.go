@@ -25,7 +25,7 @@ func init() {
 }
 
 func RegisterHiddenApiSingletonComponents(ctx android.RegistrationContext) {
-	ctx.RegisterSingletonType("hiddenapi", hiddenAPISingletonFactory)
+	ctx.RegisterParallelSingletonType("hiddenapi", hiddenAPISingletonFactory)
 }
 
 var PrepareForTestWithHiddenApiBuildComponents = android.FixtureRegisterWithContext(RegisterHiddenApiSingletonComponents)
@@ -121,8 +121,8 @@ type hiddenAPISingleton struct {
 
 // hiddenAPI singleton rules
 func (h *hiddenAPISingleton) GenerateBuildActions(ctx android.SingletonContext) {
-	// Don't run any hiddenapi rules if UNSAFE_DISABLE_HIDDENAPI_FLAGS=true
-	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
+	// Don't run any hiddenapi rules if hiddenapi checks are disabled
+	if ctx.Config().DisableHiddenApiChecks() {
 		return
 	}
 
@@ -166,7 +166,7 @@ func isModuleInConfiguredList(ctx android.BaseModuleContext, module android.Modu
 
 	// Now match the apex part of the boot image configuration.
 	requiredApex := configuredBootJars.Apex(index)
-	if requiredApex == "platform" || requiredApex == "system_ext" {
+	if android.IsConfiguredJarForPlatform(requiredApex) {
 		if len(apexInfo.InApexVariants) != 0 {
 			// A platform variant is required but this is for an apex so ignore it.
 			return false

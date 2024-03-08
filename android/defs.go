@@ -107,8 +107,8 @@ var (
 
 	Cat = pctx.AndroidStaticRule("Cat",
 		blueprint.RuleParams{
-			Command:     "cat $in > $out",
-			Description: "concatenate licenses $out",
+			Command:     "rm -f $out && cat $in > $out",
+			Description: "concatenate files to $out",
 		})
 
 	// ubuntu 14.04 offcially use dash for /bin/sh, and its builtin echo command
@@ -116,7 +116,7 @@ var (
 	// content to file.
 	writeFile = pctx.AndroidStaticRule("writeFile",
 		blueprint.RuleParams{
-			Command:     `/bin/bash -c 'echo -e -n "$$0" > $out' $content`,
+			Command:     `rm -f $out && /bin/bash -c 'echo -e -n "$$0" > $out' $content`,
 			Description: "writing file $out",
 		},
 		"content")
@@ -209,12 +209,14 @@ func WriteFileRuleVerbatim(ctx BuilderContext, outputFile WritablePath, content 
 	buildWriteFileRule(ctx, outputFile, content)
 }
 
-func CatFileRule(ctx BuilderContext, paths Paths, outputFile WritablePath) {
+// WriteExecutableFileRuleVerbatim is the same as WriteFileRuleVerbatim, but runs chmod +x on the result
+func WriteExecutableFileRuleVerbatim(ctx BuilderContext, outputFile WritablePath, content string) {
+	intermediate := PathForIntermediates(ctx, "write_executable_file_intermediates").Join(ctx, outputFile.String())
+	WriteFileRuleVerbatim(ctx, intermediate, content)
 	ctx.Build(pctx, BuildParams{
-		Rule:        Cat,
-		Inputs:      paths,
-		Output:      outputFile,
-		Description: "combine files to " + outputFile.Base(),
+		Rule:   CpExecutable,
+		Output: outputFile,
+		Input:  intermediate,
 	})
 }
 
@@ -230,7 +232,7 @@ func shellUnescape(s string) string {
 
 // ContentFromFileRuleForTests returns the content that was passed to a WriteFileRule for use
 // in tests.
-func ContentFromFileRuleForTests(t *testing.T, params TestingBuildParams) string {
+func ContentFromFileRuleForTests(t *testing.T, ctx *TestContext, params TestingBuildParams) string {
 	t.Helper()
 	if g, w := params.Rule, writeFile; g != w {
 		t.Errorf("expected params.Rule to be %q, was %q", w, g)

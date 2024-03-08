@@ -21,7 +21,9 @@ import (
 )
 
 var (
-	x86_64RustFlags            = []string{}
+	x86_64RustFlags = []string{
+		"-C force-frame-pointers=y",
+	}
 	x86_64ArchFeatureRustFlags = map[string][]string{}
 	x86_64LinkFlags            = []string{}
 
@@ -51,7 +53,7 @@ func init() {
 		pctx.StaticVariable("X86_64"+variant+"VariantRustFlags",
 			strings.Join(rustFlags, " "))
 	}
-
+	ExportedVars.ExportStringListStaticVariable("DEVICE_X86_64_RUSTC_FLAGS", x86_64RustFlags)
 }
 
 type toolchainX86_64 struct {

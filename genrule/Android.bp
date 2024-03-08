@@ -11,10 +11,10 @@ bootstrap_go_package {
         "sbox_proto",
         "soong",
         "soong-android",
-        "soong-bazel",
         "soong-shared",
     ],
     srcs: [
+        "allowlists.go",
         "genrule.go",
         "locations.go",
     ],

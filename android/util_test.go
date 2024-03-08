@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unsafe"
 )
 
 var firstUniqueStringsTestCases = []struct {
@@ -74,10 +75,10 @@ func TestFirstUniqueStrings(t *testing.T) {
 
 	for _, testCase := range firstUniqueStringsTestCases {
 		t.Run("list", func(t *testing.T) {
-			f(t, firstUniqueStringsList, testCase.in, testCase.out)
+			f(t, firstUniqueList[string], testCase.in, testCase.out)
 		})
 		t.Run("map", func(t *testing.T) {
-			f(t, firstUniqueStringsMap, testCase.in, testCase.out)
+			f(t, firstUniqueMap[string], testCase.in, testCase.out)
 		})
 	}
 }
@@ -385,7 +386,7 @@ func TestCopyOfEmptyAndNil(t *testing.T) {
 	emptyList := []string{}
 	copyOfEmptyList := CopyOf(emptyList)
 	AssertBoolEquals(t, "Copy of an empty list should be an empty list and not nil", true, copyOfEmptyList != nil)
-	copyOfNilList := CopyOf(nil)
+	copyOfNilList := CopyOf([]string(nil))
 	AssertBoolEquals(t, "Copy of a nil list should be a nil list and not an empty list", true, copyOfNilList == nil)
 }
 
@@ -604,11 +605,11 @@ func BenchmarkFirstUniqueStrings(b *testing.B) {
 	}{
 		{
 			name: "list",
-			f:    firstUniqueStringsList,
+			f:    firstUniqueList[string],
 		},
 		{
 			name: "map",
-			f:    firstUniqueStringsMap,
+			f:    firstUniqueMap[string],
 		},
 		{
 			name: "optimal",
@@ -750,6 +751,68 @@ func TestSortedUniqueStringValues(t *testing.T) {
 			got := SortedUniqueStringValues(tt.in)
 			if g, w := got, tt.expected; !reflect.DeepEqual(g, w) {
 				t.Errorf("wanted %q, got %q", w, g)
+			}
+		})
+	}
+}
+
+var reverseTestCases = []struct {
+	name     string
+	in       []string
+	expected []string
+}{
+	{
+		name:     "nil",
+		in:       nil,
+		expected: nil,
+	},
+	{
+		name:     "empty",
+		in:       []string{},
+		expected: []string{},
+	},
+	{
+		name:     "one",
+		in:       []string{"one"},
+		expected: []string{"one"},
+	},
+	{
+		name:     "even",
+		in:       []string{"one", "two"},
+		expected: []string{"two", "one"},
+	},
+	{
+		name:     "odd",
+		in:       []string{"one", "two", "three"},
+		expected: []string{"three", "two", "one"},
+	},
+}
+
+func TestReverseSliceInPlace(t *testing.T) {
+	for _, testCase := range reverseTestCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			slice := CopyOf(testCase.in)
+			slice2 := slice
+			ReverseSliceInPlace(slice)
+			if !reflect.DeepEqual(slice, testCase.expected) {
+				t.Errorf("expected %#v, got %#v", testCase.expected, slice)
+			}
+			if unsafe.SliceData(slice) != unsafe.SliceData(slice2) {
+				t.Errorf("expected slices to share backing array")
+			}
+		})
+	}
+}
+
+func TestReverseSlice(t *testing.T) {
+	for _, testCase := range reverseTestCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			slice := ReverseSlice(testCase.in)
+			if !reflect.DeepEqual(slice, testCase.expected) {
+				t.Errorf("expected %#v, got %#v", testCase.expected, slice)
+			}
+			if cap(slice) > 0 && unsafe.SliceData(testCase.in) == unsafe.SliceData(slice) {
+				t.Errorf("expected slices to have different backing arrays")
 			}
 		})
 	}

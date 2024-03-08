@@ -28,6 +28,17 @@ import (
 	"android/soong/shared"
 )
 
+var (
+	pctx_ruleBuilderTest           = NewPackageContext("android/soong/rule_builder")
+	pctx_ruleBuilderTestSubContext = NewPackageContext("android/soong/rule_builder/config")
+)
+
+func init() {
+	pctx_ruleBuilderTest.Import("android/soong/rule_builder/config")
+	pctx_ruleBuilderTest.StaticVariable("cmdFlags", "${config.ConfigFlags}")
+	pctx_ruleBuilderTestSubContext.StaticVariable("ConfigFlags", "--some-clang-flag")
+}
+
 func builderContext() BuilderContext {
 	return BuilderContextForTesting(TestConfig("out", nil, "", map[string][]byte{
 		"ld":      nil,
@@ -496,11 +507,13 @@ func testRuleBuilderFactory() Module {
 type testRuleBuilderModule struct {
 	ModuleBase
 	properties struct {
-		Srcs []string
+		Srcs  []string
+		Flags []string
 
-		Restat      bool
-		Sbox        bool
-		Sbox_inputs bool
+		Restat              bool
+		Sbox                bool
+		Sbox_inputs         bool
+		Unescape_ninja_vars bool
 	}
 }
 
@@ -518,8 +531,9 @@ func (t *testRuleBuilderModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	rspFileContents2 := PathsForSource(ctx, []string{"rsp_in2"})
 	manifestPath := PathForModuleOut(ctx, "sbox.textproto")
 
-	testRuleBuilder_Build(ctx, in, implicit, orderOnly, validation, out, outDep, outDir,
-		manifestPath, t.properties.Restat, t.properties.Sbox, t.properties.Sbox_inputs,
+	testRuleBuilder_Build(ctx, in, implicit, orderOnly, validation, t.properties.Flags,
+		out, outDep, outDir,
+		manifestPath, t.properties.Restat, t.properties.Sbox, t.properties.Sbox_inputs, t.properties.Unescape_ninja_vars,
 		rspFile, rspFileContents, rspFile2, rspFileContents2)
 }
 
@@ -543,17 +557,18 @@ func (t *testRuleBuilderSingleton) GenerateBuildActions(ctx SingletonContext) {
 	rspFileContents2 := PathsForSource(ctx, []string{"rsp_in2"})
 	manifestPath := PathForOutput(ctx, "singleton/sbox.textproto")
 
-	testRuleBuilder_Build(ctx, in, implicit, orderOnly, validation, out, outDep, outDir,
-		manifestPath, true, false, false,
+	testRuleBuilder_Build(ctx, in, implicit, orderOnly, validation, nil, out, outDep, outDir,
+		manifestPath, true, false, false, false,
 		rspFile, rspFileContents, rspFile2, rspFileContents2)
 }
 
 func testRuleBuilder_Build(ctx BuilderContext, in Paths, implicit, orderOnly, validation Path,
+	flags []string,
 	out, outDep, outDir, manifestPath WritablePath,
-	restat, sbox, sboxInputs bool,
+	restat, sbox, sboxInputs, unescapeNinjaVars bool,
 	rspFile WritablePath, rspFileContents Paths, rspFile2 WritablePath, rspFileContents2 Paths) {
 
-	rule := NewRuleBuilder(pctx, ctx)
+	rule := NewRuleBuilder(pctx_ruleBuilderTest, ctx)
 
 	if sbox {
 		rule.Sbox(outDir, manifestPath)
@@ -564,6 +579,7 @@ func testRuleBuilder_Build(ctx BuilderContext, in Paths, implicit, orderOnly, va
 
 	rule.Command().
 		Tool(PathForSource(ctx, "cp")).
+		Flags(flags).
 		Inputs(in).
 		Implicit(implicit).
 		OrderOnly(orderOnly).
@@ -577,7 +593,11 @@ func testRuleBuilder_Build(ctx BuilderContext, in Paths, implicit, orderOnly, va
 		rule.Restat()
 	}
 
-	rule.Build("rule", "desc")
+	if unescapeNinjaVars {
+		rule.BuildWithUnescapedNinjaVars("rule", "desc")
+	} else {
+		rule.Build("rule", "desc")
+	}
 }
 
 var prepareForRuleBuilderTest = FixtureRegisterWithContext(func(ctx RegistrationContext) {
@@ -663,7 +683,7 @@ func TestRuleBuilder_Build(t *testing.T) {
 			t.Errorf("want Deps = %q, got %q", blueprint.DepsGCC, params.Deps)
 		}
 
-		rspFile2Content := ContentFromFileRuleForTests(t, rspFile2Params)
+		rspFile2Content := ContentFromFileRuleForTests(t, result.TestContext, rspFile2Params)
 		AssertStringEquals(t, "rspFile2 content", "rsp_in2\n", rspFile2Content)
 	}
 
@@ -777,7 +797,7 @@ func TestRuleBuilderHashInputs(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Run("sbox", func(t *testing.T) {
 				gen := result.ModuleForTests(test.name+"_sbox", "")
-				manifest := RuleBuilderSboxProtoForTests(t, gen.Output("sbox.textproto"))
+				manifest := RuleBuilderSboxProtoForTests(t, result.TestContext, gen.Output("sbox.textproto"))
 				hash := manifest.Commands[0].GetInputHash()
 
 				AssertStringEquals(t, "hash", test.expectedHash, hash)
@@ -791,4 +811,48 @@ func TestRuleBuilderHashInputs(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestRuleBuilderWithNinjaVarEscaping(t *testing.T) {
+	bp := `
+		rule_builder_test {
+			name: "foo_sbox_escaped_ninja",
+			flags: ["${cmdFlags}"],
+			sbox: true,
+			sbox_inputs: true,
+		}
+		rule_builder_test {
+			name: "foo_sbox",
+			flags: ["${cmdFlags}"],
+			sbox: true,
+			sbox_inputs: true,
+			unescape_ninja_vars: true,
+		}
+	`
+	result := GroupFixturePreparers(
+		prepareForRuleBuilderTest,
+		FixtureWithRootAndroidBp(bp),
+	).RunTest(t)
+
+	escapedNinjaMod := result.ModuleForTests("foo_sbox_escaped_ninja", "").Rule("writeFile")
+	AssertStringDoesContain(
+		t,
+		"",
+		escapedNinjaMod.BuildParams.Args["content"],
+		"$${cmdFlags}",
+	)
+
+	unescapedNinjaMod := result.ModuleForTests("foo_sbox", "").Rule("unescapedWriteFile")
+	AssertStringDoesContain(
+		t,
+		"",
+		unescapedNinjaMod.BuildParams.Args["content"],
+		"${cmdFlags}",
+	)
+	AssertStringDoesNotContain(
+		t,
+		"",
+		unescapedNinjaMod.BuildParams.Args["content"],
+		"$${cmdFlags}",
+	)
 }

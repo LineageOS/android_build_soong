@@ -75,7 +75,7 @@ type hostSnapshotFakeJsonFlags struct {
 }
 
 func registerHostSnapshotComponents(ctx android.RegistrationContext) {
-	ctx.RegisterSingletonType("host-fake-snapshot", HostToolsFakeAndroidSingleton)
+	ctx.RegisterParallelSingletonType("host-fake-snapshot", HostToolsFakeAndroidSingleton)
 }
 
 type hostFakeSingleton struct {

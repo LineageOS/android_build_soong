@@ -178,8 +178,8 @@ func TestInvalidOutputId(t *testing.T) {
    { "id": 2, "path_fragment_id": 2 }],
  "actions": [{
    "target_id": 1,
-   "action_key": "x",
-   "mnemonic": "x",
+   "action_key": "action_x",
+   "mnemonic": "X",
    "arguments": ["touch", "foo"],
    "input_dep_set_ids": [1],
    "output_ids": [3],
@@ -198,7 +198,7 @@ func TestInvalidOutputId(t *testing.T) {
 		return
 	}
 	_, _, err = AqueryBuildStatements(data, &metrics.EventHandler{})
-	assertError(t, err, "undefined outputId 3")
+	assertError(t, err, "undefined outputId 3: [X] []")
 }
 
 func TestInvalidInputDepsetIdFromAction(t *testing.T) {
@@ -209,12 +209,16 @@ func TestInvalidInputDepsetIdFromAction(t *testing.T) {
    { "id": 2, "path_fragment_id": 2 }],
  "actions": [{
    "target_id": 1,
-   "action_key": "x",
-   "mnemonic": "x",
+   "action_key": "action_x",
+   "mnemonic": "X",
    "arguments": ["touch", "foo"],
    "input_dep_set_ids": [2],
    "output_ids": [1],
    "primary_output_id": 1
+ }],
+ "targets": [{
+   "id": 1,
+   "label": "target_x"
  }],
  "dep_set_of_files": [
    { "id": 1, "direct_artifact_ids": [1, 2] }],
@@ -229,7 +233,7 @@ func TestInvalidInputDepsetIdFromAction(t *testing.T) {
 		return
 	}
 	_, _, err = AqueryBuildStatements(data, &metrics.EventHandler{})
-	assertError(t, err, "undefined (not even empty) input depsetId 2")
+	assertError(t, err, "undefined (not even empty) input depsetId 2: [X] [target_x]")
 }
 
 func TestInvalidInputDepsetIdFromDepset(t *testing.T) {
@@ -357,9 +361,11 @@ func TestDepfiles(t *testing.T) {
 	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
+		return
 	}
 	if expected := 1; len(actual) != expected {
 		t.Fatalf("Expected %d build statements, got %d", expected, len(actual))
+		return
 	}
 
 	bs := actual[0]
@@ -381,8 +387,8 @@ func TestMultipleDepfiles(t *testing.T) {
    { "id": 4, "path_fragment_id": 4 }],
  "actions": [{
    "target_id": 1,
-   "action_key": "x",
-   "mnemonic": "x",
+   "action_key": "action_x",
+   "mnemonic": "X",
    "arguments": ["touch", "foo"],
    "input_dep_set_ids": [1],
    "output_ids": [2,3,4],
@@ -405,7 +411,7 @@ func TestMultipleDepfiles(t *testing.T) {
 		return
 	}
 	_, _, err = AqueryBuildStatements(data, &metrics.EventHandler{})
-	assertError(t, err, `found multiple potential depfiles "two.d", "other.d"`)
+	assertError(t, err, `found multiple potential depfiles "two.d", "other.d": [X] []`)
 }
 
 func TestTransitiveInputDepsets(t *testing.T) {
@@ -544,6 +550,7 @@ func TestSymlinkTree(t *testing.T) {
 	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
+		return
 	}
 	assertBuildStatements(t, []*BuildStatement{
 		&BuildStatement{
@@ -556,7 +563,7 @@ func TestSymlinkTree(t *testing.T) {
 	}, actual)
 }
 
-func TestBazelOutRemovalFromInputDepsets(t *testing.T) {
+func TestBazelToolsRemovalFromInputDepsets(t *testing.T) {
 	const inputString = `{
  "artifacts": [
    { "id": 1, "path_fragment_id": 10 },
@@ -634,7 +641,55 @@ func TestBazelOutRemovalFromInputDepsets(t *testing.T) {
 	}
 }
 
-func TestBazelOutRemovalFromTransitiveInputDepsets(t *testing.T) {
+func TestBazelToolsRemovalFromTargets(t *testing.T) {
+	const inputString = `{
+ "artifacts": [{ "id": 1, "path_fragment_id": 10 }],
+ "targets": [
+   { "id": 100, "label": "targetX" },
+   { "id": 200, "label": "@bazel_tools//tool_y" }
+],
+ "actions": [{
+   "target_id": 100,
+   "action_key": "actionX",
+   "arguments": ["bogus", "command"],
+   "mnemonic" : "x",
+   "output_ids": [1]
+ }, {
+   "target_id": 200,
+   "action_key": "y"
+ }],
+ "path_fragments": [{ "id": 10, "label": "outputX"}]
+}`
+	data, err := JsonToActionGraphContainer(inputString)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	actualBuildStatements, actualDepsets, _ := AqueryBuildStatements(data, &metrics.EventHandler{})
+	if len(actualDepsets) != 0 {
+		t.Errorf("expected 0 depset but found %#v", actualDepsets)
+		return
+	}
+	expectedBuildStatement := &BuildStatement{
+		Command:      "bogus command",
+		OutputPaths:  []string{"outputX"},
+		Mnemonic:     "x",
+		SymlinkPaths: []string{},
+	}
+	buildStatementFound := false
+	for _, actualBuildStatement := range actualBuildStatements {
+		if buildStatementEquals(actualBuildStatement, expectedBuildStatement) == "" {
+			buildStatementFound = true
+			break
+		}
+	}
+	if !buildStatementFound {
+		t.Errorf("expected but missing %#v in %#v build statements", expectedBuildStatement, len(actualBuildStatements))
+		return
+	}
+}
+
+func TestBazelToolsRemovalFromTransitiveInputDepsets(t *testing.T) {
 	const inputString = `{
  "artifacts": [
    { "id": 1, "path_fragment_id": 10 },
@@ -756,9 +811,11 @@ func TestMiddlemenAction(t *testing.T) {
 	actualBuildStatements, actualDepsets, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
+		return
 	}
 	if expected := 2; len(actualBuildStatements) != expected {
 		t.Fatalf("Expected %d build statements, got %d %#v", expected, len(actualBuildStatements), actualBuildStatements)
+		return
 	}
 
 	expectedDepsetFiles := [][]string{
@@ -859,6 +916,7 @@ func TestSimpleSymlink(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
+		return
 	}
 
 	expectedBuildStatements := []*BuildStatement{
@@ -907,6 +965,7 @@ func TestSymlinkQuotesPaths(t *testing.T) {
 	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
+		return
 	}
 
 	expectedBuildStatements := []*BuildStatement{
@@ -932,7 +991,7 @@ func TestSymlinkMultipleInputs(t *testing.T) {
    { "id": 3, "path_fragment_id": 3 }],
  "actions": [{
    "target_id": 1,
-   "action_key": "x",
+   "action_key": "action_x",
    "mnemonic": "Symlink",
    "input_dep_set_ids": [1],
    "output_ids": [3],
@@ -951,7 +1010,7 @@ func TestSymlinkMultipleInputs(t *testing.T) {
 		return
 	}
 	_, _, err = AqueryBuildStatements(data, &metrics.EventHandler{})
-	assertError(t, err, `Expect 1 input and 1 output to symlink action, got: input ["file" "other_file"], output ["symlink"]`)
+	assertError(t, err, `Expect 1 input and 1 output to symlink action, got: input ["file" "other_file"], output ["symlink"]: [Symlink] []`)
 }
 
 func TestSymlinkMultipleOutputs(t *testing.T) {
@@ -982,7 +1041,7 @@ func TestSymlinkMultipleOutputs(t *testing.T) {
 		return
 	}
 	_, _, err = AqueryBuildStatements(data, &metrics.EventHandler{})
-	assertError(t, err, "undefined outputId 2")
+	assertError(t, err, "undefined outputId 2: [Symlink] []")
 }
 
 func TestTemplateExpandActionSubstitutions(t *testing.T) {
@@ -1017,6 +1076,7 @@ func TestTemplateExpandActionSubstitutions(t *testing.T) {
 	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
+		return
 	}
 
 	expectedBuildStatements := []*BuildStatement{
@@ -1058,7 +1118,7 @@ func TestTemplateExpandActionNoOutput(t *testing.T) {
 		return
 	}
 	_, _, err = AqueryBuildStatements(data, &metrics.EventHandler{})
-	assertError(t, err, `Expect 1 output to template expand action, got: output []`)
+	assertError(t, err, `Expect 1 output to template expand action, got: output []: [TemplateExpand] []`)
 }
 
 func TestFileWrite(t *testing.T) {
@@ -1088,6 +1148,7 @@ func TestFileWrite(t *testing.T) {
 	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
+		return
 	}
 	assertBuildStatements(t, []*BuildStatement{
 		&BuildStatement{
@@ -1126,6 +1187,7 @@ func TestSourceSymlinkManifest(t *testing.T) {
 	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
 	if err != nil {
 		t.Errorf("Unexpected error %q", err)
+		return
 	}
 	assertBuildStatements(t, []*BuildStatement{
 		&BuildStatement{
@@ -1134,6 +1196,126 @@ func TestSourceSymlinkManifest(t *testing.T) {
 			SymlinkPaths: []string{},
 		},
 	}, actual)
+}
+
+func TestUnresolvedSymlink(t *testing.T) {
+	const inputString = `
+{
+ "artifacts": [
+   { "id": 1, "path_fragment_id": 1 }
+ ],
+ "actions": [{
+   "target_id": 1,
+   "action_key": "x",
+   "mnemonic": "UnresolvedSymlink",
+   "configuration_id": 1,
+   "output_ids": [1],
+   "primary_output_id": 1,
+   "execution_platform": "//build/bazel/platforms:linux_x86_64",
+   "unresolved_symlink_target": "symlink/target"
+ }],
+ "path_fragments": [
+   { "id": 1, "label": "path/to/symlink" }
+ ]
+}
+`
+	data, err := JsonToActionGraphContainer(inputString)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
+	if err != nil {
+		t.Errorf("Unexpected error %q", err)
+		return
+	}
+	assertBuildStatements(t, []*BuildStatement{{
+		Command:      "mkdir -p path/to && rm -f path/to/symlink && ln -sf symlink/target path/to/symlink",
+		OutputPaths:  []string{"path/to/symlink"},
+		Mnemonic:     "UnresolvedSymlink",
+		SymlinkPaths: []string{"path/to/symlink"},
+	}}, actual)
+}
+
+func TestUnresolvedSymlinkBazelSandwich(t *testing.T) {
+	const inputString = `
+{
+ "artifacts": [
+   { "id": 1, "path_fragment_id": 1 }
+ ],
+ "actions": [{
+   "target_id": 1,
+   "action_key": "x",
+   "mnemonic": "UnresolvedSymlink",
+   "configuration_id": 1,
+   "output_ids": [1],
+   "primary_output_id": 1,
+   "execution_platform": "//build/bazel/platforms:linux_x86_64",
+   "unresolved_symlink_target": "bazel_sandwich:{\"target\":\"target/product/emulator_x86_64/system\"}"
+ }],
+ "path_fragments": [
+   { "id": 1, "label": "path/to/symlink" }
+ ]
+}
+`
+	data, err := JsonToActionGraphContainer(inputString)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
+	if err != nil {
+		t.Errorf("Unexpected error %q", err)
+		return
+	}
+	assertBuildStatements(t, []*BuildStatement{{
+		Command:      "mkdir -p path/to && rm -f path/to/symlink && ln -sf {DOTDOTS_TO_OUTPUT_ROOT}../../target/product/emulator_x86_64/system path/to/symlink",
+		OutputPaths:  []string{"path/to/symlink"},
+		Mnemonic:     "UnresolvedSymlink",
+		SymlinkPaths: []string{"path/to/symlink"},
+		ImplicitDeps: []string{"target/product/emulator_x86_64/system"},
+	}}, actual)
+}
+
+func TestUnresolvedSymlinkBazelSandwichWithAlternativeDeps(t *testing.T) {
+	const inputString = `
+{
+ "artifacts": [
+   { "id": 1, "path_fragment_id": 1 }
+ ],
+ "actions": [{
+   "target_id": 1,
+   "action_key": "x",
+   "mnemonic": "UnresolvedSymlink",
+   "configuration_id": 1,
+   "output_ids": [1],
+   "primary_output_id": 1,
+   "execution_platform": "//build/bazel/platforms:linux_x86_64",
+   "unresolved_symlink_target": "bazel_sandwich:{\"depend_on_target\":false,\"implicit_deps\":[\"target/product/emulator_x86_64/obj/PACKAGING/systemimage_intermediates/staging_dir.stamp\"],\"target\":\"target/product/emulator_x86_64/system\"}"
+ }],
+ "path_fragments": [
+   { "id": 1, "label": "path/to/symlink" }
+ ]
+}
+`
+	data, err := JsonToActionGraphContainer(inputString)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	actual, _, err := AqueryBuildStatements(data, &metrics.EventHandler{})
+	if err != nil {
+		t.Errorf("Unexpected error %q", err)
+		return
+	}
+	assertBuildStatements(t, []*BuildStatement{{
+		Command:      "mkdir -p path/to && rm -f path/to/symlink && ln -sf {DOTDOTS_TO_OUTPUT_ROOT}../../target/product/emulator_x86_64/system path/to/symlink",
+		OutputPaths:  []string{"path/to/symlink"},
+		Mnemonic:     "UnresolvedSymlink",
+		SymlinkPaths: []string{"path/to/symlink"},
+		// Note that the target of the symlink, target/product/emulator_x86_64/system, is not listed here
+		ImplicitDeps: []string{"target/product/emulator_x86_64/obj/PACKAGING/systemimage_intermediates/staging_dir.stamp"},
+	}}, actual)
 }
 
 func assertError(t *testing.T, err error, expected string) {
@@ -1200,6 +1382,9 @@ func buildStatementEquals(first *BuildStatement, second *BuildStatement) string 
 	}
 	if !reflect.DeepEqual(sortedStrings(first.SymlinkPaths), sortedStrings(second.SymlinkPaths)) {
 		return "SymlinkPaths"
+	}
+	if !reflect.DeepEqual(sortedStrings(first.ImplicitDeps), sortedStrings(second.ImplicitDeps)) {
+		return "ImplicitDeps"
 	}
 	if first.Depfile != second.Depfile {
 		return "Depfile"

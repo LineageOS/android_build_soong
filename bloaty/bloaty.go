@@ -51,7 +51,7 @@ func init() {
 	pctx.VariableConfigMethod("hostPrebuiltTag", android.Config.PrebuiltOS)
 	pctx.SourcePathVariable("bloaty", "prebuilts/build-tools/${hostPrebuiltTag}/bin/bloaty")
 	pctx.HostBinToolVariable("bloatyMerger", "bloaty_merger")
-	android.RegisterSingletonType("file_metrics", fileSizesSingleton)
+	android.RegisterParallelSingletonType("file_metrics", fileSizesSingleton)
 	fileSizeMeasurerKey = blueprint.NewProvider(measuredFiles{})
 }
 

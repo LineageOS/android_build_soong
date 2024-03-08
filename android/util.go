@@ -25,12 +25,12 @@ import (
 )
 
 // CopyOf returns a new slice that has the same contents as s.
-func CopyOf(s []string) []string {
+func CopyOf[T any](s []T) []T {
 	// If the input is nil, return nil and not an empty list
 	if s == nil {
 		return s
 	}
-	return append([]string{}, s...)
+	return append([]T{}, s...)
 }
 
 // Concat returns a new slice concatenated from the two input slices. It does not change the input
@@ -42,6 +42,16 @@ func Concat[T any](s1, s2 []T) []T {
 	return res
 }
 
+// JoinPathsWithPrefix converts the paths to strings, prefixes them
+// with prefix and then joins them separated by " ".
+func JoinPathsWithPrefix(paths []Path, prefix string) string {
+	strs := make([]string, len(paths))
+	for i := range paths {
+		strs[i] = paths[i].String()
+	}
+	return JoinWithPrefixAndSeparator(strs, prefix, " ")
+}
+
 // JoinWithPrefix prepends the prefix to each string in the list and
 // returns them joined together with " " as separator.
 func JoinWithPrefix(strs []string, prefix string) string {
@@ -51,17 +61,39 @@ func JoinWithPrefix(strs []string, prefix string) string {
 // JoinWithPrefixAndSeparator prepends the prefix to each string in the list and
 // returns them joined together with the given separator.
 func JoinWithPrefixAndSeparator(strs []string, prefix string, sep string) string {
+	return JoinWithPrefixSuffixAndSeparator(strs, prefix, "", sep)
+}
+
+// JoinWithSuffixAndSeparator appends the suffix to each string in the list and
+// returns them joined together with the given separator.
+func JoinWithSuffixAndSeparator(strs []string, suffix string, sep string) string {
+	return JoinWithPrefixSuffixAndSeparator(strs, "", suffix, sep)
+}
+
+// JoinWithPrefixSuffixAndSeparator appends the prefix/suffix to each string in the list and
+// returns them joined together with the given separator.
+func JoinWithPrefixSuffixAndSeparator(strs []string, prefix, suffix, sep string) string {
 	if len(strs) == 0 {
 		return ""
 	}
 
+	// Pre-calculate the length of the result
+	length := 0
+	for _, s := range strs {
+		length += len(s)
+	}
+	length += (len(prefix)+len(suffix))*len(strs) + len(sep)*(len(strs)-1)
+
 	var buf strings.Builder
+	buf.Grow(length)
 	buf.WriteString(prefix)
 	buf.WriteString(strs[0])
+	buf.WriteString(suffix)
 	for i := 1; i < len(strs); i++ {
 		buf.WriteString(sep)
 		buf.WriteString(prefix)
 		buf.WriteString(strs[i])
+		buf.WriteString(suffix)
 	}
 	return buf.String()
 }
@@ -127,19 +159,17 @@ func SortedUniqueStringValues(m interface{}) []string {
 }
 
 // IndexList returns the index of the first occurrence of the given string in the list or -1
-func IndexList(s string, list []string) int {
+func IndexList[T comparable](t T, list []T) int {
 	for i, l := range list {
-		if l == s {
+		if l == t {
 			return i
 		}
 	}
-
 	return -1
 }
 
-// InList checks if the string belongs to the list
-func InList(s string, list []string) bool {
-	return IndexList(s, list) != -1
+func InList[T comparable](t T, list []T) bool {
+	return IndexList(t, list) != -1
 }
 
 func setFromList[T comparable](l []T) map[T]bool {
@@ -278,44 +308,87 @@ func RemoveFromList(s string, list []string) (bool, []string) {
 }
 
 // FirstUniqueStrings returns all unique elements of a slice of strings, keeping the first copy of
-// each.  It modifies the slice contents in place, and returns a subslice of the original slice.
+// each.  It does not modify the input slice.
 func FirstUniqueStrings(list []string) []string {
-	// Do not moodify the input in-place, operate on a copy instead.
-	list = CopyOf(list)
-	// 128 was chosen based on BenchmarkFirstUniqueStrings results.
-	if len(list) > 128 {
-		return firstUniqueStringsMap(list)
-	}
-	return firstUniqueStringsList(list)
+	return firstUnique(list)
 }
 
-func firstUniqueStringsList(list []string) []string {
-	k := 0
+// firstUnique returns all unique elements of a slice, keeping the first copy of each.  It
+// does not modify the input slice.
+func firstUnique[T comparable](slice []T) []T {
+	// Do not modify the input in-place, operate on a copy instead.
+	slice = CopyOf(slice)
+	return firstUniqueInPlace(slice)
+}
+
+// firstUniqueInPlace returns all unique elements of a slice, keeping the first copy of
+// each.  It modifies the slice contents in place, and returns a subslice of the original
+// slice.
+func firstUniqueInPlace[T comparable](slice []T) []T {
+	// 128 was chosen based on BenchmarkFirstUniqueStrings results.
+	if len(slice) > 128 {
+		return firstUniqueMap(slice)
+	}
+	return firstUniqueList(slice)
+}
+
+// firstUniqueList is an implementation of firstUnique using an O(N^2) list comparison to look for
+// duplicates.
+func firstUniqueList[T any](in []T) []T {
+	writeIndex := 0
 outer:
-	for i := 0; i < len(list); i++ {
-		for j := 0; j < k; j++ {
-			if list[i] == list[j] {
+	for readIndex := 0; readIndex < len(in); readIndex++ {
+		for compareIndex := 0; compareIndex < writeIndex; compareIndex++ {
+			if interface{}(in[readIndex]) == interface{}(in[compareIndex]) {
+				// The value at readIndex already exists somewhere in the output region
+				// of the slice before writeIndex, skip it.
 				continue outer
 			}
 		}
-		list[k] = list[i]
-		k++
+		if readIndex != writeIndex {
+			in[writeIndex] = in[readIndex]
+		}
+		writeIndex++
 	}
-	return list[:k]
+	return in[0:writeIndex]
 }
 
-func firstUniqueStringsMap(list []string) []string {
-	k := 0
-	seen := make(map[string]bool, len(list))
-	for i := 0; i < len(list); i++ {
-		if seen[list[i]] {
+// firstUniqueMap is an implementation of firstUnique using an O(N) hash set lookup to look for
+// duplicates.
+func firstUniqueMap[T comparable](in []T) []T {
+	writeIndex := 0
+	seen := make(map[T]bool, len(in))
+	for readIndex := 0; readIndex < len(in); readIndex++ {
+		if _, exists := seen[in[readIndex]]; exists {
 			continue
 		}
-		seen[list[i]] = true
-		list[k] = list[i]
-		k++
+		seen[in[readIndex]] = true
+		if readIndex != writeIndex {
+			in[writeIndex] = in[readIndex]
+		}
+		writeIndex++
 	}
-	return list[:k]
+	return in[0:writeIndex]
+}
+
+// ReverseSliceInPlace reverses the elements of a slice in place and returns it.
+func ReverseSliceInPlace[T any](in []T) []T {
+	for i, j := 0, len(in)-1; i < j; i, j = i+1, j-1 {
+		in[i], in[j] = in[j], in[i]
+	}
+	return in
+}
+
+// ReverseSlice returns a copy of a slice in reverse order.
+func ReverseSlice[T any](in []T) []T {
+	if in == nil {
+		return in
+	}
+	out := make([]T, len(in))
+	for i := 0; i < len(in); i++ {
+		out[i] = in[len(in)-1-i]
+	}
+	return out
 }
 
 // LastUniqueStrings returns all unique elements of a slice of strings, keeping the last copy of
@@ -517,4 +590,10 @@ func CheckDuplicate(values []string) (duplicate string, found bool) {
 		seen[v] = v
 	}
 	return "", false
+}
+
+func AddToStringSet(set map[string]bool, items []string) {
+	for _, item := range items {
+		set[item] = true
+	}
 }

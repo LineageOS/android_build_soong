@@ -73,8 +73,8 @@ function test_bazel_failure {
 
   USE_PERSISTENT_BAZEL=1 run_soong nothing 1>out/failurelog.txt 2>&1 && fail "Expected build failure" || true
 
-  if ! grep -sq "'build/bazel/rules' is not a package" out/failurelog.txt ; then
-    fail "Expected error to contain 'build/bazel/rules' is not a package, instead got:\n$(cat out/failurelog.txt)"
+  if ! grep -sq "cannot load //build/bazel/rules/common/api_constants.bzl" out/failurelog.txt ; then
+    fail "Expected error to contain 'cannot load //build/bazel/rules/common/api_constants.bzl', instead got:\n$(cat out/failurelog.txt)"
   fi
 
   kill $(cat out/bazel/output/server/server.pid.txt) 2>/dev/null || true

@@ -19,9 +19,11 @@ if [ -z "${OUT_DIR}" ]; then
     exit 1
 fi
 
+# Note: NDK doesn't support flagging APIs, so we hardcode it to trunk_staging.
 # TODO: remove ALLOW_MISSING_DEPENDENCIES=true when all the riscv64
 # dependencies exist (currently blocked by http://b/273792258).
 # TODO: remove BUILD_BROKEN_DISABLE_BAZEL=1 when bazel supports riscv64 (http://b/262192655).
+TARGET_RELEASE=trunk_staging \
 ALLOW_MISSING_DEPENDENCIES=true \
 BUILD_BROKEN_DISABLE_BAZEL=1 \
     TARGET_PRODUCT=ndk build/soong/soong_ui.bash --make-mode --soong-only ${OUT_DIR}/soong/ndk.timestamp

@@ -60,6 +60,9 @@ type prebuiltCommon struct {
 	installedFile   android.InstallPath
 	outputApex      android.WritablePath
 
+	// fragment for this apex for apexkeys.txt
+	apexKeysPath android.WritablePath
+
 	// A list of apexFile objects created in prebuiltCommon.initApexFilesForAndroidMk which are used
 	// to create make modules in prebuiltCommon.AndroidMkEntries.
 	apexFilesForAndroidMk []apexFile
@@ -133,9 +136,7 @@ func (p *prebuiltCommon) isForceDisabled() bool {
 }
 
 func (p *prebuiltCommon) checkForceDisable(ctx android.ModuleContext) bool {
-	// If the device is configured to use flattened APEX, force disable the prebuilt because
-	// the prebuilt is a non-flattened one.
-	forceDisable := ctx.Config().FlattenApex()
+	forceDisable := false
 
 	// Force disable the prebuilts when we are doing unbundled build. We do unbundled build
 	// to build the prebuilts themselves.
@@ -237,8 +238,10 @@ func (p *prebuiltCommon) AndroidMkEntries() []android.AndroidMkEntries {
 					entries.SetString("LOCAL_MODULE_STEM", p.installFilename)
 					entries.SetPath("LOCAL_SOONG_INSTALLED_MODULE", p.installedFile)
 					entries.SetString("LOCAL_SOONG_INSTALL_PAIRS", p.outputApex.String()+":"+p.installedFile.String())
+					entries.AddStrings("LOCAL_SOONG_INSTALL_SYMLINKS", p.compatSymlinks.Strings()...)
 					entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !p.installable())
 					entries.AddStrings("LOCAL_OVERRIDES_MODULES", p.prebuiltCommonProperties.Overrides...)
+					entries.SetString("LOCAL_APEX_KEY_PATH", p.apexKeysPath.String())
 					p.addRequiredModules(entries)
 				},
 			},
@@ -760,6 +763,7 @@ func (p *Prebuilt) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 }
 
 func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	p.apexKeysPath = writeApexKeys(ctx, p)
 	// TODO(jungjw): Check the key validity.
 	p.inputApex = android.OptionalPathForModuleSrc(ctx, p.prebuiltCommonProperties.Selected_apex).Path()
 	p.installDir = android.PathForModuleInstall(ctx, "apex")
@@ -783,14 +787,14 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	p.initApexFilesForAndroidMk(ctx)
 
 	// in case that prebuilt_apex replaces source apex (using prefer: prop)
-	p.compatSymlinks = makeCompatSymlinks(p.BaseModuleName(), ctx, true)
+	p.compatSymlinks = makeCompatSymlinks(p.BaseModuleName(), ctx)
 	// or that prebuilt_apex overrides other apexes (using overrides: prop)
 	for _, overridden := range p.prebuiltCommonProperties.Overrides {
-		p.compatSymlinks = append(p.compatSymlinks, makeCompatSymlinks(overridden, ctx, true)...)
+		p.compatSymlinks = append(p.compatSymlinks, makeCompatSymlinks(overridden, ctx)...)
 	}
 
 	if p.installable() {
-		p.installedFile = ctx.InstallFile(p.installDir, p.installFilename, p.inputApex, p.compatSymlinks.Paths()...)
+		p.installedFile = ctx.InstallFile(p.installDir, p.installFilename, p.inputApex, p.compatSymlinks...)
 		p.provenanceMetaDataFile = provenance.GenerateArtifactProvenanceMetaData(ctx, p.inputApex, p.installedFile)
 	}
 }
@@ -878,12 +882,7 @@ func (e *ApexExtractorProperties) prebuiltSrcs(ctx android.BaseModuleContext) []
 		srcs = append(srcs, *e.Set)
 	}
 
-	var sanitizers []string
-	if ctx.Host() {
-		sanitizers = ctx.Config().SanitizeHost()
-	} else {
-		sanitizers = ctx.Config().SanitizeDevice()
-	}
+	sanitizers := ctx.Config().SanitizeDevice()
 
 	if android.InList("address", sanitizers) && e.Sanitized.Address.Set != nil {
 		srcs = append(srcs, *e.Sanitized.Address.Set)
@@ -981,6 +980,7 @@ func (a *ApexSet) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 }
 
 func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	a.apexKeysPath = writeApexKeys(ctx, a)
 	a.installFilename = a.InstallFilename()
 	if !strings.HasSuffix(a.installFilename, imageApexSuffix) && !strings.HasSuffix(a.installFilename, imageCapexSuffix) {
 		ctx.ModuleErrorf("filename should end in %s or %s for apex_set", imageApexSuffix, imageCapexSuffix)
@@ -1008,10 +1008,10 @@ func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	// in case that apex_set replaces source apex (using prefer: prop)
-	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx, true)
+	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx)
 	// or that apex_set overrides other apexes (using overrides: prop)
 	for _, overridden := range a.prebuiltCommonProperties.Overrides {
-		a.compatSymlinks = append(a.compatSymlinks, makeCompatSymlinks(overridden, ctx, true)...)
+		a.compatSymlinks = append(a.compatSymlinks, makeCompatSymlinks(overridden, ctx)...)
 	}
 }
 

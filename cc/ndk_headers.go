@@ -18,11 +18,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/google/blueprint"
-	"github.com/google/blueprint/proptools"
-
 	"android/soong/android"
-	"android/soong/bazel"
+	"github.com/google/blueprint"
 )
 
 var (
@@ -81,10 +78,10 @@ type headerProperties struct {
 
 type headerModule struct {
 	android.ModuleBase
-	android.BazelModuleBase
 
 	properties headerProperties
 
+	srcPaths     android.Paths
 	installPaths android.Paths
 	licensePath  android.Path
 }
@@ -128,8 +125,8 @@ func (m *headerModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	m.licensePath = android.PathForModuleSrc(ctx, String(m.properties.License))
 
-	srcFiles := android.PathsForModuleSrcExcludes(ctx, m.properties.Srcs, m.properties.Exclude_srcs)
-	for _, header := range srcFiles {
+	m.srcPaths = android.PathsForModuleSrcExcludes(ctx, m.properties.Srcs, m.properties.Exclude_srcs)
+	for _, header := range m.srcPaths {
 		installDir := getHeaderInstallDir(ctx, header, String(m.properties.From),
 			String(m.properties.To))
 		installedPath := ctx.InstallFile(installDir, header.Base(), header)
@@ -147,39 +144,6 @@ func (m *headerModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 }
 
-// TODO(b/243196151): Populate `system` and `arch` metadata
-type bazelCcApiHeadersAttributes struct {
-	Hdrs        bazel.LabelListAttribute
-	Include_dir *string
-}
-
-func createCcApiHeadersTarget(ctx android.TopDownMutatorContext, includes []string, excludes []string, include_dir *string) {
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "cc_api_headers",
-		Bzl_load_location: "//build/bazel/rules/apis:cc_api_contribution.bzl",
-	}
-	attrs := &bazelCcApiHeadersAttributes{
-		Hdrs: bazel.MakeLabelListAttribute(
-			android.BazelLabelForModuleSrcExcludes(
-				ctx,
-				includes,
-				excludes,
-			),
-		),
-		Include_dir: include_dir,
-	}
-	ctx.CreateBazelTargetModule(props, android.CommonAttributes{
-		Name: android.ApiContributionTargetName(ctx.ModuleName()),
-	}, attrs)
-}
-
-var _ android.ApiProvider = (*headerModule)(nil)
-
-func (h *headerModule) ConvertWithApiBp2build(ctx android.TopDownMutatorContext) {
-	// Generate `cc_api_headers` target for Multi-tree API export
-	createCcApiHeadersTarget(ctx, h.properties.Srcs, h.properties.Exclude_srcs, h.properties.From)
-}
-
 // ndk_headers installs the sets of ndk headers defined in the srcs property
 // to the sysroot base + "usr/include" + to directory + directory component.
 // ndk_headers requires the license file to be specified. Example:
@@ -190,7 +154,7 @@ func (h *headerModule) ConvertWithApiBp2build(ctx android.TopDownMutatorContext)
 //	to = "bar"
 //	header = "include/foo/woodly/doodly.h"
 //	output path = "ndk/sysroot/usr/include/bar/woodly/doodly.h"
-func ndkHeadersFactory() android.Module {
+func NdkHeadersFactory() android.Module {
 	module := &headerModule{}
 	module.AddProperties(&module.properties)
 	android.InitAndroidModule(module)
@@ -226,10 +190,10 @@ type versionedHeaderProperties struct {
 // Note that this is really only built to handle bionic/libc/include.
 type versionedHeaderModule struct {
 	android.ModuleBase
-	android.BazelModuleBase
 
 	properties versionedHeaderProperties
 
+	srcPaths     android.Paths
 	installPaths android.Paths
 	licensePath  android.Path
 }
@@ -248,9 +212,9 @@ func (m *versionedHeaderModule) GenerateAndroidBuildActions(ctx android.ModuleCo
 
 	fromSrcPath := android.PathForModuleSrc(ctx, String(m.properties.From))
 	toOutputPath := getCurrentIncludePath(ctx).Join(ctx, String(m.properties.To))
-	srcFiles := ctx.GlobFiles(headerGlobPattern(fromSrcPath.String()), nil)
+	m.srcPaths = ctx.GlobFiles(headerGlobPattern(fromSrcPath.String()), nil)
 	var installPaths []android.WritablePath
-	for _, header := range srcFiles {
+	for _, header := range m.srcPaths {
 		installDir := getHeaderInstallDir(ctx, header, String(m.properties.From), String(m.properties.To))
 		installPath := installDir.Join(ctx, header.Base())
 		installPaths = append(installPaths, installPath)
@@ -261,20 +225,11 @@ func (m *versionedHeaderModule) GenerateAndroidBuildActions(ctx android.ModuleCo
 		ctx.ModuleErrorf("glob %q matched zero files", String(m.properties.From))
 	}
 
-	processHeadersWithVersioner(ctx, fromSrcPath, toOutputPath, srcFiles, installPaths)
-}
-
-var _ android.ApiProvider = (*versionedHeaderModule)(nil)
-
-func (h *versionedHeaderModule) ConvertWithApiBp2build(ctx android.TopDownMutatorContext) {
-	// Glob all .h files under `From`
-	includePattern := headerGlobPattern(proptools.String(h.properties.From))
-	// Generate `cc_api_headers` target for Multi-tree API export
-	createCcApiHeadersTarget(ctx, []string{includePattern}, []string{}, h.properties.From)
+	processHeadersWithVersioner(ctx, fromSrcPath, toOutputPath, m.srcPaths, installPaths)
 }
 
 func processHeadersWithVersioner(ctx android.ModuleContext, srcDir, outDir android.Path,
-	srcFiles android.Paths, installPaths []android.WritablePath) android.Path {
+	srcPaths android.Paths, installPaths []android.WritablePath) android.Path {
 	// The versioner depends on a dependencies directory to simplify determining include paths
 	// when parsing headers. This directory contains architecture specific directories as well
 	// as a common directory, each of which contains symlinks to the actually directories to
@@ -299,7 +254,7 @@ func processHeadersWithVersioner(ctx android.ModuleContext, srcDir, outDir andro
 		Rule:            versionBionicHeaders,
 		Description:     "versioner preprocess " + srcDir.Rel(),
 		Output:          timestampFile,
-		Implicits:       append(srcFiles, depsGlob...),
+		Implicits:       append(srcPaths, depsGlob...),
 		ImplicitOutputs: installPaths,
 		Args: map[string]string{
 			"depsPath": depsPath.String(),
@@ -316,7 +271,7 @@ func processHeadersWithVersioner(ctx android.ModuleContext, srcDir, outDir andro
 // Unlike the ndk_headers soong module, versioned_ndk_headers operates on a
 // directory level specified in `from` property. This is only used to process
 // the bionic/libc/include directory.
-func versionedNdkHeadersFactory() android.Module {
+func VersionedNdkHeadersFactory() android.Module {
 	module := &versionedHeaderModule{}
 
 	module.AddProperties(&module.properties)
@@ -363,6 +318,7 @@ type preprocessedHeadersModule struct {
 
 	properties preprocessedHeadersProperties
 
+	srcPaths     android.Paths
 	installPaths android.Paths
 	licensePath  android.Path
 }
@@ -375,9 +331,9 @@ func (m *preprocessedHeadersModule) GenerateAndroidBuildActions(ctx android.Modu
 	preprocessor := android.PathForModuleSrc(ctx, String(m.properties.Preprocessor))
 	m.licensePath = android.PathForModuleSrc(ctx, String(m.properties.License))
 
-	srcFiles := android.PathsForModuleSrcExcludes(ctx, m.properties.Srcs, m.properties.Exclude_srcs)
+	m.srcPaths = android.PathsForModuleSrcExcludes(ctx, m.properties.Srcs, m.properties.Exclude_srcs)
 	installDir := getCurrentIncludePath(ctx).Join(ctx, String(m.properties.To))
-	for _, src := range srcFiles {
+	for _, src := range m.srcPaths {
 		installPath := installDir.Join(ctx, src.Base())
 		m.installPaths = append(m.installPaths, installPath)
 

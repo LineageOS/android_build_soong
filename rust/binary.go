@@ -72,14 +72,11 @@ func NewRustBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator
 func (binary *binaryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = binary.baseCompiler.compilerFlags(ctx, flags)
 
-	if ctx.Os().Linux() {
-		flags.LinkFlags = append(flags.LinkFlags, "-Wl,--gc-sections")
-	}
-
 	if ctx.toolchain().Bionic() {
 		// no-undefined-version breaks dylib compilation since __rust_*alloc* functions aren't defined,
 		// but we can apply this to binaries.
 		flags.LinkFlags = append(flags.LinkFlags,
+			"-Wl,--gc-sections",
 			"-Wl,-z,nocopyreloc",
 			"-Wl,--no-undefined-version")
 
@@ -133,13 +130,13 @@ func (binary *binaryDecorator) preferRlib() bool {
 
 func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput {
 	fileName := binary.getStem(ctx) + ctx.toolchain().ExecutableSuffix()
-	srcPath, _ := srcPathFromModuleSrcs(ctx, binary.baseCompiler.Properties.Srcs)
 	outputFile := android.PathForModuleOut(ctx, fileName)
 	ret := buildOutput{outputFile: outputFile}
+	crateRootPath := crateRootPath(ctx, binary)
 
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.depLinkFlags...)
-	flags.LinkFlags = append(flags.LinkFlags, deps.linkObjects.Strings()...)
+	flags.LinkFlags = append(flags.LinkFlags, deps.linkObjects...)
 
 	if binary.stripper.NeedsStrip(ctx) {
 		strippedOutputFile := outputFile
@@ -150,16 +147,13 @@ func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps Path
 	}
 	binary.baseCompiler.unstrippedOutputFile = outputFile
 
-	ret.kytheFile = TransformSrcToBinary(ctx, srcPath, deps, flags, outputFile).kytheFile
+	ret.kytheFile = TransformSrcToBinary(ctx, crateRootPath, deps, flags, outputFile).kytheFile
 	return ret
 }
 
 func (binary *binaryDecorator) autoDep(ctx android.BottomUpMutatorContext) autoDep {
 	// Binaries default to dylib dependencies for device, rlib for host.
 	if binary.preferRlib() {
-		return rlibAutoDep
-	} else if mod, ok := ctx.Module().(*Module); ok && mod.InVendor() {
-		// Vendor Rust binaries should prefer rlibs.
 		return rlibAutoDep
 	} else if ctx.Device() {
 		return dylibAutoDep
@@ -170,8 +164,6 @@ func (binary *binaryDecorator) autoDep(ctx android.BottomUpMutatorContext) autoD
 
 func (binary *binaryDecorator) stdLinkage(ctx *depsContext) RustLinkage {
 	if binary.preferRlib() {
-		return RlibLinkage
-	} else if ctx.RustModule().InVendor() {
 		return RlibLinkage
 	}
 	return binary.baseCompiler.stdLinkage(ctx)

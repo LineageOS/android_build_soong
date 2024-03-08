@@ -15,7 +15,7 @@
 package android
 
 func init() {
-	RegisterSingletonType("testsuites", testSuiteFilesFactory)
+	RegisterParallelSingletonType("testsuites", testSuiteFilesFactory)
 }
 
 func testSuiteFilesFactory() Singleton {
@@ -24,6 +24,7 @@ func testSuiteFilesFactory() Singleton {
 
 type testSuiteFiles struct {
 	robolectric WritablePath
+	ravenwood   WritablePath
 }
 
 type TestSuiteModule interface {
@@ -47,12 +48,15 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 	})
 
 	t.robolectric = robolectricTestSuite(ctx, files["robolectric-tests"])
-
 	ctx.Phony("robolectric-tests", t.robolectric)
+
+	t.ravenwood = ravenwoodTestSuite(ctx, files["ravenwood-tests"])
+	ctx.Phony("ravenwood-tests", t.ravenwood)
 }
 
 func (t *testSuiteFiles) MakeVars(ctx MakeVarsContext) {
 	ctx.DistForGoal("robolectric-tests", t.robolectric)
+	ctx.DistForGoal("ravenwood-tests", t.ravenwood)
 }
 
 func robolectricTestSuite(ctx SingletonContext, files map[string]InstallPaths) WritablePath {
@@ -60,7 +64,7 @@ func robolectricTestSuite(ctx SingletonContext, files map[string]InstallPaths) W
 	for _, module := range SortedKeys(files) {
 		installedPaths = append(installedPaths, files[module]...)
 	}
-	testCasesDir := pathForInstall(ctx, ctx.Config().BuildOS, X86, "testcases", false)
+	testCasesDir := pathForInstall(ctx, ctx.Config().BuildOS, X86, "testcases")
 
 	outputFile := PathForOutput(ctx, "packaging", "robolectric-tests.zip")
 	rule := NewRuleBuilder(pctx, ctx)
@@ -68,8 +72,29 @@ func robolectricTestSuite(ctx SingletonContext, files map[string]InstallPaths) W
 		FlagWithOutput("-o ", outputFile).
 		FlagWithArg("-P ", "host/testcases").
 		FlagWithArg("-C ", testCasesDir.String()).
-		FlagWithRspFileInputList("-r ", outputFile.ReplaceExtension(ctx, "rsp"), installedPaths.Paths())
+		FlagWithRspFileInputList("-r ", outputFile.ReplaceExtension(ctx, "rsp"), installedPaths.Paths()).
+		Flag("-sha256")
 	rule.Build("robolectric_tests_zip", "robolectric-tests.zip")
+
+	return outputFile
+}
+
+func ravenwoodTestSuite(ctx SingletonContext, files map[string]InstallPaths) WritablePath {
+	var installedPaths InstallPaths
+	for _, module := range SortedKeys(files) {
+		installedPaths = append(installedPaths, files[module]...)
+	}
+	testCasesDir := pathForInstall(ctx, ctx.Config().BuildOS, X86, "testcases")
+
+	outputFile := PathForOutput(ctx, "packaging", "ravenwood-tests.zip")
+	rule := NewRuleBuilder(pctx, ctx)
+	rule.Command().BuiltTool("soong_zip").
+		FlagWithOutput("-o ", outputFile).
+		FlagWithArg("-P ", "host/testcases").
+		FlagWithArg("-C ", testCasesDir.String()).
+		FlagWithRspFileInputList("-r ", outputFile.ReplaceExtension(ctx, "rsp"), installedPaths.Paths()).
+		Flag("-sha256")
+	rule.Build("ravenwood_tests_zip", "ravenwood-tests.zip")
 
 	return outputFile
 }

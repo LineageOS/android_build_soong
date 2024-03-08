@@ -17,7 +17,9 @@ package java
 // This file contains the module implementations for android_app_import and android_test_import.
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/google/blueprint"
 
@@ -49,6 +51,12 @@ var (
 		CommandDeps: []string{"${config.Zip2ZipCmd}"},
 		Description: "Uncompress dex files",
 	})
+
+	checkPresignedApkRule = pctx.AndroidStaticRule("check-presigned-apk", blueprint.RuleParams{
+		Command:     "build/soong/scripts/check_prebuilt_presigned_apk.py --aapt2 ${config.Aapt2Cmd} --zipalign ${config.ZipAlign} $extraArgs $in $out",
+		CommandDeps: []string{"build/soong/scripts/check_prebuilt_presigned_apk.py", "${config.Aapt2Cmd}", "${config.ZipAlign}"},
+		Description: "Check presigned apk",
+	}, "extraArgs")
 )
 
 func RegisterAppImportBuildComponents(ctx android.RegistrationContext) {
@@ -72,8 +80,6 @@ type AndroidAppImport struct {
 	dexpreopter
 
 	usesLibrary usesLibrary
-
-	preprocessed bool
 
 	installPath android.InstallPath
 
@@ -128,6 +134,13 @@ type AndroidAppImportProperties struct {
 
 	// Optional. Install to a subdirectory of the default install path for the module
 	Relative_install_path *string
+
+	// Whether the prebuilt apk can be installed without additional processing. Default is false.
+	Preprocessed *bool
+
+	// Whether or not to skip checking the preprocessed apk for proper alignment and uncompressed
+	// JNI libs and dex files. Default is false
+	Skip_preprocessed_apk_checks *bool
 }
 
 func (a *AndroidAppImport) IsInstallable() bool {
@@ -201,7 +214,7 @@ func (a *AndroidAppImport) uncompressEmbeddedJniLibs(
 	ctx android.ModuleContext, inputPath android.Path, outputPath android.OutputPath) {
 	// Test apps don't need their JNI libraries stored uncompressed. As a matter of fact, messing
 	// with them may invalidate pre-existing signature data.
-	if ctx.InstallInTestcases() && (Bool(a.properties.Presigned) || a.preprocessed) {
+	if ctx.InstallInTestcases() && (Bool(a.properties.Presigned) || Bool(a.properties.Preprocessed)) {
 		ctx.Build(pctx, android.BuildParams{
 			Rule:   android.Cp,
 			Output: outputPath,
@@ -219,7 +232,7 @@ func (a *AndroidAppImport) uncompressEmbeddedJniLibs(
 
 // Returns whether this module should have the dex file stored uncompressed in the APK.
 func (a *AndroidAppImport) shouldUncompressDex(ctx android.ModuleContext) bool {
-	if ctx.Config().UnbundledBuild() || a.preprocessed {
+	if ctx.Config().UnbundledBuild() || proptools.Bool(a.properties.Preprocessed) {
 		return false
 	}
 
@@ -249,6 +262,14 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		a.hideApexVariantFromMake = true
 	}
 
+	if Bool(a.properties.Preprocessed) {
+		if a.properties.Presigned != nil && !*a.properties.Presigned {
+			ctx.ModuleErrorf("Setting preprocessed: true implies presigned: true, so you cannot set presigned to false")
+		}
+		t := true
+		a.properties.Presigned = &t
+	}
+
 	numCertPropsSet := 0
 	if String(a.properties.Certificate) != "" {
 		numCertPropsSet++
@@ -260,10 +281,8 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		numCertPropsSet++
 	}
 	if numCertPropsSet != 1 {
-		ctx.ModuleErrorf("One and only one of certficate, presigned, and default_dev_cert properties must be set")
+		ctx.ModuleErrorf("One and only one of certficate, presigned (implied by preprocessed), and default_dev_cert properties must be set")
 	}
-
-	_, _, certificates := collectAppDeps(ctx, a, false, false)
 
 	// TODO: LOCAL_EXTRACT_APK/LOCAL_EXTRACT_DPI_APK
 	// TODO: LOCAL_PACKAGE_SPLITS
@@ -297,7 +316,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	a.dexpreopter.classLoaderContexts = a.usesLibrary.classLoaderContextForUsesLibDeps(ctx)
 
 	if a.usesLibrary.enforceUsesLibraries() {
-		srcApk = a.usesLibrary.verifyUsesLibrariesAPK(ctx, srcApk)
+		a.usesLibrary.verifyUsesLibrariesAPK(ctx, srcApk)
 	}
 
 	a.dexpreopter.dexpreopt(ctx, jnisUncompressed)
@@ -317,12 +336,21 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 
 	// Sign or align the package if package has not been preprocessed
 
-	if a.preprocessed {
-		a.outputFile = srcApk
+	if proptools.Bool(a.properties.Preprocessed) {
+		validationStamp := a.validatePresignedApk(ctx, srcApk)
+		output := android.PathForModuleOut(ctx, apkFilename)
+		ctx.Build(pctx, android.BuildParams{
+			Rule:       android.Cp,
+			Input:      srcApk,
+			Output:     output,
+			Validation: validationStamp,
+		})
+		a.outputFile = output
 		a.certificate = PresignedCertificate
 	} else if !Bool(a.properties.Presigned) {
 		// If the certificate property is empty at this point, default_dev_cert must be set to true.
 		// Which makes processMainCert's behavior for the empty cert string WAI.
+		_, _, certificates := collectAppDeps(ctx, a, false, false)
 		a.certificate, certificates = processMainCert(a.ModuleBase, String(a.properties.Certificate), certificates, ctx)
 		signed := android.PathForModuleOut(ctx, "signed", apkFilename)
 		var lineageFile android.Path
@@ -335,8 +363,9 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		SignAppPackage(ctx, signed, jnisUncompressed, certificates, nil, lineageFile, rotationMinSdkVersion)
 		a.outputFile = signed
 	} else {
+		validationStamp := a.validatePresignedApk(ctx, srcApk)
 		alignedApk := android.PathForModuleOut(ctx, "zip-aligned", apkFilename)
-		TransformZipAlign(ctx, alignedApk, jnisUncompressed)
+		TransformZipAlign(ctx, alignedApk, jnisUncompressed, []android.Path{validationStamp})
 		a.outputFile = alignedApk
 		a.certificate = PresignedCertificate
 	}
@@ -352,6 +381,30 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	// TODO: androidmk converter jni libs
 }
 
+func (a *AndroidAppImport) validatePresignedApk(ctx android.ModuleContext, srcApk android.Path) android.Path {
+	stamp := android.PathForModuleOut(ctx, "validated-prebuilt", "check.stamp")
+	var extraArgs []string
+	if a.Privileged() {
+		extraArgs = append(extraArgs, "--privileged")
+	}
+	if proptools.Bool(a.properties.Skip_preprocessed_apk_checks) {
+		extraArgs = append(extraArgs, "--skip-preprocessed-apk-checks")
+	}
+	if proptools.Bool(a.properties.Preprocessed) {
+		extraArgs = append(extraArgs, "--preprocessed")
+	}
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   checkPresignedApkRule,
+		Input:  srcApk,
+		Output: stamp,
+		Args: map[string]string{
+			"extraArgs": strings.Join(extraArgs, " "),
+		},
+	})
+	return stamp
+}
+
 func (a *AndroidAppImport) Prebuilt() *android.Prebuilt {
 	return &a.prebuilt
 }
@@ -364,6 +417,15 @@ func (a *AndroidAppImport) OutputFile() android.Path {
 	return a.outputFile
 }
 
+func (a *AndroidAppImport) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "":
+		return []android.Path{a.outputFile}, nil
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+	}
+}
+
 func (a *AndroidAppImport) JacocoReportClassesFile() android.Path {
 	return nil
 }
@@ -374,6 +436,10 @@ func (a *AndroidAppImport) Certificate() Certificate {
 
 func (a *AndroidAppImport) ProvenanceMetaDataFile() android.OutputPath {
 	return a.provenanceMetaDataFile
+}
+
+func (a *AndroidAppImport) PrivAppAllowlist() android.OptionalPath {
+	return android.OptionalPath{}
 }
 
 var dpiVariantGroupType reflect.Type
@@ -487,11 +553,6 @@ func AndroidAppImportFactory() android.Module {
 	return module
 }
 
-type androidTestImportProperties struct {
-	// Whether the prebuilt apk can be installed without additional processing. Default is false.
-	Preprocessed *bool
-}
-
 type AndroidTestImport struct {
 	AndroidAppImport
 
@@ -508,14 +569,10 @@ type AndroidTestImport struct {
 		Per_testcase_directory *bool
 	}
 
-	testImportProperties androidTestImportProperties
-
 	data android.Paths
 }
 
 func (a *AndroidTestImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	a.preprocessed = Bool(a.testImportProperties.Preprocessed)
-
 	a.generateAndroidBuildActions(ctx)
 
 	a.data = android.PathsForModuleSrc(ctx, a.testProperties.Data)
@@ -532,7 +589,6 @@ func AndroidTestImportFactory() android.Module {
 	module.AddProperties(&module.properties)
 	module.AddProperties(&module.dexpreoptProperties)
 	module.AddProperties(&module.testProperties)
-	module.AddProperties(&module.testImportProperties)
 	module.populateAllVariantStructs()
 	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
 		module.processVariants(ctx)

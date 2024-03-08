@@ -33,11 +33,7 @@ if fileName.endswith('.pyc'):
     fileName = fileName[:-1]
 assert_equal("__file__", fileName, os.path.join(archive, "testpkg/par_test.py"))
 
-# Python3 is returning None here for me, and I haven't found any problems caused by this.
-if sys.version_info[0] == 2:
-  assert_equal("__package__", __package__, "testpkg")
-else:
-  assert_equal("__package__", __package__, None)
+assert_equal("__package__", __package__, "testpkg")
 
 assert_equal("__loader__.archive", __loader__.archive, archive)
 assert_equal("__loader__.prefix", __loader__.prefix, "testpkg/")

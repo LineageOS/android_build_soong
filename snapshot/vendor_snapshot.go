@@ -78,8 +78,8 @@ var VendorSnapshotImageName = "vendor"
 type VendorSnapshotImage struct{}
 
 func (VendorSnapshotImage) Init(ctx android.RegistrationContext) {
-	ctx.RegisterSingletonType("vendor-snapshot", VendorSnapshotSingleton)
-	ctx.RegisterSingletonType("vendor-fake-snapshot", VendorFakeSnapshotSingleton)
+	ctx.RegisterParallelSingletonType("vendor-snapshot", VendorSnapshotSingleton)
+	ctx.RegisterParallelSingletonType("vendor-fake-snapshot", VendorFakeSnapshotSingleton)
 }
 
 func (VendorSnapshotImage) RegisterAdditionalModule(ctx android.RegistrationContext, name string, factory android.ModuleFactory) {

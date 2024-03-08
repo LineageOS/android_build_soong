@@ -38,7 +38,7 @@ func TestRustTest(t *testing.T) {
 
 	dataPaths := testingModule.Module().(*Module).compiler.(*testDecorator).dataPaths()
 	if len(dataPaths) != 1 {
-		t.Errorf("expected exactly one test data file. test data files: [%s]", dataPaths)
+		t.Errorf("expected exactly one test data file. test data files: [%v]", dataPaths)
 		return
 	}
 }
@@ -116,7 +116,7 @@ func TestDataLibs(t *testing.T) {
 		t.Fatalf("expected exactly one output file. output files: [%s]", outputFiles)
 	}
 	if len(testBinary.dataPaths()) != 2 {
-		t.Fatalf("expected exactly two test data files. test data files: [%s]", testBinary.dataPaths())
+		t.Fatalf("expected exactly two test data files. test data files: [%v]", testBinary.dataPaths())
 	}
 
 	outputPath := outputFiles[0].String()
@@ -178,7 +178,7 @@ func TestDataLibsRelativeInstallPath(t *testing.T) {
 		t.Fatalf("expected exactly one output file. output files: [%s]", outputFiles)
 	}
 	if len(testBinary.dataPaths()) != 3 {
-		t.Fatalf("expected exactly two test data files. test data files: [%s]", testBinary.dataPaths())
+		t.Fatalf("expected exactly two test data files. test data files: [%v]", testBinary.dataPaths())
 	}
 
 	outputPath := outputFiles[0].String()

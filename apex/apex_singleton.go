@@ -23,7 +23,11 @@ import (
 )
 
 func init() {
-	android.RegisterSingletonType("apex_depsinfo_singleton", apexDepsInfoSingletonFactory)
+	registerApexDepsInfoComponents(android.InitRegistrationContext)
+}
+
+func registerApexDepsInfoComponents(ctx android.RegistrationContext) {
+	ctx.RegisterParallelSingletonType("apex_depsinfo_singleton", apexDepsInfoSingletonFactory)
 }
 
 type apexDepsInfoSingleton struct {

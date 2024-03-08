@@ -24,7 +24,7 @@ import (
 )
 
 var katiError = regexp.MustCompile(`^(\033\[1m)?[^ ]+:[0-9]+: (\033\[31m)?error:`)
-var katiIncludeRe = regexp.MustCompile(`^(\[(\d+)/(\d+)] )?((including [^ ]+|initializing (build|packaging) system|finishing (build|packaging) rules|writing (build|packaging) rules) ...)$`)
+var katiIncludeRe = regexp.MustCompile(`^(\[(\d+)/(\d+)] )?((including [^ ]+|initializing (legacy Make module parser|packaging system)|finishing (legacy Make module parsing|packaging rules)|writing (legacy Make module|packaging) rules) ...)$`)
 var katiLogRe = regexp.MustCompile(`^\*kati\*: `)
 var katiNinjaMissing = regexp.MustCompile("^[^ ]+ is missing, regenerating...$")
 

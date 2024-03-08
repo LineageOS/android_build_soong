@@ -87,7 +87,6 @@ func createTestModuleConfig(name, dexLocation string, buildPath, dexPath, enforc
 		DexPreoptImageLocationsOnHost:   []string{},
 		PreoptBootClassPathDexFiles:     nil,
 		PreoptBootClassPathDexLocations: nil,
-		PreoptExtractedApk:              false,
 		NoCreateAppImage:                false,
 		ForceCreateAppImage:             false,
 		PresignedPrebuilt:               false,
@@ -100,8 +99,9 @@ func TestDexPreopt(t *testing.T) {
 	globalSoong := globalSoongConfigForTests()
 	global := GlobalConfigForTests(ctx)
 	module := testSystemModuleConfig(ctx, "test")
+	productPackages := android.PathForTesting("product_packages.txt")
 
-	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module)
+	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module, productPackages)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,6 +124,7 @@ func TestDexPreoptSystemOther(t *testing.T) {
 	systemModule := testSystemModuleConfig(ctx, "Stest")
 	systemProductModule := testSystemProductModuleConfig(ctx, "SPtest")
 	productModule := testProductModuleConfig(ctx, "Ptest")
+	productPackages := android.PathForTesting("product_packages.txt")
 
 	global.HasSystemOther = true
 
@@ -157,7 +158,7 @@ func TestDexPreoptSystemOther(t *testing.T) {
 	for _, test := range tests {
 		global.PatternsOnSystemOther = test.patterns
 		for _, mt := range test.moduleTests {
-			rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, mt.module)
+			rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, mt.module, productPackages)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -182,11 +183,12 @@ func TestDexPreoptApexSystemServerJars(t *testing.T) {
 	globalSoong := globalSoongConfigForTests()
 	global := GlobalConfigForTests(ctx)
 	module := testApexModuleConfig(ctx, "service-A", "com.android.apex1")
+	productPackages := android.PathForTesting("product_packages.txt")
 
 	global.ApexSystemServerJars = android.CreateTestConfiguredJarList(
 		[]string{"com.android.apex1:service-A"})
 
-	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module)
+	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module, productPackages)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -205,11 +207,12 @@ func TestDexPreoptStandaloneSystemServerJars(t *testing.T) {
 	globalSoong := globalSoongConfigForTests()
 	global := GlobalConfigForTests(ctx)
 	module := testPlatformSystemServerModuleConfig(ctx, "service-A")
+	productPackages := android.PathForTesting("product_packages.txt")
 
 	global.StandaloneSystemServerJars = android.CreateTestConfiguredJarList(
 		[]string{"platform:service-A"})
 
-	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module)
+	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module, productPackages)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,11 +231,12 @@ func TestDexPreoptSystemExtSystemServerJars(t *testing.T) {
 	globalSoong := globalSoongConfigForTests()
 	global := GlobalConfigForTests(ctx)
 	module := testSystemExtSystemServerModuleConfig(ctx, "service-A")
+	productPackages := android.PathForTesting("product_packages.txt")
 
 	global.StandaloneSystemServerJars = android.CreateTestConfiguredJarList(
 		[]string{"system_ext:service-A"})
 
-	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module)
+	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module, productPackages)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,11 +255,12 @@ func TestDexPreoptApexStandaloneSystemServerJars(t *testing.T) {
 	globalSoong := globalSoongConfigForTests()
 	global := GlobalConfigForTests(ctx)
 	module := testApexModuleConfig(ctx, "service-A", "com.android.apex1")
+	productPackages := android.PathForTesting("product_packages.txt")
 
 	global.ApexStandaloneSystemServerJars = android.CreateTestConfiguredJarList(
 		[]string{"com.android.apex1:service-A"})
 
-	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module)
+	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module, productPackages)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -274,10 +279,11 @@ func TestDexPreoptProfile(t *testing.T) {
 	globalSoong := globalSoongConfigForTests()
 	global := GlobalConfigForTests(ctx)
 	module := testSystemModuleConfig(ctx, "test")
+	productPackages := android.PathForTesting("product_packages.txt")
 
 	module.ProfileClassListing = android.OptionalPathForPath(android.PathForTesting("profile"))
 
-	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module)
+	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module, productPackages)
 	if err != nil {
 		t.Fatal(err)
 	}

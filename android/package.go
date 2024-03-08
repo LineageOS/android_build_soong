@@ -15,9 +15,6 @@
 package android
 
 import (
-	"path/filepath"
-
-	"android/soong/bazel"
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
@@ -40,50 +37,10 @@ type packageProperties struct {
 	Default_applicable_licenses []string
 }
 
-type bazelPackageAttributes struct {
-	Default_visibility       []string
-	Default_package_metadata bazel.LabelListAttribute
-}
-
 type packageModule struct {
 	ModuleBase
-	BazelModuleBase
 
 	properties packageProperties
-}
-
-var _ Bazelable = &packageModule{}
-
-func (p *packageModule) ConvertWithBp2build(ctx TopDownMutatorContext) {
-	defaultPackageMetadata := bazel.MakeLabelListAttribute(BazelLabelForModuleDeps(ctx, p.properties.Default_applicable_licenses))
-	// If METADATA file exists in the package, add it to package(default_package_metadata=) using a
-	// filegroup(name="default_metadata_file") which can be accessed later on each module in Bazel
-	// using attribute "applicable_licenses".
-	// Attribute applicable_licenses of filegroup "default_metadata_file" has to be set to [],
-	// otherwise Bazel reports cyclic reference error.
-	if existed, _, _ := ctx.Config().fs.Exists(filepath.Join(ctx.ModuleDir(), "METADATA")); existed {
-		ctx.CreateBazelTargetModule(
-			bazel.BazelTargetModuleProperties{
-				Rule_class: "filegroup",
-			},
-			CommonAttributes{Name: "default_metadata_file"},
-			&bazelFilegroupAttributes{
-				Srcs:                bazel.MakeLabelListAttribute(BazelLabelForModuleSrc(ctx, []string{"METADATA"})),
-				Applicable_licenses: bazel.LabelListAttribute{Value: bazel.LabelList{Includes: []bazel.Label{}}, EmitEmptyList: true},
-			})
-		defaultPackageMetadata.Value.Add(&bazel.Label{Label: ":default_metadata_file"})
-	}
-
-	ctx.CreateBazelTargetModule(
-		bazel.BazelTargetModuleProperties{
-			Rule_class: "package",
-		},
-		CommonAttributes{},
-		&bazelPackageAttributes{
-			Default_package_metadata: defaultPackageMetadata,
-			// FIXME(asmundak): once b/221436821 is resolved
-			Default_visibility: []string{"//visibility:public"},
-		})
 }
 
 func (p *packageModule) GenerateAndroidBuildActions(ModuleContext) {
@@ -102,7 +59,7 @@ func (p *packageModule) qualifiedModuleId(ctx BaseModuleContext) qualifiedModule
 func PackageFactory() Module {
 	module := &packageModule{}
 
-	module.AddProperties(&module.properties, &module.commonProperties.BazelConversionStatus)
+	module.AddProperties(&module.properties)
 
 	// The name is the relative path from build root to the directory containing this
 	// module. Set that name at the earliest possible moment that information is available
@@ -118,8 +75,6 @@ func PackageFactory() Module {
 	// The default_applicable_licenses property needs to be checked and parsed by the licenses module during
 	// its checking and parsing phases so make it the primary licenses property.
 	setPrimaryLicensesProperty(module, "default_applicable_licenses", &module.properties.Default_applicable_licenses)
-
-	InitBazelModule(module)
 
 	return module
 }

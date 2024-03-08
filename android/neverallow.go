@@ -55,11 +55,12 @@ func init() {
 	AddNeverAllowRules(createJavaDeviceForHostRules()...)
 	AddNeverAllowRules(createCcSdkVariantRules()...)
 	AddNeverAllowRules(createUncompressDexRules()...)
-	AddNeverAllowRules(createMakefileGoalRules()...)
 	AddNeverAllowRules(createInitFirstStageRules()...)
 	AddNeverAllowRules(createProhibitFrameworkAccessRules()...)
 	AddNeverAllowRules(createBp2BuildRule())
 	AddNeverAllowRules(createCcStubsRule())
+	AddNeverAllowRules(createJavaExcludeStaticLibsRule())
+	AddNeverAllowRules(createProhibitHeaderOnlyRule())
 }
 
 // Add a NeverAllow rule to the set of rules to apply.
@@ -168,6 +169,8 @@ func createJavaDeviceForHostRules() []Rule {
 		"external/kotlinx.coroutines",
 		"external/robolectric-shadows",
 		"external/robolectric",
+		"frameworks/base/ravenwood",
+		"frameworks/base/tools/hoststubgen",
 		"frameworks/layoutlib",
 	}
 
@@ -236,24 +239,12 @@ func createUncompressDexRules() []Rule {
 	}
 }
 
-func createMakefileGoalRules() []Rule {
-	allowlist := []string{
-		// libwifi_hal uses makefile_goal for its dependencies
-		"frameworks/opt/net/wifi/libwifi_hal",
-	}
-	return []Rule{
-		NeverAllow().
-			ModuleType("makefile_goal").
-			WithoutMatcher("product_out_path", Regexp("^boot[0-9a-zA-Z.-]*[.]img$")).
-			NotIn(allowlist...).
-			Because("Only boot images may be imported as a makefile goal if not in allowed projects"),
-	}
-}
-
 func createInitFirstStageRules() []Rule {
 	return []Rule{
 		NeverAllow().
+			Without("name", "init_first_stage_defaults").
 			Without("name", "init_first_stage").
+			Without("name", "init_first_stage.microdroid").
 			With("install_in_root", "true").
 			Because("install_in_root is only for init_first_stage."),
 	}
@@ -266,6 +257,21 @@ func createProhibitFrameworkAccessRules() []Rule {
 			WithoutMatcher("sdk_version", Regexp("(core_.*|^$)")).
 			Because("framework can't be used when building against SDK"),
 	}
+}
+
+func createJavaExcludeStaticLibsRule() Rule {
+	return NeverAllow().
+		NotIn("build/soong", "libcore", "frameworks/base/api").
+		ModuleType("java_library").
+		WithMatcher("exclude_static_libs", isSetMatcherInstance).
+		Because("exclude_static_libs property is only allowed for java modules defined in build/soong, libcore, and frameworks/base/api")
+}
+
+func createProhibitHeaderOnlyRule() Rule {
+	return NeverAllow().
+		Without("name", "framework-minus-apex-headers").
+		With("headers_only", "true").
+		Because("headers_only can only be used for generating framework-minus-apex headers for non-updatable modules")
 }
 
 func neverallowMutator(ctx BottomUpMutatorContext) {

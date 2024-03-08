@@ -165,10 +165,11 @@ func (s *sdkRepoHost) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				Flag(dir.Join(ctx, strip).String())
 		}
 	} else {
+		llvmObjCopy := config.ClangPath(ctx, "bin/llvm-objcopy")
 		llvmStrip := config.ClangPath(ctx, "bin/llvm-strip")
-		llvmLib := config.ClangPath(ctx, "lib/x86_64-unknown-linux-gnu/libc++.so.1")
+		llvmLib := config.ClangPath(ctx, "lib/x86_64-unknown-linux-gnu/libc++.so")
 		for _, strip := range s.properties.Strip_files {
-			cmd := builder.Command().Tool(llvmStrip).ImplicitTool(llvmLib)
+			cmd := builder.Command().Tool(llvmStrip).ImplicitTool(llvmLib).ImplicitTool(llvmObjCopy)
 			if !ctx.Windows() {
 				cmd.Flag("-x")
 			}
@@ -242,7 +243,7 @@ func (s *sdkRepoHost) AndroidMk() android.AndroidMkData {
 			fmt.Fprintln(w, ".PHONY:", name, "sdk_repo", "sdk-repo-"+name)
 			fmt.Fprintln(w, "sdk_repo", "sdk-repo-"+name+":", strings.Join(s.FilesToInstall().Strings(), " "))
 
-			fmt.Fprintf(w, "$(call dist-for-goals,sdk_repo sdk-repo-%s,%s:%s-$(FILE_NAME_TAG).zip)\n\n", s.BaseModuleName(), s.outputFile.String(), s.outputBaseName)
+			fmt.Fprintf(w, "$(call dist-for-goals,sdk_repo sdk-repo-%s,%s:%s-FILE_NAME_TAG_PLACEHOLDER.zip)\n\n", s.BaseModuleName(), s.outputFile.String(), s.outputBaseName)
 		},
 	}
 }

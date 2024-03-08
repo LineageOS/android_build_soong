@@ -45,11 +45,18 @@ MODULES=(
   com.android.tethering
 )
 
+BAZEL_TARGETS=(
+  //packages/modules/adb/apex:com.android.adbd
+  //frameworks/av/apex:com.android.media.swcodec
+)
+
 DCLA_LIBS=(
   libbase.so
   libc++.so
   libcrypto.so
   libcutils.so
+  libstagefright_flacdec.so
+  libutils.so
 )
 
 if [[ -z ${OUT_DIR+x} ]]; then
@@ -76,6 +83,10 @@ DEAPEXER="${DEAPEXER} --debugfs_path=${DEBUGFS}"
 ############
 OUTPUT_DIR="$(mktemp -d tmp.XXXXXX)"
 
+function call_bazel() {
+  build/bazel/bin/bazel $@
+}
+
 function cleanup {
   rm -rf "${OUTPUT_DIR}"
 }
@@ -87,7 +98,9 @@ trap cleanup EXIT
 
 function extract_dcla_libs() {
   local product=$1; shift
-  for module in "${MODULES[@]}"; do
+  local modules=("$@"); shift
+
+  for module in "${modules[@]}"; do
     local apex="${OUTPUT_DIR}/${product}/${module}.apex"
     local extract_dir="${OUTPUT_DIR}/${product}/${module}/extract"
 
@@ -97,11 +110,12 @@ function extract_dcla_libs() {
 
 function compare_dcla_libs() {
   local product=$1; shift
+  local modules=("$@"); shift
 
   for lib in "${DCLA_LIBS[@]}"; do
     for arch in lib lib64; do
       local prev_sha=""
-      for module in "${MODULES[@]}"; do
+      for module in "${modules[@]}"; do
         local file="${OUTPUT_DIR}/${product}/${module}/extract/${arch}/${lib}"
         if [[ ! -f "${file}" ]]; then
           # not all libs are present in a module
@@ -112,7 +126,7 @@ function compare_dcla_libs() {
         sha="${sha% *}"
         if [ "${prev_sha}" == "" ]; then
           prev_sha="${sha}"
-        elif [ "${sha}" != "${prev_sha}" ] && { [ "${lib}" != "libcrypto.so" ] || [ "${module}" != "com.android.tethering" ]; }; then
+        elif [ "${sha}" != "${prev_sha}" ] && { [ "${lib}" != "libcrypto.so" ] || [[ "${module}" != *"com.android.tethering" ]]; }; then
           echo "Test failed, ${lib} has different hash value"
           exit 1
         fi
@@ -131,8 +145,22 @@ for product in "${TARGET_PRODUCTS[@]}"; do
     --product "${product}" \
     --dist_dir "${OUTPUT_DIR}/${product}"
 
-  extract_dcla_libs "${product}"
-  compare_dcla_libs "${product}"
+  bazel_apexes=()
+  if [[ -n ${TEST_BAZEL+x} ]] && [ "${TEST_BAZEL}" = true ]; then
+    export TARGET_PRODUCT="${product/module/aosp}"
+    call_bazel build --config=bp2build --config=ci --config=android "${BAZEL_TARGETS[@]}"
+    for target in "${BAZEL_TARGETS[@]}"; do
+      apex_path="$(realpath $(call_bazel cquery --config=bp2build --config=android --config=ci --output=files $target))"
+      mkdir -p ${OUTPUT_DIR}/${product}
+      bazel_apex="bazel_$(basename $apex_path)"
+      mv $apex_path ${OUTPUT_DIR}/${product}/${bazel_apex}
+      bazel_apexes+=(${bazel_apex%".apex"})
+    done
+  fi
+
+  all_modeuls=(${MODULES[@]} ${bazel_apexes[@]})
+  extract_dcla_libs "${product}" "${all_modeuls[@]}"
+  compare_dcla_libs "${product}" "${all_modeuls[@]}"
 done
 
 echo "Test passed"

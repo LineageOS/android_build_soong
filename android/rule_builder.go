@@ -53,6 +53,7 @@ type RuleBuilder struct {
 	remoteable       RemoteRuleSupports
 	rbeParams        *remoteexec.REParams
 	outDir           WritablePath
+	sboxOutSubDir    string
 	sboxTools        bool
 	sboxInputs       bool
 	sboxManifestPath WritablePath
@@ -65,7 +66,16 @@ func NewRuleBuilder(pctx PackageContext, ctx BuilderContext) *RuleBuilder {
 		pctx:           pctx,
 		ctx:            ctx,
 		temporariesSet: make(map[WritablePath]bool),
+		sboxOutSubDir:  sboxOutSubDir,
 	}
+}
+
+// SetSboxOutDirDirAsEmpty sets the out subdirectory to an empty string
+// This is useful for sandboxing actions that change the execution root to a path in out/ (e.g mixed builds)
+// For such actions, SetSboxOutDirDirAsEmpty ensures that the path does not become $SBOX_SANDBOX_DIR/out/out/bazel/output/execroot/__main__/...
+func (rb *RuleBuilder) SetSboxOutDirDirAsEmpty() *RuleBuilder {
+	rb.sboxOutSubDir = ""
+	return rb
 }
 
 // RuleBuilderInstall is a tuple of install from and to locations.
@@ -464,13 +474,23 @@ func (r *RuleBuilder) depFileMergerCmd(depFiles WritablePaths) *RuleBuilderComma
 		Inputs(depFiles.Paths())
 }
 
+// BuildWithNinjaVars adds the built command line to the build graph, with dependencies on Inputs and Tools, and output files for
+// Outputs. This function will not escape Ninja variables, so it may be used to write sandbox manifests using Ninja variables.
+func (r *RuleBuilder) BuildWithUnescapedNinjaVars(name string, desc string) {
+	r.build(name, desc, false)
+}
+
 // Build adds the built command line to the build graph, with dependencies on Inputs and Tools, and output files for
 // Outputs.
 func (r *RuleBuilder) Build(name string, desc string) {
+	r.build(name, desc, true)
+}
+
+func (r *RuleBuilder) build(name string, desc string, ninjaEscapeCommandString bool) {
 	name = ninjaNameEscape(name)
 
 	if len(r.missingDeps) > 0 {
-		r.ctx.Build(pctx, BuildParams{
+		r.ctx.Build(r.pctx, BuildParams{
 			Rule:        ErrorRule,
 			Outputs:     r.Outputs(),
 			Description: desc,
@@ -582,12 +602,10 @@ func (r *RuleBuilder) Build(name string, desc string) {
 
 		// Add copy rules to the manifest to copy each output file from the sbox directory.
 		// to the output directory after running the commands.
-		sboxOutputs := make([]string, len(outputs))
-		for i, output := range outputs {
+		for _, output := range outputs {
 			rel := Rel(r.ctx, r.outDir.String(), output.String())
-			sboxOutputs[i] = filepath.Join(sboxOutDir, rel)
 			command.CopyAfter = append(command.CopyAfter, &sbox_proto.Copy{
-				From: proto.String(filepath.Join(sboxOutSubDir, rel)),
+				From: proto.String(filepath.Join(r.sboxOutSubDir, rel)),
 				To:   proto.String(output.String()),
 			})
 		}
@@ -611,12 +629,35 @@ func (r *RuleBuilder) Build(name string, desc string) {
 				name, r.sboxManifestPath.String(), r.outDir.String())
 		}
 
-		// Create a rule to write the manifest as a the textproto.
+		// Create a rule to write the manifest as textproto.
 		pbText, err := prototext.Marshal(&manifest)
 		if err != nil {
 			ReportPathErrorf(r.ctx, "sbox manifest failed to marshal: %q", err)
 		}
-		WriteFileRule(r.ctx, r.sboxManifestPath, string(pbText))
+		if ninjaEscapeCommandString {
+			WriteFileRule(r.ctx, r.sboxManifestPath, string(pbText))
+		} else {
+			// We need  to have a rule to write files that is
+			// defined on the RuleBuilder's pctx in order to
+			// write Ninja variables in the string.
+			// The WriteFileRule function above rule can only write
+			// raw strings because it is defined on the android
+			// package's pctx, and it can't access variables defined
+			// in another context.
+			r.ctx.Build(r.pctx, BuildParams{
+				Rule: r.ctx.Rule(r.pctx, "unescapedWriteFile", blueprint.RuleParams{
+					Command:        `rm -rf ${out} && cat ${out}.rsp > ${out}`,
+					Rspfile:        "${out}.rsp",
+					RspfileContent: "${content}",
+					Description:    "write file",
+				}, "content"),
+				Output:      r.sboxManifestPath,
+				Description: "write sbox manifest " + r.sboxManifestPath.Base(),
+				Args: map[string]string{
+					"content": string(pbText),
+				},
+			})
+		}
 
 		// Generate a new string to use as the command line of the sbox rule.  This uses
 		// a RuleBuilderCommand as a convenience method of building the command line, then
@@ -715,9 +756,13 @@ func (r *RuleBuilder) Build(name string, desc string) {
 		pool = localPool
 	}
 
+	if ninjaEscapeCommandString {
+		commandString = proptools.NinjaEscape(commandString)
+	}
+
 	r.ctx.Build(r.pctx, BuildParams{
-		Rule: r.ctx.Rule(pctx, name, blueprint.RuleParams{
-			Command:        proptools.NinjaEscape(commandString),
+		Rule: r.ctx.Rule(r.pctx, name, blueprint.RuleParams{
+			Command:        commandString,
 			CommandDeps:    proptools.NinjaEscapeList(tools.Strings()),
 			Restat:         r.restat,
 			Rspfile:        proptools.NinjaEscape(rspFile),
@@ -826,7 +871,7 @@ func (c *RuleBuilderCommand) PathForOutput(path WritablePath) string {
 
 func sboxPathForToolRel(ctx BuilderContext, path Path) string {
 	// Errors will be handled in RuleBuilder.Build where we have a context to report them
-	toolDir := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "", false)
+	toolDir := pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "")
 	relOutSoong, isRelOutSoong, _ := maybeRelErr(toolDir.String(), path.String())
 	if isRelOutSoong {
 		// The tool is in the Soong output directory, it will be copied to __SBOX_OUT_DIR__/tools/out
@@ -1296,9 +1341,9 @@ func (c *RuleBuilderCommand) String() string {
 
 // RuleBuilderSboxProtoForTests takes the BuildParams for the manifest passed to RuleBuilder.Sbox()
 // and returns sbox testproto generated by the RuleBuilder.
-func RuleBuilderSboxProtoForTests(t *testing.T, params TestingBuildParams) *sbox_proto.Manifest {
+func RuleBuilderSboxProtoForTests(t *testing.T, ctx *TestContext, params TestingBuildParams) *sbox_proto.Manifest {
 	t.Helper()
-	content := ContentFromFileRuleForTests(t, params)
+	content := ContentFromFileRuleForTests(t, ctx, params)
 	manifest := sbox_proto.Manifest{}
 	err := prototext.Unmarshal([]byte(content), &manifest)
 	if err != nil {

@@ -1,4 +1,4 @@
-#!/bin/bash -eu
+#!/bin/bash
 
 set -o pipefail
 
@@ -88,9 +88,9 @@ EOF
     fail "Bazel actions not found for force-enabled module"
   fi
 
-  local exit_code=`run_soong --bazel-force-enabled-modules=unenabled-touch-file nothing`
+  unused=`run_soong --bazel-force-enabled-modules=unenabled-touch-file --ensure-allowlist-integrity nothing >/dev/null`
 
-  if [[ $exit_code -ne 1 ]]; then
+  if [[ $? -ne 1 ]]; then
     fail "Expected failure due to force-enabling an unenabled module "
   fi
 }

@@ -40,34 +40,6 @@ func TestGetOutputFilesParseResults(t *testing.T) {
 	}
 }
 
-func TestGetPythonBinaryParseResults(t *testing.T) {
-	t.Parallel()
-	testCases := []struct {
-		description    string
-		input          string
-		expectedOutput string
-	}{
-		{
-			description:    "no result",
-			input:          "",
-			expectedOutput: "",
-		},
-		{
-			description:    "one result",
-			input:          "test",
-			expectedOutput: "test",
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.description, func(t *testing.T) {
-			actualOutput := GetPythonBinary.ParseResult(tc.input)
-			if !reflect.DeepEqual(tc.expectedOutput, actualOutput) {
-				t.Errorf("expected %#v != actual %#v", tc.expectedOutput, actualOutput)
-			}
-		})
-	}
-}
-
 func TestGetCcInfoParseResults(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {

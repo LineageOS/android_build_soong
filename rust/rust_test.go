@@ -40,7 +40,6 @@ var prepareForRustTest = android.GroupFixturePreparers(
 	PrepareForTestWithRustIncludeVndk,
 	android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 		variables.DeviceVndkVersion = StringPtr("current")
-		variables.ProductVndkVersion = StringPtr("current")
 		variables.Platform_vndk_version = StringPtr("29")
 	}),
 )
@@ -79,14 +78,18 @@ func testRustVndk(t *testing.T, bp string) *android.TestContext {
 }
 
 const (
-	sharedVendorVariant   = "android_vendor.29_arm64_armv8-a_shared"
-	rlibVendorVariant     = "android_vendor.29_arm64_armv8-a_rlib_rlib-std"
-	sharedRecoveryVariant = "android_recovery_arm64_armv8-a_shared"
-	rlibRecoveryVariant   = "android_recovery_arm64_armv8-a_rlib_rlib-std"
-	binaryCoreVariant     = "android_arm64_armv8-a"
-	binaryVendorVariant   = "android_vendor.29_arm64_armv8-a"
-	binaryProductVariant  = "android_product.29_arm64_armv8-a"
-	binaryRecoveryVariant = "android_recovery_arm64_armv8-a"
+	sharedVendorVariant        = "android_vendor.29_arm64_armv8-a_shared"
+	rlibVendorVariant          = "android_vendor.29_arm64_armv8-a_rlib_rlib-std"
+	rlibDylibStdVendorVariant  = "android_vendor.29_arm64_armv8-a_rlib_rlib-std"
+	dylibVendorVariant         = "android_vendor.29_arm64_armv8-a_dylib"
+	sharedRecoveryVariant      = "android_recovery_arm64_armv8-a_shared"
+	rlibRecoveryVariant        = "android_recovery_arm64_armv8-a_rlib_dylib-std"
+	rlibRlibStdRecoveryVariant = "android_recovery_arm64_armv8-a_rlib_rlib-std"
+	dylibRecoveryVariant       = "android_recovery_arm64_armv8-a_dylib"
+	binaryCoreVariant          = "android_arm64_armv8-a"
+	binaryVendorVariant        = "android_vendor.29_arm64_armv8-a"
+	binaryProductVariant       = "android_product.29_arm64_armv8-a"
+	binaryRecoveryVariant      = "android_recovery_arm64_armv8-a"
 )
 
 func testRustVndkFs(t *testing.T, bp string, fs android.MockFS) *android.TestContext {
@@ -101,7 +104,6 @@ func testRustVndkFsVersions(t *testing.T, bp string, fs android.MockFS, device_v
 		android.FixtureModifyProductVariables(
 			func(variables android.FixtureProductVariables) {
 				variables.DeviceVndkVersion = StringPtr(device_version)
-				variables.ProductVndkVersion = StringPtr(product_version)
 				variables.Platform_vndk_version = StringPtr(vndk_version)
 			},
 		),
@@ -169,7 +171,6 @@ func testRustVndkFsError(t *testing.T, pattern string, bp string, fs android.Moc
 		android.FixtureModifyProductVariables(
 			func(variables android.FixtureProductVariables) {
 				variables.DeviceVndkVersion = StringPtr("current")
-				variables.ProductVndkVersion = StringPtr("current")
 				variables.Platform_vndk_version = StringPtr("VER")
 			},
 		),
@@ -228,11 +229,6 @@ func TestDepsTracking(t *testing.T) {
 			srcs: ["foo.rs"],
 			crate_name: "shared",
 		}
-		rust_library_host_dylib {
-			name: "libdylib",
-			srcs: ["foo.rs"],
-			crate_name: "dylib",
-		}
 		rust_library_host_rlib {
 			name: "librlib",
 			srcs: ["foo.rs"],
@@ -248,7 +244,6 @@ func TestDepsTracking(t *testing.T) {
 		}
 		rust_binary_host {
 			name: "fizz-buzz",
-			dylibs: ["libdylib"],
 			rlibs: ["librlib"],
 			proc_macros: ["libpm"],
 			static_libs: ["libstatic"],
@@ -258,13 +253,8 @@ func TestDepsTracking(t *testing.T) {
 	`)
 	module := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Module().(*Module)
 	rustc := ctx.ModuleForTests("librlib", "linux_glibc_x86_64_rlib_rlib-std").Rule("rustc")
-	rustLink := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Rule("rustLink")
 
 	// Since dependencies are added to AndroidMk* properties, we can check these to see if they've been picked up.
-	if !android.InList("libdylib", module.Properties.AndroidMkDylibs) {
-		t.Errorf("Dylib dependency not detected (dependency missing from AndroidMkDylibs)")
-	}
-
 	if !android.InList("librlib.rlib-std", module.Properties.AndroidMkRlibs) {
 		t.Errorf("Rlib dependency not detected (dependency missing from AndroidMkRlibs)")
 	}
@@ -273,7 +263,7 @@ func TestDepsTracking(t *testing.T) {
 		t.Errorf("Proc_macro dependency not detected (dependency missing from AndroidMkProcMacroLibs)")
 	}
 
-	if !android.InList("libshared", module.Properties.AndroidMkSharedLibs) {
+	if !android.InList("libshared", module.transitiveAndroidMkSharedLibs.ToList()) {
 		t.Errorf("Shared library dependency not detected (dependency missing from AndroidMkSharedLibs)")
 	}
 
@@ -285,16 +275,16 @@ func TestDepsTracking(t *testing.T) {
 		t.Errorf("-lstatic flag not being passed to rustc for static library %#v", rustc.Args["rustcFlags"])
 	}
 
-	if !strings.Contains(rustLink.Args["linkFlags"], "cc_stubs_dep.so") {
-		t.Errorf("shared cc_library not being passed to rustc linkFlags %#v", rustLink.Args["linkFlags"])
+	if !strings.Contains(rustc.Args["linkFlags"], "cc_stubs_dep.so") {
+		t.Errorf("shared cc_library not being passed to rustc linkFlags %#v", rustc.Args["linkFlags"])
 	}
 
-	if !android.SuffixInList(rustLink.OrderOnly.Strings(), "cc_stubs_dep.so") {
-		t.Errorf("shared cc dep not being passed as order-only to rustc %#v", rustLink.OrderOnly.Strings())
+	if !android.SuffixInList(rustc.OrderOnly.Strings(), "cc_stubs_dep.so") {
+		t.Errorf("shared cc dep not being passed as order-only to rustc %#v", rustc.OrderOnly.Strings())
 	}
 
-	if !android.SuffixInList(rustLink.Implicits.Strings(), "cc_stubs_dep.so.toc") {
-		t.Errorf("shared cc dep TOC not being passed as implicit to rustc %#v", rustLink.Implicits.Strings())
+	if !android.SuffixInList(rustc.Implicits.Strings(), "cc_stubs_dep.so.toc") {
+		t.Errorf("shared cc dep TOC not being passed as implicit to rustc %#v", rustc.Implicits.Strings())
 	}
 }
 
@@ -377,11 +367,11 @@ func TestSourceProviderDeps(t *testing.T) {
 
 	// Check that our bindings are picked up as crate dependencies as well
 	libfooMod := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_dylib").Module().(*Module)
-	if !android.InList("libbindings.dylib-std", libfooMod.Properties.AndroidMkRlibs) {
+	if !android.InList("libbindings", libfooMod.Properties.AndroidMkRlibs) {
 		t.Errorf("bindgen dependency not detected as a rlib dependency (dependency missing from AndroidMkRlibs)")
 	}
 	fizzBuzzMod := ctx.ModuleForTests("fizz-buzz-dep", "android_arm64_armv8-a").Module().(*Module)
-	if !android.InList("libbindings.dylib-std", fizzBuzzMod.Properties.AndroidMkRlibs) {
+	if !android.InList("libbindings", fizzBuzzMod.Properties.AndroidMkRlibs) {
 		t.Errorf("bindgen dependency not detected as a rlib dependency (dependency missing from AndroidMkRlibs)")
 	}
 	libprocmacroMod := ctx.ModuleForTests("libprocmacro", "linux_glibc_x86_64").Module().(*Module)

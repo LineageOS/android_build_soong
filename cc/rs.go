@@ -15,11 +15,11 @@
 package cc
 
 import (
-	"android/soong/android"
 	"path/filepath"
 	"runtime"
 	"strings"
 
+	"android/soong/android"
 	"github.com/google/blueprint"
 )
 
@@ -100,11 +100,12 @@ func rsGenerateCpp(ctx android.ModuleContext, rsFiles android.Paths, rsFlags str
 func rsFlags(ctx ModuleContext, flags Flags, properties *BaseCompilerProperties) Flags {
 	targetApi := String(properties.Renderscript.Target_api)
 	if targetApi == "" && ctx.useSdk() {
-		switch ctx.sdkVersion() {
-		case "current", "system_current", "test_current":
-			// Nothing
-		default:
-			targetApi = android.GetNumericSdkVersion(ctx.sdkVersion())
+		targetApiLevel := android.ApiLevelOrPanic(ctx, ctx.sdkVersion())
+		if targetApiLevel.IsCurrent() || targetApiLevel.IsPreview() {
+			// If the target level is current or preview, leave the 'target-api' unset.
+			// This signals to llvm-rs-cc that the development API should be used.
+		} else {
+			targetApi = targetApiLevel.String()
 		}
 	}
 

@@ -27,9 +27,10 @@ import (
 // statusFormat takes nearly all the same options as NINJA_STATUS.
 // %c is currently unsupported.
 func NewStatusOutput(w io.Writer, statusFormat string, forceSimpleOutput, quietBuild, forceKeepANSI bool) status.StatusOutput {
-	formatter := newFormatter(statusFormat, quietBuild)
+	useSmartStatus := !forceSimpleOutput && isSmartTerminal(w)
+	formatter := newFormatter(statusFormat, quietBuild, useSmartStatus)
 
-	if !forceSimpleOutput && isSmartTerminal(w) {
+	if useSmartStatus {
 		return NewSmartStatusOutput(w, formatter)
 	} else {
 		return NewSimpleStatusOutput(w, formatter, forceKeepANSI)

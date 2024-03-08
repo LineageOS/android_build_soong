@@ -61,6 +61,16 @@ func TestGetJavaPackage(t *testing.T) {
 			in:      "package 0foo.bar;",
 			wantErr: true,
 		},
+		{
+			name: "annotations",
+			in:   "@NonNullApi\n@X\npackage foo.bar;",
+			want: "foo.bar",
+		},
+		{
+			name:    "complex annotation",
+			in:      "@Foo(x=y)\n@package foo.bar;",
+			wantErr: true, // Complex annotation not supported yet.
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

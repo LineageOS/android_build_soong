@@ -42,7 +42,8 @@ var (
 	// TODO(b/143658984): goma can't handle the --system argument to javac.
 	javac, javacRE = pctx.MultiCommandRemoteStaticRules("javac",
 		blueprint.RuleParams{
-			Command: `rm -rf "$outDir" "$annoDir" "$srcJarDir" "$out" && mkdir -p "$outDir" "$annoDir" "$srcJarDir" && ` +
+			Command: `rm -rf "$outDir" "$annoDir" "$annoSrcJar.tmp" "$srcJarDir" "$out.tmp" && ` +
+				`mkdir -p "$outDir" "$annoDir" "$srcJarDir" && ` +
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
 				`(if [ -s $srcJarDir/list ] || [ -s $out.rsp ] ; then ` +
 				`${config.SoongJavacWrapper} $javaTemplate${config.JavacCmd} ` +
@@ -50,14 +51,18 @@ var (
 				`$processorpath $processor $javacFlags $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
 				`-d $outDir -s $annoDir @$out.rsp @$srcJarDir/list ; fi ) && ` +
-				`$zipTemplate${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir && ` +
-				`rm -rf "$srcJarDir"`,
+				`$annoSrcJarTemplate${config.SoongZipCmd} -jar -o $annoSrcJar.tmp -C $annoDir -D $annoDir && ` +
+				`$zipTemplate${config.SoongZipCmd} -jar -o $out.tmp -C $outDir -D $outDir && ` +
+				`if ! cmp -s "$out.tmp" "$out"; then mv "$out.tmp" "$out"; fi && ` +
+				`if ! cmp -s "$annoSrcJar.tmp" "$annoSrcJar"; then mv "$annoSrcJar.tmp" "$annoSrcJar"; fi && ` +
+				`rm -rf "$srcJarDir" "$outDir"`,
 			CommandDeps: []string{
 				"${config.JavacCmd}",
 				"${config.SoongZipCmd}",
 				"${config.ZipSyncCmd}",
 			},
 			CommandOrderOnly: []string{"${config.SoongJavacWrapper}"},
+			Restat:           true,
 			Rspfile:          "$out.rsp",
 			RspfileContent:   "$in",
 		}, map[string]*remoteexec.REParams{
@@ -69,12 +74,19 @@ var (
 			"$zipTemplate": &remoteexec.REParams{
 				Labels:       map[string]string{"type": "tool", "name": "soong_zip"},
 				Inputs:       []string{"${config.SoongZipCmd}", "$outDir"},
-				OutputFiles:  []string{"$out"},
+				OutputFiles:  []string{"$out.tmp"},
+				ExecStrategy: "${config.REJavacExecStrategy}",
+				Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+			},
+			"$annoSrcJarTemplate": &remoteexec.REParams{
+				Labels:       map[string]string{"type": "tool", "name": "soong_zip"},
+				Inputs:       []string{"${config.SoongZipCmd}", "$annoDir"},
+				OutputFiles:  []string{"$annoSrcJar.tmp"},
 				ExecStrategy: "${config.REJavacExecStrategy}",
 				Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 			},
 		}, []string{"javacFlags", "bootClasspath", "classpath", "processorpath", "processor", "srcJars", "srcJarDir",
-			"outDir", "annoDir", "javaVersion"}, nil)
+			"outDir", "annoDir", "annoSrcJar", "javaVersion"}, nil)
 
 	_ = pctx.VariableFunc("kytheCorpus",
 		func(ctx android.PackageVarContext) string { return ctx.Config().XrefCorpusName() })
@@ -252,6 +264,16 @@ var (
 			Command:     `${config.Zip2ZipCmd} -i ${in} -o ${out} -x 'META-INF/services/**/*'`,
 			CommandDeps: []string{"${config.Zip2ZipCmd}"},
 		})
+
+	writeCombinedProguardFlagsFileRule = pctx.AndroidStaticRule("writeCombinedProguardFlagsFileRule",
+		blueprint.RuleParams{
+			Command: `rm -f $out && ` +
+				`for f in $in; do ` +
+				` echo  && ` +
+				` echo "# including $$f" && ` +
+				` cat $$f; ` +
+				`done > $out`,
+		})
 )
 
 func init() {
@@ -298,8 +320,14 @@ type javaBuilderFlags struct {
 	proto android.ProtoFlags
 }
 
+func DefaultJavaBuilderFlags() javaBuilderFlags {
+	return javaBuilderFlags{
+		javaVersion: JAVA_VERSION_8,
+	}
+}
+
 func TransformJavaToClasses(ctx android.ModuleContext, outputFile android.WritablePath, shardIdx int,
-	srcFiles, srcJars android.Paths, flags javaBuilderFlags, deps android.Paths) {
+	srcFiles, srcJars android.Paths, annoSrcJar android.WritablePath, flags javaBuilderFlags, deps android.Paths) {
 
 	// Compile java sources into .class files
 	desc := "javac"
@@ -307,7 +335,7 @@ func TransformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 		desc += strconv.Itoa(shardIdx)
 	}
 
-	transformJavaToClasses(ctx, outputFile, shardIdx, srcFiles, srcJars, flags, deps, "javac", desc)
+	transformJavaToClasses(ctx, outputFile, shardIdx, srcFiles, srcJars, annoSrcJar, flags, deps, "javac", desc)
 }
 
 // Emits the rule to generate Xref input file (.kzip file) for the given set of source files and source jars
@@ -481,7 +509,7 @@ func TurbineApt(ctx android.ModuleContext, outputSrcJar, outputResJar android.Wr
 // suffix will be appended to various intermediate files and directories to avoid collisions when
 // this function is called twice in the same module directory.
 func transformJavaToClasses(ctx android.ModuleContext, outputFile android.WritablePath,
-	shardIdx int, srcFiles, srcJars android.Paths,
+	shardIdx int, srcFiles, srcJars android.Paths, annoSrcJar android.WritablePath,
 	flags javaBuilderFlags, deps android.Paths,
 	intermediatesDir, desc string) {
 
@@ -528,11 +556,12 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 		rule = javacRE
 	}
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        rule,
-		Description: desc,
-		Output:      outputFile,
-		Inputs:      srcFiles,
-		Implicits:   deps,
+		Rule:           rule,
+		Description:    desc,
+		Output:         outputFile,
+		ImplicitOutput: annoSrcJar,
+		Inputs:         srcFiles,
+		Implicits:      deps,
 		Args: map[string]string{
 			"javacFlags":    flags.javacFlags,
 			"bootClasspath": bootClasspath,
@@ -543,6 +572,7 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 			"srcJarDir":     android.PathForModuleOut(ctx, intermediatesDir, srcJarDir).String(),
 			"outDir":        android.PathForModuleOut(ctx, intermediatesDir, outDir).String(),
 			"annoDir":       android.PathForModuleOut(ctx, intermediatesDir, annoDir).String(),
+			"annoSrcJar":    annoSrcJar.String(),
 			"javaVersion":   flags.javaVersion.String(),
 		},
 	})
@@ -656,11 +686,21 @@ func GenerateMainClassManifest(ctx android.ModuleContext, outputFile android.Wri
 	android.WriteFileRule(ctx, outputFile, "Main-Class: "+mainClass+"\n")
 }
 
-func TransformZipAlign(ctx android.ModuleContext, outputFile android.WritablePath, inputFile android.Path) {
+func TransformZipAlign(ctx android.ModuleContext, outputFile android.WritablePath, inputFile android.Path, validations android.Paths) {
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        zipalign,
 		Description: "align",
 		Input:       inputFile,
+		Output:      outputFile,
+		Validations: validations,
+	})
+}
+
+func writeCombinedProguardFlagsFile(ctx android.ModuleContext, outputFile android.WritablePath, files android.Paths) {
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        writeCombinedProguardFlagsFileRule,
+		Description: "write combined proguard flags file",
+		Inputs:      files,
 		Output:      outputFile,
 	})
 }

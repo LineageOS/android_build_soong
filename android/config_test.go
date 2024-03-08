@@ -75,7 +75,7 @@ Did you mean to use an annotation of ",omitempty"?
 
 // run validateConfigAnnotations against each type that might have json annotations
 func TestProductConfigAnnotations(t *testing.T) {
-	err := validateConfigAnnotations(&productVariables{})
+	err := validateConfigAnnotations(&ProductVariables{})
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -88,7 +88,7 @@ func TestMissingVendorConfig(t *testing.T) {
 	}
 }
 
-func verifyProductVariableMarshaling(t *testing.T, v productVariables) {
+func verifyProductVariableMarshaling(t *testing.T, v ProductVariables) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.variables")
 	err := saveToConfigFile(&v, path)
@@ -96,20 +96,20 @@ func verifyProductVariableMarshaling(t *testing.T, v productVariables) {
 		t.Errorf("Couldn't save default product config: %q", err)
 	}
 
-	var v2 productVariables
+	var v2 ProductVariables
 	err = loadFromConfigFile(&v2, path)
 	if err != nil {
 		t.Errorf("Couldn't load default product config: %q", err)
 	}
 }
 func TestDefaultProductVariableMarshaling(t *testing.T) {
-	v := productVariables{}
+	v := ProductVariables{}
 	v.SetDefaultConfig()
 	verifyProductVariableMarshaling(t, v)
 }
 
 func TestBootJarsMarshaling(t *testing.T) {
-	v := productVariables{}
+	v := ProductVariables{}
 	v.SetDefaultConfig()
 	v.BootJars = ConfiguredJarList{
 		apexes: []string{"apex"},

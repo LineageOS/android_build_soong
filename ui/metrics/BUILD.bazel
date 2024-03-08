@@ -16,13 +16,14 @@ load("//build/bazel/rules/python:py_proto.bzl", "py_proto_library")
 
 py_proto_library(
     name = "metrics-py-proto",
-    visibility = ["//build/bazel/scripts/incremental_build:__pkg__"],
+    visibility = ["//build/bazel/scripts:__subpackages__"],
     deps = [":metrics-proto"],
 )
 
 proto_library(
     name = "metrics-proto",
     srcs = [
+        "bazel_metrics_proto/bazel_metrics.proto",
         "bp2build_metrics_proto/bp2build_metrics.proto",
         "metrics_proto/metrics.proto",
     ],

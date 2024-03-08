@@ -16,7 +16,6 @@ package cc
 
 import (
 	"android/soong/android"
-
 	"github.com/google/blueprint"
 )
 
@@ -25,7 +24,7 @@ func init() {
 }
 
 func RegisterFdoProfileBuildComponents(ctx android.RegistrationContext) {
-	ctx.RegisterModuleType("fdo_profile", fdoProfileFactory)
+	ctx.RegisterModuleType("fdo_profile", FdoProfileFactory)
 }
 
 type fdoProfile struct {
@@ -77,7 +76,7 @@ func fdoProfileMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
-func fdoProfileFactory() android.Module {
+func FdoProfileFactory() android.Module {
 	m := &fdoProfile{}
 	m.AddProperties(&m.properties)
 	android.InitAndroidMultiTargetsArchModule(m, android.DeviceSupported, android.MultilibBoth)

@@ -35,8 +35,16 @@ export KYTHE_JAVA_SOURCE_BATCH_SIZE KYTHE_KZIP_ENCODING
 # sufficiently many files were generated.
 declare -r out="${OUT_DIR:-out}"
 
-# Build extraction files for C++ and Java. Build `merge_zips` which we use later.
-build/soong/soong_ui.bash --build-mode --all-modules --dir=$PWD -k merge_zips xref_cxx xref_java xref_rust
+# Build extraction files and `merge_zips` which we use later.
+kzip_targets=(
+  merge_zips
+  xref_cxx
+  xref_java
+  # TODO: b/286390153 - reenable rust
+  # xref_rust
+)
+
+build/soong/soong_ui.bash --build-mode --all-modules --dir=$PWD -k --skip-soong-tests --ninja_weight_source=not_used "${kzip_targets[@]}"
 
 # Build extraction file for Go the files in build/{blueprint,soong} directories.
 declare -r abspath_out=$(realpath "${out}")
@@ -63,10 +71,9 @@ done
 set +e
 
 declare -r kzip_count=$(find "$out" -name '*.kzip' | wc -l)
-(($kzip_count>100000)) || { printf "Too few kzip files were generated: %d\n" $kzip_count; exit 1; }
+(($kzip_count>100000)) || { >&2 printf "ERROR: Too few kzip files were generated: %d\n" $kzip_count; exit 1; }
 
 # Pack
-# TODO(asmundak): this should be done by soong.
 declare -r allkzip="$KZIP_NAME.kzip"
 "$out/host/linux-x86/bin/merge_zips" "$DIST_DIR/$allkzip" @<(find "$out" -name '*.kzip')
 

@@ -25,6 +25,7 @@ import (
 
 type avbAddHashFooter struct {
 	android.ModuleBase
+	android.DefaultableModuleBase
 
 	properties avbAddHashFooterProperties
 
@@ -68,6 +69,9 @@ type avbAddHashFooterProperties struct {
 	// List of properties to add to the footer
 	Props []avbProp
 
+	// The index used to prevent rollback of the image on device.
+	Rollback_index *int64
+
 	// Include descriptors from images
 	Include_descriptors_from_images []string `android:"path,arch_variant"`
 }
@@ -77,6 +81,7 @@ func avbAddHashFooterFactory() android.Module {
 	module := &avbAddHashFooter{}
 	module.AddProperties(&module.properties)
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
 	return module
 }
 
@@ -126,6 +131,14 @@ func (a *avbAddHashFooter) GenerateAndroidBuildActions(ctx android.ModuleContext
 
 	for _, prop := range a.properties.Props {
 		addAvbProp(ctx, cmd, prop)
+	}
+
+	if a.properties.Rollback_index != nil {
+		rollbackIndex := proptools.Int(a.properties.Rollback_index)
+		if rollbackIndex < 0 {
+			ctx.PropertyErrorf("rollback_index", "Rollback index must be non-negative")
+		}
+		cmd.Flag(fmt.Sprintf(" --rollback_index %x", rollbackIndex))
 	}
 
 	cmd.FlagWithOutput("--image ", a.output)
@@ -194,4 +207,20 @@ var _ android.SourceFileProducer = (*avbAddHashFooter)(nil)
 // Implements android.SourceFileProducer
 func (a *avbAddHashFooter) Srcs() android.Paths {
 	return append(android.Paths{}, a.output)
+}
+
+type avbAddHashFooterDefaults struct {
+	android.ModuleBase
+	android.DefaultsModuleBase
+}
+
+// avb_add_hash_footer_defaults provides a set of properties that can be inherited by other
+// avb_add_hash_footer modules. A module can use the properties from an avb_add_hash_footer_defaults
+// using `defaults: ["<:default_module_name>"]`. Properties of both modules are erged (when
+// possible) by prepending the default module's values to the depending module's values.
+func avbAddHashFooterDefaultsFactory() android.Module {
+	module := &avbAddHashFooterDefaults{}
+	module.AddProperties(&avbAddHashFooterProperties{})
+	android.InitDefaultsModule(module)
+	return module
 }

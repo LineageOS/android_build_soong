@@ -1987,6 +1987,10 @@ type memberContext struct {
 	requiredTraits android.SdkMemberTraitSet
 }
 
+func (m *memberContext) ModuleErrorf(fmt string, args ...interface{}) {
+	m.sdkMemberContext.ModuleErrorf(fmt, args...)
+}
+
 func (m *memberContext) SdkModuleContext() android.ModuleContext {
 	return m.sdkMemberContext
 }

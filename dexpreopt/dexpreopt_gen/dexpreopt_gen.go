@@ -42,7 +42,8 @@ var (
 	// The flag is useful when running dex2oat on system image and vendor image which are built separately.
 	usesTargetFiles = flag.Bool("uses_target_files", false, "whether or not dexpreopt is running on target_files")
 	// basePath indicates the path where target_files.zip is extracted.
-	basePath = flag.String("base_path", ".", "base path where images and tools are extracted")
+	basePath            = flag.String("base_path", ".", "base path where images and tools are extracted")
+	productPackagesPath = flag.String("product_packages", "", "path to product_packages.txt")
 )
 
 type builderContext struct {
@@ -85,6 +86,10 @@ func main() {
 
 	if *moduleConfigPath == "" {
 		usage("--module configuration file is required")
+	}
+
+	if *productPackagesPath == "" {
+		usage("--product_packages configuration file is required")
 	}
 
 	// NOTE: duplicating --out_dir here is incorrect (one should be the another
@@ -159,11 +164,12 @@ func main() {
 			moduleConfig.DexPreoptImageLocationsOnHost[i] = *basePath + location
 		}
 	}
-	writeScripts(ctx, globalSoongConfig, globalConfig, moduleConfig, *dexpreoptScriptPath)
+	writeScripts(ctx, globalSoongConfig, globalConfig, moduleConfig, *dexpreoptScriptPath, *productPackagesPath)
 }
 
 func writeScripts(ctx android.BuilderContext, globalSoong *dexpreopt.GlobalSoongConfig,
-	global *dexpreopt.GlobalConfig, module *dexpreopt.ModuleConfig, dexpreoptScriptPath string) {
+	global *dexpreopt.GlobalConfig, module *dexpreopt.ModuleConfig, dexpreoptScriptPath string,
+	productPackagesPath string) {
 	write := func(rule *android.RuleBuilder, file string) {
 		script := &bytes.Buffer{}
 		script.WriteString(scriptHeader)
@@ -199,7 +205,8 @@ func writeScripts(ctx android.BuilderContext, globalSoong *dexpreopt.GlobalSoong
 			panic(err)
 		}
 	}
-	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(ctx, globalSoong, global, module)
+	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(
+		ctx, globalSoong, global, module, android.PathForTesting(productPackagesPath))
 	if err != nil {
 		panic(err)
 	}

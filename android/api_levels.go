@@ -15,16 +15,15 @@
 package android
 
 import (
+	"android/soong/starlark_import"
 	"encoding/json"
 	"fmt"
 	"strconv"
-
-	"android/soong/bazel"
-	"android/soong/starlark_fmt"
+	"strings"
 )
 
 func init() {
-	RegisterSingletonType("api_levels", ApiLevelsSingleton)
+	RegisterParallelSingletonType("api_levels", ApiLevelsSingleton)
 }
 
 const previewAPILevelBase = 9000
@@ -239,6 +238,14 @@ func uncheckedFinalApiLevel(num int) ApiLevel {
 	}
 }
 
+func uncheckedFinalIncrementalApiLevel(num int, increment int) ApiLevel {
+	return ApiLevel{
+		value:     strconv.Itoa(num) + "." + strconv.Itoa(increment),
+		number:    num,
+		isPreview: false,
+	}
+}
+
 var NoneApiLevel = ApiLevel{
 	value: "(no version)",
 	// Not 0 because we don't want this to compare equal with the first preview.
@@ -277,10 +284,6 @@ var FirstAndroidRelrVersion = uncheckedFinalApiLevel(28)
 // relocations itself.
 var FirstPackedRelocationsVersion = uncheckedFinalApiLevel(23)
 
-// The first API level that does not require NDK code to link
-// libandroid_support.
-var FirstNonLibAndroidSupportVersion = uncheckedFinalApiLevel(21)
-
 // LastWithoutModuleLibCoreSystemModules is the last API level where prebuilts/sdk does not contain
 // a core-for-system-modules.jar for the module-lib API scope.
 var LastWithoutModuleLibCoreSystemModules = uncheckedFinalApiLevel(31)
@@ -288,13 +291,17 @@ var LastWithoutModuleLibCoreSystemModules = uncheckedFinalApiLevel(31)
 // ReplaceFinalizedCodenames returns the API level number associated with that API level
 // if the `raw` input is the codename of an API level has been finalized.
 // If the input is *not* a finalized codename, the input is returned unmodified.
-func ReplaceFinalizedCodenames(config Config, raw string) string {
-	num, ok := getFinalCodenamesMap(config)[raw]
+func ReplaceFinalizedCodenames(config Config, raw string) (string, error) {
+	finalCodenamesMap, err := getFinalCodenamesMap(config)
+	if err != nil {
+		return raw, err
+	}
+	num, ok := finalCodenamesMap[raw]
 	if !ok {
-		return raw
+		return raw, nil
 	}
 
-	return strconv.Itoa(num)
+	return strconv.Itoa(num), nil
 }
 
 // ApiLevelFrom converts the given string `raw` to an ApiLevel.
@@ -344,7 +351,11 @@ func ApiLevelFromUserWithConfig(config Config, raw string) (ApiLevel, error) {
 		}
 	}
 
-	canonical, ok := getApiLevelsMapReleasedVersions()[raw]
+	apiLevelsReleasedVersions, err := getApiLevelsMapReleasedVersions()
+	if err != nil {
+		return NoneApiLevel, err
+	}
+	canonical, ok := apiLevelsReleasedVersions[raw]
 	if !ok {
 		asInt, err := strconv.Atoi(raw)
 		if err != nil {
@@ -367,6 +378,22 @@ func ApiLevelForTest(raw string) ApiLevel {
 
 	if raw == "current" {
 		return FutureApiLevel
+	}
+
+	if strings.Contains(raw, ".") {
+		// Check prebuilt incremental API format MM.m for major (API level) and minor (incremental) revisions
+		parts := strings.Split(raw, ".")
+		if len(parts) != 2 {
+			panic(fmt.Errorf("Found unexpected version '%s' for incremental API - expect MM.m format for incremental API with both major (MM) an minor (m) revision.", raw))
+		}
+		sdk, sdk_err := strconv.Atoi(parts[0])
+		qpr, qpr_err := strconv.Atoi(parts[1])
+		if sdk_err != nil || qpr_err != nil {
+			panic(fmt.Errorf("Unable to read version number for incremental api '%s'", raw))
+		}
+
+		apiLevel := uncheckedFinalIncrementalApiLevel(sdk, qpr)
+		return apiLevel
 	}
 
 	asInt, err := strconv.Atoi(raw)
@@ -410,38 +437,21 @@ func GetApiLevelsJson(ctx PathContext) WritablePath {
 	return PathForOutput(ctx, "api_levels.json")
 }
 
-func getApiLevelsMapReleasedVersions() map[string]int {
-	return map[string]int{
-		"G":        9,
-		"I":        14,
-		"J":        16,
-		"J-MR1":    17,
-		"J-MR2":    18,
-		"K":        19,
-		"L":        21,
-		"L-MR1":    22,
-		"M":        23,
-		"N":        24,
-		"N-MR1":    25,
-		"O":        26,
-		"O-MR1":    27,
-		"P":        28,
-		"Q":        29,
-		"R":        30,
-		"S":        31,
-		"S-V2":     32,
-		"Tiramisu": 33,
-			"UpsideDownCake":     34,
-	}
+func getApiLevelsMapReleasedVersions() (map[string]int, error) {
+	return starlark_import.GetStarlarkValue[map[string]int]("api_levels_released_versions")
 }
 
 var finalCodenamesMapKey = NewOnceKey("FinalCodenamesMap")
 
-func getFinalCodenamesMap(config Config) map[string]int {
+func getFinalCodenamesMap(config Config) (map[string]int, error) {
+	type resultStruct struct {
+		result map[string]int
+		err    error
+	}
 	// This logic is replicated in starlark, if changing logic here update starlark code too
 	// https://cs.android.com/android/platform/superproject/+/master:build/bazel/rules/common/api.bzl;l=30;drc=231c7e8c8038fd478a79eb68aa5b9f5c64e0e061
-	return config.Once(finalCodenamesMapKey, func() interface{} {
-		apiLevelsMap := getApiLevelsMapReleasedVersions()
+	result := config.Once(finalCodenamesMapKey, func() interface{} {
+		apiLevelsMap, err := getApiLevelsMapReleasedVersions()
 
 		// TODO: Differentiate "current" and "future".
 		// The code base calls it FutureApiLevel, but the spelling is "current",
@@ -454,41 +464,44 @@ func getFinalCodenamesMap(config Config) map[string]int {
 		// added in S, both of these are usable when building for "current" when
 		// neither R nor S are final, but the S APIs stop being available in a
 		// final R build.
-		if Bool(config.productVariables.Platform_sdk_final) {
+		if err == nil && Bool(config.productVariables.Platform_sdk_final) {
 			apiLevelsMap["current"] = config.PlatformSdkVersion().FinalOrFutureInt()
 		}
 
-		return apiLevelsMap
-	}).(map[string]int)
+		return resultStruct{apiLevelsMap, err}
+	}).(resultStruct)
+	return result.result, result.err
 }
 
 var apiLevelsMapKey = NewOnceKey("ApiLevelsMap")
 
 // ApiLevelsMap has entries for preview API levels
-func GetApiLevelsMap(config Config) map[string]int {
+func GetApiLevelsMap(config Config) (map[string]int, error) {
+	type resultStruct struct {
+		result map[string]int
+		err    error
+	}
 	// This logic is replicated in starlark, if changing logic here update starlark code too
 	// https://cs.android.com/android/platform/superproject/+/master:build/bazel/rules/common/api.bzl;l=23;drc=231c7e8c8038fd478a79eb68aa5b9f5c64e0e061
-	return config.Once(apiLevelsMapKey, func() interface{} {
-		apiLevelsMap := getApiLevelsMapReleasedVersions()
-		for i, codename := range config.PlatformVersionAllPreviewCodenames() {
-			apiLevelsMap[codename] = previewAPILevelBase + i
+	result := config.Once(apiLevelsMapKey, func() interface{} {
+		apiLevelsMap, err := getApiLevelsMapReleasedVersions()
+		if err == nil {
+			for i, codename := range config.PlatformVersionAllPreviewCodenames() {
+				apiLevelsMap[codename] = previewAPILevelBase + i
+			}
 		}
 
-		return apiLevelsMap
-	}).(map[string]int)
+		return resultStruct{apiLevelsMap, err}
+	}).(resultStruct)
+	return result.result, result.err
 }
 
 func (a *apiLevelsSingleton) GenerateBuildActions(ctx SingletonContext) {
-	apiLevelsMap := GetApiLevelsMap(ctx.Config())
+	apiLevelsMap, err := GetApiLevelsMap(ctx.Config())
+	if err != nil {
+		ctx.Errorf("%s\n", err)
+		return
+	}
 	apiLevelsJson := GetApiLevelsJson(ctx)
 	createApiLevelsJson(ctx, apiLevelsJson, apiLevelsMap)
-}
-
-func StarlarkApiLevelConfigs(config Config) string {
-	return fmt.Sprintf(bazel.GeneratedBazelFileWarning+`
-_api_levels_released_versions = %s
-
-api_levels_released_versions = _api_levels_released_versions
-`, starlark_fmt.PrintStringIntDict(getApiLevelsMapReleasedVersions(), 0),
-	)
 }

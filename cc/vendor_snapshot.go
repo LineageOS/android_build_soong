@@ -98,6 +98,11 @@ func isSnapshotAware(cfg android.DeviceConfig, m LinkableInterface, inProprietar
 			if !sanitizable.Shared() && sanitizable.IsSanitizerEnabled(scs) {
 				return false
 			}
+			// cfi and hwasan cannot be enabled at the same time.
+			// Skip variants that have both cfi and hwasan enabled.
+			if sanitizable.IsSanitizerEnabled(cfi) && sanitizable.IsSanitizerEnabled(Hwasan) {
+				return false
+			}
 			// cfi and hwasan also export both variants. But for static, we capture both.
 			// This is because cfi static libraries can't be linked from non-cfi modules,
 			// and vice versa.
@@ -108,10 +113,10 @@ func isSnapshotAware(cfg android.DeviceConfig, m LinkableInterface, inProprietar
 				return false
 			}
 		}
-		if sanitizable.Static() {
+		if sanitizable.Static() || sanitizable.Rlib() {
 			return sanitizable.OutputFile().Valid() && !isPrivate(image, m)
 		}
-		if sanitizable.Shared() || sanitizable.Rlib() {
+		if sanitizable.Shared() || sanitizable.Dylib() {
 			if !sanitizable.OutputFile().Valid() {
 				return false
 			}
@@ -153,6 +158,8 @@ type snapshotJsonFlags struct {
 	SharedLibs  []string `json:",omitempty"`
 	StaticLibs  []string `json:",omitempty"`
 	RuntimeLibs []string `json:",omitempty"`
+	Dylibs      []string `json:",omitempty"`
+	Rlibs       []string `json:",omitempty"`
 
 	// extra config files
 	InitRc         []string `json:",omitempty"`
@@ -283,8 +290,17 @@ var ccSnapshotAction snapshot.GenerateSnapshotAction = func(s snapshot.SnapshotS
 			if m.Shared() {
 				prop.SharedLibs = m.SnapshotSharedLibs()
 			}
-			// static libs dependencies are required to collect the NOTICE files.
+
+			// dylibs collect both shared and dylib dependencies.
+			if m.Dylib() {
+				prop.SharedLibs = m.SnapshotSharedLibs()
+				prop.Dylibs = m.SnapshotDylibs()
+			}
+
+			// static and rlib libs dependencies are required to collect the NOTICE files.
 			prop.StaticLibs = m.SnapshotStaticLibs()
+			prop.Rlibs = m.SnapshotRlibs()
+
 			if sanitizable, ok := m.(PlatformSanitizeable); ok {
 				if sanitizable.Static() && sanitizable.SanitizePropDefined() {
 					prop.SanitizeMinimalDep = sanitizable.MinimalRuntimeDep() || sanitizable.MinimalRuntimeNeeded()
@@ -299,13 +315,15 @@ var ccSnapshotAction snapshot.GenerateSnapshotAction = func(s snapshot.SnapshotS
 				libType = "shared"
 			} else if m.Rlib() {
 				libType = "rlib"
+			} else if m.Dylib() {
+				libType = "dylib"
 			} else {
 				libType = "header"
 			}
 
 			var stem string
 
-			// install .a or .so
+			// install .a, .rlib, .dylib.so, or .so
 			if libType != "header" {
 				libPath := m.OutputFile().Path()
 				stem = libPath.Base()
@@ -328,6 +346,12 @@ var ccSnapshotAction snapshot.GenerateSnapshotAction = func(s snapshot.SnapshotS
 						}
 					}
 				}
+				if m.Rlib() && m.RlibStd() {
+					// rlibs produce both rlib-std and dylib-std variants
+					ext := filepath.Ext(stem)
+					stem = strings.TrimSuffix(stem, ext) + ".rlib-std" + ext
+					prop.ModuleName += ".rlib-std"
+				}
 				snapshotLibOut := filepath.Join(snapshotArchDir, targetArch, libType, m.RelativeInstallPath(), stem)
 				ret = append(ret, copyFile(ctx, libPath, snapshotLibOut, fake))
 			} else {
@@ -341,8 +365,12 @@ var ccSnapshotAction snapshot.GenerateSnapshotAction = func(s snapshot.SnapshotS
 			prop.StaticExecutable = m.StaticExecutable()
 			prop.InstallInRoot = m.InstallInRoot()
 			prop.SharedLibs = m.SnapshotSharedLibs()
-			// static libs dependencies are required to collect the NOTICE files.
+			prop.Dylibs = m.SnapshotDylibs()
+
+			// static and rlib dependencies are required to collect the NOTICE files.
 			prop.StaticLibs = m.SnapshotStaticLibs()
+			prop.Rlibs = m.SnapshotRlibs()
+
 			// install bin
 			binPath := m.OutputFile().Path()
 			snapshotBinOut := filepath.Join(snapshotArchDir, targetArch, "binary", binPath.Base())

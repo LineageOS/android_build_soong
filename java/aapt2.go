@@ -25,17 +25,23 @@ import (
 	"android/soong/android"
 )
 
+func isPathValueResource(res android.Path) bool {
+	subDir := filepath.Dir(res.String())
+	subDir, lastDir := filepath.Split(subDir)
+	return strings.HasPrefix(lastDir, "values")
+}
+
 // Convert input resource file path to output file path.
 // values-[config]/<file>.xml -> values-[config]_<file>.arsc.flat;
 // For other resource file, just replace the last "/" with "_" and add .flat extension.
 func pathToAapt2Path(ctx android.ModuleContext, res android.Path) android.WritablePath {
 
 	name := res.Base()
-	subDir := filepath.Dir(res.String())
-	subDir, lastDir := filepath.Split(subDir)
-	if strings.HasPrefix(lastDir, "values") {
+	if isPathValueResource(res) {
 		name = strings.TrimSuffix(name, ".xml") + ".arsc"
 	}
+	subDir := filepath.Dir(res.String())
+	subDir, lastDir := filepath.Split(subDir)
 	name = lastDir + "_" + name + ".flat"
 	return android.PathForModuleOut(ctx, "aapt2", subDir, name)
 }
@@ -63,7 +69,21 @@ var aapt2CompileRule = pctx.AndroidStaticRule("aapt2Compile",
 
 // aapt2Compile compiles resources and puts the results in the requested directory.
 func aapt2Compile(ctx android.ModuleContext, dir android.Path, paths android.Paths,
-	flags []string) android.WritablePaths {
+	flags []string, productToFilter string) android.WritablePaths {
+	if productToFilter != "" && productToFilter != "default" {
+		// --filter-product leaves only product-specific resources. Product-specific resources only exist
+		// in value resources (values/*.xml), so filter value resource files only. Ignore other types of
+		// resources as they don't need to be in product characteristics RRO (and they will cause aapt2
+		// compile errors)
+		filteredPaths := android.Paths{}
+		for _, path := range paths {
+			if isPathValueResource(path) {
+				filteredPaths = append(filteredPaths, path)
+			}
+		}
+		paths = filteredPaths
+		flags = append([]string{"--filter-product " + productToFilter}, flags...)
+	}
 
 	// Shard the input paths so that they can be processed in parallel. If we shard them into too
 	// small chunks, the additional cost of spinning up aapt2 outweighs the performance gain. The
@@ -146,20 +166,25 @@ func aapt2CompileZip(ctx android.ModuleContext, flata android.WritablePath, zip 
 
 var aapt2LinkRule = pctx.AndroidStaticRule("aapt2Link",
 	blueprint.RuleParams{
-		Command: `rm -rf $genDir && ` +
-			`${config.Aapt2Cmd} link -o $out $flags --java $genDir --proguard $proguardOptions ` +
-			`--output-text-symbols ${rTxt} $inFlags && ` +
-			`${config.SoongZipCmd} -write_if_changed -jar -o $genJar -C $genDir -D $genDir &&` +
-			`${config.ExtractJarPackagesCmd} -i $genJar -o $extraPackages --prefix '--extra-packages '`,
+		Command: `$preamble` +
+			`${config.Aapt2Cmd} link -o $out $flags --proguard $proguardOptions ` +
+			`--output-text-symbols ${rTxt} $inFlags` +
+			`$postamble`,
 
 		CommandDeps: []string{
 			"${config.Aapt2Cmd}",
 			"${config.SoongZipCmd}",
-			"${config.ExtractJarPackagesCmd}",
 		},
 		Restat: true,
 	},
-	"flags", "inFlags", "proguardOptions", "genDir", "genJar", "rTxt", "extraPackages")
+	"flags", "inFlags", "proguardOptions", "rTxt", "extraPackages", "preamble", "postamble")
+
+var aapt2ExtractExtraPackagesRule = pctx.AndroidStaticRule("aapt2ExtractExtraPackages",
+	blueprint.RuleParams{
+		Command:     `${config.ExtractJarPackagesCmd} -i $in -o $out --prefix '--extra-packages '`,
+		CommandDeps: []string{"${config.ExtractJarPackagesCmd}"},
+		Restat:      true,
+	})
 
 var fileListToFileRule = pctx.AndroidStaticRule("fileListToFile",
 	blueprint.RuleParams{
@@ -175,11 +200,10 @@ var mergeAssetsRule = pctx.AndroidStaticRule("mergeAssets",
 	})
 
 func aapt2Link(ctx android.ModuleContext,
-	packageRes, genJar, proguardOptions, rTxt, extraPackages android.WritablePath,
+	packageRes, genJar, proguardOptions, rTxt android.WritablePath,
 	flags []string, deps android.Paths,
-	compiledRes, compiledOverlay, assetPackages android.Paths, splitPackages android.WritablePaths) {
-
-	genDir := android.PathForModuleGen(ctx, "aapt2", "R")
+	compiledRes, compiledOverlay, assetPackages android.Paths, splitPackages android.WritablePaths,
+	featureFlagsPaths android.Paths) {
 
 	var inFlags []string
 
@@ -217,7 +241,7 @@ func aapt2Link(ctx android.ModuleContext,
 	}
 
 	// Set auxiliary outputs as implicit outputs to establish correct dependency chains.
-	implicitOutputs := append(splitPackages, proguardOptions, genJar, rTxt, extraPackages)
+	implicitOutputs := append(splitPackages, proguardOptions, rTxt)
 	linkOutput := packageRes
 
 	// AAPT2 ignores assets in overlays. Merge them after linking.
@@ -232,31 +256,61 @@ func aapt2Link(ctx android.ModuleContext,
 		})
 	}
 
+	for _, featureFlagsPath := range featureFlagsPaths {
+		deps = append(deps, featureFlagsPath)
+		inFlags = append(inFlags, "--feature-flags", "@"+featureFlagsPath.String())
+	}
+
+	// Note the absence of splitPackages. The caller is supposed to compose and provide --split flag
+	// values via the flags parameter when it wants to split outputs.
+	// TODO(b/174509108): Perhaps we can process it in this func while keeping the code reasonably
+	// tidy.
+	args := map[string]string{
+		"flags":           strings.Join(flags, " "),
+		"inFlags":         strings.Join(inFlags, " "),
+		"proguardOptions": proguardOptions.String(),
+		"rTxt":            rTxt.String(),
+	}
+
+	if genJar != nil {
+		// Generating java source files from aapt2 was requested, use aapt2LinkAndGenRule and pass it
+		// genJar and genDir args.
+		genDir := android.PathForModuleGen(ctx, "aapt2", "R")
+		ctx.Variable(pctx, "aapt2GenDir", genDir.String())
+		ctx.Variable(pctx, "aapt2GenJar", genJar.String())
+		implicitOutputs = append(implicitOutputs, genJar)
+		args["preamble"] = `rm -rf $aapt2GenDir && `
+		args["postamble"] = `&& ${config.SoongZipCmd} -write_if_changed -jar -o $aapt2GenJar -C $aapt2GenDir -D $aapt2GenDir && ` +
+			`rm -rf $aapt2GenDir`
+		args["flags"] += " --java $aapt2GenDir"
+	}
+
 	ctx.Build(pctx, android.BuildParams{
 		Rule:            aapt2LinkRule,
 		Description:     "aapt2 link",
 		Implicits:       deps,
 		Output:          linkOutput,
 		ImplicitOutputs: implicitOutputs,
-		// Note the absence of splitPackages. The caller is supposed to compose and provide --split flag
-		// values via the flags parameter when it wants to split outputs.
-		// TODO(b/174509108): Perhaps we can process it in this func while keeping the code reasonably
-		// tidy.
-		Args: map[string]string{
-			"flags":           strings.Join(flags, " "),
-			"inFlags":         strings.Join(inFlags, " "),
-			"proguardOptions": proguardOptions.String(),
-			"genDir":          genDir.String(),
-			"genJar":          genJar.String(),
-			"rTxt":            rTxt.String(),
-			"extraPackages":   extraPackages.String(),
-		},
+		Args:            args,
+	})
+}
+
+// aapt2ExtractExtraPackages takes a srcjar generated by aapt2 or a classes jar generated by ResourceProcessorBusyBox
+// and converts it to a text file containing a list of --extra_package arguments for passing to Make modules so they
+// correctly generate R.java entries for packages provided by transitive dependencies.
+func aapt2ExtractExtraPackages(ctx android.ModuleContext, out android.WritablePath, in android.Path) {
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        aapt2ExtractExtraPackagesRule,
+		Description: "aapt2 extract extra packages",
+		Input:       in,
+		Output:      out,
 	})
 }
 
 var aapt2ConvertRule = pctx.AndroidStaticRule("aapt2Convert",
 	blueprint.RuleParams{
-		Command:     `${config.Aapt2Cmd} convert --output-format $format $in -o $out`,
+		Command: `${config.Aapt2Cmd} convert --enable-compact-entries ` +
+			`--output-format $format $in -o $out`,
 		CommandDeps: []string{"${config.Aapt2Cmd}"},
 	}, "format",
 )

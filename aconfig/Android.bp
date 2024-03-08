@@ -1,0 +1,30 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+bootstrap_go_package {
+    name: "soong-aconfig",
+    pkgPath: "android/soong/aconfig",
+    deps: [
+        "blueprint",
+        "blueprint-pathtools",
+        "sbox_proto",
+        "soong",
+        "soong-android",
+    ],
+    srcs: [
+        "aconfig_declarations.go",
+        "aconfig_values.go",
+        "aconfig_value_set.go",
+        "all_aconfig_declarations.go",
+        "exported_java_aconfig_library.go",
+        "init.go",
+        "testing.go",
+    ],
+    testSrcs: [
+        "aconfig_declarations_test.go",
+        "aconfig_values_test.go",
+        "aconfig_value_set_test.go",
+    ],
+    pluginFor: ["soong_build"],
+}

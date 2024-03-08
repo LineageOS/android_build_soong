@@ -50,12 +50,19 @@ func buildLicenseMetadata(ctx ModuleContext, licenseMetadataFile WritablePath) {
 		outputFiles = PathsIfNonNil(outputFiles...)
 	}
 
-	isContainer := isContainerFromFileExtensions(base.installFiles, outputFiles)
+	// Only pass the last installed file to isContainerFromFileExtensions so a *.zip file in test data
+	// doesn't mark the whole module as a container.
+	var installFiles InstallPaths
+	if len(base.installFiles) > 0 {
+		installFiles = InstallPaths{base.installFiles[len(base.installFiles)-1]}
+	}
+
+	isContainer := isContainerFromFileExtensions(installFiles, outputFiles)
 
 	var allDepMetadataFiles Paths
 	var allDepMetadataArgs []string
 	var allDepOutputFiles Paths
-	var allDepMetadataDepSets []*PathsDepSet
+	var allDepMetadataDepSets []*DepSet[Path]
 
 	ctx.VisitDirectDepsBlueprint(func(bpdep blueprint.Module) {
 		dep, _ := bpdep.(Module)
@@ -127,7 +134,7 @@ func buildLicenseMetadata(ctx ModuleContext, licenseMetadataFile WritablePath) {
 		JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(base.commonProperties.Effective_license_text.Strings()), "-n "))
 
 	if isContainer {
-		transitiveDeps := newPathsDepSet(nil, allDepMetadataDepSets).ToList()
+		transitiveDeps := Paths(NewDepSet[Path](TOPOLOGICAL, nil, allDepMetadataDepSets).ToList())
 		args = append(args,
 			JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(transitiveDeps.Strings()), "-d "))
 		orderOnlyDeps = append(orderOnlyDeps, transitiveDeps...)
@@ -170,7 +177,7 @@ func buildLicenseMetadata(ctx ModuleContext, licenseMetadataFile WritablePath) {
 
 	ctx.SetProvider(LicenseMetadataProvider, &LicenseMetadataInfo{
 		LicenseMetadataPath:   licenseMetadataFile,
-		LicenseMetadataDepSet: newPathsDepSet(Paths{licenseMetadataFile}, allDepMetadataDepSets),
+		LicenseMetadataDepSet: NewDepSet(TOPOLOGICAL, Paths{licenseMetadataFile}, allDepMetadataDepSets),
 	})
 }
 
@@ -198,7 +205,7 @@ var LicenseMetadataProvider = blueprint.NewProvider(&LicenseMetadataInfo{})
 // LicenseMetadataInfo stores the license metadata path for a module.
 type LicenseMetadataInfo struct {
 	LicenseMetadataPath   Path
-	LicenseMetadataDepSet *PathsDepSet
+	LicenseMetadataDepSet *DepSet[Path]
 }
 
 // licenseAnnotationsFromTag returns the LicenseAnnotations for a tag (if any) converted into

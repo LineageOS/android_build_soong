@@ -67,7 +67,7 @@ func TestGen(t *testing.T) {
 			t.Errorf("missing aidl includes in global flags")
 		}
 
-		aidlCommand := android.RuleBuilderSboxProtoForTests(t, aidlManifest).Commands[0].GetCommand()
+		aidlCommand := android.RuleBuilderSboxProtoForTests(t, ctx, aidlManifest).Commands[0].GetCommand()
 		if !strings.Contains(aidlCommand, "-Isub") {
 			t.Errorf("aidl command for c.aidl should contain \"-Isub\", but was %q", aidlCommand)
 		}

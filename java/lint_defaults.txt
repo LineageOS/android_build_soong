@@ -122,3 +122,17 @@
 --warning_check RemoteViewLayout
 --warning_check SupportAnnotationUsage
 --warning_check UniqueConstants
+--warning_check UseSdkSuppress
+# TODO(b/303434307) The intent is for this to be set to error severity
+# once existing violations are cleaned up
+--warning_check FlaggedApi
+
+--warning_check ExactAlarm
+--warning_check ExpiredTargetSdkVersion
+--warning_check ForegroundServicePermission
+--warning_check ObsoleteSdkInt
+--warning_check ScheduleExactAlarm
+--warning_check StartActivityAndCollapseDeprecated
+--warning_check UnspecifiedRegisterReceiverFlag
+--warning_check WearMaterialTheme
+--warning_check WearStandaloneAppFlag

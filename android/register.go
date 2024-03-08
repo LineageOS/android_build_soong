@@ -16,9 +16,8 @@ package android
 
 import (
 	"fmt"
-	"reflect"
-
 	"github.com/google/blueprint"
+	"reflect"
 )
 
 // A sortable component is one whose registration order affects the order in which it is executed
@@ -62,19 +61,15 @@ var moduleTypesForDocs = map[string]reflect.Value{}
 var moduleTypeByFactory = map[reflect.Value]string{}
 
 type singleton struct {
-	// True if this should be registered as a pre-singleton, false otherwise.
-	pre bool
+	// True if this should be registered as a parallel singleton.
+	parallel bool
 
 	name    string
 	factory SingletonFactory
 }
 
-func newSingleton(name string, factory SingletonFactory) singleton {
-	return singleton{false, name, factory}
-}
-
-func newPreSingleton(name string, factory SingletonFactory) singleton {
-	return singleton{true, name, factory}
+func newSingleton(name string, factory SingletonFactory, parallel bool) singleton {
+	return singleton{parallel: parallel, name: name, factory: factory}
 }
 
 func (s singleton) componentName() string {
@@ -83,17 +78,12 @@ func (s singleton) componentName() string {
 
 func (s singleton) register(ctx *Context) {
 	adaptor := SingletonFactoryAdaptor(ctx, s.factory)
-	if s.pre {
-		ctx.RegisterPreSingletonType(s.name, adaptor)
-	} else {
-		ctx.RegisterSingletonType(s.name, adaptor)
-	}
+	ctx.RegisterSingletonType(s.name, adaptor, s.parallel)
 }
 
 var _ sortableComponent = singleton{}
 
 var singletons sortableComponents
-var preSingletons sortableComponents
 
 type mutator struct {
 	name              string
@@ -145,12 +135,16 @@ func RegisterModuleTypeForDocs(name string, factory reflect.Value) {
 	moduleTypeByFactory[factory] = name
 }
 
-func RegisterSingletonType(name string, factory SingletonFactory) {
-	singletons = append(singletons, newSingleton(name, factory))
+func registerSingletonType(name string, factory SingletonFactory, parallel bool) {
+	singletons = append(singletons, newSingleton(name, factory, parallel))
 }
 
-func RegisterPreSingletonType(name string, factory SingletonFactory) {
-	preSingletons = append(preSingletons, newPreSingleton(name, factory))
+func RegisterSingletonType(name string, factory SingletonFactory) {
+	registerSingletonType(name, factory, false)
+}
+
+func RegisterParallelSingletonType(name string, factory SingletonFactory) {
+	registerSingletonType(name, factory, true)
 }
 
 type Context struct {
@@ -166,38 +160,9 @@ func NewContext(config Config) *Context {
 	return ctx
 }
 
-// Helper function to register the module types used in bp2build and
-// api_bp2build.
-func registerModuleTypes(ctx *Context) {
-	for _, t := range moduleTypes {
-		t.register(ctx)
-	}
-	// Required for SingletonModule types, even though we are not using them.
-	for _, t := range singletons {
-		t.register(ctx)
-	}
-}
-
-// RegisterForBazelConversion registers an alternate shadow pipeline of
-// singletons, module types and mutators to register for converting Blueprint
-// files to semantically equivalent BUILD files.
-func (ctx *Context) RegisterForBazelConversion() {
-	registerModuleTypes(ctx)
-	RegisterMutatorsForBazelConversion(ctx, bp2buildPreArchMutators)
-}
-
-// RegisterForApiBazelConversion is similar to RegisterForBazelConversion except that
-// it only generates API targets in the generated  workspace
-func (ctx *Context) RegisterForApiBazelConversion() {
-	registerModuleTypes(ctx)
-	RegisterMutatorsForApiBazelConversion(ctx, bp2buildPreArchMutators)
-}
-
 // Register the pipeline of singletons, module types, and mutators for
 // generating build.ninja and other files for Kati, from Android.bp files.
 func (ctx *Context) Register() {
-	preSingletons.registerAll(ctx)
-
 	for _, t := range moduleTypes {
 		t.register(ctx)
 	}
@@ -220,17 +185,15 @@ func (ctx *Context) registerSingletonMakeVarsProvider(makevars SingletonMakeVars
 func collateGloballyRegisteredSingletons() sortableComponents {
 	allSingletons := append(sortableComponents(nil), singletons...)
 	allSingletons = append(allSingletons,
-		singleton{false, "bazeldeps", BazelSingleton},
-
 		// Register phony just before makevars so it can write out its phony rules as Make rules
-		singleton{false, "phony", phonySingletonFactory},
+		singleton{parallel: false, name: "phony", factory: phonySingletonFactory},
 
 		// Register makevars after other singletons so they can export values through makevars
-		singleton{false, "makevars", makeVarsSingletonFunc},
+		singleton{parallel: false, name: "makevars", factory: makeVarsSingletonFunc},
 
 		// Register env and ninjadeps last so that they can track all used environment variables and
 		// Ninja file dependencies stored in the config.
-		singleton{false, "ninjadeps", ninjaDepsSingletonFactory},
+		singleton{parallel: false, name: "ninjadeps", factory: ninjaDepsSingletonFactory},
 	)
 
 	return allSingletons
@@ -259,7 +222,8 @@ func ModuleTypeByFactory() map[reflect.Value]string {
 type RegistrationContext interface {
 	RegisterModuleType(name string, factory ModuleFactory)
 	RegisterSingletonModuleType(name string, factory SingletonModuleFactory)
-	RegisterPreSingletonType(name string, factory SingletonFactory)
+	RegisterParallelSingletonModuleType(name string, factory SingletonModuleFactory)
+	RegisterParallelSingletonType(name string, factory SingletonFactory)
 	RegisterSingletonType(name string, factory SingletonFactory)
 	PreArchMutators(f RegisterMutatorFunc)
 
@@ -290,9 +254,8 @@ type RegistrationContext interface {
 //	ctx := android.NewTestContext(config)
 //	RegisterBuildComponents(ctx)
 var InitRegistrationContext RegistrationContext = &initRegistrationContext{
-	moduleTypes:       make(map[string]ModuleFactory),
-	singletonTypes:    make(map[string]SingletonFactory),
-	preSingletonTypes: make(map[string]SingletonFactory),
+	moduleTypes:    make(map[string]ModuleFactory),
+	singletonTypes: make(map[string]SingletonFactory),
 }
 
 // Make sure the TestContext implements RegistrationContext.
@@ -301,7 +264,6 @@ var _ RegistrationContext = (*TestContext)(nil)
 type initRegistrationContext struct {
 	moduleTypes        map[string]ModuleFactory
 	singletonTypes     map[string]SingletonFactory
-	preSingletonTypes  map[string]SingletonFactory
 	moduleTypesForDocs map[string]reflect.Value
 }
 
@@ -315,8 +277,15 @@ func (ctx *initRegistrationContext) RegisterModuleType(name string, factory Modu
 }
 
 func (ctx *initRegistrationContext) RegisterSingletonModuleType(name string, factory SingletonModuleFactory) {
+	ctx.registerSingletonModuleType(name, factory, false)
+}
+func (ctx *initRegistrationContext) RegisterParallelSingletonModuleType(name string, factory SingletonModuleFactory) {
+	ctx.registerSingletonModuleType(name, factory, true)
+}
+
+func (ctx *initRegistrationContext) registerSingletonModuleType(name string, factory SingletonModuleFactory, parallel bool) {
 	s, m := SingletonModuleFactoryAdaptor(name, factory)
-	ctx.RegisterSingletonType(name, s)
+	ctx.registerSingletonType(name, s, parallel)
 	ctx.RegisterModuleType(name, m)
 	// Overwrite moduleTypesForDocs with the original factory instead of the lambda returned by
 	// SingletonModuleFactoryAdaptor so that docs can find the module type documentation on the
@@ -324,20 +293,20 @@ func (ctx *initRegistrationContext) RegisterSingletonModuleType(name string, fac
 	RegisterModuleTypeForDocs(name, reflect.ValueOf(factory))
 }
 
-func (ctx *initRegistrationContext) RegisterSingletonType(name string, factory SingletonFactory) {
+func (ctx *initRegistrationContext) registerSingletonType(name string, factory SingletonFactory, parallel bool) {
 	if _, present := ctx.singletonTypes[name]; present {
 		panic(fmt.Sprintf("singleton type %q is already registered", name))
 	}
 	ctx.singletonTypes[name] = factory
-	RegisterSingletonType(name, factory)
+	registerSingletonType(name, factory, parallel)
 }
 
-func (ctx *initRegistrationContext) RegisterPreSingletonType(name string, factory SingletonFactory) {
-	if _, present := ctx.preSingletonTypes[name]; present {
-		panic(fmt.Sprintf("pre singleton type %q is already registered", name))
-	}
-	ctx.preSingletonTypes[name] = factory
-	RegisterPreSingletonType(name, factory)
+func (ctx *initRegistrationContext) RegisterSingletonType(name string, factory SingletonFactory) {
+	ctx.registerSingletonType(name, factory, false)
+}
+
+func (ctx *initRegistrationContext) RegisterParallelSingletonType(name string, factory SingletonFactory) {
+	ctx.registerSingletonType(name, factory, true)
 }
 
 func (ctx *initRegistrationContext) PreArchMutators(f RegisterMutatorFunc) {
