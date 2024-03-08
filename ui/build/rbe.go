@@ -163,7 +163,7 @@ func CheckProdCreds(ctx Context, config Config) {
 		return
 	}
 	fmt.Fprintln(ctx.Writer, "")
-	fmt.Fprintln(ctx.Writer, "\033[33mWARNING: Missing LOAS credentials, please run `gcert`. This will result in failing builds in the future, see go/rbe-android-default-announcement.\033[0m")
+	fmt.Fprintln(ctx.Writer, "\033[33mWARNING: Missing LOAS credentials, please run `gcert`. This is required for a successful build execution. See go/rbe-android-default-announcement for more information.\033[0m")
 	fmt.Fprintln(ctx.Writer, "")
 }
 
