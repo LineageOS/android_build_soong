@@ -2132,7 +2132,7 @@ func (c *config) AllApexContributions() []string {
 	return ret
 }
 
-func (c *config) BuildIgnoreApexContributionContents() []string {
+func (c *config) BuildIgnoreApexContributionContents() *bool {
 	return c.productVariables.BuildIgnoreApexContributionContents
 }
 
