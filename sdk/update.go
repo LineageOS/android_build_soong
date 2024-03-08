@@ -89,19 +89,6 @@ type generatedContents struct {
 	indentLevel int
 }
 
-// generatedFile abstracts operations for writing contents into a file and emit a build rule
-// for the file.
-type generatedFile struct {
-	generatedContents
-	path android.OutputPath
-}
-
-func newGeneratedFile(ctx android.ModuleContext, path ...string) *generatedFile {
-	return &generatedFile{
-		path: android.PathForModuleOut(ctx, path...).OutputPath,
-	}
-}
-
 func (gc *generatedContents) Indent() {
 	gc.indentLevel++
 }
@@ -120,26 +107,6 @@ func (gc *generatedContents) IndentedPrintf(format string, args ...interface{}) 
 // the arguments.
 func (gc *generatedContents) UnindentedPrintf(format string, args ...interface{}) {
 	_, _ = fmt.Fprintf(&(gc.content), format, args...)
-}
-
-func (gf *generatedFile) build(pctx android.PackageContext, ctx android.BuilderContext, implicits android.Paths) {
-	rb := android.NewRuleBuilder(pctx, ctx)
-
-	content := gf.content.String()
-
-	// ninja consumes newline characters in rspfile_content. Prevent it by
-	// escaping the backslash in the newline character. The extra backslash
-	// is removed when the rspfile is written to the actual script file
-	content = strings.ReplaceAll(content, "\n", "\\n")
-
-	rb.Command().
-		Implicits(implicits).
-		Text("echo -n").Text(proptools.ShellEscape(content)).
-		// convert \\n to \n
-		Text("| sed 's/\\\\n/\\n/g' >").Output(gf.path)
-	rb.Command().
-		Text("chmod a+x").Output(gf.path)
-	rb.Build(gf.path.Base(), "Build "+gf.path.Base())
 }
 
 // Collect all the members.
@@ -170,7 +137,7 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 
 			var container android.Module
 			if parent != ctx.Module() {
-				container = parent.(android.Module)
+				container = parent
 			}
 
 			minApiLevel := android.MinApiLevelForSdkSnapshot(ctx, child)
@@ -179,7 +146,7 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 			s.memberVariantDeps = append(s.memberVariantDeps, sdkMemberVariantDep{
 				sdkVariant:             s,
 				memberType:             memberType,
-				variant:                child.(android.Module),
+				variant:                child,
 				minApiLevel:            minApiLevel,
 				container:              container,
 				export:                 export,
@@ -375,7 +342,7 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) {
 
 	snapshotDir := android.PathForModuleOut(ctx, "snapshot")
 
-	bp := newGeneratedFile(ctx, "snapshot", "Android.bp")
+	bp := android.PathForModuleOut(ctx, "snapshot", "Android.bp")
 
 	bpFile := &bpFile{
 		modules: make(map[string]*bpModule),
@@ -389,7 +356,7 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) {
 		sdk:                   s,
 		snapshotDir:           snapshotDir.OutputPath,
 		copies:                make(map[string]string),
-		filesToZip:            []android.Path{bp.path},
+		filesToZip:            []android.Path{bp},
 		bpFile:                bpFile,
 		prebuiltModules:       make(map[string]*bpModule),
 		allMembersByName:      allMembersByName,
@@ -463,17 +430,14 @@ be unnecessary as every module in the sdk already has its own licenses property.
 	}
 
 	// generate Android.bp
-	bp = newGeneratedFile(ctx, "snapshot", "Android.bp")
-	generateBpContents(&bp.generatedContents, bpFile)
-
-	contents := bp.content.String()
+	contents := generateBpContents(bpFile)
 	// If the snapshot is being generated for the current build release then check the syntax to make
 	// sure that it is compatible.
 	if targetBuildRelease == buildReleaseCurrent {
 		syntaxCheckSnapshotBpFile(ctx, contents)
 	}
 
-	bp.build(pctx, ctx, nil)
+	android.WriteFileRuleVerbatim(ctx, bp, contents)
 
 	// Copy the build number file into the snapshot.
 	builder.CopyToSnapshot(ctx.Config().BuildNumberFile(ctx), BUILD_NUMBER_FILE)
@@ -522,16 +486,14 @@ be unnecessary as every module in the sdk already has its own licenses property.
 	modules := s.generateInfoData(ctx, memberVariantDeps)
 
 	// Output the modules information as pretty printed JSON.
-	info := newGeneratedFile(ctx, fmt.Sprintf("%s%s.info", ctx.ModuleName(), snapshotFileSuffix))
+	info := android.PathForModuleOut(ctx, fmt.Sprintf("%s%s.info", ctx.ModuleName(), snapshotFileSuffix))
 	output, err := json.MarshalIndent(modules, "", "  ")
 	if err != nil {
 		ctx.ModuleErrorf("error generating %q: %s", info, err)
 	}
 	builder.infoContents = string(output)
-	info.generatedContents.UnindentedPrintf("%s", output)
-	info.build(pctx, ctx, nil)
-	infoPath := info.path
-	installedInfo := ctx.InstallFile(android.PathForMainlineSdksInstall(ctx), infoPath.Base(), infoPath)
+	android.WriteFileRuleVerbatim(ctx, info, builder.infoContents)
+	installedInfo := ctx.InstallFile(android.PathForMainlineSdksInstall(ctx), info.Base(), info)
 	s.infoFile = android.OptionalPathForPath(installedInfo)
 
 	// Install the zip, making sure that the info file has been installed as well.
@@ -885,7 +847,8 @@ func (t pruneEmptySetTransformer) transformPropertySetAfterContents(_ string, pr
 	}
 }
 
-func generateBpContents(contents *generatedContents, bpFile *bpFile) {
+func generateBpContents(bpFile *bpFile) string {
+	contents := &generatedContents{}
 	contents.IndentedPrintf("// This is auto-generated. DO NOT EDIT.\n")
 	for _, bpModule := range bpFile.order {
 		contents.IndentedPrintf("\n")
@@ -893,6 +856,7 @@ func generateBpContents(contents *generatedContents, bpFile *bpFile) {
 		outputPropertySet(contents, bpModule.bpPropertySet)
 		contents.IndentedPrintf("}\n")
 	}
+	return contents.content.String()
 }
 
 func outputPropertySet(contents *generatedContents, set *bpPropertySet) {
@@ -1018,9 +982,7 @@ func multiLineValue(value reflect.Value) bool {
 }
 
 func (s *sdk) GetAndroidBpContentsForTests() string {
-	contents := &generatedContents{}
-	generateBpContents(contents, s.builderForTests.bpFile)
-	return contents.content.String()
+	return generateBpContents(s.builderForTests.bpFile)
 }
 
 func (s *sdk) GetInfoContentsForTests() string {
