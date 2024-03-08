@@ -680,105 +680,6 @@ func extractCommonProperties(ctx android.ModuleContext, extractor *commonValueEx
 	}
 }
 
-// snapshotModuleStaticProperties contains snapshot static (i.e. not dynamically generated) properties.
-type snapshotModuleStaticProperties struct {
-	Compile_multilib string `android:"arch_variant"`
-}
-
-// combinedSnapshotModuleProperties are the properties that are associated with the snapshot module.
-type combinedSnapshotModuleProperties struct {
-	// The sdk variant from which this information was collected.
-	sdkVariant *sdk
-
-	// Static snapshot module properties.
-	staticProperties *snapshotModuleStaticProperties
-
-	// The dynamically generated member list properties.
-	dynamicProperties interface{}
-}
-
-// collateSnapshotModuleInfo collates all the snapshot module info from supplied sdk variants.
-func (s *sdk) collateSnapshotModuleInfo(ctx android.BaseModuleContext, sdkVariants []*sdk, memberVariantDeps []sdkMemberVariantDep) []*combinedSnapshotModuleProperties {
-	sdkVariantToCombinedProperties := map[*sdk]*combinedSnapshotModuleProperties{}
-	var list []*combinedSnapshotModuleProperties
-	for _, sdkVariant := range sdkVariants {
-		staticProperties := &snapshotModuleStaticProperties{
-			Compile_multilib: sdkVariant.multilibUsages.String(),
-		}
-		dynamicProperties := s.dynamicSdkMemberTypes.createMemberTypeListProperties()
-
-		combinedProperties := &combinedSnapshotModuleProperties{
-			sdkVariant:        sdkVariant,
-			staticProperties:  staticProperties,
-			dynamicProperties: dynamicProperties,
-		}
-		sdkVariantToCombinedProperties[sdkVariant] = combinedProperties
-
-		list = append(list, combinedProperties)
-	}
-
-	for _, memberVariantDep := range memberVariantDeps {
-		// If the member dependency is internal then do not add the dependency to the snapshot member
-		// list properties.
-		if !memberVariantDep.export {
-			continue
-		}
-
-		combined := sdkVariantToCombinedProperties[memberVariantDep.sdkVariant]
-		memberListProperty := s.memberTypeListProperty(memberVariantDep.memberType)
-		memberName := ctx.OtherModuleName(memberVariantDep.variant)
-
-		if memberListProperty.getter == nil {
-			continue
-		}
-
-		// Append the member to the appropriate list, if it is not already present in the list.
-		memberList := memberListProperty.getter(combined.dynamicProperties)
-		if !android.InList(memberName, memberList) {
-			memberList = append(memberList, memberName)
-		}
-		memberListProperty.setter(combined.dynamicProperties, memberList)
-	}
-
-	return list
-}
-
-func (s *sdk) optimizeSnapshotModuleProperties(ctx android.ModuleContext, list []*combinedSnapshotModuleProperties) *combinedSnapshotModuleProperties {
-
-	// Extract the dynamic properties and add them to a list of propertiesContainer.
-	propertyContainers := []propertiesContainer{}
-	for _, i := range list {
-		propertyContainers = append(propertyContainers, sdkVariantPropertiesContainer{
-			sdkVariant: i.sdkVariant,
-			properties: i.dynamicProperties,
-		})
-	}
-
-	// Extract the common members, removing them from the original properties.
-	commonDynamicProperties := s.dynamicSdkMemberTypes.createMemberTypeListProperties()
-	extractor := newCommonValueExtractor(commonDynamicProperties)
-	extractCommonProperties(ctx, extractor, commonDynamicProperties, propertyContainers)
-
-	// Extract the static properties and add them to a list of propertiesContainer.
-	propertyContainers = []propertiesContainer{}
-	for _, i := range list {
-		propertyContainers = append(propertyContainers, sdkVariantPropertiesContainer{
-			sdkVariant: i.sdkVariant,
-			properties: i.staticProperties,
-		})
-	}
-
-	commonStaticProperties := &snapshotModuleStaticProperties{}
-	extractor = newCommonValueExtractor(commonStaticProperties)
-	extractCommonProperties(ctx, extractor, &commonStaticProperties, propertyContainers)
-
-	return &combinedSnapshotModuleProperties{
-		sdkVariant:        nil,
-		staticProperties:  commonStaticProperties,
-		dynamicProperties: commonDynamicProperties,
-	}
-}
-
 type propertyTag struct {
 	name string
 }
@@ -971,7 +872,7 @@ func outputUnnamedValue(contents *generatedContents, value reflect.Value) {
 		contents.IndentedPrintf("}")
 
 	default:
-		panic(fmt.Errorf("Unknown type: %T of value %#v", value, value))
+		panic(fmt.Errorf("unknown type: %T of value %#v", value, value))
 	}
 }
 
@@ -1296,7 +1197,7 @@ func (m multilibUsage) addArchType(archType android.ArchType) multilibUsage {
 	case "lib64":
 		return m | multilib64
 	default:
-		panic(fmt.Errorf("Unknown Multilib field in ArchType, expected 'lib32' or 'lib64', found %q", multilib))
+		panic(fmt.Errorf("unknown Multilib field in ArchType, expected 'lib32' or 'lib64', found %q", multilib))
 	}
 }
 
@@ -1311,7 +1212,7 @@ func (m multilibUsage) String() string {
 	case multilibBoth:
 		return "both"
 	default:
-		panic(fmt.Errorf("Unknown multilib value, found %b, expected one of %b, %b, %b or %b",
+		panic(fmt.Errorf("unknown multilib value, found %b, expected one of %b, %b, %b or %b",
 			m, multilibNone, multilib32, multilib64, multilibBoth))
 	}
 }
@@ -2262,20 +2163,6 @@ type propertiesContainer interface {
 
 	// Get the properties that need optimizing.
 	optimizableProperties() interface{}
-}
-
-// A wrapper for sdk variant related properties to allow them to be optimized.
-type sdkVariantPropertiesContainer struct {
-	sdkVariant *sdk
-	properties interface{}
-}
-
-func (c sdkVariantPropertiesContainer) optimizableProperties() interface{} {
-	return c.properties
-}
-
-func (c sdkVariantPropertiesContainer) String() string {
-	return c.sdkVariant.String()
 }
 
 // Extract common properties from a slice of property structures of the same type.
