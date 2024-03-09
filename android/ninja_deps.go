@@ -15,7 +15,6 @@
 package android
 
 import (
-	"android/soong/starlark_import"
 	"sort"
 )
 
@@ -43,11 +42,4 @@ type ninjaDepsSingleton struct{}
 
 func (ninjaDepsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	ctx.AddNinjaFileDeps(ctx.Config().ninjaFileDeps()...)
-
-	deps, err := starlark_import.GetNinjaDeps()
-	if err != nil {
-		ctx.Errorf("Error running starlark code: %s", err)
-	} else {
-		ctx.AddNinjaFileDeps(deps...)
-	}
 }
