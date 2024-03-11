@@ -1345,12 +1345,15 @@ func (c *config) PrevVendorApiLevel() string {
 		panic(fmt.Errorf("Cannot parse vendor API level %s to an integer: %s",
 			c.VendorApiLevel(), err))
 	}
-	if vendorApiLevel < 202404 || vendorApiLevel%100 != 4 {
-		panic("Unknown vendor API level " + c.VendorApiLevel())
-	}
 	// The version before trunk stable is 34.
 	if vendorApiLevel == 202404 {
 		return "34"
+	}
+	if vendorApiLevel >= 1 && vendorApiLevel <= 34 {
+		return strconv.Itoa(vendorApiLevel - 1)
+	}
+	if vendorApiLevel < 202404 || vendorApiLevel%100 != 4 {
+		panic("Unknown vendor API level " + c.VendorApiLevel())
 	}
 	return strconv.Itoa(vendorApiLevel - 100)
 }
