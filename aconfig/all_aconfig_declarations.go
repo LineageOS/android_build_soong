@@ -89,7 +89,7 @@ func (this *allAconfigDeclarationsSingleton) GenerateBuildActions(ctx android.Si
 
 func (this *allAconfigDeclarationsSingleton) MakeVars(ctx android.MakeVarsContext) {
 	ctx.DistForGoal("droid", this.intermediateBinaryProtoPath)
-	for _, goal := range []string{"droid", "sdk"} {
+	for _, goal := range []string{"docs", "droid", "sdk"} {
 		ctx.DistForGoalWithFilename(goal, this.intermediateBinaryProtoPath, "flags.pb")
 		ctx.DistForGoalWithFilename(goal, this.intermediateTextProtoPath, "flags.textproto")
 	}
