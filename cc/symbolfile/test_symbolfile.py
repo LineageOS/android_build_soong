@@ -344,6 +344,45 @@ class OmitSymbolTest(unittest.TestCase):
         self.assertInclude(f_llndk, s_none)
         self.assertInclude(f_llndk, s_llndk)
 
+    def test_omit_llndk_versioned(self) -> None:
+        f_ndk = self.filter
+        f_ndk.api = 35
+
+        f_llndk = copy(f_ndk)
+        f_llndk.llndk = True
+        f_llndk.api = 202404
+
+        s = Symbol('foo', Tags())
+        s_llndk = Symbol('foo', Tags.from_strs(['llndk']))
+        s_llndk_202404 = Symbol('foo', Tags.from_strs(['llndk=202404']))
+        s_34 = Symbol('foo', Tags.from_strs(['introduced=34']))
+        s_34_llndk = Symbol('foo', Tags.from_strs(['introduced=34', 'llndk']))
+        s_35 = Symbol('foo', Tags.from_strs(['introduced=35']))
+        s_35_llndk_202404 = Symbol('foo', Tags.from_strs(['introduced=35', 'llndk=202404']))
+        s_35_llndk_202504 = Symbol('foo', Tags.from_strs(['introduced=35', 'llndk=202504']))
+
+        # When targeting NDK, omit LLNDK tags
+        self.assertInclude(f_ndk, s)
+        self.assertOmit(f_ndk, s_llndk)
+        self.assertOmit(f_ndk, s_llndk_202404)
+        self.assertInclude(f_ndk, s_34)
+        self.assertOmit(f_ndk, s_34_llndk)
+        self.assertInclude(f_ndk, s_35)
+        self.assertOmit(f_ndk, s_35_llndk_202404)
+        self.assertOmit(f_ndk, s_35_llndk_202504)
+
+        # When targeting LLNDK, old symbols without any mode tags are included as LLNDK
+        self.assertInclude(f_llndk, s)
+        # When targeting LLNDK, old symbols with #llndk are included as LLNDK
+        self.assertInclude(f_llndk, s_llndk)
+        self.assertInclude(f_llndk, s_llndk_202404)
+        self.assertInclude(f_llndk, s_34)
+        self.assertInclude(f_llndk, s_34_llndk)
+        # When targeting LLNDK, new symbols(>=35) should be tagged with llndk-introduced=.
+        self.assertOmit(f_llndk, s_35)
+        self.assertInclude(f_llndk, s_35_llndk_202404)
+        self.assertOmit(f_llndk, s_35_llndk_202504)
+
     def test_omit_apex(self) -> None:
         f_none = self.filter
         f_apex = copy(f_none)
@@ -451,9 +490,12 @@ class SymbolFileParseTest(unittest.TestCase):
         self.assertIsNone(version.base)
         self.assertEqual(Tags.from_strs(['weak', 'introduced=35']), version.tags)
 
+        # Inherit introduced= tags from version block so that
+        # should_omit_tags() can differently based on introduced API level when treating
+        # LLNDK-available symbols.
         expected_symbols = [
-            Symbol('baz', Tags()),
-            Symbol('qux', Tags.from_strs(['apex', 'llndk'])),
+            Symbol('baz', Tags.from_strs(['introduced=35'])),
+            Symbol('qux', Tags.from_strs(['apex', 'llndk', 'introduced=35'])),
         ]
         self.assertEqual(expected_symbols, version.symbols)
 
@@ -600,6 +642,19 @@ class SymbolFileParseTest(unittest.TestCase):
             Symbol('qux', Tags.from_strs(['apex'])),
         ]
         self.assertEqual(expected_symbols, version.symbols)
+
+    def test_parse_llndk_version_is_missing(self) -> None:
+        input_file = io.StringIO(textwrap.dedent("""\
+            VERSION_1 { # introduced=35
+                foo;
+                bar; # llndk
+            };
+        """))
+        f = copy(self.filter)
+        f.llndk = True
+        parser = symbolfile.SymbolFileParser(input_file, {}, f)
+        with self.assertRaises(symbolfile.ParseError):
+            parser.parse()
 
 
 def main() -> None:
