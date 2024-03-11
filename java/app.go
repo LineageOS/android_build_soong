@@ -912,6 +912,13 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	a.buildAppDependencyInfo(ctx)
+
+	providePrebuiltInfo(ctx,
+		prebuiltInfoProps{
+			baseModuleName: a.BaseModuleName(),
+			isPrebuilt:     false,
+		},
+	)
 }
 
 type appDepsInterface interface {
