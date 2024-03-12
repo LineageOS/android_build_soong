@@ -16,6 +16,7 @@ package filesystem
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"android/soong/android"
@@ -91,6 +92,22 @@ func TestFileSystemDeps(t *testing.T) {
 	for _, e := range expected {
 		android.AssertStringListContains(t, "missing entry", fs.entries, e)
 	}
+}
+
+func TestIncludeMakeBuiltFiles(t *testing.T) {
+	result := fixture.RunTestWithBp(t, `
+		android_filesystem {
+			name: "myfilesystem",
+			include_make_built_files: "system",
+		}
+	`)
+
+	output := result.ModuleForTests("myfilesystem", "android_common").Output("myfilesystem.img")
+
+	stampFile := filepath.Join(result.Config.OutDir(), "target/product/test_device/obj/PACKAGING/system_intermediates/staging_dir.stamp")
+	fileListFile := filepath.Join(result.Config.OutDir(), "target/product/test_device/obj/PACKAGING/system_intermediates/file_list.txt")
+	android.AssertStringListContains(t, "deps of filesystem must include the staging dir stamp file", output.Implicits.Strings(), stampFile)
+	android.AssertStringListContains(t, "deps of filesystem must include the staging dir file list", output.Implicits.Strings(), fileListFile)
 }
 
 func TestFileSystemFillsLinkerConfigWithStubLibs(t *testing.T) {
