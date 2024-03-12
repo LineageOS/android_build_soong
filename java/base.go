@@ -94,9 +94,6 @@ type CommonProperties struct {
 	// if not blank, used as prefix to generate repackage rule
 	Jarjar_prefix *string
 
-	// if set to true, skip the jarjar repackaging
-	Skip_jarjar_repackage *bool
-
 	// If not blank, set the java version passed to javac as -source and -target
 	Java_version *string
 
@@ -1103,13 +1100,11 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 	jarjarProviderData := j.collectJarJarRules(ctx)
 	if jarjarProviderData != nil {
 		android.SetProvider(ctx, JarJarProvider, *jarjarProviderData)
-		if !proptools.Bool(j.properties.Skip_jarjar_repackage) {
-			text := getJarJarRuleText(jarjarProviderData)
-			if text != "" {
-				ruleTextFile := android.PathForModuleOut(ctx, "repackaged-jarjar", "repackaging.txt")
-				android.WriteFileRule(ctx, ruleTextFile, text)
-				j.repackageJarjarRules = ruleTextFile
-			}
+		text := getJarJarRuleText(jarjarProviderData)
+		if text != "" {
+			ruleTextFile := android.PathForModuleOut(ctx, "repackaged-jarjar", "repackaging.txt")
+			android.WriteFileRule(ctx, ruleTextFile, text)
+			j.repackageJarjarRules = ruleTextFile
 		}
 	}
 
@@ -1293,10 +1288,12 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 			return
 		}
 
+		kotlinJarPath := j.repackageFlagsIfNecessary(ctx, kotlinJar.OutputPath, jarName, "kotlinc")
+
 		// Make javac rule depend on the kotlinc rule
 		flags.classpath = append(classpath{kotlinHeaderJar}, flags.classpath...)
 
-		kotlinJars = append(kotlinJars, kotlinJar)
+		kotlinJars = append(kotlinJars, kotlinJarPath)
 		kotlinHeaderJars = append(kotlinHeaderJars, kotlinHeaderJar)
 
 		// Jar kotlin classes into the final jar after javac
@@ -1376,6 +1373,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 				for idx, shardSrc := range shardSrcs {
 					classes := j.compileJavaClasses(ctx, jarName, idx, shardSrc,
 						nil, flags, extraJarDeps)
+					classes = j.repackageFlagsIfNecessary(ctx, classes, jarName, "javac-"+strconv.Itoa(idx))
 					jars = append(jars, classes)
 				}
 			}
@@ -1388,11 +1386,13 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 				for idx, shardSrcJars := range shardSrcJarsList {
 					classes := j.compileJavaClasses(ctx, jarName, startIdx+idx,
 						nil, shardSrcJars, flags, extraJarDeps)
+					classes = j.repackageFlagsIfNecessary(ctx, classes, jarName, "javac-"+strconv.Itoa(startIdx+idx))
 					jars = append(jars, classes)
 				}
 			}
 		} else {
 			classes := j.compileJavaClasses(ctx, jarName, -1, uniqueJavaFiles, srcJars, flags, extraJarDeps)
+			classes = j.repackageFlagsIfNecessary(ctx, classes, jarName, "javac")
 			jars = append(jars, classes)
 		}
 		if ctx.Failed() {
@@ -1546,16 +1546,6 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 			j.resourceJar = resourceJarJarFile
 		}
 
-		if ctx.Failed() {
-			return
-		}
-	}
-
-	// Automatic jarjar rules propagation
-	if j.repackageJarjarRules != nil {
-		repackagedJarjarFile := android.PathForModuleOut(ctx, "repackaged-jarjar", jarName).OutputPath
-		TransformJarJar(ctx, repackagedJarjarFile, outputFile, j.repackageJarjarRules)
-		outputFile = repackagedJarjarFile
 		if ctx.Failed() {
 			return
 		}
@@ -2676,6 +2666,16 @@ func getJarJarRuleText(provider *JarJarProviderData) string {
 		}
 	}
 	return result
+}
+
+// Repackage the flags if the jarjar rule txt for the flags is generated
+func (j *Module) repackageFlagsIfNecessary(ctx android.ModuleContext, infile android.WritablePath, jarName, info string) android.WritablePath {
+	if j.repackageJarjarRules == nil {
+		return infile
+	}
+	repackagedJarjarFile := android.PathForModuleOut(ctx, "repackaged-jarjar", info+jarName)
+	TransformJarJar(ctx, repackagedJarjarFile, infile, j.repackageJarjarRules)
+	return repackagedJarjarFile
 }
 
 func addPlugins(deps *deps, pluginJars android.Paths, pluginClasses ...string) {
