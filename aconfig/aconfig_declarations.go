@@ -137,18 +137,22 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 	inputFiles := make([]android.Path, len(declarationFiles))
 	copy(inputFiles, declarationFiles)
 	inputFiles = append(inputFiles, valuesFiles...)
+	args := map[string]string{
+		"release_version":    ctx.Config().ReleaseVersion(),
+		"package":            module.properties.Package,
+		"declarations":       android.JoinPathsWithPrefix(declarationFiles, "--declarations "),
+		"values":             joinAndPrefix(" --values ", module.properties.Values),
+		"default-permission": optionalVariable(" --default-permission ", defaultPermission),
+	}
+	if len(module.properties.Container) > 0 {
+		args["container"] = "--container " + module.properties.Container
+	}
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        aconfigRule,
 		Output:      intermediateCacheFilePath,
 		Inputs:      inputFiles,
 		Description: "aconfig_declarations",
-		Args: map[string]string{
-			"release_version":    ctx.Config().ReleaseVersion(),
-			"package":            module.properties.Package,
-			"declarations":       android.JoinPathsWithPrefix(declarationFiles, "--declarations "),
-			"values":             joinAndPrefix(" --values ", module.properties.Values),
-			"default-permission": optionalVariable(" --default-permission ", defaultPermission),
-		},
+		Args:        args,
 	})
 
 	intermediateDumpFilePath := android.PathForModuleOut(ctx, "intermediate.txt")
