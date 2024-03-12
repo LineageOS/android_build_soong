@@ -275,6 +275,8 @@ com\.nvidia\..*
 
 # OPLUS adds
 com\.oplus\..*
+net\.oneplus\..*
+oplus\..*
 
 # QC adds
 com.qualcomm.qti
