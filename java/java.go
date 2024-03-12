@@ -680,10 +680,11 @@ func shouldUncompressDex(ctx android.ModuleContext, libName string, dexpreopter 
 		return true
 	}
 
-	// Store uncompressed dex files that are preopted on /system.
-	if !dexpreopter.dexpreoptDisabled(ctx, libName) && (ctx.Host() || !dexpreopter.odexOnSystemOther(ctx, libName, dexpreopter.installPath)) {
+	// Store uncompressed dex files that are preopted on /system or /system_other.
+	if !dexpreopter.dexpreoptDisabled(ctx, libName) {
 		return true
 	}
+
 	if ctx.Config().UncompressPrivAppDex() &&
 		inList(ctx.ModuleName(), ctx.Config().ModulesLoadedByPrivilegedModules()) {
 		return true
