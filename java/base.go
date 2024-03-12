@@ -200,6 +200,9 @@ type CommonProperties struct {
 	// Additional srcJars tacked in by GeneratedJavaLibraryModule
 	Generated_srcjars []android.Path `android:"mutated"`
 
+	// intermediate aconfig cache file tacked in by GeneratedJavaLibraryModule
+	Aconfig_Cache_files []android.Path `android:"mutated"`
+
 	// If true, then only the headers are built and not the implementation jar.
 	Headers_only *bool
 
@@ -544,6 +547,11 @@ type Module struct {
 	jarjarRenameRules map[string]string
 
 	stubsLinkType StubsLinkType
+
+	// Paths to the aconfig intermediate cache files that are provided by the
+	// java_aconfig_library or java_library modules that are statically linked
+	// to this module. Does not contain cache files from all transitive dependencies.
+	aconfigCacheFiles android.Paths
 }
 
 func (j *Module) CheckStableSdkVersion(ctx android.BaseModuleContext) error {
@@ -1202,6 +1210,8 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 	// final R classes from the app.
 	flags.classpath = append(android.CopyOf(extraClasspathJars), flags.classpath...)
 
+	j.aconfigCacheFiles = append(deps.aconfigProtoFiles, j.properties.Aconfig_Cache_files...)
+
 	// If compiling headers then compile them and skip the rest
 	if proptools.Bool(j.properties.Headers_only) {
 		if srcFiles.HasExt(".kt") {
@@ -1746,7 +1756,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		ExportedPluginDisableTurbine:        j.exportedDisableTurbine,
 		JacocoReportClassesFile:             j.jacocoReportClassesFile,
 		StubsLinkType:                       j.stubsLinkType,
-		AconfigIntermediateCacheOutputPaths: deps.aconfigProtoFiles,
+		AconfigIntermediateCacheOutputPaths: j.aconfigCacheFiles,
 	})
 
 	// Save the output file with no relative path so that it doesn't end up in a subdirectory when used as a resource
@@ -2360,7 +2370,10 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				deps.staticHeaderJars = append(deps.staticHeaderJars, dep.Srcs()...)
 			}
 		} else if dep, ok := android.OtherModuleProvider(ctx, module, android.CodegenInfoProvider); ok {
-			deps.aconfigProtoFiles = append(deps.aconfigProtoFiles, dep.IntermediateCacheOutputPaths...)
+			switch tag {
+			case staticLibTag:
+				deps.aconfigProtoFiles = append(deps.aconfigProtoFiles, dep.IntermediateCacheOutputPaths...)
+			}
 		} else {
 			switch tag {
 			case bootClasspathTag:
