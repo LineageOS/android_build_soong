@@ -2680,9 +2680,7 @@ func TestLlndkLibrary(t *testing.T) {
 		}
 	}
 	expected := []string{
-		"android_vendor.29_arm64_armv8-a_shared_current",
 		"android_vendor.29_arm64_armv8-a_shared",
-		"android_vendor.29_arm_armv7-a-neon_shared_current",
 		"android_vendor.29_arm_armv7-a-neon_shared",
 	}
 	android.AssertArrayString(t, "variants for llndk stubs", expected, actual)
