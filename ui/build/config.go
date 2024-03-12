@@ -1386,7 +1386,9 @@ func (c *configImpl) rbeAuth() (string, string) {
 }
 
 func (c *configImpl) rbeSockAddr(dir string) (string, error) {
-	maxNameLen := len(syscall.RawSockaddrUnix{}.Path)
+	// Absolute path socket addresses have a prefix of //. This should
+	// be included in the length limit.
+	maxNameLen := len(syscall.RawSockaddrUnix{}.Path) - 2
 	base := fmt.Sprintf("reproxy_%v.sock", rbeRandPrefix)
 
 	name := filepath.Join(dir, base)
