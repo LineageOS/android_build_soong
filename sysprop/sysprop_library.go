@@ -154,10 +154,10 @@ func (g *syspropRustGenRule) GenerateAndroidBuildActions(ctx android.ModuleConte
 	})
 
 	for _, syspropFile := range android.PathsForModuleSrc(ctx, g.properties.Srcs) {
-		syspropDir := strings.TrimSuffix(syspropFile.String(), syspropFile.Ext())
-		outputDir := android.PathForModuleGen(ctx, syspropDir, "src")
-		libPath := android.PathForModuleGen(ctx, syspropDir, "src", "lib.rs")
-		parsersPath := android.PathForModuleGen(ctx, syspropDir, "src", "gen_parsers_and_formatters.rs")
+		syspropDir := android.GenPathWithExt(ctx, "sysprop", syspropFile, "srcrust")
+		outputDir := syspropDir.Join(ctx, "src")
+		libPath := syspropDir.Join(ctx, "src", "lib.rs")
+		parsersPath := syspropDir.Join(ctx, "src", "gen_parsers_and_formatters.rs")
 
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        syspropRust,
