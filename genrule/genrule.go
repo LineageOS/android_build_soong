@@ -808,7 +808,7 @@ func GenRuleFactory() android.Module {
 
 type genRuleProperties struct {
 	// names of the output files that will be generated
-	Out []string
+	Out []string `android:"arch_variant"`
 }
 
 var Bool = proptools.Bool
