@@ -54,6 +54,8 @@ message Status {
     optional string command = 6;
     // Edge uses console.
     optional bool console = 7;
+    // Changed inputs since last build.
+    repeated string changed_inputs = 8;
   }
 
   message EdgeFinished {
