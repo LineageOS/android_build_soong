@@ -51,6 +51,7 @@ var (
 	arm64Ldflags = []string{
 		"-Wl,--hash-style=gnu",
 		"-Wl,-z,separate-code",
+		"-Wl,-z,separate-loadable-segments",
 	}
 
 	arm64Lldflags = arm64Ldflags
