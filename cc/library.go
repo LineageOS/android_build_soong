@@ -1893,6 +1893,10 @@ func (library *libraryDecorator) symbolFileForAbiCheck(ctx ModuleContext) *strin
 	if library.hasStubsVariants() && library.Properties.Stubs.Symbol_file != nil {
 		return library.Properties.Stubs.Symbol_file
 	}
+	// TODO(b/309880485): Distinguish platform, NDK, LLNDK, and APEX version scripts.
+	if library.baseLinker.Properties.Version_script != nil {
+		return library.baseLinker.Properties.Version_script
+	}
 	return nil
 }
 
