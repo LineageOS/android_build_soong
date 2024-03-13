@@ -121,6 +121,11 @@ type PrebuiltCommonProperties struct {
 	// List of systemserverclasspath fragments inside this prebuilt APEX bundle and for which this
 	// APEX bundle will create an APEX variant.
 	Exported_systemserverclasspath_fragments []string
+
+	// Path to the .prebuilt_info file of the prebuilt apex.
+	// In case of mainline modules, the .prebuilt_info file contains the build_id that was used to
+	// generate the prebuilt.
+	Prebuilt_info *string `android:"path"`
 }
 
 // initPrebuiltCommon initializes the prebuiltCommon structure and performs initialization of the
@@ -819,6 +824,20 @@ func (p *prebuiltCommon) provideApexExportsInfo(ctx android.ModuleContext) {
 	}
 }
 
+// Set prebuiltInfoProvider. This will be used by `apex_prebuiltinfo_singleton` to print out a metadata file
+// with information about whether source or prebuilt of an apex was used during the build.
+func (p *prebuiltCommon) providePrebuiltInfo(ctx android.ModuleContext) {
+	info := prebuiltInfo{
+		Name:        p.BaseModuleName(), // BaseModuleName ensures that this will not contain the prebuilt_ prefix.
+		Is_prebuilt: true,
+	}
+	// If Prebuilt_info information is available in the soong module definition, add it to prebuilt_info.json.
+	if p.prebuiltCommonProperties.Prebuilt_info != nil {
+		info.Prebuilt_info_file_path = android.PathForModuleSrc(ctx, *p.prebuiltCommonProperties.Prebuilt_info).String()
+	}
+	android.SetProvider(ctx, prebuiltInfoProvider, info)
+}
+
 func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	p.apexKeysPath = writeApexKeys(ctx, p)
 	// TODO(jungjw): Check the key validity.
@@ -845,6 +864,8 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// provide info used for generating the boot image
 	p.provideApexExportsInfo(ctx)
+
+	p.providePrebuiltInfo(ctx)
 
 	// Save the files that need to be made available to Make.
 	p.initApexFilesForAndroidMk(ctx)
@@ -1067,6 +1088,8 @@ func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// provide info used for generating the boot image
 	a.provideApexExportsInfo(ctx)
+
+	a.providePrebuiltInfo(ctx)
 
 	// Save the files that need to be made available to Make.
 	a.initApexFilesForAndroidMk(ctx)
