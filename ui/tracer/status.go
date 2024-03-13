@@ -15,9 +15,10 @@
 package tracer
 
 import (
-	"android/soong/ui/status"
 	"strings"
 	"time"
+
+	"android/soong/ui/status"
 )
 
 func (t *tracerImpl) StatusTracer() status.StatusOutput {
@@ -110,6 +111,7 @@ func (s *statusOutput) FinishAction(result status.ActionResult, counts status.Co
 			VoluntaryContextSwitches:   result.Stats.VoluntaryContextSwitches,
 			InvoluntaryContextSwitches: result.Stats.InvoluntaryContextSwitches,
 			Tags:                       s.parseTags(result.Stats.Tags),
+			ChangedInputs:              result.Action.ChangedInputs,
 		},
 	})
 }
@@ -125,6 +127,7 @@ type statsArg struct {
 	VoluntaryContextSwitches   uint64            `json:"voluntary_context_switches"`
 	InvoluntaryContextSwitches uint64            `json:"involuntary_context_switches"`
 	Tags                       map[string]string `json:"tags"`
+	ChangedInputs              []string          `json:"changed_inputs"`
 }
 
 func (s *statusOutput) Flush()                                        {}

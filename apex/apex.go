@@ -2417,6 +2417,33 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Set a provider for dexpreopt of bootjars
 	a.provideApexExportsInfo(ctx)
+
+	a.providePrebuiltInfo(ctx)
+}
+
+var prebuiltInfoProvider = blueprint.NewProvider[prebuiltInfo]()
+
+// contents of prebuilt_info.json
+type prebuiltInfo struct {
+	// Name of the apex, without the prebuilt_ prefix
+	Name string
+
+	Is_prebuilt bool
+
+	// This is relative to root of the workspace.
+	// In case of mainline modules, this file contains the build_id that was used
+	// to generate the mainline module prebuilt.
+	Prebuilt_info_file_path string `json:",omitempty"`
+}
+
+// Set prebuiltInfoProvider. This will be used by `apex_prebuiltinfo_singleton` to print out a metadata file
+// with information about whether source or prebuilt of an apex was used during the build.
+func (a *apexBundle) providePrebuiltInfo(ctx android.ModuleContext) {
+	info := prebuiltInfo{
+		Name:        a.Name(),
+		Is_prebuilt: false,
+	}
+	android.SetProvider(ctx, prebuiltInfoProvider, info)
 }
 
 // Set a provider containing information about the jars and .prof provided by the apex

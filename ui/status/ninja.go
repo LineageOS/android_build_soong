@@ -206,10 +206,11 @@ func (n *NinjaReader) run() {
 		}
 		if msg.EdgeStarted != nil {
 			action := &Action{
-				Description: msg.EdgeStarted.GetDesc(),
-				Outputs:     msg.EdgeStarted.Outputs,
-				Inputs:      msg.EdgeStarted.Inputs,
-				Command:     msg.EdgeStarted.GetCommand(),
+				Description:   msg.EdgeStarted.GetDesc(),
+				Outputs:       msg.EdgeStarted.Outputs,
+				Inputs:        msg.EdgeStarted.Inputs,
+				Command:       msg.EdgeStarted.GetCommand(),
+				ChangedInputs: msg.EdgeStarted.ChangedInputs,
 			}
 			n.status.StartAction(action)
 			running[msg.EdgeStarted.GetId()] = action

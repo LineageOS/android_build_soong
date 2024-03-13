@@ -27,11 +27,13 @@ func init() {
 
 func RegisterApexContributionsBuildComponents(ctx RegistrationContext) {
 	ctx.RegisterModuleType("apex_contributions", apexContributionsFactory)
+	ctx.RegisterModuleType("apex_contributions_defaults", apexContributionsDefaultsFactory)
 	ctx.RegisterSingletonModuleType("all_apex_contributions", allApexContributionsFactory)
 }
 
 type apexContributions struct {
 	ModuleBase
+	DefaultableModuleBase
 	properties contributionProps
 }
 
@@ -61,6 +63,7 @@ func apexContributionsFactory() Module {
 	module := &apexContributions{}
 	module.AddProperties(&module.properties)
 	InitAndroidModule(module)
+	InitDefaultableModule(module)
 	return module
 }
 
@@ -68,6 +71,18 @@ func apexContributionsFactory() Module {
 // It provides metadata that is used in post-deps mutator phase for source vs
 // prebuilts selection.
 func (m *apexContributions) GenerateAndroidBuildActions(ctx ModuleContext) {
+}
+
+type apexContributionsDefaults struct {
+	ModuleBase
+	DefaultsModuleBase
+}
+
+func apexContributionsDefaultsFactory() Module {
+	module := &apexContributionsDefaults{}
+	module.AddProperties(&contributionProps{})
+	InitDefaultsModule(module)
+	return module
 }
 
 // A container for apex_contributions.
