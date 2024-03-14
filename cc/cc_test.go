@@ -2688,7 +2688,7 @@ func TestLlndkLibrary(t *testing.T) {
 	android.AssertArrayString(t, "variants for llndk stubs", expected, actual)
 
 	params := result.ModuleForTests("libllndk", "android_vendor.29_arm_armv7-a-neon_shared").Description("generate stub")
-	android.AssertSame(t, "use VNDK version for default stubs", "current", params.Args["apiLevel"])
+	android.AssertSame(t, "use Vendor API level for default stubs", "202404", params.Args["apiLevel"])
 
 	checkExportedIncludeDirs := func(module, variant string, expectedDirs ...string) {
 		t.Helper()
