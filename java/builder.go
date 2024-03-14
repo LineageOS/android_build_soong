@@ -120,6 +120,8 @@ var (
 				`--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED ` +
 				`--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED ` +
 				`--add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED ` +
+				`--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED ` +
+				`--add-exports=jdk.internal.opt/jdk.internal.opt=ALL-UNNAMED ` +
 				`-jar ${config.JavaKytheExtractorJar} ` +
 				`${config.JavacHeapFlags} ${config.CommonJdkFlags} ` +
 				`$processorpath $processor $javacFlags $bootClasspath $classpath ` +
