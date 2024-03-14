@@ -976,3 +976,18 @@ type ApexExportsInfo struct {
 	// Map from the apex library name (without prebuilt_ prefix) to the dex file path on host
 	LibraryNameToDexJarPathOnHost map[string]Path
 }
+
+var PrebuiltInfoProvider = blueprint.NewProvider[PrebuiltInfo]()
+
+// contents of prebuilt_info.json
+type PrebuiltInfo struct {
+	// Name of the apex, without the prebuilt_ prefix
+	Name string
+
+	Is_prebuilt bool
+
+	// This is relative to root of the workspace.
+	// In case of mainline modules, this file contains the build_id that was used
+	// to generate the mainline module prebuilt.
+	Prebuilt_info_file_path string `json:",omitempty"`
+}
