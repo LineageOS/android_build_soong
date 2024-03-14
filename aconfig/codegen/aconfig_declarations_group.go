@@ -15,9 +15,10 @@
 package codegen
 
 import (
-	"android/soong/aconfig"
-	"android/soong/android"
 	"fmt"
+	"maps"
+
+	"android/soong/android"
 
 	"github.com/google/blueprint"
 )
@@ -43,6 +44,7 @@ type AconfigDeclarationsGroup struct {
 	aconfigDeclarationNames      []string
 	intermediateCacheOutputPaths android.Paths
 	javaSrcjars                  android.Paths
+	modeInfos                    map[string]android.ModeInfo
 }
 
 type AconfigDeclarationsGroupProperties struct {
@@ -76,9 +78,10 @@ func (adg *AconfigDeclarationsGroup) DepsMutator(ctx android.BottomUpMutatorCont
 }
 
 func (adg *AconfigDeclarationsGroup) VisitDeps(ctx android.ModuleContext) {
+	adg.modeInfos = make(map[string]android.ModeInfo)
 	ctx.VisitDirectDeps(func(dep android.Module) {
 		tag := ctx.OtherModuleDependencyTag(dep)
-		if provider, ok := android.OtherModuleProvider(ctx, dep, aconfig.CodegenInfoProvider); ok {
+		if provider, ok := android.OtherModuleProvider(ctx, dep, android.CodegenInfoProvider); ok {
 
 			// aconfig declaration names and cache files are collected for all aconfig library dependencies
 			adg.aconfigDeclarationNames = append(adg.aconfigDeclarationNames, provider.AconfigDeclarations...)
@@ -88,8 +91,14 @@ func (adg *AconfigDeclarationsGroup) VisitDeps(ctx android.ModuleContext) {
 			case aconfigDeclarationsGroupTag:
 				// Will retrieve outputs from another language codegen modules when support is added
 				adg.javaSrcjars = append(adg.javaSrcjars, provider.Srcjars...)
+				maps.Copy(adg.modeInfos, provider.ModeInfos)
 			case javaAconfigLibraryTag:
 				adg.javaSrcjars = append(adg.javaSrcjars, provider.Srcjars...)
+				maps.Copy(adg.modeInfos, provider.ModeInfos)
+			case ccAconfigLibraryTag:
+				maps.Copy(adg.modeInfos, provider.ModeInfos)
+			case rustAconfigLibraryTag:
+				maps.Copy(adg.modeInfos, provider.ModeInfos)
 			}
 		}
 	})
@@ -100,10 +109,11 @@ func (adg *AconfigDeclarationsGroup) GenerateAndroidBuildActions(ctx android.Mod
 	adg.aconfigDeclarationNames = android.FirstUniqueStrings(adg.aconfigDeclarationNames)
 	adg.intermediateCacheOutputPaths = android.FirstUniquePaths(adg.intermediateCacheOutputPaths)
 
-	android.SetProvider(ctx, aconfig.CodegenInfoProvider, aconfig.CodegenInfo{
+	android.SetProvider(ctx, android.CodegenInfoProvider, android.CodegenInfo{
 		AconfigDeclarations:          adg.aconfigDeclarationNames,
 		IntermediateCacheOutputPaths: adg.intermediateCacheOutputPaths,
 		Srcjars:                      adg.javaSrcjars,
+		ModeInfos:                    adg.modeInfos,
 	})
 }
 

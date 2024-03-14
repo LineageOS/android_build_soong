@@ -677,18 +677,16 @@ func (library *libraryDecorator) getHeaderAbiCheckerProperties(ctx android.BaseM
 
 func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
 	if ctx.IsLlndk() {
+		vendorApiLevel := ctx.Config().VendorApiLevel()
+		if vendorApiLevel == "" {
+			// TODO(b/321892570): Some tests relying on old fixtures which
+			// doesn't set vendorApiLevel. Needs to fix them.
+			vendorApiLevel = ctx.Config().PlatformSdkVersion().String()
+		}
 		// This is the vendor variant of an LLNDK library, build the LLNDK stubs.
-		vndkVer := ctx.Module().(*Module).VndkVersion()
-		if !inList(vndkVer, ctx.Config().PlatformVersionActiveCodenames()) || vndkVer == "" {
-			// For non-enforcing devices, vndkVer is empty. Use "current" in that case, too.
-			vndkVer = "current"
-		}
-		if library.stubsVersion() != "" {
-			vndkVer = library.stubsVersion()
-		}
 		nativeAbiResult := parseNativeAbiDefinition(ctx,
 			String(library.Properties.Llndk.Symbol_file),
-			android.ApiLevelOrPanic(ctx, vndkVer), "--llndk")
+			android.ApiLevelOrPanic(ctx, vendorApiLevel), "--llndk")
 		objs := compileStubLibrary(ctx, flags, nativeAbiResult.stubSrc)
 		if !Bool(library.Properties.Llndk.Unversioned) {
 			library.versionScriptPath = android.OptionalPathForPath(
@@ -1917,12 +1915,15 @@ func (library *libraryDecorator) stubsVersions(ctx android.BaseMutatorContext) [
 	}
 
 	if library.hasLLNDKStubs() && ctx.Module().(*Module).InVendorOrProduct() {
-		// LLNDK libraries only need a single stubs variant.
-		return []string{android.FutureApiLevel.String()}
+		// LLNDK libraries only need a single stubs variant (""), which is
+		// added automatically in createVersionVariations().
+		return nil
 	}
 
 	// Future API level is implicitly added if there isn't
-	return addCurrentVersionIfNotPresent(library.Properties.Stubs.Versions)
+	versions := addCurrentVersionIfNotPresent(library.Properties.Stubs.Versions)
+	normalizeVersions(ctx, versions)
+	return versions
 }
 
 func addCurrentVersionIfNotPresent(vers []string) []string {
@@ -2294,10 +2295,6 @@ func setStubsVersions(mctx android.BottomUpMutatorContext, library libraryInterf
 		return
 	}
 	versions := library.stubsVersions(mctx)
-	if len(versions) <= 0 {
-		return
-	}
-	normalizeVersions(mctx, versions)
 	if mctx.Failed() {
 		return
 	}
