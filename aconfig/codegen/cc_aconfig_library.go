@@ -146,4 +146,12 @@ func (this *CcAconfigLibraryCallbacks) GeneratorBuildActions(ctx cc.ModuleContex
 			"mode":   mode,
 		},
 	})
+
+	android.SetProvider(ctx, android.CodegenInfoProvider, android.CodegenInfo{
+		ModeInfos: map[string]android.ModeInfo{
+			ctx.ModuleName(): {
+				Container: declarations.Container,
+				Mode:      mode,
+			}},
+	})
 }

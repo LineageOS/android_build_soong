@@ -15,7 +15,6 @@
 package android
 
 import (
-	"android/soong/bazel"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
@@ -26,6 +25,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	"android/soong/bazel"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -2087,6 +2088,7 @@ func isUnqualifiedModuleName(module string) bool {
 // caused by prebuilt_ prefix, or fully qualified module names.
 type sourceOrOutputDependencyTag struct {
 	blueprint.BaseDependencyTag
+	AlwaysPropagateAconfigValidationDependencyTag
 
 	// The name of the module.
 	moduleName string
