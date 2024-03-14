@@ -463,6 +463,98 @@ class IntegrationTest(unittest.TestCase):
         """)
         self.assertEqual(expected_version, version_file.getvalue())
 
+    def test_integration_with_llndk(self) -> None:
+        input_file = io.StringIO(textwrap.dedent("""\
+            VERSION_34 { # introduced=34
+                global:
+                    foo;
+                    bar; # llndk
+            };
+            VERSION_35 { # introduced=35
+                global:
+                    wiggle;
+                    waggle;
+                    waggle; # llndk=202404
+                    bubble; # llndk=202404
+                    duddle;
+                    duddle; # llndk=202504
+            } VERSION_34;
+        """))
+        f = copy(self.filter)
+        f.llndk = True
+        f.api = 202404
+        parser = symbolfile.SymbolFileParser(input_file, {}, f)
+        versions = parser.parse()
+
+        src_file = io.StringIO()
+        version_file = io.StringIO()
+        symbol_list_file = io.StringIO()
+
+        generator = ndkstubgen.Generator(src_file,
+                                         version_file, symbol_list_file, f)
+        generator.write(versions)
+
+        expected_src = textwrap.dedent("""\
+            void foo() {}
+            void bar() {}
+            void waggle() {}
+            void bubble() {}
+        """)
+        self.assertEqual(expected_src, src_file.getvalue())
+
+        expected_version = textwrap.dedent("""\
+            VERSION_34 {
+                global:
+                    foo;
+                    bar;
+            };
+            VERSION_35 {
+                global:
+                    waggle;
+                    bubble;
+            } VERSION_34;
+        """)
+        self.assertEqual(expected_version, version_file.getvalue())
+
+    def test_integration_with_llndk_with_single_version_block(self) -> None:
+        input_file = io.StringIO(textwrap.dedent("""\
+            LIBANDROID {
+                global:
+                    foo; # introduced=34
+                    bar; # introduced=35
+                    bar; # llndk=202404
+                    baz; # introduced=35
+            };
+        """))
+        f = copy(self.filter)
+        f.llndk = True
+        f.api = 202404
+        parser = symbolfile.SymbolFileParser(input_file, {}, f)
+        versions = parser.parse()
+
+        src_file = io.StringIO()
+        version_file = io.StringIO()
+        symbol_list_file = io.StringIO()
+
+        generator = ndkstubgen.Generator(src_file,
+                                         version_file, symbol_list_file, f)
+        generator.write(versions)
+
+        expected_src = textwrap.dedent("""\
+            void foo() {}
+            void bar() {}
+        """)
+        self.assertEqual(expected_src, src_file.getvalue())
+
+        expected_version = textwrap.dedent("""\
+            LIBANDROID {
+                global:
+                    foo;
+                    bar;
+            };
+        """)
+        self.assertEqual(expected_version, version_file.getvalue())
+
     def test_empty_stub(self) -> None:
         """Tests that empty stubs can be generated.
 
