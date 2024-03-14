@@ -2068,7 +2068,7 @@ func TestApexMinSdkVersion_InVendorApex(t *testing.T) {
 
 	// Ensure that mylib links with "current" LLNDK
 	libFlags := names(mylib.Rule("ld").Args["libFlags"])
-	ensureListContains(t, libFlags, "out/soong/.intermediates/libbar/"+vendorVariant+"_shared_current/libbar.so")
+	ensureListContains(t, libFlags, "out/soong/.intermediates/libbar/"+vendorVariant+"_shared/libbar.so")
 
 	// Ensure that mylib is targeting 29
 	ccRule := ctx.ModuleForTests("mylib", vendorVariant+"_static_apex29").Output("obj/mylib.o")
