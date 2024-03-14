@@ -827,15 +827,15 @@ func (p *prebuiltCommon) provideApexExportsInfo(ctx android.ModuleContext) {
 // Set prebuiltInfoProvider. This will be used by `apex_prebuiltinfo_singleton` to print out a metadata file
 // with information about whether source or prebuilt of an apex was used during the build.
 func (p *prebuiltCommon) providePrebuiltInfo(ctx android.ModuleContext) {
-	info := prebuiltInfo{
-		Name:        p.BaseModuleName(), // BaseModuleName ensures that this will not contain the prebuilt_ prefix.
+	info := android.PrebuiltInfo{
+		Name:        p.BaseModuleName(),
 		Is_prebuilt: true,
 	}
 	// If Prebuilt_info information is available in the soong module definition, add it to prebuilt_info.json.
 	if p.prebuiltCommonProperties.Prebuilt_info != nil {
 		info.Prebuilt_info_file_path = android.PathForModuleSrc(ctx, *p.prebuiltCommonProperties.Prebuilt_info).String()
 	}
-	android.SetProvider(ctx, prebuiltInfoProvider, info)
+	android.SetProvider(ctx, android.PrebuiltInfoProvider, info)
 }
 
 func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {

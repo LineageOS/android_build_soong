@@ -48,6 +48,11 @@ type AndroidAppSetProperties struct {
 	// Names of modules to be overridden. Listed modules can only be other apps
 	//	(in Make or Soong).
 	Overrides []string
+
+	// Path to the .prebuilt_info file of the prebuilt app.
+	// In case of mainline modules, the .prebuilt_info file contains the build_id that was used
+	// to generate the prebuilt.
+	Prebuilt_info *string `android:"path"`
 }
 
 type AndroidAppSet struct {
@@ -117,6 +122,27 @@ func SupportedAbis(ctx android.ModuleContext, excludeNativeBridgeAbis bool) []st
 	return result
 }
 
+type prebuiltInfoProps struct {
+	baseModuleName string
+	isPrebuilt     bool
+	prebuiltInfo   *string
+}
+
+// Set prebuiltInfoProvider. This will be used by `apex_prebuiltinfo_singleton` to print out a metadata file
+// with information about whether source or prebuilt of an apex was used during the build.
+func providePrebuiltInfo(ctx android.ModuleContext, p prebuiltInfoProps) {
+	info := android.PrebuiltInfo{
+		Name:        p.baseModuleName,
+		Is_prebuilt: p.isPrebuilt,
+	}
+	// If Prebuilt_info information is available in the soong module definition, add it to prebuilt_info.json.
+	if p.prebuiltInfo != nil {
+		prebuiltInfoFile := android.PathForModuleSrc(ctx, *p.prebuiltInfo)
+		info.Prebuilt_info_file_path = prebuiltInfoFile.String()
+	}
+	android.SetProvider(ctx, android.PrebuiltInfoProvider, info)
+}
+
 func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	as.packedOutput = android.PathForModuleOut(ctx, ctx.ModuleName()+".zip")
 	as.primaryOutput = android.PathForModuleOut(ctx, as.BaseModuleName()+".apk")
@@ -157,6 +183,15 @@ func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		installDir = android.PathForModuleInstall(ctx, "app", as.BaseModuleName())
 	}
 	ctx.InstallFileWithExtraFilesZip(installDir, as.BaseModuleName()+".apk", as.primaryOutput, as.packedOutput)
+
+	providePrebuiltInfo(ctx,
+		prebuiltInfoProps{
+			baseModuleName: as.BaseModuleName(),
+			isPrebuilt:     true,
+			prebuiltInfo:   as.properties.Prebuilt_info,
+		},
+	)
+
 }
 
 func (as *AndroidAppSet) InstallBypassMake() bool { return true }
