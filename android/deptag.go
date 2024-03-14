@@ -43,3 +43,15 @@ func IsInstallDepNeededTag(tag blueprint.DependencyTag) bool {
 	}
 	return false
 }
+
+type PropagateAconfigValidationDependencyTag interface {
+	PropagateAconfigValidation() bool
+}
+
+type AlwaysPropagateAconfigValidationDependencyTag struct{}
+
+func (p AlwaysPropagateAconfigValidationDependencyTag) PropagateAconfigValidation() bool {
+	return true
+}
+
+var _ PropagateAconfigValidationDependencyTag = AlwaysPropagateAconfigValidationDependencyTag{}

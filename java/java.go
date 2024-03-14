@@ -24,7 +24,6 @@ import (
 	"sort"
 	"strings"
 
-	"android/soong/aconfig"
 	"android/soong/remoteexec"
 	"android/soong/testing"
 
@@ -346,6 +345,12 @@ func (j *Module) XrefJavaFiles() android.Paths {
 	return j.kytheFiles
 }
 
+func (d dependencyTag) PropagateAconfigValidation() bool {
+	return d.static
+}
+
+var _ android.PropagateAconfigValidationDependencyTag = dependencyTag{}
+
 type dependencyTag struct {
 	blueprint.BaseDependencyTag
 	name string
@@ -355,6 +360,8 @@ type dependencyTag struct {
 
 	// True if the dependency is a toolchain, for example an annotation processor.
 	toolchain bool
+
+	static bool
 }
 
 // installDependencyTag is a dependency tag that is annotated to cause the installed files of the
@@ -400,7 +407,7 @@ func IsJniDepTag(depTag blueprint.DependencyTag) bool {
 var (
 	dataNativeBinsTag       = dependencyTag{name: "dataNativeBins"}
 	dataDeviceBinsTag       = dependencyTag{name: "dataDeviceBins"}
-	staticLibTag            = dependencyTag{name: "staticlib"}
+	staticLibTag            = dependencyTag{name: "staticlib", static: true}
 	libTag                  = dependencyTag{name: "javalib", runtimeLinked: true}
 	sdkLibTag               = dependencyTag{name: "sdklib", runtimeLinked: true}
 	java9LibTag             = dependencyTag{name: "java9lib", runtimeLinked: true}
@@ -2173,7 +2180,7 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		case aconfigDeclarationTag:
 			if provider, ok := android.OtherModuleProvider(ctx, dep, android.AconfigDeclarationsProviderKey); ok {
 				al.aconfigProtoFiles = append(al.aconfigProtoFiles, provider.IntermediateCacheOutputPath)
-			} else if provider, ok := android.OtherModuleProvider(ctx, dep, aconfig.CodegenInfoProvider); ok {
+			} else if provider, ok := android.OtherModuleProvider(ctx, dep, android.CodegenInfoProvider); ok {
 				al.aconfigProtoFiles = append(al.aconfigProtoFiles, provider.IntermediateCacheOutputPaths...)
 			} else {
 				ctx.ModuleErrorf("Only aconfig_declarations and aconfig_declarations_group "+

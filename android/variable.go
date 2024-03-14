@@ -501,6 +501,8 @@ type ProductVariables struct {
 	HiddenapiExportableStubs *bool `json:",omitempty"`
 
 	ExportRuntimeApis *bool `json:",omitempty"`
+
+	AconfigContainerValidation string `json:",omitempty"`
 }
 
 type PartitionQualifiedVariablesType struct {
