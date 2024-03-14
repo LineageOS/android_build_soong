@@ -16,6 +16,7 @@ package tradefed_modules
 import (
 	"android/soong/android"
 	"android/soong/java"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -43,6 +44,7 @@ const bp = `
                         base: "base",
                         exclude_filters: ["android.test.example.devcodelab.DevCodelabTest#testHelloFail"],
                         include_annotations: ["android.platform.test.annotations.LargeTest"],
+                        test_suites: ["general-tests"],
                 }
 
 `
@@ -92,7 +94,7 @@ func TestModuleConfigOptions(t *testing.T) {
 }
 
 // Ensure we error for a base we don't support.
-func TestModuleConfigBadBaseShouldFail(t *testing.T) {
+func TestModuleConfigWithHostBaseShouldFailWithExplicitMessage(t *testing.T) {
 	badBp := `
 		java_test_host {
 			name: "base",
@@ -104,16 +106,60 @@ func TestModuleConfigBadBaseShouldFail(t *testing.T) {
                         base: "base",
                         exclude_filters: ["android.test.example.devcodelab.DevCodelabTest#testHelloFail"],
                         include_annotations: ["android.platform.test.annotations.LargeTest"],
+                        test_suites: ["general-tests"],
                 }`
 
-	ctx := android.GroupFixturePreparers(
+	android.GroupFixturePreparers(
 		java.PrepareForTestWithJavaDefaultModules,
 		android.FixtureRegisterWithContext(RegisterTestModuleConfigBuildComponents),
 	).ExtendWithErrorHandler(
-		android.FixtureExpectsAtLeastOneErrorMatchingPattern("does not provide test BaseTestProviderData")).
+		android.FixtureExpectsAtLeastOneErrorMatchingPattern("'java_test_host' module used as base, but 'android_test' expected")).
 		RunTestWithBp(t, badBp)
+}
 
-	ctx.ModuleForTests("derived_test", "android_common")
+func TestModuleConfigBadBaseShouldFailWithGeneralMessage(t *testing.T) {
+	badBp := `
+		java_library {
+			name: "base",
+                        srcs: ["a.java"],
+		}
+
+                test_module_config {
+                        name: "derived_test",
+                        base: "base",
+                        exclude_filters: ["android.test.example.devcodelab.DevCodelabTest#testHelloFail"],
+                        include_annotations: ["android.platform.test.annotations.LargeTest"],
+                        test_suites: ["general-tests"],
+                }`
+
+	android.GroupFixturePreparers(
+		java.PrepareForTestWithJavaDefaultModules,
+		android.FixtureRegisterWithContext(RegisterTestModuleConfigBuildComponents),
+	).ExtendWithErrorHandler(
+		android.FixtureExpectsOneErrorPattern("'base' module used as base but it is not a 'android_test' module.")).
+		RunTestWithBp(t, badBp)
+}
+
+func TestModuleConfigNoBaseShouldFail(t *testing.T) {
+	badBp := `
+		java_library {
+			name: "base",
+                        srcs: ["a.java"],
+		}
+
+                test_module_config {
+                        name: "derived_test",
+                        exclude_filters: ["android.test.example.devcodelab.DevCodelabTest#testHelloFail"],
+                        include_annotations: ["android.platform.test.annotations.LargeTest"],
+                        test_suites: ["general-tests"],
+                }`
+
+	android.GroupFixturePreparers(
+		java.PrepareForTestWithJavaDefaultModules,
+		android.FixtureRegisterWithContext(RegisterTestModuleConfigBuildComponents),
+	).ExtendWithErrorHandler(
+		android.FixtureExpectsOneErrorPattern("'base' field must be set to a 'android_test' module.")).
+		RunTestWithBp(t, badBp)
 }
 
 // Ensure we error for a base we don't support.
@@ -128,6 +174,7 @@ func TestModuleConfigNoFiltersOrAnnotationsShouldFail(t *testing.T) {
                 test_module_config {
                         name: "derived_test",
                         base: "base",
+                        test_suites: ["general-tests"],
                 }`
 
 	ctx := android.GroupFixturePreparers(
@@ -152,12 +199,14 @@ func TestModuleConfigMultipleDerivedTestsWriteDistinctMakeEntries(t *testing.T) 
                         name: "derived_test",
                         base: "base",
                         include_annotations: ["android.platform.test.annotations.LargeTest"],
+                        test_suites: ["general-tests"],
                 }
 
                 test_module_config {
                         name: "another_derived_test",
                         base: "base",
                         include_annotations: ["android.platform.test.annotations.LargeTest"],
+                        test_suites: ["general-tests"],
                 }`
 
 	ctx := android.GroupFixturePreparers(
@@ -188,6 +237,114 @@ func TestModuleConfigMultipleDerivedTestsWriteDistinctMakeEntries(t *testing.T) 
 		// And this one, the module name.
 		android.AssertArrayString(t, "", entries.EntryMap["LOCAL_MODULE"], []string{"another_derived_test"})
 	}
+}
+
+// Test_module_config_host rule is allowed to depend on java_test_host
+func TestModuleConfigHostBasics(t *testing.T) {
+	bp := `
+               java_test_host {
+                        name: "base",
+                        srcs: ["a.java"],
+                        test_suites: ["suiteA", "general-tests",  "suiteB"],
+               }
+
+                test_module_config_host {
+                        name: "derived_test",
+                        base: "base",
+                        exclude_filters: ["android.test.example.devcodelab.DevCodelabTest#testHelloFail"],
+                        include_annotations: ["android.platform.test.annotations.LargeTest"],
+                        test_suites: ["general-tests"],
+                }`
+
+	ctx := android.GroupFixturePreparers(
+		java.PrepareForTestWithJavaDefaultModules,
+		android.FixtureRegisterWithContext(RegisterTestModuleConfigBuildComponents),
+	).RunTestWithBp(t, bp)
+
+	variant := ctx.Config.BuildOS.String() + "_common"
+	derived := ctx.ModuleForTests("derived_test", variant)
+	mod := derived.Module().(*testModuleConfigHostModule)
+	allEntries := android.AndroidMkEntriesForTest(t, ctx.TestContext, mod)
+	entries := allEntries[0]
+	android.AssertArrayString(t, "", entries.EntryMap["LOCAL_MODULE"], []string{"derived_test"})
+
+	if !mod.Host() {
+		t.Errorf("host bit is not set for a java_test_host module.")
+	}
+	actualData, _ := strconv.ParseBool(entries.EntryMap["LOCAL_IS_UNIT_TEST"][0])
+	android.AssertBoolEquals(t, "LOCAL_IS_UNIT_TEST", true, actualData)
+
+}
+
+// When you pass an 'android_test' as base, the warning message is a bit obscure,
+// talking about variants, but it is something.  Ideally we could do better.
+func TestModuleConfigHostBadBaseShouldFailWithVariantWarning(t *testing.T) {
+	badBp := `
+		android_test {
+			name: "base",
+			sdk_version: "current",
+                        srcs: ["a.java"],
+		}
+
+                test_module_config_host {
+                        name: "derived_test",
+                        base: "base",
+                        exclude_filters: ["android.test.example.devcodelab.DevCodelabTest#testHelloFail"],
+                        include_annotations: ["android.platform.test.annotations.LargeTest"],
+                }`
+
+	android.GroupFixturePreparers(
+		java.PrepareForTestWithJavaDefaultModules,
+		android.FixtureRegisterWithContext(RegisterTestModuleConfigBuildComponents),
+	).ExtendWithErrorHandler(
+		android.FixtureExpectsAtLeastOneErrorMatchingPattern("missing variant")).
+		RunTestWithBp(t, badBp)
+}
+
+func TestModuleConfigHostNeedsATestSuite(t *testing.T) {
+	badBp := `
+		java_test_host {
+			name: "base",
+                        srcs: ["a.java"],
+		}
+
+                test_module_config_host {
+                        name: "derived_test",
+                        base: "base",
+                        exclude_filters: ["android.test.example.devcodelab.DevCodelabTest#testHelloFail"],
+                        include_annotations: ["android.platform.test.annotations.LargeTest"],
+                }`
+
+	android.GroupFixturePreparers(
+		java.PrepareForTestWithJavaDefaultModules,
+		android.FixtureRegisterWithContext(RegisterTestModuleConfigBuildComponents),
+	).ExtendWithErrorHandler(
+		android.FixtureExpectsAtLeastOneErrorMatchingPattern("At least one test-suite must be set")).
+		RunTestWithBp(t, badBp)
+}
+
+func TestModuleConfigHostDuplicateTestSuitesGiveErrors(t *testing.T) {
+	badBp := `
+		java_test_host {
+			name: "base",
+                        srcs: ["a.java"],
+                        test_suites: ["general-tests", "some-compat"],
+		}
+
+                test_module_config_host {
+                        name: "derived_test",
+                        base: "base",
+                        exclude_filters: ["android.test.example.devcodelab.DevCodelabTest#testHelloFail"],
+                        include_annotations: ["android.platform.test.annotations.LargeTest"],
+                        test_suites: ["general-tests", "some-compat"],
+                }`
+
+	android.GroupFixturePreparers(
+		java.PrepareForTestWithJavaDefaultModules,
+		android.FixtureRegisterWithContext(RegisterTestModuleConfigBuildComponents),
+	).ExtendWithErrorHandler(
+		android.FixtureExpectsAtLeastOneErrorMatchingPattern("TestSuite some-compat exists in the base")).
+		RunTestWithBp(t, badBp)
 }
 
 // Use for situations where the entries map contains pairs:  [srcPath:installedPath1, srcPath2:installedPath2]
