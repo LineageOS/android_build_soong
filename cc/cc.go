@@ -766,6 +766,12 @@ func (d libraryDependencyTag) InstallDepNeeded() bool {
 
 var _ android.InstallNeededDependencyTag = libraryDependencyTag{}
 
+func (d libraryDependencyTag) PropagateAconfigValidation() bool {
+	return d.static()
+}
+
+var _ android.PropagateAconfigValidationDependencyTag = libraryDependencyTag{}
+
 // dependencyTag is used for tagging miscellaneous dependency types that don't fit into
 // libraryDependencyTag.  Each tag object is created globally and reused for multiple
 // dependencies (although since the object contains no references, assigning a tag to a

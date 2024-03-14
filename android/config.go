@@ -18,7 +18,6 @@ package android
 // product variables necessary for soong_build's operation.
 
 import (
-	"android/soong/shared"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -29,6 +28,8 @@ import (
 	"strings"
 	"sync"
 	"unicode"
+
+	"android/soong/shared"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
@@ -1936,6 +1937,10 @@ func (c *deviceConfig) SepolicyFreezeTestExtraPrebuiltDirs() []string {
 
 func (c *deviceConfig) GenerateAidlNdkPlatformBackend() bool {
 	return c.config.productVariables.GenerateAidlNdkPlatformBackend
+}
+
+func (c *deviceConfig) AconfigContainerValidation() string {
+	return c.config.productVariables.AconfigContainerValidation
 }
 
 func (c *config) IgnorePrefer32OnDevice() bool {
