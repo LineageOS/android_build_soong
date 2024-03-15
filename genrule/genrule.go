@@ -842,19 +842,15 @@ var sandboxingAllowlistKey = android.NewOnceKey("genruleSandboxingAllowlistKey")
 
 type sandboxingAllowlistSets struct {
 	sandboxingDenyModuleSet map[string]bool
-	sandboxingDenyPathSet   map[string]bool
 }
 
 func getSandboxingAllowlistSets(ctx android.PathContext) *sandboxingAllowlistSets {
 	return ctx.Config().Once(sandboxingAllowlistKey, func() interface{} {
 		sandboxingDenyModuleSet := map[string]bool{}
-		sandboxingDenyPathSet := map[string]bool{}
 
 		android.AddToStringSet(sandboxingDenyModuleSet, SandboxingDenyModuleList)
-		android.AddToStringSet(sandboxingDenyPathSet, SandboxingDenyPathList)
 		return &sandboxingAllowlistSets{
 			sandboxingDenyModuleSet: sandboxingDenyModuleSet,
-			sandboxingDenyPathSet:   sandboxingDenyPathSet,
 		}
 	}).(*sandboxingAllowlistSets)
 }
@@ -864,8 +860,7 @@ func getSandboxedRuleBuilder(ctx android.ModuleContext, r *android.RuleBuilder) 
 		return r.SandboxTools()
 	}
 	sandboxingAllowlistSets := getSandboxingAllowlistSets(ctx)
-	if sandboxingAllowlistSets.sandboxingDenyPathSet[ctx.ModuleDir()] ||
-		sandboxingAllowlistSets.sandboxingDenyModuleSet[ctx.ModuleName()] {
+	if sandboxingAllowlistSets.sandboxingDenyModuleSet[ctx.ModuleName()] {
 		return r.SandboxTools()
 	}
 	return r.SandboxInputs()
