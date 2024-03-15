@@ -1921,6 +1921,26 @@ var visibilityTests = []struct {
 		},
 	},
 	{
+		name: "any_partition visibility works with the other visibility",
+		fs: MockFS{
+			"top/Android.bp": []byte(`
+				android_filesystem {
+					name: "foo",
+					deps: ["bar"],
+				}`),
+			"top2/Android.bp": []byte(``),
+			"top/nested/Android.bp": []byte(`
+				package(default_visibility=["//visibility:private"])
+				mock_library {
+					name: "bar",
+					visibility: [
+						"//top2",
+						"//visibility:any_partition"
+					],
+				}`),
+		},
+	},
+	{
 		name: "any_partition visibility doesn't work for non-partitions",
 		fs: MockFS{
 			"top/Android.bp": []byte(`
