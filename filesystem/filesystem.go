@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"android/soong/android"
@@ -109,6 +110,12 @@ type filesystemProperties struct {
 
 	// Mount point for this image. Default is "/"
 	Mount_point *string
+
+	// If set to the name of a partition ("system", "vendor", etc), this filesystem module
+	// will also include the contents of the make-built staging directories. If any soong
+	// modules would be installed to the same location as a make module, they will overwrite
+	// the make version.
+	Include_make_built_files string
 }
 
 // android_filesystem packages a set of modules and their transitive dependencies into a filesystem
@@ -214,22 +221,21 @@ func (f *filesystem) buildNonDepsFiles(ctx android.ModuleContext, builder *andro
 	}
 
 	// create extra files if there's any
-	rootForExtraFiles := android.PathForModuleGen(ctx, "root-extra").OutputPath
-	var extraFiles android.OutputPaths
 	if f.buildExtraFiles != nil {
-		extraFiles = f.buildExtraFiles(ctx, rootForExtraFiles)
-	}
-
-	for _, f := range extraFiles {
-		rel, err := filepath.Rel(rootForExtraFiles.String(), f.String())
-		if err != nil || strings.HasPrefix(rel, "..") {
-			ctx.ModuleErrorf("can't make %q relative to %q", f, rootForExtraFiles)
-			continue
+		rootForExtraFiles := android.PathForModuleGen(ctx, "root-extra").OutputPath
+		extraFiles := f.buildExtraFiles(ctx, rootForExtraFiles)
+		for _, f := range extraFiles {
+			rel, err := filepath.Rel(rootForExtraFiles.String(), f.String())
+			if err != nil || strings.HasPrefix(rel, "..") {
+				ctx.ModuleErrorf("can't make %q relative to %q", f, rootForExtraFiles)
+			}
 		}
-		dst := rootDir.Join(ctx, rel)
-		builder.Command().Textf("(! [ -e %s -o -L %s ] || (echo \"%s already exists from an earlier stage of the build\" && exit 1))", dst, dst, dst)
-		builder.Command().Text("mkdir -p").Text(filepath.Dir(dst.String()))
-		builder.Command().Text("cp -P").Input(f).Output(dst)
+		if len(extraFiles) > 0 {
+			builder.Command().BuiltTool("merge_directories").
+				Implicits(extraFiles.Paths()).
+				Text(rootDir.String()).
+				Text(rootForExtraFiles.String())
+		}
 	}
 }
 
@@ -245,6 +251,7 @@ func (f *filesystem) buildImageUsingBuildImage(ctx android.ModuleContext) androi
 	f.entries = f.CopySpecsToDir(ctx, builder, f.gatherFilteredPackagingSpecs(ctx), rebasedDir)
 
 	f.buildNonDepsFiles(ctx, builder, rootDir)
+	f.addMakeBuiltFiles(ctx, builder, rootDir)
 
 	// run host_init_verifier
 	// Ideally we should have a concept of pluggable linters that verify the generated image.
@@ -362,6 +369,10 @@ func (f *filesystem) buildCpioImage(ctx android.ModuleContext, compressed bool) 
 		ctx.PropertyErrorf("file_contexts", "file_contexts is not supported for compressed cpio image.")
 	}
 
+	if f.properties.Include_make_built_files != "" {
+		ctx.PropertyErrorf("include_make_built_files", "include_make_built_files is not supported for compressed cpio image.")
+	}
+
 	rootDir := android.PathForModuleOut(ctx, "root").OutputPath
 	rebasedDir := rootDir
 	if f.properties.Base_dir != nil {
@@ -393,6 +404,41 @@ func (f *filesystem) buildCpioImage(ctx android.ModuleContext, compressed bool) 
 	builder.Build("build_cpio_image", fmt.Sprintf("Creating filesystem %s", f.BaseModuleName()))
 
 	return output
+}
+
+var validPartitions = []string{
+	"system",
+	"userdata",
+	"cache",
+	"system_other",
+	"vendor",
+	"product",
+	"system_ext",
+	"odm",
+	"vendor_dlkm",
+	"odm_dlkm",
+	"system_dlkm",
+}
+
+func (f *filesystem) addMakeBuiltFiles(ctx android.ModuleContext, builder *android.RuleBuilder, rootDir android.Path) {
+	partition := f.properties.Include_make_built_files
+	if partition == "" {
+		return
+	}
+	if !slices.Contains(validPartitions, partition) {
+		ctx.PropertyErrorf("include_make_built_files", "Expected one of %#v, found %q", validPartitions, partition)
+		return
+	}
+	stampFile := fmt.Sprintf("target/product/%s/obj/PACKAGING/%s_intermediates/staging_dir.stamp", ctx.Config().DeviceName(), partition)
+	fileListFile := fmt.Sprintf("target/product/%s/obj/PACKAGING/%s_intermediates/file_list.txt", ctx.Config().DeviceName(), partition)
+	stagingDir := fmt.Sprintf("target/product/%s/%s", ctx.Config().DeviceName(), partition)
+
+	builder.Command().BuiltTool("merge_directories").
+		Implicit(android.PathForArbitraryOutput(ctx, stampFile)).
+		Text("--ignore-duplicates").
+		FlagWithInput("--file-list", android.PathForArbitraryOutput(ctx, fileListFile)).
+		Text(rootDir.String()).
+		Text(android.PathForArbitraryOutput(ctx, stagingDir).String())
 }
 
 var _ android.AndroidMkEntriesProvider = (*filesystem)(nil)
