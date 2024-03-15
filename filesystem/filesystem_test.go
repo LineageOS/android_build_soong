@@ -270,7 +270,7 @@ func TestFileSystemShouldInstallCoreVariantIfTargetBuildAppsIsSet(t *testing.T) 
 		}
 	`)
 
-	inputs := result.ModuleForTests("myfilesystem", "android_common").Output("deps.zip").Implicits
+	inputs := result.ModuleForTests("myfilesystem", "android_common").Output("myfilesystem.img").Implicits
 	android.AssertStringListContains(t, "filesystem should have libbar even for unbundled build",
 		inputs.Strings(),
 		"out/soong/.intermediates/libbar/android_arm64_armv8-a_shared/libbar.so")
@@ -314,7 +314,7 @@ func TestFileSystemWithCoverageVariants(t *testing.T) {
 	`)
 
 	filesystem := result.ModuleForTests("myfilesystem", "android_common_cov")
-	inputs := filesystem.Output("deps.zip").Implicits
+	inputs := filesystem.Output("myfilesystem.img").Implicits
 	android.AssertStringListContains(t, "filesystem should have libfoo(cov)",
 		inputs.Strings(),
 		"out/soong/.intermediates/libfoo/android_arm64_armv8-a_shared_cov/libfoo.so")
