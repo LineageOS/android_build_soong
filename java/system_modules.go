@@ -64,6 +64,7 @@ var (
 			// useful on Android, and (b) it causes errors with later versions of jlink
 			// when the jdk.internal.module is absent from java.base (as it is here).
 			`  --disable-plugin system-modules && ` +
+			`rm -rf ${workDir} && ` +
 			`cp ${config.JrtFsJar} ${outDir}/lib/`,
 		CommandDeps: []string{
 			"${moduleInfoJavaPath}",
