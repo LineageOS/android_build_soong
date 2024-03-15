@@ -889,7 +889,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 	}
 
-	j.stem = proptools.StringDefault(j.overridableDeviceProperties.Stem, ctx.ModuleName())
+	j.stem = proptools.StringDefault(j.overridableProperties.Stem, ctx.ModuleName())
 
 	proguardSpecInfo := j.collectProguardSpecInfo(ctx)
 	android.SetProvider(ctx, ProguardSpecInfoProvider, proguardSpecInfo)
@@ -1686,7 +1686,7 @@ func (j *Binary) HostToolPath() android.OptionalPath {
 }
 
 func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	j.stem = proptools.StringDefault(j.overridableDeviceProperties.Stem, ctx.ModuleName())
+	j.stem = proptools.StringDefault(j.overridableProperties.Stem, ctx.ModuleName())
 
 	if ctx.Arch().ArchType == android.Common {
 		// Compile the jar
@@ -2997,7 +2997,7 @@ func DefaultsFactory() android.Module {
 	module.AddProperties(
 		&CommonProperties{},
 		&DeviceProperties{},
-		&OverridableDeviceProperties{},
+		&OverridableProperties{},
 		&DexProperties{},
 		&DexpreoptProperties{},
 		&android.ProtoProperties{},

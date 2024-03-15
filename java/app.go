@@ -755,7 +755,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Unlike installApkName, a.stem should respect base module name for override_android_app.
 	// Therefore, use ctx.ModuleName() instead of a.Name().
-	a.stem = proptools.StringDefault(a.overridableDeviceProperties.Stem, ctx.ModuleName())
+	a.stem = proptools.StringDefault(a.overridableProperties.Stem, ctx.ModuleName())
 
 	// Check if the install APK name needs to be overridden.
 	// Both android_app and override_android_app module are expected to possess
@@ -763,7 +763,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	// from the base module. Therefore, use a.Name() which represents
 	// the module name for both android_app and override_android_app.
 	a.installApkName = ctx.DeviceConfig().OverridePackageNameFor(
-		proptools.StringDefault(a.overridableDeviceProperties.Stem, a.Name()))
+		proptools.StringDefault(a.overridableProperties.Stem, a.Name()))
 
 	if ctx.ModuleName() == "framework-res" {
 		// framework-res.apk is installed as system/framework/framework-res.apk
@@ -1500,7 +1500,7 @@ func (i *OverrideAndroidApp) GenerateAndroidBuildActions(_ android.ModuleContext
 func OverrideAndroidAppModuleFactory() android.Module {
 	m := &OverrideAndroidApp{}
 	m.AddProperties(
-		&OverridableDeviceProperties{},
+		&OverridableProperties{},
 		&overridableAppProperties{},
 	)
 
