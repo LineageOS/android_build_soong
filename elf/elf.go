@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package elf
 
 import (
 	"debug/elf"
@@ -26,9 +26,9 @@ import (
 
 const gnuBuildID = "GNU\x00"
 
-// elfIdentifier extracts the elf build ID from an elf file.  If allowMissing is true it returns
+// Identifier extracts the elf build ID from an elf file.  If allowMissing is true it returns
 // an empty identifier if the file exists but the build ID note does not.
-func elfIdentifier(filename string, allowMissing bool) (string, error) {
+func Identifier(filename string, allowMissing bool) (string, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return "", fmt.Errorf("failed to open %s: %w", filename, err)
