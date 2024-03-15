@@ -47,7 +47,7 @@ func addPathDepsForProps(ctx BottomUpMutatorContext, props []interface{}) {
 	// tagged with `android:"path"`.
 	var pathProperties []string
 	for _, ps := range props {
-		pathProperties = append(pathProperties, pathPropertiesForPropertyStruct(ps)...)
+		pathProperties = append(pathProperties, pathPropertiesForPropertyStruct(ctx, ps)...)
 	}
 
 	// Remove duplicates to avoid multiple dependencies.
@@ -64,7 +64,7 @@ func addPathDepsForProps(ctx BottomUpMutatorContext, props []interface{}) {
 // pathPropertiesForPropertyStruct uses the indexes of properties that are tagged with
 // android:"path" to extract all their values from a property struct, returning them as a single
 // slice of strings.
-func pathPropertiesForPropertyStruct(ps interface{}) []string {
+func pathPropertiesForPropertyStruct(ctx BottomUpMutatorContext, ps interface{}) []string {
 	v := reflect.ValueOf(ps)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {
 		panic(fmt.Errorf("type %s is not a pointer to a struct", v.Type()))
@@ -106,6 +106,16 @@ func pathPropertiesForPropertyStruct(ps interface{}) []string {
 				ret = append(ret, sv.String())
 			case reflect.Slice:
 				ret = append(ret, sv.Interface().([]string)...)
+			case reflect.Struct:
+				intf := sv.Interface()
+				if configurable, ok := intf.(proptools.Configurable[string]); ok {
+					ret = append(ret, proptools.String(configurable.Evaluate(ctx)))
+				} else if configurable, ok := intf.(proptools.Configurable[[]string]); ok {
+					ret = append(ret, proptools.Slice(configurable.Evaluate(ctx))...)
+				} else {
+					panic(fmt.Errorf(`field %s in type %s has tag android:"path" but is not a string or slice of strings, it is a %s`,
+						v.Type().FieldByIndex(i).Name, v.Type(), sv.Type()))
+				}
 			default:
 				panic(fmt.Errorf(`field %s in type %s has tag android:"path" but is not a string or slice of strings, it is a %s`,
 					v.Type().FieldByIndex(i).Name, v.Type(), sv.Type()))
