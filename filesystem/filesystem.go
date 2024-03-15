@@ -183,13 +183,9 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.InstallFile(f.installDir, f.installFileName(), f.output)
 }
 
-// root zip will contain extra files/dirs that are not from the `deps` property.
-func (f *filesystem) buildRootZip(ctx android.ModuleContext) android.OutputPath {
-	rootDir := android.PathForModuleGen(ctx, "root").OutputPath
-	builder := android.NewRuleBuilder(pctx, ctx)
-	builder.Command().Text("rm -rf").Text(rootDir.String())
-	builder.Command().Text("mkdir -p").Text(rootDir.String())
-
+// Copy extra files/dirs that are not from the `deps` property to `rootDir`, checking for conflicts with files
+// already in `rootDir`.
+func (f *filesystem) buildNonDepsFiles(ctx android.ModuleContext, builder *android.RuleBuilder, rootDir android.OutputPath) {
 	// create dirs and symlinks
 	for _, dir := range f.properties.Dirs {
 		// OutputPath.Join verifies dir
@@ -212,7 +208,7 @@ func (f *filesystem) buildRootZip(ctx android.ModuleContext) android.OutputPath 
 
 		// OutputPath.Join verifies name. don't need to verify target.
 		dst := rootDir.Join(ctx, name)
-
+		builder.Command().Textf("(! [ -e %s -o -L %s ] || (echo \"%s already exists from an earlier stage of the build\" && exit 1))", dst, dst, dst)
 		builder.Command().Text("mkdir -p").Text(filepath.Dir(dst.String()))
 		builder.Command().Text("ln -sf").Text(proptools.ShellEscape(target)).Text(dst.String())
 	}
@@ -222,55 +218,33 @@ func (f *filesystem) buildRootZip(ctx android.ModuleContext) android.OutputPath 
 	var extraFiles android.OutputPaths
 	if f.buildExtraFiles != nil {
 		extraFiles = f.buildExtraFiles(ctx, rootForExtraFiles)
-		for _, f := range extraFiles {
-			rel, _ := filepath.Rel(rootForExtraFiles.String(), f.String())
-			if strings.HasPrefix(rel, "..") {
-				panic(fmt.Errorf("%q is not under %q\n", f, rootForExtraFiles))
-			}
-		}
 	}
 
-	// Zip them all
-	zipOut := android.PathForModuleGen(ctx, "root.zip").OutputPath
-	zipCommand := builder.Command().BuiltTool("soong_zip")
-	zipCommand.FlagWithOutput("-o ", zipOut).
-		FlagWithArg("-C ", rootDir.String()).
-		Flag("-L 0"). // no compression because this will be unzipped soon
-		FlagWithArg("-D ", rootDir.String()).
-		Flag("-d") // include empty directories
-	if len(extraFiles) > 0 {
-		zipCommand.FlagWithArg("-C ", rootForExtraFiles.String())
-		for _, f := range extraFiles {
-			zipCommand.FlagWithInput("-f ", f)
+	for _, f := range extraFiles {
+		rel, err := filepath.Rel(rootForExtraFiles.String(), f.String())
+		if err != nil || strings.HasPrefix(rel, "..") {
+			ctx.ModuleErrorf("can't make %q relative to %q", f, rootForExtraFiles)
+			continue
 		}
+		dst := rootDir.Join(ctx, rel)
+		builder.Command().Textf("(! [ -e %s -o -L %s ] || (echo \"%s already exists from an earlier stage of the build\" && exit 1))", dst, dst, dst)
+		builder.Command().Text("mkdir -p").Text(filepath.Dir(dst.String()))
+		builder.Command().Text("cp -P").Input(f).Output(dst)
 	}
-
-	builder.Command().Text("rm -rf").Text(rootDir.String())
-
-	builder.Build("zip_root", fmt.Sprintf("zipping root contents for %s", ctx.ModuleName()))
-	return zipOut
 }
 
 func (f *filesystem) buildImageUsingBuildImage(ctx android.ModuleContext) android.OutputPath {
-	depsZipFile := android.PathForModuleOut(ctx, "deps.zip").OutputPath
-	f.entries = f.CopyDepsToZip(ctx, f.gatherFilteredPackagingSpecs(ctx), depsZipFile)
-
-	builder := android.NewRuleBuilder(pctx, ctx)
-	depsBase := proptools.StringDefault(f.properties.Base_dir, ".")
-	rebasedDepsZip := android.PathForModuleOut(ctx, "rebased_deps.zip").OutputPath
-	builder.Command().
-		BuiltTool("zip2zip").
-		FlagWithInput("-i ", depsZipFile).
-		FlagWithOutput("-o ", rebasedDepsZip).
-		Text("**/*:" + proptools.ShellEscape(depsBase)) // zip2zip verifies depsBase
-
 	rootDir := android.PathForModuleOut(ctx, "root").OutputPath
-	rootZip := f.buildRootZip(ctx)
-	builder.Command().
-		BuiltTool("zipsync").
-		FlagWithArg("-d ", rootDir.String()). // zipsync wipes this. No need to clear.
-		Input(rootZip).
-		Input(rebasedDepsZip)
+	rebasedDir := rootDir
+	if f.properties.Base_dir != nil {
+		rebasedDir = rootDir.Join(ctx, *f.properties.Base_dir)
+	}
+	builder := android.NewRuleBuilder(pctx, ctx)
+	// Wipe the root dir to get rid of leftover files from prior builds
+	builder.Command().Textf("rm -rf %s && mkdir -p %s", rootDir, rootDir)
+	f.entries = f.CopySpecsToDir(ctx, builder, f.gatherFilteredPackagingSpecs(ctx), rebasedDir)
+
+	f.buildNonDepsFiles(ctx, builder, rootDir)
 
 	// run host_init_verifier
 	// Ideally we should have a concept of pluggable linters that verify the generated image.
@@ -388,25 +362,17 @@ func (f *filesystem) buildCpioImage(ctx android.ModuleContext, compressed bool) 
 		ctx.PropertyErrorf("file_contexts", "file_contexts is not supported for compressed cpio image.")
 	}
 
-	depsZipFile := android.PathForModuleOut(ctx, "deps.zip").OutputPath
-	f.entries = f.CopyDepsToZip(ctx, f.gatherFilteredPackagingSpecs(ctx), depsZipFile)
-
-	builder := android.NewRuleBuilder(pctx, ctx)
-	depsBase := proptools.StringDefault(f.properties.Base_dir, ".")
-	rebasedDepsZip := android.PathForModuleOut(ctx, "rebased_deps.zip").OutputPath
-	builder.Command().
-		BuiltTool("zip2zip").
-		FlagWithInput("-i ", depsZipFile).
-		FlagWithOutput("-o ", rebasedDepsZip).
-		Text("**/*:" + proptools.ShellEscape(depsBase)) // zip2zip verifies depsBase
-
 	rootDir := android.PathForModuleOut(ctx, "root").OutputPath
-	rootZip := f.buildRootZip(ctx)
-	builder.Command().
-		BuiltTool("zipsync").
-		FlagWithArg("-d ", rootDir.String()). // zipsync wipes this. No need to clear.
-		Input(rootZip).
-		Input(rebasedDepsZip)
+	rebasedDir := rootDir
+	if f.properties.Base_dir != nil {
+		rebasedDir = rootDir.Join(ctx, *f.properties.Base_dir)
+	}
+	builder := android.NewRuleBuilder(pctx, ctx)
+	// Wipe the root dir to get rid of leftover files from prior builds
+	builder.Command().Textf("rm -rf %s && mkdir -p %s", rootDir, rootDir)
+	f.entries = f.CopySpecsToDir(ctx, builder, f.gatherFilteredPackagingSpecs(ctx), rebasedDir)
+
+	f.buildNonDepsFiles(ctx, builder, rootDir)
 
 	output := android.PathForModuleOut(ctx, f.installFileName()).OutputPath
 	cmd := builder.Command().
