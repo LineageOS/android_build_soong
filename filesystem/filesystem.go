@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"android/soong/android"
@@ -109,6 +110,12 @@ type filesystemProperties struct {
 
 	// Mount point for this image. Default is "/"
 	Mount_point *string
+
+	// If set to the name of a partition ("system", "vendor", etc), this filesystem module
+	// will also include the contents of the make-built staging directories. If any soong
+	// modules would be installed to the same location as a make module, they will overwrite
+	// the make version.
+	Include_make_built_files string
 }
 
 // android_filesystem packages a set of modules and their transitive dependencies into a filesystem
@@ -183,13 +190,9 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.InstallFile(f.installDir, f.installFileName(), f.output)
 }
 
-// root zip will contain extra files/dirs that are not from the `deps` property.
-func (f *filesystem) buildRootZip(ctx android.ModuleContext) android.OutputPath {
-	rootDir := android.PathForModuleGen(ctx, "root").OutputPath
-	builder := android.NewRuleBuilder(pctx, ctx)
-	builder.Command().Text("rm -rf").Text(rootDir.String())
-	builder.Command().Text("mkdir -p").Text(rootDir.String())
-
+// Copy extra files/dirs that are not from the `deps` property to `rootDir`, checking for conflicts with files
+// already in `rootDir`.
+func (f *filesystem) buildNonDepsFiles(ctx android.ModuleContext, builder *android.RuleBuilder, rootDir android.OutputPath) {
 	// create dirs and symlinks
 	for _, dir := range f.properties.Dirs {
 		// OutputPath.Join verifies dir
@@ -212,65 +215,43 @@ func (f *filesystem) buildRootZip(ctx android.ModuleContext) android.OutputPath 
 
 		// OutputPath.Join verifies name. don't need to verify target.
 		dst := rootDir.Join(ctx, name)
-
+		builder.Command().Textf("(! [ -e %s -o -L %s ] || (echo \"%s already exists from an earlier stage of the build\" && exit 1))", dst, dst, dst)
 		builder.Command().Text("mkdir -p").Text(filepath.Dir(dst.String()))
 		builder.Command().Text("ln -sf").Text(proptools.ShellEscape(target)).Text(dst.String())
 	}
 
 	// create extra files if there's any
-	rootForExtraFiles := android.PathForModuleGen(ctx, "root-extra").OutputPath
-	var extraFiles android.OutputPaths
 	if f.buildExtraFiles != nil {
-		extraFiles = f.buildExtraFiles(ctx, rootForExtraFiles)
+		rootForExtraFiles := android.PathForModuleGen(ctx, "root-extra").OutputPath
+		extraFiles := f.buildExtraFiles(ctx, rootForExtraFiles)
 		for _, f := range extraFiles {
-			rel, _ := filepath.Rel(rootForExtraFiles.String(), f.String())
-			if strings.HasPrefix(rel, "..") {
-				panic(fmt.Errorf("%q is not under %q\n", f, rootForExtraFiles))
+			rel, err := filepath.Rel(rootForExtraFiles.String(), f.String())
+			if err != nil || strings.HasPrefix(rel, "..") {
+				ctx.ModuleErrorf("can't make %q relative to %q", f, rootForExtraFiles)
 			}
 		}
-	}
-
-	// Zip them all
-	zipOut := android.PathForModuleGen(ctx, "root.zip").OutputPath
-	zipCommand := builder.Command().BuiltTool("soong_zip")
-	zipCommand.FlagWithOutput("-o ", zipOut).
-		FlagWithArg("-C ", rootDir.String()).
-		Flag("-L 0"). // no compression because this will be unzipped soon
-		FlagWithArg("-D ", rootDir.String()).
-		Flag("-d") // include empty directories
-	if len(extraFiles) > 0 {
-		zipCommand.FlagWithArg("-C ", rootForExtraFiles.String())
-		for _, f := range extraFiles {
-			zipCommand.FlagWithInput("-f ", f)
+		if len(extraFiles) > 0 {
+			builder.Command().BuiltTool("merge_directories").
+				Implicits(extraFiles.Paths()).
+				Text(rootDir.String()).
+				Text(rootForExtraFiles.String())
 		}
 	}
-
-	builder.Command().Text("rm -rf").Text(rootDir.String())
-
-	builder.Build("zip_root", fmt.Sprintf("zipping root contents for %s", ctx.ModuleName()))
-	return zipOut
 }
 
 func (f *filesystem) buildImageUsingBuildImage(ctx android.ModuleContext) android.OutputPath {
-	depsZipFile := android.PathForModuleOut(ctx, "deps.zip").OutputPath
-	f.entries = f.CopyDepsToZip(ctx, f.gatherFilteredPackagingSpecs(ctx), depsZipFile)
-
-	builder := android.NewRuleBuilder(pctx, ctx)
-	depsBase := proptools.StringDefault(f.properties.Base_dir, ".")
-	rebasedDepsZip := android.PathForModuleOut(ctx, "rebased_deps.zip").OutputPath
-	builder.Command().
-		BuiltTool("zip2zip").
-		FlagWithInput("-i ", depsZipFile).
-		FlagWithOutput("-o ", rebasedDepsZip).
-		Text("**/*:" + proptools.ShellEscape(depsBase)) // zip2zip verifies depsBase
-
 	rootDir := android.PathForModuleOut(ctx, "root").OutputPath
-	rootZip := f.buildRootZip(ctx)
-	builder.Command().
-		BuiltTool("zipsync").
-		FlagWithArg("-d ", rootDir.String()). // zipsync wipes this. No need to clear.
-		Input(rootZip).
-		Input(rebasedDepsZip)
+	rebasedDir := rootDir
+	if f.properties.Base_dir != nil {
+		rebasedDir = rootDir.Join(ctx, *f.properties.Base_dir)
+	}
+	builder := android.NewRuleBuilder(pctx, ctx)
+	// Wipe the root dir to get rid of leftover files from prior builds
+	builder.Command().Textf("rm -rf %s && mkdir -p %s", rootDir, rootDir)
+	f.entries = f.CopySpecsToDir(ctx, builder, f.gatherFilteredPackagingSpecs(ctx), rebasedDir)
+
+	f.buildNonDepsFiles(ctx, builder, rootDir)
+	f.addMakeBuiltFiles(ctx, builder, rootDir)
 
 	// run host_init_verifier
 	// Ideally we should have a concept of pluggable linters that verify the generated image.
@@ -388,25 +369,21 @@ func (f *filesystem) buildCpioImage(ctx android.ModuleContext, compressed bool) 
 		ctx.PropertyErrorf("file_contexts", "file_contexts is not supported for compressed cpio image.")
 	}
 
-	depsZipFile := android.PathForModuleOut(ctx, "deps.zip").OutputPath
-	f.entries = f.CopyDepsToZip(ctx, f.gatherFilteredPackagingSpecs(ctx), depsZipFile)
-
-	builder := android.NewRuleBuilder(pctx, ctx)
-	depsBase := proptools.StringDefault(f.properties.Base_dir, ".")
-	rebasedDepsZip := android.PathForModuleOut(ctx, "rebased_deps.zip").OutputPath
-	builder.Command().
-		BuiltTool("zip2zip").
-		FlagWithInput("-i ", depsZipFile).
-		FlagWithOutput("-o ", rebasedDepsZip).
-		Text("**/*:" + proptools.ShellEscape(depsBase)) // zip2zip verifies depsBase
+	if f.properties.Include_make_built_files != "" {
+		ctx.PropertyErrorf("include_make_built_files", "include_make_built_files is not supported for compressed cpio image.")
+	}
 
 	rootDir := android.PathForModuleOut(ctx, "root").OutputPath
-	rootZip := f.buildRootZip(ctx)
-	builder.Command().
-		BuiltTool("zipsync").
-		FlagWithArg("-d ", rootDir.String()). // zipsync wipes this. No need to clear.
-		Input(rootZip).
-		Input(rebasedDepsZip)
+	rebasedDir := rootDir
+	if f.properties.Base_dir != nil {
+		rebasedDir = rootDir.Join(ctx, *f.properties.Base_dir)
+	}
+	builder := android.NewRuleBuilder(pctx, ctx)
+	// Wipe the root dir to get rid of leftover files from prior builds
+	builder.Command().Textf("rm -rf %s && mkdir -p %s", rootDir, rootDir)
+	f.entries = f.CopySpecsToDir(ctx, builder, f.gatherFilteredPackagingSpecs(ctx), rebasedDir)
+
+	f.buildNonDepsFiles(ctx, builder, rootDir)
 
 	output := android.PathForModuleOut(ctx, f.installFileName()).OutputPath
 	cmd := builder.Command().
@@ -427,6 +404,41 @@ func (f *filesystem) buildCpioImage(ctx android.ModuleContext, compressed bool) 
 	builder.Build("build_cpio_image", fmt.Sprintf("Creating filesystem %s", f.BaseModuleName()))
 
 	return output
+}
+
+var validPartitions = []string{
+	"system",
+	"userdata",
+	"cache",
+	"system_other",
+	"vendor",
+	"product",
+	"system_ext",
+	"odm",
+	"vendor_dlkm",
+	"odm_dlkm",
+	"system_dlkm",
+}
+
+func (f *filesystem) addMakeBuiltFiles(ctx android.ModuleContext, builder *android.RuleBuilder, rootDir android.Path) {
+	partition := f.properties.Include_make_built_files
+	if partition == "" {
+		return
+	}
+	if !slices.Contains(validPartitions, partition) {
+		ctx.PropertyErrorf("include_make_built_files", "Expected one of %#v, found %q", validPartitions, partition)
+		return
+	}
+	stampFile := fmt.Sprintf("target/product/%s/obj/PACKAGING/%s_intermediates/staging_dir.stamp", ctx.Config().DeviceName(), partition)
+	fileListFile := fmt.Sprintf("target/product/%s/obj/PACKAGING/%s_intermediates/file_list.txt", ctx.Config().DeviceName(), partition)
+	stagingDir := fmt.Sprintf("target/product/%s/%s", ctx.Config().DeviceName(), partition)
+
+	builder.Command().BuiltTool("merge_directories").
+		Implicit(android.PathForArbitraryOutput(ctx, stampFile)).
+		Text("--ignore-duplicates").
+		FlagWithInput("--file-list", android.PathForArbitraryOutput(ctx, fileListFile)).
+		Text(rootDir.String()).
+		Text(android.PathForArbitraryOutput(ctx, stagingDir).String())
 }
 
 var _ android.AndroidMkEntriesProvider = (*filesystem)(nil)

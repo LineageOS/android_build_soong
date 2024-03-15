@@ -11022,7 +11022,7 @@ func TestFileSystemShouldSkipApexLibraries(t *testing.T) {
 		}
 	`)
 
-	inputs := result.ModuleForTests("myfilesystem", "android_common").Output("deps.zip").Implicits
+	inputs := result.ModuleForTests("myfilesystem", "android_common").Output("myfilesystem.img").Implicits
 	android.AssertStringListDoesNotContain(t, "filesystem should not have libbar",
 		inputs.Strings(),
 		"out/soong/.intermediates/libbar/android_arm64_armv8-a_shared/libbar.so")
