@@ -21,9 +21,4 @@ var (
 		"com.google.pixel.camera.hal.manifest",
 		// go/keep-sorted end
 	}
-
-	SandboxingDenyPathList = []string{
-		// go/keep-sorted start
-		// go/keep-sorted end
-	}
 )
