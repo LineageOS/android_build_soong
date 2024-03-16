@@ -303,7 +303,10 @@ func checkRules(ctx BaseModuleContext, currentPkg, property string, visibility [
 
 		if pkg == "visibility" {
 			switch name {
-			case "private", "public", "any_partition":
+			case "private", "public":
+			case "any_partition":
+				// any_partition can be used with another visibility fields
+				continue
 			case "legacy_public":
 				ctx.PropertyErrorf(property, "//visibility:legacy_public must not be used")
 				continue

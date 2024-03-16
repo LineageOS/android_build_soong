@@ -80,6 +80,36 @@ func TestSelects(t *testing.T) {
 			},
 		},
 		{
+			name: "basic paths",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_paths: select(soong_config_variable("my_namespace", "my_variable"), {
+					"a": ["foo.txt"],
+					"b": ["bar.txt"],
+					_: ["baz.txt"],
+				}),
+			}
+			`,
+			provider: selectsTestProvider{
+				my_paths: &[]string{"baz.txt"},
+			},
+		},
+		{
+			name: "paths with module references",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_paths: select(soong_config_variable("my_namespace", "my_variable"), {
+					"a": [":a"],
+					"b": [":b"],
+					_: [":c"],
+				}),
+			}
+			`,
+			expectedError: `"foo" depends on undefined module "c"`,
+		},
+		{
 			name: "Differing types",
 			bp: `
 			my_module_type {
@@ -233,6 +263,7 @@ type selectsTestProvider struct {
 	my_bool        *bool
 	my_string      *string
 	my_string_list *[]string
+	my_paths       *[]string
 }
 
 func (p *selectsTestProvider) String() string {
@@ -248,7 +279,8 @@ func (p *selectsTestProvider) String() string {
 	my_bool: %v,
 	my_string: %s,
     my_string_list: %s,
-}`, myBoolStr, myStringStr, p.my_string_list)
+    my_paths: %s,
+}`, myBoolStr, myStringStr, p.my_string_list, p.my_paths)
 }
 
 var selectsTestProviderKey = blueprint.NewProvider[selectsTestProvider]()
@@ -257,6 +289,7 @@ type selectsMockModuleProperties struct {
 	My_bool        proptools.Configurable[bool]
 	My_string      proptools.Configurable[string]
 	My_string_list proptools.Configurable[[]string]
+	My_paths       proptools.Configurable[[]string] `android:"path"`
 }
 
 type selectsMockModule struct {
@@ -266,10 +299,11 @@ type selectsMockModule struct {
 }
 
 func (p *selectsMockModule) GenerateAndroidBuildActions(ctx ModuleContext) {
-	SetProvider[selectsTestProvider](ctx, selectsTestProviderKey, selectsTestProvider{
+	SetProvider(ctx, selectsTestProviderKey, selectsTestProvider{
 		my_bool:        p.properties.My_bool.Evaluate(ctx),
 		my_string:      p.properties.My_string.Evaluate(ctx),
 		my_string_list: p.properties.My_string_list.Evaluate(ctx),
+		my_paths:       p.properties.My_paths.Evaluate(ctx),
 	})
 }
 

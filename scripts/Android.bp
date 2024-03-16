@@ -292,3 +292,16 @@ sh_binary_host {
     name: "keep-flagged-apis",
     src: "keep-flagged-apis.sh",
 }
+
+python_binary_host {
+    name: "merge_directories",
+    main: "merge_directories.py",
+    srcs: [
+        "merge_directories.py",
+    ],
+    version: {
+        py3: {
+            embedded_launcher: true,
+        },
+    },
+}

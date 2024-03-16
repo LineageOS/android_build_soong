@@ -16,9 +16,11 @@ package android
 
 import (
 	"fmt"
-	"github.com/google/blueprint"
 	"regexp"
 	"strings"
+
+	"github.com/google/blueprint"
+	"github.com/google/blueprint/parser"
 )
 
 // BaseModuleContext is the same as blueprint.BaseModuleContext except that Config() returns
@@ -214,6 +216,10 @@ type BaseModuleContext interface {
 	// getMissingDependencies returns the list of missing dependencies.
 	// Calling this function prevents adding new dependencies.
 	getMissingDependencies() []string
+
+	// EvaluateConfiguration makes ModuleContext a valid proptools.ConfigurableEvaluator, so this context
+	// can be used to evaluate the final value of Configurable properties.
+	EvaluateConfiguration(parser.SelectType, string) (string, bool)
 }
 
 type baseModuleContext struct {
@@ -563,4 +569,33 @@ func (b *baseModuleContext) GetPathString(skipFirst bool) string {
 		sb.WriteString(fmt.Sprintf("    -> %s", m.String()))
 	}
 	return sb.String()
+}
+
+func (m *baseModuleContext) EvaluateConfiguration(ty parser.SelectType, condition string) (string, bool) {
+	switch ty {
+	case parser.SelectTypeReleaseVariable:
+		if v, ok := m.Config().productVariables.BuildFlags[condition]; ok {
+			return v, true
+		}
+		return "", false
+	case parser.SelectTypeProductVariable:
+		// TODO(b/323382414): Might add these on a case-by-case basis
+		m.ModuleErrorf("TODO(b/323382414): Product variables are not yet supported in selects")
+		return "", false
+	case parser.SelectTypeSoongConfigVariable:
+		parts := strings.Split(condition, ":")
+		namespace := parts[0]
+		variable := parts[1]
+		if n, ok := m.Config().productVariables.VendorVars[namespace]; ok {
+			if v, ok := n[variable]; ok {
+				return v, true
+			}
+		}
+		return "", false
+	case parser.SelectTypeVariant:
+		m.ModuleErrorf("TODO(b/323382414): Variants are not yet supported in selects")
+		return "", false
+	default:
+		panic("Should be unreachable")
+	}
 }

@@ -150,6 +150,11 @@ type AndroidAppImportProperties struct {
 	// If unspecified, follows the naming convention that the source module of
 	// the prebuilt is Name() without "prebuilt_" prefix
 	Source_module_name *string
+
+	// Path to the .prebuilt_info file of the prebuilt app.
+	// In case of mainline modules, the .prebuilt_info file contains the build_id that was used
+	// to generate the prebuilt.
+	Prebuilt_info *string `android:"path"`
 }
 
 func (a *AndroidAppImport) IsInstallable() bool {
@@ -412,6 +417,14 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		a.provenanceMetaDataFile = provenance.GenerateArtifactProvenanceMetaData(ctx, artifactPath, a.installPath)
 	}
 	android.CollectDependencyAconfigFiles(ctx, &a.mergedAconfigFiles)
+
+	providePrebuiltInfo(ctx,
+		prebuiltInfoProps{
+			baseModuleName: a.BaseModuleName(),
+			isPrebuilt:     true,
+			prebuiltInfo:   a.properties.Prebuilt_info,
+		},
+	)
 
 	// TODO: androidmk converter jni libs
 }
