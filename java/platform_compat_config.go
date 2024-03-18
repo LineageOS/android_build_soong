@@ -20,6 +20,7 @@ import (
 
 	"android/soong/android"
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -184,6 +185,11 @@ type prebuiltCompatConfigModule struct {
 
 type prebuiltCompatConfigProperties struct {
 	Metadata *string `android:"path"`
+
+	// Name of the source soong module that gets shadowed by this prebuilt
+	// If unspecified, follows the naming convention that the source module of
+	// the prebuilt is Name() without "prebuilt_" prefix
+	Source_module_name *string
 }
 
 func (module *prebuiltCompatConfigModule) Prebuilt() *android.Prebuilt {
@@ -196,6 +202,10 @@ func (module *prebuiltCompatConfigModule) Name() string {
 
 func (module *prebuiltCompatConfigModule) compatConfigMetadata() android.Path {
 	return module.metadataFile
+}
+
+func (module *prebuiltCompatConfigModule) BaseModuleName() string {
+	return proptools.StringDefault(module.properties.Source_module_name, module.ModuleBase.Name())
 }
 
 var _ platformCompatConfigMetadataProvider = (*prebuiltCompatConfigModule)(nil)
