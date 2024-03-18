@@ -10047,7 +10047,6 @@ func TestAndroidMk_RequiredModules(t *testing.T) {
 			key: "myapex.key",
 			updatable: false,
 			java_libs: ["foo"],
-			required: ["otherapex"],
 		}
 
 		apex_key {
