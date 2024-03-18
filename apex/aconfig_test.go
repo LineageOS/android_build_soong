@@ -193,6 +193,70 @@ func TestValidationAcrossContainersExportedPass(t *testing.T) {
 					mode: "exported",
 				}`,
 		},
+		{
+			name: "Rust lib passes for exported containers cross",
+			bp: apex_default_bp + `
+			apex {
+				name: "myapex",
+				manifest: ":myapex.manifest",
+				androidManifest: ":myapex.androidmanifest",
+				key: "myapex.key",
+				native_shared_libs: ["libmy_rust_library"],
+				binaries: ["my_rust_binary"],
+				updatable: false,
+			}
+			rust_library {
+				name: "libflags_rust", // test mock
+				crate_name: "flags_rust",
+				srcs: ["lib.rs"],
+				apex_available: ["myapex"],
+			}
+			rust_library {
+				name: "liblazy_static", // test mock
+				crate_name: "lazy_static",
+				srcs: ["src/lib.rs"],
+				apex_available: ["myapex"],
+			}
+			rust_ffi_shared {
+				name: "libmy_rust_library",
+				srcs: ["src/lib.rs"],
+				rustlibs: ["libmy_rust_aconfig_library_foo"],
+				crate_name: "my_rust_library",
+				apex_available: ["myapex"],
+			}
+			rust_binary {
+				name: "my_rust_binary",
+				srcs: ["foo/bar/MyClass.rs"],
+				rustlibs: ["libmy_rust_aconfig_library_bar"],
+				apex_available: ["myapex"],
+			}
+			aconfig_declarations {
+				name: "my_aconfig_declarations_foo",
+				package: "com.example.package",
+				container: "otherapex",
+				srcs: ["foo.aconfig"],
+			}
+			aconfig_declarations {
+				name: "my_aconfig_declarations_bar",
+				package: "com.example.package",
+				container: "otherapex",
+				srcs: ["bar.aconfig"],
+			}
+			rust_aconfig_library {
+				name: "libmy_rust_aconfig_library_foo",
+				aconfig_declarations: "my_aconfig_declarations_foo",
+				crate_name: "my_rust_aconfig_library_foo",
+				apex_available: ["myapex"],
+				mode: "exported",
+			}
+			rust_aconfig_library {
+				name: "libmy_rust_aconfig_library_bar",
+				aconfig_declarations: "my_aconfig_declarations_bar",
+				crate_name: "my_rust_aconfig_library_bar",
+				apex_available: ["myapex"],
+				mode: "exported",
+			}`,
+		},
 	}
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
@@ -392,6 +456,93 @@ func TestValidationAcrossContainersNotExportedFail(t *testing.T) {
 					],
 				}`,
 			expectedError: `.*my_cc_binary_foo/myapex depends on my_cc_aconfig_library_foo/otherapex/production across containers`,
+		},
+		{
+			name: "Rust lib fails for non-exported containers cross",
+			bp: apex_default_bp + `
+			apex {
+				name: "myapex",
+				manifest: ":myapex.manifest",
+				androidManifest: ":myapex.androidmanifest",
+				key: "myapex.key",
+				native_shared_libs: ["libmy_rust_library"],
+				updatable: false,
+			}
+			rust_library {
+				name: "libflags_rust", // test mock
+				crate_name: "flags_rust",
+				srcs: ["lib.rs"],
+				apex_available: ["myapex"],
+			}
+			rust_library {
+				name: "liblazy_static", // test mock
+				crate_name: "lazy_static",
+				srcs: ["src/lib.rs"],
+				apex_available: ["myapex"],
+			}
+			rust_ffi_shared {
+				name: "libmy_rust_library",
+				srcs: ["src/lib.rs"],
+				rustlibs: ["libmy_rust_aconfig_library_foo"],
+				crate_name: "my_rust_library",
+				apex_available: ["myapex"],
+			}
+			aconfig_declarations {
+				name: "my_aconfig_declarations_foo",
+				package: "com.example.package",
+				container: "otherapex",
+				srcs: ["foo.aconfig"],
+			}
+			rust_aconfig_library {
+				name: "libmy_rust_aconfig_library_foo",
+				aconfig_declarations: "my_aconfig_declarations_foo",
+				crate_name: "my_rust_aconfig_library_foo",
+				apex_available: ["myapex"],
+			}`,
+			expectedError: `.*libmy_rust_aconfig_library_foo/myapex depends on libmy_rust_aconfig_library_foo/otherapex/production across containers`,
+		},
+		{
+			name: "Rust binary fails for non-exported containers cross",
+			bp: apex_default_bp + `
+			apex {
+				name: "myapex",
+				manifest: ":myapex.manifest",
+				androidManifest: ":myapex.androidmanifest",
+				key: "myapex.key",
+				binaries: ["my_rust_binary"],
+				updatable: false,
+			}
+			rust_library {
+				name: "libflags_rust", // test mock
+				crate_name: "flags_rust",
+				srcs: ["lib.rs"],
+				apex_available: ["myapex"],
+			}
+			rust_library {
+				name: "liblazy_static", // test mock
+				crate_name: "lazy_static",
+				srcs: ["src/lib.rs"],
+				apex_available: ["myapex"],
+			}
+			rust_binary {
+				name: "my_rust_binary",
+				srcs: ["foo/bar/MyClass.rs"],
+				rustlibs: ["libmy_rust_aconfig_library_bar"],
+				apex_available: ["myapex"],
+			}
+			aconfig_declarations {
+				name: "my_aconfig_declarations_bar",
+				package: "com.example.package",
+				container: "otherapex",
+				srcs: ["bar.aconfig"],
+			}
+			rust_aconfig_library {
+				name: "libmy_rust_aconfig_library_bar",
+				aconfig_declarations: "my_aconfig_declarations_bar",
+				crate_name: "my_rust_aconfig_library_bar",
+				apex_available: ["myapex"],
+			}`,
+			expectedError: `.*libmy_rust_aconfig_library_bar/myapex depends on libmy_rust_aconfig_library_bar/otherapex/production across containers`,
 		},
 		{
 			name: "Aconfig validation propagate along sourceOrOutputDependencyTag",
