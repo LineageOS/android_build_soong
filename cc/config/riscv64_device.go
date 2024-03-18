@@ -30,7 +30,7 @@ var (
 		// below) for ease of experimentation with additional extensions.
 		"-march=rv64gcv_zba_zbb_zbs",
 		// TODO: move to driver (https://github.com/google/android-riscv64/issues/111)
-		"-munaligned-access",
+		"-mno-strict-align",
 		// TODO: remove when qemu V works (https://gitlab.com/qemu-project/qemu/-/issues/1976)
 		// (Note that we'll probably want to wait for berberis to be good enough
 		// that most people don't care about qemu's V performance either!)
@@ -51,7 +51,7 @@ var (
 		// above) for ease of experimentation with additional extensions.
 		"-march=rv64gcv_zba_zbb_zbs",
 		// TODO: move to driver (https://github.com/google/android-riscv64/issues/111)
-		"-munaligned-access",
+		"-mno-strict-align",
 		// TODO: remove when clang default changed (https://github.com/google/android-riscv64/issues/124)
 		"-Wl,-mllvm -Wl,-jump-is-expensive=false",
 	}
