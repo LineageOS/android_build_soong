@@ -72,6 +72,15 @@ func test(t *testing.T, bp string) *android.TestResult {
 			vendor_available: true,
 			min_sdk_version: "29",
 		}
+
+		rust_library {
+			name: "liblog_rust",
+			crate_name: "log",
+			srcs: ["log/src/lib.rs"],
+			product_available: true,
+			vendor_available: true,
+			min_sdk_version: "29",
+		}
 	`
 
 	mockFS := android.MockFS{
@@ -115,6 +124,7 @@ func test(t *testing.T, bp string) *android.TestResult {
 		"com/android2/OdmProperties.sysprop":         nil,
 
 		"librustutils/lib.rs": nil,
+		"log/src/lib.rs":      nil,
 	}
 
 	result := android.GroupFixturePreparers(
