@@ -30,6 +30,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/dexpreopt"
+	"android/soong/etc"
 )
 
 const (
@@ -3163,9 +3164,11 @@ func (module *sdkLibraryXml) SubDir() string {
 }
 
 // from android.PrebuiltEtcModule
-func (module *sdkLibraryXml) OutputFile() android.OutputPath {
-	return module.outputFilePath
+func (module *sdkLibraryXml) OutputFiles(tag string) (android.Paths, error) {
+	return android.OutputPaths{module.outputFilePath}.Paths(), nil
 }
+
+var _ etc.PrebuiltEtcModule = (*sdkLibraryXml)(nil)
 
 // from android.ApexModule
 func (module *sdkLibraryXml) AvailableFor(what string) bool {
