@@ -168,7 +168,10 @@ func (c Config) DisableHiddenApiChecks() bool {
 // Thus, verify_overlaps is disabled when RELEASE_DEFAULT_MODULE_BUILD_FROM_SOURCE is set to false.
 // TODO(b/308174018): Re-enable verify_overlaps for both builr from source/mainline prebuilts.
 func (c Config) DisableVerifyOverlaps() bool {
-	return c.IsEnvTrue("DISABLE_VERIFY_OVERLAPS") || !c.ReleaseDefaultModuleBuildFromSource()
+	if c.IsEnvFalse("DISABLE_VERIFY_OVERLAPS") && c.ReleaseDisableVerifyOverlaps() {
+		panic("The current release configuration does not support verify_overlaps. DISABLE_VERIFY_OVERLAPS cannot be set to false")
+	}
+	return c.IsEnvTrue("DISABLE_VERIFY_OVERLAPS") || c.ReleaseDisableVerifyOverlaps() || !c.ReleaseDefaultModuleBuildFromSource()
 }
 
 // MaxPageSizeSupported returns the max page size supported by the device. This
@@ -207,6 +210,10 @@ func (c Config) ReleaseAconfigFlagDefaultPermission() string {
 func (c Config) ReleaseDefaultModuleBuildFromSource() bool {
 	return c.config.productVariables.ReleaseDefaultModuleBuildFromSource == nil ||
 		Bool(c.config.productVariables.ReleaseDefaultModuleBuildFromSource)
+}
+
+func (c Config) ReleaseDisableVerifyOverlaps() bool {
+	return c.config.productVariables.GetBuildFlagBool("RELEASE_DISABLE_VERIFY_OVERLAPS_CHECK")
 }
 
 // Enables flagged apis annotated with READ_WRITE aconfig flags to be included in the stubs
