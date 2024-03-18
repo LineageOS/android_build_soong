@@ -42,28 +42,6 @@ const (
 )
 
 func VndkLibrariesTxtModules(vndkVersion string, ctx android.BaseModuleContext) []string {
-	// Return the list of vndk txt files for the vndk apex of the vndkVersion.
-	if vndkVersion == "current" {
-		// We can assume all txt files are snapshotted if we find one of them.
-		currentVndkSnapshotted := ctx.OtherModuleExists(insertVndkVersion(llndkLibrariesTxt, ctx.DeviceConfig().PlatformVndkVersion()))
-		if currentVndkSnapshotted {
-			// If the current VNDK is already snapshotted (which can happen with
-			// the `next` config), use the prebuilt txt files in the snapshot.
-			// This is because the txt files built from source are probably be
-			// for the in-development version.
-			vndkVersion = ctx.DeviceConfig().PlatformVndkVersion()
-		} else {
-			// Use the txt files generated from the source
-			return []string{
-				llndkLibrariesTxtForApex,
-				vndkCoreLibrariesTxt,
-				vndkSpLibrariesTxt,
-				vndkPrivateLibrariesTxt,
-				vndkProductLibrariesTxt,
-			}
-		}
-	}
-
 	// Snapshot vndks have their own *.libraries.VER.txt files.
 	// Note that snapshots don't have "vndkcorevariant.libraries.VER.txt"
 	result := []string{
@@ -376,15 +354,6 @@ func IsForVndkApex(mctx android.BottomUpMutatorContext, m *Module) bool {
 		if !p.MatchesWithDevice(mctx.DeviceConfig()) {
 			return false
 		}
-
-		platformVndkVersion := mctx.DeviceConfig().PlatformVndkVersion()
-		if platformVndkVersion != "" {
-			// ignore prebuilt vndk modules that are newer than or equal to the platform vndk version
-			platformVndkApiLevel := android.ApiLevelOrPanic(mctx, platformVndkVersion)
-			if platformVndkApiLevel.LessThanOrEqualTo(android.ApiLevelOrPanic(mctx, p.Version())) {
-				return false
-			}
-		}
 	}
 
 	if lib, ok := m.linker.(libraryInterface); ok {
@@ -392,8 +361,7 @@ func IsForVndkApex(mctx android.BottomUpMutatorContext, m *Module) bool {
 		if lib.buildStubs() {
 			return false
 		}
-		useCoreVariant := m.VndkVersion() == mctx.DeviceConfig().PlatformVndkVersion() &&
-			mctx.DeviceConfig().VndkUseCoreVariant() && !m.MustUseVendorVariant()
+		useCoreVariant := mctx.DeviceConfig().VndkUseCoreVariant() && !m.MustUseVendorVariant()
 		return lib.shared() && m.InVendor() && m.IsVndk() && !m.IsVndkExt() && !useCoreVariant
 	}
 	return false
@@ -548,21 +516,8 @@ func insertVndkVersion(filename string, vndkVersion string) string {
 	return filename
 }
 
-func (txt *vndkLibrariesTxt) DepsMutator(mctx android.BottomUpMutatorContext) {
-	versionedName := insertVndkVersion(txt.Name(), mctx.DeviceConfig().PlatformVndkVersion())
-	if mctx.OtherModuleExists(versionedName) {
-		// If the prebuilt vndk libraries txt files exist, install them instead.
-		txt.HideFromMake()
-		mctx.AddDependency(txt, nil, versionedName)
-	}
-}
-
 func (txt *vndkLibrariesTxt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	filename := proptools.StringDefault(txt.properties.Stem, txt.Name())
-
-	if Bool(txt.properties.Insert_vndk_version) {
-		filename = insertVndkVersion(filename, ctx.DeviceConfig().PlatformVndkVersion())
-	}
 
 	txt.outputFile = android.PathForModuleOut(ctx, filename).OutputPath
 
@@ -639,34 +594,6 @@ type vndkSnapshotSingleton struct {
 
 func isVndkSnapshotAware(config android.DeviceConfig, m LinkableInterface,
 	apexInfo android.ApexInfo) (vndkType string, isVndkSnapshotLib bool) {
-
-	if m.Target().NativeBridge == android.NativeBridgeEnabled {
-		return "", false
-	}
-	// !inVendor: There's product/vendor variants for VNDK libs. We only care about vendor variants.
-	// !installable: Snapshot only cares about "installable" modules.
-	// !m.IsLlndk: llndk stubs are required for building against snapshots.
-	// IsSnapshotPrebuilt: Snapshotting a snapshot doesn't make sense.
-	// !outputFile.Valid: Snapshot requires valid output file.
-	if !m.InVendor() || (!installable(m, apexInfo) && !m.IsLlndk()) || m.IsSnapshotPrebuilt() || !m.OutputFile().Valid() {
-		return "", false
-	}
-	if !m.IsSnapshotLibrary() || !m.Shared() {
-		return "", false
-	}
-	if m.VndkVersion() == config.PlatformVndkVersion() {
-		if m.IsVndk() && !m.IsVndkExt() {
-			if m.IsVndkSp() {
-				return "vndk-sp", true
-			} else {
-				return "vndk-core", true
-			}
-		} else if m.HasLlndkStubs() && m.StubsVersion() == "" {
-			// Use default version for the snapshot.
-			return "llndk-stub", true
-		}
-	}
-
 	return "", false
 }
 
@@ -676,10 +603,6 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 
 	// BOARD_VNDK_VERSION must be set to 'current' in order to generate a VNDK snapshot.
 	if ctx.DeviceConfig().VndkVersion() != "current" {
-		return
-	}
-
-	if ctx.DeviceConfig().PlatformVndkVersion() == "" {
 		return
 	}
 
