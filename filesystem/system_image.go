@@ -43,6 +43,9 @@ func systemImageFactory() android.Module {
 }
 
 func (s *systemImage) buildExtraFiles(ctx android.ModuleContext, root android.OutputPath) android.OutputPaths {
+	if s.filesystem.properties.Partition_type != nil {
+		ctx.PropertyErrorf("partition_type", "partition_type must be unset on an android_system_image module. It is assumed to be 'system'.")
+	}
 	lc := s.buildLinkerConfigFile(ctx, root)
 	// Add more files if needed
 	return []android.OutputPath{lc}
