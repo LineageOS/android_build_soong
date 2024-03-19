@@ -1063,6 +1063,12 @@ func (d dependencyTag) LicenseAnnotations() []android.LicenseAnnotation {
 	return nil
 }
 
+func (d dependencyTag) PropagateAconfigValidation() bool {
+	return d == rlibDepTag || d == sourceDepTag
+}
+
+var _ android.PropagateAconfigValidationDependencyTag = dependencyTag{}
+
 var _ android.LicenseAnnotationsDependencyTag = dependencyTag{}
 
 var (
