@@ -84,6 +84,22 @@ endif`,
 			},
 		},
 	},
+	{
+		name: "Blank line in rule's command",
+		in:   `all:
+	echo first line
+
+	echo second line`,
+		out: []Node{
+			&Rule{
+				Target: SimpleMakeString("all", NoPos),
+				RecipePos: NoPos,
+				Recipe: "echo first line\necho second line",
+				Prerequisites: SimpleMakeString("", NoPos),
+			},
+		},
+	},
+
 }
 
 func TestParse(t *testing.T) {
