@@ -23,24 +23,36 @@ import (
 
 var (
 	riscv64Cflags = []string{
-		// Help catch common 32/64-bit errors.
+		// Help catch common 32/64-bit errors. (This is duplicated in all 64-bit
+		// architectures' cflags.)
 		"-Werror=implicit-function-declaration",
+		// This is already the driver's Android default, but duplicated here (and
+		// below) for ease of experimentation with additional extensions.
 		"-march=rv64gcv_zba_zbb_zbs",
-		"-munaligned-access",
-		// Until https://gitlab.com/qemu-project/qemu/-/issues/1976 is fixed...
+		// TODO: move to driver (https://github.com/google/android-riscv64/issues/111)
+		"-mno-strict-align",
+		// TODO: remove when qemu V works (https://gitlab.com/qemu-project/qemu/-/issues/1976)
+		// (Note that we'll probably want to wait for berberis to be good enough
+		// that most people don't care about qemu's V performance either!)
 		"-mno-implicit-float",
-		// (https://github.com/google/android-riscv64/issues/124)
+		// TODO: remove when clang default changed (https://github.com/google/android-riscv64/issues/124)
 		"-mllvm -jump-is-expensive=false",
 	}
 
 	riscv64ArchVariantCflags = map[string][]string{}
 
 	riscv64Ldflags = []string{
+		// TODO: sysv hashes are the default for other architectures because gnu
+		// hashes weren't supported until api level 23, but riscv64 didn't exist
+		// back then, and could move today...
+		// https://android.googlesource.com/platform/bionic/+/main/android-changes-for-ndk-developers.md#gnu-hashes-availible-in-api-level-23
 		"-Wl,--hash-style=gnu",
+		// This is already the driver's Android default, but duplicated here (and
+		// above) for ease of experimentation with additional extensions.
 		"-march=rv64gcv_zba_zbb_zbs",
-		"-munaligned-access",
-		// We should change the default for this in clang, but for now...
-		// (https://github.com/google/android-riscv64/issues/124)
+		// TODO: move to driver (https://github.com/google/android-riscv64/issues/111)
+		"-mno-strict-align",
+		// TODO: remove when clang default changed (https://github.com/google/android-riscv64/issues/124)
 		"-Wl,-mllvm -Wl,-jump-is-expensive=false",
 	}
 
