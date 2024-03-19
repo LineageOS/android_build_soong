@@ -42,11 +42,6 @@ var (
 	riscv64ArchVariantCflags = map[string][]string{}
 
 	riscv64Ldflags = []string{
-		// TODO: sysv hashes are the default for other architectures because gnu
-		// hashes weren't supported until api level 23, but riscv64 didn't exist
-		// back then, and could move today...
-		// https://android.googlesource.com/platform/bionic/+/main/android-changes-for-ndk-developers.md#gnu-hashes-availible-in-api-level-23
-		"-Wl,--hash-style=gnu",
 		// This is already the driver's Android default, but duplicated here (and
 		// above) for ease of experimentation with additional extensions.
 		"-march=rv64gcv_zba_zbb_zbs",
