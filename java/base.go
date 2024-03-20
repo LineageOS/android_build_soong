@@ -1219,14 +1219,15 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		}
 
 		android.SetProvider(ctx, JavaInfoProvider, JavaInfo{
-			HeaderJars:                     android.PathsIfNonNil(j.headerJarFile),
-			TransitiveLibsHeaderJars:       j.transitiveLibsHeaderJars,
-			TransitiveStaticLibsHeaderJars: j.transitiveStaticLibsHeaderJars,
-			AidlIncludeDirs:                j.exportAidlIncludeDirs,
-			ExportedPlugins:                j.exportedPluginJars,
-			ExportedPluginClasses:          j.exportedPluginClasses,
-			ExportedPluginDisableTurbine:   j.exportedDisableTurbine,
-			StubsLinkType:                  j.stubsLinkType,
+			HeaderJars:                          android.PathsIfNonNil(j.headerJarFile),
+			TransitiveLibsHeaderJars:            j.transitiveLibsHeaderJars,
+			TransitiveStaticLibsHeaderJars:      j.transitiveStaticLibsHeaderJars,
+			AidlIncludeDirs:                     j.exportAidlIncludeDirs,
+			ExportedPlugins:                     j.exportedPluginJars,
+			ExportedPluginClasses:               j.exportedPluginClasses,
+			ExportedPluginDisableTurbine:        j.exportedDisableTurbine,
+			StubsLinkType:                       j.stubsLinkType,
+			AconfigIntermediateCacheOutputPaths: deps.aconfigProtoFiles,
 		})
 
 		j.outputFile = j.headerJarFile
@@ -1729,22 +1730,23 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 	android.CollectDependencyAconfigFiles(ctx, &j.mergedAconfigFiles)
 
 	android.SetProvider(ctx, JavaInfoProvider, JavaInfo{
-		HeaderJars:                     android.PathsIfNonNil(j.headerJarFile),
-		RepackagedHeaderJars:           android.PathsIfNonNil(j.repackagedHeaderJarFile),
-		TransitiveLibsHeaderJars:       j.transitiveLibsHeaderJars,
-		TransitiveStaticLibsHeaderJars: j.transitiveStaticLibsHeaderJars,
-		ImplementationAndResourcesJars: android.PathsIfNonNil(j.implementationAndResourcesJar),
-		ImplementationJars:             android.PathsIfNonNil(j.implementationJarFile),
-		ResourceJars:                   android.PathsIfNonNil(j.resourceJar),
-		AidlIncludeDirs:                j.exportAidlIncludeDirs,
-		SrcJarArgs:                     j.srcJarArgs,
-		SrcJarDeps:                     j.srcJarDeps,
-		TransitiveSrcFiles:             j.transitiveSrcFiles,
-		ExportedPlugins:                j.exportedPluginJars,
-		ExportedPluginClasses:          j.exportedPluginClasses,
-		ExportedPluginDisableTurbine:   j.exportedDisableTurbine,
-		JacocoReportClassesFile:        j.jacocoReportClassesFile,
-		StubsLinkType:                  j.stubsLinkType,
+		HeaderJars:                          android.PathsIfNonNil(j.headerJarFile),
+		RepackagedHeaderJars:                android.PathsIfNonNil(j.repackagedHeaderJarFile),
+		TransitiveLibsHeaderJars:            j.transitiveLibsHeaderJars,
+		TransitiveStaticLibsHeaderJars:      j.transitiveStaticLibsHeaderJars,
+		ImplementationAndResourcesJars:      android.PathsIfNonNil(j.implementationAndResourcesJar),
+		ImplementationJars:                  android.PathsIfNonNil(j.implementationJarFile),
+		ResourceJars:                        android.PathsIfNonNil(j.resourceJar),
+		AidlIncludeDirs:                     j.exportAidlIncludeDirs,
+		SrcJarArgs:                          j.srcJarArgs,
+		SrcJarDeps:                          j.srcJarDeps,
+		TransitiveSrcFiles:                  j.transitiveSrcFiles,
+		ExportedPlugins:                     j.exportedPluginJars,
+		ExportedPluginClasses:               j.exportedPluginClasses,
+		ExportedPluginDisableTurbine:        j.exportedDisableTurbine,
+		JacocoReportClassesFile:             j.jacocoReportClassesFile,
+		StubsLinkType:                       j.stubsLinkType,
+		AconfigIntermediateCacheOutputPaths: deps.aconfigProtoFiles,
 	})
 
 	// Save the output file with no relative path so that it doesn't end up in a subdirectory when used as a resource
@@ -2295,6 +2297,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				// annotation processor that generates API is incompatible with the turbine
 				// optimization.
 				deps.disableTurbine = deps.disableTurbine || dep.ExportedPluginDisableTurbine
+				deps.aconfigProtoFiles = append(deps.aconfigProtoFiles, dep.AconfigIntermediateCacheOutputPaths...)
 			case pluginTag:
 				if plugin, ok := module.(*Plugin); ok {
 					if plugin.pluginProperties.Processor_class != nil {
@@ -2353,6 +2356,8 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				deps.staticJars = append(deps.staticJars, dep.Srcs()...)
 				deps.staticHeaderJars = append(deps.staticHeaderJars, dep.Srcs()...)
 			}
+		} else if dep, ok := android.OtherModuleProvider(ctx, module, android.CodegenInfoProvider); ok {
+			deps.aconfigProtoFiles = append(deps.aconfigProtoFiles, dep.IntermediateCacheOutputPaths...)
 		} else {
 			switch tag {
 			case bootClasspathTag:
