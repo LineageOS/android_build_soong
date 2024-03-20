@@ -1393,6 +1393,11 @@ func TestJavaSdkLibraryDist(t *testing.T) {
 			"sdklib_group_foo",
 			"sdklib_owner_foo",
 			"foo"),
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.BuildFlags = map[string]string{
+				"RELEASE_HIDDEN_API_EXPORTABLE_STUBS": "true",
+			}
+		}),
 	).RunTestWithBp(t, `
 		java_sdk_library {
 			name: "sdklib_no_group",
