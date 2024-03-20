@@ -15,9 +15,10 @@
 package codegen
 
 import (
+	"testing"
+
 	"android/soong/android"
 	"android/soong/java"
-	"testing"
 )
 
 func TestAconfigDeclarationsGroup(t *testing.T) {
@@ -28,6 +29,7 @@ func TestAconfigDeclarationsGroup(t *testing.T) {
 		aconfig_declarations {
 			name: "foo-aconfig",
 			package: "com.example.package",
+			container: "com.android.foo",
 			srcs: ["foo.aconfig"],
 		}
 
@@ -39,6 +41,7 @@ func TestAconfigDeclarationsGroup(t *testing.T) {
 		aconfig_declarations {
 			name: "bar-aconfig",
 			package: "com.example.package",
+			container: "com.android.foo",
 			srcs: ["foo.aconfig"],
 		}
 

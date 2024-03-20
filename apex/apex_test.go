@@ -11421,6 +11421,7 @@ func TestAconfifDeclarationsValidation(t *testing.T) {
 			aconfig_declarations {
 				name: "%[1]s",
 				package: "com.example.package",
+				container: "system",
 				srcs: [
 					"%[1]s.aconfig",
 				],
