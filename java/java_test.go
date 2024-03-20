@@ -2757,3 +2757,38 @@ func TestApiLibraryAconfigDeclarations(t *testing.T) {
 	cmdline := String(android.RuleBuilderSboxProtoForTests(t, result.TestContext, manifest).Commands[0].Command)
 	android.AssertStringDoesContain(t, "flagged api hide command not included", cmdline, "revert-annotations-exportable.txt")
 }
+
+func TestJavaLibHostWithStem(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_library_host {
+			name: "foo",
+			srcs: ["a.java"],
+			stem: "foo-new",
+		}
+	`)
+
+	buildOS := ctx.Config().BuildOS.String()
+	foo := ctx.ModuleForTests("foo", buildOS+"_common")
+
+	outputs := fmt.Sprint(foo.AllOutputs())
+	if !strings.Contains(outputs, "foo-new.jar") {
+		t.Errorf("Module output does not contain expected jar %s", "foo-new.jar")
+	}
+}
+
+func TestJavaLibWithStem(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_library {
+			name: "foo",
+			srcs: ["a.java"],
+			stem: "foo-new",
+		}
+	`)
+
+	foo := ctx.ModuleForTests("foo", "android_common")
+
+	outputs := fmt.Sprint(foo.AllOutputs())
+	if !strings.Contains(outputs, "foo-new.jar") {
+		t.Errorf("Module output does not contain expected jar %s", "foo-new.jar")
+	}
+}
