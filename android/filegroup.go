@@ -15,6 +15,7 @@
 package android
 
 import (
+	"maps"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -97,6 +98,25 @@ func (fg *fileGroup) GenerateAndroidBuildActions(ctx ModuleContext) {
 	}
 	SetProvider(ctx, blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: fg.srcs.Strings()})
 	CollectDependencyAconfigFiles(ctx, &fg.mergedAconfigFiles)
+
+	var aconfigDeclarations []string
+	var intermediateCacheOutputPaths Paths
+	var srcjars Paths
+	modeInfos := make(map[string]ModeInfo)
+	ctx.VisitDirectDeps(func(module Module) {
+		if dep, ok := OtherModuleProvider(ctx, module, CodegenInfoProvider); ok {
+			aconfigDeclarations = append(aconfigDeclarations, dep.AconfigDeclarations...)
+			intermediateCacheOutputPaths = append(intermediateCacheOutputPaths, dep.IntermediateCacheOutputPaths...)
+			srcjars = append(srcjars, dep.Srcjars...)
+			maps.Copy(modeInfos, dep.ModeInfos)
+		}
+	})
+	SetProvider(ctx, CodegenInfoProvider, CodegenInfo{
+		AconfigDeclarations:          aconfigDeclarations,
+		IntermediateCacheOutputPaths: intermediateCacheOutputPaths,
+		Srcjars:                      srcjars,
+		ModeInfos:                    modeInfos,
+	})
 }
 
 func (fg *fileGroup) Srcs() Paths {
