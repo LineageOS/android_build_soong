@@ -210,3 +210,47 @@ func TestVendorProductVariantGenrule(t *testing.T) {
 		t.Errorf(`expected product variant, but does not exist in %v`, variants)
 	}
 }
+
+// cc_genrule is initialized to android.InitAndroidArchModule
+// that is an architecture-specific Android module.
+// So testing properties tagged with `android:"arch_variant"`
+// for cc_genrule.
+func TestMultilibGenruleOut(t *testing.T) {
+	bp := `
+	cc_genrule {
+		name: "gen",
+		cmd: "cp $(in) $(out)",
+		srcs: ["foo"],
+		multilib: {
+			lib32: {
+				out: [
+					"subdir32/external-module32",
+				],
+			},
+			lib64: {
+				out: [
+					"subdir64/external-module64",
+				],
+			},
+		},
+	}
+	`
+	result := PrepareForIntegrationTestWithCc.RunTestWithBp(t, bp)
+	gen_32bit := result.ModuleForTests("gen", "android_arm_armv7-a-neon").OutputFiles(t, "")
+	android.AssertPathsEndWith(t,
+		"genrule_out",
+		[]string{
+			"subdir32/external-module32",
+		},
+		gen_32bit,
+	)
+
+	gen_64bit := result.ModuleForTests("gen", "android_arm64_armv8-a").OutputFiles(t, "")
+	android.AssertPathsEndWith(t,
+		"genrule_out",
+		[]string{
+			"subdir64/external-module64",
+		},
+		gen_64bit,
+	)
+}
