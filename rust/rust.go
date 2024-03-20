@@ -1142,6 +1142,7 @@ func collectIncludedProtos(mod *Module, dep *Module) {
 		}
 	}
 }
+
 func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	var depPaths PathDeps
 
@@ -1433,16 +1434,29 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	mod.transitiveAndroidMkSharedLibs = android.NewDepSet[string](android.PREORDER, directAndroidMkSharedLibs, transitiveAndroidMkSharedLibs)
 
 	var rlibDepFiles RustLibraries
+	aliases := mod.compiler.Aliases()
 	for _, dep := range directRlibDeps {
-		rlibDepFiles = append(rlibDepFiles, RustLibrary{Path: dep.UnstrippedOutputFile(), CrateName: dep.CrateName()})
+		crateName := dep.CrateName()
+		if alias, aliased := aliases[crateName]; aliased {
+			crateName = alias
+		}
+		rlibDepFiles = append(rlibDepFiles, RustLibrary{Path: dep.UnstrippedOutputFile(), CrateName: crateName})
 	}
 	var dylibDepFiles RustLibraries
 	for _, dep := range directDylibDeps {
-		dylibDepFiles = append(dylibDepFiles, RustLibrary{Path: dep.UnstrippedOutputFile(), CrateName: dep.CrateName()})
+		crateName := dep.CrateName()
+		if alias, aliased := aliases[crateName]; aliased {
+			crateName = alias
+		}
+		dylibDepFiles = append(dylibDepFiles, RustLibrary{Path: dep.UnstrippedOutputFile(), CrateName: crateName})
 	}
 	var procMacroDepFiles RustLibraries
 	for _, dep := range directProcMacroDeps {
-		procMacroDepFiles = append(procMacroDepFiles, RustLibrary{Path: dep.UnstrippedOutputFile(), CrateName: dep.CrateName()})
+		crateName := dep.CrateName()
+		if alias, aliased := aliases[crateName]; aliased {
+			crateName = alias
+		}
+		procMacroDepFiles = append(procMacroDepFiles, RustLibrary{Path: dep.UnstrippedOutputFile(), CrateName: crateName})
 	}
 
 	var staticLibDepFiles android.Paths
