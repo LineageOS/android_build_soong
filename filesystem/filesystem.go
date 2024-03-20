@@ -88,6 +88,10 @@ type filesystemProperties struct {
 	// is ext4.
 	Type *string
 
+	// Identifies which partition this is for //visibility:any_system_image (and others) visibility
+	// checks, and will be used in the future for API surface checks.
+	Partition_type *string
+
 	// file_contexts file to make image. Currently, only ext4 is supported.
 	File_contexts *string `android:"path"`
 
@@ -175,6 +179,9 @@ func (f *filesystem) installFileName() string {
 var pctx = android.NewPackageContext("android/soong/filesystem")
 
 func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	if !android.InList(f.PartitionType(), validPartitions) {
+		ctx.PropertyErrorf("partition_type", "partition_type must be one of %s, found: %s", validPartitions, f.PartitionType())
+	}
 	switch f.fsType(ctx) {
 	case ext4Type:
 		f.output = f.buildImageUsingBuildImage(ctx)
@@ -439,6 +446,10 @@ func (f *filesystem) addMakeBuiltFiles(ctx android.ModuleContext, builder *andro
 		FlagWithInput("--file-list", android.PathForArbitraryOutput(ctx, fileListFile)).
 		Text(rootDir.String()).
 		Text(android.PathForArbitraryOutput(ctx, stagingDir).String())
+}
+
+func (f *filesystem) PartitionType() string {
+	return proptools.StringDefault(f.properties.Partition_type, "system")
 }
 
 var _ android.AndroidMkEntriesProvider = (*filesystem)(nil)
