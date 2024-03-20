@@ -309,6 +309,10 @@ type JavaInfo struct {
 	// implementation jars. If the provider is set by java_sdk_library, the link type is "unknown"
 	// and selection between the stub jar vs implementation jar is deferred to SdkLibrary.sdkJars(...)
 	StubsLinkType StubsLinkType
+
+	// AconfigIntermediateCacheOutputPaths is a path to the cache files collected from the
+	// java_aconfig_library modules that are statically linked to this module.
+	AconfigIntermediateCacheOutputPaths android.Paths
 }
 
 var JavaInfoProvider = blueprint.NewProvider[JavaInfo]()
