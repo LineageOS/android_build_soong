@@ -1993,20 +1993,25 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 	if !Bool(module.sdkLibraryProperties.No_dist) {
 		// Dist the api txt and removed api txt artifacts for sdk builds.
 		distDir := proptools.StringPtr(path.Join(module.apiDistPath(apiScope), "api"))
+		stubsTypeTagPrefix := ""
+		if mctx.Config().ReleaseHiddenApiExportableStubs() {
+			stubsTypeTagPrefix = ".exportable"
+		}
 		for _, p := range []struct {
 			tag     string
 			pattern string
 		}{
 			// "exportable" api files are copied to the dist directory instead of the
-			// "everything" api files.
-			{tag: ".exportable.api.txt", pattern: "%s.txt"},
-			{tag: ".exportable.removed-api.txt", pattern: "%s-removed.txt"},
+			// "everything" api files when "RELEASE_HIDDEN_API_EXPORTABLE_STUBS" build flag
+			// is set. Otherwise, the "everything" api files are copied to the dist directory.
+			{tag: "%s.api.txt", pattern: "%s.txt"},
+			{tag: "%s.removed-api.txt", pattern: "%s-removed.txt"},
 		} {
 			props.Dists = append(props.Dists, android.Dist{
 				Targets: []string{"sdk", "win_sdk"},
 				Dir:     distDir,
 				Dest:    proptools.StringPtr(fmt.Sprintf(p.pattern, module.distStem())),
-				Tag:     proptools.StringPtr(p.tag),
+				Tag:     proptools.StringPtr(fmt.Sprintf(p.tag, stubsTypeTagPrefix)),
 			})
 		}
 	}
@@ -2079,7 +2084,7 @@ func (module *SdkLibrary) createApiLibrary(mctx android.DefaultableHookContext, 
 	mctx.CreateModule(ApiLibraryFactory, &props, module.sdkComponentPropertiesForChildLibrary())
 }
 
-func (module *SdkLibrary) topLevelStubsLibraryProps(mctx android.DefaultableHookContext, apiScope *apiScope) libraryProperties {
+func (module *SdkLibrary) topLevelStubsLibraryProps(mctx android.DefaultableHookContext, apiScope *apiScope, doDist bool) libraryProperties {
 	props := libraryProperties{}
 
 	props.Visibility = childModuleVisibility(module.sdkLibraryProperties.Stubs_library_visibility)
@@ -2095,13 +2100,22 @@ func (module *SdkLibrary) topLevelStubsLibraryProps(mctx android.DefaultableHook
 	}
 	props.Compile_dex = compileDex
 
+	if !Bool(module.sdkLibraryProperties.No_dist) && doDist {
+		props.Dist.Targets = []string{"sdk", "win_sdk"}
+		props.Dist.Dest = proptools.StringPtr(fmt.Sprintf("%v.jar", module.distStem()))
+		props.Dist.Dir = proptools.StringPtr(module.apiDistPath(apiScope))
+		props.Dist.Tag = proptools.StringPtr(".jar")
+	}
+
 	return props
 }
 
 func (module *SdkLibrary) createTopLevelStubsLibrary(
 	mctx android.DefaultableHookContext, apiScope *apiScope, contributesToApiSurface bool) {
 
-	props := module.topLevelStubsLibraryProps(mctx, apiScope)
+	// Dist the "everything" stubs when the RELEASE_HIDDEN_API_EXPORTABLE_STUBS build flag is false
+	doDist := !mctx.Config().ReleaseHiddenApiExportableStubs()
+	props := module.topLevelStubsLibraryProps(mctx, apiScope, doDist)
 	props.Name = proptools.StringPtr(module.stubsLibraryModuleName(apiScope))
 
 	// Add the stub compiling java_library/java_api_library as static lib based on build config
@@ -2117,17 +2131,10 @@ func (module *SdkLibrary) createTopLevelStubsLibrary(
 func (module *SdkLibrary) createTopLevelExportableStubsLibrary(
 	mctx android.DefaultableHookContext, apiScope *apiScope) {
 
-	props := module.topLevelStubsLibraryProps(mctx, apiScope)
+	// Dist the "exportable" stubs when the RELEASE_HIDDEN_API_EXPORTABLE_STUBS build flag is true
+	doDist := mctx.Config().ReleaseHiddenApiExportableStubs()
+	props := module.topLevelStubsLibraryProps(mctx, apiScope, doDist)
 	props.Name = proptools.StringPtr(module.exportableStubsLibraryModuleName(apiScope))
-
-	// Dist the class jar artifact for sdk builds.
-	// "exportable" stubs are copied to dist for sdk builds instead of the "everything" stubs.
-	if !Bool(module.sdkLibraryProperties.No_dist) {
-		props.Dist.Targets = []string{"sdk", "win_sdk"}
-		props.Dist.Dest = proptools.StringPtr(fmt.Sprintf("%v.jar", module.distStem()))
-		props.Dist.Dir = proptools.StringPtr(module.apiDistPath(apiScope))
-		props.Dist.Tag = proptools.StringPtr(".jar")
-	}
 
 	staticLib := module.exportableSourceStubsLibraryModuleName(apiScope)
 	props.Static_libs = append(props.Static_libs, staticLib)
