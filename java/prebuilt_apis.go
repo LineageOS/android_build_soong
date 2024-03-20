@@ -158,6 +158,21 @@ func createApiModule(mctx android.LoadHookContext, name string, path string) {
 	mctx.CreateModule(genrule.GenRuleFactory, &genruleProps)
 }
 
+func createCombinedApiFilegroupModule(mctx android.LoadHookContext, name string, srcs []string) {
+	filegroupProps := struct {
+		Name *string
+		Srcs []string
+	}{}
+	filegroupProps.Name = proptools.StringPtr(name)
+
+	var transformedSrcs []string
+	for _, src := range srcs {
+		transformedSrcs = append(transformedSrcs, ":"+src)
+	}
+	filegroupProps.Srcs = transformedSrcs
+	mctx.CreateModule(android.FileGroupFactory, &filegroupProps)
+}
+
 func createLatestApiModuleExtensionVersionFile(mctx android.LoadHookContext, name string, version string) {
 	genruleProps := struct {
 		Name *string
@@ -252,6 +267,10 @@ func PrebuiltApiModuleName(module, scope, version string) string {
 	return module + ".api." + scope + "." + version
 }
 
+func PrebuiltApiCombinedModuleName(module, scope, version string) string {
+	return module + ".api.combined." + scope + "." + version
+}
+
 func prebuiltApiFiles(mctx android.LoadHookContext, p *prebuiltApis) {
 	// <apiver>/<scope>/api/<module>.txt
 	apiLevelFiles := globApiDirs(mctx, p, "api/*.txt")
@@ -307,7 +326,9 @@ func prebuiltApiFiles(mctx android.LoadHookContext, p *prebuiltApis) {
 	}
 
 	// Sort the keys in order to make build.ninja stable
-	for _, k := range android.SortedKeys(latest) {
+	sortedLatestKeys := android.SortedKeys(latest)
+
+	for _, k := range sortedLatestKeys {
 		info := latest[k]
 		name := PrebuiltApiModuleName(info.module, info.scope, "latest")
 		latestExtensionVersionModuleName := PrebuiltApiModuleName(info.module, info.scope, "latest.extension_version")
@@ -333,10 +354,24 @@ func prebuiltApiFiles(mctx android.LoadHookContext, p *prebuiltApis) {
 		}
 	}
 	// Create empty incompatibilities files for remaining modules
-	for _, k := range android.SortedKeys(latest) {
+	// If the incompatibility module has been created, create a corresponding combined module
+	for _, k := range sortedLatestKeys {
 		if _, ok := incompatibilities[k]; !ok {
 			createEmptyFile(mctx, PrebuiltApiModuleName(latest[k].module+"-incompatibilities", latest[k].scope, "latest"))
 		}
+	}
+
+	// Create combined latest api and removed api files modules.
+	// The combined modules list all api files of the api scope and its subset api scopes.
+	for _, k := range sortedLatestKeys {
+		info := latest[k]
+		name := PrebuiltApiCombinedModuleName(info.module, info.scope, "latest")
+
+		var srcs []string
+		currentApiScope := scopeByName[info.scope]
+		srcs = append(srcs, PrebuiltApiModuleName(info.module, currentApiScope.name, "latest"))
+
+		createCombinedApiFilegroupModule(mctx, name, srcs)
 	}
 }
 
