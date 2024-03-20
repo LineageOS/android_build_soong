@@ -251,7 +251,7 @@ func (s *singletonContextAdaptor) FinalModule(module Module) Module {
 
 func (s *singletonContextAdaptor) ModuleVariantsFromName(referer Module, name string) []Module {
 	// get module reference for visibility enforcement
-	qualified := createVisibilityModuleReference(s.ModuleName(referer), s.ModuleDir(referer), s.ModuleType(referer))
+	qualified := createVisibilityModuleReference(s.ModuleName(referer), s.ModuleDir(referer), referer)
 
 	modules := s.SingletonContext.ModuleVariantsFromName(referer, name)
 	result := make([]Module, 0, len(modules))
