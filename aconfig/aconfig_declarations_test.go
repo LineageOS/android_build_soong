@@ -69,3 +69,38 @@ func TestAconfigDeclarationsWithExportableUnset(t *testing.T) {
 	depData, _ := android.SingletonModuleProvider(result, module, android.AconfigDeclarationsProviderKey)
 	android.AssertBoolEquals(t, "exportable", depData.Exportable, false)
 }
+
+func TestAconfigDeclarationsWithContainer(t *testing.T) {
+	bp := `
+		aconfig_declarations {
+			name: "module_name",
+			package: "com.example.package",
+			container: "com.android.foo",
+			srcs: [
+				"foo.aconfig",
+			],
+		}
+	`
+	result := runTest(t, android.FixtureExpectsNoErrors, bp)
+
+	module := result.ModuleForTests("module_name", "")
+	rule := module.Rule("aconfig")
+	android.AssertStringEquals(t, "rule must contain container", rule.Args["container"], "--container com.android.foo")
+}
+
+func TestAconfigDeclarationsWithoutContainer(t *testing.T) {
+	bp := `
+		aconfig_declarations {
+			name: "module_name",
+			package: "com.example.package",
+			srcs: [
+				"foo.aconfig",
+			],
+		}
+	`
+	result := runTest(t, android.FixtureExpectsNoErrors, bp)
+
+	module := result.ModuleForTests("module_name", "")
+	rule := module.Rule("aconfig")
+	android.AssertIntEquals(t, "rule must not contain container", len(rule.Args["container"]), 0)
+}

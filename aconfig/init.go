@@ -28,6 +28,7 @@ var (
 		blueprint.RuleParams{
 			Command: `${aconfig} create-cache` +
 				` --package ${package}` +
+				` ${container}` +
 				` ${declarations}` +
 				` ${values}` +
 				` ${default-permission}` +
@@ -38,7 +39,7 @@ var (
 				"${aconfig}",
 			},
 			Restat: true,
-		}, "release_version", "package", "declarations", "values", "default-permission")
+		}, "release_version", "package", "container", "declarations", "values", "default-permission")
 
 	// For create-device-config-sysprops: Generate aconfig flag value map text file
 	aconfigTextRule = pctx.AndroidStaticRule("aconfig_text",
