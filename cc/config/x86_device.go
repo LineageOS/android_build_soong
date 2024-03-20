@@ -33,9 +33,7 @@ var (
 
 	x86Cppflags = []string{}
 
-	x86Ldflags = []string{
-		"-Wl,--hash-style=gnu",
-	}
+	x86Ldflags = []string{}
 
 	x86ArchVariantCflags = map[string][]string{
 		"": []string{
