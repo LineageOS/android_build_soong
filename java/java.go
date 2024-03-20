@@ -309,6 +309,10 @@ type JavaInfo struct {
 	// implementation jars. If the provider is set by java_sdk_library, the link type is "unknown"
 	// and selection between the stub jar vs implementation jar is deferred to SdkLibrary.sdkJars(...)
 	StubsLinkType StubsLinkType
+
+	// AconfigIntermediateCacheOutputPaths is a path to the cache files collected from the
+	// java_aconfig_library modules that are statically linked to this module.
+	AconfigIntermediateCacheOutputPaths android.Paths
 }
 
 var JavaInfoProvider = blueprint.NewProvider[JavaInfo]()
@@ -897,7 +901,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 	}
 
-	j.stem = proptools.StringDefault(j.overridableDeviceProperties.Stem, ctx.ModuleName())
+	j.stem = proptools.StringDefault(j.overridableProperties.Stem, ctx.ModuleName())
 
 	proguardSpecInfo := j.collectProguardSpecInfo(ctx)
 	android.SetProvider(ctx, ProguardSpecInfoProvider, proguardSpecInfo)
@@ -1694,7 +1698,7 @@ func (j *Binary) HostToolPath() android.OptionalPath {
 }
 
 func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	j.stem = proptools.StringDefault(j.overridableDeviceProperties.Stem, ctx.ModuleName())
+	j.stem = proptools.StringDefault(j.overridableProperties.Stem, ctx.ModuleName())
 
 	if ctx.Arch().ArchType == android.Common {
 		// Compile the jar
@@ -3005,7 +3009,7 @@ func DefaultsFactory() android.Module {
 	module.AddProperties(
 		&CommonProperties{},
 		&DeviceProperties{},
-		&OverridableDeviceProperties{},
+		&OverridableProperties{},
 		&DexProperties{},
 		&DexpreoptProperties{},
 		&android.ProtoProperties{},

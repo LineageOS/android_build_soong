@@ -169,9 +169,6 @@ type overridableAppProperties struct {
 	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
 	// from PRODUCT_PACKAGES.
 	Overrides []string
-
-	// Names of aconfig_declarations modules that specify aconfig flags that the app depends on.
-	Flags_packages []string
 }
 
 type AndroidApp struct {
@@ -290,6 +287,10 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 
 	a.usesLibrary.deps(ctx, sdkDep.hasFrameworkLibs())
+
+	for _, aconfig_declaration := range a.aaptProperties.Flags_packages {
+		ctx.AddDependency(ctx.Module(), aconfigDeclarationTag, aconfig_declaration)
+	}
 }
 
 func (a *AndroidApp) OverridablePropertiesDepsMutator(ctx android.BottomUpMutatorContext) {
@@ -316,10 +317,6 @@ func (a *AndroidApp) OverridablePropertiesDepsMutator(ctx android.BottomUpMutato
 			ctx.PropertyErrorf("additional_certificates",
 				`must be names of android_app_certificate modules in the form ":module"`)
 		}
-	}
-
-	for _, aconfig_declaration := range a.overridableAppProperties.Flags_packages {
-		ctx.AddDependency(ctx.Module(), aconfigDeclarationTag, aconfig_declaration)
 	}
 }
 
@@ -457,6 +454,21 @@ func (a *AndroidApp) renameResourcesPackage() bool {
 	return proptools.BoolDefault(a.overridableAppProperties.Rename_resources_package, true)
 }
 
+func getAconfigFilePaths(ctx android.ModuleContext) (aconfigTextFilePaths android.Paths) {
+	ctx.VisitDirectDepsWithTag(aconfigDeclarationTag, func(dep android.Module) {
+		if provider, ok := android.OtherModuleProvider(ctx, dep, android.AconfigDeclarationsProviderKey); ok {
+			aconfigTextFilePaths = append(aconfigTextFilePaths, provider.IntermediateDumpOutputPath)
+		} else {
+			ctx.ModuleErrorf("Only aconfig_declarations module type is allowed for "+
+				"flags_packages property, but %s is not aconfig_declarations module type",
+				dep.Name(),
+			)
+		}
+	})
+
+	return aconfigTextFilePaths
+}
+
 func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 	usePlatformAPI := proptools.Bool(a.Module.deviceProperties.Platform_apis)
 	if ctx.Module().(android.SdkContext).SdkVersion(ctx).Kind == android.SdkModule {
@@ -507,18 +519,6 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 		a.aapt.defaultManifestVersion = android.DefaultUpdatableModuleVersion
 	}
 
-	var aconfigTextFilePaths android.Paths
-	ctx.VisitDirectDepsWithTag(aconfigDeclarationTag, func(dep android.Module) {
-		if provider, ok := android.OtherModuleProvider(ctx, dep, android.AconfigDeclarationsProviderKey); ok {
-			aconfigTextFilePaths = append(aconfigTextFilePaths, provider.IntermediateDumpOutputPath)
-		} else {
-			ctx.ModuleErrorf("Only aconfig_declarations module type is allowed for "+
-				"flags_packages property, but %s is not aconfig_declarations module type",
-				dep.Name(),
-			)
-		}
-	})
-
 	a.aapt.buildActions(ctx,
 		aaptBuildActionOptions{
 			sdkContext:                     android.SdkContext(a),
@@ -526,7 +526,7 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 			excludedLibs:                   a.usesLibraryProperties.Exclude_uses_libs,
 			enforceDefaultTargetSdkVersion: a.enforceDefaultTargetSdkVersion(),
 			extraLinkFlags:                 aaptLinkFlags,
-			aconfigTextFiles:               aconfigTextFilePaths,
+			aconfigTextFiles:               getAconfigFilePaths(ctx),
 		},
 	)
 
@@ -755,7 +755,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Unlike installApkName, a.stem should respect base module name for override_android_app.
 	// Therefore, use ctx.ModuleName() instead of a.Name().
-	a.stem = proptools.StringDefault(a.overridableDeviceProperties.Stem, ctx.ModuleName())
+	a.stem = proptools.StringDefault(a.overridableProperties.Stem, ctx.ModuleName())
 
 	// Check if the install APK name needs to be overridden.
 	// Both android_app and override_android_app module are expected to possess
@@ -763,7 +763,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	// from the base module. Therefore, use a.Name() which represents
 	// the module name for both android_app and override_android_app.
 	a.installApkName = ctx.DeviceConfig().OverridePackageNameFor(
-		proptools.StringDefault(a.overridableDeviceProperties.Stem, a.Name()))
+		proptools.StringDefault(a.overridableProperties.Stem, a.Name()))
 
 	if ctx.ModuleName() == "framework-res" {
 		// framework-res.apk is installed as system/framework/framework-res.apk
@@ -1507,7 +1507,7 @@ func (i *OverrideAndroidApp) GenerateAndroidBuildActions(_ android.ModuleContext
 func OverrideAndroidAppModuleFactory() android.Module {
 	m := &OverrideAndroidApp{}
 	m.AddProperties(
-		&OverridableDeviceProperties{},
+		&OverridableProperties{},
 		&overridableAppProperties{},
 	)
 

@@ -42,7 +42,6 @@ var (
 		"-Wl,-z,now",
 		"-Wl,--build-id=md5",
 		"-Wl,--fatal-warnings",
-		"-Wl,--hash-style=gnu",
 		"-Wl,--no-undefined-version",
 	}
 

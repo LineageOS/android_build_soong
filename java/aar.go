@@ -104,6 +104,9 @@ type aaptProperties struct {
 
 	// Filter only specified product and ignore other products
 	Filter_product *string `blueprint:"mutated"`
+
+	// Names of aconfig_declarations modules that specify aconfig flags that the module depends on.
+	Flags_packages []string
 }
 
 type aapt struct {
@@ -804,6 +807,10 @@ func (a *AndroidLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 		a.aapt.deps(ctx, sdkDep)
 	}
 	a.usesLibrary.deps(ctx, false)
+
+	for _, aconfig_declaration := range a.aaptProperties.Flags_packages {
+		ctx.AddDependency(ctx.Module(), aconfigDeclarationTag, aconfig_declaration)
+	}
 }
 
 func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -817,13 +824,14 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 			sdkContext:                     android.SdkContext(a),
 			classLoaderContexts:            a.classLoaderContexts,
 			enforceDefaultTargetSdkVersion: false,
+			aconfigTextFiles:               getAconfigFilePaths(ctx),
 		},
 	)
 
 	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	a.hideApexVariantFromMake = !apexInfo.IsForPlatform()
 
-	a.stem = proptools.StringDefault(a.overridableDeviceProperties.Stem, ctx.ModuleName())
+	a.stem = proptools.StringDefault(a.overridableProperties.Stem, ctx.ModuleName())
 
 	ctx.CheckbuildFile(a.aapt.proguardOptionsFile)
 	ctx.CheckbuildFile(a.aapt.exportPackage)

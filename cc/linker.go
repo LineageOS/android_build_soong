@@ -530,13 +530,6 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		flags.Global.LdFlags = append(flags.Global.LdFlags, RpathFlags(ctx)...)
 	}
 
-	if ctx.useSdk() {
-		// The bionic linker now has support gnu style hashes (which are much faster!), but shipping
-		// to older devices requires the old style hash. Fortunately, we can build with both and
-		// it'll work anywhere.
-		flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,--hash-style=both")
-	}
-
 	flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.ToolchainLdflags())
 
 	// Version_script is not needed when linking stubs lib where the version

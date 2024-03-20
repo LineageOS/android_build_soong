@@ -470,6 +470,35 @@ func TestLibrarySizes(t *testing.T) {
 	m.Output("libwaldo.dylib.so.bloaty.csv")
 }
 
+// Test that aliases are respected.
+func TestRustAliases(t *testing.T) {
+	ctx := testRust(t, `
+		rust_library {
+			name: "libbar",
+			crate_name: "bar",
+			srcs: ["src/lib.rs"],
+		}
+		rust_library {
+			name: "libbaz",
+			crate_name: "baz",
+			srcs: ["src/lib.rs"],
+		}
+		rust_binary {
+			name: "foo",
+			srcs: ["src/main.rs"],
+			rustlibs: ["libbar", "libbaz"],
+			aliases: ["bar:bar_renamed"],
+		}`)
+
+	fooRustc := ctx.ModuleForTests("foo", "android_arm64_armv8-a").Rule("rustc")
+	if !strings.Contains(fooRustc.Args["libFlags"], "--extern bar_renamed=out/soong/.intermediates/libbar/android_arm64_armv8-a_dylib/unstripped/libbar.dylib.so") {
+		t.Errorf("--extern bar_renamed=out/soong/.intermediates/libbar/android_arm64_armv8-a_dylib/unstripped/libbar.dylib.so flag not being passed to rustc for rust_binary with aliases. libFlags: %#v", fooRustc.Args["libFlags"])
+	}
+	if !strings.Contains(fooRustc.Args["libFlags"], "--extern baz=out/soong/.intermediates/libbaz/android_arm64_armv8-a_dylib/unstripped/libbaz.dylib.so") {
+		t.Errorf("--extern baz=out/soong/.intermediates/libbaz/android_arm64_armv8-a_dylib/unstripped/libbaz.dylib.so flag not being passed to rustc for rust_binary with aliases. libFlags: %#v", fooRustc.Args["libFlags"])
+	}
+}
+
 func assertString(t *testing.T, got, expected string) {
 	t.Helper()
 	if got != expected {
