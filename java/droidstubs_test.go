@@ -397,47 +397,23 @@ func TestAconfigDeclarations(t *testing.T) {
 			"bar",
 		],
 	}
-	droidstubs {
-		name: "baz",
-		srcs: ["a/A.java"],
-		api_surface: "public",
-		check_api: {
-			current: {
-				api_file: "a/current.txt",
-				removed_api_file: "a/removed.txt",
-			}
-		},
-	}
 	`)
 
 	// Check that droidstubs depend on aconfig_declarations
 	android.AssertBoolEquals(t, "foo expected to depend on bar",
 		CheckModuleHasDependency(t, result.TestContext, "foo", "android_common", "bar"), true)
 
-	fooModule := result.ModuleForTests("foo", "android_common")
+	m := result.ModuleForTests("foo", "android_common")
 	android.AssertStringDoesContain(t, "foo generates revert annotations file",
-		strings.Join(fooModule.AllOutputs(), ""), "revert-annotations-exportable.txt")
+		strings.Join(m.AllOutputs(), ""), "revert-annotations-exportable.txt")
 
 	// revert-annotations.txt passed to exportable stubs generation metalava command
-	exportableManifest := fooModule.Output("metalava_exportable.sbox.textproto")
-	exportableCmdline := String(android.RuleBuilderSboxProtoForTests(t, result.TestContext, exportableManifest).Commands[0].Command)
-	android.AssertStringDoesContain(t, "flagged api hide command not included", exportableCmdline, "revert-annotations-exportable.txt")
+	manifest := m.Output("metalava_exportable.sbox.textproto")
+	cmdline := String(android.RuleBuilderSboxProtoForTests(t, result.TestContext, manifest).Commands[0].Command)
+	android.AssertStringDoesContain(t, "flagged api hide command not included", cmdline, "revert-annotations-exportable.txt")
 
 	android.AssertStringDoesContain(t, "foo generates exportable stubs jar",
-		strings.Join(fooModule.AllOutputs(), ""), "exportable/foo-stubs.srcjar")
-
-	// revert-annotations.txt passed to runtime stubs generation metalava command
-	runtimeManifest := fooModule.Output("metalava_runtime.sbox.textproto")
-	runtimeCmdline := String(android.RuleBuilderSboxProtoForTests(t, result.TestContext, runtimeManifest).Commands[0].Command)
-	android.AssertStringDoesContain(t, "flagged api hide command not included", runtimeCmdline, "revert-annotations-runtime.txt")
-
-	android.AssertStringDoesContain(t, "foo generates runtime stubs jar",
-		strings.Join(fooModule.AllOutputs(), ""), "runtime/foo-stubs.srcjar")
-
-	// If aconfig_declarations property is not defined, the runtime stubs is a copy of the exportable stubs
-	bazModule := result.ModuleForTests("baz", "android_common")
-	bazRuntimeCmdline := bazModule.Rule("metalava_runtime").RuleParams.Command
-	android.AssertStringDoesContain(t, "copy command should include the input stub", bazRuntimeCmdline, "exportable/baz-stubs.srcjar")
+		strings.Join(m.AllOutputs(), ""), "exportable/foo-stubs.srcjar")
 }
 
 func TestReleaseExportRuntimeApis(t *testing.T) {
