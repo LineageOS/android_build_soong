@@ -5,17 +5,16 @@ package {
 blueprint_go_binary {
     name: "symbols_map",
     srcs: [
-        "elf.go",
         "r8.go",
         "symbols_map.go",
     ],
     testSrcs: [
-        "elf_test.go",
         "r8_test.go",
     ],
     deps: [
         "blueprint-pathtools",
         "golang-protobuf-encoding-prototext",
+        "soong-elf",
         "soong-response",
         "symbols_map_proto",
     ],

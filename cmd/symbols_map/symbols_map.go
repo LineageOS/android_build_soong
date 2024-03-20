@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"android/soong/cmd/symbols_map/symbols_map_proto"
+	"android/soong/elf"
 	"android/soong/response"
 
 	"github.com/google/blueprint/pathtools"
@@ -116,7 +117,7 @@ func main() {
 	if *elfFile != "" {
 		typ = symbols_map_proto.Mapping_ELF
 		location = *elfFile
-		identifier, err = elfIdentifier(*elfFile, true)
+		identifier, err = elf.Identifier(*elfFile, true)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error reading elf identifier: %s\n", err)
 			os.Exit(1)
