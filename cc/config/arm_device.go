@@ -38,7 +38,6 @@ var (
   }
 
 	armLdflags = []string{
-		"-Wl,--hash-style=gnu",
 		"-Wl,-m,armelf",
 		// Revert this after b/322359235 is fixed
 		"-Wl,-mllvm", "-Wl,-enable-shrink-wrap=false",
