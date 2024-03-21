@@ -66,6 +66,12 @@ type DexProperties struct {
 		// If true, optimize for size by removing unused resources. Defaults to false.
 		Shrink_resources *bool
 
+		// If true, use optimized resource shrinking in R8, overriding the
+		// Shrink_resources setting. Defaults to false.
+		// Optimized shrinking means that R8 will trace and treeshake resources together with code
+		// and apply additional optimizations. This implies non final fields in the R classes.
+		Optimized_shrink_resources *bool
+
 		// Flags to pass to proguard.
 		Proguard_flags []string
 
@@ -103,6 +109,10 @@ type dexer struct {
 
 func (d *dexer) effectiveOptimizeEnabled() bool {
 	return BoolDefault(d.dexProperties.Optimize.Enabled, d.dexProperties.Optimize.EnabledByDefault)
+}
+
+func (d *DexProperties) resourceShrinkingEnabled() bool {
+	return BoolDefault(d.Optimize.Optimized_shrink_resources, Bool(d.Optimize.Shrink_resources))
 }
 
 var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
@@ -351,10 +361,14 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8Fl
 		r8Flags = append(r8Flags, "-ignorewarnings")
 	}
 
+	// resourcesInput is empty when we don't use resource shrinking, if on, pass these to R8
 	if d.resourcesInput.Valid() {
 		r8Flags = append(r8Flags, "--resource-input", d.resourcesInput.Path().String())
 		r8Deps = append(r8Deps, d.resourcesInput.Path())
 		r8Flags = append(r8Flags, "--resource-output", d.resourcesOutput.Path().String())
+		if Bool(opt.Optimized_shrink_resources) {
+			r8Flags = append(r8Flags, "--optimized-resource-shrinking")
+		}
 	}
 
 	return r8Flags, r8Deps
