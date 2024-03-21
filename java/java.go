@@ -800,6 +800,7 @@ var (
 		"android.hardware.security.keymint-V2-java":         true,
 		"android.hardware.security.keymint-V3-java":         true,
 		"android.hardware.security.keymint-V4-java":         true,
+		"android.hardware.security.secretkeeper-V1-java":    true,
 		"android.hardware.security.secureclock-V1-java":     true,
 		"android.hardware.security.secureclock-V2-java":     true,
 		"android.hardware.thermal-V1-java":                  true,
