@@ -34,6 +34,9 @@ func testSnapshotWithSystemServerClasspathFragment(t *testing.T, sdk string, tar
 				env["SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE"] = targetBuildRelease
 			}
 		}),
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.Platform_version_active_codenames = []string{"VanillaIceCream"}
+		}),
 		prepareForSdkTestWithApex,
 
 		android.FixtureWithRootAndroidBp(sdk+`
@@ -241,6 +244,11 @@ sdk {
 
 	expectedLatestSnapshot := `
 // This is auto-generated. DO NOT EDIT.
+
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_mysdklibrary"],
+}
 
 java_sdk_library_import {
     name: "mysdklibrary",
