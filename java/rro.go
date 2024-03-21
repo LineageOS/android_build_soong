@@ -122,6 +122,10 @@ func (r *RuntimeResourceOverlay) DepsMutator(ctx android.BottomUpMutatorContext)
 
 	ctx.AddVariationDependencies(nil, staticLibTag, r.properties.Static_libs...)
 	ctx.AddVariationDependencies(nil, libTag, r.properties.Resource_libs...)
+
+	for _, aconfig_declaration := range r.aaptProperties.Flags_packages {
+		ctx.AddDependency(ctx.Module(), aconfigDeclarationTag, aconfig_declaration)
+	}
 }
 
 func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -151,6 +155,7 @@ func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleC
 			sdkContext:                     r,
 			enforceDefaultTargetSdkVersion: false,
 			extraLinkFlags:                 aaptLinkFlags,
+			aconfigTextFiles:               getAconfigFilePaths(ctx),
 		},
 	)
 

@@ -405,3 +405,49 @@ func TestRuntimeResourceOverlayPartition(t *testing.T) {
 		android.AssertPathRelativeToTopEquals(t, "Install dir is not correct for "+testCase.name, testCase.expectedPath, mod.installDir)
 	}
 }
+
+func TestRuntimeResourceOverlayFlagsPackages(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+	).RunTestWithBp(t, `
+		runtime_resource_overlay {
+			name: "foo",
+			sdk_version: "current",
+			flags_packages: [
+				"bar",
+				"baz",
+			],
+		}
+		aconfig_declarations {
+			name: "bar",
+			package: "com.example.package.bar",
+			srcs: [
+				"bar.aconfig",
+			],
+		}
+		aconfig_declarations {
+			name: "baz",
+			package: "com.example.package.baz",
+			srcs: [
+				"baz.aconfig",
+			],
+		}
+	`)
+
+	foo := result.ModuleForTests("foo", "android_common")
+
+	// runtime_resource_overlay module depends on aconfig_declarations listed in flags_packages
+	android.AssertBoolEquals(t, "foo expected to depend on bar", true,
+		CheckModuleHasDependency(t, result.TestContext, "foo", "android_common", "bar"))
+
+	android.AssertBoolEquals(t, "foo expected to depend on baz", true,
+		CheckModuleHasDependency(t, result.TestContext, "foo", "android_common", "baz"))
+
+	aapt2LinkRule := foo.Rule("android/soong/java.aapt2Link")
+	linkInFlags := aapt2LinkRule.Args["inFlags"]
+	android.AssertStringDoesContain(t,
+		"aapt2 link command expected to pass feature flags arguments",
+		linkInFlags,
+		"--feature-flags @out/soong/.intermediates/bar/intermediate.txt --feature-flags @out/soong/.intermediates/baz/intermediate.txt",
+	)
+}

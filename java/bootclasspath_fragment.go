@@ -77,7 +77,7 @@ func (b bootclasspathFragmentContentDependencyTag) SdkMemberType(child android.M
 		return javaSdkLibrarySdkMemberType
 	}
 
-	return javaBootLibsSdkMemberType
+	return JavaBootLibsSdkMemberType
 }
 
 func (b bootclasspathFragmentContentDependencyTag) ExportMember() bool {

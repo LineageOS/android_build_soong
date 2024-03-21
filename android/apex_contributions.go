@@ -115,10 +115,6 @@ func (a *allApexContributions) DepsMutator(ctx BottomUpMutatorContext) {
 func (a *allApexContributions) SetPrebuiltSelectionInfoProvider(ctx BaseModuleContext) {
 	addContentsToProvider := func(p *PrebuiltSelectionInfoMap, m *apexContributions) {
 		for _, content := range m.Contents() {
-			// Skip any apexes that have been added to the product specific ignore list
-			if InList(content, ctx.Config().BuildIgnoreApexContributionContents()) {
-				continue
-			}
 			// Coverage builds for TARGET_RELEASE=foo should always build from source,
 			// even if TARGET_RELEASE=foo uses prebuilt mainline modules.
 			// This is necessary because the checked-in prebuilts were generated with
@@ -141,13 +137,19 @@ func (a *allApexContributions) SetPrebuiltSelectionInfoProvider(ctx BaseModuleCo
 	}
 
 	p := PrebuiltSelectionInfoMap{}
-	ctx.VisitDirectDepsWithTag(acDepTag, func(child Module) {
-		if m, ok := child.(*apexContributions); ok {
-			addContentsToProvider(&p, m)
-		} else {
-			ctx.ModuleErrorf("%s is not an apex_contributions module\n", child.Name())
-		}
-	})
+	// Skip apex_contributions if BuildApexContributionContents is true
+	// This product config var allows some products in the same family to use mainline modules from source
+	// (e.g. shiba and shiba_fullmte)
+	// Eventually these product variants will have their own release config maps.
+	if !proptools.Bool(ctx.Config().BuildIgnoreApexContributionContents()) {
+		ctx.VisitDirectDepsWithTag(acDepTag, func(child Module) {
+			if m, ok := child.(*apexContributions); ok {
+				addContentsToProvider(&p, m)
+			} else {
+				ctx.ModuleErrorf("%s is not an apex_contributions module\n", child.Name())
+			}
+		})
+	}
 	SetProvider(ctx, PrebuiltSelectionInfoProvider, p)
 }
 

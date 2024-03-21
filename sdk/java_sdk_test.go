@@ -108,6 +108,11 @@ func TestSnapshotWithJavaHeaderLibrary(t *testing.T) {
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_myjavalib"],
+}
+
 java_import {
     name: "myjavalib",
     prefer: false,
@@ -154,6 +159,11 @@ func TestHostSnapshotWithJavaHeaderLibrary(t *testing.T) {
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_myjavalib"],
+}
+
 java_import {
     name: "myjavalib",
     prefer: false,
@@ -192,6 +202,11 @@ func TestDeviceAndHostSnapshotWithJavaHeaderLibrary(t *testing.T) {
 	CheckSnapshot(t, result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
+
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_myjavalib"],
+}
 
 java_import {
     name: "myjavalib",
@@ -245,6 +260,11 @@ func TestSnapshotWithJavaImplLibrary(t *testing.T) {
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
+apex_contributions_defaults {
+    name: "myexports.contributions",
+    contents: ["prebuilt_myjavalib"],
+}
+
 java_import {
     name: "myjavalib",
     prefer: false,
@@ -291,6 +311,11 @@ func TestSnapshotWithJavaBootLibrary(t *testing.T) {
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: [],
+}
+
 java_import {
     name: "myjavalib",
     prefer: false,
@@ -312,6 +337,9 @@ func TestSnapshotWithJavaBootLibrary_UpdatableMedia(t *testing.T) {
 			prepareForSdkTestWithJava,
 			android.FixtureMergeEnv(map[string]string{
 				"SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE": targetBuildRelease,
+			}),
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.Platform_version_active_codenames = []string{"VanillaIceCream"}
 			}),
 		).RunTestWithBp(t, `
 		sdk {
@@ -395,6 +423,11 @@ func TestSnapshotWithJavaLibrary_MinSdkVersion(t *testing.T) {
 			checkAndroidBpContents(fmt.Sprintf(`
 // This is auto-generated. DO NOT EDIT.
 
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_mylib"],
+}
+
 java_import {
     name: "mylib",
     prefer: false,
@@ -459,6 +492,11 @@ func TestSnapshotWithJavaSystemserverLibrary(t *testing.T) {
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
+apex_contributions_defaults {
+    name: "myexports.contributions",
+    contents: [],
+}
+
 java_import {
     name: "myjavalib",
     prefer: false,
@@ -504,6 +542,11 @@ func TestHostSnapshotWithJavaImplLibrary(t *testing.T) {
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
+apex_contributions_defaults {
+    name: "myexports.contributions",
+    contents: ["prebuilt_myjavalib"],
+}
+
 java_import {
     name: "myjavalib",
     prefer: false,
@@ -541,6 +584,11 @@ func TestSnapshotWithJavaTest(t *testing.T) {
 	CheckSnapshot(t, result, "myexports", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
+
+apex_contributions_defaults {
+    name: "myexports.contributions",
+    contents: ["prebuilt_myjavatests"],
+}
 
 java_test_import {
     name: "myjavatests",
@@ -581,6 +629,11 @@ func TestHostSnapshotWithJavaTest(t *testing.T) {
 	CheckSnapshot(t, result, "myexports", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
+
+apex_contributions_defaults {
+    name: "myexports.contributions",
+    contents: ["prebuilt_myjavatests"],
+}
 
 java_test_import {
     name: "myjavatests",
@@ -660,6 +713,15 @@ func TestSnapshotWithJavaSystemModules(t *testing.T) {
 	CheckSnapshot(t, result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
+
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: [
+        "prebuilt_exported-system-module",
+        "prebuilt_myjavalib",
+        "prebuilt_my-system-modules",
+    ],
+}
 
 java_import {
     name: "exported-system-module",
@@ -790,6 +852,11 @@ func TestHostSnapshotWithJavaSystemModules(t *testing.T) {
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_my-system-modules"],
+}
+
 java_import {
     name: "mysdk_system-module",
     prefer: false,
@@ -853,6 +920,15 @@ func TestDeviceAndHostSnapshotWithOsSpecificMembers(t *testing.T) {
 	CheckSnapshot(t, result, "myexports", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
+
+apex_contributions_defaults {
+    name: "myexports.contributions",
+    contents: [
+        "prebuilt_hostjavalib",
+        "prebuilt_androidjavalib",
+        "prebuilt_myjavalib",
+    ],
+}
 
 java_import {
     name: "hostjavalib",
@@ -919,6 +995,11 @@ func TestSnapshotWithJavaSdkLibrary(t *testing.T) {
 	CheckSnapshot(t, result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
+
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_myjavalib"],
+}
 
 java_sdk_library_import {
     name: "myjavalib",
@@ -993,6 +1074,11 @@ func TestSnapshotWithJavaSdkLibrary_DistStem(t *testing.T) {
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_myjavalib-foo"],
+}
+
 java_sdk_library_import {
     name: "myjavalib-foo",
     prefer: false,
@@ -1046,6 +1132,11 @@ func TestSnapshotWithJavaSdkLibrary_UseSrcJar(t *testing.T) {
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_myjavalib"],
+}
+
 java_sdk_library_import {
     name: "myjavalib",
     prefer: false,
@@ -1092,6 +1183,11 @@ func TestSnapshotWithJavaSdkLibrary_AnnotationsZip(t *testing.T) {
 	CheckSnapshot(t, result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
+
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_myjavalib"],
+}
 
 java_sdk_library_import {
     name: "myjavalib",
@@ -1146,6 +1242,11 @@ func TestSnapshotWithJavaSdkLibrary_AnnotationsZip_PreT(t *testing.T) {
 	CheckSnapshot(t, result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
+
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_myjavalib"],
+}
 
 java_sdk_library_import {
     name: "myjavalib",
@@ -1203,6 +1304,11 @@ func TestSnapshotWithJavaSdkLibrary_CompileDex(t *testing.T) {
 	CheckSnapshot(t, result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
+
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_myjavalib"],
+}
 
 java_sdk_library_import {
     name: "myjavalib",
@@ -1272,6 +1378,11 @@ func TestSnapshotWithJavaSdkLibrary_SdkVersion_None(t *testing.T) {
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_myjavalib"],
+}
+
 java_sdk_library_import {
     name: "myjavalib",
     prefer: false,
@@ -1319,6 +1430,11 @@ func TestSnapshotWithJavaSdkLibrary_SdkVersion_ForScope(t *testing.T) {
 	CheckSnapshot(t, result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
+
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_myjavalib"],
+}
 
 java_sdk_library_import {
     name: "myjavalib",
@@ -1370,6 +1486,11 @@ func TestSnapshotWithJavaSdkLibrary_ApiScopes(t *testing.T) {
 	CheckSnapshot(t, result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
+
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_myjavalib"],
+}
 
 java_sdk_library_import {
     name: "myjavalib",
@@ -1435,6 +1556,11 @@ func TestSnapshotWithJavaSdkLibrary_ModuleLib(t *testing.T) {
 	CheckSnapshot(t, result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
+
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_myjavalib"],
+}
 
 java_sdk_library_import {
     name: "myjavalib",
@@ -1509,6 +1635,11 @@ func TestSnapshotWithJavaSdkLibrary_SystemServer(t *testing.T) {
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_myjavalib"],
+}
+
 java_sdk_library_import {
     name: "myjavalib",
     prefer: false,
@@ -1569,6 +1700,11 @@ func TestSnapshotWithJavaSdkLibrary_NamingScheme(t *testing.T) {
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_myjavalib"],
+}
+
 java_sdk_library_import {
     name: "myjavalib",
     prefer: false,
@@ -1625,6 +1761,11 @@ func TestSnapshotWithJavaSdkLibrary_DoctagFiles(t *testing.T) {
 	CheckSnapshot(t, result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
+
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_myjavalib"],
+}
 
 java_sdk_library_import {
     name: "myjavalib",

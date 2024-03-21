@@ -118,6 +118,16 @@ func TestSnapshotVisibility(t *testing.T) {
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: [
+        "prebuilt_myjavalib",
+        "prebuilt_mypublicjavalib",
+        "prebuilt_mydefaultedjavalib",
+        "prebuilt_myprivatejavalib",
+    ],
+}
+
 java_import {
     name: "myjavalib",
     prefer: false,
@@ -398,6 +408,11 @@ func TestSnapshot_EnvConfiguration(t *testing.T) {
 			checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_myjavalib"],
+}
+
 java_import {
     name: "myjavalib",
     prefer: false,
@@ -452,6 +467,11 @@ java_import {
 		CheckSnapshot(t, result, "mysdk", "",
 			checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
+
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_mysdklibrary"],
+}
 
 prebuilt_bootclasspath_fragment {
     name: "mybootclasspathfragment",
