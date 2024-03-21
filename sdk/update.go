@@ -24,6 +24,7 @@ import (
 
 	"android/soong/apex"
 	"android/soong/cc"
+	"android/soong/java"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -388,6 +389,7 @@ be unnecessary as every module in the sdk already has its own licenses property.
 
 	// Create the prebuilt modules for each of the member modules.
 	traits := s.gatherTraits()
+	memberNames := []string{} // soong module names of the members. contains the prebuilt_ prefix.
 	for _, member := range members {
 		memberType := member.memberType
 		if !memberType.ArePrebuiltsRequired() {
@@ -409,6 +411,38 @@ be unnecessary as every module in the sdk already has its own licenses property.
 
 		prebuiltModule := memberType.AddPrebuiltModule(memberCtx, member)
 		s.createMemberSnapshot(memberCtx, member, prebuiltModule.(*bpModule))
+
+		if member.memberType != android.LicenseModuleSdkMemberType && !builder.isInternalMember(member.name) {
+			// More exceptions
+			// 1. Skip BCP and SCCP fragments
+			// 2. Skip non-sdk contents of BCP and SCCP fragments
+			//
+			// The non-sdk contents of BCP/SSCP fragments should only be used for dexpreopt and hiddenapi,
+			// and are not available to the rest of the build.
+			if android.InList(member.memberType,
+				[]android.SdkMemberType{
+					// bcp
+					java.BootclasspathFragmentSdkMemberType,
+					java.JavaBootLibsSdkMemberType,
+					// sscp
+					java.SystemServerClasspathFragmentSdkMemberType,
+					java.JavaSystemserverLibsSdkMemberType,
+				},
+			) {
+				continue
+			}
+
+			memberNames = append(memberNames, android.PrebuiltNameFromSource(member.name))
+		}
+	}
+
+	// create an apex_contributions_defaults for this module's sdk.
+	// this module type is supported in V and above.
+	if targetApiLevel.GreaterThan(android.ApiLevelUpsideDownCake) {
+		ac := newModule("apex_contributions_defaults")
+		ac.AddProperty("name", s.Name()+".contributions")
+		ac.AddProperty("contents", memberNames)
+		bpFile.AddModule(ac)
 	}
 
 	// Create a transformer that will transform a module by replacing any references

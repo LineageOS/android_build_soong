@@ -36,6 +36,11 @@ func testSnapshotWithCompatConfig(t *testing.T, sdk string) {
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
+apex_contributions_defaults {
+    name: "mysdk.contributions",
+    contents: ["prebuilt_myconfig"],
+}
+
 prebuilt_platform_compat_config {
     name: "myconfig",
     prefer: false,
