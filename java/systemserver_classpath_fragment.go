@@ -189,7 +189,7 @@ func (b systemServerClasspathFragmentContentDependencyTag) SdkMemberType(child a
 		return javaSdkLibrarySdkMemberType
 	}
 
-	return javaSystemserverLibsSdkMemberType
+	return JavaSystemserverLibsSdkMemberType
 }
 
 func (b systemServerClasspathFragmentContentDependencyTag) ExportMember() bool {
