@@ -519,12 +519,15 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 		a.aapt.defaultManifestVersion = android.DefaultUpdatableModuleVersion
 	}
 
+	// Use non final ids if we are doing optimized shrinking and are using R8.
+	nonFinalIds := Bool(a.dexProperties.Optimize.Optimized_shrink_resources) && a.dexer.effectiveOptimizeEnabled()
 	a.aapt.buildActions(ctx,
 		aaptBuildActionOptions{
 			sdkContext:                     android.SdkContext(a),
 			classLoaderContexts:            a.classLoaderContexts,
 			excludedLibs:                   a.usesLibraryProperties.Exclude_uses_libs,
 			enforceDefaultTargetSdkVersion: a.enforceDefaultTargetSdkVersion(),
+			forceNonFinalResourceIDs:       nonFinalIds,
 			extraLinkFlags:                 aaptLinkFlags,
 			aconfigTextFiles:               getAconfigFilePaths(ctx),
 		},
@@ -547,7 +550,13 @@ func (a *AndroidApp) proguardBuildActions(ctx android.ModuleContext) {
 	staticLibProguardFlagFiles = android.FirstUniquePaths(staticLibProguardFlagFiles)
 
 	a.Module.extraProguardFlagsFiles = append(a.Module.extraProguardFlagsFiles, staticLibProguardFlagFiles...)
-	a.Module.extraProguardFlagsFiles = append(a.Module.extraProguardFlagsFiles, a.proguardOptionsFile)
+	if !Bool(a.dexProperties.Optimize.Optimized_shrink_resources) {
+		// When using the optimized shrinking the R8 enqueuer will traverse the xml files that become
+		// live for code references and (transitively) mark these as live.
+		// In this case we explicitly don't wan't the aapt2 generated keep files (which would keep the now
+		// dead code alive)
+		a.Module.extraProguardFlagsFiles = append(a.Module.extraProguardFlagsFiles, a.proguardOptionsFile)
+	}
 }
 
 func (a *AndroidApp) installPath(ctx android.ModuleContext) android.InstallPath {
@@ -580,7 +589,7 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) (android.Path, a
 	var packageResources = a.exportPackage
 
 	if ctx.ModuleName() != "framework-res" {
-		if Bool(a.dexProperties.Optimize.Shrink_resources) {
+		if a.dexProperties.resourceShrinkingEnabled() {
 			protoFile := android.PathForModuleOut(ctx, packageResources.Base()+".proto.apk")
 			aapt2Convert(ctx, protoFile, packageResources, "proto")
 			a.dexer.resourcesInput = android.OptionalPathForPath(protoFile)
@@ -603,7 +612,7 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) (android.Path, a
 		}
 
 		a.Module.compile(ctx, extraSrcJars, extraClasspathJars, extraCombinedJars)
-		if Bool(a.dexProperties.Optimize.Shrink_resources) {
+		if a.dexProperties.resourceShrinkingEnabled() {
 			binaryResources := android.PathForModuleOut(ctx, packageResources.Base()+".binary.out.apk")
 			aapt2Convert(ctx, binaryResources, a.dexer.resourcesOutput.Path(), "binary")
 			packageResources = binaryResources
