@@ -46,6 +46,11 @@ func TestModuleExportsSnapshot(t *testing.T) {
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
+apex_contributions_defaults {
+    name: "myexports.contributions",
+    contents: ["prebuilt_myjavalib"],
+}
+
 java_import {
     name: "myjavalib",
     prefer: false,
