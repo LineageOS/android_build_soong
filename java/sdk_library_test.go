@@ -139,10 +139,10 @@ func TestJavaSdkLibrary(t *testing.T) {
 
 	exportedComponentsInfo, _ := android.SingletonModuleProvider(result, foo.Module(), android.ExportedComponentsInfoProvider)
 	expectedFooExportedComponents := []string{
-		"foo-removed.api.public.latest",
-		"foo-removed.api.system.latest",
-		"foo.api.public.latest",
-		"foo.api.system.latest",
+		"foo-removed.api.combined.public.latest",
+		"foo-removed.api.combined.system.latest",
+		"foo.api.combined.public.latest",
+		"foo.api.combined.system.latest",
 		"foo.stubs",
 		"foo.stubs.exportable",
 		"foo.stubs.exportable.system",
@@ -556,8 +556,8 @@ func TestJavaSdkLibrary_Deps(t *testing.T) {
 
 	CheckModuleDependencies(t, result.TestContext, "sdklib", "android_common", []string{
 		`dex2oatd`,
-		`sdklib-removed.api.public.latest`,
-		`sdklib.api.public.latest`,
+		`sdklib-removed.api.combined.public.latest`,
+		`sdklib.api.combined.public.latest`,
 		`sdklib.impl`,
 		`sdklib.stubs`,
 		`sdklib.stubs.exportable`,
@@ -960,8 +960,8 @@ func TestJavaSdkLibraryImport_WithSource(t *testing.T) {
 	CheckModuleDependencies(t, result.TestContext, "sdklib", "android_common", []string{
 		`dex2oatd`,
 		`prebuilt_sdklib`,
-		`sdklib-removed.api.public.latest`,
-		`sdklib.api.public.latest`,
+		`sdklib-removed.api.combined.public.latest`,
+		`sdklib.api.combined.public.latest`,
 		`sdklib.impl`,
 		`sdklib.stubs`,
 		`sdklib.stubs.exportable`,
@@ -1039,8 +1039,8 @@ func testJavaSdkLibraryImport_Preferred(t *testing.T, prefer string, preparer an
 
 	CheckModuleDependencies(t, result.TestContext, "sdklib", "android_common", []string{
 		`prebuilt_sdklib`,
-		`sdklib-removed.api.public.latest`,
-		`sdklib.api.public.latest`,
+		`sdklib-removed.api.combined.public.latest`,
+		`sdklib.api.combined.public.latest`,
 		`sdklib.impl`,
 		`sdklib.stubs`,
 		`sdklib.stubs.exportable`,
