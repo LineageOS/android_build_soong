@@ -403,3 +403,22 @@ func TestLibstdLinkage(t *testing.T) {
 	}
 
 }
+
+func TestRustFFIExportedIncludes(t *testing.T) {
+	ctx := testRust(t, `
+		rust_ffi {
+			name: "libbar",
+			srcs: ["foo.rs"],
+			crate_name: "bar",
+			export_include_dirs: ["rust_includes"],
+			host_supported: true,
+		}
+		cc_library_static {
+			name: "libfoo",
+			srcs: ["foo.cpp"],
+			shared_libs: ["libbar"],
+			host_supported: true,
+		}`)
+	libfooStatic := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_static").Rule("cc")
+	android.AssertStringDoesContain(t, "cFlags for lib module", libfooStatic.Args["cFlags"], " -Irust_includes ")
+}
