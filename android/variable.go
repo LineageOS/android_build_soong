@@ -496,7 +496,7 @@ type ProductVariables struct {
 
 	BuildFromSourceStub *bool `json:",omitempty"`
 
-	BuildIgnoreApexContributionContents []string `json:",omitempty"`
+	BuildIgnoreApexContributionContents *bool `json:",omitempty"`
 
 	HiddenapiExportableStubs *bool `json:",omitempty"`
 
