@@ -32,7 +32,7 @@ func TestVendorSnapshotCapture(t *testing.T) {
 		crate_name: "ffivendor_available",
 		srcs: ["lib.rs"],
 		vendor_available: true,
-		include_dirs: ["rust_headers/"],
+		export_include_dirs: ["rust_headers/"],
 	}
 
 	rust_ffi {
@@ -40,7 +40,7 @@ func TestVendorSnapshotCapture(t *testing.T) {
 		crate_name: "ffivendor",
 		srcs: ["lib.rs"],
 		vendor: true,
-		include_dirs: ["rust_headers/"],
+		export_include_dirs: ["rust_headers/"],
 	}
 
 	rust_library {
