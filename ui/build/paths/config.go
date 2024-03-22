@@ -94,7 +94,6 @@ var Configuration = map[string]PathConfig{
 	"gcert":          Allowed,
 	"gcertstatus":    Allowed,
 	"gcloud":         Allowed,
-	"getopt":         Allowed,
 	"git":            Allowed,
 	"hexdump":        Allowed,
 	"jar":            Allowed,
