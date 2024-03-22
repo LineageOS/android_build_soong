@@ -262,13 +262,13 @@ func (prebuilt *AARImport) AndroidMkEntries() []android.AndroidMkEntries {
 	}
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "JAVA_LIBRARIES",
-		OutputFile: android.OptionalPathForPath(prebuilt.implementationJarFile),
+		OutputFile: android.OptionalPathForPath(prebuilt.classpathFile),
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				entries.SetBool("LOCAL_UNINSTALLABLE_MODULE", true)
-				entries.SetPath("LOCAL_SOONG_HEADER_JAR", prebuilt.headerJarFile)
-				entries.SetPath("LOCAL_SOONG_CLASSES_JAR", prebuilt.implementationJarFile)
+				entries.SetPath("LOCAL_SOONG_HEADER_JAR", prebuilt.classpathFile)
+				entries.SetPath("LOCAL_SOONG_CLASSES_JAR", prebuilt.classpathFile)
 				entries.SetPath("LOCAL_SOONG_RESOURCE_EXPORT_PACKAGE", prebuilt.exportPackage)
 				entries.SetPath("LOCAL_SOONG_TRANSITIVE_RES_PACKAGES", prebuilt.transitiveAaptResourcePackagesFile)
 				entries.SetPath("LOCAL_SOONG_EXPORT_PROGUARD_FLAGS", prebuilt.proguardFlags)
