@@ -54,8 +54,12 @@ type LibraryCompilerProperties struct {
 	Shared VariantLibraryProperties `android:"arch_variant"`
 	Static VariantLibraryProperties `android:"arch_variant"`
 
-	// path to include directories to pass to cc_* modules, only relevant for static/shared variants.
+	// TODO: Remove this when all instances of Include_dirs have been removed from rust_ffi modules.
+	// path to include directories to pass to cc_* modules, only relevant for static/shared variants (deprecated, use export_include_dirs instead).
 	Include_dirs []string `android:"path,arch_variant"`
+
+	// path to include directories to export to cc_* modules, only relevant for static/shared variants.
+	Export_include_dirs []string `android:"path,arch_variant"`
 
 	// Whether this library is part of the Rust toolchain sysroot.
 	Sysroot *bool
@@ -465,6 +469,7 @@ func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) F
 	flags.RustFlags = append(flags.RustFlags, "-C metadata="+ctx.ModuleName())
 	if library.shared() || library.static() {
 		library.includeDirs = append(library.includeDirs, android.PathsForModuleSrc(ctx, library.Properties.Include_dirs)...)
+		library.includeDirs = append(library.includeDirs, android.PathsForModuleSrc(ctx, library.Properties.Export_include_dirs)...)
 	}
 	if library.shared() {
 		if ctx.Darwin() {
