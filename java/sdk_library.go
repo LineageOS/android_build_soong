@@ -2119,8 +2119,9 @@ func (module *SdkLibraryImport) createJavaImportForStubs(mctx android.Defaultabl
 		Sdk_version *string
 		Libs        []string
 		Jars        []string
-		Prefer      *bool
 		Compile_dex *bool
+
+		android.UserSuppliedPrebuiltProperties
 	}{}
 	props.Name = proptools.StringPtr(module.stubsLibraryModuleName(apiScope))
 	props.Sdk_version = scopeProperties.Sdk_version
@@ -2130,7 +2131,7 @@ func (module *SdkLibraryImport) createJavaImportForStubs(mctx android.Defaultabl
 	props.Jars = scopeProperties.Jars
 
 	// The imports are preferred if the java_sdk_library_import is preferred.
-	props.Prefer = proptools.BoolPtr(module.prebuilt.Prefer())
+	props.CopyUserSuppliedPropertiesFromPrebuilt(&module.prebuilt)
 
 	// The imports need to be compiled to dex if the java_sdk_library_import requests it.
 	compileDex := module.properties.Compile_dex
@@ -2144,16 +2145,18 @@ func (module *SdkLibraryImport) createJavaImportForStubs(mctx android.Defaultabl
 
 func (module *SdkLibraryImport) createPrebuiltStubsSources(mctx android.DefaultableHookContext, apiScope *apiScope, scopeProperties *sdkLibraryScopeProperties) {
 	props := struct {
-		Name   *string
-		Srcs   []string
-		Prefer *bool
+		Name *string
+		Srcs []string
+
+		android.UserSuppliedPrebuiltProperties
 	}{}
 	props.Name = proptools.StringPtr(module.stubsSourceModuleName(apiScope))
 	props.Srcs = scopeProperties.Stub_srcs
-	mctx.CreateModule(PrebuiltStubsSourcesFactory, &props)
 
 	// The stubs source is preferred if the java_sdk_library_import is preferred.
-	props.Prefer = proptools.BoolPtr(module.prebuilt.Prefer())
+	props.CopyUserSuppliedPropertiesFromPrebuilt(&module.prebuilt)
+
+	mctx.CreateModule(PrebuiltStubsSourcesFactory, &props)
 }
 
 // Add the dependencies on the child module in the component deps mutator so that it
