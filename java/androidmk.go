@@ -211,7 +211,7 @@ func (prebuilt *Import) AndroidMkEntries() []android.AndroidMkEntries {
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:        "JAVA_LIBRARIES",
 		OverrideName: prebuilt.BaseModuleName(),
-		OutputFile:   android.OptionalPathForPath(prebuilt.combinedClasspathFile),
+		OutputFile:   android.OptionalPathForPath(prebuilt.combinedImplementationFile),
 		Include:      "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
@@ -219,8 +219,8 @@ func (prebuilt *Import) AndroidMkEntries() []android.AndroidMkEntries {
 				if prebuilt.dexJarFile.IsSet() {
 					entries.SetPath("LOCAL_SOONG_DEX_JAR", prebuilt.dexJarFile.Path())
 				}
-				entries.SetPath("LOCAL_SOONG_HEADER_JAR", prebuilt.combinedClasspathFile)
-				entries.SetPath("LOCAL_SOONG_CLASSES_JAR", prebuilt.combinedClasspathFile)
+				entries.SetPath("LOCAL_SOONG_HEADER_JAR", prebuilt.combinedHeaderFile)
+				entries.SetPath("LOCAL_SOONG_CLASSES_JAR", prebuilt.combinedImplementationFile)
 				entries.SetString("LOCAL_SDK_VERSION", prebuilt.sdkVersion.String())
 				entries.SetString("LOCAL_MODULE_STEM", prebuilt.Stem())
 				// TODO(b/289117800): LOCAL_ACONFIG_FILES for prebuilts
@@ -262,13 +262,13 @@ func (prebuilt *AARImport) AndroidMkEntries() []android.AndroidMkEntries {
 	}
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "JAVA_LIBRARIES",
-		OutputFile: android.OptionalPathForPath(prebuilt.classpathFile),
+		OutputFile: android.OptionalPathForPath(prebuilt.implementationJarFile),
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				entries.SetBool("LOCAL_UNINSTALLABLE_MODULE", true)
-				entries.SetPath("LOCAL_SOONG_HEADER_JAR", prebuilt.classpathFile)
-				entries.SetPath("LOCAL_SOONG_CLASSES_JAR", prebuilt.classpathFile)
+				entries.SetPath("LOCAL_SOONG_HEADER_JAR", prebuilt.headerJarFile)
+				entries.SetPath("LOCAL_SOONG_CLASSES_JAR", prebuilt.implementationJarFile)
 				entries.SetPath("LOCAL_SOONG_RESOURCE_EXPORT_PACKAGE", prebuilt.exportPackage)
 				entries.SetPath("LOCAL_SOONG_TRANSITIVE_RES_PACKAGES", prebuilt.transitiveAaptResourcePackagesFile)
 				entries.SetPath("LOCAL_SOONG_EXPORT_PROGUARD_FLAGS", prebuilt.proguardFlags)
