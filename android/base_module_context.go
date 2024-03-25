@@ -305,6 +305,12 @@ type AllowDisabledModuleDependency interface {
 	AllowDisabledModuleDependency(target Module) bool
 }
 
+type AlwaysAllowDisabledModuleDependencyTag struct{}
+
+func (t AlwaysAllowDisabledModuleDependencyTag) AllowDisabledModuleDependency(Module) bool {
+	return true
+}
+
 func (b *baseModuleContext) validateAndroidModule(module blueprint.Module, tag blueprint.DependencyTag, strict bool, ignoreBlueprint bool) Module {
 	aModule, _ := module.(Module)
 

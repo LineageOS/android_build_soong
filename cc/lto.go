@@ -90,10 +90,6 @@ func (lto *lto) begin(ctx BaseModuleContext) {
 	} else if ctx.testBinary() || ctx.testLibrary() {
 		// Do not enable LTO for tests for better debugging.
 		ltoEnabled = false
-	} else if ctx.isVndk() {
-		// FIXME: ThinLTO for VNDK produces different output.
-		// b/169217596
-		ltoEnabled = false
 	}
 
 	lto.Properties.LtoDefault = ltoDefault
