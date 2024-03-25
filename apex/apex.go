@@ -1817,6 +1817,9 @@ func (a *apexBundle) WalkPayloadDeps(ctx android.ModuleContext, do android.Paylo
 		if dt, ok := depTag.(*dependencyTag); ok && !dt.payload {
 			return false
 		}
+		if depTag == android.RequiredDepTag {
+			return false
+		}
 
 		ai, _ := android.OtherModuleProvider(ctx, child, android.ApexInfoProvider)
 		externalDep := !android.InList(ctx.ModuleName(), ai.InApexVariants)
@@ -2311,6 +2314,8 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 	} else if _, ok := depTag.(android.CopyDirectlyInAnyApexTag); ok {
 		// nothing
 	} else if depTag == android.DarwinUniversalVariantTag {
+		// nothing
+	} else if depTag == android.RequiredDepTag {
 		// nothing
 	} else if am.CanHaveApexVariants() && am.IsInstallableToApex() {
 		ctx.ModuleErrorf("unexpected tag %s for indirect dependency %q", android.PrettyPrintTag(depTag), depName)
