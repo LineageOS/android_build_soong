@@ -89,7 +89,7 @@ func (l *linkerConfig) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	output := android.PathForModuleOut(ctx, "linker.config.pb").OutputPath
 
 	builder := android.NewRuleBuilder(pctx, ctx)
-	BuildLinkerConfig(ctx, builder, input, nil, output)
+	BuildLinkerConfig(ctx, builder, input, nil, nil, output)
 	builder.Build("conv_linker_config", "Generate linker config protobuf "+output.String())
 
 	l.outputFilePath = output
@@ -101,7 +101,7 @@ func (l *linkerConfig) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
 func BuildLinkerConfig(ctx android.ModuleContext, builder *android.RuleBuilder,
-	input android.Path, otherModules []android.Module, output android.OutputPath) {
+	input android.Path, provideModules []android.Module, requireModules []android.Module, output android.OutputPath) {
 
 	// First, convert the input json to protobuf format
 	interimOutput := android.PathForModuleOut(ctx, "temp.pb")
@@ -111,9 +111,9 @@ func BuildLinkerConfig(ctx android.ModuleContext, builder *android.RuleBuilder,
 		FlagWithInput("-s ", input).
 		FlagWithOutput("-o ", interimOutput)
 
-	// Secondly, if there's provideLibs gathered from otherModules, append them
+	// Secondly, if there's provideLibs gathered from provideModules, append them
 	var provideLibs []string
-	for _, m := range otherModules {
+	for _, m := range provideModules {
 		if c, ok := m.(*cc.Module); ok && cc.IsStubTarget(c) {
 			for _, ps := range c.PackagingSpecs() {
 				provideLibs = append(provideLibs, ps.FileName())
@@ -122,18 +122,45 @@ func BuildLinkerConfig(ctx android.ModuleContext, builder *android.RuleBuilder,
 	}
 	provideLibs = android.FirstUniqueStrings(provideLibs)
 	sort.Strings(provideLibs)
+
+	var requireLibs []string
+	for _, m := range requireModules {
+		if c, ok := m.(*cc.Module); ok && c.HasStubsVariants() && !c.Host() {
+			requireLibs = append(requireLibs, c.ImplementationModuleName(ctx)+".so")
+		}
+	}
+
+	requireLibs = android.FirstUniqueStrings(requireLibs)
+	sort.Strings(requireLibs)
+
 	if len(provideLibs) > 0 {
+		prevOutput := interimOutput
+		interimOutput = android.PathForModuleOut(ctx, "temp_provideLibs.pb")
 		builder.Command().
 			BuiltTool("conv_linker_config").
 			Flag("append").
-			FlagWithInput("-s ", interimOutput).
-			FlagWithOutput("-o ", output).
+			FlagWithInput("-s ", prevOutput).
+			FlagWithOutput("-o ", interimOutput).
 			FlagWithArg("--key ", "provideLibs").
 			FlagWithArg("--value ", proptools.ShellEscapeIncludingSpaces(strings.Join(provideLibs, " ")))
-	} else {
-		// If nothing to add, just cp to the final output
-		builder.Command().Text("cp").Input(interimOutput).Output(output)
+		builder.Temporary(prevOutput)
 	}
+	if len(requireLibs) > 0 {
+		prevOutput := interimOutput
+		interimOutput = android.PathForModuleOut(ctx, "temp_requireLibs.pb")
+		builder.Command().
+			BuiltTool("conv_linker_config").
+			Flag("append").
+			FlagWithInput("-s ", prevOutput).
+			FlagWithOutput("-o ", interimOutput).
+			FlagWithArg("--key ", "requireLibs").
+			FlagWithArg("--value ", proptools.ShellEscapeIncludingSpaces(strings.Join(requireLibs, " ")))
+		builder.Temporary(prevOutput)
+	}
+
+	// cp to the final output
+	builder.Command().Text("cp").Input(interimOutput).Output(output)
+
 	builder.Temporary(interimOutput)
 	builder.DeleteTemporaryFiles()
 }
