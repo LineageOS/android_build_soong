@@ -92,10 +92,9 @@ func TestManifestMerger(t *testing.T) {
 			"out/soong/.intermediates/transitive/android_common/manifest_fixer/AndroidManifest.xml",
 			"transitive/AndroidManifest2.xml",
 			"out/soong/.intermediates/transitive_import/android_common/aar/AndroidManifest.xml",
+			"out/soong/.intermediates/transitive_import_dep/android_common/aar/AndroidManifest.xml",
 			"out/soong/.intermediates/direct_import/android_common/aar/AndroidManifest.xml",
-			// TODO(b/288358614): Soong has historically not merged manifests from dependencies of
-			// android_library_import modules.
-
+			"out/soong/.intermediates/direct_import_dep/android_common/aar/AndroidManifest.xml",
 		},
 		manifestMergerRule.Implicits)
 }
