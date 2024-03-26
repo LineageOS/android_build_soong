@@ -433,6 +433,10 @@ type commonProperties struct {
 	// Set by osMutator
 	CompileOS OsType `blueprint:"mutated"`
 
+	// Set to true after the arch mutator has run on this module and set CompileTarget,
+	// CompileMultiTargets, and CompilePrimary
+	ArchReady bool `blueprint:"mutated"`
+
 	// The Target of artifacts that this module variant is responsible for creating.
 	//
 	// Set by archMutator
@@ -1749,6 +1753,7 @@ func (m *ModuleBase) archModuleContextFactory(ctx blueprint.IncomingTransitionCo
 	}
 
 	return archModuleContext{
+		ready:         m.commonProperties.ArchReady,
 		os:            m.commonProperties.CompileOS,
 		target:        m.commonProperties.CompileTarget,
 		targetPrimary: m.commonProperties.CompilePrimary,

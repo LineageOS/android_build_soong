@@ -35,11 +35,19 @@ type ArchModuleContext interface {
 type archModuleContext struct {
 	// TODO: these should eventually go through a (possibly cached) provider like any other configuration instead
 	//  of being special cased.
+	ready         bool
 	os            OsType
 	target        Target
 	targetPrimary bool
 	multiTargets  []Target
 	primaryArch   bool
+}
+
+// ArchReady returns true if the arch mutator has run on the module. Before this returns
+// true, the module essentially doesn't have an arch and cannot make decisions based on
+// architecture.
+func (a *archModuleContext) ArchReady() bool {
+	return a.ready
 }
 
 func (a *archModuleContext) Target() Target {
