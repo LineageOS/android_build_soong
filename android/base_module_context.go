@@ -219,7 +219,7 @@ type BaseModuleContext interface {
 
 	// EvaluateConfiguration makes ModuleContext a valid proptools.ConfigurableEvaluator, so this context
 	// can be used to evaluate the final value of Configurable properties.
-	EvaluateConfiguration(parser.SelectType, string) (string, bool)
+	EvaluateConfiguration(parser.SelectType, string, string) (string, bool)
 }
 
 type baseModuleContext struct {
@@ -577,38 +577,6 @@ func (b *baseModuleContext) GetPathString(skipFirst bool) string {
 	return sb.String()
 }
 
-func (m *baseModuleContext) EvaluateConfiguration(ty parser.SelectType, condition string) (string, bool) {
-	switch ty {
-	case parser.SelectTypeReleaseVariable:
-		if v, ok := m.Config().productVariables.BuildFlags[condition]; ok {
-			return v, true
-		}
-		return "", false
-	case parser.SelectTypeProductVariable:
-		// TODO(b/323382414): Might add these on a case-by-case basis
-		m.ModuleErrorf("TODO(b/323382414): Product variables are not yet supported in selects")
-		return "", false
-	case parser.SelectTypeSoongConfigVariable:
-		parts := strings.Split(condition, ":")
-		namespace := parts[0]
-		variable := parts[1]
-		if n, ok := m.Config().productVariables.VendorVars[namespace]; ok {
-			if v, ok := n[variable]; ok {
-				return v, true
-			}
-		}
-		return "", false
-	case parser.SelectTypeVariant:
-		if condition == "arch" {
-			if !m.ArchReady() {
-				m.ModuleErrorf("A select on arch was attempted before the arch mutator ran")
-				return "", false
-			}
-			return m.Arch().ArchType.Name, true
-		}
-		m.ModuleErrorf("Unknown variant " + condition)
-		return "", false
-	default:
-		panic("Should be unreachable")
-	}
+func (m *baseModuleContext) EvaluateConfiguration(ty parser.SelectType, property, condition string) (string, bool) {
+	return m.Module().ConfigurableEvaluator(m).EvaluateConfiguration(ty, property, condition)
 }
