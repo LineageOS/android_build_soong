@@ -305,14 +305,3 @@ python_binary_host {
         },
     },
 }
-
-python_binary_host {
-    name: "buildinfo",
-    main: "buildinfo.py",
-    srcs: ["buildinfo.py"],
-    version: {
-        py3: {
-            embedded_launcher: true,
-        },
-    },
-}

@@ -868,11 +868,3 @@ type AdditionalSdkInfo struct {
 }
 
 var AdditionalSdkInfoProvider = blueprint.NewProvider[AdditionalSdkInfo]()
-
-var apiFingerprintPathKey = NewOnceKey("apiFingerprintPathKey")
-
-func ApiFingerprintPath(ctx PathContext) OutputPath {
-	return ctx.Config().Once(apiFingerprintPathKey, func() interface{} {
-		return PathForOutput(ctx, "api_fingerprint.txt")
-	}).(OutputPath)
-}
