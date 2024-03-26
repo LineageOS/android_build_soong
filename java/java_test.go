@@ -588,10 +588,11 @@ func TestPrebuilts(t *testing.T) {
 	javac := fooModule.Rule("javac")
 	combineJar := ctx.ModuleForTests("foo", "android_common").Description("for javac")
 	barModule := ctx.ModuleForTests("bar", "android_common")
-	barJar := barModule.Rule("combineJar").Output
+	barJar := barModule.Output("combined/bar.jar").Output
 	bazModule := ctx.ModuleForTests("baz", "android_common")
 	bazJar := bazModule.Rule("combineJar").Output
-	sdklibStubsJar := ctx.ModuleForTests("sdklib.stubs", "android_common").Rule("combineJar").Output
+	sdklibStubsJar := ctx.ModuleForTests("sdklib.stubs", "android_common").
+		Output("combined/sdklib.stubs.jar").Output
 
 	fooLibrary := fooModule.Module().(*Library)
 	assertDeepEquals(t, "foo unique sources incorrect",
@@ -1035,7 +1036,7 @@ func TestExcludeFileGroupInSrcs(t *testing.T) {
 	}
 }
 
-func TestJavaLibrary(t *testing.T) {
+func TestJavaLibraryOutputFiles(t *testing.T) {
 	testJavaWithFS(t, "", map[string][]byte{
 		"libcore/Android.bp": []byte(`
 				java_library {
@@ -1052,7 +1053,7 @@ func TestJavaLibrary(t *testing.T) {
 	})
 }
 
-func TestJavaImport(t *testing.T) {
+func TestJavaImportOutputFiles(t *testing.T) {
 	testJavaWithFS(t, "", map[string][]byte{
 		"libcore/Android.bp": []byte(`
 				java_import {
@@ -1066,6 +1067,85 @@ func TestJavaImport(t *testing.T) {
 				}
 		`),
 	})
+}
+
+func TestJavaImport(t *testing.T) {
+	bp := `
+		java_library {
+			name: "source_library",
+			srcs: ["source.java"],
+		}
+
+		java_import {
+			name: "import_with_no_deps",
+			jars: ["no_deps.jar"],
+		}
+
+		java_import {
+			name: "import_with_source_deps",
+			jars: ["source_deps.jar"],
+			static_libs: ["source_library"],
+		}
+
+		java_import {
+			name: "import_with_import_deps",
+			jars: ["import_deps.jar"],
+			static_libs: ["import_with_no_deps"],
+		}
+	`
+	ctx := android.GroupFixturePreparers(
+		PrepareForTestWithJavaDefaultModules,
+	).RunTestWithBp(t, bp)
+
+	source := ctx.ModuleForTests("source_library", "android_common")
+	sourceJar := source.Output("javac/source_library.jar")
+	sourceHeaderJar := source.Output("turbine-combined/source_library.jar")
+	sourceJavaInfo, _ := android.SingletonModuleProvider(ctx, source.Module(), JavaInfoProvider)
+
+	// The source library produces separate implementation and header jars
+	android.AssertPathsRelativeToTopEquals(t, "source library implementation jar",
+		[]string{sourceJar.Output.String()}, sourceJavaInfo.ImplementationAndResourcesJars)
+	android.AssertPathsRelativeToTopEquals(t, "source library header jar",
+		[]string{sourceHeaderJar.Output.String()}, sourceJavaInfo.HeaderJars)
+
+	importWithNoDeps := ctx.ModuleForTests("import_with_no_deps", "android_common")
+	importWithNoDepsJar := importWithNoDeps.Output("combined/import_with_no_deps.jar")
+	importWithNoDepsJavaInfo, _ := android.SingletonModuleProvider(ctx, importWithNoDeps.Module(), JavaInfoProvider)
+
+	// An import with no deps produces a single jar used as both the header and implementation jar.
+	android.AssertPathsRelativeToTopEquals(t, "import with no deps implementation jar",
+		[]string{importWithNoDepsJar.Output.String()}, importWithNoDepsJavaInfo.ImplementationAndResourcesJars)
+	android.AssertPathsRelativeToTopEquals(t, "import with no deps header jar",
+		[]string{importWithNoDepsJar.Output.String()}, importWithNoDepsJavaInfo.HeaderJars)
+	android.AssertPathsRelativeToTopEquals(t, "import with no deps combined inputs",
+		[]string{"no_deps.jar"}, importWithNoDepsJar.Inputs)
+
+	importWithSourceDeps := ctx.ModuleForTests("import_with_source_deps", "android_common")
+	importWithSourceDepsJar := importWithSourceDeps.Output("combined/import_with_source_deps.jar")
+	importWithSourceDepsHeaderJar := importWithSourceDeps.Output("turbine-combined/import_with_source_deps.jar")
+	importWithSourceDepsJavaInfo, _ := android.SingletonModuleProvider(ctx, importWithSourceDeps.Module(), JavaInfoProvider)
+
+	// An import with source deps produces separate header and implementation jars.
+	android.AssertPathsRelativeToTopEquals(t, "import with source deps implementation jar",
+		[]string{importWithSourceDepsJar.Output.String()}, importWithSourceDepsJavaInfo.ImplementationAndResourcesJars)
+	android.AssertPathsRelativeToTopEquals(t, "import with source deps header jar",
+		[]string{importWithSourceDepsHeaderJar.Output.String()}, importWithSourceDepsJavaInfo.HeaderJars)
+	android.AssertPathsRelativeToTopEquals(t, "import with source deps combined implementation jar inputs",
+		[]string{"source_deps.jar", sourceJar.Output.String()}, importWithSourceDepsJar.Inputs)
+	android.AssertPathsRelativeToTopEquals(t, "import with source deps combined header jar inputs",
+		[]string{"source_deps.jar", sourceHeaderJar.Output.String()}, importWithSourceDepsHeaderJar.Inputs)
+
+	importWithImportDeps := ctx.ModuleForTests("import_with_import_deps", "android_common")
+	importWithImportDepsJar := importWithImportDeps.Output("combined/import_with_import_deps.jar")
+	importWithImportDepsJavaInfo, _ := android.SingletonModuleProvider(ctx, importWithImportDeps.Module(), JavaInfoProvider)
+
+	// An import with only import deps produces a single jar used as both the header and implementation jar.
+	android.AssertPathsRelativeToTopEquals(t, "import with import deps implementation jar",
+		[]string{importWithImportDepsJar.Output.String()}, importWithImportDepsJavaInfo.ImplementationAndResourcesJars)
+	android.AssertPathsRelativeToTopEquals(t, "import with import deps header jar",
+		[]string{importWithImportDepsJar.Output.String()}, importWithImportDepsJavaInfo.HeaderJars)
+	android.AssertPathsRelativeToTopEquals(t, "import with import deps combined implementation jar inputs",
+		[]string{"import_deps.jar", importWithNoDepsJar.Output.String()}, importWithImportDepsJar.Inputs)
 }
 
 var compilerFlagsTestCases = []struct {
