@@ -29,6 +29,7 @@ import (
 	"android/soong/bazel"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/parser"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -123,6 +124,8 @@ type Module interface {
 	// TransitivePackagingSpecs returns the PackagingSpecs for this module and any transitive
 	// dependencies with dependency tags for which IsInstallDepNeeded() returns true.
 	TransitivePackagingSpecs() []PackagingSpec
+
+	ConfigurableEvaluator(ctx ConfigAndErrorContext) proptools.ConfigurableEvaluator
 }
 
 // Qualified id for a module
@@ -1230,6 +1233,10 @@ func (m *ModuleBase) GenerateTaggedDistFiles(ctx BaseModuleContext) TaggedDistFi
 	return distFiles
 }
 
+func (m *ModuleBase) ArchReady() bool {
+	return m.commonProperties.ArchReady
+}
+
 func (m *ModuleBase) Target() Target {
 	return m.commonProperties.CompileTarget
 }
@@ -2102,6 +2109,65 @@ func (m *ModuleBase) MakeAsSystemExt() {
 // IsNativeBridgeSupported returns true if "native_bridge_supported" is explicitly set as "true"
 func (m *ModuleBase) IsNativeBridgeSupported() bool {
 	return proptools.Bool(m.commonProperties.Native_bridge_supported)
+}
+
+type ConfigAndErrorContext interface {
+	Config() Config
+	OtherModulePropertyErrorf(module Module, property string, fmt string, args ...interface{})
+}
+
+type configurationEvalutor struct {
+	ctx ConfigAndErrorContext
+	m   Module
+}
+
+func (m *ModuleBase) ConfigurableEvaluator(ctx ConfigAndErrorContext) proptools.ConfigurableEvaluator {
+	return configurationEvalutor{
+		ctx: ctx,
+		m:   m.module,
+	}
+}
+
+func (e configurationEvalutor) PropertyErrorf(property string, fmt string, args ...interface{}) {
+	e.ctx.OtherModulePropertyErrorf(e.m, property, fmt, args)
+}
+
+func (e configurationEvalutor) EvaluateConfiguration(ty parser.SelectType, property, condition string) (string, bool) {
+	ctx := e.ctx
+	m := e.m
+	switch ty {
+	case parser.SelectTypeReleaseVariable:
+		if v, ok := ctx.Config().productVariables.BuildFlags[condition]; ok {
+			return v, true
+		}
+		return "", false
+	case parser.SelectTypeProductVariable:
+		// TODO(b/323382414): Might add these on a case-by-case basis
+		ctx.OtherModulePropertyErrorf(m, property, "TODO(b/323382414): Product variables are not yet supported in selects")
+		return "", false
+	case parser.SelectTypeSoongConfigVariable:
+		parts := strings.Split(condition, ":")
+		namespace := parts[0]
+		variable := parts[1]
+		if n, ok := ctx.Config().productVariables.VendorVars[namespace]; ok {
+			if v, ok := n[variable]; ok {
+				return v, true
+			}
+		}
+		return "", false
+	case parser.SelectTypeVariant:
+		if condition == "arch" {
+			if !m.base().ArchReady() {
+				ctx.OtherModulePropertyErrorf(m, property, "A select on arch was attempted before the arch mutator ran")
+				return "", false
+			}
+			return m.base().Arch().ArchType.Name, true
+		}
+		ctx.OtherModulePropertyErrorf(m, property, "Unknown variant %s", condition)
+		return "", false
+	default:
+		panic("Should be unreachable")
+	}
 }
 
 // ModuleNameWithPossibleOverride returns the name of the OverrideModule that overrides the current

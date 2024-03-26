@@ -234,6 +234,8 @@ type moduleContext struct {
 	variables   map[string]string
 }
 
+var _ ModuleContext = &moduleContext{}
+
 func (m *moduleContext) ninjaError(params BuildParams, err error) (PackageContext, BuildParams) {
 	return pctx, BuildParams{
 		Rule:            ErrorRule,

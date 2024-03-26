@@ -15,9 +15,10 @@
 package android
 
 import (
-	"github.com/google/blueprint"
 	"os"
 	"text/scanner"
+
+	"github.com/google/blueprint"
 )
 
 // EarlyModuleContext provides methods that can be called early, as soon as the properties have
@@ -53,6 +54,9 @@ type EarlyModuleContext interface {
 
 	// PropertyErrorf reports an error at the line number of a property in the module definition.
 	PropertyErrorf(property, fmt string, args ...interface{})
+
+	// OtherModulePropertyErrorf reports an error at the line number of a property in the given module definition.
+	OtherModulePropertyErrorf(module Module, property, fmt string, args ...interface{})
 
 	// Failed returns true if any errors have been reported.  In most cases the module can continue with generating
 	// build rules after an error, allowing it to report additional errors in a single run, but in cases where the error
@@ -166,4 +170,8 @@ func (e *earlyModuleContext) SystemExtSpecific() bool {
 
 func (e *earlyModuleContext) Namespace() *Namespace {
 	return e.EarlyModuleContext.Namespace().(*Namespace)
+}
+
+func (e *earlyModuleContext) OtherModulePropertyErrorf(module Module, property string, fmt string, args ...interface{}) {
+	e.EarlyModuleContext.OtherModulePropertyErrorf(module, property, fmt, args)
 }
