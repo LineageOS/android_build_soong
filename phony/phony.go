@@ -23,9 +23,15 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("phony", PhonyFactory)
-	android.RegisterModuleType("phony_rule", PhonyRuleFactory)
+	registerPhonyModuleTypes(android.InitRegistrationContext)
 }
+
+func registerPhonyModuleTypes(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("phony", PhonyFactory)
+	ctx.RegisterModuleType("phony_rule", PhonyRuleFactory)
+}
+
+var PrepareForTestWithPhony = android.FixtureRegisterWithContext(registerPhonyModuleTypes)
 
 type phony struct {
 	android.ModuleBase
