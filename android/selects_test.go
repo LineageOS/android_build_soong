@@ -231,11 +231,30 @@ func TestSelects(t *testing.T) {
 				my_string: proptools.StringPtr("c.cpp"),
 			},
 		},
+		{
+			name: "Select on variant",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_string: select(variant("arch"), {
+					"x86": "my_x86",
+					"x86_64": "my_x86_64",
+					"arm": "my_arm",
+					"arm64": "my_arm64",
+					_: "my_default",
+				}),
+			}
+			`,
+			provider: selectsTestProvider{
+				my_string: proptools.StringPtr("my_arm64"),
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			fixtures := GroupFixturePreparers(
+				PrepareForTestWithArchMutator,
 				FixtureRegisterWithContext(func(ctx RegistrationContext) {
 					ctx.RegisterModuleType("my_module_type", newSelectsMockModule)
 				}),
@@ -249,8 +268,8 @@ func TestSelects(t *testing.T) {
 			result := fixtures.RunTestWithBp(t, tc.bp)
 
 			if tc.expectedError == "" {
-				m := result.ModuleForTests("foo", "")
-				p, _ := OtherModuleProvider[selectsTestProvider](result.testContext.OtherModuleProviderAdaptor(), m.Module(), selectsTestProviderKey)
+				m := result.ModuleForTests("foo", "android_arm64_armv8-a")
+				p, _ := OtherModuleProvider(result.testContext.OtherModuleProviderAdaptor(), m.Module(), selectsTestProviderKey)
 				if !reflect.DeepEqual(p, tc.provider) {
 					t.Errorf("Expected:\n  %q\ngot:\n  %q", tc.provider.String(), p.String())
 				}
@@ -310,7 +329,7 @@ func (p *selectsMockModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 func newSelectsMockModule() Module {
 	m := &selectsMockModule{}
 	m.AddProperties(&m.properties)
-	InitAndroidArchModule(m, HostAndDeviceSupported, MultilibCommon)
+	InitAndroidArchModule(m, HostAndDeviceSupported, MultilibFirst)
 	InitDefaultableModule(m)
 	return m
 }

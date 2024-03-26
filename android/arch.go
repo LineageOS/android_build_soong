@@ -693,6 +693,7 @@ func addTargetProperties(m Module, target Target, multiTargets []Target, primary
 	m.base().commonProperties.CompileTarget = target
 	m.base().commonProperties.CompileMultiTargets = multiTargets
 	m.base().commonProperties.CompilePrimary = primaryTarget
+	m.base().commonProperties.ArchReady = true
 }
 
 // decodeMultilib returns the appropriate compile_multilib property for the module, or the default
