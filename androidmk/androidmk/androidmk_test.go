@@ -511,6 +511,22 @@ endif # b==false
 		`,
 	},
 	{
+		// Unsupported function case because that doesn't work in bp
+		desc: "error for unsupported functions",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES := $(filter-out filter-out-file.java ,$(call all-java-files-under, src))
+LOCAL_PACKAGE_NAME := foo
+include $(BUILD_PACKAGE)
+`,
+		expected: `
+android_app {
+	name: "foo",
+	srcs: ["UNSUPPORTED FUNCTION:filter-out filter-out-file.java  src/**/*.java"],
+}
+		`,
+	},
+	{
 		desc: "ignore all-makefiles-under",
 		in: `
 include $(call all-makefiles-under,$(LOCAL_PATH))
