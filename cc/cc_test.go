@@ -17,7 +17,6 @@ package cc
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -39,17 +38,6 @@ func TestMain(m *testing.M) {
 }
 
 var prepareForCcTest = android.GroupFixturePreparers(
-	PrepareForTestWithCcIncludeVndk,
-	android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
-		variables.VendorApiLevel = StringPtr("202404")
-		variables.DeviceVndkVersion = StringPtr("current")
-		variables.KeepVndk = BoolPtr(true)
-		variables.Platform_vndk_version = StringPtr("29")
-	}),
-)
-
-// TODO(b/316829758) Update prepareForCcTest with this configuration and remove prepareForCcTestWithoutVndk
-var prepareForCcTestWithoutVndk = android.GroupFixturePreparers(
 	PrepareForIntegrationTestWithCc,
 	android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 		variables.VendorApiLevel = StringPtr("202404")
@@ -123,30 +111,14 @@ func testCcErrorWithConfig(t *testing.T, pattern string, config android.Config) 
 func testCcError(t *testing.T, pattern string, bp string) {
 	t.Helper()
 	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
-	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
-	testCcErrorWithConfig(t, pattern, config)
-	return
-}
-
-// testCcErrorProductVndk runs tests using the prepareForCcTest
-//
-// See testCc for an explanation as to how to stop using this deprecated method.
-//
-// deprecated
-func testCcErrorProductVndk(t *testing.T, pattern string, bp string) {
-	t.Helper()
-	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
-	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
 	testCcErrorWithConfig(t, pattern, config)
 	return
 }
 
 const (
 	coreVariant     = "android_arm64_armv8-a_shared"
-	vendorVariant   = "android_vendor.29_arm64_armv8-a_shared"
-	productVariant  = "android_product.29_arm64_armv8-a_shared"
+	vendorVariant   = "android_vendor_arm64_armv8-a_shared"
+	productVariant  = "android_product_arm64_armv8-a_shared"
 	recoveryVariant = "android_recovery_arm64_armv8-a_shared"
 )
 
@@ -302,387 +274,11 @@ func TestInstallPartition(t *testing.T) {
 	checkInstallPartition(t, ctx, "libproduct_odmavailable", vendorVariant, "odm")
 }
 
-func checkVndkModule(t *testing.T, ctx *android.TestContext, name, subDir string,
-	isVndkSp bool, extends string, variant string) {
-
-	t.Helper()
-
-	mod := ctx.ModuleForTests(name, variant).Module().(*Module)
-
-	// Check library properties.
-	lib, ok := mod.compiler.(*libraryDecorator)
-	if !ok {
-		t.Errorf("%q must have libraryDecorator", name)
-	} else if lib.baseInstaller.subDir != subDir {
-		t.Errorf("%q must use %q as subdir but it is using %q", name, subDir,
-			lib.baseInstaller.subDir)
-	}
-
-	// Check VNDK properties.
-	if mod.vndkdep == nil {
-		t.Fatalf("%q must have `vndkdep`", name)
-	}
-	if !mod.IsVndk() {
-		t.Errorf("%q IsVndk() must equal to true", name)
-	}
-	if mod.IsVndkSp() != isVndkSp {
-		t.Errorf("%q IsVndkSp() must equal to %t", name, isVndkSp)
-	}
-
-	// Check VNDK extension properties.
-	isVndkExt := extends != ""
-	if mod.IsVndkExt() != isVndkExt {
-		t.Errorf("%q IsVndkExt() must equal to %t", name, isVndkExt)
-	}
-
-	if actualExtends := mod.getVndkExtendsModuleName(); actualExtends != extends {
-		t.Errorf("%q must extend from %q but get %q", name, extends, actualExtends)
-	}
-}
-
 func checkWriteFileOutput(t *testing.T, ctx *android.TestContext, params android.TestingBuildParams, expected []string) {
 	t.Helper()
 	content := android.ContentFromFileRuleForTests(t, ctx, params)
 	actual := strings.FieldsFunc(content, func(r rune) bool { return r == '\n' })
 	assertArrayString(t, actual, expected)
-}
-
-func checkVndkOutput(t *testing.T, ctx *android.TestContext, output string, expected []string) {
-	t.Helper()
-	vndkSnapshot := ctx.SingletonForTests("vndk-snapshot")
-	checkWriteFileOutput(t, ctx, vndkSnapshot.Output(output), expected)
-}
-
-func checkVndkLibrariesOutput(t *testing.T, ctx *android.TestContext, module string, expected []string) {
-	t.Helper()
-	got := ctx.ModuleForTests(module, "android_common").Module().(*vndkLibrariesTxt).fileNames
-	assertArrayString(t, got, expected)
-}
-
-func TestVndk(t *testing.T) {
-	t.Parallel()
-	bp := `
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_private",
-			vendor_available: true,
-			vndk: {
-				enabled: true,
-				private: true,
-			},
-			nocrt: true,
-			stem: "libvndk-private",
-		}
-
-		cc_library {
-			name: "libvndk_product",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-			target: {
-				vendor: {
-					cflags: ["-DTEST"],
-				},
-				product: {
-					cflags: ["-DTEST"],
-				},
-			},
-		}
-
-		cc_library {
-			name: "libvndk_sp",
-			vendor_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			},
-			nocrt: true,
-			suffix: "-x",
-		}
-
-		cc_library {
-			name: "libvndk_sp_private",
-			vendor_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-				private: true,
-			},
-			nocrt: true,
-			target: {
-				vendor: {
-					suffix: "-x",
-				},
-			},
-		}
-
-		cc_library {
-			name: "libvndk_sp_product_private",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-				private: true,
-			},
-			nocrt: true,
-			target: {
-				vendor: {
-					suffix: "-x",
-				},
-				product: {
-					suffix: "-x",
-				},
-			},
-		}
-
-		cc_library {
-			name: "libllndk",
-			llndk: {
-				symbol_file: "libllndk.map.txt",
-				export_llndk_headers: ["libllndk_headers"],
-			}
-		}
-
-		cc_library {
-			name: "libclang_rt.hwasan-llndk",
-			llndk: {
-				symbol_file: "libclang_rt.hwasan.map.txt",
-			}
-		}
-
-		cc_library_headers {
-			name: "libllndk_headers",
-			llndk: {
-				llndk_headers: true,
-			},
-			export_include_dirs: ["include"],
-		}
-
-		llndk_libraries_txt {
-			name: "llndk.libraries.txt",
-		}
-		vndkcore_libraries_txt {
-			name: "vndkcore.libraries.txt",
-		}
-		vndksp_libraries_txt {
-			name: "vndksp.libraries.txt",
-		}
-		vndkprivate_libraries_txt {
-			name: "vndkprivate.libraries.txt",
-		}
-		vndkproduct_libraries_txt {
-			name: "vndkproduct.libraries.txt",
-		}
-		vndkcorevariant_libraries_txt {
-			name: "vndkcorevariant.libraries.txt",
-			insert_vndk_version: false,
-		}
-	`
-
-	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
-	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
-
-	ctx := testCcWithConfig(t, config)
-
-	// subdir == "" because VNDK libs are not supposed to be installed separately.
-	// They are installed as part of VNDK APEX instead.
-	checkVndkModule(t, ctx, "libvndk", "", false, "", vendorVariant)
-	checkVndkModule(t, ctx, "libvndk_private", "", false, "", vendorVariant)
-	checkVndkModule(t, ctx, "libvndk_product", "", false, "", vendorVariant)
-	checkVndkModule(t, ctx, "libvndk_sp", "", true, "", vendorVariant)
-	checkVndkModule(t, ctx, "libvndk_sp_private", "", true, "", vendorVariant)
-	checkVndkModule(t, ctx, "libvndk_sp_product_private", "", true, "", vendorVariant)
-
-	checkVndkModule(t, ctx, "libvndk_product", "", false, "", productVariant)
-	checkVndkModule(t, ctx, "libvndk_sp_product_private", "", true, "", productVariant)
-
-	// Check VNDK snapshot output.
-	snapshotDir := "vndk-snapshot"
-	snapshotVariantPath := filepath.Join("out/soong", snapshotDir, "arm64")
-
-	vndkLibPath := filepath.Join(snapshotVariantPath, fmt.Sprintf("arch-%s-%s",
-		"arm64", "armv8-a"))
-	vndkLib2ndPath := filepath.Join(snapshotVariantPath, fmt.Sprintf("arch-%s-%s",
-		"arm", "armv7-a-neon"))
-
-	vndkCoreLibPath := filepath.Join(vndkLibPath, "shared", "vndk-core")
-	vndkSpLibPath := filepath.Join(vndkLibPath, "shared", "vndk-sp")
-	llndkLibPath := filepath.Join(vndkLibPath, "shared", "llndk-stub")
-
-	vndkCoreLib2ndPath := filepath.Join(vndkLib2ndPath, "shared", "vndk-core")
-	vndkSpLib2ndPath := filepath.Join(vndkLib2ndPath, "shared", "vndk-sp")
-	llndkLib2ndPath := filepath.Join(vndkLib2ndPath, "shared", "llndk-stub")
-
-	variant := "android_vendor.29_arm64_armv8-a_shared"
-	variant2nd := "android_vendor.29_arm_armv7-a-neon_shared"
-
-	snapshotSingleton := ctx.SingletonForTests("vndk-snapshot")
-
-	CheckSnapshot(t, ctx, snapshotSingleton, "libvndk", "libvndk.so", vndkCoreLibPath, variant)
-	CheckSnapshot(t, ctx, snapshotSingleton, "libvndk", "libvndk.so", vndkCoreLib2ndPath, variant2nd)
-	CheckSnapshot(t, ctx, snapshotSingleton, "libvndk_product", "libvndk_product.so", vndkCoreLibPath, variant)
-	CheckSnapshot(t, ctx, snapshotSingleton, "libvndk_product", "libvndk_product.so", vndkCoreLib2ndPath, variant2nd)
-	CheckSnapshot(t, ctx, snapshotSingleton, "libvndk_sp", "libvndk_sp-x.so", vndkSpLibPath, variant)
-	CheckSnapshot(t, ctx, snapshotSingleton, "libvndk_sp", "libvndk_sp-x.so", vndkSpLib2ndPath, variant2nd)
-	CheckSnapshot(t, ctx, snapshotSingleton, "libllndk", "libllndk.so", llndkLibPath, variant)
-	CheckSnapshot(t, ctx, snapshotSingleton, "libllndk", "libllndk.so", llndkLib2ndPath, variant2nd)
-
-	snapshotConfigsPath := filepath.Join(snapshotVariantPath, "configs")
-	CheckSnapshot(t, ctx, snapshotSingleton, "llndk.libraries.txt", "llndk.libraries.txt", snapshotConfigsPath, "android_common")
-	CheckSnapshot(t, ctx, snapshotSingleton, "vndkcore.libraries.txt", "vndkcore.libraries.txt", snapshotConfigsPath, "android_common")
-	CheckSnapshot(t, ctx, snapshotSingleton, "vndksp.libraries.txt", "vndksp.libraries.txt", snapshotConfigsPath, "android_common")
-	CheckSnapshot(t, ctx, snapshotSingleton, "vndkprivate.libraries.txt", "vndkprivate.libraries.txt", snapshotConfigsPath, "android_common")
-	CheckSnapshot(t, ctx, snapshotSingleton, "vndkproduct.libraries.txt", "vndkproduct.libraries.txt", snapshotConfigsPath, "android_common")
-
-	checkVndkOutput(t, ctx, "vndk/vndk.libraries.txt", []string{
-		"LLNDK: libc.so",
-		"LLNDK: libdl.so",
-		"LLNDK: libft2.so",
-		"LLNDK: libllndk.so",
-		"LLNDK: libm.so",
-		"VNDK-SP: libc++.so",
-		"VNDK-SP: libvndk_sp-x.so",
-		"VNDK-SP: libvndk_sp_private-x.so",
-		"VNDK-SP: libvndk_sp_product_private-x.so",
-		"VNDK-core: libvndk-private.so",
-		"VNDK-core: libvndk.so",
-		"VNDK-core: libvndk_product.so",
-		"VNDK-private: libft2.so",
-		"VNDK-private: libvndk-private.so",
-		"VNDK-private: libvndk_sp_private-x.so",
-		"VNDK-private: libvndk_sp_product_private-x.so",
-		"VNDK-product: libc++.so",
-		"VNDK-product: libvndk_product.so",
-		"VNDK-product: libvndk_sp_product_private-x.so",
-	})
-	checkVndkLibrariesOutput(t, ctx, "llndk.libraries.txt", []string{"libc.so", "libclang_rt.hwasan-llndk.so", "libdl.so", "libft2.so", "libllndk.so", "libm.so"})
-	checkVndkLibrariesOutput(t, ctx, "vndkcore.libraries.txt", []string{"libvndk-private.so", "libvndk.so", "libvndk_product.so"})
-	checkVndkLibrariesOutput(t, ctx, "vndksp.libraries.txt", []string{"libc++.so", "libvndk_sp-x.so", "libvndk_sp_private-x.so", "libvndk_sp_product_private-x.so"})
-	checkVndkLibrariesOutput(t, ctx, "vndkprivate.libraries.txt", []string{"libft2.so", "libvndk-private.so", "libvndk_sp_private-x.so", "libvndk_sp_product_private-x.so"})
-	checkVndkLibrariesOutput(t, ctx, "vndkproduct.libraries.txt", []string{"libc++.so", "libvndk_product.so", "libvndk_sp_product_private-x.so"})
-	checkVndkLibrariesOutput(t, ctx, "vndkcorevariant.libraries.txt", nil)
-}
-
-func TestVndkWithHostSupported(t *testing.T) {
-	t.Parallel()
-	ctx := testCc(t, `
-		cc_library {
-			name: "libvndk_host_supported",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			host_supported: true,
-		}
-
-		cc_library {
-			name: "libvndk_host_supported_but_disabled_on_device",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			host_supported: true,
-			enabled: false,
-			target: {
-				host: {
-					enabled: true,
-				}
-			}
-		}
-
-		vndkcore_libraries_txt {
-			name: "vndkcore.libraries.txt",
-		}
-	`)
-
-	checkVndkLibrariesOutput(t, ctx, "vndkcore.libraries.txt", []string{"libvndk_host_supported.so"})
-}
-
-func TestVndkLibrariesTxtAndroidMk(t *testing.T) {
-	t.Parallel()
-	bp := `
-		llndk_libraries_txt {
-			name: "llndk.libraries.txt",
-			insert_vndk_version: true,
-		}`
-	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
-	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
-	config.TestProductVariables.KeepVndk = BoolPtr(true)
-	ctx := testCcWithConfig(t, config)
-
-	module := ctx.ModuleForTests("llndk.libraries.txt", "android_common")
-	entries := android.AndroidMkEntriesForTest(t, ctx, module.Module())[0]
-	assertArrayString(t, entries.EntryMap["LOCAL_MODULE_STEM"], []string{"llndk.libraries.29.txt"})
-}
-
-func TestVndkUsingCoreVariant(t *testing.T) {
-	t.Parallel()
-	bp := `
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_sp",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk2",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				private: true,
-			},
-			nocrt: true,
-		}
-
-		vndkcorevariant_libraries_txt {
-			name: "vndkcorevariant.libraries.txt",
-			insert_vndk_version: false,
-		}
-	`
-
-	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
-	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
-	config.TestProductVariables.VndkUseCoreVariant = BoolPtr(true)
-	config.TestProductVariables.KeepVndk = BoolPtr(true)
-
-	setVndkMustUseVendorVariantListForTest(config, []string{"libvndk"})
-
-	ctx := testCcWithConfig(t, config)
-
-	checkVndkLibrariesOutput(t, ctx, "vndkcorevariant.libraries.txt", []string{"libc++.so", "libvndk2.so", "libvndk_sp.so"})
 }
 
 func TestDataLibs(t *testing.T) {
@@ -702,9 +298,6 @@ func TestDataLibs(t *testing.T) {
  `
 
 	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
-	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
-	config.TestProductVariables.VndkUseCoreVariant = BoolPtr(true)
 
 	ctx := testCcWithConfig(t, config)
 	module := ctx.ModuleForTests("main_test", "android_arm_armv7-a-neon").Module()
@@ -761,9 +354,6 @@ func TestDataLibsRelativeInstallPath(t *testing.T) {
  `
 
 	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
-	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
-	config.TestProductVariables.VndkUseCoreVariant = BoolPtr(true)
 
 	ctx := testCcWithConfig(t, config)
 	module := ctx.ModuleForTests("main_test", "android_arm_armv7-a-neon").Module()
@@ -859,247 +449,9 @@ func TestTestLibraryTestSuites(t *testing.T) {
 	}
 }
 
-func TestVndkModuleError(t *testing.T) {
-	t.Parallel()
-	// Check the error message for vendor_available and product_available properties.
-	testCcErrorProductVndk(t, "vndk: vendor_available must be set to true when `vndk: {enabled: true}`", `
-		cc_library {
-			name: "libvndk",
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-	`)
-
-	testCcErrorProductVndk(t, "vndk: vendor_available must be set to true when `vndk: {enabled: true}`", `
-		cc_library {
-			name: "libvndk",
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-	`)
-
-	testCcErrorProductVndk(t, "product properties must have the same values with the vendor properties for VNDK modules", `
-		cc_library {
-			name: "libvndkprop",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-			target: {
-				vendor: {
-					cflags: ["-DTEST",],
-				},
-			},
-		}
-	`)
-}
-
-func TestVndkDepError(t *testing.T) {
-	t.Parallel()
-	// Check whether an error is emitted when a VNDK lib depends on a system lib.
-	testCcError(t, "dependency \".*\" of \".*\" missing variant", `
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			shared_libs: ["libfwk"],  // Cause error
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libfwk",
-			nocrt: true,
-		}
-	`)
-
-	// Check whether an error is emitted when a VNDK lib depends on a vendor lib.
-	testCcError(t, "dependency \".*\" of \".*\" missing variant", `
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			shared_libs: ["libvendor"],  // Cause error
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvendor",
-			vendor: true,
-			nocrt: true,
-		}
-	`)
-
-	// Check whether an error is emitted when a VNDK-SP lib depends on a system lib.
-	testCcError(t, "dependency \".*\" of \".*\" missing variant", `
-		cc_library {
-			name: "libvndk_sp",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			},
-			shared_libs: ["libfwk"],  // Cause error
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libfwk",
-			nocrt: true,
-		}
-	`)
-
-	// Check whether an error is emitted when a VNDK-SP lib depends on a vendor lib.
-	testCcError(t, "dependency \".*\" of \".*\" missing variant", `
-		cc_library {
-			name: "libvndk_sp",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			},
-			shared_libs: ["libvendor"],  // Cause error
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvendor",
-			vendor: true,
-			nocrt: true,
-		}
-	`)
-
-	// Check whether an error is emitted when a VNDK-SP lib depends on a VNDK lib.
-	testCcError(t, "module \".*\" variant \".*\": \\(.*\\) should not link to \".*\"", `
-		cc_library {
-			name: "libvndk_sp",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			},
-			shared_libs: ["libvndk"],  // Cause error
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-	`)
-
-	// Check whether an error is emitted when a VNDK lib depends on a non-VNDK lib.
-	testCcError(t, "module \".*\" variant \".*\": \\(.*\\) should not link to \".*\"", `
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			shared_libs: ["libnonvndk"],
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libnonvndk",
-			vendor_available: true,
-			product_available: true,
-			nocrt: true,
-		}
-	`)
-
-	// Check whether an error is emitted when a VNDK-private lib depends on a non-VNDK lib.
-	testCcError(t, "module \".*\" variant \".*\": \\(.*\\) should not link to \".*\"", `
-		cc_library {
-			name: "libvndkprivate",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				private: true,
-			},
-			shared_libs: ["libnonvndk"],
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libnonvndk",
-			vendor_available: true,
-			product_available: true,
-			nocrt: true,
-		}
-	`)
-
-	// Check whether an error is emitted when a VNDK-sp lib depends on a non-VNDK lib.
-	testCcError(t, "module \".*\" variant \".*\": \\(.*\\) should not link to \".*\"", `
-		cc_library {
-			name: "libvndksp",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			},
-			shared_libs: ["libnonvndk"],
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libnonvndk",
-			vendor_available: true,
-			product_available: true,
-			nocrt: true,
-		}
-	`)
-
-	// Check whether an error is emitted when a VNDK-sp-private lib depends on a non-VNDK lib.
-	testCcError(t, "module \".*\" variant \".*\": \\(.*\\) should not link to \".*\"", `
-		cc_library {
-			name: "libvndkspprivate",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-				private: true,
-			},
-			shared_libs: ["libnonvndk"],
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libnonvndk",
-			vendor_available: true,
-			product_available: true,
-			nocrt: true,
-		}
-	`)
-}
-
 func TestDoubleLoadbleDep(t *testing.T) {
 	t.Parallel()
-	// okay to link : LLNDK -> double_loadable VNDK
+	// okay to link : LLNDK -> double_loadable
 	testCc(t, `
 		cc_library {
 			name: "libllndk",
@@ -1113,30 +465,7 @@ func TestDoubleLoadbleDep(t *testing.T) {
 			name: "libdoubleloadable",
 			vendor_available: true,
 			product_available: true,
-			vndk: {
-				enabled: true,
-			},
 			double_loadable: true,
-		}
-	`)
-	// okay to link : LLNDK -> VNDK-SP
-	testCc(t, `
-		cc_library {
-			name: "libllndk",
-			shared_libs: ["libvndksp"],
-			llndk: {
-				symbol_file: "libllndk.map.txt",
-			}
-		}
-
-		cc_library {
-			name: "libvndksp",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			},
 		}
 	`)
 	// okay to link : double_loadable -> double_loadable
@@ -1154,15 +483,12 @@ func TestDoubleLoadbleDep(t *testing.T) {
 			double_loadable: true,
 		}
 	`)
-	// okay to link : double_loadable VNDK -> double_loadable VNDK private
+	// okay to link : double_loadable -> double_loadable
 	testCc(t, `
 		cc_library {
 			name: "libdoubleloadable",
 			vendor_available: true,
 			product_available: true,
-			vndk: {
-				enabled: true,
-			},
 			double_loadable: true,
 			shared_libs: ["libnondoubleloadable"],
 		}
@@ -1171,10 +497,6 @@ func TestDoubleLoadbleDep(t *testing.T) {
 			name: "libnondoubleloadable",
 			vendor_available: true,
 			product_available: true,
-			vndk: {
-				enabled: true,
-				private: true,
-			},
 			double_loadable: true,
 		}
 	`)
@@ -1204,7 +526,7 @@ func TestDoubleLoadbleDep(t *testing.T) {
 
 func TestDoubleLoadableDepError(t *testing.T) {
 	t.Parallel()
-	// Check whether an error is emitted when a LLNDK depends on a non-double_loadable VNDK lib.
+	// Check whether an error is emitted when a LLNDK depends on a non-double_loadable lib.
 	testCcError(t, "module \".*\" variant \".*\": link.* \".*\" which is not LL-NDK, VNDK-SP, .*double_loadable", `
 		cc_library {
 			name: "libllndk",
@@ -1218,9 +540,6 @@ func TestDoubleLoadableDepError(t *testing.T) {
 			name: "libnondoubleloadable",
 			vendor_available: true,
 			product_available: true,
-			vndk: {
-				enabled: true,
-			},
 		}
 	`)
 
@@ -1285,998 +604,12 @@ func TestDoubleLoadableDepError(t *testing.T) {
 	`)
 }
 
-func TestCheckVndkMembershipBeforeDoubleLoadable(t *testing.T) {
-	t.Parallel()
-	testCcError(t, "module \"libvndksp\" variant .*: .*: VNDK-SP must only depend on VNDK-SP", `
-		cc_library {
-			name: "libvndksp",
-			shared_libs: ["libanothervndksp"],
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			}
-		}
-
-		cc_library {
-			name: "libllndk",
-			shared_libs: ["libanothervndksp"],
-		}
-
-		cc_library {
-			name: "libanothervndksp",
-			vendor_available: true,
-			product_available: true,
-		}
-	`)
-}
-
-func TestVndkExt(t *testing.T) {
-	t.Parallel()
-	// This test checks the VNDK-Ext properties.
-	bp := `
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-		cc_library {
-			name: "libvndk2",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			target: {
-				vendor: {
-					suffix: "-suffix",
-				},
-				product: {
-					suffix: "-suffix",
-				},
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_ext",
-			vendor: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk",
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk2_ext",
-			vendor: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk2",
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_ext_product",
-			product_specific: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk",
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk2_ext_product",
-			product_specific: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk2",
-			},
-			nocrt: true,
-		}
-	`
-	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
-	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
-
-	ctx := testCcWithConfig(t, config)
-
-	checkVndkModule(t, ctx, "libvndk_ext", "vndk", false, "libvndk", vendorVariant)
-	checkVndkModule(t, ctx, "libvndk_ext_product", "vndk", false, "libvndk", productVariant)
-
-	mod_vendor := ctx.ModuleForTests("libvndk2_ext", vendorVariant).Module().(*Module)
-	assertString(t, mod_vendor.outputFile.Path().Base(), "libvndk2-suffix.so")
-
-	mod_product := ctx.ModuleForTests("libvndk2_ext_product", productVariant).Module().(*Module)
-	assertString(t, mod_product.outputFile.Path().Base(), "libvndk2-suffix.so")
-}
-
-func TestVndkExtError(t *testing.T) {
-	t.Parallel()
-	// This test ensures an error is emitted in ill-formed vndk-ext definition.
-	testCcError(t, "must set `vendor: true` or `product_specific: true` to set `extends: \".*\"`", `
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_ext",
-			vndk: {
-				enabled: true,
-				extends: "libvndk",
-			},
-			nocrt: true,
-		}
-	`)
-
-	testCcError(t, "must set `extends: \"\\.\\.\\.\"` to vndk extension", `
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_ext",
-			vendor: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-	`)
-
-	testCcErrorProductVndk(t, "must set `extends: \"\\.\\.\\.\"` to vndk extension", `
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_ext_product",
-			product_specific: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-	`)
-
-	testCcErrorProductVndk(t, "must not set at the same time as `vndk: {extends: \"\\.\\.\\.\"}`", `
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_ext_product",
-			product_specific: true,
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk",
-			},
-			nocrt: true,
-		}
-	`)
-}
-
-func TestVndkExtInconsistentSupportSystemProcessError(t *testing.T) {
-	t.Parallel()
-	// This test ensures an error is emitted for inconsistent support_system_process.
-	testCcError(t, "module \".*\" with mismatched support_system_process", `
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_sp_ext",
-			vendor: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk",
-				support_system_process: true,
-			},
-			nocrt: true,
-		}
-	`)
-
-	testCcError(t, "module \".*\" with mismatched support_system_process", `
-		cc_library {
-			name: "libvndk_sp",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_ext",
-			vendor: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk_sp",
-			},
-			nocrt: true,
-		}
-	`)
-}
-
-func TestVndkExtVendorAvailableFalseError(t *testing.T) {
-	t.Parallel()
-	// This test ensures an error is emitted when a VNDK-Ext library extends a VNDK library
-	// with `private: true`.
-	testCcError(t, "`extends` refers module \".*\" which has `private: true`", `
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				private: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_ext",
-			vendor: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk",
-			},
-			nocrt: true,
-		}
-	`)
-
-	testCcErrorProductVndk(t, "`extends` refers module \".*\" which has `private: true`", `
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				private: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_ext_product",
-			product_specific: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk",
-			},
-			nocrt: true,
-		}
-	`)
-}
-
-func TestVendorModuleUseVndkExt(t *testing.T) {
-	t.Parallel()
-	// This test ensures a vendor module can depend on a VNDK-Ext library.
-	testCc(t, `
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_ext",
-			vendor: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk",
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_sp",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_sp_ext",
-			vendor: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk_sp",
-				support_system_process: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvendor",
-			vendor: true,
-			shared_libs: ["libvndk_ext", "libvndk_sp_ext"],
-			nocrt: true,
-		}
-	`)
-}
-
-func TestVndkExtUseVendorLib(t *testing.T) {
-	t.Parallel()
-	// This test ensures a VNDK-Ext library can depend on a vendor library.
-	testCc(t, `
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_ext",
-			vendor: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk",
-			},
-			shared_libs: ["libvendor"],
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvendor",
-			vendor: true,
-			nocrt: true,
-		}
-	`)
-
-	// This test ensures a VNDK-SP-Ext library can depend on a vendor library.
-	testCc(t, `
-		cc_library {
-			name: "libvndk_sp",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_sp_ext",
-			vendor: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk_sp",
-				support_system_process: true,
-			},
-			shared_libs: ["libvendor"],  // Cause an error
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvendor",
-			vendor: true,
-			nocrt: true,
-		}
-	`)
-}
-
-func TestProductVndkExtDependency(t *testing.T) {
-	t.Parallel()
-	bp := `
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_ext_product",
-			product_specific: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk",
-			},
-			shared_libs: ["libproduct_for_vndklibs"],
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_sp",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_sp_ext_product",
-			product_specific: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk_sp",
-				support_system_process: true,
-			},
-			shared_libs: ["libproduct_for_vndklibs"],
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libproduct",
-			product_specific: true,
-			shared_libs: ["libvndk_ext_product", "libvndk_sp_ext_product"],
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libproduct_for_vndklibs",
-			product_specific: true,
-			nocrt: true,
-		}
-	`
-	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
-	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
-
-	testCcWithConfig(t, config)
-}
-
-func TestVndkSpExtUseVndkError(t *testing.T) {
-	t.Parallel()
-	// This test ensures an error is emitted if a VNDK-SP-Ext library depends on a VNDK
-	// library.
-	testCcError(t, "module \".*\" variant \".*\": \\(.*\\) should not link to \".*\"", `
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_sp",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_sp_ext",
-			vendor: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk_sp",
-				support_system_process: true,
-			},
-			shared_libs: ["libvndk"],  // Cause an error
-			nocrt: true,
-		}
-	`)
-
-	// This test ensures an error is emitted if a VNDK-SP-Ext library depends on a VNDK-Ext
-	// library.
-	testCcError(t, "module \".*\" variant \".*\": \\(.*\\) should not link to \".*\"", `
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_ext",
-			vendor: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk",
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_sp",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_sp_ext",
-			vendor: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk_sp",
-				support_system_process: true,
-			},
-			shared_libs: ["libvndk_ext"],  // Cause an error
-			nocrt: true,
-		}
-	`)
-}
-
-func TestVndkUseVndkExtError(t *testing.T) {
-	t.Parallel()
-	// This test ensures an error is emitted if a VNDK/VNDK-SP library depends on a
-	// VNDK-Ext/VNDK-SP-Ext library.
-	testCcError(t, "dependency \".*\" of \".*\" missing variant", `
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_ext",
-			vendor: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk",
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk2",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			shared_libs: ["libvndk_ext"],
-			nocrt: true,
-		}
-	`)
-
-	testCcError(t, "module \".*\" variant \".*\": \\(.*\\) should not link to \".*\"", `
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_ext",
-			vendor: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk",
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk2",
-			vendor_available: true,
-			vndk: {
-				enabled: true,
-			},
-			target: {
-				vendor: {
-					shared_libs: ["libvndk_ext"],
-				},
-			},
-			nocrt: true,
-		}
-	`)
-
-	testCcError(t, "dependency \".*\" of \".*\" missing variant", `
-		cc_library {
-			name: "libvndk_sp",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_sp_ext",
-			vendor: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk_sp",
-				support_system_process: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_sp_2",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			},
-			shared_libs: ["libvndk_sp_ext"],
-			nocrt: true,
-		}
-	`)
-
-	testCcError(t, "module \".*\" variant \".*\": \\(.*\\) should not link to \".*\"", `
-		cc_library {
-			name: "libvndk_sp",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_sp_ext",
-			vendor: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk_sp",
-			},
-			nocrt: true,
-		}
-
-		cc_library {
-			name: "libvndk_sp2",
-			vendor_available: true,
-			vndk: {
-				enabled: true,
-			},
-			target: {
-				vendor: {
-					shared_libs: ["libvndk_sp_ext"],
-				},
-			},
-			nocrt: true,
-		}
-	`)
-}
-
-func TestEnforceProductVndkVersion(t *testing.T) {
-	t.Parallel()
-	bp := `
-		cc_library {
-			name: "libllndk",
-			llndk: {
-				symbol_file: "libllndk.map.txt",
-			}
-		}
-		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			nocrt: true,
-		}
-		cc_library {
-			name: "libvndk_sp",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			},
-			nocrt: true,
-		}
-		cc_library {
-			name: "libva",
-			vendor_available: true,
-			nocrt: true,
-		}
-		cc_library {
-			name: "libpa",
-			product_available: true,
-			nocrt: true,
-		}
-		cc_library {
-			name: "libboth_available",
-			vendor_available: true,
-			product_available: true,
-			nocrt: true,
-			srcs: ["foo.c"],
-			target: {
-				vendor: {
-					suffix: "-vendor",
-				},
-				product: {
-					suffix: "-product",
-				},
-			}
-		}
-		cc_library {
-			name: "libproduct_va",
-			product_specific: true,
-			vendor_available: true,
-			nocrt: true,
-		}
-		cc_library {
-			name: "libprod",
-			product_specific: true,
-			shared_libs: [
-				"libllndk",
-				"libvndk",
-				"libvndk_sp",
-				"libpa",
-				"libboth_available",
-				"libproduct_va",
-			],
-			nocrt: true,
-		}
-		cc_library {
-			name: "libvendor",
-			vendor: true,
-			shared_libs: [
-				"libllndk",
-				"libvndk",
-				"libvndk_sp",
-				"libva",
-				"libboth_available",
-				"libproduct_va",
-			],
-			nocrt: true,
-		}
-	`
-
-	ctx := prepareForCcTest.RunTestWithBp(t, bp).TestContext
-
-	checkVndkModule(t, ctx, "libvndk", "", false, "", productVariant)
-	checkVndkModule(t, ctx, "libvndk_sp", "", true, "", productVariant)
-
-	mod_vendor := ctx.ModuleForTests("libboth_available", vendorVariant).Module().(*Module)
-	assertString(t, mod_vendor.outputFile.Path().Base(), "libboth_available-vendor.so")
-
-	mod_product := ctx.ModuleForTests("libboth_available", productVariant).Module().(*Module)
-	assertString(t, mod_product.outputFile.Path().Base(), "libboth_available-product.so")
-
-	ensureStringContains := func(t *testing.T, str string, substr string) {
-		t.Helper()
-		if !strings.Contains(str, substr) {
-			t.Errorf("%q is not found in %v", substr, str)
-		}
-	}
-	ensureStringNotContains := func(t *testing.T, str string, substr string) {
-		t.Helper()
-		if strings.Contains(str, substr) {
-			t.Errorf("%q is found in %v", substr, str)
-		}
-	}
-
-	// _static variant is used since _shared reuses *.o from the static variant
-	vendor_static := ctx.ModuleForTests("libboth_available", strings.Replace(vendorVariant, "_shared", "_static", 1))
-	product_static := ctx.ModuleForTests("libboth_available", strings.Replace(productVariant, "_shared", "_static", 1))
-
-	vendor_cflags := vendor_static.Rule("cc").Args["cFlags"]
-	ensureStringContains(t, vendor_cflags, "-D__ANDROID_VNDK__")
-	ensureStringContains(t, vendor_cflags, "-D__ANDROID_VENDOR__")
-	ensureStringNotContains(t, vendor_cflags, "-D__ANDROID_PRODUCT__")
-	ensureStringContains(t, vendor_cflags, "-D__ANDROID_VENDOR_API__=202404")
-
-	product_cflags := product_static.Rule("cc").Args["cFlags"]
-	ensureStringContains(t, product_cflags, "-D__ANDROID_VNDK__")
-	ensureStringContains(t, product_cflags, "-D__ANDROID_PRODUCT__")
-	ensureStringNotContains(t, product_cflags, "-D__ANDROID_VENDOR__")
-	ensureStringNotContains(t, product_cflags, "-D__ANDROID_VENDOR_API__=202404")
-}
-
-func TestEnforceProductVndkVersionErrors(t *testing.T) {
-	t.Parallel()
-	testCcErrorProductVndk(t, "dependency \".*\" of \".*\" missing variant:\n.*image:product.29", `
-		cc_library {
-			name: "libprod",
-			product_specific: true,
-			shared_libs: [
-				"libvendor",
-			],
-			nocrt: true,
-		}
-		cc_library {
-			name: "libvendor",
-			vendor: true,
-			nocrt: true,
-		}
-	`)
-	testCcErrorProductVndk(t, "dependency \".*\" of \".*\" missing variant:\n.*image:product.29", `
-		cc_library {
-			name: "libprod",
-			product_specific: true,
-			shared_libs: [
-				"libsystem",
-			],
-			nocrt: true,
-		}
-		cc_library {
-			name: "libsystem",
-			nocrt: true,
-		}
-	`)
-	testCcErrorProductVndk(t, "dependency \".*\" of \".*\" missing variant:\n.*image:product.29", `
-		cc_library {
-			name: "libprod",
-			product_specific: true,
-			shared_libs: [
-				"libva",
-			],
-			nocrt: true,
-		}
-		cc_library {
-			name: "libva",
-			vendor_available: true,
-			nocrt: true,
-		}
-	`)
-	testCcErrorProductVndk(t, "non-VNDK module should not link to \".*\" which has `private: true`", `
-		cc_library {
-			name: "libprod",
-			product_specific: true,
-			shared_libs: [
-				"libvndk_private",
-			],
-			nocrt: true,
-		}
-		cc_library {
-			name: "libvndk_private",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				private: true,
-			},
-			nocrt: true,
-		}
-	`)
-	testCcErrorProductVndk(t, "dependency \".*\" of \".*\" missing variant:\n.*image:product.29", `
-		cc_library {
-			name: "libprod",
-			product_specific: true,
-			shared_libs: [
-				"libsystem_ext",
-			],
-			nocrt: true,
-		}
-		cc_library {
-			name: "libsystem_ext",
-			system_ext_specific: true,
-			nocrt: true,
-		}
-	`)
-	testCcErrorProductVndk(t, "dependency \".*\" of \".*\" missing variant:\n.*image:", `
-		cc_library {
-			name: "libsystem",
-			shared_libs: [
-				"libproduct_va",
-			],
-			nocrt: true,
-		}
-		cc_library {
-			name: "libproduct_va",
-			product_specific: true,
-			vendor_available: true,
-			nocrt: true,
-		}
-	`)
-}
-
 func TestMakeLinkType(t *testing.T) {
 	t.Parallel()
 	bp := `
 		cc_library {
-			name: "libvndk",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-		}
-		cc_library {
-			name: "libvndksp",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			},
-		}
-		cc_library {
-			name: "libvndkprivate",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				private: true,
-			},
-		}
-		cc_library {
 			name: "libvendor",
 			vendor: true,
-		}
-		cc_library {
-			name: "libvndkext",
-			vendor: true,
-			vndk: {
-				enabled: true,
-				extends: "libvndk",
-			},
 		}
 		vndk_prebuilt_shared {
 			name: "prevndk",
@@ -2307,39 +640,14 @@ func TestMakeLinkType(t *testing.T) {
 				private: true,
 			}
 		}
-
 		llndk_libraries_txt {
 			name: "llndk.libraries.txt",
-		}
-		vndkcore_libraries_txt {
-			name: "vndkcore.libraries.txt",
-		}
-		vndksp_libraries_txt {
-			name: "vndksp.libraries.txt",
-		}
-		vndkprivate_libraries_txt {
-			name: "vndkprivate.libraries.txt",
-		}
-		vndkcorevariant_libraries_txt {
-			name: "vndkcorevariant.libraries.txt",
-			insert_vndk_version: false,
 		}
 	`
 
 	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
-	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
 	// native:vndk
 	ctx := testCcWithConfig(t, config)
-
-	checkVndkLibrariesOutput(t, ctx, "vndkcore.libraries.txt",
-		[]string{"libvndk.so", "libvndkprivate.so"})
-	checkVndkLibrariesOutput(t, ctx, "vndksp.libraries.txt",
-		[]string{"libc++.so", "libvndksp.so"})
-	checkVndkLibrariesOutput(t, ctx, "llndk.libraries.txt",
-		[]string{"libc.so", "libdl.so", "libft2.so", "libllndk.so", "libllndkprivate.so", "libm.so"})
-	checkVndkLibrariesOutput(t, ctx, "vndkprivate.libraries.txt",
-		[]string{"libft2.so", "libllndkprivate.so", "libvndkprivate.so"})
 
 	vendorVariant27 := "android_vendor.27_arm64_armv8-a_shared"
 
@@ -2348,15 +656,9 @@ func TestMakeLinkType(t *testing.T) {
 		name     string
 		expected string
 	}{
-		{vendorVariant, "libvndk", "native:vndk"},
-		{vendorVariant, "libvndksp", "native:vndk"},
-		{vendorVariant, "libvndkprivate", "native:vndk_private"},
 		{vendorVariant, "libvendor", "native:vendor"},
-		{vendorVariant, "libvndkext", "native:vendor"},
 		{vendorVariant, "libllndk", "native:vndk"},
 		{vendorVariant27, "prevndk.vndk.27.arm.binder32", "native:vndk"},
-		{coreVariant, "libvndk", "native:platform"},
-		{coreVariant, "libvndkprivate", "native:platform"},
 		{coreVariant, "libllndk", "native:platform"},
 	}
 	for _, test := range tests {
@@ -2674,18 +976,18 @@ func TestLlndkLibrary(t *testing.T) {
 	`)
 	actual := result.ModuleVariantsForTests("libllndk")
 	for i := 0; i < len(actual); i++ {
-		if !strings.HasPrefix(actual[i], "android_vendor.29_") {
+		if !strings.HasPrefix(actual[i], "android_vendor_") {
 			actual = append(actual[:i], actual[i+1:]...)
 			i--
 		}
 	}
 	expected := []string{
-		"android_vendor.29_arm64_armv8-a_shared",
-		"android_vendor.29_arm_armv7-a-neon_shared",
+		"android_vendor_arm64_armv8-a_shared",
+		"android_vendor_arm_armv7-a-neon_shared",
 	}
 	android.AssertArrayString(t, "variants for llndk stubs", expected, actual)
 
-	params := result.ModuleForTests("libllndk", "android_vendor.29_arm_armv7-a-neon_shared").Description("generate stub")
+	params := result.ModuleForTests("libllndk", "android_vendor_arm_armv7-a-neon_shared").Description("generate stub")
 	android.AssertSame(t, "use Vendor API level for default stubs", "202404", params.Args["apiLevel"])
 
 	checkExportedIncludeDirs := func(module, variant string, expectedDirs ...string) {
@@ -2697,11 +999,11 @@ func TestLlndkLibrary(t *testing.T) {
 	}
 
 	checkExportedIncludeDirs("libllndk", "android_arm64_armv8-a_shared", "include")
-	checkExportedIncludeDirs("libllndk", "android_vendor.29_arm64_armv8-a_shared", "include")
+	checkExportedIncludeDirs("libllndk", "android_vendor_arm64_armv8-a_shared", "include")
 	checkExportedIncludeDirs("libllndk_with_external_headers", "android_arm64_armv8-a_shared", "include")
-	checkExportedIncludeDirs("libllndk_with_external_headers", "android_vendor.29_arm64_armv8-a_shared", "include_llndk")
+	checkExportedIncludeDirs("libllndk_with_external_headers", "android_vendor_arm64_armv8-a_shared", "include_llndk")
 	checkExportedIncludeDirs("libllndk_with_override_headers", "android_arm64_armv8-a_shared", "include")
-	checkExportedIncludeDirs("libllndk_with_override_headers", "android_vendor.29_arm64_armv8-a_shared", "include_llndk")
+	checkExportedIncludeDirs("libllndk_with_override_headers", "android_vendor_arm64_armv8-a_shared", "include_llndk")
 }
 
 func TestLlndkHeaders(t *testing.T) {
@@ -2733,7 +1035,7 @@ func TestLlndkHeaders(t *testing.T) {
 	`)
 
 	// _static variant is used since _shared reuses *.o from the static variant
-	cc := ctx.ModuleForTests("libvendor", "android_vendor.29_arm_armv7-a-neon_static").Rule("cc")
+	cc := ctx.ModuleForTests("libvendor", "android_vendor_arm_armv7-a-neon_static").Rule("cc")
 	cflags := cc.Args["cFlags"]
 	if !strings.Contains(cflags, "-Imy_include") {
 		t.Errorf("cflags for libvendor must contain -Imy_include, but was %#v.", cflags)
@@ -2855,7 +1157,7 @@ func TestRuntimeLibs(t *testing.T) {
 
 	// runtime_libs for vendor variants have '.vendor' suffixes if the modules have both core
 	// and vendor variants.
-	variant = "android_vendor.29_arm64_armv8-a_shared"
+	variant = "android_vendor_arm64_armv8-a_shared"
 
 	module = ctx.ModuleForTests("libvendor_available1", variant).Module().(*Module)
 	checkRuntimeLibs(t, []string{"liball_available.vendor"}, module)
@@ -2865,7 +1167,7 @@ func TestRuntimeLibs(t *testing.T) {
 
 	// runtime_libs for product variants have '.product' suffixes if the modules have both core
 	// and product variants.
-	variant = "android_product.29_arm64_armv8-a_shared"
+	variant = "android_product_arm64_armv8-a_shared"
 
 	module = ctx.ModuleForTests("libproduct_available1", variant).Module().(*Module)
 	checkRuntimeLibs(t, []string{"liball_available.product"}, module)
@@ -2882,7 +1184,7 @@ func TestExcludeRuntimeLibs(t *testing.T) {
 	module := ctx.ModuleForTests("libvendor_available2", variant).Module().(*Module)
 	checkRuntimeLibs(t, []string{"liball_available"}, module)
 
-	variant = "android_vendor.29_arm64_armv8-a_shared"
+	variant = "android_vendor_arm64_armv8-a_shared"
 	module = ctx.ModuleForTests("libvendor_available2", variant).Module().(*Module)
 	checkRuntimeLibs(t, nil, module)
 }
@@ -3065,9 +1367,6 @@ func TestDataLibsPrebuiltSharedTestLibrary(t *testing.T) {
  `
 
 	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
-	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
-	config.TestProductVariables.VndkUseCoreVariant = BoolPtr(true)
 
 	ctx := testCcWithConfig(t, config)
 	module := ctx.ModuleForTests("main_test", "android_arm_armv7-a-neon").Module()
@@ -4795,8 +3094,7 @@ func TestStrippedAllOutputFile(t *testing.T) {
 	}
 }
 
-// TODO(b/316829758) Remove this test and do not set VNDK version from other tests
-func TestImageVariantsWithoutVndk(t *testing.T) {
+func TestImageVariants(t *testing.T) {
 	t.Parallel()
 
 	bp := `
@@ -4815,7 +3113,7 @@ func TestImageVariantsWithoutVndk(t *testing.T) {
 	}
 	`
 
-	ctx := prepareForCcTestWithoutVndk.RunTestWithBp(t, bp)
+	ctx := prepareForCcTest.RunTestWithBp(t, bp)
 
 	hasDep := func(m android.Module, wantDep android.Module) bool {
 		t.Helper()
@@ -4843,7 +3141,7 @@ func TestImageVariantsWithoutVndk(t *testing.T) {
 	testDepWithVariant("product")
 }
 
-func TestVendorSdkVersionWithoutVndk(t *testing.T) {
+func TestVendorSdkVersion(t *testing.T) {
 	t.Parallel()
 
 	bp := `
@@ -4861,7 +3159,7 @@ func TestVendorSdkVersionWithoutVndk(t *testing.T) {
 		}
 	`
 
-	ctx := prepareForCcTestWithoutVndk.RunTestWithBp(t, bp)
+	ctx := prepareForCcTest.RunTestWithBp(t, bp)
 	testSdkVersionFlag := func(module, version string) {
 		flags := ctx.ModuleForTests(module, "android_vendor_arm64_armv8-a_static").Rule("cc").Args["cFlags"]
 		android.AssertStringDoesContain(t, "min sdk version", flags, "-target aarch64-linux-android"+version)
@@ -4871,7 +3169,7 @@ func TestVendorSdkVersionWithoutVndk(t *testing.T) {
 	testSdkVersionFlag("libbar", "29")
 
 	ctx = android.GroupFixturePreparers(
-		prepareForCcTestWithoutVndk,
+		prepareForCcTest,
 		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 			if variables.BuildFlags == nil {
 				variables.BuildFlags = make(map[string]string)

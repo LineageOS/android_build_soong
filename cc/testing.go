@@ -305,10 +305,7 @@ func commonDefaultModules() string {
 			recovery_available: true,
 			host_supported: true,
 			min_sdk_version: "29",
-			vndk: {
-				enabled: true,
-				support_system_process: true,
-			},
+			double_loadable: true,
 			apex_available: [
 				"//apex_available:platform",
 				"//apex_available:anyapex",
@@ -624,19 +621,6 @@ var PrepareForTestOnLinuxBionic = android.GroupFixturePreparers(
 	android.FixtureOverrideTextFile(linuxBionicDefaultsPath, withLinuxBionic()),
 )
 
-// This adds some additional modules and singletons which might negatively impact the performance
-// of tests so they are not included in the PrepareForIntegrationTestWithCc.
-var PrepareForTestWithCcIncludeVndk = android.GroupFixturePreparers(
-	PrepareForIntegrationTestWithCc,
-	android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
-		snapshot.VendorSnapshotImageSingleton.Init(ctx)
-		snapshot.RecoverySnapshotImageSingleton.Init(ctx)
-		RegisterVendorSnapshotModules(ctx)
-		RegisterRecoverySnapshotModules(ctx)
-		ctx.RegisterSingletonType("vndk-snapshot", VndkSnapshotSingleton)
-	}),
-)
-
 // PrepareForTestWithHostMusl sets the host configuration to musl libc instead of glibc.  It also disables the test
 // on mac, which doesn't support musl libc, and adds musl modules.
 var PrepareForTestWithHostMusl = android.GroupFixturePreparers(
@@ -722,7 +706,6 @@ func CreateTestContext(config android.Config) *android.TestContext {
 	snapshot.RecoverySnapshotImageSingleton.Init(ctx)
 	RegisterVendorSnapshotModules(ctx)
 	RegisterRecoverySnapshotModules(ctx)
-	ctx.RegisterSingletonType("vndk-snapshot", VndkSnapshotSingleton)
 	RegisterVndkLibraryTxtTypes(ctx)
 
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)

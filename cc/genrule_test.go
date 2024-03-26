@@ -200,7 +200,7 @@ func TestVendorProductVariantGenrule(t *testing.T) {
 	}
 	`
 	t.Helper()
-	ctx := PrepareForTestWithCcIncludeVndk.RunTestWithBp(t, bp)
+	ctx := PrepareForIntegrationTestWithCc.RunTestWithBp(t, bp)
 
 	variants := ctx.ModuleVariantsForTests("gen")
 	if !slices.Contains(variants, "android_vendor_arm64_armv8-a") {
