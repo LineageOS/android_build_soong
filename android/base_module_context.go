@@ -599,7 +599,14 @@ func (m *baseModuleContext) EvaluateConfiguration(ty parser.SelectType, conditio
 		}
 		return "", false
 	case parser.SelectTypeVariant:
-		m.ModuleErrorf("TODO(b/323382414): Variants are not yet supported in selects")
+		if condition == "arch" {
+			if !m.ArchReady() {
+				m.ModuleErrorf("A select on arch was attempted before the arch mutator ran")
+				return "", false
+			}
+			return m.Arch().ArchType.Name, true
+		}
+		m.ModuleErrorf("Unknown variant " + condition)
 		return "", false
 	default:
 		panic("Should be unreachable")
