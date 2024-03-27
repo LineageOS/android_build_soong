@@ -325,13 +325,6 @@ func canDumpAbi(config android.Config) bool {
 	if runtime.GOOS == "darwin" {
 		return false
 	}
-	// abidw doesn't currently handle top-byte-ignore correctly. Disable ABI
-	// dumping for those configs while we wait for a fix. We'll still have ABI
-	// checking coverage from non-hwasan builds.
-	// http://b/190554910
-	if android.InList("hwaddress", config.SanitizeDevice()) {
-		return false
-	}
 	// http://b/156513478
 	return config.ReleaseNdkAbiMonitored()
 }
