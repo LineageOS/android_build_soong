@@ -137,6 +137,12 @@ type Deps struct {
 	ExcludeLibsForApex []string
 	// List of libs that need to be excluded for non-APEX variant
 	ExcludeLibsForNonApex []string
+
+	// LLNDK headers for the ABI checker to check LLNDK implementation library.
+	// An LLNDK implementation is the core variant. LLNDK header libs are reexported by the vendor variant.
+	// The core variant cannot depend on the vendor variant because of the order of CreateVariations.
+	// Instead, the LLNDK implementation depends on the LLNDK header libs.
+	LlndkHeaderLibs []string
 }
 
 // PathDeps is a struct containing file paths to dependencies of a module.
@@ -192,6 +198,10 @@ type PathDeps struct {
 
 	// Paths to direct srcs and transitive include dirs from direct aidl_library deps
 	AidlLibraryInfos []aidl_library.AidlLibraryInfo
+
+	// LLNDK headers for the ABI checker to check LLNDK implementation library.
+	LlndkIncludeDirs       android.Paths
+	LlndkSystemIncludeDirs android.Paths
 }
 
 // LocalOrGlobalFlags contains flags that need to have values set globally by the build system or locally by the module
@@ -809,6 +819,7 @@ var (
 	JniFuzzLibTag         = dependencyTag{name: "jni_fuzz_lib_tag"}
 	FdoProfileTag         = dependencyTag{name: "fdo_profile"}
 	aidlLibraryTag        = dependencyTag{name: "aidl_library"}
+	llndkHeaderLibTag     = dependencyTag{name: "llndk_header_lib"}
 )
 
 func IsSharedDepTag(depTag blueprint.DependencyTag) bool {
@@ -2316,6 +2327,7 @@ func (c *Module) deps(ctx DepsContext) Deps {
 	deps.LateSharedLibs = android.LastUniqueStrings(deps.LateSharedLibs)
 	deps.HeaderLibs = android.LastUniqueStrings(deps.HeaderLibs)
 	deps.RuntimeLibs = android.LastUniqueStrings(deps.RuntimeLibs)
+	deps.LlndkHeaderLibs = android.LastUniqueStrings(deps.LlndkHeaderLibs)
 
 	for _, lib := range deps.ReexportSharedLibHeaders {
 		if !inList(lib, deps.SharedLibs) {
@@ -2625,6 +2637,15 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			c.ImageVariation(),
 			blueprint.Variation{Mutator: "link", Variation: "shared"},
 		), stubImplementation, c.BaseModuleName())
+	}
+
+	// If this module is an LLNDK implementation library, let it depend on LlndkHeaderLibs.
+	if c.ImageVariation().Variation == android.CoreVariation && c.Device() &&
+		c.Target().NativeBridge == android.NativeBridgeDisabled {
+		actx.AddVariationDependencies(
+			[]blueprint.Variation{{Mutator: "image", Variation: VendorVariation}},
+			llndkHeaderLibTag,
+			deps.LlndkHeaderLibs...)
 	}
 
 	for _, lib := range deps.WholeStaticLibs {
@@ -3185,6 +3206,12 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				reexportExporter(depExporterInfo)
 			}
 			return
+		}
+
+		if depTag == llndkHeaderLibTag {
+			depExporterInfo, _ := android.OtherModuleProvider(ctx, dep, FlagExporterInfoProvider)
+			depPaths.LlndkIncludeDirs = append(depPaths.LlndkIncludeDirs, depExporterInfo.IncludeDirs...)
+			depPaths.LlndkSystemIncludeDirs = append(depPaths.LlndkSystemIncludeDirs, depExporterInfo.SystemIncludeDirs...)
 		}
 
 		linkFile := ccDep.OutputFile()
