@@ -1161,11 +1161,17 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.rTxt = extractedAARDir.Join(ctx, "R.txt")
 	a.assetsPackage = android.PathForModuleOut(ctx, "assets.zip")
 	a.proguardFlags = extractedAARDir.Join(ctx, "proguard.txt")
+	transitiveProguardFlags, transitiveUnconditionalExportedFlags := collectDepProguardSpecInfo(ctx)
 	android.SetProvider(ctx, ProguardSpecInfoProvider, ProguardSpecInfo{
 		ProguardFlagsFiles: android.NewDepSet[android.Path](
 			android.POSTORDER,
 			android.Paths{a.proguardFlags},
+			transitiveProguardFlags,
+		),
+		UnconditionallyExportedProguardFlags: android.NewDepSet[android.Path](
+			android.POSTORDER,
 			nil,
+			transitiveUnconditionalExportedFlags,
 		),
 	})
 

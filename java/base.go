@@ -1757,10 +1757,7 @@ func (j *Module) useCompose() bool {
 	return android.InList("androidx.compose.runtime_runtime", j.properties.Static_libs)
 }
 
-func (j *Module) collectProguardSpecInfo(ctx android.ModuleContext) ProguardSpecInfo {
-	transitiveUnconditionalExportedFlags := []*android.DepSet[android.Path]{}
-	transitiveProguardFlags := []*android.DepSet[android.Path]{}
-
+func collectDepProguardSpecInfo(ctx android.ModuleContext) (transitiveProguardFlags, transitiveUnconditionalExportedFlags []*android.DepSet[android.Path]) {
 	ctx.VisitDirectDeps(func(m android.Module) {
 		depProguardInfo, _ := android.OtherModuleProvider(ctx, m, ProguardSpecInfoProvider)
 		depTag := ctx.OtherModuleDependencyTag(m)
@@ -1774,6 +1771,12 @@ func (j *Module) collectProguardSpecInfo(ctx android.ModuleContext) ProguardSpec
 			transitiveProguardFlags = append(transitiveProguardFlags, depProguardInfo.ProguardFlagsFiles)
 		}
 	})
+
+	return transitiveProguardFlags, transitiveUnconditionalExportedFlags
+}
+
+func (j *Module) collectProguardSpecInfo(ctx android.ModuleContext) ProguardSpecInfo {
+	transitiveProguardFlags, transitiveUnconditionalExportedFlags := collectDepProguardSpecInfo(ctx)
 
 	directUnconditionalExportedFlags := android.Paths{}
 	proguardFlagsForThisModule := android.PathsForModuleSrc(ctx, j.dexProperties.Optimize.Proguard_flags_files)
