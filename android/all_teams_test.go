@@ -24,9 +24,8 @@ import (
 func TestAllTeams(t *testing.T) {
 	t.Parallel()
 	ctx := GroupFixturePreparers(
-		PrepareForTestWithTeamBuildComponents,
+		prepareForTestWithTeamAndFakes,
 		FixtureRegisterWithContext(func(ctx RegistrationContext) {
-			ctx.RegisterModuleType("fake", fakeModuleFactory)
 			ctx.RegisterParallelSingletonType("all_teams", AllTeamsFactory)
 		}),
 	).RunTestWithBp(t, `
@@ -51,6 +50,12 @@ func TestAllTeams(t *testing.T) {
 
 		fake {
 			name: "noteam",
+                        test_only: true,
+		}
+		fake {
+			name: "test-and-team-and-top",
+                        test_only: true,
+                        team: "team2",
 		}
 	`)
 
@@ -59,16 +64,31 @@ func TestAllTeams(t *testing.T) {
 
 	// map of module name -> trendy team name.
 	actualTeams := make(map[string]*string)
+	actualTests := []string{}
+	actualTopLevelTests := []string{}
+
 	for _, teamProto := range teams.Teams {
 		actualTeams[teamProto.GetTargetName()] = teamProto.TrendyTeamId
+		if teamProto.GetTestOnly() {
+			actualTests = append(actualTests, teamProto.GetTargetName())
+		}
+		if teamProto.GetTopLevelTarget() {
+			actualTopLevelTests = append(actualTopLevelTests, teamProto.GetTargetName())
+		}
 	}
 	expectedTeams := map[string]*string{
-		"main_test": proto.String("cool_team"),
-		"tool":      proto.String("22222"),
-		"noteam":    nil,
+		"main_test":             proto.String("cool_team"),
+		"tool":                  proto.String("22222"),
+		"test-and-team-and-top": proto.String("22222"),
+		"noteam":                nil,
 	}
 
+	expectedTests := []string{
+		"noteam",
+		"test-and-team-and-top",
+	}
 	AssertDeepEquals(t, "compare maps", expectedTeams, actualTeams)
+	AssertDeepEquals(t, "test matchup", expectedTests, actualTests)
 }
 
 func getTeamProtoOutput(t *testing.T, ctx *TestResult) *team_proto.AllTeams {
@@ -171,10 +191,9 @@ func TestPackageLookup(t *testing.T) {
 		} `
 
 	ctx := GroupFixturePreparers(
-		PrepareForTestWithTeamBuildComponents,
+		prepareForTestWithTeamAndFakes,
 		PrepareForTestWithPackageModule,
 		FixtureRegisterWithContext(func(ctx RegistrationContext) {
-			ctx.RegisterModuleType("fake", fakeModuleFactory)
 			ctx.RegisterParallelSingletonType("all_teams", AllTeamsFactory)
 		}),
 		FixtureAddTextFile("Android.bp", rootBp),
@@ -205,4 +224,34 @@ func TestPackageLookup(t *testing.T) {
 		"module_dir123":      nil,
 	}
 	AssertDeepEquals(t, "compare maps", expectedTeams, actualTeams)
+}
+
+type fakeForTests struct {
+	ModuleBase
+
+	sourceProperties SourceProperties
+}
+
+func fakeFactory() Module {
+	module := &fakeForTests{}
+	module.AddProperties(&module.sourceProperties)
+	InitAndroidModule(module)
+
+	return module
+}
+
+var prepareForTestWithTeamAndFakes = GroupFixturePreparers(
+	FixtureRegisterWithContext(RegisterTeamBuildComponents),
+	FixtureRegisterWithContext(func(ctx RegistrationContext) {
+		ctx.RegisterModuleType("fake", fakeFactory)
+	}),
+)
+
+func (f *fakeForTests) GenerateAndroidBuildActions(ctx ModuleContext) {
+	if Bool(f.sourceProperties.Test_only) {
+		SetProvider(ctx, TestOnlyProviderKey, TestModuleInformation{
+			TestOnly:       Bool(f.sourceProperties.Test_only),
+			TopLevelTarget: false,
+		})
+	}
 }
