@@ -3625,7 +3625,10 @@ func TestExportedProguardFlagFiles(t *testing.T) {
 		android_app {
 			name: "foo",
 			sdk_version: "current",
-			static_libs: ["lib1"],
+			static_libs: [
+				"lib1",
+				"lib3",
+			],
 		}
 
 		android_library {
@@ -3633,22 +3636,49 @@ func TestExportedProguardFlagFiles(t *testing.T) {
 			sdk_version: "current",
 			optimize: {
 				proguard_flags_files: ["lib1proguard.cfg"],
+			},
+			static_libs: ["lib2"],
+		}
+
+		android_library {
+			name: "lib2",
+			sdk_version: "current",
+			optimize: {
+				proguard_flags_files: ["lib2proguard.cfg"],
 			}
 		}
+
+		android_library_import {
+			name: "lib3",
+			sdk_version: "current",
+			aars: ["lib3.aar"],
+			static_libs: ["lib4"],
+		}
+
+		android_library {
+			name: "lib4",
+			sdk_version: "current",
+			optimize: {
+				proguard_flags_files: ["lib4proguard.cfg"],
+			}
+		}
+
+
 	`)
 
 	m := ctx.ModuleForTests("foo", "android_common")
-	hasLib1Proguard := false
-	for _, s := range m.Rule("java.r8").Implicits.Strings() {
-		if s == "lib1proguard.cfg" {
-			hasLib1Proguard = true
-			break
-		}
-	}
+	r8 := m.Rule("java.r8")
+	implicits := r8.Implicits.RelativeToTop().Strings()
+	android.AssertStringListContains(t, "r8 implicits", implicits, "lib1proguard.cfg")
+	android.AssertStringListContains(t, "r8 implicits", implicits, "lib2proguard.cfg")
+	android.AssertStringListContains(t, "r8 implicits", implicits, "lib4proguard.cfg")
+	android.AssertStringListContains(t, "r8 implicits", implicits, "out/soong/.intermediates/lib3/android_common/aar/proguard.txt")
 
-	if !hasLib1Proguard {
-		t.Errorf("App does not use library proguard config")
-	}
+	flags := r8.Args["r8Flags"]
+	android.AssertStringDoesContain(t, "r8 flags", flags, "-include lib1proguard.cfg")
+	android.AssertStringDoesContain(t, "r8 flags", flags, "-include lib2proguard.cfg")
+	android.AssertStringDoesContain(t, "r8 flags", flags, "-include lib4proguard.cfg")
+	android.AssertStringDoesContain(t, "r8 flags", flags, "-include out/soong/.intermediates/lib3/android_common/aar/proguard.txt")
 }
 
 func TestTargetSdkVersionManifestFixer(t *testing.T) {

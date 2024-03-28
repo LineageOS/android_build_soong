@@ -164,7 +164,9 @@ func propagateRROEnforcementMutator(ctx android.TopDownMutatorContext) {
 }
 
 func (a *aapt) useResourceProcessorBusyBox(ctx android.BaseModuleContext) bool {
-	return BoolDefault(a.aaptProperties.Use_resource_processor, ctx.Config().UseResourceProcessorByDefault())
+	return BoolDefault(a.aaptProperties.Use_resource_processor, ctx.Config().UseResourceProcessorByDefault()) &&
+		// TODO(b/331641946): remove this when ResourceProcessorBusyBox supports generating shared libraries.
+		!slices.Contains(a.aaptProperties.Aaptflags, "--shared-lib")
 }
 
 func (a *aapt) filterProduct() string {
@@ -1159,11 +1161,17 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.rTxt = extractedAARDir.Join(ctx, "R.txt")
 	a.assetsPackage = android.PathForModuleOut(ctx, "assets.zip")
 	a.proguardFlags = extractedAARDir.Join(ctx, "proguard.txt")
+	transitiveProguardFlags, transitiveUnconditionalExportedFlags := collectDepProguardSpecInfo(ctx)
 	android.SetProvider(ctx, ProguardSpecInfoProvider, ProguardSpecInfo{
 		ProguardFlagsFiles: android.NewDepSet[android.Path](
 			android.POSTORDER,
 			android.Paths{a.proguardFlags},
+			transitiveProguardFlags,
+		),
+		UnconditionallyExportedProguardFlags: android.NewDepSet[android.Path](
+			android.POSTORDER,
 			nil,
+			transitiveUnconditionalExportedFlags,
 		),
 	})
 
