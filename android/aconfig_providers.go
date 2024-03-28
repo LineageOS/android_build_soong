@@ -105,7 +105,8 @@ func CollectDependencyAconfigFiles(ctx ModuleContext, mergedAconfigFiles *map[st
 		}
 	})
 
-	for container, aconfigFiles := range *mergedAconfigFiles {
+	for _, container := range SortedKeys(*mergedAconfigFiles) {
+		aconfigFiles := (*mergedAconfigFiles)[container]
 		(*mergedAconfigFiles)[container] = mergeAconfigFiles(ctx, container, aconfigFiles, false)
 	}
 
@@ -172,7 +173,8 @@ func aconfigUpdateAndroidBuildActions(ctx ModuleContext) {
 	})
 	// We only need to set the provider if we have aconfig files.
 	if len(mergedAconfigFiles) > 0 {
-		for container, aconfigFiles := range mergedAconfigFiles {
+		for _, container := range SortedKeys(mergedAconfigFiles) {
+			aconfigFiles := mergedAconfigFiles[container]
 			mergedAconfigFiles[container] = mergeAconfigFiles(ctx, container, aconfigFiles, true)
 		}
 
