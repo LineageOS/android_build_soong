@@ -54,9 +54,6 @@ type LTOProperties struct {
 
 	// Use -fwhole-program-vtables cflag.
 	Whole_program_vtables *bool
-
-	// Use --lto-O0 flag.
-	Lto_O0 *bool
 }
 
 type lto struct {
@@ -113,8 +110,12 @@ func (lto *lto) flags(ctx ModuleContext, flags Flags) Flags {
 		ltoCFlags := []string{"-flto=thin", "-fsplit-lto-unit"}
 		var ltoLdFlags []string
 
-		// Do not perform costly LTO optimizations for Eng builds.
-		if Bool(lto.Properties.Lto_O0) || ctx.Config().Eng() {
+		// The module did not explicitly turn on LTO. Only leverage LTO's
+		// better dead code elimination and CFG simplification, but do
+		// not perform costly optimizations for a balance between compile
+		// time, binary size and performance.
+		// Apply the same for Eng builds as well.
+		if !lto.ThinLTO() || ctx.Config().Eng() {
 			ltoLdFlags = append(ltoLdFlags, "-Wl,--lto-O0")
 		}
 
