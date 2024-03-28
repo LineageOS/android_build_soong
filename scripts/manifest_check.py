@@ -52,6 +52,14 @@ def parse_args():
         'required:false'
     )
     parser.add_argument(
+        '--missing-optional-uses-library',
+        dest='missing_optional_uses_libraries',
+        action='append',
+        help='specify uses-library entries missing from the build system with '
+        'required:false',
+        default=[]
+    )
+    parser.add_argument(
         '--enforce-uses-libraries',
         dest='enforce_uses_libraries',
         action='store_true',
@@ -91,7 +99,7 @@ C_OFF = "\033[0m"
 C_BOLD = "\033[1m"
 
 
-def enforce_uses_libraries(manifest, required, optional, relax, is_apk, path):
+def enforce_uses_libraries(manifest, required, optional, missing_optional, relax, is_apk, path):
     """Verify that the <uses-library> tags in the manifest match those provided
 
   by the build system.
@@ -119,7 +127,12 @@ def enforce_uses_libraries(manifest, required, optional, relax, is_apk, path):
     required = trim_namespace_parts(required)
     optional = trim_namespace_parts(optional)
 
-    if manifest_required == required and manifest_optional == optional:
+    existing_manifest_optional = [
+        lib for lib in manifest_optional if lib not in missing_optional]
+
+    # The order of the existing libraries matter, while the order of the missing
+    # ones doesn't.
+    if manifest_required == required and existing_manifest_optional == optional:
         return None
 
     #pylint: disable=line-too-long
@@ -129,6 +142,7 @@ def enforce_uses_libraries(manifest, required, optional, relax, is_apk, path):
         '\t- required libraries in build system: %s[%s]%s\n' % (C_RED, ', '.join(required), C_OFF),
         '\t                 vs. in the manifest: %s[%s]%s\n' % (C_RED, ', '.join(manifest_required), C_OFF),
         '\t- optional libraries in build system: %s[%s]%s\n' % (C_RED, ', '.join(optional), C_OFF),
+        '\t    and missing ones in build system: %s[%s]%s\n' % (C_RED, ', '.join(missing_optional), C_OFF),
         '\t                 vs. in the manifest: %s[%s]%s\n' % (C_RED, ', '.join(manifest_optional), C_OFF),
         '\t- tags in the manifest (%s):\n' % path,
         '\t\t%s\n' % '\t\t'.join(tags),
@@ -340,11 +354,14 @@ def main():
 
         if args.enforce_uses_libraries:
             # Load dexpreopt.config files and build a mapping from module
-            # names to library names. This is necessary because build system
-            # addresses libraries by their module name (`uses_libs`,
-            # `optional_uses_libs`, `LOCAL_USES_LIBRARIES`,
-            # `LOCAL_OPTIONAL_LIBRARY_NAMES` all contain module names), while
-            # the manifest addresses libraries by their name.
+            # names to library names. This is for Make only and it's necessary
+            # because Make passes module names from `LOCAL_USES_LIBRARIES`,
+            # `LOCAL_OPTIONAL_LIBRARY_NAMES`, while the manifest addresses
+            # libraries by their name. Soong doesn't use it and doesn't need it
+            # because it converts the module names to the library names and
+            # passes the library names. There is no need to translate missing
+            # optional libs because they are missing and therefore there is no
+            # mapping for them.
             mod_to_lib = load_dexpreopt_configs(args.dexpreopt_configs)
             required = translate_libnames(args.uses_libraries, mod_to_lib)
             optional = translate_libnames(args.optional_uses_libraries,
@@ -354,8 +371,8 @@ def main():
             # those in the manifest. Raise an exception on mismatch, unless the
             # script was passed a special parameter to suppress exceptions.
             errmsg = enforce_uses_libraries(manifest, required, optional,
-                                            args.enforce_uses_libraries_relax,
-                                            is_apk, args.input)
+                args.missing_optional_uses_libraries,
+                args.enforce_uses_libraries_relax, is_apk, args.input)
 
             # Create a status file that is empty on success, or contains an
             # error message on failure. When exceptions are suppressed,
