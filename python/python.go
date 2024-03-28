@@ -545,7 +545,6 @@ func (p *PythonLibraryModule) createSrcsZip(ctx android.ModuleContext, pkgPath s
 			var stagedProtoSrcs android.Paths
 			for _, srcFile := range protoSrcs {
 				stagedProtoSrc := pkgPathStagingDir.Join(ctx, pkgPath, srcFile.Rel())
-				rule.Command().Text("mkdir -p").Flag(filepath.Base(stagedProtoSrc.String()))
 				rule.Command().Text("cp -f").Input(srcFile).Output(stagedProtoSrc)
 				stagedProtoSrcs = append(stagedProtoSrcs, stagedProtoSrc)
 			}
