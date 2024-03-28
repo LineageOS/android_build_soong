@@ -3175,6 +3175,22 @@ func addCLCFromDep(ctx android.ModuleContext, depModule android.Module,
 	}
 }
 
+func addMissingOptionalUsesLibsFromDep(ctx android.ModuleContext, depModule android.Module,
+	usesLibrary *usesLibrary) {
+
+	dep, ok := depModule.(ModuleWithUsesLibrary)
+	if !ok {
+		return
+	}
+
+	for _, lib := range dep.UsesLibrary().usesLibraryProperties.Missing_optional_uses_libs {
+		if !android.InList(lib, usesLibrary.usesLibraryProperties.Missing_optional_uses_libs) {
+			usesLibrary.usesLibraryProperties.Missing_optional_uses_libs =
+				append(usesLibrary.usesLibraryProperties.Missing_optional_uses_libs, lib)
+		}
+	}
+}
+
 type JavaApiContributionImport struct {
 	JavaApiContribution
 
