@@ -31,7 +31,6 @@ func init() {
 
 var sdkFrameworkAidlPathKey = android.NewOnceKey("sdkFrameworkAidlPathKey")
 var nonUpdatableFrameworkAidlPathKey = android.NewOnceKey("nonUpdatableFrameworkAidlPathKey")
-var apiFingerprintPathKey = android.NewOnceKey("apiFingerprintPathKey")
 
 func UseApiFingerprint(ctx android.BaseModuleContext) (useApiFingerprint bool, fingerprintSdkVersion string, fingerprintDeps android.OutputPath) {
 	if ctx.Config().UnbundledBuild() && !ctx.Config().AlwaysUsePrebuiltSdks() {
@@ -45,8 +44,8 @@ func UseApiFingerprint(ctx android.BaseModuleContext) (useApiFingerprint bool, f
 
 		useApiFingerprint = apiFingerprintTrue || dessertShaIsSet
 		if apiFingerprintTrue {
-			fingerprintSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", ApiFingerprintPath(ctx).String())
-			fingerprintDeps = ApiFingerprintPath(ctx)
+			fingerprintSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", android.ApiFingerprintPath(ctx).String())
+			fingerprintDeps = android.ApiFingerprintPath(ctx)
 		}
 		if dessertShaIsSet {
 			fingerprintSdkVersion = ctx.Config().Getenv("UNBUNDLED_BUILD_TARGET_SDK_WITH_DESSERT_SHA")
@@ -337,7 +336,7 @@ func nonUpdatableFrameworkAidlPath(ctx android.PathContext) android.OutputPath {
 
 // Create api_fingerprint.txt
 func createAPIFingerprint(ctx android.SingletonContext) {
-	out := ApiFingerprintPath(ctx)
+	out := android.ApiFingerprintPath(ctx)
 
 	rule := android.NewRuleBuilder(pctx, ctx)
 
@@ -378,17 +377,11 @@ func createAPIFingerprint(ctx android.SingletonContext) {
 	rule.Build("api_fingerprint", "generate api_fingerprint.txt")
 }
 
-func ApiFingerprintPath(ctx android.PathContext) android.OutputPath {
-	return ctx.Config().Once(apiFingerprintPathKey, func() interface{} {
-		return android.PathForOutput(ctx, "api_fingerprint.txt")
-	}).(android.OutputPath)
-}
-
 func sdkMakeVars(ctx android.MakeVarsContext) {
 	if ctx.Config().AlwaysUsePrebuiltSdks() {
 		return
 	}
 
 	ctx.Strict("FRAMEWORK_AIDL", sdkFrameworkAidlPath(ctx).String())
-	ctx.Strict("API_FINGERPRINT", ApiFingerprintPath(ctx).String())
+	ctx.Strict("API_FINGERPRINT", android.ApiFingerprintPath(ctx).String())
 }
