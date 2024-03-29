@@ -62,6 +62,7 @@ func (mod *Module) AndroidMkEntries() []android.AndroidMkEntries {
 				entries.AddStrings("LOCAL_PROC_MACRO_LIBRARIES", mod.Properties.AndroidMkProcMacroLibs...)
 				entries.AddStrings("LOCAL_SHARED_LIBRARIES", mod.transitiveAndroidMkSharedLibs.ToList()...)
 				entries.AddStrings("LOCAL_STATIC_LIBRARIES", mod.Properties.AndroidMkStaticLibs...)
+				entries.AddStrings("LOCAL_HEADER_LIBRARIES", mod.Properties.AndroidMkHeaderLibs...)
 				entries.AddStrings("LOCAL_SOONG_LINK_TYPE", mod.makeLinkType)
 				if mod.InVendor() {
 					entries.SetBool("LOCAL_IN_VENDOR", true)
