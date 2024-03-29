@@ -32,7 +32,7 @@ var (
 				"-C linker=${config.RustLinker} " +
 				"-C link-args=\"${crtBegin} ${earlyLinkFlags} ${linkFlags} ${crtEnd}\" " +
 				"--emit link -o $out --emit dep-info=$out.d.raw $in ${libFlags} $rustcFlags" +
-				" && grep \"^$out:\" $out.d.raw > $out.d",
+				" && grep ^$out: $out.d.raw > $out.d",
 			CommandDeps: []string{"$rustcCmd"},
 			// Rustc deps-info writes out make compatible dep files: https://github.com/rust-lang/rust/issues/7633
 			// Rustc emits unneeded dependency lines for the .d and input .rs files.
