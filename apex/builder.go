@@ -485,7 +485,7 @@ func markManifestTestOnly(ctx android.ModuleContext, androidManifestFile android
 }
 
 func isVintfFragment(fi apexFile) bool {
-	isVintfFragment, _ := path.Match("etc/vintf/*.xml", fi.path())
+	isVintfFragment, _ := path.Match("etc/vintf/*", fi.path())
 	return isVintfFragment
 }
 
