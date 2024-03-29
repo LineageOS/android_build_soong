@@ -47,7 +47,7 @@ var PrepareForIntegrationTestWithRust = android.GroupFixturePreparers(
 
 var PrepareForTestWithRustIncludeVndk = android.GroupFixturePreparers(
 	PrepareForIntegrationTestWithRust,
-	cc.PrepareForTestWithCcIncludeVndk,
+	cc.PrepareForIntegrationTestWithCc,
 )
 
 func GatherRequiredDepsForTest() string {

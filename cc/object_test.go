@@ -41,7 +41,7 @@ func TestMinSdkVersionsOfCrtObjects(t *testing.T) {
 		{"android_arm64_armv8-a_sdk_29", "29"},
 		{"android_arm64_armv8-a_sdk_30", "30"},
 		{"android_arm64_armv8-a_sdk_current", "10000"},
-		{"android_vendor.29_arm64_armv8-a", "29"},
+		{"android_vendor_arm64_armv8-a", "10000"},
 	}
 
 	ctx := prepareForCcTest.RunTestWithBp(t, bp)
@@ -50,7 +50,7 @@ func TestMinSdkVersionsOfCrtObjects(t *testing.T) {
 		expected := "-target aarch64-linux-android" + v.num + " "
 		android.AssertStringDoesContain(t, "cflag", cflags, expected)
 	}
-	ctx = prepareForCcTestWithoutVndk.RunTestWithBp(t, bp)
+	ctx = prepareForCcTest.RunTestWithBp(t, bp)
 	android.AssertStringDoesContain(t, "cflag",
 		ctx.ModuleForTests("crt_foo", "android_vendor_arm64_armv8-a").Rule("cc").Args["cFlags"],
 		"-target aarch64-linux-android10000 ")

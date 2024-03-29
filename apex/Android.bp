@@ -40,7 +40,6 @@ bootstrap_go_package {
         "dexpreopt_bootjars_test.go",
         "platform_bootclasspath_test.go",
         "systemserver_classpath_fragment_test.go",
-        "vndk_test.go",
     ],
     pluginFor: ["soong_build"],
 }
