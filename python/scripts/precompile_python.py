@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import print_function
 import argparse
 import py_compile
 import os
@@ -63,11 +64,23 @@ def main():
     parser.add_argument('dst_zip')
     args = parser.parse_args()
 
+    errors = []
     with open(args.dst_zip, 'wb') as outf, open(args.src_zip, 'rb') as inf:
         with zipfile.ZipFile(outf, mode='w') as outzip, zipfile.ZipFile(inf, mode='r') as inzip:
             for name in inzip.namelist():
                 with inzip.open(name, mode='r') as inzipf:
-                    process_one_file(name, inzipf, outzip)
+                    try:
+                        process_one_file(name, inzipf, outzip)
+                    except py_compile.PyCompileError as e:
+                        errors.append(e)
+
+    if errors:
+        for i, error in enumerate(errors):
+            # Print an empty line in between each error
+            if i > 0:
+                print(file=sys.stderr)
+            print(str(error).strip(), file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
