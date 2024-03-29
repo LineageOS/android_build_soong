@@ -62,7 +62,6 @@ bootstrap_go_package {
         "sanitize_test.go",
         "source_provider_test.go",
         "test_test.go",
-        "vendor_snapshot_test.go",
     ],
     pluginFor: ["soong_build"],
 }
