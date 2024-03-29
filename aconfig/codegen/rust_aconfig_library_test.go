@@ -28,6 +28,11 @@ func TestRustAconfigLibrary(t *testing.T) {
 				crate_name: "lazy_static",
 				srcs: ["src/lib.rs"],
 			}
+			rust_library {
+				name: "libaconfig_storage_read_api", // test mock
+				crate_name: "aconfig_storage_read_api",
+				srcs: ["lib.rs"],
+                        }
 			aconfig_declarations {
 				name: "my_aconfig_declarations",
 				package: "com.example.package",
@@ -98,6 +103,11 @@ func testRustCodegenModeHelper(t *testing.T, bpMode string, ruleMode string) {
 				crate_name: "lazy_static",
 				srcs: ["src/lib.rs"],
 			}
+			rust_library {
+				name: "libaconfig_storage_read_api", // test mock
+				crate_name: "aconfig_storage_read_api",
+				srcs: ["lib.rs"],
+                        }
 			aconfig_declarations {
 				name: "my_aconfig_declarations",
 				package: "com.example.package",
@@ -145,6 +155,11 @@ func testIncorrectRustCodegenModeHelper(t *testing.T, bpMode string, err string)
 				crate_name: "lazy_static",
 				srcs: ["src/lib.rs"],
 			}
+			rust_library {
+				name: "libaconfig_storage_read_api", // test mock
+				crate_name: "aconfig_storage_read_api",
+				srcs: ["lib.rs"],
+                        }
 			aconfig_declarations {
 				name: "my_aconfig_declarations",
 				package: "com.example.package",

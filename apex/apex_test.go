@@ -11304,6 +11304,15 @@ func TestAconfigFilesRustDeps(t *testing.T) {
 			],
 		}
 
+		rust_library {
+			name: "libaconfig_storage_read_api", // test mock
+			crate_name: "aconfig_storage_read_api",
+			srcs: ["src/lib.rs"],
+			apex_available: [
+				"myapex",
+			],
+		}
+
 		rust_ffi_shared {
 			name: "libmy_rust_library",
 			srcs: ["src/lib.rs"],
@@ -11388,14 +11397,14 @@ func TestAconfigFilesRustDeps(t *testing.T) {
 	mod := ctx.ModuleForTests("myapex", "android_common_myapex")
 	s := mod.Rule("apexRule").Args["copy_commands"]
 	copyCmds := regexp.MustCompile(" *&& *").Split(s, -1)
-	if len(copyCmds) != 26 {
-		t.Fatalf("Expected 26 commands, got %d in:\n%s", len(copyCmds), s)
+	if len(copyCmds) != 28 {
+		t.Fatalf("Expected 28 commands, got %d in:\n%s", len(copyCmds), s)
 	}
 
-	ensureMatches(t, copyCmds[22], "^cp -f .*/aconfig_flags.pb .*/image.apex/etc$")
-	ensureMatches(t, copyCmds[23], "^cp -f .*/package.map .*/image.apex/etc$")
-	ensureMatches(t, copyCmds[24], "^cp -f .*/flag.map .*/image.apex/etc$")
-	ensureMatches(t, copyCmds[25], "^cp -f .*/flag.val .*/image.apex/etc$")
+	ensureMatches(t, copyCmds[24], "^cp -f .*/aconfig_flags.pb .*/image.apex/etc$")
+	ensureMatches(t, copyCmds[25], "^cp -f .*/package.map .*/image.apex/etc$")
+	ensureMatches(t, copyCmds[26], "^cp -f .*/flag.map .*/image.apex/etc$")
+	ensureMatches(t, copyCmds[27], "^cp -f .*/flag.val .*/image.apex/etc$")
 
 	inputs := []string{
 		"my_aconfig_declarations_foo/intermediate.pb",
