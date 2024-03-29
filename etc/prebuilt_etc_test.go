@@ -287,6 +287,20 @@ func TestPrebuiltUserShareHostInstallDirPath(t *testing.T) {
 	android.AssertPathRelativeToTopEquals(t, "install dir", expected, p.installDirPath)
 }
 
+func TestPrebuiltPrebuiltUserHyphenDataInstallDirPath(t *testing.T) {
+	result := prepareForPrebuiltEtcTest.RunTestWithBp(t, `
+	prebuilt_usr_hyphendata {
+			name: "foo.conf",
+			src: "foo.conf",
+			sub_dir: "bar",
+		}
+	`)
+
+	p := result.Module("foo.conf", "android_arm64_armv8-a").(*PrebuiltEtc)
+	expected := "out/soong/target/product/test_device/system/usr/hyphen-data/bar"
+	android.AssertPathRelativeToTopEquals(t, "install dir", expected, p.installDirPath)
+}
+
 func TestPrebuiltFontInstallDirPath(t *testing.T) {
 	result := prepareForPrebuiltEtcTest.RunTestWithBp(t, `
 		prebuilt_font {
