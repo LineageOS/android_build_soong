@@ -65,8 +65,8 @@ func TestVendorPublicLibraries(t *testing.T) {
 	`)
 
 	coreVariant := "android_arm64_armv8-a_shared"
-	vendorVariant := "android_vendor.29_arm64_armv8-a_shared"
-	productVariant := "android_product.29_arm64_armv8-a_shared"
+	vendorVariant := "android_vendor_arm64_armv8-a_shared"
+	productVariant := "android_product_arm64_armv8-a_shared"
 
 	// test if header search paths are correctly added
 	// _static variant is used since _shared reuses *.o from the static variant

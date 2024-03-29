@@ -496,11 +496,10 @@ func (v *CcApiVariant) DebugRamdiskVariantNeeded(ctx android.BaseModuleContext) 
 func (v *CcApiVariant) RecoveryVariantNeeded(ctx android.BaseModuleContext) bool      { return false }
 func (v *CcApiVariant) ExtraImageVariations(ctx android.BaseModuleContext) []string {
 	var variations []string
-	platformVndkVersion := ctx.DeviceConfig().PlatformVndkVersion()
 
 	if String(v.properties.Variant) == "llndk" {
-		variations = append(variations, VendorVariationPrefix+platformVndkVersion)
-		variations = append(variations, ProductVariationPrefix+platformVndkVersion)
+		variations = append(variations, VendorVariation)
+		variations = append(variations, ProductVariation)
 	}
 
 	return variations
