@@ -16,6 +16,11 @@ type BaseTestProviderData struct {
 	TestConfig android.Path
 	// Other modules we require to be installed to run tests. We expect base to build them.
 	HostRequiredModuleNames []string
+	RequiredModuleNames     []string
+	// List of test suites base uses.
+	TestSuites []string
+	// Used for bases that are Host
+	IsHost bool
 }
 
 var BaseTestProviderKey = blueprint.NewProvider[BaseTestProviderData]()
