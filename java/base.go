@@ -804,7 +804,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	// Add dependency on libraries that provide additional hidden api annotations.
 	ctx.AddVariationDependencies(nil, hiddenApiAnnotationsTag, j.properties.Hiddenapi_additional_annotations...)
 
-	if ctx.DeviceConfig().VndkVersion() != "" && ctx.Config().EnforceInterPartitionJavaSdkLibrary() {
+	if ctx.Config().EnforceInterPartitionJavaSdkLibrary() {
 		// Require java_sdk_library at inter-partition java dependency to ensure stable
 		// interface between partitions. If inter-partition java_library dependency is detected,
 		// raise build error because java_library doesn't have a stable interface.
