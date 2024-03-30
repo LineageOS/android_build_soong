@@ -111,7 +111,6 @@ bootstrap_go_package {
         "test_data_test.go",
         "tidy_test.go",
         "vendor_public_library_test.go",
-        "vendor_snapshot_test.go",
     ],
     pluginFor: ["soong_build"],
 }

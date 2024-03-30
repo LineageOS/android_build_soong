@@ -1239,7 +1239,6 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 		libraryType                string
 		fromPartition              string
 		toPartition                string
-		enforceVendorInterface     bool
 		enforceProductInterface    bool
 		enforceJavaSdkLibraryCheck bool
 		allowList                  []string
@@ -1274,9 +1273,6 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 			android.FixtureWithRootAndroidBp(bpFile),
 			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 				variables.EnforceProductPartitionInterface = proptools.BoolPtr(info.enforceProductInterface)
-				if info.enforceVendorInterface {
-					variables.DeviceVndkVersion = proptools.StringPtr("current")
-				}
 				variables.EnforceInterPartitionJavaSdkLibrary = proptools.BoolPtr(info.enforceJavaSdkLibraryCheck)
 				variables.InterPartitionJavaLibraryAllowList = info.allowList
 			}),
@@ -1304,7 +1300,6 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 		libraryType:                "java_library",
 		fromPartition:              "product",
 		toPartition:                "system",
-		enforceVendorInterface:     true,
 		enforceProductInterface:    true,
 		enforceJavaSdkLibraryCheck: false,
 	}, "")
@@ -1313,7 +1308,6 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 		libraryType:                "java_library",
 		fromPartition:              "product",
 		toPartition:                "system",
-		enforceVendorInterface:     true,
 		enforceProductInterface:    false,
 		enforceJavaSdkLibraryCheck: true,
 	}, "")
@@ -1322,7 +1316,6 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 		libraryType:                "java_library",
 		fromPartition:              "product",
 		toPartition:                "system",
-		enforceVendorInterface:     true,
 		enforceProductInterface:    true,
 		enforceJavaSdkLibraryCheck: true,
 	}, errorMessage)
@@ -1331,7 +1324,6 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 		libraryType:                "java_library",
 		fromPartition:              "vendor",
 		toPartition:                "system",
-		enforceVendorInterface:     true,
 		enforceProductInterface:    true,
 		enforceJavaSdkLibraryCheck: true,
 	}, errorMessage)
@@ -1340,7 +1332,6 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 		libraryType:                "java_library",
 		fromPartition:              "vendor",
 		toPartition:                "system",
-		enforceVendorInterface:     true,
 		enforceProductInterface:    true,
 		enforceJavaSdkLibraryCheck: true,
 		allowList:                  []string{"bar"},
@@ -1350,7 +1341,6 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 		libraryType:                "java_library",
 		fromPartition:              "vendor",
 		toPartition:                "product",
-		enforceVendorInterface:     true,
 		enforceProductInterface:    true,
 		enforceJavaSdkLibraryCheck: true,
 	}, errorMessage)
@@ -1359,7 +1349,6 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 		libraryType:                "java_sdk_library",
 		fromPartition:              "product",
 		toPartition:                "system",
-		enforceVendorInterface:     true,
 		enforceProductInterface:    true,
 		enforceJavaSdkLibraryCheck: true,
 	}, "")
@@ -1368,7 +1357,6 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 		libraryType:                "java_sdk_library",
 		fromPartition:              "vendor",
 		toPartition:                "system",
-		enforceVendorInterface:     true,
 		enforceProductInterface:    true,
 		enforceJavaSdkLibraryCheck: true,
 	}, "")
@@ -1377,7 +1365,6 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 		libraryType:                "java_sdk_library",
 		fromPartition:              "vendor",
 		toPartition:                "product",
-		enforceVendorInterface:     true,
 		enforceProductInterface:    true,
 		enforceJavaSdkLibraryCheck: true,
 	}, "")
