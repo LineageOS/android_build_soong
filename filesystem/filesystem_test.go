@@ -23,6 +23,7 @@ import (
 	"android/soong/bpf"
 	"android/soong/cc"
 	"android/soong/etc"
+	"android/soong/phony"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -36,6 +37,7 @@ var fixture = android.GroupFixturePreparers(
 	bpf.PrepareForTestWithBpf,
 	etc.PrepareForTestWithPrebuiltEtc,
 	cc.PrepareForIntegrationTestWithCc,
+	phony.PrepareForTestWithPhony,
 	PrepareForTestWithFilesystemBuildComponents,
 )
 
@@ -47,6 +49,7 @@ func TestFileSystemDeps(t *testing.T) {
 				common: {
 					deps: [
 						"bpf.o",
+						"phony",
 					],
 				},
 				lib32: {
@@ -82,6 +85,15 @@ func TestFileSystemDeps(t *testing.T) {
 		cc_library {
 			name: "libbaz",
 		}
+
+		phony {
+			name: "phony",
+			required: ["libquz"],
+		}
+
+		cc_library {
+			name: "libquz",
+		}
 	`)
 
 	// produces "myfilesystem.img"
@@ -93,6 +105,7 @@ func TestFileSystemDeps(t *testing.T) {
 		"lib/libbar.so",
 		"lib64/libbar.so",
 		"lib64/libbaz.so",
+		"lib64/libquz.so",
 		"etc/bpf/bpf.o",
 	}
 	for _, e := range expected {
