@@ -17,6 +17,7 @@ func init() {
 // Register the license_kind module type.
 func RegisterTestModuleConfigBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("test_module_config", TestModuleConfigFactory)
+	ctx.RegisterModuleType("test_module_config_host", TestModuleConfigHostFactory)
 }
 
 type testModuleConfigModule struct {
@@ -30,6 +31,12 @@ type testModuleConfigModule struct {
 	testConfig android.OutputPath
 	manifest   android.InstallPath
 	provider   tradefed.BaseTestProviderData
+}
+
+// Host is mostly the same as non-host, just some diffs for AddDependency and
+// AndroidMkEntries, but the properties are the same.
+type testModuleConfigHostModule struct {
+	testModuleConfigModule
 }
 
 // Properties to list in Android.bp for this module.
@@ -68,8 +75,9 @@ type dependencyTag struct {
 }
 
 var (
-	testModuleConfigTag = dependencyTag{name: "TestModuleConfigBase"}
-	pctx                = android.NewPackageContext("android/soong/tradefed_modules")
+	testModuleConfigTag     = dependencyTag{name: "TestModuleConfigBase"}
+	testModuleConfigHostTag = dependencyTag{name: "TestModuleConfigHostBase"}
+	pctx                    = android.NewPackageContext("android/soong/tradefed_modules")
 )
 
 func (m *testModuleConfigModule) InstallInTestcases() bool {
@@ -77,6 +85,10 @@ func (m *testModuleConfigModule) InstallInTestcases() bool {
 }
 
 func (m *testModuleConfigModule) DepsMutator(ctx android.BottomUpMutatorContext) {
+	if m.Base == nil {
+		ctx.ModuleErrorf("'base' field must be set to a 'android_test' module.")
+		return
+	}
 	ctx.AddDependency(ctx.Module(), testModuleConfigTag, *m.Base)
 }
 
@@ -143,35 +155,41 @@ func (m *testModuleConfigModule) composeOptions() []tradefed.Option {
 //
 // If we change to symlinks, this all needs to change.
 func (m *testModuleConfigModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	m.validateBase(ctx, &testModuleConfigTag, "android_test", false)
+	m.generateManifestAndConfig(ctx)
 
-	ctx.VisitDirectDepsWithTag(testModuleConfigTag, func(dep android.Module) {
-		if provider, ok := android.OtherModuleProvider(ctx, dep, tradefed.BaseTestProviderKey); ok {
-			m.base = dep
-			m.provider = provider
-		} else {
-			ctx.ModuleErrorf("The base module '%s' does not provide test BaseTestProviderData.  Only 'android_test' modules are supported.", dep.Name())
-			return
+}
+
+// Any test suites in base should not be repeated in the derived class, except "general-tests".
+// We may restrict derived tests to only be "general-tests" as it doesn't make sense to add a slice
+// of a test to compatibility suite.
+//
+// Returns ErrorMessage, false on problems
+// Returns _, true if okay.
+func (m *testModuleConfigModule) validateTestSuites(ctx android.ModuleContext) bool {
+	if len(m.tradefedProperties.Test_suites) == 0 {
+		ctx.ModuleErrorf("At least one test-suite must be set or this won't run. Use \"general-tests\"")
+		return false
+	}
+
+	derivedSuites := make(map[string]bool)
+	// See if any suites in base is also in derived (other than general-tests)
+	for _, s := range m.tradefedProperties.Test_suites {
+		if s != "general-tests" {
+			derivedSuites[s] = true
 		}
-	})
+	}
+	if len(derivedSuites) == 0 {
+		return true
+	}
+	for _, baseSuite := range m.provider.TestSuites {
+		if derivedSuites[baseSuite] {
+			ctx.ModuleErrorf("TestSuite %s exists in the base, do not add it here", baseSuite)
+			return false
+		}
+	}
 
-	// 1) A manifest file listing the base.
-	installDir := android.PathForModuleInstall(ctx, ctx.ModuleName())
-	out := android.PathForModuleOut(ctx, "test_module_config.manifest")
-	android.WriteFileRule(ctx, out, fmt.Sprintf("{%q: %q}", "base", *m.tradefedProperties.Base))
-	ctx.InstallFile(installDir, out.Base(), out)
-
-	// 2) Module.config / AndroidTest.xml
-	// Note, there is still a "test-tag" element with base's module name, but
-	// Tradefed team says its ignored anyway.
-	m.testConfig = m.fixTestConfig(ctx, m.provider.TestConfig)
-
-	// 3) Write ARCH/Module.apk in testcases.
-	// Handled by soong_app_prebuilt and OutputFile in entries.
-	// Nothing to do here.
-
-	// 4) Copy base's data files.
-	// Handled by soong_app_prebuilt and LOCAL_COMPATIBILITY_SUPPORT_FILES.
-	// Nothing to do here.
+	return true
 }
 
 func TestModuleConfigFactory() android.Module {
@@ -179,6 +197,16 @@ func TestModuleConfigFactory() android.Module {
 
 	module.AddProperties(&module.tradefedProperties)
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	android.InitDefaultableModule(module)
+
+	return module
+}
+
+func TestModuleConfigHostFactory() android.Module {
+	module := &testModuleConfigHostModule{}
+
+	module.AddProperties(&module.tradefedProperties)
+	android.InitAndroidMultiTargetsArchModule(module, android.HostSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 
 	return module
@@ -198,22 +226,96 @@ func (m *testModuleConfigModule) AndroidMkEntries() []android.AndroidMkEntries {
 		// Out update config file with extra options.
 		entries.SetPath("LOCAL_FULL_TEST_CONFIG", m.testConfig)
 		entries.SetString("LOCAL_MODULE_TAGS", "tests")
-		// Required for atest to run additional tradefed testtypes
-		entries.AddStrings("LOCAL_HOST_REQUIRED_MODULES", m.provider.HostRequiredModuleNames...)
-
-		// Clear the JNI symbols because they belong to base not us. Either transform the names in the string
-		// or clear the variable because we don't need it, we are copying bases libraries not generating
-		// new ones.
-		entries.SetString("LOCAL_SOONG_JNI_LIBS_SYMBOLS", "")
 
 		// Don't append to base's test-suites, only use the ones we define, so clear it before
 		// appending to it.
 		entries.SetString("LOCAL_COMPATIBILITY_SUITE", "")
-		if len(m.tradefedProperties.Test_suites) > 0 {
-			entries.AddCompatibilityTestSuites(m.tradefedProperties.Test_suites...)
-		} else {
-			entries.AddCompatibilityTestSuites("null-suite")
+		entries.AddCompatibilityTestSuites(m.tradefedProperties.Test_suites...)
+
+		if len(m.provider.HostRequiredModuleNames) > 0 {
+			entries.AddStrings("LOCAL_HOST_REQUIRED_MODULES", m.provider.HostRequiredModuleNames...)
+		}
+		if len(m.provider.RequiredModuleNames) > 0 {
+			entries.AddStrings("LOCAL_REQUIRED_MODULES", m.provider.RequiredModuleNames...)
+		}
+
+		if m.provider.IsHost == false {
+			// Not needed for jar_host_test
+			//
+			// Clear the JNI symbols because they belong to base not us. Either transform the names in the string
+			// or clear the variable because we don't need it, we are copying bases libraries not generating
+			// new ones.
+			entries.SetString("LOCAL_SOONG_JNI_LIBS_SYMBOLS", "")
 		}
 	})
 	return entriesList
 }
+
+func (m *testModuleConfigHostModule) DepsMutator(ctx android.BottomUpMutatorContext) {
+	if m.Base == nil {
+		ctx.ModuleErrorf("'base' field must be set to a 'java_test_host' module")
+		return
+	}
+	ctx.AddVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), testModuleConfigHostTag, *m.Base)
+}
+
+// File to write:
+// 1) out/host/linux-x86/testcases/derived-module/test_module_config.manifest # contains base's name.
+// 2) out/host/linux-x86/testcases/derived-module/derived-module.config  # Update AnroidTest.xml
+// 3) out/host/linux-x86/testcases/derived-module/base.jar
+//   - written via soong_java_prebuilt.mk
+//
+// 4) out/host/linux-x86/testcases/derived-module/* # data dependencies from base.
+//   - written via soong_java_prebuilt.mk
+func (m *testModuleConfigHostModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	m.validateBase(ctx, &testModuleConfigHostTag, "java_test_host", true)
+	m.generateManifestAndConfig(ctx)
+}
+
+// Ensure the base listed is the right type by checking that we get the expected provider data.
+// Returns false on errors and the context is updated with an error indicating the baseType expected.
+func (m *testModuleConfigModule) validateBase(ctx android.ModuleContext, depTag *dependencyTag, baseType string, baseShouldBeHost bool) {
+	ctx.VisitDirectDepsWithTag(*depTag, func(dep android.Module) {
+		if provider, ok := android.OtherModuleProvider(ctx, dep, tradefed.BaseTestProviderKey); ok {
+			if baseShouldBeHost == provider.IsHost {
+				m.base = dep
+				m.provider = provider
+			} else {
+				if baseShouldBeHost {
+					ctx.ModuleErrorf("'android_test' module used as base, but 'java_test_host' expected.")
+				} else {
+					ctx.ModuleErrorf("'java_test_host' module used as base, but 'android_test' expected.")
+				}
+			}
+		} else {
+			ctx.ModuleErrorf("'%s' module used as base but it is not a '%s' module.", *m.Base, baseType)
+		}
+	})
+}
+
+// Actions to write:
+//  1. manifest file to testcases dir
+//  2. New Module.config / AndroidTest.xml file with our options.
+func (m *testModuleConfigModule) generateManifestAndConfig(ctx android.ModuleContext) {
+	if !m.validateTestSuites(ctx) {
+		return
+	}
+	// Ensure the provider is accurate
+	if m.provider.TestConfig == nil {
+		return
+	}
+
+	// 1) A manifest file listing the base, write text to a tiny file.
+	installDir := android.PathForModuleInstall(ctx, ctx.ModuleName())
+	manifest := android.PathForModuleOut(ctx, "test_module_config.manifest")
+	android.WriteFileRule(ctx, manifest, fmt.Sprintf("{%q: %q}", "base", *m.tradefedProperties.Base))
+	// build/soong/android/androidmk.go has this comment:
+	//    Assume the primary install file is last
+	// so we need to Install our file last.
+	ctx.InstallFile(installDir, manifest.Base(), manifest)
+
+	// 2) Module.config / AndroidTest.xml
+	m.testConfig = m.fixTestConfig(ctx, m.provider.TestConfig)
+}
+
+var _ android.AndroidMkEntriesProvider = (*testModuleConfigHostModule)(nil)
