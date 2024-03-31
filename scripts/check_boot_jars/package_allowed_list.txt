@@ -217,6 +217,10 @@ vendor\.google_clockwork\.displayoffload3\..*
 lineageos\.platform
 org\.lineageos\.platform\.internal
 
+# NT adds
+com\.nothing
+com\.nothing\..*
+
 # OPLUS adds
 com\.oplus\..*
 
