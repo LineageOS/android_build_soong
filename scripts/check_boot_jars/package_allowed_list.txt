@@ -265,6 +265,9 @@ org\.chromium\.arc\..*
 lineageos\.platform
 org\.lineageos\.platform\.internal
 
+# NT adds
+com\.nothing
+
 # NV adds
 com\.nvidia
 com\.nvidia\..*
