@@ -21,6 +21,7 @@ import (
 
 type systemImage struct {
 	filesystem
+	android.DefaultableModuleBase
 
 	properties systemImageProperties
 }
@@ -39,6 +40,7 @@ func systemImageFactory() android.Module {
 	module.filesystem.buildExtraFiles = module.buildExtraFiles
 	module.filesystem.filterPackagingSpec = module.filterPackagingSpec
 	initFilesystemModule(&module.filesystem)
+	android.InitDefaultableModule(module)
 	return module
 }
 
@@ -99,4 +101,18 @@ func (s *systemImage) buildLinkerConfigFile(ctx android.ModuleContext, root andr
 // for symbol lookup by imitating "activated" paths.
 func (s *systemImage) filterPackagingSpec(ps android.PackagingSpec) bool {
 	return ps.Partition() == "system"
+}
+
+type systemImageDefaults struct {
+	android.ModuleBase
+	android.DefaultsModuleBase
+}
+
+// android_system_image_defaults is a default module for android_system_image module.
+func systemImageDefaultsFactory() android.Module {
+	module := &systemImageDefaults{}
+	module.AddProperties(&android.PackagingProperties{})
+	module.AddProperties(&systemImageProperties{})
+	android.InitDefaultsModule(module)
+	return module
 }
