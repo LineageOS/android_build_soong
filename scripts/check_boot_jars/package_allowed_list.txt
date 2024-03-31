@@ -270,6 +270,10 @@ com\.google\.wear\..*
 lineageos\.platform
 org\.lineageos\.platform\.internal
 
+# NT adds
+com\.nothing
+com\.nothing\..*
+
 # NV adds
 com\.nvidia
 com\.nvidia\..*
