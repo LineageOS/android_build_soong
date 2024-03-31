@@ -272,6 +272,9 @@ com\.nvidia\..*
 # OPLUS adds
 com\.oplus\..*
 
+# NT adds 
+com\.nothing\..*
+
 # QC adds
 com.qualcomm.qti
 com.quicinc.tcmiface
