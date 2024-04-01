@@ -202,7 +202,7 @@ func TestSelects(t *testing.T) {
 			},
 		},
 		{
-			name: "Can't append bools",
+			name: "true + false = true",
 			bp: `
 			my_module_type {
 				name: "foo",
@@ -213,7 +213,30 @@ func TestSelects(t *testing.T) {
 				}) + false,
 			}
 			`,
-			expectedError: "my_bool: Cannot append bools",
+			provider: selectsTestProvider{
+				my_bool: proptools.BoolPtr(true),
+			},
+		},
+		{
+			name: "false + false = false",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_bool: select(soong_config_variable("my_namespace", "my_variable"), {
+					"a": true,
+					"b": false,
+					_: true,
+				}) + false,
+			}
+			`,
+			vendorVars: map[string]map[string]string{
+				"my_namespace": {
+					"my_variable": "b",
+				},
+			},
+			provider: selectsTestProvider{
+				my_bool: proptools.BoolPtr(false),
+			},
 		},
 		{
 			name: "Append string",
