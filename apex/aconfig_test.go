@@ -223,6 +223,18 @@ func TestValidationAcrossContainersExportedPass(t *testing.T) {
 				srcs: ["src/lib.rs"],
 				apex_available: ["myapex"],
 			}
+			rust_library {
+				name: "liblogger", // test mock
+				crate_name: "logger",
+				srcs: ["src/lib.rs"],
+				apex_available: ["myapex"],
+			}
+			rust_library {
+				name: "liblog_rust", // test mock
+				crate_name: "log_rust",
+				srcs: ["src/lib.rs"],
+				apex_available: ["myapex"],
+                        }
 			rust_ffi_shared {
 				name: "libmy_rust_library",
 				srcs: ["src/lib.rs"],
@@ -492,6 +504,18 @@ func TestValidationAcrossContainersNotExportedFail(t *testing.T) {
 				srcs: ["src/lib.rs"],
 				apex_available: ["myapex"],
 			}
+			rust_library {
+				name: "liblogger", // test mock
+				crate_name: "logger",
+				srcs: ["src/lib.rs"],
+				apex_available: ["myapex"],
+			}
+			rust_library {
+				name: "liblog_rust", // test mock
+				crate_name: "log_rust",
+				srcs: ["src/lib.rs"],
+				apex_available: ["myapex"],
+			}
 			rust_ffi_shared {
 				name: "libmy_rust_library",
 				srcs: ["src/lib.rs"],
@@ -539,6 +563,18 @@ func TestValidationAcrossContainersNotExportedFail(t *testing.T) {
 			rust_library {
 				name: "libaconfig_storage_read_api", // test mock
 				crate_name: "aconfig_storage_read_api",
+				srcs: ["src/lib.rs"],
+				apex_available: ["myapex"],
+			}
+			rust_library {
+				name: "liblogger", // test mock
+				crate_name: "logger",
+				srcs: ["src/lib.rs"],
+				apex_available: ["myapex"],
+			}
+			rust_library {
+				name: "liblog_rust", // test mock
+				crate_name: "log_rust",
 				srcs: ["src/lib.rs"],
 				apex_available: ["myapex"],
 			}
