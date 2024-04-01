@@ -358,6 +358,8 @@ type overridableProperties struct {
 	// be removed from PRODUCT_PACKAGES.
 	Overrides []string
 
+	Multilib apexMultilibProperties
+
 	// Logging parent value.
 	Logging_parent string
 
