@@ -5,7 +5,7 @@ set -o pipefail
 # How to run: bash path-to-script/androidmk_test.sh
 # Tests of converting license functionality of the androidmk tool
 REAL_TOP="$(readlink -f "$(dirname "$0")"/../../..)"
-"$REAL_TOP/build/soong/soong_ui.bash" --make-mode androidmk
+"$REAL_TOP/build/soong/soong_ui.bash" --make-mode TARGET_RELEASE=trunk_staging androidmk
 
 source "$(dirname "$0")/lib.sh"
 

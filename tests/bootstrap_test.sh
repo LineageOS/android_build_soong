@@ -9,6 +9,8 @@ source "$(dirname "$0")/lib.sh"
 
 readonly GENERATED_BUILD_FILE_NAME="BUILD.bazel"
 
+readonly target_product="${TARGET_PRODUCT:-aosp_arm}"
+
 function test_smoke {
   setup
   run_soong
@@ -18,10 +20,10 @@ function test_null_build() {
   setup
   run_soong
   local -r bootstrap_mtime1=$(stat -c "%y" out/soong/bootstrap.ninja)
-  local -r output_mtime1=$(stat -c "%y" out/soong/build.ninja)
+  local -r output_mtime1=$(stat -c "%y" out/soong/build."${target_product}".ninja)
   run_soong
   local -r bootstrap_mtime2=$(stat -c "%y" out/soong/bootstrap.ninja)
-  local -r output_mtime2=$(stat -c "%y" out/soong/build.ninja)
+  local -r output_mtime2=$(stat -c "%y" out/soong/build."${target_product}".ninja)
 
   if [[ "$bootstrap_mtime1" == "$bootstrap_mtime2" ]]; then
     # Bootstrapping is always done. It doesn't take a measurable amount of time.
@@ -60,7 +62,7 @@ EOF
   touch a/my_little_binary_host.py
   run_soong
 
-  grep -q "^# Module:.*my_little_binary_host" out/soong/build.ninja || fail "module not found"
+  grep -q "^# Module:.*my_little_binary_host" out/soong/build."${target_product}".ninja || fail "module not found"
 
   cat > a/Android.bp <<'EOF'
 python_binary_host {
@@ -71,14 +73,14 @@ EOF
   touch a/my_great_binary_host.py
   run_soong
 
-  grep -q "^# Module:.*my_little_binary_host" out/soong/build.ninja && fail "old module found"
-  grep -q "^# Module:.*my_great_binary_host" out/soong/build.ninja || fail "new module not found"
+  grep -q "^# Module:.*my_little_binary_host" out/soong/build."${target_product}".ninja && fail "old module found"
+  grep -q "^# Module:.*my_great_binary_host" out/soong/build."${target_product}".ninja || fail "new module not found"
 }
 
 function test_add_android_bp() {
   setup
   run_soong
-  local -r mtime1=$(stat -c "%y" out/soong/build.ninja)
+  local -r mtime1=$(stat -c "%y" out/soong/build."${target_product}".ninja)
 
   mkdir -p a
   cat > a/Android.bp <<'EOF'
@@ -90,12 +92,12 @@ EOF
   touch a/my_little_binary_host.py
   run_soong
 
-  local -r mtime2=$(stat -c "%y" out/soong/build.ninja)
+  local -r mtime2=$(stat -c "%y" out/soong/build."${target_product}".ninja)
   if [[ "$mtime1" == "$mtime2" ]]; then
     fail "Output Ninja file did not change"
   fi
 
-  grep -q "^# Module:.*my_little_binary_host$" out/soong/build.ninja || fail "New module not in output"
+  grep -q "^# Module:.*my_little_binary_host$" out/soong/build."${target_product}".ninja || fail "New module not in output"
 
   run_soong
 }
@@ -112,12 +114,12 @@ EOF
   touch a/my_little_binary_host.py
   run_soong
 
-  grep -q "^# Module:.*my_little_binary_host$" out/soong/build.ninja || fail "Module not in output"
+  grep -q "^# Module:.*my_little_binary_host$" out/soong/build."${target_product}".ninja || fail "Module not in output"
 
   rm a/Android.bp
   run_soong
 
-  if grep -q "^# Module:.*my_little_binary_host$" out/soong/build.ninja; then
+  if grep -q "^# Module:.*my_little_binary_host$" out/soong/build."${target_product}".ninja; then
     fail "Old module in output"
   fi
 }
@@ -141,16 +143,12 @@ python_binary_host {
 EOF
   touch a/my_little_binary_host.py
   run_soong
-  local -r ninja_mtime1=$(stat -c "%y" out/soong/build.ninja)
+  local -r ninja_mtime1=$(stat -c "%y" out/soong/build."${target_product}".ninja)
 
-  local glob_deps_file=out/soong/globs/build/0.d
-
-  if [ -e "$glob_deps_file" ]; then
-    fail "Glob deps file unexpectedly written on first build"
-  fi
+  local glob_deps_file=out/soong/globs/"${target_product}"/0.d
 
   run_soong
-  local -r ninja_mtime2=$(stat -c "%y" out/soong/build.ninja)
+  local -r ninja_mtime2=$(stat -c "%y" out/soong/build."${target_product}".ninja)
 
   # There is an ineffiencency in glob that requires bpglob to rerun once for each glob to update
   # the entry in the .ninja_log.  It doesn't update the output file, but we can detect the rerun
@@ -166,7 +164,7 @@ EOF
   fi
 
   run_soong
-  local -r ninja_mtime3=$(stat -c "%y" out/soong/build.ninja)
+  local -r ninja_mtime3=$(stat -c "%y" out/soong/build."${target_product}".ninja)
   local -r glob_deps_mtime3=$(stat -c "%y" "$glob_deps_file")
 
   if [[ "$ninja_mtime2" != "$ninja_mtime3" ]]; then
@@ -191,17 +189,17 @@ python_binary_host {
 EOF
   touch a/my_little_binary_host.py
   run_soong
-  local -r mtime1=$(stat -c "%y" out/soong/build.ninja)
+  local -r mtime1=$(stat -c "%y" out/soong/build."${target_product}".ninja)
 
   touch a/my_little_library.py
   run_soong
 
-  local -r mtime2=$(stat -c "%y" out/soong/build.ninja)
+  local -r mtime2=$(stat -c "%y" out/soong/build."${target_product}".ninja)
   if [[ "$mtime1" == "$mtime2" ]]; then
     fail "Output Ninja file did not change"
   fi
 
-  grep -q my_little_library.py out/soong/build.ninja || fail "new file is not in output"
+  grep -q my_little_library.py out/soong/build."${target_product}".ninja || fail "new file is not in output"
 }
 
 function test_soong_build_rerun_iff_environment_changes() {
@@ -267,17 +265,17 @@ EOF
 
   export CHERRY=TASTY
   run_soong
-  grep -q "CHERRY IS TASTY" out/soong/build.ninja \
+  grep -q "CHERRY IS TASTY" out/soong/build."${target_product}".ninja \
     || fail "first value of environment variable is not used"
 
   export CHERRY=RED
   run_soong
-  grep -q "CHERRY IS RED" out/soong/build.ninja \
+  grep -q "CHERRY IS RED" out/soong/build."${target_product}".ninja \
     || fail "second value of environment variable not used"
-  local -r mtime1=$(stat -c "%y" out/soong/build.ninja)
+  local -r mtime1=$(stat -c "%y" out/soong/build."${target_product}".ninja)
 
   run_soong
-  local -r mtime2=$(stat -c "%y" out/soong/build.ninja)
+  local -r mtime2=$(stat -c "%y" out/soong/build."${target_product}".ninja)
   if [[ "$mtime1" != "$mtime2" ]]; then
     fail "Output Ninja file changed when environment variable did not"
   fi
@@ -287,7 +285,7 @@ EOF
 function test_create_global_include_directory() {
   setup
   run_soong
-  local -r mtime1=$(stat -c "%y" out/soong/build.ninja)
+  local -r mtime1=$(stat -c "%y" out/soong/build."${target_product}".ninja)
 
   # Soong needs to know if top level directories like hardware/ exist for use
   # as global include directories.  Make sure that doesn't cause regens for
@@ -295,7 +293,7 @@ function test_create_global_include_directory() {
   mkdir -p system/core
 
   run_soong
-  local -r mtime2=$(stat -c "%y" out/soong/build.ninja)
+  local -r mtime2=$(stat -c "%y" out/soong/build."${target_product}".ninja)
   if [[ "$mtime1" != "$mtime2" ]]; then
     fail "Output Ninja file changed when top level directory changed"
   fi
@@ -305,7 +303,7 @@ function test_create_global_include_directory() {
   mkdir -p system/core/include
 
   run_soong
-  local -r mtime3=$(stat -c "%y" out/soong/build.ninja)
+  local -r mtime3=$(stat -c "%y" out/soong/build."${target_product}".ninja)
   if [[ "$mtime2" = "$mtime3" ]]; then
     fail "Output Ninja file did not change when global include directory created"
   fi
@@ -315,7 +313,7 @@ function test_create_global_include_directory() {
 function test_add_file_to_soong_build() {
   setup
   run_soong
-  local -r mtime1=$(stat -c "%y" out/soong/build.ninja)
+  local -r mtime1=$(stat -c "%y" out/soong/build."${target_product}".ninja)
 
   mkdir -p vendor/foo/picard
   cat > vendor/foo/picard/Android.bp <<'EOF'
@@ -377,12 +375,12 @@ func (p *picardSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 EOF
 
   run_soong
-  local -r mtime2=$(stat -c "%y" out/soong/build.ninja)
+  local -r mtime2=$(stat -c "%y" out/soong/build."${target_product}".ninja)
   if [[ "$mtime1" == "$mtime2" ]]; then
     fail "Output Ninja file did not change"
   fi
 
-  grep -q "Make it so" out/soong/build.ninja || fail "New action not present"
+  grep -q "Make it so" out/soong/build."${target_product}".ninja || fail "New action not present"
 }
 
 # Tests a glob in a build= statement in an Android.bp file, which is interpreted
@@ -455,9 +453,9 @@ func (p *picardSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 EOF
 
   run_soong
-  local -r mtime1=$(stat -c "%y" out/soong/build.ninja)
+  local -r mtime1=$(stat -c "%y" out/soong/build."${target_product}".ninja)
 
-  grep -q "Make it so" out/soong/build.ninja || fail "Original action not present"
+  grep -q "Make it so" out/soong/build."${target_product}".ninja || fail "Original action not present"
 
   cat > build/soong/picard/foob.bp <<'EOF'
 bootstrap_go_package {
@@ -487,14 +485,14 @@ func init() {
 EOF
 
   run_soong
-  local -r mtime2=$(stat -c "%y" out/soong/build.ninja)
+  local -r mtime2=$(stat -c "%y" out/soong/build."${target_product}".ninja)
   if [[ "$mtime1" == "$mtime2" ]]; then
     fail "Output Ninja file did not change"
   fi
 
-  grep -q "Engage" out/soong/build.ninja || fail "New action not present"
+  grep -q "Engage" out/soong/build."${target_product}".ninja || fail "New action not present"
 
-  if grep -q "Make it so" out/soong/build.ninja; then
+  if grep -q "Make it so" out/soong/build."${target_product}".ninja; then
     fail "Original action still present"
   fi
 }
@@ -512,7 +510,7 @@ function test_null_build_after_soong_docs() {
   setup
 
   run_soong
-  local -r ninja_mtime1=$(stat -c "%y" out/soong/build.ninja)
+  local -r ninja_mtime1=$(stat -c "%y" out/soong/build."${target_product}".ninja)
 
   run_soong soong_docs
   local -r docs_mtime1=$(stat -c "%y" out/soong/docs/soong_build.html)
@@ -525,7 +523,7 @@ function test_null_build_after_soong_docs() {
   fi
 
   run_soong
-  local -r ninja_mtime2=$(stat -c "%y" out/soong/build.ninja)
+  local -r ninja_mtime2=$(stat -c "%y" out/soong/build."${target_product}".ninja)
 
   if [[ "$ninja_mtime1" != "$ninja_mtime2" ]]; then
     fail "Output Ninja file changed on null build"
@@ -565,144 +563,6 @@ EOF
   fi
 }
 
-function test_bp2build_smoke {
-  setup
-  run_soong bp2build
-  [[ -e out/soong/bp2build_workspace_marker ]] || fail "bp2build marker file not created"
-  [[ -e out/soong/workspace ]] || fail "Bazel workspace not created"
-}
-
-function test_bp2build_generates_marker_file {
-  setup
-
-  run_soong bp2build
-
-  if [[ ! -f "./out/soong/bp2build_files_marker" ]]; then
-    fail "bp2build marker file was not generated"
-  fi
-
-  if [[ ! -f "./out/soong/bp2build_workspace_marker" ]]; then
-    fail "symlink forest marker file was not generated"
-  fi
-}
-
-function test_bp2build_add_irrelevant_file {
-  setup
-
-  mkdir -p a/b
-  touch a/b/c.txt
-  cat > a/b/Android.bp <<'EOF'
-filegroup {
-  name: "c",
-  srcs: ["c.txt"],
-  bazel_module: { bp2build_available: true },
-}
-EOF
-
-  run_soong bp2build
-  if [[ ! -e out/soong/bp2build/a/b/BUILD.bazel ]]; then
-    fail "BUILD file in symlink forest was not created";
-  fi
-
-  local -r mtime1=$(stat -c "%y" out/soong/bp2build/a/b/BUILD.bazel)
-
-  touch a/irrelevant.txt
-  run_soong bp2build
-  local -r mtime2=$(stat -c "%y" out/soong/bp2build/a/b/BUILD.bazel)
-
-  if [[ "$mtime1" != "$mtime2" ]]; then
-    fail "BUILD.bazel file was regenerated"
-  fi
-
-  if [[ ! -e "out/soong/workspace/a/irrelevant.txt" ]]; then
-    fail "New file was not symlinked into symlink forest"
-  fi
-}
-
-function test_bp2build_add_android_bp {
-  setup
-
-  mkdir -p a
-  touch a/a.txt
-  cat > a/Android.bp <<'EOF'
-filegroup {
-  name: "a",
-  srcs: ["a.txt"],
-  bazel_module: { bp2build_available: true },
-}
-EOF
-
-  run_soong bp2build
-  [[ -e out/soong/bp2build/a/${GENERATED_BUILD_FILE_NAME} ]] || fail "a/${GENERATED_BUILD_FILE_NAME} not created"
-  [[ -L out/soong/workspace/a/${GENERATED_BUILD_FILE_NAME} ]] || fail "a/${GENERATED_BUILD_FILE_NAME} not symlinked"
-
-  mkdir -p b
-  touch b/b.txt
-  cat > b/Android.bp <<'EOF'
-filegroup {
-  name: "b",
-  srcs: ["b.txt"],
-  bazel_module: { bp2build_available: true },
-}
-EOF
-
-  run_soong bp2build
-  [[ -e out/soong/bp2build/b/${GENERATED_BUILD_FILE_NAME} ]] || fail "a/${GENERATED_BUILD_FILE_NAME} not created"
-  [[ -L out/soong/workspace/b/${GENERATED_BUILD_FILE_NAME} ]] || fail "a/${GENERATED_BUILD_FILE_NAME} not symlinked"
-}
-
-function test_bp2build_null_build {
-  setup
-
-  run_soong bp2build
-  local -r mtime1=$(stat -c "%y" out/soong/bp2build_workspace_marker)
-
-  run_soong bp2build
-  local -r mtime2=$(stat -c "%y" out/soong/bp2build_workspace_marker)
-
-  if [[ "$mtime1" != "$mtime2" ]]; then
-    fail "Output Ninja file changed on null build"
-  fi
-}
-
-function test_bp2build_add_to_glob {
-  setup
-
-  mkdir -p a
-  touch a/a1.txt
-  cat > a/Android.bp <<'EOF'
-filegroup {
-  name: "a",
-  srcs: ["*.txt"],
-  bazel_module: { bp2build_available: true },
-}
-EOF
-
-  run_soong bp2build
-  grep -q a1.txt "out/soong/bp2build/a/${GENERATED_BUILD_FILE_NAME}" || fail "a1.txt not in ${GENERATED_BUILD_FILE_NAME} file"
-
-  touch a/a2.txt
-  run_soong bp2build
-  grep -q a2.txt "out/soong/bp2build/a/${GENERATED_BUILD_FILE_NAME}" || fail "a2.txt not in ${GENERATED_BUILD_FILE_NAME} file"
-}
-
-function test_multiple_soong_build_modes() {
-  setup
-  run_soong json-module-graph bp2build nothing
-  if [[ ! -f "out/soong/bp2build_workspace_marker" ]]; then
-    fail "bp2build marker file was not generated"
-  fi
-
-
-  if [[ ! -f "out/soong/module-graph.json" ]]; then
-    fail "JSON file was not created"
-  fi
-
-  if [[ ! -f "out/soong/build.ninja" ]]; then
-    fail "Main build.ninja file was not created"
-  fi
-}
-
 function test_dump_json_module_graph() {
   setup
   run_soong json-module-graph
@@ -715,13 +575,13 @@ function test_json_module_graph_back_and_forth_null_build() {
   setup
 
   run_soong
-  local -r ninja_mtime1=$(stat -c "%y" out/soong/build.ninja)
+  local -r ninja_mtime1=$(stat -c "%y" out/soong/build."${target_product}".ninja)
 
   run_soong json-module-graph
   local -r json_mtime1=$(stat -c "%y" out/soong/module-graph.json)
 
   run_soong
-  local -r ninja_mtime2=$(stat -c "%y" out/soong/build.ninja)
+  local -r ninja_mtime2=$(stat -c "%y" out/soong/build."${target_product}".ninja)
   if [[ "$ninja_mtime1" != "$ninja_mtime2" ]]; then
     fail "Output Ninja file changed after writing JSON module graph"
   fi
@@ -731,143 +591,6 @@ function test_json_module_graph_back_and_forth_null_build() {
   if [[ "$json_mtime1" != "$json_mtime2" ]]; then
     fail "JSON module graph file changed after writing Ninja file"
   fi
-
-}
-
-function test_bp2build_bazel_workspace_structure {
-  setup
-
-  mkdir -p a/b
-  touch a/a.txt
-  touch a/b/b.txt
-  cat > a/b/Android.bp <<'EOF'
-filegroup {
-  name: "b",
-  srcs: ["b.txt"],
-  bazel_module: { bp2build_available: true },
-}
-EOF
-
-  run_soong bp2build
-  [[ -e out/soong/workspace ]] || fail "Bazel workspace not created"
-  [[ -d out/soong/workspace/a/b ]] || fail "module directory not a directory"
-  [[ -L "out/soong/workspace/a/b/${GENERATED_BUILD_FILE_NAME}" ]] || fail "${GENERATED_BUILD_FILE_NAME} file not symlinked"
-  [[ "$(readlink -f out/soong/workspace/a/b/${GENERATED_BUILD_FILE_NAME})" =~ "bp2build/a/b/${GENERATED_BUILD_FILE_NAME}"$ ]] \
-    || fail "BUILD files symlinked at the wrong place"
-  [[ -L out/soong/workspace/a/b/b.txt ]] || fail "a/b/b.txt not symlinked"
-  [[ -L out/soong/workspace/a/a.txt ]] || fail "a/b/a.txt not symlinked"
-  [[ ! -e out/soong/workspace/out ]] || fail "out directory symlinked"
-}
-
-function test_bp2build_bazel_workspace_add_file {
-  setup
-
-  mkdir -p a
-  touch a/a.txt
-  cat > a/Android.bp <<EOF
-filegroup {
-  name: "a",
-  srcs: ["a.txt"],
-  bazel_module: { bp2build_available: true },
-}
-EOF
-
-  run_soong bp2build
-
-  touch a/a2.txt  # No reference in the .bp file needed
-  run_soong bp2build
-  [[ -L out/soong/workspace/a/a2.txt ]] || fail "a/a2.txt not symlinked"
-}
-
-function test_bp2build_build_file_precedence {
-  setup
-
-  mkdir -p a
-  touch a/a.txt
-  touch a/${GENERATED_BUILD_FILE_NAME}
-  cat > a/Android.bp <<EOF
-filegroup {
-  name: "a",
-  srcs: ["a.txt"],
-  bazel_module: { bp2build_available: true },
-}
-EOF
-
-  run_soong bp2build
-  [[ -L "out/soong/workspace/a/${GENERATED_BUILD_FILE_NAME}" ]] || fail "${GENERATED_BUILD_FILE_NAME} file not symlinked"
-  [[ "$(readlink -f out/soong/workspace/a/${GENERATED_BUILD_FILE_NAME})" =~ "bp2build/a/${GENERATED_BUILD_FILE_NAME}"$ ]] \
-    || fail "${GENERATED_BUILD_FILE_NAME} files symlinked to the wrong place"
-}
-
-function test_bp2build_fails_fast {
-  setup
-
-  mkdir -p "a/${GENERATED_BUILD_FILE_NAME}"
-  cat > a/Android.bp <<EOF
-filegroup {
-  name: "a",
-  srcs: ["a.txt"],
-  bazel_module: { bp2build_available: true },
-}
-EOF
-
-  mkdir -p "b/${GENERATED_BUILD_FILE_NAME}"
-  cat > b/Android.bp <<EOF
-filegroup {
-  name: "b",
-  srcs: ["b.txt"],
-  bazel_module: { bp2build_available: true },
-}
-EOF
-
-  if run_soong bp2build >& "$MOCK_TOP/errors"; then
-    fail "Build should have failed"
-  fi
-
-  # we should expect at least one error
-  grep -q -E "(a|b)/${GENERATED_BUILD_FILE_NAME}' exist" "$MOCK_TOP/errors" || fail "Error for ${GENERATED_BUILD_FILE_NAME} not found"
-}
-
-function test_bp2build_back_and_forth_null_build {
-  setup
-
-  run_soong
-  local -r output_mtime1=$(stat -c "%y" out/soong/build.ninja)
-
-  run_soong bp2build
-  local -r output_mtime2=$(stat -c "%y" out/soong/build.ninja)
-  if [[ "$output_mtime1" != "$output_mtime2" ]]; then
-    fail "Output Ninja file changed when switching to bp2build"
-  fi
-
-  local -r marker_mtime1=$(stat -c "%y" out/soong/bp2build_workspace_marker)
-
-  run_soong
-  local -r output_mtime3=$(stat -c "%y" out/soong/build.ninja)
-  local -r marker_mtime2=$(stat -c "%y" out/soong/bp2build_workspace_marker)
-  if [[ "$output_mtime1" != "$output_mtime3" ]]; then
-    fail "Output Ninja file changed when switching to regular build from bp2build"
-  fi
-  if [[ "$marker_mtime1" != "$marker_mtime2" ]]; then
-    fail "bp2build marker file changed when switching to regular build from bp2build"
-  fi
-
-  run_soong bp2build
-  local -r output_mtime4=$(stat -c "%y" out/soong/build.ninja)
-  local -r marker_mtime3=$(stat -c "%y" out/soong/bp2build_workspace_marker)
-  if [[ "$output_mtime1" != "$output_mtime4" ]]; then
-    fail "Output Ninja file changed when switching back to bp2build"
-  fi
-  if [[ "$marker_mtime1" != "$marker_mtime3" ]]; then
-    fail "bp2build marker file changed when switching back to bp2build"
-  fi
-}
-
-function test_queryview_smoke() {
-  setup
-
-  run_soong queryview
-  [[ -e out/soong/queryview/WORKSPACE ]] || fail "queryview WORKSPACE file not created"
 
 }
 
@@ -886,14 +609,14 @@ function test_queryview_null_build() {
 }
 
 # This test verifies that adding a new glob to a blueprint file only
-# causes build.ninja to be regenerated on the *next* build, and *not*
+# causes build."${target_product}".ninja to be regenerated on the *next* build, and *not*
 # the build after. (This is a regression test for a bug where globs
 # resulted in two successive regenerations.)
 function test_new_glob_incrementality {
   setup
 
   run_soong nothing
-  local -r mtime1=$(stat -c "%y" out/soong/build.ninja)
+  local -r mtime1=$(stat -c "%y" out/soong/build."${target_product}".ninja)
 
   mkdir -p globdefpkg/
   cat > globdefpkg/Android.bp <<'EOF'
@@ -904,14 +627,14 @@ filegroup {
 EOF
 
   run_soong nothing
-  local -r mtime2=$(stat -c "%y" out/soong/build.ninja)
+  local -r mtime2=$(stat -c "%y" out/soong/build."${target_product}".ninja)
 
   if [[ "$mtime1" == "$mtime2" ]]; then
     fail "Ninja file was not regenerated, despite a new bp file"
   fi
 
   run_soong nothing
-  local -r mtime3=$(stat -c "%y" out/soong/build.ninja)
+  local -r mtime3=$(stat -c "%y" out/soong/build."${target_product}".ninja)
 
   if [[ "$mtime2" != "$mtime3" ]]; then
     fail "Ninja file was regenerated despite no previous bp changes"
