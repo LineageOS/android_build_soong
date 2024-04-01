@@ -6939,6 +6939,15 @@ func TestOverrideApex(t *testing.T) {
 			bpfs: ["overrideBpf"],
 			prebuilts: ["override_myetc"],
 			overrides: ["unknownapex"],
+			compile_multilib: "first",
+			multilib: {
+				lib32: {
+					native_shared_libs: ["mylib32"],
+				},
+				lib64: {
+					native_shared_libs: ["mylib64"],
+				},
+			},
 			logging_parent: "com.foo.bar",
 			package_name: "test.overridden.package",
 			key: "mynewapex.key",
@@ -6995,6 +7004,16 @@ func TestOverrideApex(t *testing.T) {
 		prebuilt_etc {
 			name: "override_myetc",
 			src: "override_myprebuilt",
+		}
+
+		cc_library {
+			name: "mylib32",
+			apex_available: [ "myapex" ],
+		}
+
+		cc_library {
+			name: "mylib64",
+			apex_available: [ "myapex" ],
 		}
 	`, withManifestPackageNameOverrides([]string{"myapex:com.android.myapex"}))
 
