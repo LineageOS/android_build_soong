@@ -15,7 +15,6 @@
 package etc
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -23,7 +22,6 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/snapshot"
 )
 
 func TestMain(m *testing.M) {
@@ -37,18 +35,6 @@ var prepareForPrebuiltEtcTest = android.GroupFixturePreparers(
 		"foo.conf": nil,
 		"bar.conf": nil,
 		"baz.conf": nil,
-	}),
-)
-
-var prepareForPrebuiltEtcSnapshotTest = android.GroupFixturePreparers(
-	prepareForPrebuiltEtcTest,
-	android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
-		snapshot.VendorSnapshotImageSingleton.Init(ctx)
-		snapshot.RecoverySnapshotImageSingleton.Init(ctx)
-	}),
-	android.FixtureModifyConfig(func(config android.Config) {
-		config.TestProductVariables.DeviceVndkVersion = proptools.StringPtr("current")
-		config.TestProductVariables.RecoverySnapshotVersion = proptools.StringPtr("current")
 	}),
 )
 
@@ -414,111 +400,4 @@ func TestPrebuiltRFSADirPath(t *testing.T) {
 			android.AssertPathRelativeToTopEquals(t, "install dir", tt.expectedPath, p.installDirPath)
 		})
 	}
-}
-
-func checkIfSnapshotTaken(t *testing.T, result *android.TestResult, image string, moduleName string) {
-	checkIfSnapshotExistAsExpected(t, result, image, moduleName, true)
-}
-
-func checkIfSnapshotNotTaken(t *testing.T, result *android.TestResult, image string, moduleName string) {
-	checkIfSnapshotExistAsExpected(t, result, image, moduleName, false)
-}
-
-func checkIfSnapshotExistAsExpected(t *testing.T, result *android.TestResult, image string, moduleName string, expectToExist bool) {
-	snapshotSingleton := result.SingletonForTests(image + "-snapshot")
-	archType := "arm64"
-	archVariant := "armv8-a"
-	archDir := fmt.Sprintf("arch-%s", archType)
-
-	snapshotDir := fmt.Sprintf("%s-snapshot", image)
-	snapshotVariantPath := filepath.Join(snapshotDir, archType)
-	outputDir := filepath.Join(snapshotVariantPath, archDir, "etc")
-	imageVariant := ""
-	if image == "recovery" {
-		imageVariant = "recovery_"
-	}
-	mod := result.ModuleForTests(moduleName, fmt.Sprintf("android_%s%s_%s", imageVariant, archType, archVariant))
-	outputFiles := mod.OutputFiles(t, "")
-	if len(outputFiles) != 1 {
-		t.Errorf("%q must have single output\n", moduleName)
-		return
-	}
-	snapshotPath := filepath.Join(outputDir, moduleName)
-
-	if expectToExist {
-		out := snapshotSingleton.Output(snapshotPath)
-
-		if out.Input.String() != outputFiles[0].String() {
-			t.Errorf("The input of snapshot %q must be %q, but %q", "prebuilt_vendor", out.Input.String(), outputFiles[0])
-		}
-
-		snapshotJsonPath := snapshotPath + ".json"
-
-		if snapshotSingleton.MaybeOutput(snapshotJsonPath).Rule == nil {
-			t.Errorf("%q expected but not found", snapshotJsonPath)
-		}
-	} else {
-		out := snapshotSingleton.MaybeOutput(snapshotPath)
-		if out.Rule != nil {
-			t.Errorf("There must be no rule for module %q output file %q", moduleName, outputFiles[0])
-		}
-	}
-}
-
-func TestPrebuiltTakeSnapshot(t *testing.T) {
-	var testBp = `
-	prebuilt_etc {
-		name: "prebuilt_vendor",
-		src: "foo.conf",
-		vendor: true,
-	}
-
-	prebuilt_etc {
-		name: "prebuilt_vendor_indirect",
-		src: "foo.conf",
-		vendor: true,
-	}
-
-	prebuilt_etc {
-		name: "prebuilt_recovery",
-		src: "bar.conf",
-		recovery: true,
-	}
-
-	prebuilt_etc {
-		name: "prebuilt_recovery_indirect",
-		src: "bar.conf",
-		recovery: true,
-	}
-	`
-
-	t.Run("prebuilt: vendor and recovery snapshot", func(t *testing.T) {
-		result := prepareForPrebuiltEtcSnapshotTest.RunTestWithBp(t, testBp)
-
-		checkIfSnapshotTaken(t, result, "vendor", "prebuilt_vendor")
-		checkIfSnapshotTaken(t, result, "vendor", "prebuilt_vendor_indirect")
-		checkIfSnapshotTaken(t, result, "recovery", "prebuilt_recovery")
-		checkIfSnapshotTaken(t, result, "recovery", "prebuilt_recovery_indirect")
-	})
-
-	t.Run("prebuilt: directed snapshot", func(t *testing.T) {
-		prepareForPrebuiltEtcDirectedSnapshotTest := android.GroupFixturePreparers(
-			prepareForPrebuiltEtcSnapshotTest,
-			android.FixtureModifyConfig(func(config android.Config) {
-				config.TestProductVariables.DirectedVendorSnapshot = true
-				config.TestProductVariables.VendorSnapshotModules = make(map[string]bool)
-				config.TestProductVariables.VendorSnapshotModules["prebuilt_vendor"] = true
-				config.TestProductVariables.DirectedRecoverySnapshot = true
-				config.TestProductVariables.RecoverySnapshotModules = make(map[string]bool)
-				config.TestProductVariables.RecoverySnapshotModules["prebuilt_recovery"] = true
-			}),
-		)
-
-		result := prepareForPrebuiltEtcDirectedSnapshotTest.RunTestWithBp(t, testBp)
-
-		checkIfSnapshotTaken(t, result, "vendor", "prebuilt_vendor")
-		checkIfSnapshotNotTaken(t, result, "vendor", "prebuilt_vendor_indirect")
-		checkIfSnapshotTaken(t, result, "recovery", "prebuilt_recovery")
-		checkIfSnapshotNotTaken(t, result, "recovery", "prebuilt_recovery_indirect")
-	})
 }
