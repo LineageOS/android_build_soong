@@ -39,7 +39,7 @@ func TestSelects(t *testing.T) {
 				my_string_list: select(soong_config_variable("my_namespace", "my_variable"), {
 					"a": ["a.cpp"],
 					"b": ["b.cpp"],
-					_: ["c.cpp"],
+					default: ["c.cpp"],
 				}),
 			}
 			`,
@@ -55,7 +55,7 @@ func TestSelects(t *testing.T) {
 				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
 					"a": "a.cpp",
 					"b": "b.cpp",
-					_: "c.cpp",
+					default: "c.cpp",
 				}),
 			}
 			`,
@@ -71,7 +71,7 @@ func TestSelects(t *testing.T) {
 				my_bool: select(soong_config_variable("my_namespace", "my_variable"), {
 					"a": true,
 					"b": false,
-					_: true,
+					default: true,
 				}),
 			}
 			`,
@@ -87,7 +87,7 @@ func TestSelects(t *testing.T) {
 				my_paths: select(soong_config_variable("my_namespace", "my_variable"), {
 					"a": ["foo.txt"],
 					"b": ["bar.txt"],
-					_: ["baz.txt"],
+					default: ["baz.txt"],
 				}),
 			}
 			`,
@@ -103,7 +103,7 @@ func TestSelects(t *testing.T) {
 				my_paths: select(soong_config_variable("my_namespace", "my_variable"), {
 					"a": [":a"],
 					"b": [":b"],
-					_: [":c"],
+					default: [":c"],
 				}),
 			}
 			`,
@@ -117,7 +117,7 @@ func TestSelects(t *testing.T) {
 				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
 					"a": "a.cpp",
 					"b": true,
-					_: "c.cpp",
+					default: "c.cpp",
 				}),
 			}
 			`,
@@ -131,7 +131,7 @@ func TestSelects(t *testing.T) {
 				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
 					"a": false,
 					"b": true,
-					_: true,
+					default: true,
 				}),
 			}
 			`,
@@ -145,7 +145,7 @@ func TestSelects(t *testing.T) {
 				my_string_list: select(soong_config_variable("my_namespace", "my_variable"), {
 					"a": ["a.cpp"],
 					"b": ["b.cpp"],
-					_: ["c.cpp"],
+					default: ["c.cpp"],
 				}),
 			}
 			`,
@@ -166,11 +166,11 @@ func TestSelects(t *testing.T) {
 				my_string_list: select(soong_config_variable("my_namespace", "my_variable"), {
 					"a": ["a.cpp"],
 					"b": ["b.cpp"],
-					_: ["c.cpp"],
+					default: ["c.cpp"],
 				}) + select(soong_config_variable("my_namespace", "my_variable_2"), {
 					"a2": ["a2.cpp"],
 					"b2": ["b2.cpp"],
-					_: ["c2.cpp"],
+					default: ["c2.cpp"],
 				}),
 			}
 			`,
@@ -191,7 +191,7 @@ func TestSelects(t *testing.T) {
 				my_string_list: ["literal.cpp"] + select(soong_config_variable("my_namespace", "my_variable"), {
 					"a2": ["a2.cpp"],
 					"b2": ["b2.cpp"],
-					_: ["c2.cpp"],
+					default: ["c2.cpp"],
 				}),
 			}
 			`,
@@ -207,7 +207,7 @@ func TestSelects(t *testing.T) {
 				my_string_list: select(soong_config_variable("my_namespace", "my_variable"), {
 					"a2": ["a2.cpp"],
 					"b2": ["b2.cpp"],
-					_: ["c2.cpp"],
+					default: ["c2.cpp"],
 				}) + ["literal.cpp"],
 			}
 			`,
@@ -223,7 +223,7 @@ func TestSelects(t *testing.T) {
 				my_bool: select(soong_config_variable("my_namespace", "my_variable"), {
 					"a": true,
 					"b": false,
-					_: true,
+					default: true,
 				}) + false,
 			}
 			`,
@@ -239,7 +239,7 @@ func TestSelects(t *testing.T) {
 				my_bool: select(soong_config_variable("my_namespace", "my_variable"), {
 					"a": true,
 					"b": false,
-					_: true,
+					default: true,
 				}) + false,
 			}
 			`,
@@ -260,7 +260,7 @@ func TestSelects(t *testing.T) {
 				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
 					"a": "a",
 					"b": "b",
-					_: "c",
+					default: "c",
 				}) + ".cpp",
 			}
 			`,
@@ -278,7 +278,7 @@ func TestSelects(t *testing.T) {
 					"x86_64": "my_x86_64",
 					"arm": "my_arm",
 					"arm64": "my_arm64",
-					_: "my_default",
+					default: "my_default",
 				}),
 			}
 			`,
@@ -294,7 +294,7 @@ func TestSelects(t *testing.T) {
 				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
 					"a": unset,
 					"b": "b",
-					_: "c",
+					default: "c",
 				})
 			}
 			`,
@@ -313,7 +313,7 @@ func TestSelects(t *testing.T) {
 				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
 					"a": unset,
 					"b": "b",
-					_: "c",
+					default: "c",
 				})
 			}
 			`,
@@ -327,9 +327,9 @@ func TestSelects(t *testing.T) {
 			my_module_type {
 				name: "foo",
 				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
-					_: unset,
+					default: unset,
 				}) + select(soong_config_variable("my_namespace", "my_variable2"), {
-					_: unset,
+					default: unset,
 				})
 			}
 			`,
@@ -341,9 +341,9 @@ func TestSelects(t *testing.T) {
 			my_module_type {
 				name: "foo",
 				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
-					_: unset,
+					default: unset,
 				}) + select(soong_config_variable("my_namespace", "my_variable2"), {
-					_: "a",
+					default: "a",
 				})
 			}
 			`,
@@ -358,9 +358,9 @@ func TestSelects(t *testing.T) {
 				name: "foo",
 				my_bool: select(soong_config_variable("my_namespace", "my_variable"), {
 					"a": true,
-					_: unset,
+					default: unset,
 				}) + select(soong_config_variable("my_namespace", "my_variable2"), {
-					_: true,
+					default: true,
 				})
 			}
 			`,
