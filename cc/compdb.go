@@ -164,6 +164,7 @@ func getArguments(src android.Path, ctx android.SingletonContext, ccModule *Modu
 		args = append(args, expandAllVars(ctx, ccModule.flags.Local.ConlyFlags)...)
 	}
 	args = append(args, expandAllVars(ctx, ccModule.flags.SystemIncludeFlags)...)
+	args = append(args, expandAllVars(ctx, ccModule.flags.NoOverrideFlags)...)
 	args = append(args, src.String())
 	return args
 }
