@@ -71,6 +71,9 @@ type UserSuppliedPrebuiltProperties struct {
 	//
 	// If specified then the prefer property is ignored in favor of the value of the Soong config
 	// variable.
+	//
+	// DEPRECATED: This property is being deprecated b/308188211.
+	// Use RELEASE_APEX_CONTRIBUTIONS build flags to select prebuilts of mainline modules.
 	Use_source_config_var *ConfigVarProperties
 }
 
