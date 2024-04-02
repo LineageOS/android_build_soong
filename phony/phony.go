@@ -29,6 +29,7 @@ func init() {
 func registerPhonyModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("phony", PhonyFactory)
 	ctx.RegisterModuleType("phony_rule", PhonyRuleFactory)
+	ctx.RegisterModuleType("phony_rule_defaults", PhonyRuleDefaultsFactory)
 }
 
 var PrepareForTestWithPhony = android.FixtureRegisterWithContext(registerPhonyModuleTypes)
@@ -85,6 +86,7 @@ func (p *phony) AndroidMk() android.AndroidMkData {
 
 type PhonyRule struct {
 	android.ModuleBase
+	android.DefaultableModuleBase
 
 	properties PhonyProperties
 }
@@ -102,6 +104,7 @@ func PhonyRuleFactory() android.Module {
 	module := &PhonyRule{}
 	android.InitAndroidModule(module)
 	module.AddProperties(&module.properties)
+	android.InitDefaultableModule(module)
 	return module
 }
 
@@ -118,4 +121,46 @@ func (p *PhonyRule) AndroidMk() android.AndroidMkData {
 			}
 		},
 	}
+}
+
+// PhonyRuleDefaults
+type PhonyRuleDefaults struct {
+	android.ModuleBase
+	android.DefaultsModuleBase
+}
+
+// phony_rule_defaults provides a set of properties that can be inherited by other phony_rules.
+//
+// A module can use the properties from a phony_rule_defaults module using `defaults: ["defaults_module_name"]`.  Each
+// property in the defaults module that exists in the depending module will be prepended to the depending module's
+// value for that property.
+//
+// Example:
+//
+//	phony_rule_defaults {
+//	    name: "add_module1_defaults",
+//	    phony_deps: [
+//	        "module1",
+//	    ],
+//	}
+//
+//	phony_rule {
+//	    name: "example",
+//	    defaults: ["add_module1_defaults"],
+//	}
+//
+// is functionally identical to:
+//
+//	phony_rule {
+//	    name: "example",
+//	    phony_deps: [
+//	        "module1",
+//	    ],
+//	}
+func PhonyRuleDefaultsFactory() android.Module {
+	module := &PhonyRuleDefaults{}
+	module.AddProperties(&PhonyProperties{})
+	android.InitDefaultsModule(module)
+
+	return module
 }
