@@ -43,10 +43,6 @@ var PrepareForTestWithRustDefaultModules = android.GroupFixturePreparers(
 // Preparer that will allow use of all rust modules fully.
 var PrepareForIntegrationTestWithRust = android.GroupFixturePreparers(
 	PrepareForTestWithRustDefaultModules,
-)
-
-var PrepareForTestWithRustIncludeVndk = android.GroupFixturePreparers(
-	PrepareForIntegrationTestWithRust,
 	cc.PrepareForIntegrationTestWithCc,
 )
 

@@ -37,11 +37,7 @@ var prepareForRustTest = android.GroupFixturePreparers(
 
 	genrule.PrepareForTestWithGenRuleBuildComponents,
 
-	PrepareForTestWithRustIncludeVndk,
-	android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
-		variables.DeviceVndkVersion = StringPtr("current")
-		variables.Platform_vndk_version = StringPtr("29")
-	}),
+	PrepareForIntegrationTestWithRust,
 )
 
 var rustMockedFiles = android.MockFS{
@@ -73,59 +69,20 @@ func testRust(t *testing.T, bp string) *android.TestContext {
 	return result.TestContext
 }
 
-func testRustVndk(t *testing.T, bp string) *android.TestContext {
-	return testRustVndkFs(t, bp, rustMockedFiles)
-}
-
 const (
-	sharedVendorVariant        = "android_vendor.29_arm64_armv8-a_shared"
-	rlibVendorVariant          = "android_vendor.29_arm64_armv8-a_rlib_rlib-std"
-	rlibDylibStdVendorVariant  = "android_vendor.29_arm64_armv8-a_rlib_rlib-std"
-	dylibVendorVariant         = "android_vendor.29_arm64_armv8-a_dylib"
+	sharedVendorVariant        = "android_vendor_arm64_armv8-a_shared"
+	rlibVendorVariant          = "android_vendor_arm64_armv8-a_rlib_rlib-std"
+	rlibDylibStdVendorVariant  = "android_vendor_arm64_armv8-a_rlib_rlib-std"
+	dylibVendorVariant         = "android_vendor_arm64_armv8-a_dylib"
 	sharedRecoveryVariant      = "android_recovery_arm64_armv8-a_shared"
 	rlibRecoveryVariant        = "android_recovery_arm64_armv8-a_rlib_dylib-std"
 	rlibRlibStdRecoveryVariant = "android_recovery_arm64_armv8-a_rlib_rlib-std"
 	dylibRecoveryVariant       = "android_recovery_arm64_armv8-a_dylib"
 	binaryCoreVariant          = "android_arm64_armv8-a"
-	binaryVendorVariant        = "android_vendor.29_arm64_armv8-a"
-	binaryProductVariant       = "android_product.29_arm64_armv8-a"
+	binaryVendorVariant        = "android_vendor_arm64_armv8-a"
+	binaryProductVariant       = "android_product_arm64_armv8-a"
 	binaryRecoveryVariant      = "android_recovery_arm64_armv8-a"
 )
-
-func testRustVndkFs(t *testing.T, bp string, fs android.MockFS) *android.TestContext {
-	return testRustVndkFsVersions(t, bp, fs, "current", "current", "29")
-}
-
-func testRustVndkFsVersions(t *testing.T, bp string, fs android.MockFS, device_version, product_version, vndk_version string) *android.TestContext {
-	skipTestIfOsNotSupported(t)
-	result := android.GroupFixturePreparers(
-		prepareForRustTest,
-		fs.AddToFixture(),
-		android.FixtureModifyProductVariables(
-			func(variables android.FixtureProductVariables) {
-				variables.DeviceVndkVersion = StringPtr(device_version)
-				variables.Platform_vndk_version = StringPtr(vndk_version)
-			},
-		),
-	).RunTestWithBp(t, bp)
-	return result.TestContext
-}
-
-func testRustRecoveryFsVersions(t *testing.T, bp string, fs android.MockFS, device_version, vndk_version, recovery_version string) *android.TestContext {
-	skipTestIfOsNotSupported(t)
-	result := android.GroupFixturePreparers(
-		prepareForRustTest,
-		fs.AddToFixture(),
-		android.FixtureModifyProductVariables(
-			func(variables android.FixtureProductVariables) {
-				variables.DeviceVndkVersion = StringPtr(device_version)
-				variables.RecoverySnapshotVersion = StringPtr(recovery_version)
-				variables.Platform_vndk_version = StringPtr(vndk_version)
-			},
-		),
-	).RunTestWithBp(t, bp)
-	return result.TestContext
-}
 
 // testRustCov returns a TestContext in which a basic environment has been
 // setup. This environment explicitly enables coverage.
@@ -153,27 +110,6 @@ func testRustError(t *testing.T, pattern string, bp string) {
 	android.GroupFixturePreparers(
 		prepareForRustTest,
 		rustMockedFiles.AddToFixture(),
-	).
-		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(pattern)).
-		RunTestWithBp(t, bp)
-}
-
-// testRustVndkError is similar to testRustError, but can be used to test VNDK-related errors.
-func testRustVndkError(t *testing.T, pattern string, bp string) {
-	testRustVndkFsError(t, pattern, bp, rustMockedFiles)
-}
-
-func testRustVndkFsError(t *testing.T, pattern string, bp string, fs android.MockFS) {
-	skipTestIfOsNotSupported(t)
-	android.GroupFixturePreparers(
-		prepareForRustTest,
-		fs.AddToFixture(),
-		android.FixtureModifyProductVariables(
-			func(variables android.FixtureProductVariables) {
-				variables.DeviceVndkVersion = StringPtr("current")
-				variables.Platform_vndk_version = StringPtr("VER")
-			},
-		),
 	).
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(pattern)).
 		RunTestWithBp(t, bp)

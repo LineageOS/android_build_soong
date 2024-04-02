@@ -11,7 +11,7 @@ import (
 func TestRustAconfigLibrary(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		PrepareForTestWithAconfigBuildComponents,
-		rust.PrepareForTestWithRustIncludeVndk,
+		rust.PrepareForIntegrationTestWithRust,
 		android.PrepareForTestWithArchMutator,
 		android.PrepareForTestWithDefaults,
 		android.PrepareForTestWithPrebuilts,
@@ -100,7 +100,7 @@ func testRustCodegenModeHelper(t *testing.T, bpMode string, ruleMode string) {
 	t.Helper()
 	result := android.GroupFixturePreparers(
 		PrepareForTestWithAconfigBuildComponents,
-		rust.PrepareForTestWithRustIncludeVndk).
+		rust.PrepareForIntegrationTestWithRust).
 		ExtendWithErrorHandler(android.FixtureExpectsNoErrors).
 		RunTestWithBp(t, fmt.Sprintf(`
 			rust_library {
@@ -162,7 +162,7 @@ func testIncorrectRustCodegenModeHelper(t *testing.T, bpMode string, err string)
 	t.Helper()
 	android.GroupFixturePreparers(
 		PrepareForTestWithAconfigBuildComponents,
-		rust.PrepareForTestWithRustIncludeVndk).
+		rust.PrepareForIntegrationTestWithRust).
 		ExtendWithErrorHandler(android.FixtureExpectsOneErrorPattern(err)).
 		RunTestWithBp(t, fmt.Sprintf(`
 			rust_library {

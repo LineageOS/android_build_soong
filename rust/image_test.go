@@ -24,7 +24,7 @@ import (
 
 // Test that cc modules can link against vendor_available rust_ffi_static libraries.
 func TestVendorLinkage(t *testing.T) {
-	ctx := testRustVndk(t, `
+	ctx := testRust(t, `
 			cc_binary {
 				name: "fizz_vendor",
 				static_libs: ["libfoo_vendor"],
@@ -38,7 +38,7 @@ func TestVendorLinkage(t *testing.T) {
 			}
 		`)
 
-	vendorBinary := ctx.ModuleForTests("fizz_vendor", "android_vendor.29_arm64_armv8-a").Module().(*cc.Module)
+	vendorBinary := ctx.ModuleForTests("fizz_vendor", "android_vendor_arm64_armv8-a").Module().(*cc.Module)
 
 	if !android.InList("libfoo_vendor.vendor", vendorBinary.Properties.AndroidMkStaticLibs) {
 		t.Errorf("vendorBinary should have a dependency on libfoo_vendor: %#v", vendorBinary.Properties.AndroidMkStaticLibs)
@@ -46,8 +46,8 @@ func TestVendorLinkage(t *testing.T) {
 }
 
 // Test that variants which use the vndk emit the appropriate cfg flag.
-func TestImageVndkCfgFlag(t *testing.T) {
-	ctx := testRustVndk(t, `
+func TestImageCfgFlag(t *testing.T) {
+	ctx := testRust(t, `
 			rust_ffi_static {
 				name: "libfoo",
 				crate_name: "foo",
@@ -57,7 +57,7 @@ func TestImageVndkCfgFlag(t *testing.T) {
 			}
 		`)
 
-	vendor := ctx.ModuleForTests("libfoo", "android_vendor.29_arm64_armv8-a_static").Rule("rustc")
+	vendor := ctx.ModuleForTests("libfoo", "android_vendor_arm64_armv8-a_static").Rule("rustc")
 
 	if !strings.Contains(vendor.Args["rustcFlags"], "--cfg 'android_vndk'") {
 		t.Errorf("missing \"--cfg 'android_vndk'\" for libfoo vendor variant, rustcFlags: %#v", vendor.Args["rustcFlags"])
@@ -69,7 +69,7 @@ func TestImageVndkCfgFlag(t *testing.T) {
 		t.Errorf("unexpected \"--cfg 'android_product'\" for libfoo vendor variant, rustcFlags: %#v", vendor.Args["rustcFlags"])
 	}
 
-	product := ctx.ModuleForTests("libfoo", "android_product.29_arm64_armv8-a_static").Rule("rustc")
+	product := ctx.ModuleForTests("libfoo", "android_product_arm64_armv8-a_static").Rule("rustc")
 	if !strings.Contains(product.Args["rustcFlags"], "--cfg 'android_vndk'") {
 		t.Errorf("missing \"--cfg 'android_vndk'\" for libfoo product variant, rustcFlags: %#v", product.Args["rustcFlags"])
 	}
@@ -95,7 +95,7 @@ func TestImageVndkCfgFlag(t *testing.T) {
 
 // Test that cc modules can link against vendor_ramdisk_available rust_ffi_static libraries.
 func TestVendorRamdiskLinkage(t *testing.T) {
-	ctx := testRustVndk(t, `
+	ctx := testRust(t, `
 			cc_library_static {
 				name: "libcc_vendor_ramdisk",
 				static_libs: ["libfoo_vendor_ramdisk"],
@@ -119,7 +119,7 @@ func TestVendorRamdiskLinkage(t *testing.T) {
 
 // Test that prebuilt libraries cannot be made vendor available.
 func TestForbiddenVendorLinkage(t *testing.T) {
-	testRustVndkError(t, "Rust prebuilt modules not supported for non-system images.", `
+	testRustError(t, "Rust prebuilt modules not supported for non-system images.", `
 		rust_prebuilt_library {
 			name: "librust_prebuilt",
 			crate_name: "rust_prebuilt",
