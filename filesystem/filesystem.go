@@ -58,7 +58,7 @@ type filesystem struct {
 	output     android.OutputPath
 	installDir android.InstallPath
 
-	// For testing. Keeps the result of CopyDepsToZip()
+	// For testing. Keeps the result of CopySpecsToDir()
 	entries []string
 }
 
@@ -121,6 +121,8 @@ type filesystemProperties struct {
 	// modules would be installed to the same location as a make module, they will overwrite
 	// the make version.
 	Include_make_built_files string
+
+	Fsverity fsverityProperties
 }
 
 // android_filesystem packages a set of modules and their transitive dependencies into a filesystem
@@ -175,6 +177,10 @@ func (f *filesystem) fsType(ctx android.ModuleContext) fsType {
 
 func (f *filesystem) installFileName() string {
 	return f.BaseModuleName() + ".img"
+}
+
+func (f *filesystem) partitionName() string {
+	return proptools.StringDefault(f.properties.Partition_name, f.Name())
 }
 
 var pctx = android.NewPackageContext("android/soong/filesystem")
@@ -256,10 +262,12 @@ func (f *filesystem) buildImageUsingBuildImage(ctx android.ModuleContext) androi
 	builder := android.NewRuleBuilder(pctx, ctx)
 	// Wipe the root dir to get rid of leftover files from prior builds
 	builder.Command().Textf("rm -rf %s && mkdir -p %s", rootDir, rootDir)
-	f.entries = f.CopySpecsToDir(ctx, builder, f.gatherFilteredPackagingSpecs(ctx), rebasedDir)
+	specs := f.gatherFilteredPackagingSpecs(ctx)
+	f.entries = f.CopySpecsToDir(ctx, builder, specs, rebasedDir)
 
 	f.buildNonDepsFiles(ctx, builder, rootDir)
 	f.addMakeBuiltFiles(ctx, builder, rootDir)
+	f.buildFsverityMetadataFiles(ctx, builder, specs, rootDir, rebasedDir)
 
 	// run host_init_verifier
 	// Ideally we should have a concept of pluggable linters that verify the generated image.
@@ -339,13 +347,12 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (propFile android.
 		addStr("avb_algorithm", algorithm)
 		key := android.PathForModuleSrc(ctx, proptools.String(f.properties.Avb_private_key))
 		addPath("avb_key_path", key)
-		partitionName := proptools.StringDefault(f.properties.Partition_name, f.Name())
-		addStr("partition_name", partitionName)
+		addStr("partition_name", f.partitionName())
 		avb_add_hashtree_footer_args := "--do_not_generate_fec"
 		if hashAlgorithm := proptools.String(f.properties.Avb_hash_algorithm); hashAlgorithm != "" {
 			avb_add_hashtree_footer_args += " --hash_algorithm " + hashAlgorithm
 		}
-		securityPatchKey := "com.android.build." + partitionName + ".security_patch"
+		securityPatchKey := "com.android.build." + f.partitionName() + ".security_patch"
 		securityPatchValue := ctx.Config().PlatformSecurityPatch()
 		avb_add_hashtree_footer_args += " --prop " + securityPatchKey + ":" + securityPatchValue
 		addStr("avb_add_hashtree_footer_args", avb_add_hashtree_footer_args)
@@ -389,9 +396,11 @@ func (f *filesystem) buildCpioImage(ctx android.ModuleContext, compressed bool) 
 	builder := android.NewRuleBuilder(pctx, ctx)
 	// Wipe the root dir to get rid of leftover files from prior builds
 	builder.Command().Textf("rm -rf %s && mkdir -p %s", rootDir, rootDir)
-	f.entries = f.CopySpecsToDir(ctx, builder, f.gatherFilteredPackagingSpecs(ctx), rebasedDir)
+	specs := f.gatherFilteredPackagingSpecs(ctx)
+	f.entries = f.CopySpecsToDir(ctx, builder, specs, rebasedDir)
 
 	f.buildNonDepsFiles(ctx, builder, rootDir)
+	f.buildFsverityMetadataFiles(ctx, builder, specs, rootDir, rebasedDir)
 
 	output := android.PathForModuleOut(ctx, f.installFileName()).OutputPath
 	cmd := builder.Command().
