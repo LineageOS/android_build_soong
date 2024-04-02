@@ -134,8 +134,6 @@ func test(t *testing.T, bp string) *android.TestResult {
 		PrepareForTestWithSyspropBuildComponents,
 		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 			variables.DeviceSystemSdkVersions = []string{"28"}
-			variables.DeviceVndkVersion = proptools.StringPtr("current")
-			variables.Platform_vndk_version = proptools.StringPtr("29")
 			variables.DeviceCurrentApiLevelForVendorModules = proptools.StringPtr("28")
 		}),
 		java.FixtureWithPrebuiltApis(map[string][]string{
@@ -258,10 +256,10 @@ func TestSyspropLibrary(t *testing.T) {
 
 	// Check for generated cc_library
 	for _, variant := range []string{
-		"android_vendor.29_arm_armv7-a-neon_shared",
-		"android_vendor.29_arm_armv7-a-neon_static",
-		"android_vendor.29_arm64_armv8-a_shared",
-		"android_vendor.29_arm64_armv8-a_static",
+		"android_vendor_arm_armv7-a-neon_shared",
+		"android_vendor_arm_armv7-a-neon_static",
+		"android_vendor_arm64_armv8-a_shared",
+		"android_vendor_arm64_armv8-a_static",
 	} {
 		result.ModuleForTests("libsysprop-platform", variant)
 		result.ModuleForTests("libsysprop-vendor", variant)
@@ -270,10 +268,10 @@ func TestSyspropLibrary(t *testing.T) {
 
 	// product variant of vendor-owned sysprop_library
 	for _, variant := range []string{
-		"android_product.29_arm_armv7-a-neon_shared",
-		"android_product.29_arm_armv7-a-neon_static",
-		"android_product.29_arm64_armv8-a_shared",
-		"android_product.29_arm64_armv8-a_static",
+		"android_product_arm_armv7-a-neon_shared",
+		"android_product_arm_armv7-a-neon_static",
+		"android_product_arm64_armv8-a_shared",
+		"android_product_arm64_armv8-a_static",
 	} {
 		result.ModuleForTests("libsysprop-vendor-on-product", variant)
 	}
@@ -296,16 +294,16 @@ func TestSyspropLibrary(t *testing.T) {
 
 	// Check for exported includes
 	coreVariant := "android_arm64_armv8-a_static"
-	vendorVariant := "android_vendor.29_arm64_armv8-a_static"
-	productVariant := "android_product.29_arm64_armv8-a_static"
+	vendorVariant := "android_vendor_arm64_armv8-a_static"
+	productVariant := "android_product_arm64_armv8-a_static"
 
 	platformInternalPath := "libsysprop-platform/android_arm64_armv8-a_static/gen/sysprop/include"
-	platformPublicVendorPath := "libsysprop-platform/android_vendor.29_arm64_armv8-a_static/gen/sysprop/public/include"
+	platformPublicVendorPath := "libsysprop-platform/android_vendor_arm64_armv8-a_static/gen/sysprop/public/include"
 
-	platformOnProductPath := "libsysprop-platform-on-product/android_product.29_arm64_armv8-a_static/gen/sysprop/public/include"
+	platformOnProductPath := "libsysprop-platform-on-product/android_product_arm64_armv8-a_static/gen/sysprop/public/include"
 
-	vendorInternalPath := "libsysprop-vendor/android_vendor.29_arm64_armv8-a_static/gen/sysprop/include"
-	vendorOnProductPath := "libsysprop-vendor-on-product/android_product.29_arm64_armv8-a_static/gen/sysprop/public/include"
+	vendorInternalPath := "libsysprop-vendor/android_vendor_arm64_armv8-a_static/gen/sysprop/include"
+	vendorOnProductPath := "libsysprop-vendor-on-product/android_product_arm64_armv8-a_static/gen/sysprop/public/include"
 
 	platformClient := result.ModuleForTests("cc-client-platform", coreVariant)
 	platformFlags := platformClient.Rule("cc").Args["cFlags"]
