@@ -163,6 +163,20 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 	})
 }
 
+// A denylist of modules whose host variants will be removed from the generated snapshots above the ApiLevel
+// even if they are listed in the corresponding `sdk`.
+// The key is the module name
+// The value is the _last_ dessert where the host variant of the module will be present
+// This is a workaround to ensure that these modules are generated in <=$ApiLevel, but not in in >=$ApiLevel
+var ignoreHostModuleVariantsAboveDessert = map[string]android.ApiLevel{
+	// ignore host variant of libdexfile and its transitive dependencies.
+	// The platform test that depends on them (`libunwindstack_unit_test` at the time of writing)
+	// no longer requires a prebuilt variant of libdexfile.
+	"libdexfile":    android.ApiLevelUpsideDownCake,
+	"libartpalette": android.ApiLevelUpsideDownCake,
+	"libartbase":    android.ApiLevelUpsideDownCake,
+}
+
 // groupMemberVariantsByMemberThenType groups the member variant dependencies so that all the
 // variants of each member are grouped together within an sdkMember instance.
 //
@@ -181,6 +195,14 @@ func (s *sdk) groupMemberVariantsByMemberThenType(ctx android.ModuleContext, tar
 		variant := memberVariantDep.variant
 
 		name := ctx.OtherModuleName(variant)
+		targetApiLevel, err := android.ApiLevelFromUser(ctx, targetBuildRelease.name)
+		if err != nil {
+			targetApiLevel = android.FutureApiLevel
+		}
+		if lastApiLevel, exists := ignoreHostModuleVariantsAboveDessert[name]; exists && targetApiLevel.GreaterThan(lastApiLevel) && memberVariantDep.Host() {
+			// ignore host variant of this module if the targetApiLevel is V and above.
+			continue
+		}
 		member := byName[name]
 		if member == nil {
 			member = &sdkMember{memberType: memberType, name: name}
