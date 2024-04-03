@@ -121,18 +121,7 @@ func (g *GenruleExtraProperties) ExtraImageVariations(ctx android.BaseModuleCont
 		}
 	} else {
 		if vendorVariantRequired {
-			// If vndkVersion is current, we can always use PlatformVndkVersion.
-			// If not, we assume modules under proprietary paths are compatible for
-			// BOARD_VNDK_VERSION. The other modules are regarded as AOSP, that is
-			// PLATFORM_VNDK_VERSION.
-			if vndkVersion == "current" || !snapshot.IsVendorProprietaryModule(ctx) {
-				variants = append(variants, VendorVariationPrefix+ctx.DeviceConfig().PlatformVndkVersion())
-			} else {
-				variants = append(variants, VendorVariationPrefix+vndkVersion)
-			}
-		}
-		if productVariantRequired {
-			variants = append(variants, ProductVariationPrefix+ctx.DeviceConfig().PlatformVndkVersion())
+			variants = append(variants, VendorVariationPrefix+vndkVersion)
 		}
 	}
 
