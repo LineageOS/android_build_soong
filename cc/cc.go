@@ -1897,9 +1897,6 @@ func getNameSuffixWithVndkVersion(ctx android.ModuleContext, c LinkableInterface
 		vndkVersion = ctx.DeviceConfig().VndkVersion()
 		nameSuffix = VendorSuffix
 	}
-	if vndkVersion == "current" {
-		vndkVersion = ctx.DeviceConfig().PlatformVndkVersion()
-	}
 	if c.VndkVersion() != vndkVersion && c.VndkVersion() != "" {
 		// add version suffix only if the module is using different vndk version than the
 		// version in product or vendor partition.

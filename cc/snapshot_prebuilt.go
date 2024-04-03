@@ -324,7 +324,7 @@ func (p *BaseSnapshotDecorator) SetSnapshotAndroidMkSuffix(ctx android.ModuleCon
 
 	variations = append(ctx.Target().Variations(), blueprint.Variation{
 		Mutator:   "image",
-		Variation: ProductVariationPrefix + ctx.DeviceConfig().PlatformVndkVersion()})
+		Variation: ProductVariation})
 
 	if ctx.OtherModuleFarDependencyVariantExists(variations, ctx.Module().(LinkableInterface).BaseModuleName()) {
 		p.baseProperties.Androidmk_suffix = p.Image.moduleNameSuffix()

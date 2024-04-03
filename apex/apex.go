@@ -739,7 +739,7 @@ func (a *apexBundle) combineProperties(ctx android.BottomUpMutatorContext) {
 // image variation name.
 func (a *apexBundle) getImageVariationPair(deviceConfig android.DeviceConfig) (string, string) {
 	if a.vndkApex {
-		return cc.VendorVariationPrefix, a.vndkVersion(deviceConfig)
+		return cc.VendorVariationPrefix, a.vndkVersion()
 	}
 
 	prefix := android.CoreVariation
@@ -748,9 +748,6 @@ func (a *apexBundle) getImageVariationPair(deviceConfig android.DeviceConfig) (s
 		if a.SocSpecific() || a.DeviceSpecific() {
 			prefix = cc.VendorVariationPrefix
 			vndkVersion = deviceConfig.VndkVersion()
-		} else if a.ProductSpecific() {
-			prefix = cc.ProductVariationPrefix
-			vndkVersion = deviceConfig.PlatformVndkVersion()
 		}
 	} else {
 		if a.SocSpecific() || a.DeviceSpecific() {
@@ -758,9 +755,6 @@ func (a *apexBundle) getImageVariationPair(deviceConfig android.DeviceConfig) (s
 		} else if a.ProductSpecific() {
 			prefix = cc.ProductVariation
 		}
-	}
-	if vndkVersion == "current" {
-		vndkVersion = deviceConfig.PlatformVndkVersion()
 	}
 
 	return prefix, vndkVersion
