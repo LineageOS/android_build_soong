@@ -582,6 +582,7 @@ var PrepareForTestWithCcDefaultModules = android.GroupFixturePreparers(
 		"defaults/cc/common/crtend_so.c":       nil,
 		"defaults/cc/common/crtend.c":          nil,
 		"defaults/cc/common/crtbrand.c":        nil,
+		"external/compiler-rt/lib/cfi/cfi_blocklist.txt":   nil,
 
 		"defaults/cc/common/libclang_rt.ubsan_minimal.android_arm64.a": nil,
 		"defaults/cc/common/libclang_rt.ubsan_minimal.android_arm.a":   nil,
