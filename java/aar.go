@@ -1156,7 +1156,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	extractedAARDir := android.PathForModuleOut(ctx, "aar")
-	classpathFile := extractedAARDir.Join(ctx, "classes-combined.jar")
+	classpathFile := extractedAARDir.Join(ctx, ctx.ModuleName()+".jar")
 	a.manifest = extractedAARDir.Join(ctx, "AndroidManifest.xml")
 	a.rTxt = extractedAARDir.Join(ctx, "R.txt")
 	a.assetsPackage = android.PathForModuleOut(ctx, "assets.zip")
@@ -1284,13 +1284,17 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		addCLCFromDep(ctx, module, a.classLoaderContexts)
 	})
 
+	var implementationJarFile android.OutputPath
 	if len(staticJars) > 0 {
 		combineJars := append(android.Paths{classpathFile}, staticJars...)
-		a.implementationJarFile = android.PathForModuleOut(ctx, "combined", ctx.ModuleName()+".jar")
-		TransformJarsToJar(ctx, a.implementationJarFile, "combine", combineJars, android.OptionalPath{}, false, nil, nil)
+		implementationJarFile = android.PathForModuleOut(ctx, "combined", ctx.ModuleName()+".jar").OutputPath
+		TransformJarsToJar(ctx, implementationJarFile, "combine", combineJars, android.OptionalPath{}, false, nil, nil)
 	} else {
-		a.implementationJarFile = classpathFile
+		implementationJarFile = classpathFile
 	}
+
+	// Save the output file with no relative path so that it doesn't end up in a subdirectory when used as a resource
+	a.implementationJarFile = implementationJarFile.WithoutRel()
 
 	if len(staticHeaderJars) > 0 {
 		combineJars := append(android.Paths{classpathFile}, staticHeaderJars...)

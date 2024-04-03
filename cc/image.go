@@ -429,7 +429,6 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 	var vendorVariants []string
 	var productVariants []string
 
-	platformVndkVersion := mctx.DeviceConfig().PlatformVndkVersion()
 	boardVndkVersion := mctx.DeviceConfig().VndkVersion()
 	recoverySnapshotVersion := mctx.DeviceConfig().RecoverySnapshotVersion()
 	usingRecoverySnapshot := recoverySnapshotVersion != "current" &&
@@ -444,17 +443,13 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 			needVndkVersionVendorVariantForLlndk = boardVndkApiLevel.LessThanOrEqualTo(android.ApiLevelOrPanic(mctx, "30"))
 		}
 	}
-	if boardVndkVersion == "current" {
-		boardVndkVersion = platformVndkVersion
-	}
-
 	if m.NeedsLlndkVariants() {
 		// This is an LLNDK library.  The implementation of the library will be on /system,
 		// and vendor and product variants will be created with LLNDK stubs.
 		// The LLNDK libraries need vendor variants even if there is no VNDK.
 		coreVariantNeeded = true
-		vendorVariants = append(vendorVariants, platformVndkVersion)
-		productVariants = append(productVariants, platformVndkVersion)
+		vendorVariants = append(vendorVariants, "")
+		productVariants = append(productVariants, "")
 		// Generate vendor variants for boardVndkVersion only if the VNDK snapshot does not
 		// provide the LLNDK stub libraries.
 		if needVndkVersionVendorVariantForLlndk {
@@ -465,7 +460,7 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 		// for system and product.
 		coreVariantNeeded = true
 		vendorVariants = append(vendorVariants, boardVndkVersion)
-		productVariants = append(productVariants, platformVndkVersion)
+		productVariants = append(productVariants, "")
 	} else if m.IsSnapshotPrebuilt() {
 		// Make vendor variants only for the versions in BOARD_VNDK_VERSION and
 		// PRODUCT_EXTRA_VNDK_VERSIONS.
@@ -486,13 +481,13 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 			if snapshot.IsVendorProprietaryModule(mctx) {
 				vendorVariants = append(vendorVariants, boardVndkVersion)
 			} else {
-				vendorVariants = append(vendorVariants, platformVndkVersion)
+				vendorVariants = append(vendorVariants, "")
 			}
 		}
 
 		// product_available modules are available to /product.
 		if m.HasProductVariant() {
-			productVariants = append(productVariants, platformVndkVersion)
+			productVariants = append(productVariants, "")
 		}
 	} else if vendorSpecific && m.SdkVersion() == "" {
 		// This will be available in /vendor (or /odm) only
@@ -505,13 +500,13 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 		// are regarded as AOSP, which is PLATFORM_VNDK_VERSION.
 		if m.KernelHeadersDecorator() {
 			vendorVariants = append(vendorVariants,
-				platformVndkVersion,
+				"",
 				boardVndkVersion,
 			)
 		} else if snapshot.IsVendorProprietaryModule(mctx) {
 			vendorVariants = append(vendorVariants, boardVndkVersion)
 		} else {
-			vendorVariants = append(vendorVariants, platformVndkVersion)
+			vendorVariants = append(vendorVariants, "")
 		}
 	} else {
 		// This is either in /system (or similar: /data), or is a
@@ -523,7 +518,7 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 	if coreVariantNeeded && productSpecific && m.SdkVersion() == "" {
 		// The module has "product_specific: true" that does not create core variant.
 		coreVariantNeeded = false
-		productVariants = append(productVariants, platformVndkVersion)
+		productVariants = append(productVariants, "")
 	}
 
 	if m.RamdiskAvailable() {

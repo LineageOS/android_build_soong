@@ -215,7 +215,8 @@ type Flags struct {
 	// Local flags (which individual modules are responsible for). These may override global flags.
 	Local LocalOrGlobalFlags
 	// Global flags (which build system or toolchain is responsible for).
-	Global LocalOrGlobalFlags
+	Global          LocalOrGlobalFlags
+	NoOverrideFlags []string // Flags applied to the end of list of flags so they are not overridden
 
 	aidlFlags     []string // Flags that apply to aidl source files
 	rsFlags       []string // Flags that apply to renderscript source files
@@ -1895,9 +1896,6 @@ func getNameSuffixWithVndkVersion(ctx android.ModuleContext, c LinkableInterface
 	} else {
 		vndkVersion = ctx.DeviceConfig().VndkVersion()
 		nameSuffix = VendorSuffix
-	}
-	if vndkVersion == "current" {
-		vndkVersion = ctx.DeviceConfig().PlatformVndkVersion()
 	}
 	if c.VndkVersion() != vndkVersion && c.VndkVersion() != "" {
 		// add version suffix only if the module is using different vndk version than the
