@@ -1448,10 +1448,6 @@ func (c *deviceConfig) CurrentApiLevelForVendorModules() string {
 	return StringDefault(c.config.productVariables.DeviceCurrentApiLevelForVendorModules, "current")
 }
 
-func (c *deviceConfig) PlatformVndkVersion() string {
-	return String(c.config.productVariables.Platform_vndk_version)
-}
-
 func (c *deviceConfig) ExtraVndkVersions() []string {
 	return c.config.productVariables.ExtraVndkVersions
 }

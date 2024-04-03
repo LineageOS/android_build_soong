@@ -277,7 +277,7 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 	// VNDK APEX name is determined at runtime, so update "name" in apex_manifest
 	optCommands := []string{}
 	if a.vndkApex {
-		apexName := vndkApexNamePrefix + a.vndkVersion(ctx.DeviceConfig())
+		apexName := vndkApexNamePrefix + a.vndkVersion()
 		optCommands = append(optCommands, "-v name "+apexName)
 	}
 
@@ -1043,7 +1043,7 @@ func (a *apexBundle) getOverrideManifestPackageName(ctx android.ModuleContext) s
 	if a.vndkApex {
 		overrideName, overridden := ctx.DeviceConfig().OverrideManifestPackageNameFor(vndkApexName)
 		if overridden {
-			return overrideName + ".v" + a.vndkVersion(ctx.DeviceConfig())
+			return overrideName + ".v" + a.vndkVersion()
 		}
 		return ""
 	}
