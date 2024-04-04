@@ -854,14 +854,15 @@ func transformObjToDynamicBinary(ctx android.ModuleContext,
 // Generate a rule to combine .dump sAbi dump files from multiple source files
 // into a single .ldump sAbi dump file
 func transformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Paths, soFile android.Path,
-	baseName, exportedHeaderFlags string, symbolFile android.OptionalPath,
+	baseName string, exportedIncludeDirs []string, symbolFile android.OptionalPath,
 	excludedSymbolVersions, excludedSymbolTags []string,
-	api string) android.OptionalPath {
+	api string) android.Path {
 
 	outputFile := android.PathForModuleOut(ctx, baseName+".lsdump")
 
 	implicits := android.Paths{soFile}
 	symbolFilterStr := "-so " + soFile.String()
+	exportedHeaderFlags := android.JoinWithPrefix(exportedIncludeDirs, "-I")
 
 	if symbolFile.Valid() {
 		implicits = append(implicits, symbolFile.Path())
@@ -886,13 +887,7 @@ func transformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Path
 	}
 	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_ABI_LINKER") {
 		rule = sAbiLinkRE
-		rbeImplicits := implicits.Strings()
-		for _, p := range strings.Split(exportedHeaderFlags, " ") {
-			if len(p) > 2 {
-				// Exclude the -I prefix.
-				rbeImplicits = append(rbeImplicits, p[2:])
-			}
-		}
+		rbeImplicits := append(implicits.Strings(), exportedIncludeDirs...)
 		args["implicitInputs"] = strings.Join(rbeImplicits, ",")
 	}
 	ctx.Build(pctx, android.BuildParams{
@@ -903,7 +898,7 @@ func transformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Path
 		Implicits:   implicits,
 		Args:        args,
 	})
-	return android.OptionalPathForPath(outputFile)
+	return outputFile
 }
 
 func transformAbiDumpToAbiDiff(ctx android.ModuleContext, inputDump, referenceDump android.Path,
