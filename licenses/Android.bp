@@ -1126,6 +1126,12 @@ license_kind {
 }
 
 license_kind {
+    name: "SPDX-license-identifier-Unicode-3.0",
+    conditions: ["notice"],
+    url: "https://spdx.org/licenses/Unicode-3.0.html",
+}
+
+license_kind {
     name: "SPDX-license-identifier-Unicode-DFS-2015",
     conditions: ["notice"],
     url: "https://spdx.org/licenses/Unicode-DFS-2015.html",
