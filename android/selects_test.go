@@ -368,14 +368,62 @@ func TestSelects(t *testing.T) {
 				my_bool: proptools.BoolPtr(true),
 			},
 		},
+		{
+			name: "defaults with lists are appended",
+			bp: `
+			my_module_type {
+				name: "foo",
+				defaults: ["bar"],
+				my_string_list: select(soong_config_variable("my_namespace", "my_variable"), {
+					"a": ["a1"],
+					default: ["b1"],
+				}),
+			}
+			my_defaults {
+				name: "bar",
+				my_string_list: select(soong_config_variable("my_namespace", "my_variable2"), {
+					"a": ["a2"],
+					default: ["b2"],
+				}),
+			}
+			`,
+			provider: selectsTestProvider{
+				my_string_list: &[]string{"b2", "b1"},
+			},
+		},
+		{
+			name: "Replacing string list",
+			bp: `
+			my_module_type {
+				name: "foo",
+				defaults: ["bar"],
+				replacing_string_list: select(soong_config_variable("my_namespace", "my_variable"), {
+					"a": ["a1"],
+					default: ["b1"],
+				}),
+			}
+			my_defaults {
+				name: "bar",
+				replacing_string_list: select(soong_config_variable("my_namespace", "my_variable2"), {
+					"a": ["a2"],
+					default: ["b2"],
+				}),
+			}
+			`,
+			provider: selectsTestProvider{
+				replacing_string_list: &[]string{"b1"},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			fixtures := GroupFixturePreparers(
+				PrepareForTestWithDefaults,
 				PrepareForTestWithArchMutator,
 				FixtureRegisterWithContext(func(ctx RegistrationContext) {
 					ctx.RegisterModuleType("my_module_type", newSelectsMockModule)
+					ctx.RegisterModuleType("my_defaults", newSelectsMockModuleDefaults)
 				}),
 				FixtureModifyProductVariables(func(variables FixtureProductVariables) {
 					variables.VendorVars = tc.vendorVars
@@ -398,10 +446,11 @@ func TestSelects(t *testing.T) {
 }
 
 type selectsTestProvider struct {
-	my_bool        *bool
-	my_string      *string
-	my_string_list *[]string
-	my_paths       *[]string
+	my_bool               *bool
+	my_string             *string
+	my_string_list        *[]string
+	my_paths              *[]string
+	replacing_string_list *[]string
 }
 
 func (p *selectsTestProvider) String() string {
@@ -418,16 +467,18 @@ func (p *selectsTestProvider) String() string {
 	my_string: %s,
     my_string_list: %s,
     my_paths: %s,
-}`, myBoolStr, myStringStr, p.my_string_list, p.my_paths)
+	replacing_string_list %s,
+}`, myBoolStr, myStringStr, p.my_string_list, p.my_paths, p.replacing_string_list)
 }
 
 var selectsTestProviderKey = blueprint.NewProvider[selectsTestProvider]()
 
 type selectsMockModuleProperties struct {
-	My_bool        proptools.Configurable[bool]
-	My_string      proptools.Configurable[string]
-	My_string_list proptools.Configurable[[]string]
-	My_paths       proptools.Configurable[[]string] `android:"path"`
+	My_bool               proptools.Configurable[bool]
+	My_string             proptools.Configurable[string]
+	My_string_list        proptools.Configurable[[]string]
+	My_paths              proptools.Configurable[[]string] `android:"path"`
+	Replacing_string_list proptools.Configurable[[]string] `android:"replace_instead_of_append,arch_variant"`
 }
 
 type selectsMockModule struct {
@@ -438,10 +489,11 @@ type selectsMockModule struct {
 
 func (p *selectsMockModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	SetProvider(ctx, selectsTestProviderKey, selectsTestProvider{
-		my_bool:        p.properties.My_bool.Evaluate(ctx),
-		my_string:      p.properties.My_string.Evaluate(ctx),
-		my_string_list: p.properties.My_string_list.Evaluate(ctx),
-		my_paths:       p.properties.My_paths.Evaluate(ctx),
+		my_bool:               p.properties.My_bool.Evaluate(ctx),
+		my_string:             p.properties.My_string.Evaluate(ctx),
+		my_string_list:        p.properties.My_string_list.Evaluate(ctx),
+		my_paths:              p.properties.My_paths.Evaluate(ctx),
+		replacing_string_list: p.properties.Replacing_string_list.Evaluate(ctx),
 	})
 }
 
@@ -451,4 +503,24 @@ func newSelectsMockModule() Module {
 	InitAndroidArchModule(m, HostAndDeviceSupported, MultilibFirst)
 	InitDefaultableModule(m)
 	return m
+}
+
+type selectsMockModuleDefaults struct {
+	ModuleBase
+	DefaultsModuleBase
+}
+
+func (d *selectsMockModuleDefaults) GenerateAndroidBuildActions(ctx ModuleContext) {
+}
+
+func newSelectsMockModuleDefaults() Module {
+	module := &selectsMockModuleDefaults{}
+
+	module.AddProperties(
+		&selectsMockModuleProperties{},
+	)
+
+	InitDefaultsModule(module)
+
+	return module
 }
