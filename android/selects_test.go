@@ -121,7 +121,21 @@ func TestSelects(t *testing.T) {
 				}),
 			}
 			`,
-			expectedError: `can't assign bool value to string property "my_string\[1\]"`,
+			expectedError: `Android.bp:8:5: Found select statement with differing types "string" and "bool" in its cases`,
+		},
+		{
+			name: "Select type doesn't match property type",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
+					"a": false,
+					"b": true,
+					_: true,
+				}),
+			}
+			`,
+			expectedError: `can't assign bool value to string property "my_string\[0\]"`,
 		},
 		{
 			name: "String list non-default",
@@ -270,6 +284,88 @@ func TestSelects(t *testing.T) {
 			`,
 			provider: selectsTestProvider{
 				my_string: proptools.StringPtr("my_arm64"),
+			},
+		},
+		{
+			name: "Unset value",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
+					"a": unset,
+					"b": "b",
+					_: "c",
+				})
+			}
+			`,
+			vendorVars: map[string]map[string]string{
+				"my_namespace": {
+					"my_variable": "a",
+				},
+			},
+			provider: selectsTestProvider{},
+		},
+		{
+			name: "Unset value on different branch",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
+					"a": unset,
+					"b": "b",
+					_: "c",
+				})
+			}
+			`,
+			provider: selectsTestProvider{
+				my_string: proptools.StringPtr("c"),
+			},
+		},
+		{
+			name: "unset + unset = unset",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
+					_: unset,
+				}) + select(soong_config_variable("my_namespace", "my_variable2"), {
+					_: unset,
+				})
+			}
+			`,
+			provider: selectsTestProvider{},
+		},
+		{
+			name: "unset + string = string",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
+					_: unset,
+				}) + select(soong_config_variable("my_namespace", "my_variable2"), {
+					_: "a",
+				})
+			}
+			`,
+			provider: selectsTestProvider{
+				my_string: proptools.StringPtr("a"),
+			},
+		},
+		{
+			name: "unset + bool = bool",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_bool: select(soong_config_variable("my_namespace", "my_variable"), {
+					"a": true,
+					_: unset,
+				}) + select(soong_config_variable("my_namespace", "my_variable2"), {
+					_: true,
+				})
+			}
+			`,
+			provider: selectsTestProvider{
+				my_bool: proptools.BoolPtr(true),
 			},
 		},
 	}
