@@ -1436,10 +1436,6 @@ func (c *deviceConfig) VendorPath() string {
 	return "vendor"
 }
 
-func (c *deviceConfig) VndkVersion() string {
-	return String(c.config.productVariables.DeviceVndkVersion)
-}
-
 func (c *deviceConfig) RecoverySnapshotVersion() string {
 	return String(c.config.productVariables.RecoverySnapshotVersion)
 }

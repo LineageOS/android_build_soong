@@ -1854,7 +1854,6 @@ func (c *Module) DataPaths() []android.DataPath {
 func getNameSuffixWithVndkVersion(ctx android.ModuleContext, c LinkableInterface) string {
 	// Returns the name suffix for product and vendor variants. If the VNDK version is not
 	// "current", it will append the VNDK version to the name suffix.
-	var vndkVersion string
 	var nameSuffix string
 	if c.InProduct() {
 		if c.ProductSpecific() {
@@ -1864,10 +1863,9 @@ func getNameSuffixWithVndkVersion(ctx android.ModuleContext, c LinkableInterface
 		}
 		return ProductSuffix
 	} else {
-		vndkVersion = ctx.DeviceConfig().VndkVersion()
 		nameSuffix = VendorSuffix
 	}
-	if c.VndkVersion() != vndkVersion && c.VndkVersion() != "" {
+	if c.VndkVersion() != "" {
 		// add version suffix only if the module is using different vndk version than the
 		// version in product or vendor partition.
 		nameSuffix += "." + c.VndkVersion()

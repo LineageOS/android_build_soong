@@ -737,33 +737,25 @@ func (a *apexBundle) combineProperties(ctx android.BottomUpMutatorContext) {
 // suffix indicates the vndk version for vendor/product if vndk is enabled.
 // getImageVariation can simply join the result of this function to get the
 // image variation name.
-func (a *apexBundle) getImageVariationPair(deviceConfig android.DeviceConfig) (string, string) {
+func (a *apexBundle) getImageVariationPair() (string, string) {
 	if a.vndkApex {
 		return cc.VendorVariationPrefix, a.vndkVersion()
 	}
 
 	prefix := android.CoreVariation
-	vndkVersion := ""
-	if deviceConfig.VndkVersion() != "" {
-		if a.SocSpecific() || a.DeviceSpecific() {
-			prefix = cc.VendorVariationPrefix
-			vndkVersion = deviceConfig.VndkVersion()
-		}
-	} else {
-		if a.SocSpecific() || a.DeviceSpecific() {
-			prefix = cc.VendorVariation
-		} else if a.ProductSpecific() {
-			prefix = cc.ProductVariation
-		}
+	if a.SocSpecific() || a.DeviceSpecific() {
+		prefix = cc.VendorVariation
+	} else if a.ProductSpecific() {
+		prefix = cc.ProductVariation
 	}
 
-	return prefix, vndkVersion
+	return prefix, ""
 }
 
 // getImageVariation returns the image variant name for this apexBundle. In most cases, it's simply
 // android.CoreVariation, but gets complicated for the vendor APEXes and the VNDK APEX.
-func (a *apexBundle) getImageVariation(ctx android.BottomUpMutatorContext) string {
-	prefix, vndkVersion := a.getImageVariationPair(ctx.DeviceConfig())
+func (a *apexBundle) getImageVariation() string {
+	prefix, vndkVersion := a.getImageVariationPair()
 	return prefix + vndkVersion
 }
 
@@ -773,7 +765,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// each target os/architectures, appropriate dependencies are selected by their
 	// target.<os>.multilib.<type> groups and are added as (direct) dependencies.
 	targets := ctx.MultiTargets()
-	imageVariation := a.getImageVariation(ctx)
+	imageVariation := a.getImageVariation()
 
 	a.combineProperties(ctx)
 
@@ -1534,7 +1526,7 @@ func (a *apexBundle) AddSanitizerDependencies(ctx android.BottomUpMutatorContext
 	// TODO(jiyong): move this info (the sanitizer name, the lib name, etc.) to cc/sanitize.go
 	// Keep only the mechanism here.
 	if sanitizerName == "hwaddress" && strings.HasPrefix(a.Name(), "com.android.runtime") {
-		imageVariation := a.getImageVariation(ctx)
+		imageVariation := a.getImageVariation()
 		for _, target := range ctx.MultiTargets() {
 			if target.Arch.ArchType.Multilib == "lib64" {
 				addDependenciesForNativeModules(ctx, ApexNativeDependencies{
