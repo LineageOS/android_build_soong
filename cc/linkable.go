@@ -3,7 +3,6 @@ package cc
 import (
 	"android/soong/android"
 	"android/soong/fuzz"
-	"android/soong/snapshot"
 
 	"github.com/google/blueprint"
 )
@@ -63,55 +62,9 @@ type PlatformSanitizeable interface {
 // implementation should handle tags from both.
 type SantizableDependencyTagChecker func(tag blueprint.DependencyTag) bool
 
-// Snapshottable defines those functions necessary for handling module snapshots.
-type Snapshottable interface {
-	snapshot.VendorSnapshotModuleInterface
-	snapshot.RecoverySnapshotModuleInterface
-
-	// SnapshotHeaders returns a list of header paths provided by this module.
-	SnapshotHeaders() android.Paths
-
-	// SnapshotLibrary returns true if this module is a snapshot library.
-	IsSnapshotLibrary() bool
-
-	// EffectiveLicenseFiles returns the list of License files for this module.
-	EffectiveLicenseFiles() android.Paths
-
-	// SnapshotRuntimeLibs returns a list of libraries needed by this module at runtime but which aren't build dependencies.
-	SnapshotRuntimeLibs() []string
-
-	// SnapshotSharedLibs returns the list of shared library dependencies for this module.
-	SnapshotSharedLibs() []string
-
-	// SnapshotStaticLibs returns the list of static library dependencies for this module.
-	SnapshotStaticLibs() []string
-
-	// SnapshotDylibs returns the list of dylib library dependencies for this module.
-	SnapshotDylibs() []string
-
-	// SnapshotRlibs returns the list of rlib library dependencies for this module.
-	SnapshotRlibs() []string
-
-	// IsSnapshotPrebuilt returns true if this module is a snapshot prebuilt.
-	IsSnapshotPrebuilt() bool
-
-	// IsSnapshotSanitizer returns true if this snapshot module implements SnapshotSanitizer.
-	IsSnapshotSanitizer() bool
-
-	// IsSnapshotSanitizerAvailable returns true if this snapshot module has a sanitizer source available (cfi, hwasan).
-	IsSnapshotSanitizerAvailable(t SanitizerType) bool
-
-	// SetSnapshotSanitizerVariation sets the sanitizer variation type for this snapshot module.
-	SetSnapshotSanitizerVariation(t SanitizerType, enabled bool)
-
-	// IsSnapshotUnsanitizedVariant returns true if this is the unsanitized snapshot module variant.
-	IsSnapshotUnsanitizedVariant() bool
-}
-
 // LinkableInterface is an interface for a type of module that is linkable in a C++ library.
 type LinkableInterface interface {
 	android.Module
-	Snapshottable
 
 	Module() android.Module
 	CcLibrary() bool

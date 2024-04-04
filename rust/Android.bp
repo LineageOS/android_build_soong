@@ -12,7 +12,6 @@ bootstrap_go_package {
         "soong-bloaty",
         "soong-cc",
         "soong-rust-config",
-        "soong-snapshot",
         "soong-testing",
     ],
     srcs: [
@@ -36,8 +35,6 @@ bootstrap_go_package {
         "rust.go",
         "sanitize.go",
         "source_provider.go",
-        "snapshot_prebuilt.go",
-        "snapshot_utils.go",
         "strip.go",
         "test.go",
         "testing.go",

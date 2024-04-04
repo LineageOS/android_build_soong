@@ -9,16 +9,13 @@ bootstrap_go_package {
         "blueprint",
         "soong",
         "soong-android",
-        "soong-snapshot",
     ],
     srcs: [
         "prebuilt_etc.go",
-        "snapshot_etc.go",
         "install_symlink.go",
     ],
     testSrcs: [
         "prebuilt_etc_test.go",
-        "snapshot_etc_test.go",
         "install_symlink_test.go",
     ],
     pluginFor: ["soong_build"],

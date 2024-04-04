@@ -267,12 +267,6 @@ func rustSanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			if Bool(mod.sanitize.Properties.Sanitize.Diag.Memtag_heap) {
 				noteDep = "note_memtag_heap_sync"
 			}
-			// If we're using snapshots, redirect to snapshot whenever possible
-			// TODO(b/178470649): clean manual snapshot redirections
-			snapshot, _ := android.ModuleProvider(mctx, cc.SnapshotInfoProvider)
-			if lib, ok := snapshot.StaticLibs[noteDep]; ok {
-				noteDep = lib
-			}
 			depTag := cc.StaticDepTag(true)
 			variations := append(mctx.Target().Variations(),
 				blueprint.Variation{Mutator: "link", Variation: "static"})
