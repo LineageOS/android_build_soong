@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"strconv"
 
 	"android/soong/android"
 	"android/soong/rust"
@@ -82,6 +83,7 @@ func (a *aconfigDecorator) GenerateSource(ctx rust.ModuleContext, deps rust.Path
 		Args: map[string]string{
 			"gendir": generatedDir.String(),
 			"mode":   mode,
+			"debug":  strconv.FormatBool(ctx.Config().ReleaseReadFromNewStorage()),
 		},
 	})
 	a.BaseSourceProvider.OutputFiles = android.Paths{generatedSource}
