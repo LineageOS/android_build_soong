@@ -1831,13 +1831,17 @@ func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 	return base.Join(ctx, pathComponents...)
 }
 
-func PathForNdkInstall(ctx PathContext, paths ...string) OutputPath {
-	return PathForOutput(ctx, append([]string{"ndk"}, paths...)...)
+func pathForNdkOrSdkInstall(ctx PathContext, prefix string, paths []string) InstallPath {
+	base := pathForPartitionInstallDir(ctx, "", prefix, false)
+	return base.Join(ctx, paths...)
+}
+
+func PathForNdkInstall(ctx PathContext, paths ...string) InstallPath {
+	return pathForNdkOrSdkInstall(ctx, "ndk", paths)
 }
 
 func PathForMainlineSdksInstall(ctx PathContext, paths ...string) InstallPath {
-	base := pathForPartitionInstallDir(ctx, "", "mainline-sdks", false)
-	return base.Join(ctx, paths...)
+	return pathForNdkOrSdkInstall(ctx, "mainline-sdks", paths)
 }
 
 func InstallPathToOnDevicePath(ctx PathContext, path InstallPath) string {
