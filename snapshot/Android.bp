@@ -16,15 +16,11 @@ bootstrap_go_package {
     srcs: [
         "host_fake_snapshot.go",
         "host_snapshot.go",
-        "recovery_snapshot.go",
-        "snapshot.go",
         "snapshot_base.go",
         "util.go",
-        "vendor_snapshot.go",
     ],
     testSrcs: [
         "host_test.go",
-        "test.go",
     ],
     pluginFor: ["soong_build"],
 }

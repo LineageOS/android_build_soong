@@ -197,5 +197,4 @@ func registerRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("rust_sanitizers", rustSanitizerRuntimeMutator).Parallel()
 	})
-	registerRustSnapshotModules(ctx)
 }
