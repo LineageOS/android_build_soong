@@ -150,6 +150,10 @@ func isModuleInConfiguredList(ctx android.BaseModuleContext, module android.Modu
 	// Strip a prebuilt_ prefix so that this can match a prebuilt module that has not been renamed.
 	name = android.RemoveOptionalPrebuiltPrefix(name)
 
+	// Strip the ".impl" suffix, so that the implementation library of the java_sdk_library is
+	// treated identical to the top level java_sdk_library.
+	name = strings.TrimSuffix(name, ".impl")
+
 	// Ignore any module that is not listed in the boot image configuration.
 	index := configuredBootJars.IndexOfJar(name)
 	if index == -1 {
