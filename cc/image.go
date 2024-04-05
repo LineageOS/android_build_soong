@@ -22,7 +22,6 @@ import (
 	"strings"
 
 	"android/soong/android"
-	"android/soong/snapshot"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -430,9 +429,6 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 	var productVariants []string
 
 	boardVndkVersion := mctx.DeviceConfig().VndkVersion()
-	recoverySnapshotVersion := mctx.DeviceConfig().RecoverySnapshotVersion()
-	usingRecoverySnapshot := recoverySnapshotVersion != "current" &&
-		recoverySnapshotVersion != ""
 	needVndkVersionVendorVariantForLlndk := false
 	if boardVndkVersion != "" {
 		boardVndkApiLevel, err := android.ApiLevelFromUser(mctx, boardVndkVersion)
@@ -478,11 +474,7 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 		// BOARD_VNDK_VERSION. The other modules are regarded as AOSP, or
 		// PLATFORM_VNDK_VERSION.
 		if m.HasVendorVariant() {
-			if snapshot.IsVendorProprietaryModule(mctx) {
-				vendorVariants = append(vendorVariants, boardVndkVersion)
-			} else {
-				vendorVariants = append(vendorVariants, "")
-			}
+			vendorVariants = append(vendorVariants, "")
 		}
 
 		// product_available modules are available to /product.
@@ -503,8 +495,6 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 				"",
 				boardVndkVersion,
 			)
-		} else if snapshot.IsVendorProprietaryModule(mctx) {
-			vendorVariants = append(vendorVariants, boardVndkVersion)
 		} else {
 			vendorVariants = append(vendorVariants, "")
 		}
@@ -546,15 +536,6 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 	if m.AndroidModuleBase().InstallInRecovery() {
 		recoveryVariantNeeded = true
 		coreVariantNeeded = false
-	}
-
-	// If using a snapshot, the recovery variant under AOSP directories is not needed,
-	// except for kernel headers, which needs all variants.
-	if !m.KernelHeadersDecorator() &&
-		!m.IsSnapshotPrebuilt() &&
-		usingRecoverySnapshot &&
-		!snapshot.IsRecoveryProprietaryModule(mctx) {
-		recoveryVariantNeeded = false
 	}
 
 	for _, variant := range android.FirstUniqueStrings(vendorVariants) {

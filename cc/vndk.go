@@ -15,17 +15,13 @@
 package cc
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"path/filepath"
-	"sort"
 	"strings"
 
 	"android/soong/android"
 	"android/soong/cc/config"
 	"android/soong/etc"
-	"android/soong/snapshot"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -405,7 +401,6 @@ func VndkMutator(mctx android.BottomUpMutatorContext) {
 
 func init() {
 	RegisterVndkLibraryTxtTypes(android.InitRegistrationContext)
-	android.RegisterParallelSingletonType("vndk-snapshot", VndkSnapshotSingleton)
 }
 
 func RegisterVndkLibraryTxtTypes(ctx android.RegistrationContext) {
@@ -582,248 +577,6 @@ func (txt *vndkLibrariesTxt) SubDir() string {
 func (txt *vndkLibrariesTxt) OutputFiles(tag string) (android.Paths, error) {
 	return android.Paths{txt.outputFile}, nil
 }
-
-func VndkSnapshotSingleton() android.Singleton {
-	return &vndkSnapshotSingleton{}
-}
-
-type vndkSnapshotSingleton struct {
-	vndkLibrariesFile   android.OutputPath
-	vndkSnapshotZipFile android.OptionalPath
-}
-
-func isVndkSnapshotAware(config android.DeviceConfig, m LinkableInterface,
-	apexInfo android.ApexInfo) (vndkType string, isVndkSnapshotLib bool) {
-	return "", false
-}
-
-func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContext) {
-	// build these files even if PlatformVndkVersion or BoardVndkVersion is not set
-	c.buildVndkLibrariesTxtFiles(ctx)
-
-	// BOARD_VNDK_VERSION must be set to 'current' in order to generate a VNDK snapshot.
-	if ctx.DeviceConfig().VndkVersion() != "current" {
-		return
-	}
-
-	var snapshotOutputs android.Paths
-
-	/*
-		VNDK snapshot zipped artifacts directory structure:
-		{SNAPSHOT_ARCH}/
-			arch-{TARGET_ARCH}-{TARGET_ARCH_VARIANT}/
-				shared/
-					vndk-core/
-						(VNDK-core libraries, e.g. libbinder.so)
-					vndk-sp/
-						(VNDK-SP libraries, e.g. libc++.so)
-					llndk-stub/
-						(LLNDK stub libraries)
-			arch-{TARGET_2ND_ARCH}-{TARGET_2ND_ARCH_VARIANT}/
-				shared/
-					vndk-core/
-						(VNDK-core libraries, e.g. libbinder.so)
-					vndk-sp/
-						(VNDK-SP libraries, e.g. libc++.so)
-					llndk-stub/
-						(LLNDK stub libraries)
-			binder32/
-				(This directory is newly introduced in v28 (Android P) to hold
-				prebuilts built for 32-bit binder interface.)
-				arch-{TARGET_ARCH}-{TARGE_ARCH_VARIANT}/
-					...
-			configs/
-				(various *.txt configuration files)
-			include/
-				(header files of same directory structure with source tree)
-			NOTICE_FILES/
-				(notice files of libraries, e.g. libcutils.so.txt)
-	*/
-
-	snapshotDir := "vndk-snapshot"
-	snapshotArchDir := filepath.Join(snapshotDir, ctx.DeviceConfig().DeviceArch())
-
-	configsDir := filepath.Join(snapshotArchDir, "configs")
-	noticeDir := filepath.Join(snapshotArchDir, "NOTICE_FILES")
-	includeDir := filepath.Join(snapshotArchDir, "include")
-
-	// set of notice files copied.
-	noticeBuilt := make(map[string]bool)
-
-	// paths of VNDK modules for GPL license checking
-	modulePaths := make(map[string]string)
-
-	// actual module names of .so files
-	// e.g. moduleNames["libprotobuf-cpp-full-3.9.1.so"] = "libprotobuf-cpp-full"
-	moduleNames := make(map[string]string)
-
-	var headers android.Paths
-
-	// installVndkSnapshotLib copies built .so file from the module.
-	// Also, if the build artifacts is on, write a json file which contains all exported flags
-	// with FlagExporterInfo.
-	installVndkSnapshotLib := func(m *Module, vndkType string) (android.Paths, bool) {
-		var ret android.Paths
-
-		targetArch := "arch-" + m.Target().Arch.ArchType.String()
-		if m.Target().Arch.ArchVariant != "" {
-			targetArch += "-" + m.Target().Arch.ArchVariant
-		}
-
-		libPath := m.outputFile.Path()
-		snapshotLibOut := filepath.Join(snapshotArchDir, targetArch, "shared", vndkType, libPath.Base())
-		ret = append(ret, snapshot.CopyFileRule(pctx, ctx, libPath, snapshotLibOut))
-
-		// json struct to export snapshot information
-		prop := struct {
-			MinSdkVersion       string   `json:",omitempty"`
-			LicenseKinds        []string `json:",omitempty"`
-			LicenseTexts        []string `json:",omitempty"`
-			ExportedDirs        []string `json:",omitempty"`
-			ExportedSystemDirs  []string `json:",omitempty"`
-			ExportedFlags       []string `json:",omitempty"`
-			RelativeInstallPath string   `json:",omitempty"`
-		}{}
-
-		prop.LicenseKinds = m.EffectiveLicenseKinds()
-		prop.LicenseTexts = m.EffectiveLicenseFiles().Strings()
-		prop.MinSdkVersion = m.MinSdkVersion()
-
-		if ctx.Config().VndkSnapshotBuildArtifacts() {
-			exportedInfo, _ := android.SingletonModuleProvider(ctx, m, FlagExporterInfoProvider)
-			prop.ExportedFlags = exportedInfo.Flags
-			prop.ExportedDirs = exportedInfo.IncludeDirs.Strings()
-			prop.ExportedSystemDirs = exportedInfo.SystemIncludeDirs.Strings()
-			prop.RelativeInstallPath = m.RelativeInstallPath()
-		}
-
-		propOut := snapshotLibOut + ".json"
-
-		j, err := json.Marshal(prop)
-		if err != nil {
-			ctx.Errorf("json marshal to %q failed: %#v", propOut, err)
-			return nil, false
-		}
-		ret = append(ret, snapshot.WriteStringToFileRule(ctx, string(j), propOut))
-
-		return ret, true
-	}
-
-	ctx.VisitAllModules(func(module android.Module) {
-		m, ok := module.(*Module)
-		if !ok || !m.Enabled() {
-			return
-		}
-
-		apexInfo, _ := android.SingletonModuleProvider(ctx, module, android.ApexInfoProvider)
-
-		vndkType, ok := isVndkSnapshotAware(ctx.DeviceConfig(), m, apexInfo)
-		if !ok {
-			return
-		}
-
-		// For all snapshot candidates, the followings are captured.
-		//   - .so files
-		//   - notice files
-		//
-		// The followings are also captured if VNDK_SNAPSHOT_BUILD_ARTIFACTS.
-		//   - .json files containing exported flags
-		//   - exported headers from collectHeadersForSnapshot()
-		//
-		// Headers are deduplicated after visiting all modules.
-
-		// install .so files for appropriate modules.
-		// Also install .json files if VNDK_SNAPSHOT_BUILD_ARTIFACTS
-		libs, ok := installVndkSnapshotLib(m, vndkType)
-		if !ok {
-			return
-		}
-		snapshotOutputs = append(snapshotOutputs, libs...)
-
-		// These are for generating module_names.txt and module_paths.txt
-		stem := m.outputFile.Path().Base()
-		moduleNames[stem] = ctx.ModuleName(m)
-		modulePaths[stem] = ctx.ModuleDir(m)
-
-		for _, notice := range m.EffectiveLicenseFiles() {
-			if _, ok := noticeBuilt[notice.String()]; !ok {
-				noticeBuilt[notice.String()] = true
-				snapshotOutputs = append(snapshotOutputs, snapshot.CopyFileRule(
-					pctx, ctx, notice, filepath.Join(noticeDir, notice.String())))
-			}
-		}
-
-		if ctx.Config().VndkSnapshotBuildArtifacts() {
-			headers = append(headers, m.SnapshotHeaders()...)
-		}
-	})
-
-	// install all headers after removing duplicates
-	for _, header := range android.FirstUniquePaths(headers) {
-		snapshotOutputs = append(snapshotOutputs, snapshot.CopyFileRule(
-			pctx, ctx, header, filepath.Join(includeDir, header.String())))
-	}
-
-	// install *.libraries.txt except vndkcorevariant.libraries.txt
-	ctx.VisitAllModules(func(module android.Module) {
-		m, ok := module.(*vndkLibrariesTxt)
-		if !ok || !m.Enabled() || m.Name() == vndkUsingCoreVariantLibrariesTxt {
-			return
-		}
-		snapshotOutputs = append(snapshotOutputs, snapshot.CopyFileRule(
-			pctx, ctx, m.OutputFile(), filepath.Join(configsDir, m.Name())))
-	})
-
-	/*
-		module_paths.txt contains paths on which VNDK modules are defined.
-		e.g.,
-			libbase.so system/libbase
-			libc.so bionic/libc
-			...
-	*/
-	snapshotOutputs = append(snapshotOutputs, installMapListFileRule(ctx, modulePaths, filepath.Join(configsDir, "module_paths.txt")))
-
-	/*
-		module_names.txt contains names as which VNDK modules are defined,
-		because output filename and module name can be different with stem and suffix properties.
-
-		e.g.,
-			libcutils.so libcutils
-			libprotobuf-cpp-full-3.9.2.so libprotobuf-cpp-full
-			...
-	*/
-	snapshotOutputs = append(snapshotOutputs, installMapListFileRule(ctx, moduleNames, filepath.Join(configsDir, "module_names.txt")))
-
-	// All artifacts are ready. Sort them to normalize ninja and then zip.
-	sort.Slice(snapshotOutputs, func(i, j int) bool {
-		return snapshotOutputs[i].String() < snapshotOutputs[j].String()
-	})
-
-	zipPath := android.PathForOutput(ctx, snapshotDir, "android-vndk-"+ctx.DeviceConfig().DeviceArch()+".zip")
-	zipRule := android.NewRuleBuilder(pctx, ctx)
-
-	// filenames in rspfile from FlagWithRspFileInputList might be single-quoted. Remove it with tr
-	snapshotOutputList := android.PathForOutput(ctx, snapshotDir, "android-vndk-"+ctx.DeviceConfig().DeviceArch()+"_list")
-	rspFile := snapshotOutputList.ReplaceExtension(ctx, "rsp")
-	zipRule.Command().
-		Text("tr").
-		FlagWithArg("-d ", "\\'").
-		FlagWithRspFileInputList("< ", rspFile, snapshotOutputs).
-		FlagWithOutput("> ", snapshotOutputList)
-
-	zipRule.Temporary(snapshotOutputList)
-
-	zipRule.Command().
-		BuiltTool("soong_zip").
-		FlagWithOutput("-o ", zipPath).
-		FlagWithArg("-C ", android.PathForOutput(ctx, snapshotDir).String()).
-		FlagWithInput("-l ", snapshotOutputList)
-
-	zipRule.Build(zipPath.String(), "vndk snapshot "+zipPath.String())
-	zipRule.DeleteTemporaryFiles()
-	c.vndkSnapshotZipFile = android.OptionalPathForPath(zipPath)
-}
-
 func getVndkFileName(m *Module) (string, error) {
 	if library, ok := m.linker.(*libraryDecorator); ok {
 		return library.getLibNameHelper(m.BaseModuleName(), true, false) + ".so", nil
@@ -832,44 +585,4 @@ func getVndkFileName(m *Module) (string, error) {
 		return prebuilt.libraryDecorator.getLibNameHelper(m.BaseModuleName(), true, false) + ".so", nil
 	}
 	return "", fmt.Errorf("VNDK library should have libraryDecorator or prebuiltLibraryLinker as linker: %T", m.linker)
-}
-
-func (c *vndkSnapshotSingleton) buildVndkLibrariesTxtFiles(ctx android.SingletonContext) {
-	// Build list of vndk libs as merged & tagged & filter-out(libclang_rt):
-	// Since each target have different set of libclang_rt.* files,
-	// keep the common set of files in vndk.libraries.txt
-	_, llndk := vndkModuleListRemover(llndkLibraries, "libclang_rt.")(ctx)
-	_, vndkcore := vndkModuleListRemover(vndkCoreLibraries, "libclang_rt.")(ctx)
-	_, vndksp := vndkSPLibraries(ctx)
-	_, vndkprivate := vndkPrivateLibraries(ctx)
-	_, vndkproduct := vndkModuleListRemover(vndkProductLibraries, "libclang_rt.")(ctx)
-	var merged []string
-	merged = append(merged, addPrefix(llndk, "LLNDK: ")...)
-	merged = append(merged, addPrefix(vndksp, "VNDK-SP: ")...)
-	merged = append(merged, addPrefix(vndkcore, "VNDK-core: ")...)
-	merged = append(merged, addPrefix(vndkprivate, "VNDK-private: ")...)
-	merged = append(merged, addPrefix(vndkproduct, "VNDK-product: ")...)
-	c.vndkLibrariesFile = android.PathForOutput(ctx, "vndk", "vndk.libraries.txt")
-	android.WriteFileRule(ctx, c.vndkLibrariesFile, strings.Join(merged, "\n"))
-}
-
-func (c *vndkSnapshotSingleton) MakeVars(ctx android.MakeVarsContext) {
-	// Make uses LLNDK_MOVED_TO_APEX_LIBRARIES to avoid installing libraries on /system if
-	// they been moved to an apex.
-	movedToApexLlndkLibraries := make(map[string]bool)
-	ctx.VisitAllModules(func(module android.Module) {
-		if library := moduleLibraryInterface(module); library != nil && library.hasLLNDKStubs() {
-			// Skip bionic libs, they are handled in different manner
-			name := library.implementationModuleName(module.(*Module).BaseModuleName())
-			if module.(android.ApexModule).DirectlyInAnyApex() && !isBionic(name) {
-				movedToApexLlndkLibraries[name] = true
-			}
-		}
-	})
-
-	ctx.Strict("LLNDK_MOVED_TO_APEX_LIBRARIES",
-		strings.Join(android.SortedKeys(movedToApexLlndkLibraries), " "))
-
-	ctx.Strict("VNDK_LIBRARIES_FILE", c.vndkLibrariesFile.String())
-	ctx.Strict("SOONG_VNDK_SNAPSHOT_ZIP", c.vndkSnapshotZipFile.String())
 }
