@@ -154,11 +154,6 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 		})
 }
 
-func (library *snapshotLibraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkEntries) {
-	ctx.SubAndroidMk(ret, library.libraryDecorator)
-	ret.SubName = library.SnapshotAndroidMkSuffix()
-}
-
 func (procMacro *procMacroDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkEntries) {
 	ctx.SubAndroidMk(ret, procMacro.baseCompiler)
 
