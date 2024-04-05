@@ -1306,30 +1306,26 @@ func apexMutator(mctx android.BottomUpMutatorContext) {
 	}
 
 	// apexBundle itself is mutated so that it and its dependencies have the same apex variant.
-	if ai, ok := mctx.Module().(ApexInfoMutator); ok && apexModuleTypeRequiresVariant(ai) {
-		apexBundleName := ai.ApexVariationName()
+	// Note that a default variation "" is also created as an alias, and the default dependency
+	// variation is set to the default variation. This is to allow an apex to depend on another
+	// module which is outside of the apex. This is because the dependent module is not mutated
+	// for this apex variant.
+	createApexVariation := func(apexBundleName string) {
+		defaultVariation := ""
+		mctx.SetDefaultDependencyVariation(&defaultVariation)
 		mctx.CreateVariations(apexBundleName)
-		if strings.HasPrefix(apexBundleName, "com.android.art") {
-			// Create an alias from the platform variant. This is done to make
-			// test_for dependencies work for modules that are split by the APEX
-			// mutator, since test_for dependencies always go to the platform variant.
-			// This doesn't happen for normal APEXes that are disjunct, so only do
-			// this for the overlapping ART APEXes.
-			// TODO(b/183882457): Remove this if the test_for functionality is
-			// refactored to depend on the proper APEX variants instead of platform.
-			mctx.CreateAliasVariation("", apexBundleName)
-		}
+		mctx.CreateAliasVariation(defaultVariation, apexBundleName)
+	}
+
+	if ai, ok := mctx.Module().(ApexInfoMutator); ok && apexModuleTypeRequiresVariant(ai) {
+		createApexVariation(ai.ApexVariationName())
 	} else if o, ok := mctx.Module().(*OverrideApex); ok {
 		apexBundleName := o.GetOverriddenModuleName()
 		if apexBundleName == "" {
 			mctx.ModuleErrorf("base property is not set")
 			return
 		}
-		mctx.CreateVariations(apexBundleName)
-		if strings.HasPrefix(apexBundleName, "com.android.art") {
-			// TODO(b/183882457): See note for CreateAliasVariation above.
-			mctx.CreateAliasVariation("", apexBundleName)
-		}
+		createApexVariation(apexBundleName)
 	}
 }
 
