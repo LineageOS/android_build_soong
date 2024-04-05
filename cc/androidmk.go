@@ -448,6 +448,7 @@ func (c *stubDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.
 		if c.parsedCoverageXmlPath.String() != "" {
 			entries.SetString("SOONG_NDK_API_XML", "$(SOONG_NDK_API_XML) "+c.parsedCoverageXmlPath.String())
 		}
+		entries.SetBool("LOCAL_UNINSTALLABLE_MODULE", true) // Stubs should not be installed
 	})
 }
 

@@ -518,19 +518,25 @@ func (stub *stubDecorator) nativeCoverage() bool {
 
 // Returns the install path for unversioned NDK libraries (currently only static
 // libraries).
-func getUnversionedLibraryInstallPath(ctx ModuleContext) android.InstallPath {
+func getUnversionedLibraryInstallPath(ctx ModuleContext) android.OutputPath {
 	return getNdkSysrootBase(ctx).Join(ctx, "usr/lib", config.NDKTriple(ctx.toolchain()))
 }
 
 // Returns the install path for versioned NDK libraries. These are most often
 // stubs, but the same paths are used for CRT objects.
-func getVersionedLibraryInstallPath(ctx ModuleContext, apiLevel android.ApiLevel) android.InstallPath {
+func getVersionedLibraryInstallPath(ctx ModuleContext, apiLevel android.ApiLevel) android.OutputPath {
 	return getUnversionedLibraryInstallPath(ctx).Join(ctx, apiLevel.String())
 }
 
 func (stub *stubDecorator) install(ctx ModuleContext, path android.Path) {
 	installDir := getVersionedLibraryInstallPath(ctx, stub.apiLevel)
-	stub.installPath = ctx.InstallFile(installDir, path.Base(), path)
+	out := installDir.Join(ctx, path.Base())
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   android.Cp,
+		Input:  path,
+		Output: out,
+	})
+	stub.installPath = out
 }
 
 func newStubLibrary() *Module {
