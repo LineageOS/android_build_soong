@@ -69,12 +69,12 @@ func RegisterNdkModuleTypes(ctx android.RegistrationContext) {
 	ctx.RegisterParallelSingletonType("ndk", NdkSingleton)
 }
 
-func getNdkInstallBase(ctx android.PathContext) android.InstallPath {
+func getNdkInstallBase(ctx android.PathContext) android.OutputPath {
 	return android.PathForNdkInstall(ctx)
 }
 
 // Returns the main install directory for the NDK sysroot. Usable with --sysroot.
-func getNdkSysrootBase(ctx android.PathContext) android.InstallPath {
+func getNdkSysrootBase(ctx android.PathContext) android.OutputPath {
 	return getNdkInstallBase(ctx).Join(ctx, "sysroot")
 }
 
