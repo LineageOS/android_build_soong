@@ -14,6 +14,11 @@
 
 package cc
 
+import (
+	"android/soong/android"
+	"strings"
+)
+
 var (
 	llndkLibrarySuffix = ".llndk"
 	llndkHeadersSuffix = ".llndk"
@@ -54,4 +59,22 @@ type llndkLibraryProperties struct {
 	// if true, make this module available to provide headers to other modules that set
 	// llndk.symbol_file.
 	Llndk_headers *bool
+}
+
+func makeLlndkVars(ctx android.MakeVarsContext) {
+	// Make uses LLNDK_MOVED_TO_APEX_LIBRARIES to avoid installing libraries on /system if
+	// they been moved to an apex.
+	movedToApexLlndkLibraries := make(map[string]bool)
+	ctx.VisitAllModules(func(module android.Module) {
+		if library := moduleLibraryInterface(module); library != nil && library.hasLLNDKStubs() {
+			// Skip bionic libs, they are handled in different manner
+			name := library.implementationModuleName(module.(*Module).BaseModuleName())
+			if module.(android.ApexModule).DirectlyInAnyApex() && !isBionic(name) {
+				movedToApexLlndkLibraries[name] = true
+			}
+		}
+	})
+
+	ctx.Strict("LLNDK_MOVED_TO_APEX_LIBRARIES",
+		strings.Join(android.SortedKeys(movedToApexLlndkLibraries), " "))
 }

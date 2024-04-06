@@ -25,7 +25,6 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc/config"
-	"android/soong/snapshot"
 )
 
 var (
@@ -1141,42 +1140,6 @@ func (m *Module) SanitizableDepTagChecker() SantizableDependencyTagChecker {
 	return IsSanitizableDependencyTag
 }
 
-// Determines if the current module is a static library going to be captured
-// as vendor snapshot. Such modules must create both cfi and non-cfi variants,
-// except for ones which explicitly disable cfi.
-func needsCfiForVendorSnapshot(mctx android.BaseModuleContext) bool {
-	if inList("hwaddress", mctx.Config().SanitizeDevice()) {
-		// cfi will not be built if SANITIZE_TARGET=hwaddress is set
-		return false
-	}
-
-	if snapshot.IsVendorProprietaryModule(mctx) {
-		return false
-	}
-
-	c := mctx.Module().(PlatformSanitizeable)
-
-	if !c.InVendor() {
-		return false
-	}
-
-	if !c.StaticallyLinked() {
-		return false
-	}
-
-	if c.IsPrebuilt() {
-		return false
-	}
-
-	if !c.SanitizerSupported(cfi) {
-		return false
-	}
-
-	return c.SanitizePropDefined() &&
-		!c.SanitizeNever() &&
-		!c.IsSanitizerExplicitlyDisabled(cfi)
-}
-
 type sanitizerSplitMutator struct {
 	sanitizer SanitizerType
 }
@@ -1201,10 +1164,6 @@ func (s *sanitizerSplitMutator) markSanitizableApexesMutator(ctx android.TopDown
 
 func (s *sanitizerSplitMutator) Split(ctx android.BaseModuleContext) []string {
 	if c, ok := ctx.Module().(PlatformSanitizeable); ok && c.SanitizePropDefined() {
-		if s.sanitizer == cfi && needsCfiForVendorSnapshot(ctx) {
-			return []string{"", s.sanitizer.variationName()}
-		}
-
 		// If the given sanitizer is not requested in the .bp file for a module, it
 		// won't automatically build the sanitized variation.
 		if !c.IsSanitizerEnabled(s.sanitizer) {
@@ -1242,17 +1201,6 @@ func (s *sanitizerSplitMutator) Split(ctx android.BaseModuleContext) []string {
 		}
 	}
 
-	if c, ok := ctx.Module().(LinkableInterface); ok {
-		// Check if it's a snapshot module supporting sanitizer
-		if c.IsSnapshotSanitizer() {
-			if c.IsSnapshotSanitizerAvailable(s.sanitizer) {
-				return []string{"", s.sanitizer.variationName()}
-			} else {
-				return []string{""}
-			}
-		}
-	}
-
 	return []string{""}
 }
 
@@ -1277,12 +1225,6 @@ func (s *sanitizerSplitMutator) OutgoingTransition(ctx android.OutgoingTransitio
 
 func (s *sanitizerSplitMutator) IncomingTransition(ctx android.IncomingTransitionContext, incomingVariation string) string {
 	if d, ok := ctx.Module().(PlatformSanitizeable); ok {
-		if dm, ok := ctx.Module().(LinkableInterface); ok {
-			if dm.IsSnapshotSanitizerAvailable(s.sanitizer) {
-				return incomingVariation
-			}
-		}
-
 		if !d.SanitizePropDefined() ||
 			d.SanitizeNever() ||
 			d.IsSanitizerExplicitlyDisabled(s.sanitizer) ||
@@ -1393,57 +1335,7 @@ func (s *sanitizerSplitMutator) Mutate(mctx android.BottomUpMutatorContext, vari
 		if sanitizerVariation {
 			sanitizeable.AddSanitizerDependencies(mctx, s.sanitizer.name())
 		}
-	} else if c, ok := mctx.Module().(LinkableInterface); ok {
-		if c.IsSnapshotSanitizerAvailable(s.sanitizer) {
-			if !c.IsSnapshotUnsanitizedVariant() {
-				// Snapshot sanitizer may have only one variantion.
-				// Skip exporting the module if it already has a sanitizer variation.
-				c.SetPreventInstall()
-				c.SetHideFromMake()
-				return
-			}
-			c.SetSnapshotSanitizerVariation(s.sanitizer, sanitizerVariation)
-
-			// Export the static lib name to make
-			if c.Static() && c.ExportedToMake() {
-				// use BaseModuleName which is the name for Make.
-				if s.sanitizer == cfi {
-					cfiStaticLibs(mctx.Config()).add(c, c.BaseModuleName())
-				} else if s.sanitizer == Hwasan {
-					hwasanStaticLibs(mctx.Config()).add(c, c.BaseModuleName())
-				}
-			}
-		}
 	}
-}
-
-func (c *Module) IsSnapshotSanitizer() bool {
-	if _, ok := c.linker.(SnapshotSanitizer); ok {
-		return true
-	}
-	return false
-}
-
-func (c *Module) IsSnapshotSanitizerAvailable(t SanitizerType) bool {
-	if ss, ok := c.linker.(SnapshotSanitizer); ok {
-		return ss.IsSanitizerAvailable(t)
-	}
-	return false
-}
-
-func (c *Module) SetSnapshotSanitizerVariation(t SanitizerType, enabled bool) {
-	if ss, ok := c.linker.(SnapshotSanitizer); ok {
-		ss.SetSanitizerVariation(t, enabled)
-	} else {
-		panic(fmt.Errorf("Calling SetSnapshotSanitizerVariation on a non-snapshotLibraryDecorator: %s", c.Name()))
-	}
-}
-
-func (c *Module) IsSnapshotUnsanitizedVariant() bool {
-	if ss, ok := c.linker.(SnapshotSanitizer); ok {
-		return ss.IsUnsanitizedVariant()
-	}
-	return false
 }
 
 func (c *Module) SanitizeNever() bool {
@@ -1490,15 +1382,6 @@ func sanitizerRuntimeDepsMutator(mctx android.TopDownMutatorContext) {
 				}
 
 				return true
-			}
-
-			if p, ok := d.linker.(*snapshotLibraryDecorator); ok {
-				if Bool(p.properties.Sanitize_minimal_dep) {
-					c.sanitize.Properties.MinimalRuntimeDep = true
-				}
-				if Bool(p.properties.Sanitize_ubsan_dep) {
-					c.sanitize.Properties.UbsanRuntimeDep = true
-				}
 			}
 
 			return false
@@ -1626,12 +1509,6 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 		}
 
 		addStaticDeps := func(dep string, hideSymbols bool) {
-			// If we're using snapshots, redirect to snapshot whenever possible
-			snapshot, _ := android.ModuleProvider(mctx, SnapshotInfoProvider)
-			if lib, ok := snapshot.StaticLibs[dep]; ok {
-				dep = lib
-			}
-
 			// static executable gets static runtime libs
 			depTag := libraryDependencyTag{Kind: staticLibraryDependency, unexportedSymbols: hideSymbols}
 			variations := append(mctx.Target().Variations(),
@@ -1713,12 +1590,6 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 				// the best.
 				addStaticDeps(runtimeSharedLibrary, true)
 			} else if !c.static() && !c.Header() {
-				// If we're using snapshots, redirect to snapshot whenever possible
-				snapshot, _ := android.ModuleProvider(mctx, SnapshotInfoProvider)
-				if lib, ok := snapshot.SharedLibs[runtimeSharedLibrary]; ok {
-					runtimeSharedLibrary = lib
-				}
-
 				// Skip apex dependency check for sharedLibraryDependency
 				// when sanitizer diags are enabled. Skipping the check will allow
 				// building with diag libraries without having to list the

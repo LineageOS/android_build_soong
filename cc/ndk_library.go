@@ -530,7 +530,13 @@ func getVersionedLibraryInstallPath(ctx ModuleContext, apiLevel android.ApiLevel
 
 func (stub *stubDecorator) install(ctx ModuleContext, path android.Path) {
 	installDir := getVersionedLibraryInstallPath(ctx, stub.apiLevel)
-	stub.installPath = installDir.Join(ctx, path.Base())
+	out := installDir.Join(ctx, path.Base())
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   android.Cp,
+		Input:  path,
+		Output: out,
+	})
+	stub.installPath = out
 }
 
 func newStubLibrary() *Module {

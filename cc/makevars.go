@@ -98,7 +98,6 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("GLOBAL_CLANG_EXTERNAL_CFLAGS_NO_OVERRIDE", "${config.NoOverrideExternalGlobalCflags}")
 
 	ctx.Strict("BOARD_VNDK_VERSION", ctx.DeviceConfig().VndkVersion())
-	ctx.Strict("RECOVERY_SNAPSHOT_VERSION", ctx.DeviceConfig().RecoverySnapshotVersion())
 
 	// Filter vendor_public_library that are exported to make
 	exportedVendorPublicLibraries := []string{}
@@ -123,12 +122,12 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("SOONG_MODULES_USING_WNO_ERROR", makeStringOfKeys(ctx, modulesUsingWnoErrorKey))
 	ctx.Strict("SOONG_MODULES_MISSING_PGO_PROFILE_FILE", makeStringOfKeys(ctx, modulesMissingProfileFileKey))
 
- 	ctx.Strict("CLANG_COVERAGE_CONFIG_CFLAGS", strings.Join(clangCoverageCFlags, " "))
- 	ctx.Strict("CLANG_COVERAGE_CONFIG_COMMFLAGS", strings.Join(clangCoverageCommonFlags, " "))
- 	ctx.Strict("CLANG_COVERAGE_HOST_LDFLAGS", strings.Join(clangCoverageHostLdFlags, " "))
- 	ctx.Strict("CLANG_COVERAGE_INSTR_PROFILE", profileInstrFlag)
- 	ctx.Strict("CLANG_COVERAGE_CONTINUOUS_FLAGS", strings.Join(clangContinuousCoverageFlags, " "))
- 	ctx.Strict("CLANG_COVERAGE_HWASAN_FLAGS", strings.Join(clangCoverageHWASanFlags, " "))
+	ctx.Strict("CLANG_COVERAGE_CONFIG_CFLAGS", strings.Join(clangCoverageCFlags, " "))
+	ctx.Strict("CLANG_COVERAGE_CONFIG_COMMFLAGS", strings.Join(clangCoverageCommonFlags, " "))
+	ctx.Strict("CLANG_COVERAGE_HOST_LDFLAGS", strings.Join(clangCoverageHostLdFlags, " "))
+	ctx.Strict("CLANG_COVERAGE_INSTR_PROFILE", profileInstrFlag)
+	ctx.Strict("CLANG_COVERAGE_CONTINUOUS_FLAGS", strings.Join(clangContinuousCoverageFlags, " "))
+	ctx.Strict("CLANG_COVERAGE_HWASAN_FLAGS", strings.Join(clangCoverageHWASanFlags, " "))
 
 	ctx.Strict("ADDRESS_SANITIZER_CONFIG_EXTRA_CFLAGS", strings.Join(asanCflags, " "))
 	ctx.Strict("ADDRESS_SANITIZER_CONFIG_EXTRA_LDFLAGS", strings.Join(asanLdflags, " "))
@@ -184,6 +183,8 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	if len(deviceTargets) > 1 {
 		makeVarsToolchain(ctx, "2ND_", deviceTargets[1])
 	}
+
+	makeLlndkVars(ctx)
 }
 
 func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,

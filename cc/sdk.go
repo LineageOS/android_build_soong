@@ -106,8 +106,6 @@ func sdkMutator(ctx android.BottomUpMutatorContext) {
 			}
 			ctx.AliasVariation("")
 		}
-	case *snapshotModule:
-		ctx.CreateVariations("")
 	case *CcApiVariant:
 		ccApiVariant, _ := ctx.Module().(*CcApiVariant)
 		if String(ccApiVariant.properties.Variant) == "ndk" {
