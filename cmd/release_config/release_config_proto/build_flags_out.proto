@@ -1,0 +1,86 @@
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto2";
+package android.release_config_proto;
+option go_package = "android/soong/release_config/release_config_proto";
+
+import "build_flags_src.proto";
+
+// This protobuf file defines messages used to represent the release config for
+// the android build system, delivered as a build artifact for use by tools such
+// as Gantry.
+//
+// The following format requirements apply across various message fields:
+//
+// # name: name of the flag
+//
+//    format: an uppercase string in SNAKE_CASE format starting with RELEASE_,
+//      no consecutive underscores, and no leading digit. For example
+//      RELEASE_MY_PACKAGE_FLAG is a valid name, while MY_PACKAGE_FLAG, and
+//      RELEASE_MY_PACKAGE__FLAG are invalid.
+//
+// # package: package to which the flag belongs
+//
+//    format: lowercase strings in snake_case format, delimited by dots, no
+//      consecutive underscores and no leading digit in each string. For example
+//      com.android.mypackage is a valid name while com.android.myPackage,
+//      com.android.1mypackage are invalid
+
+message tracepoint {
+  // Path to declaration or value file relative to $TOP
+  optional string source = 1;
+  optional value value = 201;
+}
+
+message flag_artifact {
+  // The original declaration
+  optional flag_declaration flag_declaration = 1;
+
+  // Value for the flag
+  optional value value = 201;
+
+  // Trace of where the flag value was assigned.
+  repeated tracepoint traces = 8;
+}
+
+message release_config_artifact {
+  // The name of the release config.
+  // See # name for format detail
+  optional string name = 1;
+
+  // Other names by which this release is known (for example, `next`)
+  repeated string other_names = 2;
+
+  // The complete set of build flags in this release config, after all
+  // inheritance and other processing is complete.
+  repeated flag_artifact flag_artifacts = 3;
+
+  // The (complete) list of aconfig_value_sets Soong modules to use.
+  repeated string aconfig_value_sets = 4;
+
+  // The names of the release_config_artifacts from which we inherited.
+  // Included for reference only.
+  repeated string inherits = 5;
+
+  // The release config directories used for this config.
+  // For example, "build/release".
+  repeated string directories = 6;
+}
+
+message release_configs_artifact {
+  // The active release config for this build.
+  optional release_config_artifact release_config = 1;
+
+  // All other release configs defined for this TARGET_PRODUCT.
+  repeated release_config_artifact other_release_configs = 2;
+}
+
