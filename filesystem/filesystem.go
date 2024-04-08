@@ -20,6 +20,7 @@ import (
 	"io"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"android/soong/android"
@@ -81,6 +82,9 @@ type filesystemProperties struct {
 	// Hash algorithm used for avbtool (for descriptors). This is passed as hash_algorithm to
 	// avbtool. Default used by avbtool is sha1.
 	Avb_hash_algorithm *string
+
+	// The index used to prevent rollback of the image. Only used if use_avb is true.
+	Rollback_index *int64
 
 	// Name of the partition stored in vbmeta desc. Defaults to the name of this module.
 	Partition_name *string
@@ -351,6 +355,13 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (propFile android.
 		avb_add_hashtree_footer_args := "--do_not_generate_fec"
 		if hashAlgorithm := proptools.String(f.properties.Avb_hash_algorithm); hashAlgorithm != "" {
 			avb_add_hashtree_footer_args += " --hash_algorithm " + hashAlgorithm
+		}
+		if f.properties.Rollback_index != nil {
+			rollbackIndex := proptools.Int(f.properties.Rollback_index)
+			if rollbackIndex < 0 {
+				ctx.PropertyErrorf("rollback_index", "Rollback index must be non-negative")
+			}
+			avb_add_hashtree_footer_args += " --rollback_index " + strconv.Itoa(rollbackIndex)
 		}
 		securityPatchKey := "com.android.build." + f.partitionName() + ".security_patch"
 		securityPatchValue := ctx.Config().PlatformSecurityPatch()
