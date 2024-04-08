@@ -489,11 +489,11 @@ type selectsMockModule struct {
 
 func (p *selectsMockModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	SetProvider(ctx, selectsTestProviderKey, selectsTestProvider{
-		my_bool:               p.properties.My_bool.Evaluate(ctx),
-		my_string:             p.properties.My_string.Evaluate(ctx),
-		my_string_list:        p.properties.My_string_list.Evaluate(ctx),
-		my_paths:              p.properties.My_paths.Evaluate(ctx),
-		replacing_string_list: p.properties.Replacing_string_list.Evaluate(ctx),
+		my_bool:               p.properties.My_bool.Get(ctx),
+		my_string:             p.properties.My_string.Get(ctx),
+		my_string_list:        p.properties.My_string_list.Get(ctx),
+		my_paths:              p.properties.My_paths.Get(ctx),
+		replacing_string_list: p.properties.Replacing_string_list.Get(ctx),
 	})
 }
 
