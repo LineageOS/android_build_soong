@@ -109,9 +109,9 @@ func pathPropertiesForPropertyStruct(ctx BottomUpMutatorContext, ps interface{})
 			case reflect.Struct:
 				intf := sv.Interface()
 				if configurable, ok := intf.(proptools.Configurable[string]); ok {
-					ret = append(ret, proptools.String(configurable.Evaluate(ctx)))
+					ret = append(ret, configurable.GetOrDefault(ctx, ""))
 				} else if configurable, ok := intf.(proptools.Configurable[[]string]); ok {
-					ret = append(ret, proptools.Slice(configurable.Evaluate(ctx))...)
+					ret = append(ret, configurable.GetOrDefault(ctx, nil)...)
 				} else {
 					panic(fmt.Errorf(`field %s in type %s has tag android:"path" but is not a string or slice of strings, it is a %s`,
 						v.Type().FieldByIndex(i).Name, v.Type(), sv.Type()))
