@@ -159,11 +159,6 @@ func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 
 		p.androidMkSuffix = p.NameSuffix()
 
-		vndkVersion := ctx.DeviceConfig().VndkVersion()
-		if vndkVersion == p.Version() {
-			p.androidMkSuffix = ""
-		}
-
 		android.SetProvider(ctx, SharedLibraryInfoProvider, SharedLibraryInfo{
 			SharedLibrary: in,
 			Target:        ctx.Target(),
