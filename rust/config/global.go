@@ -22,8 +22,7 @@ import (
 )
 
 var (
-	pctx         = android.NewPackageContext("android/soong/rust/config")
-	ExportedVars = android.NewExportedVariables(pctx)
+	pctx = android.NewPackageContext("android/soong/rust/config")
 
 	RustDefaultVersion = "1.76.0"
 	RustDefaultBase    = "prebuilts/rust/"
@@ -112,17 +111,17 @@ func init() {
 
 	pctx.StaticVariable("DeviceGlobalLinkFlags", strings.Join(deviceGlobalLinkFlags, " "))
 
-	ExportedVars.ExportStringStaticVariable("RUST_DEFAULT_VERSION", RustDefaultVersion)
-	ExportedVars.ExportStringListStaticVariable("GLOBAL_RUSTC_FLAGS", GlobalRustFlags)
-	ExportedVars.ExportStringListStaticVariable("LINUX_HOST_GLOBAL_LINK_FLAGS", LinuxHostGlobalLinkFlags)
+	pctx.StaticVariable("RUST_DEFAULT_VERSION", RustDefaultVersion)
+	pctx.StaticVariable("GLOBAL_RUSTC_FLAGS", strings.Join(GlobalRustFlags, " "))
+	pctx.StaticVariable("LINUX_HOST_GLOBAL_LINK_FLAGS", strings.Join(LinuxHostGlobalLinkFlags, " "))
 
-	ExportedVars.ExportStringListStaticVariable("DEVICE_GLOBAL_RUSTC_FLAGS", deviceGlobalRustFlags)
-	ExportedVars.ExportStringListStaticVariable("DEVICE_GLOBAL_LINK_FLAGS",
-		android.RemoveListFromList(deviceGlobalLinkFlags, []string{
+	pctx.StaticVariable("DEVICE_GLOBAL_RUSTC_FLAGS", strings.Join(deviceGlobalRustFlags, " "))
+	pctx.StaticVariable("DEVICE_GLOBAL_LINK_FLAGS",
+		strings.Join(android.RemoveListFromList(deviceGlobalLinkFlags, []string{
 			// The cc_config flags are retrieved from cc_toolchain by rust rules.
 			"${cc_config.DeviceGlobalLldflags}",
 			"-B${cc_config.ClangBin}",
-		}))
+		}), " "))
 }
 
 func HostPrebuiltTag(config android.Config) string {
