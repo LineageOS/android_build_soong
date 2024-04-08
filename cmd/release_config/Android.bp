@@ -1,0 +1,30 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+bootstrap_go_package {
+    name: "release-config",
+    pkgPath: "android/soong/cmd/release_config",
+    deps: [
+        "golang-protobuf-encoding-prototext",
+        "golang-protobuf-reflect-protoreflect",
+        "golang-protobuf-runtime-protoimpl",
+        "soong-cmd-release-config-proto",
+    ],
+    srcs: [
+        "main.go",
+    ],
+}
+
+bootstrap_go_package {
+    name: "soong-cmd-release-config-proto",
+    pkgPath: "android/soong/cmd/release_config/release_config_proto",
+    deps: [
+        "golang-protobuf-reflect-protoreflect",
+        "golang-protobuf-runtime-protoimpl",
+    ],
+    srcs: [
+        "release_config_proto/build_flags_out.pb.go",
+        "release_config_proto/build_flags_src.pb.go",
+    ],
+}
