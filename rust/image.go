@@ -208,14 +208,6 @@ func (mod *Module) SetImageVariation(ctx android.BaseModuleContext, variant stri
 		if strings.HasPrefix(variant, cc.VendorVariationPrefix) {
 			m.Properties.VndkVersion = strings.TrimPrefix(variant, cc.VendorVariationPrefix)
 		}
-
-		// Makefile shouldn't know vendor modules other than BOARD_VNDK_VERSION.
-		// Hide other vendor variants to avoid collision.
-		vndkVersion := ctx.DeviceConfig().VndkVersion()
-		if vndkVersion != "current" && vndkVersion != "" && vndkVersion != m.Properties.VndkVersion {
-			m.Properties.HideFromMake = true
-			m.HideFromMake()
-		}
 	} else if strings.HasPrefix(variant, cc.ProductVariation) {
 		m.Properties.ImageVariation = cc.ProductVariation
 		if strings.HasPrefix(variant, cc.ProductVariationPrefix) {

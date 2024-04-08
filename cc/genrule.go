@@ -101,21 +101,14 @@ func (g *GenruleExtraProperties) RecoveryVariantNeeded(ctx android.BaseModuleCon
 
 func (g *GenruleExtraProperties) ExtraImageVariations(ctx android.BaseModuleContext) []string {
 	var variants []string
-	vndkVersion := ctx.DeviceConfig().VndkVersion()
 	vendorVariantRequired := Bool(g.Vendor_available) || Bool(g.Odm_available) || ctx.SocSpecific() || ctx.DeviceSpecific()
 	productVariantRequired := Bool(g.Product_available) || ctx.ProductSpecific()
 
-	if vndkVersion == "" {
-		if vendorVariantRequired {
-			variants = append(variants, VendorVariation)
-		}
-		if productVariantRequired {
-			variants = append(variants, ProductVariation)
-		}
-	} else {
-		if vendorVariantRequired {
-			variants = append(variants, VendorVariationPrefix+vndkVersion)
-		}
+	if vendorVariantRequired {
+		variants = append(variants, VendorVariation)
+	}
+	if productVariantRequired {
+		variants = append(variants, ProductVariation)
 	}
 
 	return variants

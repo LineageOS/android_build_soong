@@ -428,17 +428,8 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 	var vendorVariants []string
 	var productVariants []string
 
-	boardVndkVersion := mctx.DeviceConfig().VndkVersion()
 	needVndkVersionVendorVariantForLlndk := false
-	if boardVndkVersion != "" {
-		boardVndkApiLevel, err := android.ApiLevelFromUser(mctx, boardVndkVersion)
-		if err == nil && !boardVndkApiLevel.IsPreview() {
-			// VNDK snapshot newer than v30 has LLNDK stub libraries.
-			// Only the VNDK version less than or equal to v30 requires generating the vendor
-			// variant of the VNDK version from the source tree.
-			needVndkVersionVendorVariantForLlndk = boardVndkApiLevel.LessThanOrEqualTo(android.ApiLevelOrPanic(mctx, "30"))
-		}
-	}
+
 	if m.NeedsLlndkVariants() {
 		// This is an LLNDK library.  The implementation of the library will be on /system,
 		// and vendor and product variants will be created with LLNDK stubs.
@@ -449,13 +440,13 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 		// Generate vendor variants for boardVndkVersion only if the VNDK snapshot does not
 		// provide the LLNDK stub libraries.
 		if needVndkVersionVendorVariantForLlndk {
-			vendorVariants = append(vendorVariants, boardVndkVersion)
+			vendorVariants = append(vendorVariants, "")
 		}
 	} else if m.NeedsVendorPublicLibraryVariants() {
 		// A vendor public library has the implementation on /vendor, with stub variants
 		// for system and product.
 		coreVariantNeeded = true
-		vendorVariants = append(vendorVariants, boardVndkVersion)
+		vendorVariants = append(vendorVariants, "")
 		productVariants = append(productVariants, "")
 	} else if m.IsSnapshotPrebuilt() {
 		// Make vendor variants only for the versions in BOARD_VNDK_VERSION and
@@ -483,21 +474,7 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 		}
 	} else if vendorSpecific && m.SdkVersion() == "" {
 		// This will be available in /vendor (or /odm) only
-
-		// kernel_headers is a special module type whose exported headers
-		// are coming from DeviceKernelHeaders() which is always vendor
-		// dependent. They'll always have both vendor variants.
-		// For other modules, we assume that modules under proprietary
-		// paths are compatible for BOARD_VNDK_VERSION. The other modules
-		// are regarded as AOSP, which is PLATFORM_VNDK_VERSION.
-		if m.KernelHeadersDecorator() {
-			vendorVariants = append(vendorVariants,
-				"",
-				boardVndkVersion,
-			)
-		} else {
-			vendorVariants = append(vendorVariants, "")
-		}
+		vendorVariants = append(vendorVariants, "")
 	} else {
 		// This is either in /system (or similar: /data), or is a
 		// module built with the NDK. Modules built with the NDK
@@ -669,14 +646,6 @@ func (c *Module) SetImageVariation(ctx android.BaseModuleContext, variant string
 			m.Properties.VndkVersion = strings.TrimPrefix(variant, VendorVariationPrefix)
 		}
 		squashVendorSrcs(m)
-
-		// Makefile shouldn't know vendor modules other than BOARD_VNDK_VERSION.
-		// Hide other vendor variants to avoid collision.
-		vndkVersion := ctx.DeviceConfig().VndkVersion()
-		if vndkVersion != "current" && vndkVersion != "" && vndkVersion != m.Properties.VndkVersion {
-			m.Properties.HideFromMake = true
-			m.HideFromMake()
-		}
 	} else if strings.HasPrefix(variant, ProductVariation) {
 		m.Properties.ImageVariation = ProductVariation
 		if strings.HasPrefix(variant, ProductVariationPrefix) {

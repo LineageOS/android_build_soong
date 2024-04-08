@@ -293,7 +293,7 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 	}
 
 	if android.InList(":vndk", requireNativeLibs) {
-		if _, vndkVersion := a.getImageVariationPair(ctx.DeviceConfig()); vndkVersion != "" {
+		if _, vndkVersion := a.getImageVariationPair(); vndkVersion != "" {
 			optCommands = append(optCommands, "-v vndkVersion "+vndkVersion)
 		}
 	}
