@@ -10,8 +10,9 @@ bootstrap_go_package {
         "soong",
         "soong-android",
         "soong-bpf", // for testing
-        "soong-phony", // for testing
+        "soong-java", // for testing
         "soong-linkerconfig",
+        "soong-phony", // for testing
     ],
     srcs: [
         "avb_add_hash_footer.go",
