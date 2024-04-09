@@ -1074,14 +1074,22 @@ func (m *ModuleBase) addRequiredDeps(ctx BottomUpMutatorContext) {
 		}
 	}
 
+	var deviceTargets []Target
+	deviceTargets = append(deviceTargets, ctx.Config().Targets[Android]...)
+	deviceTargets = append(deviceTargets, ctx.Config().AndroidCommonTarget)
+
+	var hostTargets []Target
+	hostTargets = append(hostTargets, ctx.Config().Targets[ctx.Config().BuildOS]...)
+	hostTargets = append(hostTargets, ctx.Config().BuildOSCommonTarget)
+
 	if m.Device() {
 		for _, depName := range m.RequiredModuleNames() {
-			for _, target := range ctx.Config().Targets[Android] {
+			for _, target := range deviceTargets {
 				addDep(target, depName)
 			}
 		}
 		for _, depName := range m.HostRequiredModuleNames() {
-			for _, target := range ctx.Config().Targets[ctx.Config().BuildOS] {
+			for _, target := range hostTargets {
 				addDep(target, depName)
 			}
 		}
@@ -1089,7 +1097,7 @@ func (m *ModuleBase) addRequiredDeps(ctx BottomUpMutatorContext) {
 
 	if m.Host() {
 		for _, depName := range m.RequiredModuleNames() {
-			for _, target := range ctx.Config().Targets[ctx.Config().BuildOS] {
+			for _, target := range hostTargets {
 				// When a host module requires another host module, don't make a
 				// dependency if they have different OSes (i.e. hostcross).
 				if m.Target().HostCross != target.HostCross {
@@ -1099,7 +1107,7 @@ func (m *ModuleBase) addRequiredDeps(ctx BottomUpMutatorContext) {
 			}
 		}
 		for _, depName := range m.TargetRequiredModuleNames() {
-			for _, target := range ctx.Config().Targets[Android] {
+			for _, target := range deviceTargets {
 				addDep(target, depName)
 			}
 		}
