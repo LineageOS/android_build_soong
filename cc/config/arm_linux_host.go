@@ -14,7 +14,10 @@
 
 package config
 
-import "android/soong/android"
+import (
+	"android/soong/android"
+	"strings"
+)
 
 var (
 	linuxArmCflags = []string{
@@ -39,15 +42,15 @@ var (
 )
 
 func init() {
-	exportedVars.ExportStringListStaticVariable("LinuxArmCflags", linuxArmCflags)
-	exportedVars.ExportStringListStaticVariable("LinuxArm64Cflags", linuxArm64Cflags)
-	exportedVars.ExportStringListStaticVariable("LinuxArmLdflags", linuxArmLdflags)
-	exportedVars.ExportStringListStaticVariable("LinuxArmLldflags", linuxArmLldflags)
-	exportedVars.ExportStringListStaticVariable("LinuxArm64Ldflags", linuxArm64Ldflags)
-	exportedVars.ExportStringListStaticVariable("LinuxArm64Lldflags", linuxArm64Lldflags)
+	pctx.StaticVariable("LinuxArmCflags", strings.Join(linuxArmCflags, " "))
+	pctx.StaticVariable("LinuxArm64Cflags", strings.Join(linuxArm64Cflags, " "))
+	pctx.StaticVariable("LinuxArmLdflags", strings.Join(linuxArmLdflags, " "))
+	pctx.StaticVariable("LinuxArmLldflags", strings.Join(linuxArmLldflags, " "))
+	pctx.StaticVariable("LinuxArm64Ldflags", strings.Join(linuxArm64Ldflags, " "))
+	pctx.StaticVariable("LinuxArm64Lldflags", strings.Join(linuxArm64Lldflags, " "))
 
-	exportedVars.ExportStringListStaticVariable("LinuxArmYasmFlags", []string{"-f elf32 -m arm"})
-	exportedVars.ExportStringListStaticVariable("LinuxArm64YasmFlags", []string{"-f elf64 -m aarch64"})
+	pctx.StaticVariable("LinuxArmYasmFlags", "-f elf32 -m arm")
+	pctx.StaticVariable("LinuxArm64YasmFlags", "-f elf64 -m aarch64")
 
 }
 

@@ -15,6 +15,7 @@
 package config
 
 import (
+	"android/soong/android"
 	"strings"
 )
 
@@ -29,23 +30,23 @@ var (
 )
 
 // Wrapper that grabs value of val late so it can be initialized by a later module's init function
-func errorProneVar(val *[]string, sep string) func() string {
-	return func() string {
+func errorProneVar(val *[]string, sep string) func(android.PackageVarContext) string {
+	return func(android.PackageVarContext) string {
 		return strings.Join(*val, sep)
 	}
 }
 
 func init() {
-	exportedVars.ExportVariableFuncVariable("ErrorProneClasspath", errorProneVar(&ErrorProneClasspath, ":"))
-	exportedVars.ExportVariableFuncVariable("ErrorProneChecksError", errorProneVar(&ErrorProneChecksError, " "))
-	exportedVars.ExportVariableFuncVariable("ErrorProneChecksWarning", errorProneVar(&ErrorProneChecksWarning, " "))
-	exportedVars.ExportVariableFuncVariable("ErrorProneChecksDefaultDisabled", errorProneVar(&ErrorProneChecksDefaultDisabled, " "))
-	exportedVars.ExportVariableFuncVariable("ErrorProneChecksOff", errorProneVar(&ErrorProneChecksOff, " "))
-	exportedVars.ExportVariableFuncVariable("ErrorProneFlags", errorProneVar(&ErrorProneFlags, " "))
-	exportedVars.ExportStringListStaticVariable("ErrorProneChecks", []string{
+	pctx.VariableFunc("ErrorProneClasspath", errorProneVar(&ErrorProneClasspath, ":"))
+	pctx.VariableFunc("ErrorProneChecksError", errorProneVar(&ErrorProneChecksError, " "))
+	pctx.VariableFunc("ErrorProneChecksWarning", errorProneVar(&ErrorProneChecksWarning, " "))
+	pctx.VariableFunc("ErrorProneChecksDefaultDisabled", errorProneVar(&ErrorProneChecksDefaultDisabled, " "))
+	pctx.VariableFunc("ErrorProneChecksOff", errorProneVar(&ErrorProneChecksOff, " "))
+	pctx.VariableFunc("ErrorProneFlags", errorProneVar(&ErrorProneFlags, " "))
+	pctx.StaticVariable("ErrorProneChecks", strings.Join([]string{
 		"${ErrorProneChecksOff}",
 		"${ErrorProneChecksError}",
 		"${ErrorProneChecksWarning}",
 		"${ErrorProneChecksDefaultDisabled}",
-	})
+	}, " "))
 }

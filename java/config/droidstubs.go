@@ -58,11 +58,7 @@ const (
 )
 
 func init() {
-	exportedVars.ExportStringList("MetalavaFlags", metalavaFlags)
+	pctx.StaticVariable("MetalavaAnnotationsFlags", strings.Join(metalavaAnnotationsFlags, " "))
 
-	exportedVars.ExportString("MetalavaAddOpens", MetalavaAddOpens)
-
-	exportedVars.ExportStringListStaticVariable("MetalavaAnnotationsFlags", metalavaAnnotationsFlags)
-
-	exportedVars.ExportStringListStaticVariable("MetalavaAnnotationWarningsFlags", metalavaAnnotationsWarningsFlags)
+	pctx.StaticVariable("MetalavaAnnotationWarningsFlags", strings.Join(metalavaAnnotationsWarningsFlags, " "))
 }

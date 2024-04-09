@@ -62,15 +62,11 @@ const ()
 
 func init() {
 
-	exportedVars.ExportStringListStaticVariable("Riscv64Ldflags", riscv64Ldflags)
-	exportedVars.ExportStringListStaticVariable("Riscv64Lldflags", riscv64Lldflags)
+	pctx.StaticVariable("Riscv64Ldflags", strings.Join(riscv64Ldflags, " "))
+	pctx.StaticVariable("Riscv64Lldflags", strings.Join(riscv64Lldflags, " "))
 
-	exportedVars.ExportStringListStaticVariable("Riscv64Cflags", riscv64Cflags)
-	exportedVars.ExportStringListStaticVariable("Riscv64Cppflags", riscv64Cppflags)
-
-	exportedVars.ExportVariableReferenceDict("Riscv64ArchVariantCflags", riscv64ArchVariantCflagsVar)
-	exportedVars.ExportVariableReferenceDict("Riscv64CpuVariantCflags", riscv64CpuVariantCflagsVar)
-	exportedVars.ExportVariableReferenceDict("Riscv64CpuVariantLdflags", riscv64CpuVariantLdflags)
+	pctx.StaticVariable("Riscv64Cflags", strings.Join(riscv64Cflags, " "))
+	pctx.StaticVariable("Riscv64Cppflags", strings.Join(riscv64Cppflags, " "))
 }
 
 var (

@@ -402,30 +402,8 @@ func (t libraryDependencyTag) SkipApexAllowedDependenciesCheck() bool {
 
 var _ android.SkipApexAllowedDependenciesCheck = (*libraryDependencyTag)(nil)
 
-var exportedVars = android.NewExportedVariables(pctx)
-
 func init() {
-	exportedVars.ExportStringListStaticVariable("HostOnlySanitizeFlags", hostOnlySanitizeFlags)
-	exportedVars.ExportStringList("DeviceOnlySanitizeFlags", deviceOnlySanitizeFlags)
-
-	exportedVars.ExportStringList("MinimalRuntimeFlags", minimalRuntimeFlags)
-
-	// Leave out "-flto" from the slices exported to bazel, as we will use the
-	// dedicated LTO feature for this. For C Flags and Linker Flags, also leave
-	// out the cross DSO flag which will be added separately under the correct conditions.
-	exportedVars.ExportStringList("CfiCFlags", append(cfiCflags[2:], cfiEnableFlag))
-	exportedVars.ExportStringList("CfiLdFlags", cfiLdflags[2:])
-	exportedVars.ExportStringList("CfiAsFlags", cfiAsflags[1:])
-
-	exportedVars.ExportString("SanitizeIgnorelistPrefix", sanitizeIgnorelistPrefix)
-	exportedVars.ExportString("CfiCrossDsoFlag", cfiCrossDsoFlag)
-	exportedVars.ExportString("CfiBlocklistPath", cfiBlocklistPath)
-	exportedVars.ExportString("CfiBlocklistFilename", cfiBlocklistFilename)
-	exportedVars.ExportString("CfiExportsMapPath", cfiExportsMapPath)
-	exportedVars.ExportString("CfiExportsMapFilename", cfiExportsMapFilename)
-	exportedVars.ExportString("CfiAssemblySupportFlag", cfiAssemblySupportFlag)
-
-	exportedVars.ExportString("NoSanitizeLinkRuntimeFlag", noSanitizeLinkRuntimeFlag)
+	pctx.StaticVariable("HostOnlySanitizeFlags", strings.Join(hostOnlySanitizeFlags, " "))
 
 	android.RegisterMakeVarsProvider(pctx, cfiMakeVarsProvider)
 	android.RegisterMakeVarsProvider(pctx, hwasanMakeVarsProvider)
