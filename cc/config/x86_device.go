@@ -101,25 +101,18 @@ var (
 )
 
 func init() {
-	exportedVars.ExportStringListStaticVariable("X86ToolchainCflags", []string{"-m32"})
-	exportedVars.ExportStringListStaticVariable("X86ToolchainLdflags", []string{"-m32"})
+	pctx.StaticVariable("X86ToolchainCflags", "-m32")
+	pctx.StaticVariable("X86ToolchainLdflags", "-m32")
 
-	exportedVars.ExportStringListStaticVariable("X86Ldflags", x86Ldflags)
-	exportedVars.ExportStringListStaticVariable("X86Lldflags", x86Ldflags)
+	pctx.StaticVariable("X86Ldflags", strings.Join(x86Ldflags, " "))
+	pctx.StaticVariable("X86Lldflags", strings.Join(x86Ldflags, " "))
 
 	// Clang cflags
-	exportedVars.ExportStringListStaticVariable("X86Cflags", x86Cflags)
-	exportedVars.ExportStringListStaticVariable("X86Cppflags", x86Cppflags)
+	pctx.StaticVariable("X86Cflags", strings.Join(x86Cflags, " "))
+	pctx.StaticVariable("X86Cppflags", strings.Join(x86Cppflags, " "))
 
 	// Yasm flags
-	exportedVars.ExportStringListStaticVariable("X86YasmFlags", []string{
-		"-f elf32",
-		"-m x86",
-	})
-
-	// Extended cflags
-	exportedVars.ExportStringListDict("X86ArchVariantCflags", x86ArchVariantCflags)
-	exportedVars.ExportStringListDict("X86ArchFeatureCflags", x86ArchFeatureCflags)
+	pctx.StaticVariable("X86YasmFlags", "-f elf32 -m x86")
 
 	// Architecture variant cflags
 	for variant, cflags := range x86ArchVariantCflags {

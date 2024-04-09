@@ -225,7 +225,7 @@ var stubLibraryCompilerFlags = []string{
 }
 
 func init() {
-	config.ExportStringList("StubLibraryCompilerFlags", stubLibraryCompilerFlags)
+	pctx.StaticVariable("StubLibraryCompilerFlags", strings.Join(stubLibraryCompilerFlags, " "))
 }
 
 func addStubLibraryCompilerFlags(flags Flags) Flags {

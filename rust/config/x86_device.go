@@ -56,7 +56,7 @@ func init() {
 			strings.Join(rustFlags, " "))
 	}
 
-	ExportedVars.ExportStringListStaticVariable("DEVICE_X86_RUSTC_FLAGS", x86RustFlags)
+	pctx.StaticVariable("DEVICE_X86_RUSTC_FLAGS", strings.Join(x86RustFlags, " "))
 }
 
 type toolchainX86 struct {

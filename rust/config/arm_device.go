@@ -44,7 +44,7 @@ func init() {
 			strings.Join(rustFlags, " "))
 	}
 
-	ExportedVars.ExportStringListStaticVariable("DEVICE_ARM_RUSTC_FLAGS", ArmRustFlags)
+	pctx.StaticVariable("DEVICE_ARM_RUSTC_FLAGS", strings.Join(ArmRustFlags, " "))
 }
 
 type toolchainArm struct {

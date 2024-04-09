@@ -97,11 +97,10 @@ var (
 )
 
 func init() {
-	exportedVars.ExportStringListStaticVariable("X86_64ToolchainCflags", []string{"-m64"})
-	exportedVars.ExportStringListStaticVariable("X86_64ToolchainLdflags", []string{"-m64"})
+	pctx.StaticVariable("X86_64ToolchainCflags", "-m64")
+	pctx.StaticVariable("X86_64ToolchainLdflags", "-m64")
 
-	exportedVars.ExportStringListStaticVariable("X86_64Ldflags", x86_64Ldflags)
-	exportedVars.ExportStringList("X86_64Lldflags", X86_64Lldflags)
+	pctx.StaticVariable("X86_64Ldflags", strings.Join(x86_64Ldflags, " "))
 	pctx.VariableFunc("X86_64Lldflags", func(ctx android.PackageVarContext) string {
 		maxPageSizeFlag := "-Wl,-z,max-page-size=" + ctx.Config().MaxPageSizeSupported()
 		flags := append(X86_64Lldflags, maxPageSizeFlag)
@@ -109,7 +108,6 @@ func init() {
 	})
 
 	// Clang cflags
-	exportedVars.ExportStringList("X86_64Cflags", x86_64Cflags)
 	pctx.VariableFunc("X86_64Cflags", func(ctx android.PackageVarContext) string {
 		flags := x86_64Cflags
 		if ctx.Config().NoBionicPageSizeMacro() {
@@ -118,18 +116,10 @@ func init() {
 		return strings.Join(flags, " ")
 	})
 
-	exportedVars.ExportStringListStaticVariable("X86_64Cppflags", x86_64Cppflags)
+	pctx.StaticVariable("X86_64Cppflags", strings.Join(x86_64Cppflags, " "))
 
 	// Yasm flags
-	exportedVars.ExportStringListStaticVariable("X86_64YasmFlags", []string{
-		"-f elf64",
-		"-m amd64",
-	})
-
-	// Extended cflags
-
-	exportedVars.ExportStringListDict("X86_64ArchVariantCflags", x86_64ArchVariantCflags)
-	exportedVars.ExportStringListDict("X86_64ArchFeatureCflags", x86_64ArchFeatureCflags)
+	pctx.StaticVariable("X86_64YasmFlags", "-f elf64 -m amd64")
 
 	// Architecture variant cflags
 	for variant, cflags := range x86_64ArchVariantCflags {
