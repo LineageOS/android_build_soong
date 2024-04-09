@@ -23,6 +23,7 @@ import (
 	"android/soong/bpf"
 	"android/soong/cc"
 	"android/soong/etc"
+	"android/soong/java"
 	"android/soong/phony"
 
 	"github.com/google/blueprint/proptools"
@@ -34,9 +35,12 @@ func TestMain(m *testing.M) {
 
 var fixture = android.GroupFixturePreparers(
 	android.PrepareForIntegrationTestWithAndroid,
+	android.PrepareForTestWithAndroidBuildComponents,
 	bpf.PrepareForTestWithBpf,
-	etc.PrepareForTestWithPrebuiltEtc,
 	cc.PrepareForIntegrationTestWithCc,
+	etc.PrepareForTestWithPrebuiltEtc,
+	java.PrepareForTestWithJavaBuildComponents,
+	java.PrepareForTestWithJavaDefaultModules,
 	phony.PrepareForTestWithPhony,
 	PrepareForTestWithFilesystemBuildComponents,
 )
@@ -88,11 +92,20 @@ func TestFileSystemDeps(t *testing.T) {
 
 		phony {
 			name: "phony",
-			required: ["libquz"],
+			required: [
+				"libquz",
+				"myapp",
+			],
 		}
 
 		cc_library {
 			name: "libquz",
+		}
+
+		android_app {
+			name: "myapp",
+			platform_apis: true,
+			installable: true,
 		}
 	`)
 
@@ -101,6 +114,7 @@ func TestFileSystemDeps(t *testing.T) {
 
 	fs := result.ModuleForTests("myfilesystem", "android_common").Module().(*filesystem)
 	expected := []string{
+		"app/myapp/myapp.apk",
 		"bin/foo",
 		"lib/libbar.so",
 		"lib64/libbar.so",
