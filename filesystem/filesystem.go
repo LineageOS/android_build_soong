@@ -36,8 +36,8 @@ func init() {
 
 func registerBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("android_filesystem", filesystemFactory)
+	ctx.RegisterModuleType("android_filesystem_defaults", filesystemDefaultsFactory)
 	ctx.RegisterModuleType("android_system_image", systemImageFactory)
-	ctx.RegisterModuleType("android_system_image_defaults", systemImageDefaultsFactory)
 	ctx.RegisterModuleType("avb_add_hash_footer", avbAddHashFooterFactory)
 	ctx.RegisterModuleType("avb_add_hash_footer_defaults", avbAddHashFooterDefaultsFactory)
 	ctx.RegisterModuleType("avb_gen_vbmeta_image", avbGenVbmetaImageFactory)
@@ -47,6 +47,7 @@ func registerBuildComponents(ctx android.RegistrationContext) {
 type filesystem struct {
 	android.ModuleBase
 	android.PackagingBase
+	android.DefaultableModuleBase
 
 	properties filesystemProperties
 
@@ -144,6 +145,7 @@ func initFilesystemModule(module *filesystem) {
 	module.AddProperties(&module.properties)
 	android.InitPackageModule(module)
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	android.InitDefaultableModule(module)
 }
 
 var dependencyTag = struct {
@@ -190,9 +192,7 @@ func (f *filesystem) partitionName() string {
 var pctx = android.NewPackageContext("android/soong/filesystem")
 
 func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	if !android.InList(f.PartitionType(), validPartitions) {
-		ctx.PropertyErrorf("partition_type", "partition_type must be one of %s, found: %s", validPartitions, f.PartitionType())
-	}
+	validatePartitionType(ctx, f)
 	switch f.fsType(ctx) {
 	case ext4Type:
 		f.output = f.buildImageUsingBuildImage(ctx)
@@ -206,6 +206,22 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	f.installDir = android.PathForModuleInstall(ctx, "etc")
 	ctx.InstallFile(f.installDir, f.installFileName(), f.output)
+}
+
+func validatePartitionType(ctx android.ModuleContext, p partition) {
+	if !android.InList(p.PartitionType(), validPartitions) {
+		ctx.PropertyErrorf("partition_type", "partition_type must be one of %s, found: %s", validPartitions, p.PartitionType())
+	}
+
+	ctx.VisitDirectDepsWithTag(android.DefaultsDepTag, func(m android.Module) {
+		if fdm, ok := m.(*filesystemDefaults); ok {
+			if p.PartitionType() != fdm.PartitionType() {
+				ctx.PropertyErrorf("partition_type",
+					"%s doesn't match with the partition type %s of the filesystem default module %s",
+					p.PartitionType(), fdm.PartitionType(), m.Name())
+			}
+		}
+	})
 }
 
 // Copy extra files/dirs that are not from the `deps` property to `rootDir`, checking for conflicts with files
@@ -469,9 +485,15 @@ func (f *filesystem) addMakeBuiltFiles(ctx android.ModuleContext, builder *andro
 		Text(android.PathForArbitraryOutput(ctx, stagingDir).String())
 }
 
+type partition interface {
+	PartitionType() string
+}
+
 func (f *filesystem) PartitionType() string {
 	return proptools.StringDefault(f.properties.Partition_type, "system")
 }
+
+var _ partition = (*filesystem)(nil)
 
 var _ android.AndroidMkEntriesProvider = (*filesystem)(nil)
 
@@ -545,4 +567,38 @@ var _ cc.UseCoverage = (*filesystem)(nil)
 
 func (*filesystem) IsNativeCoverageNeeded(ctx android.IncomingTransitionContext) bool {
 	return ctx.Device() && ctx.DeviceConfig().NativeCoverageEnabled()
+}
+
+// android_filesystem_defaults
+
+type filesystemDefaults struct {
+	android.ModuleBase
+	android.DefaultsModuleBase
+
+	properties filesystemDefaultsProperties
+}
+
+type filesystemDefaultsProperties struct {
+	// Identifies which partition this is for //visibility:any_system_image (and others) visibility
+	// checks, and will be used in the future for API surface checks.
+	Partition_type *string
+}
+
+// android_filesystem_defaults is a default module for android_filesystem and android_system_image
+func filesystemDefaultsFactory() android.Module {
+	module := &filesystemDefaults{}
+	module.AddProperties(&module.properties)
+	module.AddProperties(&android.PackagingProperties{})
+	android.InitDefaultsModule(module)
+	return module
+}
+
+func (f *filesystemDefaults) PartitionType() string {
+	return proptools.StringDefault(f.properties.Partition_type, "system")
+}
+
+var _ partition = (*filesystemDefaults)(nil)
+
+func (f *filesystemDefaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	validatePartitionType(ctx, f)
 }
