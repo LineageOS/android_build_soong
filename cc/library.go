@@ -17,7 +17,6 @@ package cc
 import (
 	"fmt"
 	"io"
-	"log"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -745,20 +744,6 @@ func (library *libraryDecorator) getLibNameHelper(baseModuleName string, inVendo
 // should be passed to the linker via linker flags).
 func (library *libraryDecorator) getLibName(ctx BaseModuleContext) string {
 	name := library.getLibNameHelper(ctx.baseModuleName(), ctx.inVendor(), ctx.inProduct())
-
-	// Replace name with VNDK ext as original lib only when VNDK is enabled
-	if ctx.IsVndkExt() {
-		if ctx.DeviceConfig().VndkVersion() != "" {
-			// vndk-ext lib should have the same name with original lib
-			ctx.VisitDirectDepsWithTag(vndkExtDepTag, func(module android.Module) {
-				originalName := module.(*Module).outputFile.Path()
-				name = strings.TrimSuffix(originalName.Base(), originalName.Ext())
-			})
-		} else {
-			// TODO(b/320208784) : Suggest a solution for former VNDK-ext libraries before VNDK deprecation.
-			log.Printf("VNDK Extension on module %s will not be available once VNDK is deprecated", ctx.baseModuleName())
-		}
-	}
 
 	if ctx.Host() && Bool(library.Properties.Unique_host_soname) {
 		if !strings.HasSuffix(name, "-host") {

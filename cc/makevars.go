@@ -97,8 +97,6 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("GLOBAL_CLANG_CPPFLAGS_NO_OVERRIDE", "")
 	ctx.Strict("GLOBAL_CLANG_EXTERNAL_CFLAGS_NO_OVERRIDE", "${config.NoOverrideExternalGlobalCflags}")
 
-	ctx.Strict("BOARD_VNDK_VERSION", ctx.DeviceConfig().VndkVersion())
-
 	// Filter vendor_public_library that are exported to make
 	exportedVendorPublicLibraries := []string{}
 	ctx.VisitAllModules(func(module android.Module) {
