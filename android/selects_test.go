@@ -327,8 +327,10 @@ func TestSelects(t *testing.T) {
 			my_module_type {
 				name: "foo",
 				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
+					"foo": "bar",
 					default: unset,
 				}) + select(soong_config_variable("my_namespace", "my_variable2"), {
+					"baz": "qux",
 					default: unset,
 				})
 			}
@@ -341,6 +343,7 @@ func TestSelects(t *testing.T) {
 			my_module_type {
 				name: "foo",
 				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
+					"foo": "bar",
 					default: unset,
 				}) + select(soong_config_variable("my_namespace", "my_variable2"), {
 					default: "a",
@@ -413,6 +416,169 @@ func TestSelects(t *testing.T) {
 			provider: selectsTestProvider{
 				replacing_string_list: &[]string{"b1"},
 			},
+		},
+		{
+			name: "Multi-condition string 1",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_string: select((
+					soong_config_variable("my_namespace", "my_variable"),
+					soong_config_variable("my_namespace", "my_variable2"),
+				), {
+					("a", "b"): "a+b",
+					("a", default): "a+default",
+					(default, default): "default",
+				}),
+			}
+			`,
+			vendorVars: map[string]map[string]string{
+				"my_namespace": {
+					"my_variable":  "a",
+					"my_variable2": "b",
+				},
+			},
+			provider: selectsTestProvider{
+				my_string: proptools.StringPtr("a+b"),
+			},
+		},
+		{
+			name: "Multi-condition string 2",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_string: select((
+					soong_config_variable("my_namespace", "my_variable"),
+					soong_config_variable("my_namespace", "my_variable2"),
+				), {
+					("a", "b"): "a+b",
+					("a", default): "a+default",
+					(default, default): "default",
+				}),
+			}
+			`,
+			vendorVars: map[string]map[string]string{
+				"my_namespace": {
+					"my_variable":  "a",
+					"my_variable2": "c",
+				},
+			},
+			provider: selectsTestProvider{
+				my_string: proptools.StringPtr("a+default"),
+			},
+		},
+		{
+			name: "Multi-condition string 3",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_string: select((
+					soong_config_variable("my_namespace", "my_variable"),
+					soong_config_variable("my_namespace", "my_variable2"),
+				), {
+					("a", "b"): "a+b",
+					("a", default): "a+default",
+					(default, default): "default",
+				}),
+			}
+			`,
+			vendorVars: map[string]map[string]string{
+				"my_namespace": {
+					"my_variable":  "c",
+					"my_variable2": "b",
+				},
+			},
+			provider: selectsTestProvider{
+				my_string: proptools.StringPtr("default"),
+			},
+		},
+		{
+			name: "Select on boolean",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_string: select(boolean_var_for_testing(), {
+					true: "t",
+					false: "f",
+				}),
+			}
+			`,
+			vendorVars: map[string]map[string]string{
+				"boolean_var": {
+					"for_testing": "true",
+				},
+			},
+			provider: selectsTestProvider{
+				my_string: proptools.StringPtr("t"),
+			},
+		},
+		{
+			name: "Select on boolean false",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_string: select(boolean_var_for_testing(), {
+					true: "t",
+					false: "f",
+				}),
+			}
+			`,
+			vendorVars: map[string]map[string]string{
+				"boolean_var": {
+					"for_testing": "false",
+				},
+			},
+			provider: selectsTestProvider{
+				my_string: proptools.StringPtr("f"),
+			},
+		},
+		{
+			name: "Select on boolean undefined",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_string: select(boolean_var_for_testing(), {
+					true: "t",
+					false: "f",
+				}),
+			}
+			`,
+			expectedError: "foo",
+		},
+		{
+			name: "Select on boolean undefined with default",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_string: select(boolean_var_for_testing(), {
+					true: "t",
+					false: "f",
+					default: "default",
+				}),
+			}
+			`,
+			provider: selectsTestProvider{
+				my_string: proptools.StringPtr("default"),
+			},
+		},
+		{
+			name: "Mismatched condition types",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_string: select(boolean_var_for_testing(), {
+					"true": "t",
+					"false": "f",
+					default: "default",
+				}),
+			}
+			`,
+			vendorVars: map[string]map[string]string{
+				"boolean_var": {
+					"for_testing": "false",
+				},
+			},
+			expectedError: "Expected all branches of a select on condition boolean_var_for_testing\\(\\) to have type bool, found string",
 		},
 	}
 
