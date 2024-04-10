@@ -27,6 +27,16 @@ message Team {
 
   // OPTIONAL: Files directly owned by this module.
   repeated string file = 4;
+
+  // OPTIONAL: Is this a test-only module.
+  optional bool test_only = 5;
+
+  // OPTIONAL: Is this intended to be run as a test target.
+  // This target can be run directly as a test or passed to tradefed.
+  optional bool top_level_target = 6;
+
+  // OPTIONAL: Name of module kind, i.e. java_library
+  optional string kind = 7;
 }
 
 message AllTeams {

@@ -27,16 +27,19 @@ func fakeModuleFactory() Module {
 	return module
 }
 
+var prepareForTestWithTeamAndFakeBuildComponents = GroupFixturePreparers(
+	FixtureRegisterWithContext(RegisterTeamBuildComponents),
+	FixtureRegisterWithContext(func(ctx RegistrationContext) {
+		ctx.RegisterModuleType("fake", fakeModuleFactory)
+	}),
+)
+
 func (*fakeModuleForTests) GenerateAndroidBuildActions(ModuleContext) {}
 
 func TestTeam(t *testing.T) {
 	t.Parallel()
-	ctx := GroupFixturePreparers(
-		PrepareForTestWithTeamBuildComponents,
-		FixtureRegisterWithContext(func(ctx RegistrationContext) {
-			ctx.RegisterModuleType("fake", fakeModuleFactory)
-		}),
-	).RunTestWithBp(t, `
+	ctx := prepareForTestWithTeamAndFakeBuildComponents.
+		RunTestWithBp(t, `
 		fake {
 			name: "main_test",
 			team: "someteam",
@@ -66,12 +69,7 @@ func TestTeam(t *testing.T) {
 
 func TestMissingTeamFails(t *testing.T) {
 	t.Parallel()
-	GroupFixturePreparers(
-		PrepareForTestWithTeamBuildComponents,
-		FixtureRegisterWithContext(func(ctx RegistrationContext) {
-			ctx.RegisterModuleType("fake", fakeModuleFactory)
-		}),
-	).
+	prepareForTestWithTeamAndFakeBuildComponents.
 		ExtendWithErrorHandler(FixtureExpectsAtLeastOneErrorMatchingPattern("depends on undefined module \"ring-bearer")).
 		RunTestWithBp(t, `
 		fake {
@@ -86,9 +84,6 @@ func TestPackageBadTeamNameFails(t *testing.T) {
 	GroupFixturePreparers(
 		PrepareForTestWithTeamBuildComponents,
 		PrepareForTestWithPackageModule,
-		FixtureRegisterWithContext(func(ctx RegistrationContext) {
-			ctx.RegisterModuleType("fake", fakeModuleFactory)
-		}),
 	).
 		ExtendWithErrorHandler(FixtureExpectsAtLeastOneErrorMatchingPattern("depends on undefined module \"ring-bearer")).
 		RunTestWithBp(t, `
