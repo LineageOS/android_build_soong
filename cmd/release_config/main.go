@@ -270,9 +270,6 @@ func FlagDeclarationFactory(protoPath string) (fd *release_config_proto.FlagDecl
 
 func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex int) error {
 	m := ReleaseConfigMapFactory(path)
-	if m.proto.Origin == nil || *m.proto.Origin == "" {
-		return fmt.Errorf("Release config map %s lacks origin", path)
-	}
 	if m.proto.DefaultContainer == nil {
 		return fmt.Errorf("Release config map %s lacks default_container", path)
 	}
@@ -296,13 +293,13 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 		if flagDeclaration.Container == nil {
 			flagDeclaration.Container = m.proto.DefaultContainer
 		}
-		// TODO: drop flag_declaration.origin from the proto.
-		if flagDeclaration.Origin == nil {
-			flagDeclaration.Origin = m.proto.Origin
+		// TODO: once we have namespaces initialized, we can throw an error here.
+		if flagDeclaration.Namespace == nil {
+			flagDeclaration.Namespace = proto.String("android_UNKNOWN")
 		}
-		// There is always a default value.
+		// If the input didn't specify a value, create one (== UnspecifiedValue).
 		if flagDeclaration.Value == nil {
-			flagDeclaration.Value = &release_config_proto.Value{Val: &release_config_proto.Value_UnspecifiedValue{true}}
+			flagDeclaration.Value = &release_config_proto.Value{Val: &release_config_proto.Value_UnspecifiedValue{false}}
 		}
 		m.FlagDeclarations = append(m.FlagDeclarations, *flagDeclaration)
 		name := *flagDeclaration.Name
@@ -414,7 +411,7 @@ func (configs *ReleaseConfigs) DumpMakefile(outDir, targetRelease string) error 
 		addVar(name, "VALUE", value)
 		addVar(name, "DECLARED_IN", *flag.Traces[0].Source)
 		addVar(name, "SET_IN", *flag.Traces[len(flag.Traces)-1].Source)
-		addVar(name, "ORIGIN", *decl.Origin)
+		addVar(name, "NAMESPACE", *decl.Namespace)
 	}
 	pNames := []string{}
 	for k, _ := range partitions {
@@ -626,15 +623,14 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 	return nil
 }
 
-func main() {
-	var targetRelease string
-	var outputDir string
-
+func GetDefaultOutDir() string {
 	outEnv := os.Getenv("OUT_DIR")
 	if outEnv == "" {
 		outEnv = "out"
 	}
-	defaultOutputDir := filepath.Join(outEnv, "soong", "release-config")
+	return filepath.Join(outEnv, "soong", "release-config")
+}
+func GetDefaultMapPaths() StringList {
 	var defaultMapPaths StringList
 	defaultLocations := StringList{
 		"build/release/release_config_map.textproto",
@@ -650,32 +646,47 @@ func main() {
 	if prodMaps != "" {
 		defaultMapPaths = append(defaultMapPaths, strings.Split(prodMaps, " ")...)
 	}
+	return defaultMapPaths
+}
 
-	flag.BoolVar(&verboseFlag, "debug", false, "print debugging information")
-	flag.Var(&releaseConfigMapPaths, "map", "path to a release_config_map.textproto. may be repeated")
-	flag.StringVar(&targetRelease, "release", "trunk_staging", "TARGET_RELEASE for this build")
-	flag.StringVar(&outputDir, "out_dir", defaultOutputDir, "basepath for the output. Multiple formats are created")
-	flag.Parse()
-
-	if len(releaseConfigMapPaths) == 0 {
-		releaseConfigMapPaths = defaultMapPaths
-		fmt.Printf("No --map argument provided.  Using: --map %s\n", strings.Join(releaseConfigMapPaths, " --map "))
-	}
-
+func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease string) (*ReleaseConfigs, error) {
+	var err error
 	configs := ReleaseConfigsFactory()
 	for idx, releaseConfigMapPath := range releaseConfigMapPaths {
 		// Maintain an ordered list of release config directories.
 		configDir := filepath.Dir(releaseConfigMapPath)
 		configs.ConfigDirIndexes[configDir] = idx
 		configs.ConfigDirs = append(configs.ConfigDirs, configDir)
-		err := configs.LoadReleaseConfigMap(releaseConfigMapPath, idx)
+		err = configs.LoadReleaseConfigMap(releaseConfigMapPath, idx)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 	}
 
 	// Now that we have all of the release config maps, can meld them and generate the artifacts.
-	err := configs.GenerateReleaseConfigs(targetRelease)
+	err = configs.GenerateReleaseConfigs(targetRelease)
+	return configs, err
+}
+
+func main() {
+	var targetRelease string
+	var outputDir string
+
+	flag.BoolVar(&verboseFlag, "debug", false, "print debugging information")
+	flag.Var(&releaseConfigMapPaths, "map", "path to a release_config_map.textproto. may be repeated")
+	flag.StringVar(&targetRelease, "release", "trunk_staging", "TARGET_RELEASE for this build")
+	flag.StringVar(&outputDir, "out_dir", GetDefaultOutDir(), "basepath for the output. Multiple formats are created")
+	flag.Parse()
+
+	if len(releaseConfigMapPaths) == 0 {
+		releaseConfigMapPaths = GetDefaultMapPaths()
+		if len(releaseConfigMapPaths) == 0 {
+			panic(fmt.Errorf("No maps found"))
+		}
+		fmt.Printf("No --map argument provided.  Using: --map %s\n", strings.Join(releaseConfigMapPaths, " --map "))
+	}
+
+	configs, err := ReadReleaseConfigMaps(releaseConfigMapPaths, targetRelease)
 	if err != nil {
 		panic(err)
 	}
