@@ -998,12 +998,30 @@ func TestLlndkLibrary(t *testing.T) {
 			expectedDirs, f.IncludeDirs)
 	}
 
-	checkExportedIncludeDirs("libllndk", "android_arm64_armv8-a_shared", "include")
-	checkExportedIncludeDirs("libllndk", "android_vendor_arm64_armv8-a_shared", "include")
-	checkExportedIncludeDirs("libllndk_with_external_headers", "android_arm64_armv8-a_shared", "include")
-	checkExportedIncludeDirs("libllndk_with_external_headers", "android_vendor_arm64_armv8-a_shared", "include_llndk")
-	checkExportedIncludeDirs("libllndk_with_override_headers", "android_arm64_armv8-a_shared", "include")
-	checkExportedIncludeDirs("libllndk_with_override_headers", "android_vendor_arm64_armv8-a_shared", "include_llndk")
+	checkExportedIncludeDirs("libllndk", coreVariant, "include")
+	checkExportedIncludeDirs("libllndk", vendorVariant, "include")
+	checkExportedIncludeDirs("libllndk_with_external_headers", coreVariant, "include")
+	checkExportedIncludeDirs("libllndk_with_external_headers", vendorVariant, "include_llndk")
+	checkExportedIncludeDirs("libllndk_with_override_headers", coreVariant, "include")
+	checkExportedIncludeDirs("libllndk_with_override_headers", vendorVariant, "include_llndk")
+
+	checkAbiLinkerIncludeDirs := func(module string) {
+		t.Helper()
+		coreModule := result.ModuleForTests(module, coreVariant)
+		abiCheckFlags := ""
+		for _, output := range coreModule.AllOutputs() {
+			if strings.HasSuffix(output, ".so.llndk.lsdump") {
+				abiCheckFlags = coreModule.Output(output).Args["exportedHeaderFlags"]
+			}
+		}
+		vendorModule := result.ModuleForTests(module, vendorVariant).Module()
+		vendorInfo, _ := android.SingletonModuleProvider(result, vendorModule, FlagExporterInfoProvider)
+		android.AssertStringEquals(t, module+" has different exported include dirs for vendor variant and ABI check",
+			android.JoinPathsWithPrefix(vendorInfo.IncludeDirs, "-I"), abiCheckFlags)
+	}
+	checkAbiLinkerIncludeDirs("libllndk")
+	checkAbiLinkerIncludeDirs("libllndk_with_override_headers")
+	checkAbiLinkerIncludeDirs("libllndk_with_external_headers")
 }
 
 func TestLlndkHeaders(t *testing.T) {

@@ -1138,7 +1138,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	objs.sAbiDumpFiles = append(objs.sAbiDumpFiles, deps.WholeStaticLibObjs.sAbiDumpFiles...)
 
 	library.coverageOutputFile = transformCoverageFilesToZip(ctx, objs, library.getLibName(ctx))
-	library.linkSAbiDumpFiles(ctx, objs, fileName, unstrippedOutputFile)
+	library.linkSAbiDumpFiles(ctx, deps, objs, fileName, unstrippedOutputFile)
 
 	var transitiveStaticLibrariesForOrdering *android.DepSet[android.Path]
 	if static := ctx.GetDirectDepsWithTag(staticVariantTag); len(static) > 0 {
@@ -1205,6 +1205,45 @@ func (library *libraryDecorator) exportedIncludeDirsForAbiCheck(ctx ModuleContex
 	exportIncludeDirs := library.flagExporter.exportedIncludes(ctx).Strings()
 	exportIncludeDirs = append(exportIncludeDirs, library.sabi.Properties.ReexportedIncludes...)
 	return exportIncludeDirs
+}
+
+func (library *libraryDecorator) llndkIncludeDirsForAbiCheck(ctx ModuleContext, deps PathDeps) []string {
+	// The ABI checker does not need the preprocess which adds macro guards to function declarations.
+	includeDirs := android.PathsForModuleSrc(ctx, library.Properties.Llndk.Export_preprocessed_headers).Strings()
+
+	if library.Properties.Llndk.Override_export_include_dirs != nil {
+		includeDirs = append(includeDirs, android.PathsForModuleSrc(
+			ctx, library.Properties.Llndk.Override_export_include_dirs).Strings()...)
+	} else {
+		includeDirs = append(includeDirs, library.flagExporter.exportedIncludes(ctx).Strings()...)
+		// Ignore library.sabi.Properties.ReexportedIncludes because
+		// LLNDK does not reexport the implementation's dependencies, such as export_header_libs.
+	}
+
+	systemIncludeDirs := []string{}
+	if Bool(library.Properties.Llndk.Export_headers_as_system) {
+		systemIncludeDirs = append(systemIncludeDirs, includeDirs...)
+		includeDirs = nil
+	}
+	// Header libs.
+	includeDirs = append(includeDirs, deps.LlndkIncludeDirs.Strings()...)
+	systemIncludeDirs = append(systemIncludeDirs, deps.LlndkSystemIncludeDirs.Strings()...)
+	// The ABI checker does not distinguish normal and system headers.
+	return append(includeDirs, systemIncludeDirs...)
+}
+
+func (library *libraryDecorator) linkLlndkSAbiDumpFiles(ctx ModuleContext,
+	deps PathDeps, sAbiDumpFiles android.Paths, soFile android.Path, libFileName string,
+	excludeSymbolVersions, excludeSymbolTags []string) android.Path {
+	// NDK symbols in version 34 are LLNDK symbols. Those in version 35 are not.
+	// TODO(b/314010764): Add parameters to read LLNDK symbols from the symbol file.
+	return transformDumpToLinkedDump(ctx,
+		sAbiDumpFiles, soFile, libFileName+".llndk",
+		library.llndkIncludeDirsForAbiCheck(ctx, deps),
+		android.OptionalPathForModuleSrc(ctx, library.Properties.Llndk.Symbol_file),
+		append([]string{"*_PLATFORM", "*_PRIVATE"}, excludeSymbolVersions...),
+		append([]string{"platform-only"}, excludeSymbolTags...),
+		"34")
 }
 
 func getRefAbiDumpFile(ctx android.ModuleInstallPathContext,
@@ -1317,13 +1356,15 @@ func (library *libraryDecorator) optInAbiDiff(ctx android.ModuleContext,
 		false /* isLlndkOrNdk */, false /* allowExtensions */, "current", errorMessage)
 }
 
-func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objects, fileName string, soFile android.Path) {
+func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, deps PathDeps, objs Objects, fileName string, soFile android.Path) {
 	if library.sabi.shouldCreateSourceAbiDump() {
 		exportedIncludeDirs := library.exportedIncludeDirsForAbiCheck(ctx)
 		headerAbiChecker := library.getHeaderAbiCheckerProperties(ctx)
 		currSdkVersion := currRefAbiDumpSdkVersion(ctx)
 		currVendorVersion := ctx.Config().VendorApiLevel()
-		sourceDump := transformDumpToLinkedDump(ctx,
+
+		// Generate source dumps.
+		implDump := transformDumpToLinkedDump(ctx,
 			objs.sAbiDumpFiles, soFile, fileName,
 			exportedIncludeDirs,
 			android.OptionalPathForModuleSrc(ctx, library.symbolFileForAbiCheck(ctx)),
@@ -1331,8 +1372,25 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 			headerAbiChecker.Exclude_symbol_tags,
 			currSdkVersion)
 
-		for _, tag := range classifySourceAbiDump(ctx) {
-			addLsdumpPath(string(tag) + ":" + sourceDump.String())
+		var llndkDump android.Path
+		tags := classifySourceAbiDump(ctx)
+		for _, tag := range tags {
+			if tag == llndkLsdumpTag {
+				if llndkDump == nil {
+					// TODO(b/323447559): Evaluate if replacing sAbiDumpFiles with implDump is faster
+					llndkDump = library.linkLlndkSAbiDumpFiles(ctx,
+						deps, objs.sAbiDumpFiles, soFile, fileName,
+						headerAbiChecker.Exclude_symbol_versions,
+						headerAbiChecker.Exclude_symbol_tags)
+				}
+				addLsdumpPath(string(tag) + ":" + llndkDump.String())
+			} else {
+				addLsdumpPath(string(tag) + ":" + implDump.String())
+			}
+		}
+
+		// Diff source dumps and reference dumps.
+		for _, tag := range tags {
 			dumpDirName := tag.dirName()
 			if dumpDirName == "" {
 				continue
@@ -1347,10 +1405,15 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 			}
 			// Check against the previous version.
 			var prevVersion, currVersion string
+			sourceDump := implDump
 			// If this release config does not define VendorApiLevel, fall back to the old policy.
 			if isLlndk && currVendorVersion != "" {
 				prevVersion = ctx.Config().PrevVendorApiLevel()
 				currVersion = currVendorVersion
+				// LLNDK dumps are generated by different rules after trunk stable.
+				if android.IsTrunkStableVendorApiLevel(prevVersion) {
+					sourceDump = llndkDump
+				}
 			} else {
 				prevVersion, currVersion = crossVersionAbiDiffSdkVersions(ctx, dumpDir)
 			}
@@ -1361,8 +1424,12 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 					fileName, isLlndk || isNdk, currVersion, nameExt+prevVersion)
 			}
 			// Check against the current version.
+			sourceDump = implDump
 			if isLlndk && currVendorVersion != "" {
 				currVersion = currVendorVersion
+				if android.IsTrunkStableVendorApiLevel(currVersion) {
+					sourceDump = llndkDump
+				}
 			} else {
 				currVersion = currSdkVersion
 			}
@@ -1383,7 +1450,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 				continue
 			}
 			library.optInAbiDiff(ctx,
-				sourceDump, optInDumpFile.Path(),
+				implDump, optInDumpFile.Path(),
 				fileName, "opt"+strconv.Itoa(i), optInDumpDirPath.String())
 		}
 	}
@@ -1749,9 +1816,6 @@ func (library *libraryDecorator) buildStubs() bool {
 func (library *libraryDecorator) symbolFileForAbiCheck(ctx ModuleContext) *string {
 	if props := library.getHeaderAbiCheckerProperties(ctx); props.Symbol_file != nil {
 		return props.Symbol_file
-	}
-	if ctx.Module().(*Module).IsLlndk() {
-		return library.Properties.Llndk.Symbol_file
 	}
 	if library.hasStubsVariants() && library.Properties.Stubs.Symbol_file != nil {
 		return library.Properties.Stubs.Symbol_file

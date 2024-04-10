@@ -1414,6 +1414,11 @@ func (c *config) PrevVendorApiLevel() string {
 	return strconv.Itoa(vendorApiLevel - 100)
 }
 
+func IsTrunkStableVendorApiLevel(level string) bool {
+	levelInt, err := strconv.Atoi(level)
+	return err == nil && levelInt >= 202404
+}
+
 func (c *config) VendorApiLevelFrozen() bool {
 	return c.productVariables.GetBuildFlagBool("RELEASE_BOARD_API_LEVEL_FROZEN")
 }
