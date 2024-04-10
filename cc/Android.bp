@@ -91,6 +91,7 @@ bootstrap_go_package {
         "afdo_test.go",
         "binary_test.go",
         "cc_test.go",
+        "cc_test_only_property_test.go",
         "compiler_test.go",
         "gen_test.go",
         "genrule_test.go",
