@@ -16,14 +16,15 @@ package config
 
 import (
 	"fmt"
+	"strings"
 
 	"android/soong/android"
 )
 
 func init() {
-	exportedVars.ExportStringListStaticVariable("DarwinAvailableLibraries", darwinAvailableLibraries)
-	exportedVars.ExportStringListStaticVariable("LinuxAvailableLibraries", linuxAvailableLibraries)
-	exportedVars.ExportStringListStaticVariable("WindowsAvailableLibraries", windowsAvailableLibraries)
+	pctx.StaticVariable("DarwinAvailableLibraries", strings.Join(darwinAvailableLibraries, " "))
+	pctx.StaticVariable("LinuxAvailableLibraries", strings.Join(linuxAvailableLibraries, " "))
+	pctx.StaticVariable("WindowsAvailableLibraries", strings.Join(windowsAvailableLibraries, " "))
 }
 
 type toolchainFactory func(arch android.Arch) Toolchain

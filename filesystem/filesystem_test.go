@@ -381,7 +381,7 @@ func TestFileSystemWithCoverageVariants(t *testing.T) {
 
 func TestSystemImageDefaults(t *testing.T) {
 	result := fixture.RunTestWithBp(t, `
-		android_system_image_defaults {
+		android_filesystem_defaults {
 			name: "defaults",
 			multilib: {
 				common: {
@@ -446,4 +446,26 @@ func TestSystemImageDefaults(t *testing.T) {
 	for _, e := range expected {
 		android.AssertStringListContains(t, "missing entry", fs.entries, e)
 	}
+}
+
+func TestInconsistentPartitionTypesInDefaults(t *testing.T) {
+	fixture.ExtendWithErrorHandler(android.FixtureExpectsOneErrorPattern(
+		"doesn't match with the partition type")).
+		RunTestWithBp(t, `
+		android_filesystem_defaults {
+			name: "system_ext_def",
+			partition_type: "system_ext",
+		}
+
+		android_filesystem_defaults {
+			name: "system_def",
+			partition_type: "system",
+			defaults: ["system_ext_def"],
+		}
+
+		android_system_image {
+			name: "system",
+			defaults: ["system_def"],
+		}
+	`)
 }

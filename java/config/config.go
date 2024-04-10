@@ -26,8 +26,7 @@ import (
 )
 
 var (
-	pctx         = android.NewPackageContext("android/soong/java/config")
-	exportedVars = android.NewExportedVariables(pctx)
+	pctx = android.NewPackageContext("android/soong/java/config")
 
 	LegacyCorePlatformBootclasspathLibraries = []string{"legacy.core.platform.api.stubs", "core-lambda-stubs"}
 	LegacyCorePlatformSystemModules          = "legacy-core-platform-api-stubs-system-modules"
@@ -80,30 +79,30 @@ var (
 func init() {
 	pctx.Import("github.com/google/blueprint/bootstrap")
 
-	exportedVars.ExportStringStaticVariable("JavacHeapSize", "4096M")
-	exportedVars.ExportStringStaticVariable("JavacHeapFlags", "-J-Xmx${JavacHeapSize}")
+	pctx.StaticVariable("JavacHeapSize", "4096M")
+	pctx.StaticVariable("JavacHeapFlags", "-J-Xmx${JavacHeapSize}")
 
 	// ErrorProne can use significantly more memory than javac alone, give it a higher heap
 	// size (b/221480398).
-	exportedVars.ExportStringStaticVariable("ErrorProneHeapSize", "8192M")
-	exportedVars.ExportStringStaticVariable("ErrorProneHeapFlags", "-J-Xmx${ErrorProneHeapSize}")
+	pctx.StaticVariable("ErrorProneHeapSize", "8192M")
+	pctx.StaticVariable("ErrorProneHeapFlags", "-J-Xmx${ErrorProneHeapSize}")
 
 	// D8 invocations are shorter lived, so we restrict their JIT tiering relative to R8.
 	// Note that the `-JXX` prefix syntax is specific to the R8/D8 invocation wrappers.
-	exportedVars.ExportStringListStaticVariable("D8Flags", append([]string{
+	pctx.StaticVariable("D8Flags", strings.Join(append([]string{
 		"-JXmx4096M",
 		"-JXX:+TieredCompilation",
 		"-JXX:TieredStopAtLevel=1",
 		"-JDcom.android.tools.r8.emitRecordAnnotationsInDex",
 		"-JDcom.android.tools.r8.emitPermittedSubclassesAnnotationsInDex",
-	}, dexerJavaVmFlagsList...))
-	exportedVars.ExportStringListStaticVariable("R8Flags", append([]string{
+	}, dexerJavaVmFlagsList...), " "))
+	pctx.StaticVariable("R8Flags", strings.Join(append([]string{
 		"-JXmx4096M",
 		"-JDcom.android.tools.r8.emitRecordAnnotationsInDex",
 		"-JDcom.android.tools.r8.emitPermittedSubclassesAnnotationsInDex",
-	}, dexerJavaVmFlagsList...))
+	}, dexerJavaVmFlagsList...), " "))
 
-	exportedVars.ExportStringListStaticVariable("CommonJdkFlags", []string{
+	pctx.StaticVariable("CommonJdkFlags", strings.Join([]string{
 		`-Xmaxerrs 9999999`,
 		`-encoding UTF-8`,
 		`-sourcepath ""`,
@@ -117,10 +116,10 @@ func init() {
 
 		// b/65004097: prevent using java.lang.invoke.StringConcatFactory when using -target 1.9
 		`-XDstringConcat=inline`,
-	})
+	}, " "))
 
-	exportedVars.ExportStringListStaticVariable("JavaVmFlags", javaVmFlagsList)
-	exportedVars.ExportStringListStaticVariable("JavacVmFlags", javacVmFlagsList)
+	pctx.StaticVariable("JavaVmFlags", strings.Join(javaVmFlagsList, " "))
+	pctx.StaticVariable("JavacVmFlags", strings.Join(javacVmFlagsList, " "))
 
 	pctx.VariableConfigMethod("hostPrebuiltTag", android.Config.PrebuiltOS)
 

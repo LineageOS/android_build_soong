@@ -41,7 +41,6 @@ bootstrap_go_package {
         "buildinfo_prop.go",
         "config.go",
         "test_config.go",
-        "config_bp2build.go",
         "configured_jars.go",
         "csuite_config.go",
         "deapexer.go",
@@ -90,6 +89,7 @@ bootstrap_go_package {
         "sandbox.go",
         "sdk.go",
         "sdk_version.go",
+        "shared_properties.go",
         "singleton.go",
         "singleton_module.go",
         "soong_config_modules.go",
@@ -103,6 +103,7 @@ bootstrap_go_package {
         "visibility.go",
     ],
     testSrcs: [
+        "all_teams_test.go",
         "android_test.go",
         "androidmk_test.go",
         "apex_test.go",

@@ -20,8 +20,7 @@ import (
 )
 
 var (
-	pctx         = NewPackageContext("android/soong/android")
-	exportedVars = NewExportedVariables(pctx)
+	pctx = NewPackageContext("android/soong/android")
 
 	cpPreserveSymlinks = pctx.VariableConfigMethod("cpPreserveSymlinks",
 		Config.CpPreserveSymlinksFlags)
@@ -130,9 +129,6 @@ func init() {
 	pctx.VariableFunc("RBEWrapper", func(ctx PackageVarContext) string {
 		return ctx.Config().RBEWrapper()
 	})
-
-	exportedVars.ExportStringList("NeverAllowNotInIncludeDir", neverallowNotInIncludeDir)
-	exportedVars.ExportStringList("NeverAllowNoUseIncludeDir", neverallowNoUseIncludeDir)
 }
 
 // GlobToListFileRule creates a rule that writes a list of files matching a pattern to a file.
