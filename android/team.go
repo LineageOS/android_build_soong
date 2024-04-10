@@ -14,6 +14,8 @@
 
 package android
 
+import "github.com/google/blueprint"
+
 func init() {
 	RegisterTeamBuildComponents(InitRegistrationContext)
 }
@@ -36,6 +38,13 @@ type teamModule struct {
 
 	properties teamProperties
 }
+
+type TestModuleInformation struct {
+	TestOnly       bool
+	TopLevelTarget bool
+}
+
+var TestOnlyProviderKey = blueprint.NewProvider[TestModuleInformation]()
 
 // Real work is done for the module that depends on us.
 // If needed, the team can serialize the config to json/proto file as well.
