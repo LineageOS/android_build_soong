@@ -2555,7 +2555,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// header jar for this module.
 	reuseImplementationJarAsHeaderJar := slices.Equal(staticJars, staticHeaderJars)
 
-	var headerOutputFile android.WritablePath
+	var headerOutputFile android.ModuleOutPath
 	if reuseImplementationJarAsHeaderJar {
 		headerOutputFile = outputFile
 	} else {
@@ -2578,8 +2578,12 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			headerOutputFile = outputFile
 		}
 	}
-	j.combinedHeaderFile = headerOutputFile
-	j.combinedImplementationFile = outputFile
+
+	// Save the output file with no relative path so that it doesn't end up in a subdirectory when used as a resource.
+	// Also strip the relative path from the header output file so that the reuseImplementationJarAsHeaderJar check
+	// in a module that depends on this module considers them equal.
+	j.combinedHeaderFile = headerOutputFile.WithoutRel()
+	j.combinedImplementationFile = outputFile.WithoutRel()
 
 	j.maybeInstall(ctx, jarName, outputFile)
 
