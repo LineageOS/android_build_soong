@@ -12,19 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package {
-    default_applicable_licenses: ["Android-Apache-2.0"],
-}
+package release_config_lib
 
-bootstrap_go_package {
-    name: "soong-cmd-release_config-proto",
-    pkgPath: "android/soong/release_config/release_config_proto",
-    deps: [
-        "golang-protobuf-reflect-protoreflect",
-        "golang-protobuf-runtime-protoimpl",
-    ],
-    srcs: [
-        "build_flags_src.pb.go",
-        "build_flags_out.pb.go",
-    ],
+import (
+	"android/soong/cmd/release_config/release_config_proto"
+)
+
+func FlagDeclarationFactory(protoPath string) (fd *release_config_proto.FlagDeclaration) {
+	fd = &release_config_proto.FlagDeclaration{}
+	if protoPath != "" {
+		LoadTextproto(protoPath, fd)
+	}
+	return fd
 }
