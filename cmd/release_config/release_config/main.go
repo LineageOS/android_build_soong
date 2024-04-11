@@ -23,6 +23,7 @@ import (
 
 func main() {
 	var top string
+	var quiet bool
 	var releaseConfigMapPaths rc_lib.StringList
 	var targetRelease string
 	var outputDir string
@@ -30,10 +31,15 @@ func main() {
 	var configs *rc_lib.ReleaseConfigs
 
 	flag.StringVar(&top, "top", ".", "path to top of workspace")
+	flag.BoolVar(&quiet, "quiet", false, "disable warning messages")
 	flag.Var(&releaseConfigMapPaths, "map", "path to a release_config_map.textproto. may be repeated")
 	flag.StringVar(&targetRelease, "release", "trunk_staging", "TARGET_RELEASE for this build")
 	flag.StringVar(&outputDir, "out_dir", rc_lib.GetDefaultOutDir(), "basepath for the output. Multiple formats are created")
 	flag.Parse()
+
+	if quiet {
+		rc_lib.DisableWarnings()
+	}
 
 	if err = os.Chdir(top); err != nil {
 		panic(err)

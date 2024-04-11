@@ -25,6 +25,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var disableWarnings bool
+
 type StringList []string
 
 func (l *StringList) Set(v string) error {
@@ -60,6 +62,18 @@ func WalkTextprotoFiles(root string, subdir string, Func fs.WalkDirFunc) error {
 		}
 		return nil
 	})
+}
+
+// Turn off all warning output
+func DisableWarnings() {
+	disableWarnings = true
+}
+
+func warnf(format string, args ...any) (n int, err error) {
+	if !disableWarnings {
+		return fmt.Printf(format, args...)
+	}
+	return 0, nil
 }
 
 func GetDefaultOutDir() string {
