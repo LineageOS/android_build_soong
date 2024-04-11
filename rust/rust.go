@@ -68,6 +68,7 @@ type BaseProperties struct {
 	AndroidMkDylibs        []string `blueprint:"mutated"`
 	AndroidMkProcMacroLibs []string `blueprint:"mutated"`
 	AndroidMkStaticLibs    []string `blueprint:"mutated"`
+	AndroidMkHeaderLibs    []string `blueprint:"mutated"`
 
 	ImageVariation string `blueprint:"mutated"`
 	VndkVersion    string `blueprint:"mutated"`
@@ -1399,6 +1400,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				depPaths.depIncludePaths = append(depPaths.depIncludePaths, exportedInfo.IncludeDirs...)
 				depPaths.depSystemIncludePaths = append(depPaths.depSystemIncludePaths, exportedInfo.SystemIncludeDirs...)
 				depPaths.depGeneratedHeaders = append(depPaths.depGeneratedHeaders, exportedInfo.GeneratedHeaders...)
+				mod.Properties.AndroidMkHeaderLibs = append(mod.Properties.AndroidMkHeaderLibs, makeLibName)
 			case depTag == cc.CrtBeginDepTag:
 				depPaths.CrtBegin = append(depPaths.CrtBegin, linkObject.Path())
 			case depTag == cc.CrtEndDepTag:
