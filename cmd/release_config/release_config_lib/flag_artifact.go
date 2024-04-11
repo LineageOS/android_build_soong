@@ -64,19 +64,24 @@ func (fa *FlagArtifact) UpdateValue(flagValue FlagValue) error {
 	if fa.Value.GetObsolete() {
 		return fmt.Errorf("Attempting to set obsolete flag %s. Trace=%v", name, fa.Traces)
 	}
+	var newValue *release_config_proto.Value
 	switch val := flagValue.proto.Value.Val.(type) {
 	case *release_config_proto.Value_StringValue:
-		fa.Value = &release_config_proto.Value{Val: &release_config_proto.Value_StringValue{val.StringValue}}
+		newValue = &release_config_proto.Value{Val: &release_config_proto.Value_StringValue{val.StringValue}}
 	case *release_config_proto.Value_BoolValue:
-		fa.Value = &release_config_proto.Value{Val: &release_config_proto.Value_BoolValue{val.BoolValue}}
+		newValue = &release_config_proto.Value{Val: &release_config_proto.Value_BoolValue{val.BoolValue}}
 	case *release_config_proto.Value_Obsolete:
 		if !val.Obsolete {
 			return fmt.Errorf("%s: Cannot set obsolete=false.  Trace=%v", name, fa.Traces)
 		}
-		fa.Value = &release_config_proto.Value{Val: &release_config_proto.Value_Obsolete{true}}
+		newValue = &release_config_proto.Value{Val: &release_config_proto.Value_Obsolete{true}}
 	default:
 		return fmt.Errorf("Invalid type for flag_value: %T.  Trace=%v", val, fa.Traces)
 	}
+	if proto.Equal(newValue, fa.Value) {
+		warnf("%s: redundant override (set in %s)\n", flagValue.path, *fa.Traces[len(fa.Traces)-2].Source)
+	}
+	fa.Value = newValue
 	return nil
 }
 
