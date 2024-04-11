@@ -110,8 +110,8 @@ func init() {
 	// Clang cflags
 	pctx.VariableFunc("X86_64Cflags", func(ctx android.PackageVarContext) string {
 		flags := x86_64Cflags
-		if ctx.Config().NoBionicPageSizeMacro() {
-			flags = append(flags, "-D__BIONIC_NO_PAGE_SIZE_MACRO")
+		if !ctx.Config().NoBionicPageSizeMacro() {
+			flags = append(flags, "-D__BIONIC_DEPRECATED_PAGE_SIZE_MACRO")
 		}
 		return strings.Join(flags, " ")
 	})
