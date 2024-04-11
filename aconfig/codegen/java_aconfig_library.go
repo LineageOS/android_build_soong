@@ -76,7 +76,7 @@ func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) DepsMutator(module *ja
 	}
 }
 
-func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) GenerateSourceJarBuildActions(module *java.GeneratedJavaLibraryModule, ctx android.ModuleContext) android.Path {
+func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) GenerateSourceJarBuildActions(module *java.GeneratedJavaLibraryModule, ctx android.ModuleContext) (android.Path, android.Path) {
 	// Get the values that came from the global RELEASE_ACONFIG_VALUE_SETS flag
 	declarationsModules := ctx.GetDirectDepsWithTag(declarationsTag)
 	if len(declarationsModules) != 1 {
@@ -129,7 +129,11 @@ func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) GenerateSourceJarBuild
 			}},
 	})
 
-	return srcJarPath
+	return srcJarPath, declarations.IntermediateCacheOutputPath
+}
+
+func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) AconfigDeclarations() *string {
+	return proptools.StringPtr(callbacks.properties.Aconfig_declarations)
 }
 
 func isModeSupported(mode string) bool {
