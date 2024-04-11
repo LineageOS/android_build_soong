@@ -203,7 +203,7 @@ func (p *PythonBinaryModule) OutputFiles(tag string) (android.Paths, error) {
 }
 
 func (p *PythonBinaryModule) isEmbeddedLauncherEnabled() bool {
-	return BoolDefault(p.properties.Embedded_launcher, true)
+	return Bool(p.properties.Embedded_launcher)
 }
 
 func (b *PythonBinaryModule) autorun() bool {

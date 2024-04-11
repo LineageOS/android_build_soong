@@ -59,7 +59,7 @@ type VersionProperties struct {
 	// list of the Python libraries used only for this Python version.
 	Libs []string `android:"arch_variant"`
 
-	// whether the binary is required to be built with embedded launcher for this version, defaults to true.
+	// whether the binary is required to be built with embedded launcher for this version, defaults to false.
 	Embedded_launcher *bool // TODO(b/174041232): Remove this property
 }
 
