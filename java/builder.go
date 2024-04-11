@@ -19,7 +19,6 @@ package java
 // functions.
 
 import (
-	"fmt"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -69,8 +68,6 @@ var (
 		}, map[string]*remoteexec.REParams{
 			"$javaTemplate": &remoteexec.REParams{
 				Labels:       map[string]string{"type": "compile", "lang": "java", "compiler": "javac"},
-				Inputs:       []string{"${config.JavacCmd}"},
-				RSPFiles:     []string{"${out}.rsp", "${javacREClasspathDeps}"},
 				ExecStrategy: "${config.REJavacExecStrategy}",
 				Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 			},
@@ -89,7 +86,7 @@ var (
 				Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 			},
 		}, []string{"javacFlags", "bootClasspath", "classpath", "processorpath", "processor", "srcJars", "srcJarDir",
-			"outDir", "annoDir", "annoSrcJar", "javaVersion"}, []string{"javacREClasspathDeps"})
+			"outDir", "annoDir", "annoSrcJar", "javaVersion"}, nil)
 
 	_ = pctx.VariableFunc("kytheCorpus",
 		func(ctx android.PackageVarContext) string { return ctx.Config().XrefCorpusName() })
@@ -604,35 +601,8 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 		annoDir = filepath.Join(shardDir, annoDir)
 	}
 	rule := javac
-	args := map[string]string{
-		"javacFlags":    flags.javacFlags,
-		"bootClasspath": bootClasspath,
-		"classpath":     classpathArg,
-		"processorpath": flags.processorPath.FormJavaClassPath("-processorpath"),
-		"processor":     processor,
-		"srcJars":       strings.Join(srcJars.Strings(), " "),
-		"srcJarDir":     android.PathForModuleOut(ctx, intermediatesDir, srcJarDir).String(),
-		"outDir":        android.PathForModuleOut(ctx, intermediatesDir, outDir).String(),
-		"annoDir":       android.PathForModuleOut(ctx, intermediatesDir, annoDir).String(),
-		"annoSrcJar":    annoSrcJar.String(),
-		"javaVersion":   flags.javaVersion.String(),
-	}
-
 	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_JAVAC") {
 		rule = javacRE
-
-		// Write the classpath deps to a file that can be passed as an input to javacRE.
-		// Skip the shardIdx if the java library is unsharded
-		shardIdxSuffix := strconv.Itoa(shardIdx)
-		if shardIdx == -1 {
-			shardIdxSuffix = ""
-		}
-		javacREClasspathDepsFile := outputFile.ReplaceExtension(ctx, fmt.Sprintf("javacre.classpathdeps%v", shardIdxSuffix))
-		android.WriteFileRule(ctx, javacREClasspathDepsFile, strings.Join(javacClasspath.Strings(), ",")) // The classpath jars are an implicit dep of javacRE
-		args["javacREClasspathDeps"] = javacREClasspathDepsFile.String()
-
-		// Add the deps file to the implicit inputs
-		deps = append(deps, javacREClasspathDepsFile)
 	}
 	ctx.Build(pctx, android.BuildParams{
 		Rule:           rule,
@@ -641,7 +611,19 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 		ImplicitOutput: annoSrcJar,
 		Inputs:         srcFiles,
 		Implicits:      deps,
-		Args:           args,
+		Args: map[string]string{
+			"javacFlags":    flags.javacFlags,
+			"bootClasspath": bootClasspath,
+			"classpath":     classpathArg,
+			"processorpath": flags.processorPath.FormJavaClassPath("-processorpath"),
+			"processor":     processor,
+			"srcJars":       strings.Join(srcJars.Strings(), " "),
+			"srcJarDir":     android.PathForModuleOut(ctx, intermediatesDir, srcJarDir).String(),
+			"outDir":        android.PathForModuleOut(ctx, intermediatesDir, outDir).String(),
+			"annoDir":       android.PathForModuleOut(ctx, intermediatesDir, annoDir).String(),
+			"annoSrcJar":    annoSrcJar.String(),
+			"javaVersion":   flags.javaVersion.String(),
+		},
 	})
 }
 
