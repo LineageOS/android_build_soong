@@ -391,12 +391,14 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 			} else if dep, ok := android.OtherModuleProvider(ctx, module, JavaInfoProvider); ok {
 				deps.classpath = append(deps.classpath, dep.HeaderJars...)
 				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs...)
+				deps.aconfigProtoFiles = append(deps.aconfigProtoFiles, dep.AconfigIntermediateCacheOutputPaths...)
 			} else if dep, ok := module.(android.SourceFileProducer); ok {
 				checkProducesJars(ctx, dep)
 				deps.classpath = append(deps.classpath, dep.Srcs()...)
 			} else {
 				ctx.ModuleErrorf("depends on non-java module %q", otherName)
 			}
+
 		case java9LibTag:
 			if dep, ok := android.OtherModuleProvider(ctx, module, JavaInfoProvider); ok {
 				deps.java9Classpath = append(deps.java9Classpath, dep.HeaderJars...)
@@ -428,6 +430,19 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	// may contain filegroup or genrule.
 	srcFiles := android.PathsForModuleSrcExcludes(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
 	j.implicits = append(j.implicits, srcFiles...)
+
+	// Module can depend on a java_aconfig_library module using the ":module_name{.tag}" syntax.
+	// Find the corresponding aconfig_declarations module name for such case.
+	for _, src := range j.properties.Srcs {
+		if moduleName, tag := android.SrcIsModuleWithTag(src); moduleName != "" {
+			otherModule := android.GetModuleFromPathDep(ctx, moduleName, tag)
+			if otherModule != nil {
+				if dep, ok := android.OtherModuleProvider(ctx, otherModule, android.CodegenInfoProvider); ok {
+					deps.aconfigProtoFiles = append(deps.aconfigProtoFiles, dep.IntermediateCacheOutputPaths...)
+				}
+			}
+		}
+	}
 
 	filterByPackage := func(srcs []android.Path, filterPackages []string) []android.Path {
 		if filterPackages == nil {
