@@ -11412,3 +11412,121 @@ func TestInstallationRulesForMultipleApexPrebuilts(t *testing.T) {
 		checkHideFromMake(t, ctx, tc.expectedVisibleModuleName, tc.expectedHiddenModuleNames)
 	}
 }
+
+func TestAconfifDeclarationsValidation(t *testing.T) {
+	aconfigDeclarationLibraryString := func(moduleNames []string) (ret string) {
+		for _, moduleName := range moduleNames {
+			ret += fmt.Sprintf(`
+			aconfig_declarations {
+				name: "%[1]s",
+				package: "com.example.package",
+				srcs: [
+					"%[1]s.aconfig",
+				],
+			}
+			java_aconfig_library {
+				name: "%[1]s-lib",
+				aconfig_declarations: "%[1]s",
+			}
+			`, moduleName)
+		}
+		return ret
+	}
+
+	result := android.GroupFixturePreparers(
+		prepareForApexTest,
+		java.PrepareForTestWithJavaSdkLibraryFiles,
+		java.FixtureWithLastReleaseApis("foo"),
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.SetApiLibraries([]string{"foo"})
+		}),
+	).RunTestWithBp(t, `
+		java_library {
+			name: "baz-java-lib",
+			static_libs: [
+				"baz-lib",
+			],
+		}
+		filegroup {
+			name: "qux-filegroup",
+			srcs: [
+				":qux-lib{.generated_srcjars}",
+			],
+		}
+		filegroup {
+			name: "qux-another-filegroup",
+			srcs: [
+				":qux-filegroup",
+			],
+		}
+		java_library {
+			name: "quux-java-lib",
+			srcs: [
+				"a.java",
+			],
+			libs: [
+				"quux-lib",
+			],
+		}
+		java_sdk_library {
+			name: "foo",
+			srcs: [
+				":qux-another-filegroup",
+			],
+			api_packages: ["foo"],
+			system: {
+				enabled: true,
+			},
+			module_lib: {
+				enabled: true,
+			},
+			test: {
+				enabled: true,
+			},
+			static_libs: [
+				"bar-lib",
+			],
+			libs: [
+				"baz-java-lib",
+				"quux-java-lib",
+			],
+			aconfig_declarations: [
+				"bar",
+			],
+		}
+	`+aconfigDeclarationLibraryString([]string{"bar", "baz", "qux", "quux"}))
+
+	m := result.ModuleForTests("foo.stubs.source", "android_common")
+	outDir := "out/soong/.intermediates"
+
+	// Arguments passed to aconfig to retrieve the state of the flags defined in the
+	// textproto files
+	aconfigFlagArgs := m.Output("released-flagged-apis-exportable.txt").Args["flags_path"]
+
+	// "bar-lib" is a static_lib of "foo" and is passed to metalava as classpath. Thus the
+	// cache file provided by the associated aconfig_declarations module "bar" should be passed
+	// to aconfig.
+	android.AssertStringDoesContain(t, "cache file of a java_aconfig_library static_lib "+
+		"passed as an input",
+		aconfigFlagArgs, fmt.Sprintf("%s/%s/intermediate.pb", outDir, "bar"))
+
+	// "baz-java-lib", which statically depends on "baz-lib", is a lib of "foo" and is passed
+	// to metalava as classpath. Thus the cache file provided by the associated
+	// aconfig_declarations module "baz" should be passed to aconfig.
+	android.AssertStringDoesContain(t, "cache file of a lib that statically depends on "+
+		"java_aconfig_library passed as an input",
+		aconfigFlagArgs, fmt.Sprintf("%s/%s/intermediate.pb", outDir, "baz"))
+
+	// "qux-lib" is passed to metalava as src via the filegroup, thus the cache file provided by
+	// the associated aconfig_declarations module "qux" should be passed to aconfig.
+	android.AssertStringDoesContain(t, "cache file of srcs java_aconfig_library passed as an "+
+		"input",
+		aconfigFlagArgs, fmt.Sprintf("%s/%s/intermediate.pb", outDir, "qux"))
+
+	// "quux-java-lib" is a lib of "foo" and is passed to metalava as classpath, but does not
+	// statically depend on "quux-lib". Therefore, the cache file provided by the associated
+	// aconfig_declarations module "quux" should not be passed to aconfig.
+	android.AssertStringDoesNotContain(t, "cache file of a lib that does not statically "+
+		"depend on java_aconfig_library not passed as an input",
+		aconfigFlagArgs, fmt.Sprintf("%s/%s/intermediate.pb", outDir, "quux"))
+}

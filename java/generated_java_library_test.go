@@ -36,8 +36,8 @@ type JavaGenLibTestCallbacks struct {
 func (callbacks *JavaGenLibTestCallbacks) DepsMutator(module *GeneratedJavaLibraryModule, ctx android.BottomUpMutatorContext) {
 }
 
-func (callbacks *JavaGenLibTestCallbacks) GenerateSourceJarBuildActions(module *GeneratedJavaLibraryModule, ctx android.ModuleContext) android.Path {
-	return android.PathForOutput(ctx, "blah.srcjar")
+func (callbacks *JavaGenLibTestCallbacks) GenerateSourceJarBuildActions(module *GeneratedJavaLibraryModule, ctx android.ModuleContext) (android.Path, android.Path) {
+	return android.PathForOutput(ctx, "blah.srcjar"), android.PathForOutput(ctx, "blah.pb")
 }
 
 func testGenLib(t *testing.T, errorHandler android.FixtureErrorHandler, bp string) *android.TestResult {
