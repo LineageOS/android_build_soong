@@ -2169,20 +2169,27 @@ func (e configurationEvalutor) EvaluateConfiguration(condition proptools.Configu
 			}
 		}
 		return proptools.ConfigurableValueUndefined()
-	case "variant":
-		if len(condition.Args) != 1 {
-			ctx.OtherModulePropertyErrorf(m, property, "variant requires 1 argument, found %d", len(condition.Args))
+	case "arch":
+		if len(condition.Args) != 0 {
+			ctx.OtherModulePropertyErrorf(m, property, "arch requires no arguments, found %d", len(condition.Args))
 			return proptools.ConfigurableValueUndefined()
 		}
-		if condition.Args[0] == "arch" {
-			if !m.base().ArchReady() {
-				ctx.OtherModulePropertyErrorf(m, property, "A select on arch was attempted before the arch mutator ran")
-				return proptools.ConfigurableValueUndefined()
-			}
-			return proptools.ConfigurableValueString(m.base().Arch().ArchType.Name)
+		if !m.base().ArchReady() {
+			ctx.OtherModulePropertyErrorf(m, property, "A select on arch was attempted before the arch mutator ran")
+			return proptools.ConfigurableValueUndefined()
 		}
-		ctx.OtherModulePropertyErrorf(m, property, "Unknown variant %s", condition.Args[0])
-		return proptools.ConfigurableValueUndefined()
+		return proptools.ConfigurableValueString(m.base().Arch().ArchType.Name)
+	case "os":
+		if len(condition.Args) != 0 {
+			ctx.OtherModulePropertyErrorf(m, property, "os requires no arguments, found %d", len(condition.Args))
+			return proptools.ConfigurableValueUndefined()
+		}
+		// the arch mutator runs after the os mutator, we can just use this to enforce that os is ready.
+		if !m.base().ArchReady() {
+			ctx.OtherModulePropertyErrorf(m, property, "A select on os was attempted before the arch mutator ran (arch runs after os, we use it to lazily detect that os is ready)")
+			return proptools.ConfigurableValueUndefined()
+		}
+		return proptools.ConfigurableValueString(m.base().Os().Name)
 	case "boolean_var_for_testing":
 		// We currently don't have any other boolean variables (we should add support for typing
 		// the soong config variables), so add this fake one for testing the boolean select
