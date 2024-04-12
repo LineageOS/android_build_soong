@@ -16,7 +16,7 @@ package java
 
 import (
 	"android/soong/android"
-	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -84,7 +84,7 @@ func TestDeviceForHost(t *testing.T) {
 		deviceImportCombined.Output,
 	}
 
-	if !reflect.DeepEqual(combined.Inputs, expectedInputs) {
+	if !slices.Equal(combined.Inputs.Strings(), expectedInputs.Strings()) {
 		t.Errorf("expected host_module combined inputs:\n%q\ngot:\n%q",
 			expectedInputs, combined.Inputs)
 	}
@@ -95,7 +95,7 @@ func TestDeviceForHost(t *testing.T) {
 		deviceRes.Output,
 	}
 
-	if !reflect.DeepEqual(resCombined.Inputs, expectedInputs) {
+	if !slices.Equal(resCombined.Inputs.Strings(), expectedInputs.Strings()) {
 		t.Errorf("expected host_module res combined inputs:\n%q\ngot:\n%q",
 			expectedInputs, resCombined.Inputs)
 	}
@@ -165,7 +165,7 @@ func TestHostForDevice(t *testing.T) {
 		hostImportCombined.Output,
 	}
 
-	if !reflect.DeepEqual(combined.Inputs, expectedInputs) {
+	if !slices.Equal(combined.Inputs.Strings(), expectedInputs.Strings()) {
 		t.Errorf("expected device_module combined inputs:\n%q\ngot:\n%q",
 			expectedInputs, combined.Inputs)
 	}
@@ -176,7 +176,7 @@ func TestHostForDevice(t *testing.T) {
 		hostRes.Output,
 	}
 
-	if !reflect.DeepEqual(resCombined.Inputs, expectedInputs) {
+	if !slices.Equal(resCombined.Inputs.Strings(), expectedInputs.Strings()) {
 		t.Errorf("expected device_module res combined inputs:\n%q\ngot:\n%q",
 			expectedInputs, resCombined.Inputs)
 	}
