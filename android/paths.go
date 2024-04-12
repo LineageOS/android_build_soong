@@ -673,7 +673,8 @@ func PathsAndMissingDepsRelativeToModuleSourceDir(input SourceInput) (Paths, []s
 		expandedSrcFiles = append(expandedSrcFiles, srcFiles...)
 	}
 
-	return expandedSrcFiles, append(missingDeps, missingExcludeDeps...)
+	// TODO: b/334169722 - Replace with an error instead of implicitly removing duplicates.
+	return FirstUniquePaths(expandedSrcFiles), append(missingDeps, missingExcludeDeps...)
 }
 
 type missingDependencyError struct {
