@@ -509,7 +509,7 @@ func TestAndroidAppImport_ArchVariants(t *testing.T) {
 
 			variant := ctx.ModuleForTests("foo", "android_common")
 			if test.expected == "" {
-				if variant.Module().Enabled() {
+				if variant.Module().Enabled(android.PanickingConfigAndErrorContext(ctx)) {
 					t.Error("module should have been disabled, but wasn't")
 				}
 				rule := variant.MaybeRule("genProvenanceMetaData")
@@ -586,7 +586,7 @@ func TestAndroidAppImport_SoongConfigVariables(t *testing.T) {
 
 			variant := ctx.ModuleForTests("foo", "android_common")
 			if test.expected == "" {
-				if variant.Module().Enabled() {
+				if variant.Module().Enabled(android.PanickingConfigAndErrorContext(ctx)) {
 					t.Error("module should have been disabled, but wasn't")
 				}
 				rule := variant.MaybeRule("genProvenanceMetaData")
@@ -629,7 +629,7 @@ func TestAndroidAppImport_overridesDisabledAndroidApp(t *testing.T) {
 	if !a.prebuilt.UsePrebuilt() {
 		t.Errorf("prebuilt foo module is not active")
 	}
-	if !a.Enabled() {
+	if !a.Enabled(android.PanickingConfigAndErrorContext(ctx)) {
 		t.Errorf("prebuilt foo module is disabled")
 	}
 }

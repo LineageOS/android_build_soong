@@ -713,7 +713,7 @@ func LibraryMutator(mctx android.BottomUpMutatorContext) {
 	if sourceVariant {
 		sv := modules[0]
 		for _, v := range modules[1:] {
-			if !v.Enabled() {
+			if !v.Enabled(mctx) {
 				continue
 			}
 			mctx.AddInterVariantDependency(sourceDepTag, v, sv)

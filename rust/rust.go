@@ -1697,7 +1697,7 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 }
 
 func BeginMutator(ctx android.BottomUpMutatorContext) {
-	if mod, ok := ctx.Module().(*Module); ok && mod.Enabled() {
+	if mod, ok := ctx.Module().(*Module); ok && mod.Enabled(ctx) {
 		mod.beginMutator(ctx)
 	}
 }
