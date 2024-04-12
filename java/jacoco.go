@@ -53,7 +53,7 @@ func jacocoDepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 
 	j, ok := ctx.Module().(instrumentable)
-	if !ctx.Module().Enabled() || !ok {
+	if !ctx.Module().Enabled(ctx) || !ok {
 		return
 	}
 

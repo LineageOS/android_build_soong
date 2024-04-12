@@ -119,7 +119,7 @@ func isModuleSupported(ctx android.SingletonContext, module android.Module) (*Mo
 	if !ok {
 		return nil, false
 	}
-	if !rModule.Enabled() {
+	if !rModule.Enabled(ctx) {
 		return nil, false
 	}
 	return rModule, true

@@ -351,7 +351,7 @@ func TestPrebuilts(t *testing.T) {
 						}
 					})
 
-					moduleIsDisabled := !foo.Module().Enabled()
+					moduleIsDisabled := !foo.Module().Enabled(PanickingConfigAndErrorContext(result.TestContext))
 					deps := foo.Module().(*sourceModule).deps
 					if moduleIsDisabled {
 						if len(deps) > 0 {

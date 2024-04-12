@@ -1428,7 +1428,7 @@ func deferReportingMissingBootDexJar(ctx android.ModuleContext, module android.M
 		// should not contribute to anything. So, rather than have a missing dex jar cause a Soong
 		// failure defer the error reporting to Ninja. Unless the prebuilt build target is explicitly
 		// built Ninja should never use the dex jar file.
-		if !isActiveModule(module) {
+		if !isActiveModule(ctx, module) {
 			return true
 		}
 
