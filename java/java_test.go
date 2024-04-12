@@ -2838,6 +2838,99 @@ func TestApiLibraryAconfigDeclarations(t *testing.T) {
 	android.AssertStringDoesContain(t, "flagged api hide command not included", cmdline, "revert-annotations-exportable.txt")
 }
 
+func TestTestOnly(t *testing.T) {
+	t.Parallel()
+	ctx := android.GroupFixturePreparers(
+		prepareForJavaTest,
+	).RunTestWithBp(t, `
+                // These should be test-only
+		java_library {
+			name: "lib1-test-only",
+                        srcs: ["a.java"],
+                        test_only: true,
+		}
+                java_test {
+                        name: "java-test",
+                }
+                java_test_host {
+                        name: "java-test-host",
+                }
+                java_test_helper_library {
+                        name: "helper-library",
+                }
+                java_binary {
+                        name: "java-data-binary",
+			srcs: ["foo.java"],
+			main_class: "foo.bar.jb",
+                        test_only: true,
+                }
+
+                // These are NOT
+		java_library {
+			name: "lib2-app",
+                        srcs: ["b.java"],
+		}
+		java_import {
+			name: "bar",
+			jars: ["bar.jar"],
+		}
+                java_binary {
+                        name: "java-binary",
+			srcs: ["foo.java"],
+			main_class: "foo.bar.jb",
+                }
+	`)
+
+	expectedTestOnlyModules := []string{
+		"lib1-test-only",
+		"java-test",
+		"java-test-host",
+		"helper-library",
+		"java-data-binary",
+	}
+	expectedTopLevelTests := []string{
+		"java-test",
+		"java-test-host",
+	}
+	assertTestOnlyAndTopLevel(t, ctx, expectedTestOnlyModules, expectedTopLevelTests)
+}
+
+// Don't allow setting test-only on things that are always tests or never tests.
+func TestInvalidTestOnlyTargets(t *testing.T) {
+	testCases := []string{
+		` java_test {  name: "java-test", test_only: true, srcs: ["foo.java"],  } `,
+		` java_test_host {  name: "java-test-host", test_only: true, srcs: ["foo.java"],  } `,
+		` java_test_import {  name: "java-test-import", test_only: true, } `,
+		` java_api_library {  name: "java-api-library", test_only: true, } `,
+		` java_test_helper_library { name: "test-help-lib", test_only: true, } `,
+		` java_defaults { name: "java-defaults", test_only: true, } `,
+	}
+
+	for i, bp := range testCases {
+		android.GroupFixturePreparers(prepareForJavaTest).
+			ExtendWithErrorHandler(
+				expectOneError("unrecognized property \"test_only\"",
+					fmt.Sprintf("testcase: %d", i))).
+			RunTestWithBp(t, bp)
+	}
+}
+
+// Expect exactly one that matches 'expected'.
+// Append 'msg' to the Errorf that printed.
+func expectOneError(expected string, msg string) android.FixtureErrorHandler {
+	return android.FixtureCustomErrorHandler(func(t *testing.T, result *android.TestResult) {
+		t.Helper()
+		if len(result.Errs) != 1 {
+			t.Errorf("Expected exactly one error, but found: %d when  setting test_only on: %s", len(result.Errs), msg)
+			return
+		}
+		actualErrMsg := result.Errs[0].Error()
+		if !strings.Contains(actualErrMsg, expected) {
+			t.Errorf("Different error than expected.  Received: [%v] on %s expected: %s", actualErrMsg, msg, expected)
+		}
+	})
+}
+
 func TestJavaLibHostWithStem(t *testing.T) {
 	ctx, _ := testJava(t, `
 		java_library_host {
@@ -2916,4 +3009,35 @@ func TestJavaLibraryOutputFilesRel(t *testing.T) {
 		"bar.jar", barOutputPath.Rel())
 	android.AssertStringEquals(t, "baz relative output path",
 		"baz.jar", bazOutputPath.Rel())
+}
+
+func assertTestOnlyAndTopLevel(t *testing.T, ctx *android.TestResult, expectedTestOnly []string, expectedTopLevel []string) {
+	t.Helper()
+	actualTrueModules := []string{}
+	actualTopLevelTests := []string{}
+	addActuals := func(m blueprint.Module, key blueprint.ProviderKey[android.TestModuleInformation]) {
+		if provider, ok := android.OtherModuleProvider(ctx.TestContext.OtherModuleProviderAdaptor(), m, key); ok {
+			if provider.TestOnly {
+				actualTrueModules = append(actualTrueModules, m.Name())
+			}
+			if provider.TopLevelTarget {
+				actualTopLevelTests = append(actualTopLevelTests, m.Name())
+			}
+		}
+	}
+
+	ctx.VisitAllModules(func(m blueprint.Module) {
+		addActuals(m, android.TestOnlyProviderKey)
+
+	})
+
+	notEqual, left, right := android.ListSetDifference(expectedTestOnly, actualTrueModules)
+	if notEqual {
+		t.Errorf("test-only: Expected but not found: %v, Found but not expected: %v", left, right)
+	}
+
+	notEqual, left, right = android.ListSetDifference(expectedTopLevel, actualTopLevelTests)
+	if notEqual {
+		t.Errorf("top-level: Expected but not found: %v, Found but not expected: %v", left, right)
+	}
 }
