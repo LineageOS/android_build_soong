@@ -978,6 +978,7 @@ type AARImport struct {
 
 	headerJarFile                      android.WritablePath
 	implementationJarFile              android.WritablePath
+	implementationAndResourcesJarFile  android.WritablePath
 	proguardFlags                      android.WritablePath
 	exportPackage                      android.WritablePath
 	transitiveAaptResourcePackagesFile android.Path
@@ -1013,7 +1014,7 @@ func (a *AARImport) OutputFiles(tag string) (android.Paths, error) {
 	case ".aar":
 		return []android.Path{a.aarPath}, nil
 	case "":
-		return []android.Path{a.implementationJarFile}, nil
+		return []android.Path{a.implementationAndResourcesJarFile}, nil
 	default:
 		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 	}
@@ -1155,8 +1156,9 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		TransformJetifier(ctx, a.aarPath.(android.WritablePath), inputFile)
 	}
 
+	jarName := ctx.ModuleName() + ".jar"
 	extractedAARDir := android.PathForModuleOut(ctx, "aar")
-	classpathFile := extractedAARDir.Join(ctx, ctx.ModuleName()+".jar")
+	classpathFile := extractedAARDir.Join(ctx, jarName)
 	a.manifest = extractedAARDir.Join(ctx, "AndroidManifest.xml")
 	a.rTxt = extractedAARDir.Join(ctx, "R.txt")
 	a.assetsPackage = android.PathForModuleOut(ctx, "assets.zip")
@@ -1272,6 +1274,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	var staticJars android.Paths
 	var staticHeaderJars android.Paths
+	var staticResourceJars android.Paths
 	ctx.VisitDirectDeps(func(module android.Module) {
 		if dep, ok := android.OtherModuleProvider(ctx, module, JavaInfoProvider); ok {
 			tag := ctx.OtherModuleDependencyTag(module)
@@ -1279,6 +1282,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			case staticLibTag:
 				staticJars = append(staticJars, dep.ImplementationJars...)
 				staticHeaderJars = append(staticHeaderJars, dep.HeaderJars...)
+				staticResourceJars = append(staticResourceJars, dep.ResourceJars...)
 			}
 		}
 		addCLCFromDep(ctx, module, a.classLoaderContexts)
@@ -1287,18 +1291,39 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	var implementationJarFile android.OutputPath
 	if len(staticJars) > 0 {
 		combineJars := append(android.Paths{classpathFile}, staticJars...)
-		implementationJarFile = android.PathForModuleOut(ctx, "combined", ctx.ModuleName()+".jar").OutputPath
+		implementationJarFile = android.PathForModuleOut(ctx, "combined", jarName).OutputPath
 		TransformJarsToJar(ctx, implementationJarFile, "combine", combineJars, android.OptionalPath{}, false, nil, nil)
 	} else {
 		implementationJarFile = classpathFile
 	}
 
+	var resourceJarFile android.Path
+	if len(staticResourceJars) > 1 {
+		combinedJar := android.PathForModuleOut(ctx, "res-combined", jarName)
+		TransformJarsToJar(ctx, combinedJar, "for resources", staticResourceJars, android.OptionalPath{},
+			false, nil, nil)
+		resourceJarFile = combinedJar
+	} else if len(staticResourceJars) == 1 {
+		resourceJarFile = staticResourceJars[0]
+	}
+
+	// merge implementation jar with resources if necessary
+	implementationAndResourcesJar := implementationJarFile
+	if resourceJarFile != nil {
+		jars := android.Paths{resourceJarFile, implementationAndResourcesJar}
+		combinedJar := android.PathForModuleOut(ctx, "withres", jarName).OutputPath
+		TransformJarsToJar(ctx, combinedJar, "for resources", jars, android.OptionalPath{},
+			false, nil, nil)
+		implementationAndResourcesJar = combinedJar
+	}
+
+	a.implementationJarFile = implementationJarFile
 	// Save the output file with no relative path so that it doesn't end up in a subdirectory when used as a resource
-	a.implementationJarFile = implementationJarFile.WithoutRel()
+	a.implementationAndResourcesJarFile = implementationAndResourcesJar.WithoutRel()
 
 	if len(staticHeaderJars) > 0 {
 		combineJars := append(android.Paths{classpathFile}, staticHeaderJars...)
-		a.headerJarFile = android.PathForModuleOut(ctx, "turbine-combined", ctx.ModuleName()+".jar")
+		a.headerJarFile = android.PathForModuleOut(ctx, "turbine-combined", jarName)
 		TransformJarsToJar(ctx, a.headerJarFile, "combine header jars", combineJars, android.OptionalPath{}, false, nil, nil)
 	} else {
 		a.headerJarFile = classpathFile
@@ -1306,9 +1331,10 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	android.SetProvider(ctx, JavaInfoProvider, JavaInfo{
 		HeaderJars:                     android.PathsIfNonNil(a.headerJarFile),
+		ResourceJars:                   android.PathsIfNonNil(resourceJarFile),
 		TransitiveLibsHeaderJars:       a.transitiveLibsHeaderJars,
 		TransitiveStaticLibsHeaderJars: a.transitiveStaticLibsHeaderJars,
-		ImplementationAndResourcesJars: android.PathsIfNonNil(a.implementationJarFile),
+		ImplementationAndResourcesJars: android.PathsIfNonNil(a.implementationAndResourcesJarFile),
 		ImplementationJars:             android.PathsIfNonNil(a.implementationJarFile),
 		StubsLinkType:                  Implementation,
 		// TransitiveAconfigFiles: // TODO(b/289117800): LOCAL_ACONFIG_FILES for prebuilts
@@ -1346,7 +1372,7 @@ func (a *AARImport) HeaderJars() android.Paths {
 }
 
 func (a *AARImport) ImplementationAndResourcesJars() android.Paths {
-	return android.Paths{a.implementationJarFile}
+	return android.Paths{a.implementationAndResourcesJarFile}
 }
 
 func (a *AARImport) DexJarBuildPath(ctx android.ModuleErrorfContext) OptionalDexJarPath {
