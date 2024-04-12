@@ -4432,6 +4432,44 @@ func TestNoDexpreoptOptionalUsesLibDoesNotHaveImpl(t *testing.T) {
 	android.AssertBoolEquals(t, "dexpreopt should be disabled if optional_uses_libs does not have an implementation", true, dexpreopt == nil)
 }
 
+func TestTestOnlyApp(t *testing.T) {
+	t.Parallel()
+	ctx := android.GroupFixturePreparers(
+		prepareForJavaTest,
+	).RunTestWithBp(t, `
+                // These should be test-only
+                android_test {
+                        name: "android-test",
+                }
+                android_test_helper_app {
+                        name: "helper-app",
+                }
+                override_android_test {
+                        name: "override-test",
+                        base: "android-app",
+                }
+                // And these should not be
+		android_app {
+			name: "android-app",
+                        srcs: ["b.java"],
+			sdk_version: "current",
+		}
+	`)
+
+	expectedTestOnly := []string{
+		"android-test",
+		"helper-app",
+		"override-test",
+	}
+
+	expectedTopLevel := []string{
+		"android-test",
+		"override-test",
+	}
+
+	assertTestOnlyAndTopLevel(t, ctx, expectedTestOnly, expectedTopLevel)
+}
+
 func TestAppStem(t *testing.T) {
 	ctx := testApp(t, `
 				android_app {

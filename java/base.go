@@ -435,6 +435,7 @@ type Module struct {
 	deviceProperties DeviceProperties
 
 	overridableProperties OverridableProperties
+	sourceProperties      android.SourceProperties
 
 	// jar file containing header classes including static library dependencies, suitable for
 	// inserting into the bootclasspath/classpath of another compile

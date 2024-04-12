@@ -922,7 +922,8 @@ func AndroidLibraryFactory() android.Module {
 	module.Module.addHostAndDeviceProperties()
 	module.AddProperties(
 		&module.aaptProperties,
-		&module.androidLibraryProperties)
+		&module.androidLibraryProperties,
+		&module.sourceProperties)
 
 	module.androidLibraryProperties.BuildAAR = true
 	module.Module.linter.library = true
