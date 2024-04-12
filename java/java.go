@@ -958,6 +958,11 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 		j.installFile = ctx.InstallFile(installDir, j.Stem()+".jar", j.outputFile, extraInstallDeps...)
 	}
+
+	android.SetProvider(ctx, android.TestOnlyProviderKey, android.TestModuleInformation{
+		TestOnly:       Bool(j.sourceProperties.Test_only),
+		TopLevelTarget: j.sourceProperties.Top_level_test_target,
+	})
 }
 
 func (j *Library) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -1123,6 +1128,7 @@ func LibraryFactory() android.Module {
 	module := &Library{}
 
 	module.addHostAndDeviceProperties()
+	module.AddProperties(&module.sourceProperties)
 
 	module.initModuleAndImport(module)
 
@@ -1604,6 +1610,8 @@ func TestFactory() android.Module {
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 	module.Module.dexpreopter.isTest = true
 	module.Module.linter.properties.Lint.Test = proptools.BoolPtr(true)
+	module.Module.sourceProperties.Test_only = proptools.BoolPtr(true)
+	module.Module.sourceProperties.Top_level_test_target = true
 
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
@@ -1619,6 +1627,7 @@ func TestHelperLibraryFactory() android.Module {
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 	module.Module.dexpreopter.isTest = true
 	module.Module.linter.properties.Lint.Test = proptools.BoolPtr(true)
+	module.Module.sourceProperties.Test_only = proptools.BoolPtr(true)
 
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
@@ -1674,6 +1683,8 @@ func InitTestHost(th *TestHost, installable *bool, testSuites []string, autoGenC
 	th.properties.Installable = installable
 	th.testProperties.Auto_gen_config = autoGenConfig
 	th.testProperties.Test_suites = testSuites
+	th.sourceProperties.Test_only = proptools.BoolPtr(true)
+	th.sourceProperties.Top_level_test_target = true
 }
 
 //
@@ -1799,7 +1810,7 @@ func BinaryFactory() android.Module {
 	module := &Binary{}
 
 	module.addHostAndDeviceProperties()
-	module.AddProperties(&module.binaryProperties)
+	module.AddProperties(&module.binaryProperties, &module.sourceProperties)
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 
