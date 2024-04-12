@@ -64,6 +64,8 @@ func JavaFuzzFactory() android.Module {
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 	module.Module.dexpreopter.isTest = true
 	module.Module.linter.properties.Lint.Test = proptools.BoolPtr(true)
+	module.Module.sourceProperties.Test_only = proptools.BoolPtr(true)
+	module.Module.sourceProperties.Top_level_test_target = true
 
 	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
 		disableLinuxBionic := struct {
