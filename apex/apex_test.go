@@ -7114,8 +7114,9 @@ func TestJavaSDKLibrary(t *testing.T) {
 		"etc/permissions/foo.xml",
 	})
 	// Permission XML should point to the activated path of impl jar of java_sdk_library
-	sdkLibrary := ctx.ModuleForTests("foo.xml", "android_common_myapex").Rule("java_sdk_xml")
-	ensureMatches(t, sdkLibrary.RuleParams.Command, `<library\\n\s+name=\\\"foo\\\"\\n\s+file=\\\"/apex/myapex/javalib/foo.jar\\\"`)
+	sdkLibrary := ctx.ModuleForTests("foo.xml", "android_common_myapex").Output("foo.xml")
+	contents := android.ContentFromFileRuleForTests(t, ctx, sdkLibrary)
+	ensureMatches(t, contents, "<library\\n\\s+name=\\\"foo\\\"\\n\\s+file=\\\"/apex/myapex/javalib/foo.jar\\\"")
 }
 
 func TestJavaSDKLibrary_WithinApex(t *testing.T) {
