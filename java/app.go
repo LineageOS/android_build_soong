@@ -326,6 +326,10 @@ func (a *AndroidTestHelperApp) GenerateAndroidBuildActions(ctx android.ModuleCon
 		a.aapt.manifestValues.applicationId = *applicationId
 	}
 	a.generateAndroidBuildActions(ctx)
+	android.SetProvider(ctx, android.TestOnlyProviderKey, android.TestModuleInformation{
+		TestOnly: true,
+	})
+
 }
 
 func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -1180,7 +1184,8 @@ func AndroidAppFactory() android.Module {
 	module.AddProperties(
 		&module.aaptProperties,
 		&module.appProperties,
-		&module.overridableAppProperties)
+		&module.overridableAppProperties,
+		&module.Library.sourceProperties)
 
 	module.usesLibrary.enforce = true
 
@@ -1329,6 +1334,11 @@ func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		TestSuites:              a.testProperties.Test_suites,
 		IsHost:                  false,
 	})
+	android.SetProvider(ctx, android.TestOnlyProviderKey, android.TestModuleInformation{
+		TestOnly:       true,
+		TopLevelTarget: true,
+	})
+
 }
 
 func (a *AndroidTest) FixTestConfig(ctx android.ModuleContext, testConfig android.Path) android.Path {
@@ -1521,9 +1531,13 @@ type OverrideAndroidTest struct {
 	android.OverrideModuleBase
 }
 
-func (i *OverrideAndroidTest) GenerateAndroidBuildActions(_ android.ModuleContext) {
+func (i *OverrideAndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// All the overrides happen in the base module.
 	// TODO(jungjw): Check the base module type.
+	android.SetProvider(ctx, android.TestOnlyProviderKey, android.TestModuleInformation{
+		TestOnly:       true,
+		TopLevelTarget: true,
+	})
 }
 
 // override_android_test is used to create an android_app module based on another android_test by overriding
