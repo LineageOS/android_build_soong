@@ -19,6 +19,7 @@ package bpfix
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -2214,4 +2215,10 @@ func TestRemoveResourceAndAssetsIfDefault(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestMain(m *testing.M) {
+	// Skip checking Android.mk path with cleaning "ANDROID_BUILD_TOP"
+	os.Setenv("ANDROID_BUILD_TOP", "")
+	os.Exit(m.Run())
 }
