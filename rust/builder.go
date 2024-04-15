@@ -61,7 +61,7 @@ var (
 				// Use the metadata output as it has the smallest footprint.
 				"--emit metadata -o $out --emit dep-info=$out.d.raw $in ${libFlags} " +
 				"$rustcFlags $clippyFlags" +
-				" && grep \"^$out:\" $out.d.raw > $out.d",
+				" && grep ^$out: $out.d.raw > $out.d",
 			CommandDeps: []string{"$clippyCmd"},
 			Deps:        blueprint.DepsGCC,
 			Depfile:     "$out.d",
