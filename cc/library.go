@@ -1249,28 +1249,29 @@ func (library *libraryDecorator) llndkIncludeDirsForAbiCheck(ctx ModuleContext, 
 
 func (library *libraryDecorator) linkLlndkSAbiDumpFiles(ctx ModuleContext,
 	deps PathDeps, sAbiDumpFiles android.Paths, soFile android.Path, libFileName string,
-	excludeSymbolVersions, excludeSymbolTags []string) android.Path {
+	excludeSymbolVersions, excludeSymbolTags []string,
+	vendorApiLevel string) android.Path {
 	// NDK symbols in version 34 are LLNDK symbols. Those in version 35 are not.
-	// TODO(b/314010764): Add parameters to read LLNDK symbols from the symbol file.
 	return transformDumpToLinkedDump(ctx,
 		sAbiDumpFiles, soFile, libFileName+".llndk",
 		library.llndkIncludeDirsForAbiCheck(ctx, deps),
 		android.OptionalPathForModuleSrc(ctx, library.Properties.Llndk.Symbol_file),
 		append([]string{"*_PLATFORM", "*_PRIVATE"}, excludeSymbolVersions...),
 		append([]string{"platform-only"}, excludeSymbolTags...),
-		"34")
+		[]string{"llndk=" + vendorApiLevel}, "34", true /* isLlndk */)
 }
 
 func (library *libraryDecorator) linkApexSAbiDumpFiles(ctx ModuleContext,
 	deps PathDeps, sAbiDumpFiles android.Paths, soFile android.Path, libFileName string,
-	excludeSymbolVersions, excludeSymbolTags []string, sdkVersion string) android.Path {
+	excludeSymbolVersions, excludeSymbolTags []string,
+	sdkVersion string) android.Path {
 	return transformDumpToLinkedDump(ctx,
 		sAbiDumpFiles, soFile, libFileName+".apex",
 		library.exportedIncludeDirsForAbiCheck(ctx),
 		android.OptionalPathForModuleSrc(ctx, library.Properties.Stubs.Symbol_file),
 		append([]string{"*_PLATFORM", "*_PRIVATE"}, excludeSymbolVersions...),
 		append([]string{"platform-only"}, excludeSymbolTags...),
-		sdkVersion)
+		[]string{"apex", "systemapi"}, sdkVersion, false /* isLlndk */)
 }
 
 func getRefAbiDumpFile(ctx android.ModuleInstallPathContext,
@@ -1397,18 +1398,19 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, deps PathD
 			android.OptionalPathForModuleSrc(ctx, library.symbolFileForAbiCheck(ctx)),
 			headerAbiChecker.Exclude_symbol_versions,
 			headerAbiChecker.Exclude_symbol_tags,
-			currSdkVersion)
+			[]string{} /* includeSymbolTags */, currSdkVersion, false /* isLlndk */)
 
 		var llndkDump, apexVariantDump android.Path
 		tags := classifySourceAbiDump(ctx)
 		for _, tag := range tags {
-			if tag == llndkLsdumpTag {
+			if tag == llndkLsdumpTag && currVendorVersion != "" {
 				if llndkDump == nil {
 					// TODO(b/323447559): Evaluate if replacing sAbiDumpFiles with implDump is faster
 					llndkDump = library.linkLlndkSAbiDumpFiles(ctx,
 						deps, objs.sAbiDumpFiles, soFile, fileName,
 						headerAbiChecker.Exclude_symbol_versions,
-						headerAbiChecker.Exclude_symbol_tags)
+						headerAbiChecker.Exclude_symbol_tags,
+						currVendorVersion)
 				}
 				addLsdumpPath(string(tag) + ":" + llndkDump.String())
 			} else if tag == apexLsdumpTag {
