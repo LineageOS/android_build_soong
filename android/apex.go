@@ -16,6 +16,7 @@ package android
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -108,7 +109,7 @@ func (i ApexInfo) AddJSONData(d *map[string]interface{}) {
 // are configured to have the same alias variation named apex29. Whether platform APIs is allowed
 // or not also matters; if two APEXes don't have the same allowance, they get different names and
 // thus wouldn't be merged.
-func (i ApexInfo) mergedName(ctx PathContext) string {
+func (i ApexInfo) mergedName() string {
 	name := "apex" + strconv.Itoa(i.MinSdkVersion.FinalOrFutureInt())
 	return name
 }
@@ -543,17 +544,10 @@ func AvailableToSameApexes(mod1, mod2 ApexModule) bool {
 	return true
 }
 
-type byApexName []ApexInfo
-
-func (a byApexName) Len() int           { return len(a) }
-func (a byApexName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a byApexName) Less(i, j int) bool { return a[i].ApexVariationName < a[j].ApexVariationName }
-
 // mergeApexVariations deduplicates apex variations that would build identically into a common
 // variation. It returns the reduced list of variations and a list of aliases from the original
 // variation names to the new variation names.
-func mergeApexVariations(ctx PathContext, apexInfos []ApexInfo) (merged []ApexInfo, aliases [][2]string) {
-	sort.Sort(byApexName(apexInfos))
+func mergeApexVariations(apexInfos []ApexInfo) (merged []ApexInfo, aliases [][2]string) {
 	seen := make(map[string]int)
 	for _, apexInfo := range apexInfos {
 		// If this is for a prebuilt apex then use the actual name of the apex variation to prevent this
@@ -567,7 +561,7 @@ func mergeApexVariations(ctx PathContext, apexInfos []ApexInfo) (merged []ApexIn
 		// this one into it, otherwise create a new merged ApexInfo from this one and save it away so
 		// other ApexInfo instances can be merged into it.
 		variantName := apexInfo.ApexVariationName
-		mergedName := apexInfo.mergedName(ctx)
+		mergedName := apexInfo.mergedName()
 		if index, exists := seen[mergedName]; exists {
 			// Variants having the same mergedName are deduped
 			merged[index].InApexVariants = append(merged[index].InApexVariants, variantName)
@@ -606,18 +600,20 @@ func CreateApexVariations(mctx BottomUpMutatorContext, module ApexModule) []Modu
 	// TODO(jiyong): is this the right place?
 	base.checkApexAvailableProperty(mctx)
 
-	var apexInfos []ApexInfo
-	var aliases [][2]string
-	if !mctx.Module().(ApexModule).UniqueApexVariations() && !base.ApexProperties.UniqueApexVariationsForDeps {
-		apexInfos, aliases = mergeApexVariations(mctx, base.apexInfos)
-	} else {
-		apexInfos = base.apexInfos
-	}
+	apexInfos := base.apexInfos
 	// base.apexInfos is only needed to propagate the list of apexes from apexInfoMutator to
 	// apexMutator. It is no longer accurate after mergeApexVariations, and won't be copied to
 	// all but the first created variant. Clear it so it doesn't accidentally get used later.
 	base.apexInfos = nil
-	sort.Sort(byApexName(apexInfos))
+
+	slices.SortFunc(apexInfos, func(a, b ApexInfo) int {
+		return strings.Compare(a.ApexVariationName, b.ApexVariationName)
+	})
+
+	var aliases [][2]string
+	if !mctx.Module().(ApexModule).UniqueApexVariations() && !base.ApexProperties.UniqueApexVariationsForDeps {
+		apexInfos, aliases = mergeApexVariations(apexInfos)
+	}
 
 	var inApex ApexMembership
 	for _, a := range apexInfos {
