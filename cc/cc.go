@@ -1995,6 +1995,20 @@ func (d *Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
 func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
+	ctx := moduleContextFromAndroidModuleContext(actx, c)
+
+	// If Test_only is set on a module in bp file, respect the setting, otherwise
+	// see if is a known test module type.
+	testOnly := c.testModule || c.testLibrary()
+	if c.sourceProperties.Test_only != nil {
+		testOnly = Bool(c.sourceProperties.Test_only)
+	}
+	// Keep before any early returns.
+	android.SetProvider(ctx, android.TestOnlyProviderKey, android.TestModuleInformation{
+		TestOnly:       testOnly,
+		TopLevelTarget: c.testModule,
+	})
+
 	// Handle the case of a test module split by `test_per_src` mutator.
 	//
 	// The `test_per_src` mutator adds an extra variation named "", depending on all the other
@@ -2012,8 +2026,6 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 
 	c.makeLinkType = GetMakeLinkType(actx, c)
-
-	ctx := moduleContextFromAndroidModuleContext(actx, c)
 
 	deps := c.depsToPaths(ctx)
 	if ctx.Failed() {
@@ -2140,17 +2152,6 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	if c.testModule {
 		android.SetProvider(ctx, testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 	}
-
-	// If Test_only is set on a module in bp file, respect the setting, otherwise
-	// see if is a known test module type.
-	testOnly := c.testModule || c.testLibrary()
-	if c.sourceProperties.Test_only != nil {
-		testOnly = Bool(c.sourceProperties.Test_only)
-	}
-	android.SetProvider(ctx, android.TestOnlyProviderKey, android.TestModuleInformation{
-		TestOnly:       testOnly,
-		TopLevelTarget: c.testModule,
-	})
 
 	android.SetProvider(ctx, blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: deps.GeneratedSources.Strings()})
 
