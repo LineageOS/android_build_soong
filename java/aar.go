@@ -356,12 +356,13 @@ type aaptBuildActionOptions struct {
 	forceNonFinalResourceIDs       bool
 	extraLinkFlags                 []string
 	aconfigTextFiles               android.Paths
+	usesLibrary                    *usesLibrary
 }
 
 func (a *aapt) buildActions(ctx android.ModuleContext, opts aaptBuildActionOptions) {
 
 	staticResourcesNodesDepSet, sharedResourcesNodesDepSet, staticRRODirsDepSet, staticManifestsDepSet, sharedExportPackages, libFlags :=
-		aaptLibs(ctx, opts.sdkContext, opts.classLoaderContexts)
+		aaptLibs(ctx, opts.sdkContext, opts.classLoaderContexts, opts.usesLibrary)
 
 	// Exclude any libraries from the supplied list.
 	opts.classLoaderContexts = opts.classLoaderContexts.ExcludeLibs(opts.excludedLibs)
@@ -703,7 +704,8 @@ func (t transitiveAarDeps) assets() android.Paths {
 }
 
 // aaptLibs collects libraries from dependencies and sdk_version and converts them into paths
-func aaptLibs(ctx android.ModuleContext, sdkContext android.SdkContext, classLoaderContexts dexpreopt.ClassLoaderContextMap) (
+func aaptLibs(ctx android.ModuleContext, sdkContext android.SdkContext,
+	classLoaderContexts dexpreopt.ClassLoaderContextMap, usesLibrary *usesLibrary) (
 	staticResourcesNodes, sharedResourcesNodes *android.DepSet[*resourcesNode], staticRRODirs *android.DepSet[rroDir],
 	staticManifests *android.DepSet[android.Path], sharedLibs android.Paths, flags []string) {
 
@@ -753,6 +755,9 @@ func aaptLibs(ctx android.ModuleContext, sdkContext android.SdkContext, classLoa
 		}
 
 		addCLCFromDep(ctx, module, classLoaderContexts)
+		if usesLibrary != nil {
+			addMissingOptionalUsesLibsFromDep(ctx, module, usesLibrary)
+		}
 	})
 
 	// AAPT2 overlays are in lowest to highest priority order, the topological order will be reversed later.
@@ -805,12 +810,12 @@ func (a *AndroidLibrary) OutputFiles(tag string) (android.Paths, error) {
 var _ AndroidLibraryDependency = (*AndroidLibrary)(nil)
 
 func (a *AndroidLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
+	a.usesLibrary.deps(ctx, false)
 	a.Module.deps(ctx)
 	sdkDep := decodeSdkDep(ctx, android.SdkContext(a))
 	if sdkDep.hasFrameworkLibs() {
 		a.aapt.deps(ctx, sdkDep)
 	}
-	a.usesLibrary.deps(ctx, false)
 
 	for _, aconfig_declaration := range a.aaptProperties.Flags_packages {
 		ctx.AddDependency(ctx.Module(), aconfigDeclarationTag, aconfig_declaration)
@@ -829,6 +834,7 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 			classLoaderContexts:            a.classLoaderContexts,
 			enforceDefaultTargetSdkVersion: false,
 			aconfigTextFiles:               getAconfigFilePaths(ctx),
+			usesLibrary:                    &a.usesLibrary,
 		},
 	)
 
@@ -1215,7 +1221,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	linkDeps = append(linkDeps, a.manifest)
 
 	staticResourcesNodesDepSet, sharedResourcesNodesDepSet, staticRRODirsDepSet, staticManifestsDepSet, sharedLibs, libFlags :=
-		aaptLibs(ctx, android.SdkContext(a), nil)
+		aaptLibs(ctx, android.SdkContext(a), nil, nil)
 
 	_ = sharedResourcesNodesDepSet
 	_ = staticRRODirsDepSet
@@ -1287,6 +1293,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			}
 		}
 		addCLCFromDep(ctx, module, a.classLoaderContexts)
+		addMissingOptionalUsesLibsFromDep(ctx, module, &a.usesLibrary)
 	})
 
 	var implementationJarFile android.OutputPath
@@ -1404,6 +1411,12 @@ func (a *AARImport) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 }
 
 var _ android.PrebuiltInterface = (*AARImport)(nil)
+
+func (a *AARImport) UsesLibrary() *usesLibrary {
+	return &a.usesLibrary
+}
+
+var _ ModuleWithUsesLibrary = (*AARImport)(nil)
 
 // android_library_import imports an `.aar` file into the build graph as if it was built with android_library.
 //
