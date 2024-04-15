@@ -837,9 +837,11 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		if dep != nil {
 			if component, ok := dep.(SdkLibraryComponentDependency); ok {
 				if lib := component.OptionalSdkLibraryImplementation(); lib != nil {
-					// Add library as optional if it's one of the optional compatibility libs.
+					// Add library as optional if it's one of the optional compatibility libs or it's
+					// explicitly listed in the optional_uses_libs property.
 					tag := usesLibReqTag
-					if android.InList(*lib, dexpreopt.OptionalCompatUsesLibs) {
+					if android.InList(*lib, dexpreopt.OptionalCompatUsesLibs) ||
+						android.InList(*lib, j.usesLibrary.usesLibraryProperties.Optional_uses_libs) {
 						tag = usesLibOptTag
 					}
 					ctx.AddVariationDependencies(nil, tag, *lib)
@@ -2706,3 +2708,13 @@ type ModuleWithStem interface {
 }
 
 var _ ModuleWithStem = (*Module)(nil)
+
+type ModuleWithUsesLibrary interface {
+	UsesLibrary() *usesLibrary
+}
+
+func (j *Module) UsesLibrary() *usesLibrary {
+	return &j.usesLibrary
+}
+
+var _ ModuleWithUsesLibrary = (*Module)(nil)

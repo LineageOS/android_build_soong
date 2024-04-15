@@ -805,12 +805,12 @@ func (a *AndroidLibrary) OutputFiles(tag string) (android.Paths, error) {
 var _ AndroidLibraryDependency = (*AndroidLibrary)(nil)
 
 func (a *AndroidLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
+	a.usesLibrary.deps(ctx, false)
 	a.Module.deps(ctx)
 	sdkDep := decodeSdkDep(ctx, android.SdkContext(a))
 	if sdkDep.hasFrameworkLibs() {
 		a.aapt.deps(ctx, sdkDep)
 	}
-	a.usesLibrary.deps(ctx, false)
 
 	for _, aconfig_declaration := range a.aaptProperties.Flags_packages {
 		ctx.AddDependency(ctx.Module(), aconfigDeclarationTag, aconfig_declaration)
@@ -1373,6 +1373,12 @@ func (a *AARImport) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 }
 
 var _ android.PrebuiltInterface = (*AARImport)(nil)
+
+func (a *AARImport) UsesLibrary() *usesLibrary {
+	return &a.usesLibrary
+}
+
+var _ ModuleWithUsesLibrary = (*AARImport)(nil)
 
 // android_library_import imports an `.aar` file into the build graph as if it was built with android_library.
 //

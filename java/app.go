@@ -249,13 +249,13 @@ func (c Certificate) AndroidMkString() string {
 }
 
 func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
-	a.Module.deps(ctx)
-
 	if String(a.appProperties.Stl) == "c++_shared" && !a.SdkVersion(ctx).Specified() {
 		ctx.PropertyErrorf("stl", "sdk_version must be set in order to use c++_shared")
 	}
 
 	sdkDep := decodeSdkDep(ctx, android.SdkContext(a))
+	a.usesLibrary.deps(ctx, sdkDep.hasFrameworkLibs())
+	a.Module.deps(ctx)
 	if sdkDep.hasFrameworkLibs() {
 		a.aapt.deps(ctx, sdkDep)
 	}
@@ -285,9 +285,6 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 		ctx.AddFarVariationDependencies(variation, jniLibTag, a.appProperties.Jni_libs...)
 	}
-
-	a.usesLibrary.deps(ctx, sdkDep.hasFrameworkLibs())
-
 	for _, aconfig_declaration := range a.aaptProperties.Flags_packages {
 		ctx.AddDependency(ctx.Module(), aconfigDeclarationTag, aconfig_declaration)
 	}
@@ -811,18 +808,10 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	// The decision to enforce <uses-library> checks is made before adding implicit SDK libraries.
 	a.usesLibrary.freezeEnforceUsesLibraries()
 
-	// Add implicit SDK libraries to <uses-library> list.
-	requiredUsesLibs, optionalUsesLibs := a.classLoaderContexts.UsesLibs()
-	for _, usesLib := range requiredUsesLibs {
-		a.usesLibrary.addLib(usesLib, false)
-	}
-	for _, usesLib := range optionalUsesLibs {
-		a.usesLibrary.addLib(usesLib, true)
-	}
-
 	// Check that the <uses-library> list is coherent with the manifest.
 	if a.usesLibrary.enforceUsesLibraries() {
-		manifestCheckFile := a.usesLibrary.verifyUsesLibrariesManifest(ctx, a.mergedManifestFile)
+		manifestCheckFile := a.usesLibrary.verifyUsesLibrariesManifest(
+			ctx, a.mergedManifestFile, &a.classLoaderContexts)
 		apkDeps = append(apkDeps, manifestCheckFile)
 	}
 
@@ -1580,6 +1569,9 @@ type UsesLibraryProperties struct {
 	// provide the android.test.base statically and use jarjar to rename them so they do not collide
 	// with the classes provided by the android.test.base library.
 	Exclude_uses_libs []string
+
+	// The module names of optional uses-library libraries that are missing from the source tree.
+	Missing_optional_uses_libs []string `blueprint:"mutated"`
 }
 
 // usesLibrary provides properties and helper functions for AndroidApp and AndroidAppImport to verify that the
@@ -1596,20 +1588,11 @@ type usesLibrary struct {
 	shouldDisableDexpreopt bool
 }
 
-func (u *usesLibrary) addLib(lib string, optional bool) {
-	if !android.InList(lib, u.usesLibraryProperties.Uses_libs) && !android.InList(lib, u.usesLibraryProperties.Optional_uses_libs) {
-		if optional {
-			u.usesLibraryProperties.Optional_uses_libs = append(u.usesLibraryProperties.Optional_uses_libs, lib)
-		} else {
-			u.usesLibraryProperties.Uses_libs = append(u.usesLibraryProperties.Uses_libs, lib)
-		}
-	}
-}
-
 func (u *usesLibrary) deps(ctx android.BottomUpMutatorContext, addCompatDeps bool) {
 	if !ctx.Config().UnbundledBuild() || ctx.Config().UnbundledBuildImage() {
 		ctx.AddVariationDependencies(nil, usesLibReqTag, u.usesLibraryProperties.Uses_libs...)
-		ctx.AddVariationDependencies(nil, usesLibOptTag, u.presentOptionalUsesLibs(ctx)...)
+		presentOptionalUsesLibs := u.presentOptionalUsesLibs(ctx)
+		ctx.AddVariationDependencies(nil, usesLibOptTag, presentOptionalUsesLibs...)
 		// Only add these extra dependencies if the module is an app that depends on framework
 		// libs. This avoids creating a cyclic dependency:
 		//     e.g. framework-res -> org.apache.http.legacy -> ... -> framework-res.
@@ -1620,6 +1603,8 @@ func (u *usesLibrary) deps(ctx android.BottomUpMutatorContext, addCompatDeps boo
 			ctx.AddVariationDependencies(nil, usesLibCompat28OptTag, dexpreopt.OptionalCompatUsesLibs28...)
 			ctx.AddVariationDependencies(nil, usesLibCompat30OptTag, dexpreopt.OptionalCompatUsesLibs30...)
 		}
+		_, diff, _ := android.ListSetDifference(u.usesLibraryProperties.Optional_uses_libs, presentOptionalUsesLibs)
+		u.usesLibraryProperties.Missing_optional_uses_libs = diff
 	} else {
 		ctx.AddVariationDependencies(nil, r8LibraryJarTag, u.usesLibraryProperties.Uses_libs...)
 		ctx.AddVariationDependencies(nil, r8LibraryJarTag, u.presentOptionalUsesLibs(ctx)...)
@@ -1636,15 +1621,6 @@ func (u *usesLibrary) presentOptionalUsesLibs(ctx android.BaseModuleContext) []s
 		return exists
 	})
 	return optionalUsesLibs
-}
-
-// Helper function to replace string in a list.
-func replaceInList(list []string, oldstr, newstr string) {
-	for i, str := range list {
-		if str == oldstr {
-			list[i] = newstr
-		}
-	}
 }
 
 // Returns a map of module names of shared library dependencies to the paths to their dex jars on
@@ -1688,11 +1664,6 @@ func (u *usesLibrary) classLoaderContextForUsesLibDeps(ctx android.ModuleContext
 			libName := dep
 			if ulib, ok := m.(ProvidesUsesLib); ok && ulib.ProvidesUsesLib() != nil {
 				libName = *ulib.ProvidesUsesLib()
-				// Replace module name with library name in `uses_libs`/`optional_uses_libs` in
-				// order to pass verify_uses_libraries check (which compares these properties
-				// against library names written in the manifest).
-				replaceInList(u.usesLibraryProperties.Uses_libs, dep, libName)
-				replaceInList(u.usesLibraryProperties.Optional_uses_libs, dep, libName)
 			}
 			clcMap.AddContext(ctx, tag.sdkVersion, libName, tag.optional,
 				lib.DexJarBuildPath(ctx).PathOrNil(), lib.DexJarInstallPath(),
@@ -1726,7 +1697,7 @@ func (u *usesLibrary) freezeEnforceUsesLibraries() {
 // an APK with the manifest embedded in it (manifest_check will know which one it is by the file
 // extension: APKs are supposed to end with '.apk').
 func (u *usesLibrary) verifyUsesLibraries(ctx android.ModuleContext, inputFile android.Path,
-	outputFile android.WritablePath) android.Path {
+	outputFile android.WritablePath, classLoaderContexts *dexpreopt.ClassLoaderContextMap) android.Path {
 
 	statusFile := dexpreopt.UsesLibrariesStatusFile(ctx)
 
@@ -1754,12 +1725,20 @@ func (u *usesLibrary) verifyUsesLibraries(ctx android.ModuleContext, inputFile a
 		cmd.Flag("--enforce-uses-libraries-relax")
 	}
 
-	for _, lib := range u.usesLibraryProperties.Uses_libs {
+	requiredUsesLibs, optionalUsesLibs := classLoaderContexts.UsesLibs()
+	for _, lib := range requiredUsesLibs {
 		cmd.FlagWithArg("--uses-library ", lib)
 	}
-
-	for _, lib := range u.usesLibraryProperties.Optional_uses_libs {
+	for _, lib := range optionalUsesLibs {
 		cmd.FlagWithArg("--optional-uses-library ", lib)
+	}
+
+	// Also add missing optional uses libs, as the manifest check expects them.
+	// Note that what we add here are the module names of those missing libs, not library names, while
+	// the manifest check actually expects library names. However, the case where a library is missing
+	// and the module name != the library name is too rare for us to handle.
+	for _, lib := range u.usesLibraryProperties.Missing_optional_uses_libs {
+		cmd.FlagWithArg("--missing-optional-uses-library ", lib)
 	}
 
 	rule.Build("verify_uses_libraries", "verify <uses-library>")
@@ -1768,13 +1747,15 @@ func (u *usesLibrary) verifyUsesLibraries(ctx android.ModuleContext, inputFile a
 
 // verifyUsesLibrariesManifest checks the <uses-library> tags in an AndroidManifest.xml against
 // the build system and returns the path to a copy of the manifest.
-func (u *usesLibrary) verifyUsesLibrariesManifest(ctx android.ModuleContext, manifest android.Path) android.Path {
+func (u *usesLibrary) verifyUsesLibrariesManifest(ctx android.ModuleContext, manifest android.Path,
+	classLoaderContexts *dexpreopt.ClassLoaderContextMap) android.Path {
 	outputFile := android.PathForModuleOut(ctx, "manifest_check", "AndroidManifest.xml")
-	return u.verifyUsesLibraries(ctx, manifest, outputFile)
+	return u.verifyUsesLibraries(ctx, manifest, outputFile, classLoaderContexts)
 }
 
 // verifyUsesLibrariesAPK checks the <uses-library> tags in the manifest of an APK against the build
 // system and returns the path to a copy of the APK.
-func (u *usesLibrary) verifyUsesLibrariesAPK(ctx android.ModuleContext, apk android.Path) {
-	u.verifyUsesLibraries(ctx, apk, nil) // for APKs manifest_check does not write output file
+func (u *usesLibrary) verifyUsesLibrariesAPK(ctx android.ModuleContext, apk android.Path,
+	classLoaderContexts *dexpreopt.ClassLoaderContextMap) {
+	u.verifyUsesLibraries(ctx, apk, nil, classLoaderContexts) // for APKs manifest_check does not write output file
 }
