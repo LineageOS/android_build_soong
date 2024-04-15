@@ -391,6 +391,7 @@ func (x *registerMutatorsContext) BottomUpBlueprint(name string, m blueprint.Bot
 
 type IncomingTransitionContext interface {
 	ArchModuleContext
+	ModuleProviderContext
 
 	// Module returns the target of the dependency edge for which the transition
 	// is being computed
@@ -404,6 +405,7 @@ type IncomingTransitionContext interface {
 
 type OutgoingTransitionContext interface {
 	ArchModuleContext
+	ModuleProviderContext
 
 	// Module returns the target of the dependency edge for which the transition
 	// is being computed
@@ -538,6 +540,10 @@ func (c *outgoingTransitionContextImpl) DeviceConfig() DeviceConfig {
 	return DeviceConfig{c.bp.Config().(Config).deviceConfig}
 }
 
+func (c *outgoingTransitionContextImpl) provider(provider blueprint.AnyProviderKey) (any, bool) {
+	return c.bp.Provider(provider)
+}
+
 func (a *androidTransitionMutator) OutgoingTransition(bpctx blueprint.OutgoingTransitionContext, sourceVariation string) string {
 	if m, ok := bpctx.Module().(Module); ok {
 		ctx := outgoingTransitionContextPool.Get().(*outgoingTransitionContextImpl)
@@ -567,6 +573,10 @@ func (c *incomingTransitionContextImpl) Config() Config {
 
 func (c *incomingTransitionContextImpl) DeviceConfig() DeviceConfig {
 	return DeviceConfig{c.bp.Config().(Config).deviceConfig}
+}
+
+func (c *incomingTransitionContextImpl) provider(provider blueprint.AnyProviderKey) (any, bool) {
+	return c.bp.Provider(provider)
 }
 
 func (a *androidTransitionMutator) IncomingTransition(bpctx blueprint.IncomingTransitionContext, incomingVariation string) string {
