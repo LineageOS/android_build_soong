@@ -92,7 +92,8 @@ type SAbiProperties struct {
 
 	// Include directories that may contain ABI information exported by a library.
 	// These directories are passed to the header-abi-dumper.
-	ReexportedIncludes []string `blueprint:"mutated"`
+	ReexportedIncludes       []string `blueprint:"mutated"`
+	ReexportedSystemIncludes []string `blueprint:"mutated"`
 }
 
 type sabi struct {
