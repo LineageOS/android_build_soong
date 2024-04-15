@@ -505,6 +505,7 @@ type TransitionMutator interface {
 type androidTransitionMutator struct {
 	finalPhase bool
 	mutator    TransitionMutator
+	name       string
 }
 
 func (a *androidTransitionMutator) Split(ctx blueprint.BaseModuleContext) []string {
@@ -586,6 +587,9 @@ func (a *androidTransitionMutator) Mutate(ctx blueprint.BottomUpMutatorContext, 
 	if am, ok := ctx.Module().(Module); ok {
 		mctx := bottomUpMutatorContextFactory(ctx, am, a.finalPhase)
 		defer bottomUpMutatorContextPool.Put(mctx)
+		base := am.base()
+		base.commonProperties.DebugMutators = append(base.commonProperties.DebugMutators, a.name)
+		base.commonProperties.DebugVariations = append(base.commonProperties.DebugVariations, variation)
 		a.mutator.Mutate(mctx, variation)
 	}
 }
@@ -594,6 +598,7 @@ func (x *registerMutatorsContext) Transition(name string, m TransitionMutator) {
 	atm := &androidTransitionMutator{
 		finalPhase: x.finalPhase,
 		mutator:    m,
+		name:       name,
 	}
 	mutator := &mutator{
 		name:              name,
