@@ -2385,6 +2385,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 		}
 
 		addCLCFromDep(ctx, module, j.classLoaderContexts)
+		addMissingOptionalUsesLibsFromDep(ctx, module, &j.usesLibrary)
 	})
 
 	return deps
