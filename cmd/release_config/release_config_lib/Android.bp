@@ -17,14 +17,20 @@ package {
 }
 
 bootstrap_go_package {
-    name: "soong-cmd-release_config-proto",
-    pkgPath: "android/soong/release_config/release_config_proto",
+    name: "soong-cmd-release_config-lib",
+    pkgPath: "android/soong/release_config/release_config_lib",
     deps: [
+        "golang-protobuf-encoding-prototext",
         "golang-protobuf-reflect-protoreflect",
         "golang-protobuf-runtime-protoimpl",
+        "soong-cmd-release_config-proto",
     ],
     srcs: [
-        "build_flags_src.pb.go",
-        "build_flags_out.pb.go",
+        "flag_artifact.go",
+        "flag_declaration.go",
+        "flag_value.go",
+        "release_config.go",
+        "release_configs.go",
+        "util.go",
     ],
 }

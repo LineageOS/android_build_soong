@@ -26,6 +26,11 @@ option go_package = "android/soong/release_config/release_config_proto";
 //      RELEASE_MY_PACKAGE_FLAG is a valid name, while MY_PACKAGE_FLAG, and
 //      RELEASE_MY_PACKAGE__FLAG are invalid.
 //
+// # namespace: namespace the flag belongs to
+//
+//    format: a lowercase string in snake_case format, no consecutive underscores, and no leading
+//      digit. For example android_bar_system
+//
 // # package: package to which the flag belongs
 //
 //    format: lowercase strings in snake_case format, delimited by dots, no
@@ -77,6 +82,10 @@ message flag_declaration {
   // See # name for format detail
   optional string name = 1;
 
+  // Namespace the flag belongs to (required)
+  // See # namespace for format detail
+  optional string namespace = 2;
+
   // Text description of the flag's purpose.
   optional string description = 3;
 
@@ -96,12 +105,6 @@ message flag_declaration {
   // The package associated with this flag.
   // (when Gantry is ready for it) optional string package = 207;
   reserved 207;
-
-  // Temporarily allow origin at the flag declaration level while we
-  // move flags to their own locations.
-  optional string origin = 208;
-
-  // TODO: do we want to include "first used in" (= ap2a)?
 }
 
 message flag_value {
@@ -140,9 +143,6 @@ message release_alias {
 message release_config_map {
   // Any aliases.
   repeated release_alias aliases = 1;
-
-  // The origin for flags declared here.
-  optional string origin = 2;
 
   // The default container for flags declared here.
   optional container default_container = 3;
