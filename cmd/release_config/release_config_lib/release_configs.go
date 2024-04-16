@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package release_config_lib
 
 import (
 	"cmp"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/fs"
 	"os"
@@ -31,105 +30,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var verboseFlag bool
-
-type StringList []string
-
-func (l *StringList) Set(v string) error {
-	*l = append(*l, v)
-	return nil
-}
-
-func (l *StringList) String() string {
-	return fmt.Sprintf("%v", *l)
-}
-
-var releaseConfigMapPaths StringList
-
-func DumpProtos(outDir string, message proto.Message) error {
-	basePath := filepath.Join(outDir, "all_release_configs")
-	writer := func(suffix string, marshal func() ([]byte, error)) error {
-		data, err := marshal()
-		if err != nil {
-			return err
-		}
-		return os.WriteFile(fmt.Sprintf("%s.%s", basePath, suffix), data, 0644)
-	}
-	err := writer("textproto", func() ([]byte, error) { return prototext.MarshalOptions{Multiline: true}.Marshal(message) })
-	if err != nil {
-		return err
-	}
-
-	err = writer("pb", func() ([]byte, error) { return proto.Marshal(message) })
-	if err != nil {
-		return err
-	}
-
-	return writer("json", func() ([]byte, error) { return json.MarshalIndent(message, "", "  ") })
-}
-
-func LoadTextproto(path string, message proto.Message) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	ret := prototext.Unmarshal(data, message)
-	if verboseFlag {
-		debug, _ := prototext.Marshal(message)
-		fmt.Printf("%s: %s\n", path, debug)
-	}
-	return ret
-}
-
-func WalkTextprotoFiles(root string, subdir string, Func fs.WalkDirFunc) error {
-	path := filepath.Join(root, subdir)
-	if _, err := os.Stat(path); err != nil {
-		// Missing subdirs are not an error.
-		return nil
-	}
-	return filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if strings.HasSuffix(d.Name(), ".textproto") && d.Type().IsRegular() {
-			return Func(path, d, err)
-		}
-		return nil
-	})
-}
-
-type FlagValue struct {
-	// The path providing this value.
-	path string
-
-	// Protobuf
-	proto release_config_proto.FlagValue
-}
-
-func FlagValueFactory(protoPath string) (fv *FlagValue) {
-	fv = &FlagValue{path: protoPath}
-	if protoPath != "" {
-		LoadTextproto(protoPath, &fv.proto)
-	}
-	return fv
-}
-
-// One directory's contribution to the a release config.
-type ReleaseConfigContribution struct {
-	// Paths to files providing this config.
-	path string
-
-	// The index of the config directory where this release config
-	// contribution was declared.
-	// Flag values cannot be set in a location with a lower index.
-	DeclarationIndex int
-
-	// Protobufs relevant to the config.
-	proto release_config_proto.ReleaseConfig
-
-	FlagValues []*FlagValue
-}
-
 // A single release_config_map.textproto and its associated data.
 // Used primarily for debugging.
 type ReleaseConfigMap struct {
@@ -142,51 +42,6 @@ type ReleaseConfigMap struct {
 	ReleaseConfigContributions map[string]*ReleaseConfigContribution
 	FlagDeclarations           []release_config_proto.FlagDeclaration
 }
-
-// A generated release config.
-type ReleaseConfig struct {
-	// the Name of the release config
-	Name string
-
-	// The index of the config directory where this release config was
-	// first declared.
-	// Flag values cannot be set in a location with a lower index.
-	DeclarationIndex int
-
-	// What contributes to this config.
-	Contributions []*ReleaseConfigContribution
-
-	// Aliases for this release
-	OtherNames []string
-
-	// The names of release configs that we inherit
-	InheritNames []string
-
-	// Unmarshalled flag artifacts
-	FlagArtifacts FlagArtifacts
-
-	// Generated release config
-	ReleaseConfigArtifact *release_config_proto.ReleaseConfigArtifact
-
-	// We have begun compiling this release config.
-	compileInProgress bool
-}
-
-type FlagArtifact struct {
-	FlagDeclaration *release_config_proto.FlagDeclaration
-
-	// The index of the config directory where this flag was declared.
-	// Flag values cannot be set in a location with a lower index.
-	DeclarationIndex int
-
-	Traces []*release_config_proto.Tracepoint
-
-	// Assigned value
-	Value *release_config_proto.Value
-}
-
-// Key is flag name.
-type FlagArtifacts map[string]*FlagArtifact
 
 type ReleaseConfigDirMap map[string]int
 
@@ -215,28 +70,27 @@ type ReleaseConfigs struct {
 	ConfigDirIndexes ReleaseConfigDirMap
 }
 
-func (src *FlagArtifact) Clone() *FlagArtifact {
-	value := &release_config_proto.Value{}
-	proto.Merge(value, src.Value)
-	return &FlagArtifact{
-		FlagDeclaration: src.FlagDeclaration,
-		Traces:          src.Traces,
-		Value:           value,
+func (configs *ReleaseConfigs) DumpArtifact(outDir string) error {
+	message := &configs.Artifact
+	basePath := filepath.Join(outDir, "all_release_configs")
+	writer := func(suffix string, marshal func() ([]byte, error)) error {
+		data, err := marshal()
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(fmt.Sprintf("%s.%s", basePath, suffix), data, 0644)
 	}
-}
+	err := writer("textproto", func() ([]byte, error) { return prototext.MarshalOptions{Multiline: true}.Marshal(message) })
+	if err != nil {
+		return err
+	}
 
-func (src FlagArtifacts) Clone() (dst FlagArtifacts) {
-	if dst == nil {
-		dst = make(FlagArtifacts)
+	err = writer("pb", func() ([]byte, error) { return proto.Marshal(message) })
+	if err != nil {
+		return err
 	}
-	for k, v := range src {
-		dst[k] = v.Clone()
-	}
-	return
-}
 
-func ReleaseConfigFactory(name string, index int) (c *ReleaseConfig) {
-	return &ReleaseConfig{Name: name, DeclarationIndex: index}
+	return writer("json", func() ([]byte, error) { return json.MarshalIndent(message, "", "  ") })
 }
 
 func ReleaseConfigsFactory() (c *ReleaseConfigs) {
@@ -260,19 +114,8 @@ func ReleaseConfigMapFactory(protoPath string) (m *ReleaseConfigMap) {
 	return m
 }
 
-func FlagDeclarationFactory(protoPath string) (fd *release_config_proto.FlagDeclaration) {
-	fd = &release_config_proto.FlagDeclaration{}
-	if protoPath != "" {
-		LoadTextproto(protoPath, fd)
-	}
-	return fd
-}
-
 func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex int) error {
 	m := ReleaseConfigMapFactory(path)
-	if m.proto.Origin == nil || *m.proto.Origin == "" {
-		return fmt.Errorf("Release config map %s lacks origin", path)
-	}
 	if m.proto.DefaultContainer == nil {
 		return fmt.Errorf("Release config map %s lacks default_container", path)
 	}
@@ -296,13 +139,13 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 		if flagDeclaration.Container == nil {
 			flagDeclaration.Container = m.proto.DefaultContainer
 		}
-		// TODO: drop flag_declaration.origin from the proto.
-		if flagDeclaration.Origin == nil {
-			flagDeclaration.Origin = m.proto.Origin
+		// TODO: once we have namespaces initialized, we can throw an error here.
+		if flagDeclaration.Namespace == nil {
+			flagDeclaration.Namespace = proto.String("android_UNKNOWN")
 		}
-		// There is always a default value.
+		// If the input didn't specify a value, create one (== UnspecifiedValue).
 		if flagDeclaration.Value == nil {
-			flagDeclaration.Value = &release_config_proto.Value{Val: &release_config_proto.Value_UnspecifiedValue{true}}
+			flagDeclaration.Value = &release_config_proto.Value{Val: &release_config_proto.Value_UnspecifiedValue{false}}
 		}
 		m.FlagDeclarations = append(m.FlagDeclarations, *flagDeclaration)
 		name := *flagDeclaration.Name
@@ -414,7 +257,7 @@ func (configs *ReleaseConfigs) DumpMakefile(outDir, targetRelease string) error 
 		addVar(name, "VALUE", value)
 		addVar(name, "DECLARED_IN", *flag.Traces[0].Source)
 		addVar(name, "SET_IN", *flag.Traces[len(flag.Traces)-1].Source)
-		addVar(name, "ORIGIN", *decl.Origin)
+		addVar(name, "NAMESPACE", *decl.Namespace)
 	}
 	pNames := []string{}
 	for k, _ := range partitions {
@@ -493,172 +336,14 @@ func (configs *ReleaseConfigs) GenerateReleaseConfigs(targetRelease string) erro
 	return nil
 }
 
-func MarshalValue(value *release_config_proto.Value) string {
-	switch val := value.Val.(type) {
-	case *release_config_proto.Value_UnspecifiedValue:
-		// Value was never set.
-		return ""
-	case *release_config_proto.Value_StringValue:
-		return val.StringValue
-	case *release_config_proto.Value_BoolValue:
-		if val.BoolValue {
-			return "true"
-		}
-		// False ==> empty string
-		return ""
-	case *release_config_proto.Value_Obsolete:
-		return " #OBSOLETE"
-	default:
-		// Flagged as error elsewhere, so return empty string here.
-		return ""
-	}
-}
-
-func (fa *FlagArtifact) UpdateValue(flagValue FlagValue) error {
-	name := *flagValue.proto.Name
-	fa.Traces = append(fa.Traces, &release_config_proto.Tracepoint{Source: proto.String(flagValue.path), Value: flagValue.proto.Value})
-	if fa.Value.GetObsolete() {
-		return fmt.Errorf("Attempting to set obsolete flag %s. Trace=%v", name, fa.Traces)
-	}
-	switch val := flagValue.proto.Value.Val.(type) {
-	case *release_config_proto.Value_StringValue:
-		fa.Value = &release_config_proto.Value{Val: &release_config_proto.Value_StringValue{val.StringValue}}
-	case *release_config_proto.Value_BoolValue:
-		fa.Value = &release_config_proto.Value{Val: &release_config_proto.Value_BoolValue{val.BoolValue}}
-	case *release_config_proto.Value_Obsolete:
-		if !val.Obsolete {
-			return fmt.Errorf("%s: Cannot set obsolete=false.  Trace=%v", name, fa.Traces)
-		}
-		fa.Value = &release_config_proto.Value{Val: &release_config_proto.Value_Obsolete{true}}
-	default:
-		return fmt.Errorf("Invalid type for flag_value: %T.  Trace=%v", val, fa.Traces)
-	}
-	return nil
-}
-
-func (fa *FlagArtifact) Marshal() (*release_config_proto.FlagArtifact, error) {
-	return &release_config_proto.FlagArtifact{
-		FlagDeclaration: fa.FlagDeclaration,
-		Value:           fa.Value,
-		Traces:          fa.Traces,
-	}, nil
-}
-
-func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) error {
-	if config.ReleaseConfigArtifact != nil {
-		return nil
-	}
-	if config.compileInProgress {
-		return fmt.Errorf("Loop detected for release config %s", config.Name)
-	}
-	config.compileInProgress = true
-
-	// Generate any configs we need to inherit.  This will detect loops in
-	// the config.
-	contributionsToApply := []*ReleaseConfigContribution{}
-	myInherits := []string{}
-	myInheritsSet := make(map[string]bool)
-	for _, inherit := range config.InheritNames {
-		if _, ok := myInheritsSet[inherit]; ok {
-			continue
-		}
-		myInherits = append(myInherits, inherit)
-		myInheritsSet[inherit] = true
-		iConfig, err := configs.GetReleaseConfig(inherit)
-		if err != nil {
-			return err
-		}
-		iConfig.GenerateReleaseConfig(configs)
-		contributionsToApply = append(contributionsToApply, iConfig.Contributions...)
-	}
-	contributionsToApply = append(contributionsToApply, config.Contributions...)
-
-	myAconfigValueSets := []string{}
-	myFlags := configs.FlagArtifacts.Clone()
-	myDirsMap := make(map[int]bool)
-	for _, contrib := range contributionsToApply {
-		myAconfigValueSets = append(myAconfigValueSets, contrib.proto.AconfigValueSets...)
-		myDirsMap[contrib.DeclarationIndex] = true
-		for _, value := range contrib.FlagValues {
-			fa, ok := myFlags[*value.proto.Name]
-			if !ok {
-				return fmt.Errorf("Setting value for undefined flag %s in %s\n", *value.proto.Name, value.path)
-			}
-			myDirsMap[fa.DeclarationIndex] = true
-			if fa.DeclarationIndex > contrib.DeclarationIndex {
-				// Setting location is to the left of declaration.
-				return fmt.Errorf("Setting value for flag %s not allowed in %s\n", *value.proto.Name, value.path)
-			}
-			if err := fa.UpdateValue(*value); err != nil {
-				return err
-			}
-		}
-	}
-
-	directories := []string{}
-	for idx, confDir := range configs.ConfigDirs {
-		if _, ok := myDirsMap[idx]; ok {
-			directories = append(directories, confDir)
-		}
-	}
-
-	config.FlagArtifacts = myFlags
-	config.ReleaseConfigArtifact = &release_config_proto.ReleaseConfigArtifact{
-		Name:       proto.String(config.Name),
-		OtherNames: config.OtherNames,
-		FlagArtifacts: func() []*release_config_proto.FlagArtifact {
-			ret := []*release_config_proto.FlagArtifact{}
-			for _, flag := range myFlags {
-				ret = append(ret, &release_config_proto.FlagArtifact{
-					FlagDeclaration: flag.FlagDeclaration,
-					Traces:          flag.Traces,
-					Value:           flag.Value,
-				})
-			}
-			return ret
-		}(),
-		AconfigValueSets: myAconfigValueSets,
-		Inherits:         myInherits,
-		Directories:      directories,
-	}
-
-	config.compileInProgress = false
-	return nil
-}
-
-func main() {
-	var targetRelease string
-	var outputDir string
-
-	outEnv := os.Getenv("OUT_DIR")
-	if outEnv == "" {
-		outEnv = "out"
-	}
-	defaultOutputDir := filepath.Join(outEnv, "soong", "release-config")
-	var defaultMapPaths StringList
-	defaultLocations := StringList{
-		"build/release/release_config_map.textproto",
-		"vendor/google_shared/build/release/release_config_map.textproto",
-		"vendor/google/release/release_config_map.textproto",
-	}
-	for _, path := range defaultLocations {
-		if _, err := os.Stat(path); err == nil {
-			defaultMapPaths = append(defaultMapPaths, path)
-		}
-	}
-	prodMaps := os.Getenv("PRODUCT_RELEASE_CONFIG_MAPS")
-	if prodMaps != "" {
-		defaultMapPaths = append(defaultMapPaths, strings.Split(prodMaps, " ")...)
-	}
-
-	flag.BoolVar(&verboseFlag, "debug", false, "print debugging information")
-	flag.Var(&releaseConfigMapPaths, "map", "path to a release_config_map.textproto. may be repeated")
-	flag.StringVar(&targetRelease, "release", "trunk_staging", "TARGET_RELEASE for this build")
-	flag.StringVar(&outputDir, "out_dir", defaultOutputDir, "basepath for the output. Multiple formats are created")
-	flag.Parse()
+func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease string) (*ReleaseConfigs, error) {
+	var err error
 
 	if len(releaseConfigMapPaths) == 0 {
-		releaseConfigMapPaths = defaultMapPaths
+		releaseConfigMapPaths = GetDefaultMapPaths()
+		if len(releaseConfigMapPaths) == 0 {
+			return nil, fmt.Errorf("No maps found")
+		}
 		fmt.Printf("No --map argument provided.  Using: --map %s\n", strings.Join(releaseConfigMapPaths, " --map "))
 	}
 
@@ -668,24 +353,13 @@ func main() {
 		configDir := filepath.Dir(releaseConfigMapPath)
 		configs.ConfigDirIndexes[configDir] = idx
 		configs.ConfigDirs = append(configs.ConfigDirs, configDir)
-		err := configs.LoadReleaseConfigMap(releaseConfigMapPath, idx)
+		err = configs.LoadReleaseConfigMap(releaseConfigMapPath, idx)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 	}
 
 	// Now that we have all of the release config maps, can meld them and generate the artifacts.
-	err := configs.GenerateReleaseConfigs(targetRelease)
-	if err != nil {
-		panic(err)
-	}
-	err = os.MkdirAll(outputDir, 0775)
-	if err != nil {
-		panic(err)
-	}
-	err = configs.DumpMakefile(outputDir, targetRelease)
-	if err != nil {
-		panic(err)
-	}
-	DumpProtos(outputDir, &configs.Artifact)
+	err = configs.GenerateReleaseConfigs(targetRelease)
+	return configs, err
 }
