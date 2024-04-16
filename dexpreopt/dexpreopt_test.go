@@ -101,7 +101,7 @@ func TestDexPreopt(t *testing.T) {
 	module := testSystemModuleConfig(ctx, "test")
 	productPackages := android.PathForTesting("product_packages.txt")
 
-	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module, productPackages)
+	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module, productPackages, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +161,7 @@ func TestDexPreoptSystemOther(t *testing.T) {
 	for _, test := range tests {
 		global.PatternsOnSystemOther = test.patterns
 		for _, mt := range test.moduleTests {
-			rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, mt.module, productPackages)
+			rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, mt.module, productPackages, true)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -181,6 +181,11 @@ func TestDexPreoptSystemOther(t *testing.T) {
 }
 
 func TestDexPreoptApexSystemServerJars(t *testing.T) {
+	// modify the global variable for test
+	var oldDexpreoptRunningInSoong = DexpreoptRunningInSoong
+	DexpreoptRunningInSoong = true
+
+	// test begin
 	config := android.TestConfig("out", nil, "", nil)
 	ctx := android.BuilderContextForTesting(config)
 	globalSoong := globalSoongConfigForTests(ctx)
@@ -191,7 +196,7 @@ func TestDexPreoptApexSystemServerJars(t *testing.T) {
 	global.ApexSystemServerJars = android.CreateTestConfiguredJarList(
 		[]string{"com.android.apex1:service-A"})
 
-	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module, productPackages)
+	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module, productPackages, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,6 +207,18 @@ func TestDexPreoptApexSystemServerJars(t *testing.T) {
 	}
 
 	android.AssertStringEquals(t, "installs", wantInstalls.String(), rule.Installs().String())
+
+	android.AssertStringListContains(t, "apex sscp jar copy", rule.Outputs().Strings(), "out/soong/system_server_dexjars/service-A.jar")
+
+	// rule with apex sscp cp as false
+	rule, err = GenerateDexpreoptRule(ctx, globalSoong, global, module, productPackages, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	android.AssertStringListDoesNotContain(t, "apex sscp jar copy", rule.Outputs().Strings(), "out/soong/system_server_dexjars/service-A.jar")
+
+	// cleanup the global variable for test
+	DexpreoptRunningInSoong = oldDexpreoptRunningInSoong
 }
 
 func TestDexPreoptStandaloneSystemServerJars(t *testing.T) {
@@ -215,7 +232,7 @@ func TestDexPreoptStandaloneSystemServerJars(t *testing.T) {
 	global.StandaloneSystemServerJars = android.CreateTestConfiguredJarList(
 		[]string{"platform:service-A"})
 
-	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module, productPackages)
+	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module, productPackages, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,7 +256,7 @@ func TestDexPreoptSystemExtSystemServerJars(t *testing.T) {
 	global.StandaloneSystemServerJars = android.CreateTestConfiguredJarList(
 		[]string{"system_ext:service-A"})
 
-	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module, productPackages)
+	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module, productPackages, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -263,7 +280,7 @@ func TestDexPreoptApexStandaloneSystemServerJars(t *testing.T) {
 	global.ApexStandaloneSystemServerJars = android.CreateTestConfiguredJarList(
 		[]string{"com.android.apex1:service-A"})
 
-	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module, productPackages)
+	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module, productPackages, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -286,7 +303,7 @@ func TestDexPreoptProfile(t *testing.T) {
 
 	module.ProfileClassListing = android.OptionalPathForPath(android.PathForTesting("profile"))
 
-	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module, productPackages)
+	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module, productPackages, true)
 	if err != nil {
 		t.Fatal(err)
 	}

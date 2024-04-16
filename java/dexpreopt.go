@@ -243,10 +243,6 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.BaseModuleContext, libName s
 		return true
 	}
 
-	if disableSourceApexVariant(ctx) {
-		return true
-	}
-
 	if _, isApex := android.ModuleProvider(ctx, android.ApexBundleInfoProvider); isApex {
 		// dexpreopt rules for system server jars can be generated in the ModuleCtx of prebuilt apexes
 		return false
@@ -501,8 +497,12 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, libName string, dexJa
 		Output(appProductPackages)
 	productPackagesRule.Restat().Build("product_packages."+dexJarStem, "dexpreopt product_packages")
 
+	// Prebuilts are active, do not copy the dexpreopt'd source javalib to out/soong/system_server_dexjars
+	// The javalib from the deapexed prebuilt will be copied to this location.
+	// TODO (b/331665856): Implement a principled solution for this.
+	copyApexSystemServerJarDex := !disableSourceApexVariant(ctx)
 	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(
-		ctx, globalSoong, global, dexpreoptConfig, appProductPackages)
+		ctx, globalSoong, global, dexpreoptConfig, appProductPackages, copyApexSystemServerJarDex)
 	if err != nil {
 		ctx.ModuleErrorf("error generating dexpreopt rule: %s", err.Error())
 		return
