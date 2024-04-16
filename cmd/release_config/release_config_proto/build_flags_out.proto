@@ -82,5 +82,8 @@ message release_configs_artifact {
 
   // All other release configs defined for this TARGET_PRODUCT.
   repeated release_config_artifact other_release_configs = 2;
+
+  // Map of release_config_artifact.directories to release_config_map message.
+  map<string, release_config_map> release_config_maps_map = 3;
 }
 

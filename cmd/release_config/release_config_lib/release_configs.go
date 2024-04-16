@@ -50,6 +50,9 @@ type ReleaseConfigs struct {
 	// Ordered list of release config maps processed.
 	ReleaseConfigMaps []*ReleaseConfigMap
 
+	// Map of directory to *ReleaseConfigMap
+	ReleaseConfigMapsMap map[string]*ReleaseConfigMap
+
 	// Aliases
 	Aliases map[string]*string
 
@@ -95,11 +98,12 @@ func (configs *ReleaseConfigs) DumpArtifact(outDir string) error {
 
 func ReleaseConfigsFactory() (c *ReleaseConfigs) {
 	return &ReleaseConfigs{
-		Aliases:          make(map[string]*string),
-		FlagArtifacts:    make(map[string]*FlagArtifact),
-		ReleaseConfigs:   make(map[string]*ReleaseConfig),
-		ConfigDirs:       []string{},
-		ConfigDirIndexes: make(ReleaseConfigDirMap),
+		Aliases:              make(map[string]*string),
+		FlagArtifacts:        make(map[string]*FlagArtifact),
+		ReleaseConfigs:       make(map[string]*ReleaseConfig),
+		ReleaseConfigMapsMap: make(map[string]*ReleaseConfigMap),
+		ConfigDirs:           []string{},
+		ConfigDirIndexes:     make(ReleaseConfigDirMap),
 	}
 }
 
@@ -197,6 +201,7 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 		return err
 	}
 	configs.ReleaseConfigMaps = append(configs.ReleaseConfigMaps, m)
+	configs.ReleaseConfigMapsMap[dir] = m
 	return nil
 }
 
@@ -331,6 +336,13 @@ func (configs *ReleaseConfigs) GenerateReleaseConfigs(targetRelease string) erro
 				}
 			}
 			return orc
+		}(),
+		ReleaseConfigMapsMap: func() map[string]*release_config_proto.ReleaseConfigMap {
+			ret := make(map[string]*release_config_proto.ReleaseConfigMap)
+			for k, v := range configs.ReleaseConfigMapsMap {
+				ret[k] = &v.proto
+			}
+			return ret
 		}(),
 	}
 	return nil
