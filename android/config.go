@@ -954,7 +954,11 @@ func (c *config) PlatformPreviewSdkVersion() string {
 }
 
 func (c *config) PlatformMinSupportedTargetSdkVersion() string {
-	return String(c.productVariables.Platform_min_supported_target_sdk_version)
+	var val, ok = c.productVariables.BuildFlags["RELEASE_PLATFORM_MIN_SUPPORTED_TARGET_SDK_VERSION"]
+	if !ok {
+		return ""
+	}
+	return val
 }
 
 func (c *config) PlatformBaseOS() string {
