@@ -79,11 +79,6 @@ func (t *allTeamsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	ctx.VisitAllModules(func(module Module) {
 		bpFile := ctx.BlueprintFile(module)
 
-		testModInfo := TestModuleInformation{}
-		if tmi, ok := SingletonModuleProvider(ctx, module, TestOnlyProviderKey); ok {
-			testModInfo = tmi
-		}
-
 		// Package Modules and Team Modules are stored in a map so we can look them up by name for
 		// modules without a team.
 		if pack, ok := module.(*packageModule); ok {
@@ -97,6 +92,23 @@ func (t *allTeamsSingleton) GenerateBuildActions(ctx SingletonContext) {
 			return
 		}
 
+		testModInfo := TestModuleInformation{}
+		if tmi, ok := SingletonModuleProvider(ctx, module, TestOnlyProviderKey); ok {
+			testModInfo = tmi
+		}
+
+		// Some modules, like java_test_host don't set the provider when the module isn't enabled:
+		//                                                test_only, top_level
+		//     AVFHostTestCases{os:linux_glibc,arch:common} {true true}
+		//     AVFHostTestCases{os:windows,arch:common} {false false}
+		// Generally variant information of true override false or unset.
+		if testModInfo.TestOnly == false {
+			if prevValue, exists := t.teams_for_mods[module.Name()]; exists {
+				if prevValue.testOnly == true {
+					return
+				}
+			}
+		}
 		entry := moduleTeamAndTestInfo{
 			bpFile:             bpFile,
 			testOnly:           testModInfo.TestOnly,
