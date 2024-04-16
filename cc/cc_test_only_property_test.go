@@ -78,6 +78,38 @@ func TestTestOnlyProvider(t *testing.T) {
 	}
 }
 
+func TestTestOnlyValueWithTestPerSrcProp(t *testing.T) {
+	t.Parallel()
+	ctx := android.GroupFixturePreparers(
+		prepareForCcTest,
+	).RunTestWithBp(t, `
+                // These should be test-only
+                cc_test { name: "cc-test",
+                          gtest: false,
+                          test_per_src: true,
+                          srcs: ["foo_test.cpp"],
+                          test_options: { unit_test: false, },
+                         }
+	`)
+
+	// Ensure all variation of test-per-src tests are marked test-only.
+	ctx.VisitAllModules(func(m blueprint.Module) {
+		testOnly := false
+		if provider, ok := android.OtherModuleProvider(ctx.TestContext.OtherModuleProviderAdaptor(), m, android.TestOnlyProviderKey); ok {
+			if provider.TestOnly {
+				testOnly = true
+			}
+		}
+		if module, ok := m.(*Module); ok {
+			if testModule, ok := module.installer.(*testBinary); ok {
+				if !testOnly && *testModule.Properties.Test_per_src {
+					t.Errorf("%v is not test-only but should be", m)
+				}
+			}
+		}
+	})
+}
+
 func TestTestOnlyInTeamsProto(t *testing.T) {
 	t.Parallel()
 	ctx := android.GroupFixturePreparers(
