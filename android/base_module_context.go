@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/parser"
+	"github.com/google/blueprint/proptools"
 )
 
 // BaseModuleContext is the same as blueprint.BaseModuleContext except that Config() returns
@@ -219,7 +219,7 @@ type BaseModuleContext interface {
 
 	// EvaluateConfiguration makes ModuleContext a valid proptools.ConfigurableEvaluator, so this context
 	// can be used to evaluate the final value of Configurable properties.
-	EvaluateConfiguration(parser.SelectType, string, string) (string, bool)
+	EvaluateConfiguration(condition proptools.ConfigurableCondition, property string) proptools.ConfigurableValue
 }
 
 type baseModuleContext struct {
@@ -577,6 +577,6 @@ func (b *baseModuleContext) GetPathString(skipFirst bool) string {
 	return sb.String()
 }
 
-func (m *baseModuleContext) EvaluateConfiguration(ty parser.SelectType, property, condition string) (string, bool) {
-	return m.Module().ConfigurableEvaluator(m).EvaluateConfiguration(ty, property, condition)
+func (m *baseModuleContext) EvaluateConfiguration(condition proptools.ConfigurableCondition, property string) proptools.ConfigurableValue {
+	return m.Module().ConfigurableEvaluator(m).EvaluateConfiguration(condition, property)
 }
