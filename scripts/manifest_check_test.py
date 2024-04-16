@@ -44,15 +44,17 @@ def required_apk(value):
 class EnforceUsesLibrariesTest(unittest.TestCase):
     """Unit tests for add_extract_native_libs function."""
 
-    def run_test(self, xml, apk, uses_libraries=[], optional_uses_libraries=[]): #pylint: disable=dangerous-default-value
+    def run_test(self, xml, apk, uses_libraries=[], optional_uses_libraries=[],
+                 missing_optional_uses_libraries=[]): #pylint: disable=dangerous-default-value
         doc = minidom.parseString(xml)
         try:
             relax = False
             manifest_check.enforce_uses_libraries(
-                doc, uses_libraries, optional_uses_libraries, relax, False,
-                'path/to/X/AndroidManifest.xml')
+                doc, uses_libraries, optional_uses_libraries, missing_optional_uses_libraries,
+                relax, False, 'path/to/X/AndroidManifest.xml')
             manifest_check.enforce_uses_libraries(apk, uses_libraries,
                                                   optional_uses_libraries,
+                                                  missing_optional_uses_libraries,
                                                   relax, True,
                                                   'path/to/X/X.apk')
             return True
@@ -100,6 +102,15 @@ class EnforceUsesLibrariesTest(unittest.TestCase):
         xml = self.xml_tmpl % (uses_library_xml('foo'))
         apk = self.apk_tmpl % (uses_library_apk('foo'))
         matches = self.run_test(xml, apk, optional_uses_libraries=['foo'])
+        self.assertFalse(matches)
+
+    def test_expected_missing_optional_uses_library(self):
+        xml = self.xml_tmpl % (
+            uses_library_xml('foo') + uses_library_xml('missing') + uses_library_xml('bar'))
+        apk = self.apk_tmpl % (
+            uses_library_apk('foo') + uses_library_apk('missing') + uses_library_apk('bar'))
+        matches = self.run_test(xml, apk, optional_uses_libraries=['foo', 'bar'],
+                                missing_optional_uses_libraries=['missing'])
         self.assertFalse(matches)
 
     def test_missing_uses_library(self):

@@ -3244,7 +3244,10 @@ func TestUsesLibraries(t *testing.T) {
 			name: "static-y",
 			srcs: ["a.java"],
 			uses_libs: ["runtime-required-y"],
-			optional_uses_libs: ["runtime-optional-y"],
+			optional_uses_libs: [
+				"runtime-optional-y",
+				"missing-lib-a",
+			],
 			sdk_version: "current",
 		}
 
@@ -3280,7 +3283,7 @@ func TestUsesLibraries(t *testing.T) {
 			sdk_version: "current",
 			optional_uses_libs: [
 				"bar",
-				"baz",
+				"missing-lib-b",
 			],
 		}
 
@@ -3295,7 +3298,7 @@ func TestUsesLibraries(t *testing.T) {
 			],
 			optional_uses_libs: [
 				"bar",
-				"baz",
+				"missing-lib-b",
 			],
 		}
 	`
@@ -3317,10 +3320,10 @@ func TestUsesLibraries(t *testing.T) {
 	// propagated from dependencies.
 	actualManifestFixerArgs := app.Output("manifest_fixer/AndroidManifest.xml").Args["args"]
 	expectManifestFixerArgs := `--extract-native-libs=true ` +
-		`--uses-library qux ` +
-		`--uses-library quuz ` +
 		`--uses-library foo ` +
 		`--uses-library com.non.sdk.lib ` +
+		`--uses-library qux ` +
+		`--uses-library quuz ` +
 		`--uses-library runtime-library ` +
 		`--uses-library runtime-required-x ` +
 		`--uses-library runtime-required-y ` +
@@ -3339,9 +3342,10 @@ func TestUsesLibraries(t *testing.T) {
 		`--uses-library runtime-required-x ` +
 		`--uses-library runtime-required-y ` +
 		`--optional-uses-library bar ` +
-		`--optional-uses-library baz ` +
 		`--optional-uses-library runtime-optional-x ` +
-		`--optional-uses-library runtime-optional-y `
+		`--optional-uses-library runtime-optional-y ` +
+		`--missing-optional-uses-library missing-lib-b ` +
+		`--missing-optional-uses-library missing-lib-a`
 	android.AssertStringDoesContain(t, "verify cmd args", verifyCmd, verifyArgs)
 
 	// Test that all libraries are verified for an APK (library order matters).
@@ -3350,7 +3354,7 @@ func TestUsesLibraries(t *testing.T) {
 		`--uses-library com.non.sdk.lib ` +
 		`--uses-library android.test.runner ` +
 		`--optional-uses-library bar ` +
-		`--optional-uses-library baz `
+		`--missing-optional-uses-library missing-lib-b `
 	android.AssertStringDoesContain(t, "verify apk cmd args", verifyApkCmd, verifyApkArgs)
 
 	// Test that necessary args are passed for constructing CLC in Ninja phase.
