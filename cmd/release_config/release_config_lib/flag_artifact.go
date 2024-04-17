@@ -17,29 +17,37 @@ package release_config_lib
 import (
 	"fmt"
 
-	"android/soong/cmd/release_config/release_config_proto"
+	rc_proto "android/soong/cmd/release_config/release_config_proto"
 
 	"google.golang.org/protobuf/proto"
 )
 
+// A flag artifact, with its final value and declaration/override history.
 type FlagArtifact struct {
-	FlagDeclaration *release_config_proto.FlagDeclaration
+	// The flag_declaration message.
+	FlagDeclaration *rc_proto.FlagDeclaration
 
 	// The index of the config directory where this flag was declared.
 	// Flag values cannot be set in a location with a lower index.
 	DeclarationIndex int
 
-	Traces []*release_config_proto.Tracepoint
+	// A history of value assignments and overrides.
+	Traces []*rc_proto.Tracepoint
 
-	// Assigned value
-	Value *release_config_proto.Value
+	// The value of the flag.
+	Value *rc_proto.Value
 }
 
 // Key is flag name.
 type FlagArtifacts map[string]*FlagArtifact
 
+// Create a clone of the flag artifact.
+//
+// Returns:
+//
+//	*FlagArtifact: the copy of the artifact.
 func (src *FlagArtifact) Clone() *FlagArtifact {
-	value := &release_config_proto.Value{}
+	value := &rc_proto.Value{}
 	proto.Merge(value, src.Value)
 	return &FlagArtifact{
 		FlagDeclaration: src.FlagDeclaration,
@@ -48,6 +56,11 @@ func (src *FlagArtifact) Clone() *FlagArtifact {
 	}
 }
 
+// Clone FlagArtifacts.
+//
+// Returns:
+//
+//	FlagArtifacts: a copy of the source FlagArtifacts.
 func (src FlagArtifacts) Clone() (dst FlagArtifacts) {
 	if dst == nil {
 		dst = make(FlagArtifacts)
@@ -58,23 +71,34 @@ func (src FlagArtifacts) Clone() (dst FlagArtifacts) {
 	return
 }
 
+// Update the value of a flag.
+//
+// This appends to flagArtifact.Traces, and updates flagArtifact.Value.
+//
+// Args:
+//
+//	flagValue FlagValue: the value to assign
+//
+// Returns:
+//
+//	error: any error encountered
 func (fa *FlagArtifact) UpdateValue(flagValue FlagValue) error {
 	name := *flagValue.proto.Name
-	fa.Traces = append(fa.Traces, &release_config_proto.Tracepoint{Source: proto.String(flagValue.path), Value: flagValue.proto.Value})
+	fa.Traces = append(fa.Traces, &rc_proto.Tracepoint{Source: proto.String(flagValue.path), Value: flagValue.proto.Value})
 	if fa.Value.GetObsolete() {
 		return fmt.Errorf("Attempting to set obsolete flag %s. Trace=%v", name, fa.Traces)
 	}
-	var newValue *release_config_proto.Value
+	var newValue *rc_proto.Value
 	switch val := flagValue.proto.Value.Val.(type) {
-	case *release_config_proto.Value_StringValue:
-		newValue = &release_config_proto.Value{Val: &release_config_proto.Value_StringValue{val.StringValue}}
-	case *release_config_proto.Value_BoolValue:
-		newValue = &release_config_proto.Value{Val: &release_config_proto.Value_BoolValue{val.BoolValue}}
-	case *release_config_proto.Value_Obsolete:
+	case *rc_proto.Value_StringValue:
+		newValue = &rc_proto.Value{Val: &rc_proto.Value_StringValue{val.StringValue}}
+	case *rc_proto.Value_BoolValue:
+		newValue = &rc_proto.Value{Val: &rc_proto.Value_BoolValue{val.BoolValue}}
+	case *rc_proto.Value_Obsolete:
 		if !val.Obsolete {
 			return fmt.Errorf("%s: Cannot set obsolete=false.  Trace=%v", name, fa.Traces)
 		}
-		newValue = &release_config_proto.Value{Val: &release_config_proto.Value_Obsolete{true}}
+		newValue = &rc_proto.Value{Val: &rc_proto.Value_Obsolete{true}}
 	default:
 		return fmt.Errorf("Invalid type for flag_value: %T.  Trace=%v", val, fa.Traces)
 	}
@@ -85,8 +109,9 @@ func (fa *FlagArtifact) UpdateValue(flagValue FlagValue) error {
 	return nil
 }
 
-func (fa *FlagArtifact) Marshal() (*release_config_proto.FlagArtifact, error) {
-	return &release_config_proto.FlagArtifact{
+// Marshal the FlagArtifact into a flag_artifact message.
+func (fa *FlagArtifact) Marshal() (*rc_proto.FlagArtifact, error) {
+	return &rc_proto.FlagArtifact{
 		FlagDeclaration: fa.FlagDeclaration,
 		Value:           fa.Value,
 		Traces:          fa.Traces,
