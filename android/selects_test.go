@@ -269,11 +269,11 @@ func TestSelects(t *testing.T) {
 			},
 		},
 		{
-			name: "Select on variant",
+			name: "Select on arch",
 			bp: `
 			my_module_type {
 				name: "foo",
-				my_string: select(variant("arch"), {
+				my_string: select(arch(), {
 					"x86": "my_x86",
 					"x86_64": "my_x86_64",
 					"arm": "my_arm",
@@ -284,6 +284,22 @@ func TestSelects(t *testing.T) {
 			`,
 			provider: selectsTestProvider{
 				my_string: proptools.StringPtr("my_arm64"),
+			},
+		},
+		{
+			name: "Select on os",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_string: select(os(), {
+					"android": "my_android",
+					"linux": "my_linux",
+					default: "my_default",
+				}),
+			}
+			`,
+			provider: selectsTestProvider{
+				my_string: proptools.StringPtr("my_android"),
 			},
 		},
 		{
