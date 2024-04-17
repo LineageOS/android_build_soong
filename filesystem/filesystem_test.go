@@ -84,10 +84,19 @@ func TestFileSystemDeps(t *testing.T) {
 		cc_library {
 			name: "libbar",
 			required: ["libbaz"],
+			target: {
+				platform: {
+					required: ["lib_platform_only"],
+				},
+			},
 		}
 
 		cc_library {
 			name: "libbaz",
+		}
+
+		cc_library {
+			name: "lib_platform_only",
 		}
 
 		phony {
@@ -120,6 +129,7 @@ func TestFileSystemDeps(t *testing.T) {
 		"lib64/libbar.so",
 		"lib64/libbaz.so",
 		"lib64/libquz.so",
+		"lib64/lib_platform_only.so",
 		"etc/bpf/bpf.o",
 	}
 	for _, e := range expected {
