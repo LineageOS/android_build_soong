@@ -1478,13 +1478,3 @@ func retrieveEncodedBootDexJarFromModule(ctx android.ModuleContext, module andro
 	}
 	return bootDexJar.Path()
 }
-
-// extractEncodedDexJarsFromModules extracts the encoded dex jars from the supplied modules.
-func extractEncodedDexJarsFromModules(ctx android.ModuleContext, contents []android.Module) bootDexJarByModule {
-	encodedDexJarsByModuleName := bootDexJarByModule{}
-	for _, module := range contents {
-		path := retrieveEncodedBootDexJarFromModule(ctx, module)
-		encodedDexJarsByModuleName.addPath(module, path)
-	}
-	return encodedDexJarsByModuleName
-}
