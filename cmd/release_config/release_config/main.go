@@ -16,7 +16,9 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
+	"path/filepath"
 
 	rc_lib "android/soong/cmd/release_config/release_config_lib"
 )
@@ -29,12 +31,23 @@ func main() {
 	var outputDir string
 	var err error
 	var configs *rc_lib.ReleaseConfigs
+	var json, pb, textproto bool
+	var product string
+
+	defaultRelease := os.Getenv("TARGET_RELEASE")
+	if defaultRelease == "" {
+		defaultRelease = "trunk_staging"
+	}
 
 	flag.StringVar(&top, "top", ".", "path to top of workspace")
+	flag.StringVar(&product, "product", os.Getenv("TARGET_PRODUCT"), "TARGET_PRODUCT for the build")
 	flag.BoolVar(&quiet, "quiet", false, "disable warning messages")
 	flag.Var(&releaseConfigMapPaths, "map", "path to a release_config_map.textproto. may be repeated")
-	flag.StringVar(&targetRelease, "release", "trunk_staging", "TARGET_RELEASE for this build")
+	flag.StringVar(&targetRelease, "release", defaultRelease, "TARGET_RELEASE for this build")
 	flag.StringVar(&outputDir, "out_dir", rc_lib.GetDefaultOutDir(), "basepath for the output. Multiple formats are created")
+	flag.BoolVar(&textproto, "textproto", true, "write artifacts as text protobuf")
+	flag.BoolVar(&json, "json", true, "write artifacts as json")
+	flag.BoolVar(&pb, "pb", true, "write artifacts as binary protobuf")
 	flag.Parse()
 
 	if quiet {
@@ -48,16 +61,36 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	config, err := configs.GetReleaseConfig(targetRelease)
+	if err != nil {
+		panic(err)
+	}
+	releaseName := config.Name
 	err = os.MkdirAll(outputDir, 0775)
 	if err != nil {
 		panic(err)
 	}
-	err = configs.DumpMakefile(outputDir, targetRelease)
+	makefilePath := filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.mk", product, releaseName))
+	err = configs.WriteMakefile(makefilePath, targetRelease)
 	if err != nil {
 		panic(err)
 	}
-	err = configs.DumpArtifact(outputDir)
-	if err != nil {
-		panic(err)
+	if json {
+		err = configs.WriteArtifact(outputDir, product, "json")
+		if err != nil {
+			panic(err)
+		}
+	}
+	if pb {
+		err = configs.WriteArtifact(outputDir, product, "pb")
+		if err != nil {
+			panic(err)
+		}
+	}
+	if textproto {
+		err = configs.WriteArtifact(outputDir, product, "textproto")
+		if err != nil {
+			panic(err)
+		}
 	}
 }

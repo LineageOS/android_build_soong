@@ -15,7 +15,9 @@
 package release_config_lib
 
 import (
-	"android/soong/cmd/release_config/release_config_proto"
+	"strings"
+
+	rc_proto "android/soong/cmd/release_config/release_config_proto"
 )
 
 type FlagValue struct {
@@ -23,31 +25,46 @@ type FlagValue struct {
 	path string
 
 	// Protobuf
-	proto release_config_proto.FlagValue
+	proto rc_proto.FlagValue
 }
 
 func FlagValueFactory(protoPath string) (fv *FlagValue) {
 	fv = &FlagValue{path: protoPath}
 	if protoPath != "" {
-		LoadTextproto(protoPath, &fv.proto)
+		LoadMessage(protoPath, &fv.proto)
 	}
 	return fv
 }
 
-func MarshalValue(value *release_config_proto.Value) string {
+func UnmarshalValue(str string) *rc_proto.Value {
+	ret := &rc_proto.Value{}
+	switch v := strings.ToLower(str); v {
+	case "true":
+		ret = &rc_proto.Value{Val: &rc_proto.Value_BoolValue{true}}
+	case "false":
+		ret = &rc_proto.Value{Val: &rc_proto.Value_BoolValue{false}}
+	case "##obsolete":
+		ret = &rc_proto.Value{Val: &rc_proto.Value_Obsolete{true}}
+	default:
+		ret = &rc_proto.Value{Val: &rc_proto.Value_StringValue{str}}
+	}
+	return ret
+}
+
+func MarshalValue(value *rc_proto.Value) string {
 	switch val := value.Val.(type) {
-	case *release_config_proto.Value_UnspecifiedValue:
+	case *rc_proto.Value_UnspecifiedValue:
 		// Value was never set.
 		return ""
-	case *release_config_proto.Value_StringValue:
+	case *rc_proto.Value_StringValue:
 		return val.StringValue
-	case *release_config_proto.Value_BoolValue:
+	case *rc_proto.Value_BoolValue:
 		if val.BoolValue {
 			return "true"
 		}
 		// False ==> empty string
 		return ""
-	case *release_config_proto.Value_Obsolete:
+	case *rc_proto.Value_Obsolete:
 		return " #OBSOLETE"
 	default:
 		// Flagged as error elsewhere, so return empty string here.
