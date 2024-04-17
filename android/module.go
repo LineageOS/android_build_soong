@@ -1042,12 +1042,12 @@ func (m *ModuleBase) baseDepsMutator(ctx BottomUpMutatorContext) {
 	pv := ctx.Config().productVariables
 	fullManifest := pv.DeviceArch != nil && pv.DeviceName != nil
 	if fullManifest {
-		addRequiredDeps(ctx)
+		m.addRequiredDeps(ctx)
 	}
 }
 
 // addRequiredDeps adds required, target_required, and host_required as dependencies.
-func addRequiredDeps(ctx BottomUpMutatorContext) {
+func (m *ModuleBase) addRequiredDeps(ctx BottomUpMutatorContext) {
 	addDep := func(target Target, depName string) {
 		if !ctx.OtherModuleExists(depName) {
 			if ctx.Config().AllowMissingDependencies() {
@@ -1060,9 +1060,9 @@ func addRequiredDeps(ctx BottomUpMutatorContext) {
 		// in build/make/core/main.mk.
 		// TODO(jiyong): the Make-side does this only when the required module is a shared
 		// library or a native test.
-		bothInAndroid := ctx.Device() && target.Os.Class == Device
-		nativeArch := InList(ctx.Arch().ArchType.Multilib, []string{"lib32", "lib64"})
-		sameBitness := ctx.Arch().ArchType.Multilib == target.Arch.ArchType.Multilib
+		bothInAndroid := m.Device() && target.Os.Class == Device
+		nativeArch := InList(m.Arch().ArchType.Multilib, []string{"lib32", "lib64"})
+		sameBitness := m.Arch().ArchType.Multilib == target.Arch.ArchType.Multilib
 		if bothInAndroid && nativeArch && !sameBitness {
 			return
 		}
@@ -1081,31 +1081,31 @@ func addRequiredDeps(ctx BottomUpMutatorContext) {
 	hostTargets = append(hostTargets, ctx.Config().Targets[ctx.Config().BuildOS]...)
 	hostTargets = append(hostTargets, ctx.Config().BuildOSCommonTarget)
 
-	if ctx.Device() {
-		for _, depName := range ctx.Module().RequiredModuleNames() {
+	if m.Device() {
+		for _, depName := range m.RequiredModuleNames() {
 			for _, target := range deviceTargets {
 				addDep(target, depName)
 			}
 		}
-		for _, depName := range ctx.Module().HostRequiredModuleNames() {
+		for _, depName := range m.HostRequiredModuleNames() {
 			for _, target := range hostTargets {
 				addDep(target, depName)
 			}
 		}
 	}
 
-	if ctx.Host() {
-		for _, depName := range ctx.Module().RequiredModuleNames() {
+	if m.Host() {
+		for _, depName := range m.RequiredModuleNames() {
 			for _, target := range hostTargets {
 				// When a host module requires another host module, don't make a
 				// dependency if they have different OSes (i.e. hostcross).
-				if ctx.Target().HostCross != target.HostCross {
+				if m.Target().HostCross != target.HostCross {
 					continue
 				}
 				addDep(target, depName)
 			}
 		}
-		for _, depName := range ctx.Module().TargetRequiredModuleNames() {
+		for _, depName := range m.TargetRequiredModuleNames() {
 			for _, target := range deviceTargets {
 				addDep(target, depName)
 			}
