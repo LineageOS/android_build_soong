@@ -33,10 +33,22 @@ func Test_mergeApexVariations(t *testing.T) {
 		{
 			name: "single",
 			in: []ApexInfo{
-				{"foo", FutureApiLevel, false, false, []string{"foo"}, []string{"foo"}, nil, NotForPrebuiltApex, nil},
+				{
+					ApexVariationName: "foo",
+					MinSdkVersion:     FutureApiLevel,
+					InApexVariants:    []string{"foo"},
+					InApexModules:     []string{"foo"},
+					ForPrebuiltApex:   NotForPrebuiltApex,
+				},
 			},
 			wantMerged: []ApexInfo{
-				{"apex10000", FutureApiLevel, false, false, []string{"foo"}, []string{"foo"}, nil, NotForPrebuiltApex, nil},
+				{
+					ApexVariationName: "apex10000",
+					MinSdkVersion:     FutureApiLevel,
+					InApexVariants:    []string{"foo"},
+					InApexModules:     []string{"foo"},
+					ForPrebuiltApex:   NotForPrebuiltApex,
+				},
 			},
 			wantAliases: [][2]string{
 				{"foo", "apex10000"},
@@ -45,98 +57,231 @@ func Test_mergeApexVariations(t *testing.T) {
 		{
 			name: "merge",
 			in: []ApexInfo{
-				{"foo", FutureApiLevel, false, false, []string{"foo"}, []string{"foo"}, nil, NotForPrebuiltApex, nil},
-				{"bar", FutureApiLevel, false, false, []string{"bar"}, []string{"bar"}, nil, NotForPrebuiltApex, nil},
+				{
+					ApexVariationName: "foo",
+					MinSdkVersion:     FutureApiLevel,
+					InApexVariants:    []string{"foo"},
+					InApexModules:     []string{"foo"},
+					ForPrebuiltApex:   NotForPrebuiltApex,
+				},
+				{
+					ApexVariationName: "bar",
+					MinSdkVersion:     FutureApiLevel,
+					InApexVariants:    []string{"bar"},
+					InApexModules:     []string{"bar"},
+					ForPrebuiltApex:   NotForPrebuiltApex,
+				},
 			},
 			wantMerged: []ApexInfo{
-				{"apex10000", FutureApiLevel, false, false, []string{"bar", "foo"}, []string{"bar", "foo"}, nil, false, nil}},
+				{
+					ApexVariationName: "apex10000",
+					MinSdkVersion:     FutureApiLevel,
+					InApexVariants:    []string{"foo", "bar"},
+					InApexModules:     []string{"foo", "bar"},
+				}},
 			wantAliases: [][2]string{
-				{"bar", "apex10000"},
 				{"foo", "apex10000"},
+				{"bar", "apex10000"},
 			},
 		},
 		{
 			name: "don't merge version",
 			in: []ApexInfo{
-				{"foo", FutureApiLevel, false, false, []string{"foo"}, []string{"foo"}, nil, NotForPrebuiltApex, nil},
-				{"bar", uncheckedFinalApiLevel(30), false, false, []string{"bar"}, []string{"bar"}, nil, NotForPrebuiltApex, nil},
+				{
+					ApexVariationName: "foo",
+					MinSdkVersion:     FutureApiLevel,
+					InApexVariants:    []string{"foo"},
+					InApexModules:     []string{"foo"},
+					ForPrebuiltApex:   NotForPrebuiltApex,
+				},
+				{
+					ApexVariationName: "bar",
+					MinSdkVersion:     uncheckedFinalApiLevel(30),
+					InApexVariants:    []string{"bar"},
+					InApexModules:     []string{"bar"},
+					ForPrebuiltApex:   NotForPrebuiltApex,
+				},
 			},
 			wantMerged: []ApexInfo{
-				{"apex30", uncheckedFinalApiLevel(30), false, false, []string{"bar"}, []string{"bar"}, nil, NotForPrebuiltApex, nil},
-				{"apex10000", FutureApiLevel, false, false, []string{"foo"}, []string{"foo"}, nil, NotForPrebuiltApex, nil},
+				{
+					ApexVariationName: "apex10000",
+					MinSdkVersion:     FutureApiLevel,
+					InApexVariants:    []string{"foo"},
+					InApexModules:     []string{"foo"},
+					ForPrebuiltApex:   NotForPrebuiltApex,
+				},
+				{
+					ApexVariationName: "apex30",
+					MinSdkVersion:     uncheckedFinalApiLevel(30),
+					InApexVariants:    []string{"bar"},
+					InApexModules:     []string{"bar"},
+					ForPrebuiltApex:   NotForPrebuiltApex,
+				},
 			},
 			wantAliases: [][2]string{
-				{"bar", "apex30"},
 				{"foo", "apex10000"},
+				{"bar", "apex30"},
 			},
 		},
 		{
 			name: "merge updatable",
 			in: []ApexInfo{
-				{"foo", FutureApiLevel, false, false, []string{"foo"}, []string{"foo"}, nil, NotForPrebuiltApex, nil},
-				{"bar", FutureApiLevel, true, false, []string{"bar"}, []string{"bar"}, nil, NotForPrebuiltApex, nil},
+				{
+					ApexVariationName: "foo",
+					MinSdkVersion:     FutureApiLevel,
+					InApexVariants:    []string{"foo"},
+					InApexModules:     []string{"foo"},
+					ForPrebuiltApex:   NotForPrebuiltApex,
+				},
+				{
+					ApexVariationName: "bar",
+					MinSdkVersion:     FutureApiLevel,
+					Updatable:         true,
+					InApexVariants:    []string{"bar"},
+					InApexModules:     []string{"bar"},
+					ForPrebuiltApex:   NotForPrebuiltApex,
+				},
 			},
 			wantMerged: []ApexInfo{
-				{"apex10000", FutureApiLevel, true, false, []string{"bar", "foo"}, []string{"bar", "foo"}, nil, NotForPrebuiltApex, nil},
+				{
+					ApexVariationName: "apex10000",
+					MinSdkVersion:     FutureApiLevel,
+					Updatable:         true,
+					InApexVariants:    []string{"foo", "bar"},
+					InApexModules:     []string{"foo", "bar"},
+					ForPrebuiltApex:   NotForPrebuiltApex,
+				},
 			},
 			wantAliases: [][2]string{
-				{"bar", "apex10000"},
 				{"foo", "apex10000"},
+				{"bar", "apex10000"},
 			},
 		},
 		{
 			name: "don't merge when for prebuilt_apex",
 			in: []ApexInfo{
-				{"foo", FutureApiLevel, false, false, []string{"foo"}, []string{"foo"}, nil, NotForPrebuiltApex, nil},
-				{"bar", FutureApiLevel, true, false, []string{"bar"}, []string{"bar"}, nil, NotForPrebuiltApex, nil},
+				{
+					ApexVariationName: "foo",
+					MinSdkVersion:     FutureApiLevel,
+					InApexVariants:    []string{"foo"},
+					InApexModules:     []string{"foo"},
+					ForPrebuiltApex:   NotForPrebuiltApex,
+				},
+				{
+					ApexVariationName: "bar",
+					MinSdkVersion:     FutureApiLevel,
+					Updatable:         true,
+					InApexVariants:    []string{"bar"},
+					InApexModules:     []string{"bar"},
+					ForPrebuiltApex:   NotForPrebuiltApex,
+				},
 				// This one should not be merged in with the others because it is for
 				// a prebuilt_apex.
-				{"baz", FutureApiLevel, true, false, []string{"baz"}, []string{"baz"}, nil, ForPrebuiltApex, nil},
+				{
+					ApexVariationName: "baz",
+					MinSdkVersion:     FutureApiLevel,
+					Updatable:         true,
+					InApexVariants:    []string{"baz"},
+					InApexModules:     []string{"baz"},
+					ForPrebuiltApex:   ForPrebuiltApex,
+				},
 			},
 			wantMerged: []ApexInfo{
-				{"apex10000", FutureApiLevel, true, false, []string{"bar", "foo"}, []string{"bar", "foo"}, nil, NotForPrebuiltApex, nil},
-				{"baz", FutureApiLevel, true, false, []string{"baz"}, []string{"baz"}, nil, ForPrebuiltApex, nil},
+				{
+					ApexVariationName: "apex10000",
+					MinSdkVersion:     FutureApiLevel,
+					Updatable:         true,
+					InApexVariants:    []string{"foo", "bar"},
+					InApexModules:     []string{"foo", "bar"},
+					ForPrebuiltApex:   NotForPrebuiltApex,
+				},
+				{
+					ApexVariationName: "baz",
+					MinSdkVersion:     FutureApiLevel,
+					Updatable:         true,
+					InApexVariants:    []string{"baz"},
+					InApexModules:     []string{"baz"},
+					ForPrebuiltApex:   ForPrebuiltApex,
+				},
 			},
 			wantAliases: [][2]string{
-				{"bar", "apex10000"},
 				{"foo", "apex10000"},
+				{"bar", "apex10000"},
 			},
 		},
 		{
 			name: "merge different UsePlatformApis but don't allow using platform api",
 			in: []ApexInfo{
-				{"foo", FutureApiLevel, false, false, []string{"foo"}, []string{"foo"}, nil, NotForPrebuiltApex, nil},
-				{"bar", FutureApiLevel, false, true, []string{"bar"}, []string{"bar"}, nil, NotForPrebuiltApex, nil},
+				{
+					ApexVariationName: "foo",
+					MinSdkVersion:     FutureApiLevel,
+					InApexVariants:    []string{"foo"},
+					InApexModules:     []string{"foo"},
+					ForPrebuiltApex:   NotForPrebuiltApex,
+				},
+				{
+					ApexVariationName: "bar",
+					MinSdkVersion:     FutureApiLevel,
+					UsePlatformApis:   true,
+					InApexVariants:    []string{"bar"},
+					InApexModules:     []string{"bar"},
+					ForPrebuiltApex:   NotForPrebuiltApex,
+				},
 			},
 			wantMerged: []ApexInfo{
-				{"apex10000", FutureApiLevel, false, false, []string{"bar", "foo"}, []string{"bar", "foo"}, nil, NotForPrebuiltApex, nil},
+				{
+					ApexVariationName: "apex10000",
+					MinSdkVersion:     FutureApiLevel,
+					InApexVariants:    []string{"foo", "bar"},
+					InApexModules:     []string{"foo", "bar"},
+					ForPrebuiltApex:   NotForPrebuiltApex,
+				},
 			},
 			wantAliases: [][2]string{
-				{"bar", "apex10000"},
 				{"foo", "apex10000"},
+				{"bar", "apex10000"},
 			},
 		},
 		{
 			name: "merge same UsePlatformApis and allow using platform api",
 			in: []ApexInfo{
-				{"foo", FutureApiLevel, false, true, []string{"foo"}, []string{"foo"}, nil, NotForPrebuiltApex, nil},
-				{"bar", FutureApiLevel, false, true, []string{"bar"}, []string{"bar"}, nil, NotForPrebuiltApex, nil},
+				{
+					ApexVariationName: "foo",
+					MinSdkVersion:     FutureApiLevel,
+					UsePlatformApis:   true,
+					InApexVariants:    []string{"foo"},
+					InApexModules:     []string{"foo"},
+					ForPrebuiltApex:   NotForPrebuiltApex,
+				},
+				{
+					ApexVariationName: "bar",
+					MinSdkVersion:     FutureApiLevel,
+					UsePlatformApis:   true,
+					InApexVariants:    []string{"bar"},
+					InApexModules:     []string{"bar"},
+					ForPrebuiltApex:   NotForPrebuiltApex,
+				},
 			},
 			wantMerged: []ApexInfo{
-				{"apex10000", FutureApiLevel, false, true, []string{"bar", "foo"}, []string{"bar", "foo"}, nil, NotForPrebuiltApex, nil},
+				{
+					ApexVariationName: "apex10000",
+					MinSdkVersion:     FutureApiLevel,
+					UsePlatformApis:   true,
+					InApexVariants:    []string{"foo", "bar"},
+					InApexModules:     []string{"foo", "bar"},
+					ForPrebuiltApex:   NotForPrebuiltApex,
+				},
 			},
 			wantAliases: [][2]string{
-				{"bar", "apex10000"},
 				{"foo", "apex10000"},
+				{"bar", "apex10000"},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := TestConfig(t.TempDir(), nil, "", nil)
-			ctx := &configErrorWrapper{config: config}
-			gotMerged, gotAliases := mergeApexVariations(ctx, tt.in)
+			gotMerged, gotAliases := mergeApexVariations(tt.in)
 			if !reflect.DeepEqual(gotMerged, tt.wantMerged) {
 				t.Errorf("mergeApexVariations() gotMerged = %v, want %v", gotMerged, tt.wantMerged)
 			}

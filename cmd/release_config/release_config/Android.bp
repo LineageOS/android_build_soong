@@ -1,0 +1,18 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+bootstrap_go_package {
+    name: "soong-cmd-release_config-release_config",
+    pkgPath: "android/soong/cmd/release_config/release_config",
+    deps: [
+        "golang-protobuf-encoding-prototext",
+        "golang-protobuf-reflect-protoreflect",
+        "golang-protobuf-runtime-protoimpl",
+        "soong-cmd-release_config-proto",
+        "soong-cmd-release_config-lib",
+    ],
+    srcs: [
+        "main.go",
+    ],
+}

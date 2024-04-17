@@ -29,7 +29,6 @@ import (
 	"android/soong/bazel"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/parser"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -2140,41 +2139,82 @@ func (e configurationEvalutor) PropertyErrorf(property string, fmt string, args 
 	e.ctx.OtherModulePropertyErrorf(e.m, property, fmt, args)
 }
 
-func (e configurationEvalutor) EvaluateConfiguration(ty parser.SelectType, property, condition string) (string, bool) {
+func (e configurationEvalutor) EvaluateConfiguration(condition proptools.ConfigurableCondition, property string) proptools.ConfigurableValue {
 	ctx := e.ctx
 	m := e.m
-	switch ty {
-	case parser.SelectTypeReleaseVariable:
-		if v, ok := ctx.Config().productVariables.BuildFlags[condition]; ok {
-			return v, true
+	switch condition.FunctionName {
+	case "release_variable":
+		if len(condition.Args) != 1 {
+			ctx.OtherModulePropertyErrorf(m, property, "release_variable requires 1 argument, found %d", len(condition.Args))
+			return proptools.ConfigurableValueUndefined()
 		}
-		return "", false
-	case parser.SelectTypeProductVariable:
+		if v, ok := ctx.Config().productVariables.BuildFlags[condition.Args[0]]; ok {
+			return proptools.ConfigurableValueString(v)
+		}
+		return proptools.ConfigurableValueUndefined()
+	case "product_variable":
 		// TODO(b/323382414): Might add these on a case-by-case basis
 		ctx.OtherModulePropertyErrorf(m, property, "TODO(b/323382414): Product variables are not yet supported in selects")
-		return "", false
-	case parser.SelectTypeSoongConfigVariable:
-		parts := strings.Split(condition, ":")
-		namespace := parts[0]
-		variable := parts[1]
+		return proptools.ConfigurableValueUndefined()
+	case "soong_config_variable":
+		if len(condition.Args) != 2 {
+			ctx.OtherModulePropertyErrorf(m, property, "soong_config_variable requires 2 arguments, found %d", len(condition.Args))
+			return proptools.ConfigurableValueUndefined()
+		}
+		namespace := condition.Args[0]
+		variable := condition.Args[1]
 		if n, ok := ctx.Config().productVariables.VendorVars[namespace]; ok {
 			if v, ok := n[variable]; ok {
-				return v, true
+				return proptools.ConfigurableValueString(v)
 			}
 		}
-		return "", false
-	case parser.SelectTypeVariant:
-		if condition == "arch" {
-			if !m.base().ArchReady() {
-				ctx.OtherModulePropertyErrorf(m, property, "A select on arch was attempted before the arch mutator ran")
-				return "", false
-			}
-			return m.base().Arch().ArchType.Name, true
+		return proptools.ConfigurableValueUndefined()
+	case "arch":
+		if len(condition.Args) != 0 {
+			ctx.OtherModulePropertyErrorf(m, property, "arch requires no arguments, found %d", len(condition.Args))
+			return proptools.ConfigurableValueUndefined()
 		}
-		ctx.OtherModulePropertyErrorf(m, property, "Unknown variant %s", condition)
-		return "", false
+		if !m.base().ArchReady() {
+			ctx.OtherModulePropertyErrorf(m, property, "A select on arch was attempted before the arch mutator ran")
+			return proptools.ConfigurableValueUndefined()
+		}
+		return proptools.ConfigurableValueString(m.base().Arch().ArchType.Name)
+	case "os":
+		if len(condition.Args) != 0 {
+			ctx.OtherModulePropertyErrorf(m, property, "os requires no arguments, found %d", len(condition.Args))
+			return proptools.ConfigurableValueUndefined()
+		}
+		// the arch mutator runs after the os mutator, we can just use this to enforce that os is ready.
+		if !m.base().ArchReady() {
+			ctx.OtherModulePropertyErrorf(m, property, "A select on os was attempted before the arch mutator ran (arch runs after os, we use it to lazily detect that os is ready)")
+			return proptools.ConfigurableValueUndefined()
+		}
+		return proptools.ConfigurableValueString(m.base().Os().Name)
+	case "boolean_var_for_testing":
+		// We currently don't have any other boolean variables (we should add support for typing
+		// the soong config variables), so add this fake one for testing the boolean select
+		// functionality.
+		if len(condition.Args) != 0 {
+			ctx.OtherModulePropertyErrorf(m, property, "boolean_var_for_testing requires 0 arguments, found %d", len(condition.Args))
+			return proptools.ConfigurableValueUndefined()
+		}
+
+		if n, ok := ctx.Config().productVariables.VendorVars["boolean_var"]; ok {
+			if v, ok := n["for_testing"]; ok {
+				switch v {
+				case "true":
+					return proptools.ConfigurableValueBool(true)
+				case "false":
+					return proptools.ConfigurableValueBool(false)
+				default:
+					ctx.OtherModulePropertyErrorf(m, property, "testing:my_boolean_var can only be true or false, found %q", v)
+				}
+			}
+		}
+		return proptools.ConfigurableValueUndefined()
 	default:
-		panic("Should be unreachable")
+		ctx.OtherModulePropertyErrorf(m, property, "Unknown select condition %s", condition.FunctionName)
+		return proptools.ConfigurableValueUndefined()
 	}
 }
 

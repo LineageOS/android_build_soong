@@ -391,6 +391,7 @@ func (x *registerMutatorsContext) BottomUpBlueprint(name string, m blueprint.Bot
 
 type IncomingTransitionContext interface {
 	ArchModuleContext
+	ModuleProviderContext
 
 	// Module returns the target of the dependency edge for which the transition
 	// is being computed
@@ -404,6 +405,7 @@ type IncomingTransitionContext interface {
 
 type OutgoingTransitionContext interface {
 	ArchModuleContext
+	ModuleProviderContext
 
 	// Module returns the target of the dependency edge for which the transition
 	// is being computed
@@ -505,6 +507,7 @@ type TransitionMutator interface {
 type androidTransitionMutator struct {
 	finalPhase bool
 	mutator    TransitionMutator
+	name       string
 }
 
 func (a *androidTransitionMutator) Split(ctx blueprint.BaseModuleContext) []string {
@@ -535,6 +538,10 @@ func (c *outgoingTransitionContextImpl) Config() Config {
 
 func (c *outgoingTransitionContextImpl) DeviceConfig() DeviceConfig {
 	return DeviceConfig{c.bp.Config().(Config).deviceConfig}
+}
+
+func (c *outgoingTransitionContextImpl) provider(provider blueprint.AnyProviderKey) (any, bool) {
+	return c.bp.Provider(provider)
 }
 
 func (a *androidTransitionMutator) OutgoingTransition(bpctx blueprint.OutgoingTransitionContext, sourceVariation string) string {
@@ -568,6 +575,10 @@ func (c *incomingTransitionContextImpl) DeviceConfig() DeviceConfig {
 	return DeviceConfig{c.bp.Config().(Config).deviceConfig}
 }
 
+func (c *incomingTransitionContextImpl) provider(provider blueprint.AnyProviderKey) (any, bool) {
+	return c.bp.Provider(provider)
+}
+
 func (a *androidTransitionMutator) IncomingTransition(bpctx blueprint.IncomingTransitionContext, incomingVariation string) string {
 	if m, ok := bpctx.Module().(Module); ok {
 		ctx := incomingTransitionContextPool.Get().(*incomingTransitionContextImpl)
@@ -586,6 +597,9 @@ func (a *androidTransitionMutator) Mutate(ctx blueprint.BottomUpMutatorContext, 
 	if am, ok := ctx.Module().(Module); ok {
 		mctx := bottomUpMutatorContextFactory(ctx, am, a.finalPhase)
 		defer bottomUpMutatorContextPool.Put(mctx)
+		base := am.base()
+		base.commonProperties.DebugMutators = append(base.commonProperties.DebugMutators, a.name)
+		base.commonProperties.DebugVariations = append(base.commonProperties.DebugVariations, variation)
 		a.mutator.Mutate(mctx, variation)
 	}
 }
@@ -594,6 +608,7 @@ func (x *registerMutatorsContext) Transition(name string, m TransitionMutator) {
 	atm := &androidTransitionMutator{
 		finalPhase: x.finalPhase,
 		mutator:    m,
+		name:       name,
 	}
 	mutator := &mutator{
 		name:              name,
