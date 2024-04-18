@@ -886,6 +886,12 @@ func init() {
 }
 
 func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	if disableSourceApexVariant(ctx) {
+		// Prebuilts are active, do not create the installation rules for the source javalib.
+		// Even though the source javalib is not used, we need to hide it to prevent duplicate installation rules.
+		// TODO (b/331665856): Implement a principled solution for this.
+		j.HideFromMake()
+	}
 	j.provideHiddenAPIPropertyInfo(ctx)
 
 	j.sdkVersion = j.SdkVersion(ctx)
