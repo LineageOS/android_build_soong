@@ -39,9 +39,11 @@ func (cov *coverage) props() []interface{} {
 
 func (cov *coverage) deps(ctx DepsContext, deps Deps) Deps {
 	if cov.Properties.NeedCoverageVariant {
-		ctx.AddVariationDependencies([]blueprint.Variation{
-			{Mutator: "link", Variation: "static"},
-		}, cc.CoverageDepTag, CovLibraryName)
+		if ctx.Device() {
+			ctx.AddVariationDependencies([]blueprint.Variation{
+				{Mutator: "link", Variation: "static"},
+			}, cc.CoverageDepTag, CovLibraryName)
+		}
 
 		// no_std modules are missing libprofiler_builtins which provides coverage, so we need to add it as a dependency.
 		if rustModule, ok := ctx.Module().(*Module); ok && rustModule.compiler.noStdlibs() {
@@ -60,12 +62,14 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 
 	if cov.Properties.CoverageEnabled {
 		flags.Coverage = true
-		coverage := ctx.GetDirectDepWithTag(CovLibraryName, cc.CoverageDepTag).(cc.LinkableInterface)
 		flags.RustFlags = append(flags.RustFlags,
 			"-C instrument-coverage", "-g")
-		flags.LinkFlags = append(flags.LinkFlags,
-			profileInstrFlag, "-g", coverage.OutputFile().Path().String(), "-Wl,--wrap,open")
-		deps.StaticLibs = append(deps.StaticLibs, coverage.OutputFile().Path())
+		if ctx.Device() {
+			coverage := ctx.GetDirectDepWithTag(CovLibraryName, cc.CoverageDepTag).(cc.LinkableInterface)
+			flags.LinkFlags = append(flags.LinkFlags,
+				profileInstrFlag, "-g", coverage.OutputFile().Path().String(), "-Wl,--wrap,open")
+			deps.StaticLibs = append(deps.StaticLibs, coverage.OutputFile().Path())
+		}
 
 		// no_std modules are missing libprofiler_builtins which provides coverage, so we need to add it as a dependency.
 		if rustModule, ok := ctx.Module().(*Module); ok && rustModule.compiler.noStdlibs() {
