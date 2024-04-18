@@ -688,6 +688,12 @@ func TestSnapshotWithJavaSystemModules(t *testing.T) {
 			public: {
 				enabled: true,
 			},
+			system: {
+				enabled: true,
+			},
+			module_lib: {
+				enabled: true,
+			},
 		}
 
 		java_system_modules {
@@ -752,6 +758,20 @@ java_sdk_library_import {
         removed_api: "sdk_library/public/myjavalib-removed.txt",
         sdk_version: "current",
     },
+    system: {
+        jars: ["sdk_library/system/myjavalib-stubs.jar"],
+        stub_srcs: ["sdk_library/system/myjavalib_stub_sources"],
+        current_api: "sdk_library/system/myjavalib.txt",
+        removed_api: "sdk_library/system/myjavalib-removed.txt",
+        sdk_version: "system_current",
+    },
+    module_lib: {
+        jars: ["sdk_library/module-lib/myjavalib-stubs.jar"],
+        stub_srcs: ["sdk_library/module-lib/myjavalib_stub_sources"],
+        current_api: "sdk_library/module-lib/myjavalib.txt",
+        removed_api: "sdk_library/module-lib/myjavalib-removed.txt",
+        sdk_version: "module_current",
+    },
 }
 
 java_system_modules_import {
@@ -771,6 +791,12 @@ java_system_modules_import {
 .intermediates/myjavalib.stubs.exportable/android_common/combined/myjavalib.stubs.exportable.jar -> sdk_library/public/myjavalib-stubs.jar
 .intermediates/myjavalib.stubs.source/android_common/exportable/myjavalib.stubs.source_api.txt -> sdk_library/public/myjavalib.txt
 .intermediates/myjavalib.stubs.source/android_common/exportable/myjavalib.stubs.source_removed.txt -> sdk_library/public/myjavalib-removed.txt
+.intermediates/myjavalib.stubs.exportable.system/android_common/combined/myjavalib.stubs.exportable.system.jar -> sdk_library/system/myjavalib-stubs.jar
+.intermediates/myjavalib.stubs.source.system/android_common/exportable/myjavalib.stubs.source.system_api.txt -> sdk_library/system/myjavalib.txt
+.intermediates/myjavalib.stubs.source.system/android_common/exportable/myjavalib.stubs.source.system_removed.txt -> sdk_library/system/myjavalib-removed.txt
+.intermediates/myjavalib.stubs.exportable.module_lib/android_common/combined/myjavalib.stubs.exportable.module_lib.jar -> sdk_library/module-lib/myjavalib-stubs.jar
+.intermediates/myjavalib.stubs.source.module_lib/android_common/exportable/myjavalib.stubs.source.module_lib_api.txt -> sdk_library/module-lib/myjavalib.txt
+.intermediates/myjavalib.stubs.source.module_lib/android_common/exportable/myjavalib.stubs.source.module_lib_removed.txt -> sdk_library/module-lib/myjavalib-removed.txt
 `),
 		checkInfoContents(result.Config, `
 [
@@ -805,11 +831,23 @@ java_system_modules_import {
     "@name": "myjavalib",
     "dist_stem": "myjavalib",
     "scopes": {
+      "module-lib": {
+        "current_api": "sdk_library/module-lib/myjavalib.txt",
+        "latest_api": "out/soong/.intermediates/prebuilts/sdk/myjavalib.api.module-lib.latest/gen/myjavalib.api.module-lib.latest",
+        "latest_removed_api": "out/soong/.intermediates/prebuilts/sdk/myjavalib-removed.api.module-lib.latest/gen/myjavalib-removed.api.module-lib.latest",
+        "removed_api": "sdk_library/module-lib/myjavalib-removed.txt"
+      },
       "public": {
         "current_api": "sdk_library/public/myjavalib.txt",
         "latest_api": "out/soong/.intermediates/prebuilts/sdk/myjavalib.api.public.latest/gen/myjavalib.api.public.latest",
         "latest_removed_api": "out/soong/.intermediates/prebuilts/sdk/myjavalib-removed.api.public.latest/gen/myjavalib-removed.api.public.latest",
         "removed_api": "sdk_library/public/myjavalib-removed.txt"
+      },
+      "system": {
+        "current_api": "sdk_library/system/myjavalib.txt",
+        "latest_api": "out/soong/.intermediates/prebuilts/sdk/myjavalib.api.system.latest/gen/myjavalib.api.system.latest",
+        "latest_removed_api": "out/soong/.intermediates/prebuilts/sdk/myjavalib-removed.api.system.latest/gen/myjavalib-removed.api.system.latest",
+        "removed_api": "sdk_library/system/myjavalib-removed.txt"
       }
     }
   },
