@@ -894,6 +894,155 @@ func TestGenSrcsWithSrcsFromExternalPackage(t *testing.T) {
 	)
 }
 
+func TestGenSrcsWithTrimExtAndOutpuExtension(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForGenRuleTest,
+		android.FixtureMergeMockFs(android.MockFS{
+			"external-protos/path/Android.bp": []byte(`
+				filegroup {
+					name: "external-protos",
+					srcs: [
+					    "baz.a.b.c.proto/baz.a.b.c.proto",
+					    "bar.a.b.c.proto",
+					    "qux.ext.a.b.c.proto",
+					],
+				}
+			`),
+			"package-dir/Android.bp": []byte(`
+				gensrcs {
+					name: "module-name",
+					cmd: "mkdir -p $(genDir) && cat $(in) >> $(genDir)/$(out)",
+					srcs: [
+						"src/foo.a.b.c.proto",
+						":external-protos",
+					],
+
+					trim_extension: ".a.b.c.proto",
+					output_extension: "proto.h",
+				}
+			`),
+		}),
+	).RunTest(t)
+
+	exportedIncludeDir := "out/soong/.intermediates/package-dir/module-name/gen/gensrcs"
+	gen := result.Module("module-name", "").(*Module)
+
+	android.AssertPathsRelativeToTopEquals(
+		t,
+		"include path",
+		[]string{exportedIncludeDir},
+		gen.exportedIncludeDirs,
+	)
+	android.AssertPathsRelativeToTopEquals(
+		t,
+		"files",
+		[]string{
+			exportedIncludeDir + "/package-dir/src/foo.proto.h",
+			exportedIncludeDir + "/external-protos/path/baz.a.b.c.proto/baz.proto.h",
+			exportedIncludeDir + "/external-protos/path/bar.proto.h",
+			exportedIncludeDir + "/external-protos/path/qux.ext.proto.h",
+		},
+		gen.outputFiles,
+	)
+}
+
+func TestGenSrcsWithTrimExtButNoOutpuExtension(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForGenRuleTest,
+		android.FixtureMergeMockFs(android.MockFS{
+			"external-protos/path/Android.bp": []byte(`
+				filegroup {
+					name: "external-protos",
+					srcs: [
+					    "baz.a.b.c.proto/baz.a.b.c.proto",
+					    "bar.a.b.c.proto",
+					    "qux.ext.a.b.c.proto",
+					],
+				}
+			`),
+			"package-dir/Android.bp": []byte(`
+				gensrcs {
+					name: "module-name",
+					cmd: "mkdir -p $(genDir) && cat $(in) >> $(genDir)/$(out)",
+					srcs: [
+						"src/foo.a.b.c.proto",
+						":external-protos",
+					],
+
+					trim_extension: ".a.b.c.proto",
+				}
+			`),
+		}),
+	).RunTest(t)
+
+	exportedIncludeDir := "out/soong/.intermediates/package-dir/module-name/gen/gensrcs"
+	gen := result.Module("module-name", "").(*Module)
+
+	android.AssertPathsRelativeToTopEquals(
+		t,
+		"include path",
+		[]string{exportedIncludeDir},
+		gen.exportedIncludeDirs,
+	)
+	android.AssertPathsRelativeToTopEquals(
+		t,
+		"files",
+		[]string{
+			exportedIncludeDir + "/package-dir/src/foo",
+			exportedIncludeDir + "/external-protos/path/baz.a.b.c.proto/baz",
+			exportedIncludeDir + "/external-protos/path/bar",
+			exportedIncludeDir + "/external-protos/path/qux.ext",
+		},
+		gen.outputFiles,
+	)
+}
+
+func TestGenSrcsWithOutpuExtension(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForGenRuleTest,
+		android.FixtureMergeMockFs(android.MockFS{
+			"external-protos/path/Android.bp": []byte(`
+				filegroup {
+					name: "external-protos",
+					srcs: ["baz/baz.a.b.c.proto", "bar.a.b.c.proto"],
+				}
+			`),
+			"package-dir/Android.bp": []byte(`
+				gensrcs {
+					name: "module-name",
+					cmd: "mkdir -p $(genDir) && cat $(in) >> $(genDir)/$(out)",
+					srcs: [
+						"src/foo.a.b.c.proto",
+						":external-protos",
+					],
+
+					output_extension: "proto.h",
+				}
+			`),
+		}),
+	).RunTest(t)
+
+	exportedIncludeDir := "out/soong/.intermediates/package-dir/module-name/gen/gensrcs"
+	gen := result.Module("module-name", "").(*Module)
+
+	android.AssertPathsRelativeToTopEquals(
+		t,
+		"include path",
+		[]string{exportedIncludeDir},
+		gen.exportedIncludeDirs,
+	)
+	android.AssertPathsRelativeToTopEquals(
+		t,
+		"files",
+		[]string{
+			exportedIncludeDir + "/package-dir/src/foo.a.b.c.proto.h",
+			exportedIncludeDir + "/external-protos/path/baz/baz.a.b.c.proto.h",
+			exportedIncludeDir + "/external-protos/path/bar.a.b.c.proto.h",
+		},
+		gen.outputFiles,
+	)
+}
+
 func TestPrebuiltTool(t *testing.T) {
 	testcases := []struct {
 		name             string
