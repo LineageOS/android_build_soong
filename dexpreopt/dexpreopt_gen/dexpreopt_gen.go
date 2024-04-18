@@ -205,8 +205,9 @@ func writeScripts(ctx android.BuilderContext, globalSoong *dexpreopt.GlobalSoong
 			panic(err)
 		}
 	}
+	cpApexSscpServerJar := false // dexpreopt_gen operates on make modules, and since sscp libraries are in soong, this should be a noop
 	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(
-		ctx, globalSoong, global, module, android.PathForTesting(productPackagesPath))
+		ctx, globalSoong, global, module, android.PathForTesting(productPackagesPath), cpApexSscpServerJar)
 	if err != nil {
 		panic(err)
 	}
