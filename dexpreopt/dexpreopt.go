@@ -52,7 +52,7 @@ var DexpreoptRunningInSoong = false
 // GenerateDexpreoptRule generates a set of commands that will preopt a module based on a GlobalConfig and a
 // ModuleConfig.  The produced files and their install locations will be available through rule.Installs().
 func GenerateDexpreoptRule(ctx android.BuilderContext, globalSoong *GlobalSoongConfig,
-	global *GlobalConfig, module *ModuleConfig, productPackages android.Path) (
+	global *GlobalConfig, module *ModuleConfig, productPackages android.Path, copyApexSystemServerJarDex bool) (
 	rule *android.RuleBuilder, err error) {
 
 	defer func() {
@@ -94,7 +94,7 @@ func GenerateDexpreoptRule(ctx android.BuilderContext, globalSoong *GlobalSoongC
 
 			for archIdx, _ := range module.Archs {
 				dexpreoptCommand(ctx, globalSoong, global, module, rule, archIdx, profile, appImage,
-					generateDM, productPackages)
+					generateDM, productPackages, copyApexSystemServerJarDex)
 			}
 		}
 	}
@@ -231,7 +231,7 @@ func ToOdexPath(path string, arch android.ArchType) string {
 
 func dexpreoptCommand(ctx android.BuilderContext, globalSoong *GlobalSoongConfig,
 	global *GlobalConfig, module *ModuleConfig, rule *android.RuleBuilder, archIdx int,
-	profile android.WritablePath, appImage bool, generateDM bool, productPackages android.Path) {
+	profile android.WritablePath, appImage bool, generateDM bool, productPackages android.Path, copyApexSystemServerJarDex bool) {
 
 	arch := module.Archs[archIdx]
 
@@ -277,7 +277,7 @@ func dexpreoptCommand(ctx android.BuilderContext, globalSoong *GlobalSoongConfig
 			clcTarget = append(clcTarget, GetSystemServerDexLocation(ctx, global, lib))
 		}
 
-		if DexpreoptRunningInSoong {
+		if DexpreoptRunningInSoong && copyApexSystemServerJarDex {
 			// Copy the system server jar to a predefined location where dex2oat will find it.
 			dexPathHost := SystemServerDexJarHostPath(ctx, module.Name)
 			rule.Command().Text("mkdir -p").Flag(filepath.Dir(dexPathHost.String()))
