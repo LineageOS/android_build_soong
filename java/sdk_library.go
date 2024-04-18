@@ -1562,6 +1562,12 @@ func (module *SdkLibrary) OutputFiles(tag string) (android.Paths, error) {
 }
 
 func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	if disableSourceApexVariant(ctx) {
+		// Prebuilts are active, do not create the installation rules for the source javalib.
+		// Even though the source javalib is not used, we need to hide it to prevent duplicate installation rules.
+		// TODO (b/331665856): Implement a principled solution for this.
+		module.HideFromMake()
+	}
 	if proptools.String(module.deviceProperties.Min_sdk_version) != "" {
 		module.CheckMinSdkVersion(ctx)
 	}
