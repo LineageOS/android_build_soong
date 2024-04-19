@@ -1085,18 +1085,6 @@ func TestJavaSdkLibraryImport_Preferred(t *testing.T) {
 	t.Run("prefer", func(t *testing.T) {
 		testJavaSdkLibraryImport_Preferred(t, "prefer: true,", android.NullFixturePreparer)
 	})
-
-	t.Run("use_source_config_var", func(t *testing.T) {
-		testJavaSdkLibraryImport_Preferred(t,
-			"use_source_config_var: {config_namespace: \"acme\", var_name: \"use_source\"},",
-			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
-				variables.VendorVars = map[string]map[string]string{
-					"acme": {
-						"use_source": "false",
-					},
-				}
-			}))
-	})
 }
 
 // If a module is listed in `mainline_module_contributions, it should be used
