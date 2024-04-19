@@ -367,10 +367,23 @@ func prebuiltApiFiles(mctx android.LoadHookContext, p *prebuiltApis) {
 		info := latest[k]
 		name := PrebuiltApiCombinedModuleName(info.module, info.scope, "latest")
 
+		// Iterate until the currentApiScope does not extend any other api scopes
+		// i.e. is not a superset of any other api scopes
+		// the relationship between the api scopes is defined in java/sdk_library.go
 		var srcs []string
 		currentApiScope := scopeByName[info.scope]
-		srcs = append(srcs, PrebuiltApiModuleName(info.module, currentApiScope.name, "latest"))
+		for currentApiScope != nil {
+			if _, ok := latest[fmt.Sprintf("%s.%s", info.module, currentApiScope.name)]; ok {
+				srcs = append(srcs, PrebuiltApiModuleName(info.module, currentApiScope.name, "latest"))
+			}
+			currentApiScope = currentApiScope.extends
+		}
 
+		// srcs is currently listed in the order from the widest api scope to the narrowest api scopes
+		// e.g. module lib -> system -> public
+		// In order to pass the files in metalava from the narrowest api scope to the widest api scope,
+		// the list has to be reversed.
+		android.ReverseSliceInPlace(srcs)
 		createCombinedApiFilegroupModule(mctx, name, srcs)
 	}
 }
