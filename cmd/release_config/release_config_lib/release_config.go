@@ -16,8 +16,9 @@ package release_config_lib
 
 import (
 	"fmt"
+	"strings"
 
-	"android/soong/cmd/release_config/release_config_proto"
+	rc_proto "android/soong/cmd/release_config/release_config_proto"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -33,7 +34,7 @@ type ReleaseConfigContribution struct {
 	DeclarationIndex int
 
 	// Protobufs relevant to the config.
-	proto release_config_proto.ReleaseConfig
+	proto rc_proto.ReleaseConfig
 
 	FlagValues []*FlagValue
 }
@@ -61,7 +62,7 @@ type ReleaseConfig struct {
 	FlagArtifacts FlagArtifacts
 
 	// Generated release config
-	ReleaseConfigArtifact *release_config_proto.ReleaseConfigArtifact
+	ReleaseConfigArtifact *rc_proto.ReleaseConfigArtifact
 
 	// We have begun compiling this release config.
 	compileInProgress bool
@@ -79,12 +80,18 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 		return fmt.Errorf("Loop detected for release config %s", config.Name)
 	}
 	config.compileInProgress = true
+	isRoot := config.Name == "root"
 
 	// Generate any configs we need to inherit.  This will detect loops in
 	// the config.
 	contributionsToApply := []*ReleaseConfigContribution{}
 	myInherits := []string{}
 	myInheritsSet := make(map[string]bool)
+	// If there is a "root" release config, it is the start of every inheritance chain.
+	_, err := configs.GetReleaseConfig("root")
+	if err == nil && !isRoot {
+		config.InheritNames = append([]string{"root"}, config.InheritNames...)
+	}
 	for _, inherit := range config.InheritNames {
 		if _, ok := myInheritsSet[inherit]; ok {
 			continue
@@ -101,10 +108,46 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 	contributionsToApply = append(contributionsToApply, config.Contributions...)
 
 	myAconfigValueSets := []string{}
+	myAconfigValueSetsMap := map[string]bool{}
 	myFlags := configs.FlagArtifacts.Clone()
+	workflowManual := rc_proto.Workflow(rc_proto.Workflow_MANUAL)
+	container := rc_proto.Container(rc_proto.Container_ALL)
+	releaseAconfigValueSets := FlagArtifact{
+		FlagDeclaration: &rc_proto.FlagDeclaration{
+			Name:        proto.String("RELEASE_ACONFIG_VALUE_SETS"),
+			Namespace:   proto.String("android_UNKNOWN"),
+			Description: proto.String("Aconfig value sets assembled by release-config"),
+			Workflow:    &workflowManual,
+			Container:   &container,
+			Value:       &rc_proto.Value{Val: &rc_proto.Value_StringValue{""}},
+		},
+		DeclarationIndex: -1,
+		Traces: []*rc_proto.Tracepoint{
+			&rc_proto.Tracepoint{
+				Source: proto.String("$release-config"),
+				Value:  &rc_proto.Value{Val: &rc_proto.Value_StringValue{""}},
+			},
+		},
+	}
+	myFlags["RELEASE_ACONFIG_VALUE_SETS"] = &releaseAconfigValueSets
 	myDirsMap := make(map[int]bool)
 	for _, contrib := range contributionsToApply {
-		myAconfigValueSets = append(myAconfigValueSets, contrib.proto.AconfigValueSets...)
+		if len(contrib.proto.AconfigValueSets) > 0 {
+			contribAconfigValueSets := []string{}
+			for _, v := range contrib.proto.AconfigValueSets {
+				if _, ok := myAconfigValueSetsMap[v]; !ok {
+					contribAconfigValueSets = append(contribAconfigValueSets, v)
+					myAconfigValueSetsMap[v] = true
+				}
+			}
+			myAconfigValueSets = append(myAconfigValueSets, contribAconfigValueSets...)
+			releaseAconfigValueSets.Traces = append(
+				releaseAconfigValueSets.Traces,
+				&rc_proto.Tracepoint{
+					Source: proto.String(contrib.path),
+					Value:  &rc_proto.Value{Val: &rc_proto.Value_StringValue{strings.Join(contribAconfigValueSets, " ")}},
+				})
+		}
 		myDirsMap[contrib.DeclarationIndex] = true
 		for _, value := range contrib.FlagValues {
 			fa, ok := myFlags[*value.proto.Name]
@@ -116,27 +159,32 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 				// Setting location is to the left of declaration.
 				return fmt.Errorf("Setting value for flag %s not allowed in %s\n", *value.proto.Name, value.path)
 			}
+			if isRoot && *fa.FlagDeclaration.Workflow != workflowManual {
+				// The "root" release config can only contain workflow: MANUAL flags.
+				return fmt.Errorf("Setting value for non-MANUAL flag %s is not allowed in %s", *value.proto.Name, value.path)
+			}
 			if err := fa.UpdateValue(*value); err != nil {
 				return err
 			}
 		}
 	}
+	releaseAconfigValueSets.Value = &rc_proto.Value{Val: &rc_proto.Value_StringValue{strings.Join(myAconfigValueSets, " ")}}
 
 	directories := []string{}
-	for idx, confDir := range configs.ConfigDirs {
+	for idx, confDir := range configs.configDirs {
 		if _, ok := myDirsMap[idx]; ok {
 			directories = append(directories, confDir)
 		}
 	}
 
 	config.FlagArtifacts = myFlags
-	config.ReleaseConfigArtifact = &release_config_proto.ReleaseConfigArtifact{
+	config.ReleaseConfigArtifact = &rc_proto.ReleaseConfigArtifact{
 		Name:       proto.String(config.Name),
 		OtherNames: config.OtherNames,
-		FlagArtifacts: func() []*release_config_proto.FlagArtifact {
-			ret := []*release_config_proto.FlagArtifact{}
+		FlagArtifacts: func() []*rc_proto.FlagArtifact {
+			ret := []*rc_proto.FlagArtifact{}
 			for _, flag := range myFlags {
-				ret = append(ret, &release_config_proto.FlagArtifact{
+				ret = append(ret, &rc_proto.FlagArtifact{
 					FlagDeclaration: flag.FlagDeclaration,
 					Traces:          flag.Traces,
 					Value:           flag.Value,

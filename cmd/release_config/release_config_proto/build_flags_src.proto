@@ -144,6 +144,9 @@ message release_config_map {
   // Any aliases.
   repeated release_alias aliases = 1;
 
+  // Description of this map and its intended use.
+  optional string description = 2;
+
   // The default container for flags declared here.
   optional container default_container = 3;
 

@@ -15,13 +15,13 @@
 package release_config_lib
 
 import (
-	"android/soong/cmd/release_config/release_config_proto"
+	rc_proto "android/soong/cmd/release_config/release_config_proto"
 )
 
-func FlagDeclarationFactory(protoPath string) (fd *release_config_proto.FlagDeclaration) {
-	fd = &release_config_proto.FlagDeclaration{}
+func FlagDeclarationFactory(protoPath string) (fd *rc_proto.FlagDeclaration) {
+	fd = &rc_proto.FlagDeclaration{}
 	if protoPath != "" {
-		LoadTextproto(protoPath, fd)
+		LoadMessage(protoPath, fd)
 	}
 	return fd
 }
