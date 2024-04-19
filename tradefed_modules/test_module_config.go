@@ -297,10 +297,16 @@ func (m *testModuleConfigModule) validateBase(ctx android.ModuleContext, depTag 
 //  1. manifest file to testcases dir
 //  2. New Module.config / AndroidTest.xml file with our options.
 func (m *testModuleConfigModule) generateManifestAndConfig(ctx android.ModuleContext) {
+	// Keep before early returns.
+	android.SetProvider(ctx, android.TestOnlyProviderKey, android.TestModuleInformation{
+		TestOnly:       true,
+		TopLevelTarget: true,
+	})
+
 	if !m.validateTestSuites(ctx) {
 		return
 	}
-	// Ensure the provider is accurate
+	// Ensure the base provider is accurate
 	if m.provider.TestConfig == nil {
 		return
 	}
