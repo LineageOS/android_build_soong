@@ -16,7 +16,6 @@ package release_config_lib
 
 import (
 	"cmp"
-	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -24,9 +23,8 @@ import (
 	"slices"
 	"strings"
 
-	"android/soong/cmd/release_config/release_config_proto"
+	rc_proto "android/soong/cmd/release_config/release_config_proto"
 
-	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -37,10 +35,13 @@ type ReleaseConfigMap struct {
 	path string
 
 	// Data received
-	proto release_config_proto.ReleaseConfigMap
+	proto rc_proto.ReleaseConfigMap
 
+	// Map of name:contribution for release config contributions.
 	ReleaseConfigContributions map[string]*ReleaseConfigContribution
-	FlagDeclarations           []release_config_proto.FlagDeclaration
+
+	// Flags declared this directory's flag_declarations/*.textproto
+	FlagDeclarations []rc_proto.FlagDeclaration
 }
 
 type ReleaseConfigDirMap map[string]int
@@ -56,50 +57,51 @@ type ReleaseConfigs struct {
 	// Dictionary of flag_name:FlagDeclaration, with no overrides applied.
 	FlagArtifacts FlagArtifacts
 
+	// Generated release configs artifact
+	Artifact rc_proto.ReleaseConfigsArtifact
+
 	// Dictionary of name:ReleaseConfig
+	// Use `GetReleaseConfigs(name)` to get a release config.
 	ReleaseConfigs map[string]*ReleaseConfig
 
-	// Generated release configs
-	Artifact release_config_proto.ReleaseConfigsArtifact
+	// Map of directory to *ReleaseConfigMap
+	releaseConfigMapsMap map[string]*ReleaseConfigMap
 
 	// The list of config directories used.
-	ConfigDirs []string
+	configDirs []string
 
 	// A map from the config directory to its order in the list of config
 	// directories.
-	ConfigDirIndexes ReleaseConfigDirMap
+	configDirIndexes ReleaseConfigDirMap
 }
 
-func (configs *ReleaseConfigs) DumpArtifact(outDir string) error {
-	message := &configs.Artifact
-	basePath := filepath.Join(outDir, "all_release_configs")
-	writer := func(suffix string, marshal func() ([]byte, error)) error {
-		data, err := marshal()
-		if err != nil {
-			return err
-		}
-		return os.WriteFile(fmt.Sprintf("%s.%s", basePath, suffix), data, 0644)
-	}
-	err := writer("textproto", func() ([]byte, error) { return prototext.MarshalOptions{Multiline: true}.Marshal(message) })
-	if err != nil {
-		return err
-	}
-
-	err = writer("pb", func() ([]byte, error) { return proto.Marshal(message) })
-	if err != nil {
-		return err
-	}
-
-	return writer("json", func() ([]byte, error) { return json.MarshalIndent(message, "", "  ") })
+// Write the "all_release_configs" artifact.
+//
+// The file will be in "{outDir}/all_release_configs-{product}.{format}"
+//
+// Args:
+//
+//	outDir string: directory path. Will be created if not present.
+//	product string: TARGET_PRODUCT for the release_configs.
+//	format string: one of "json", "pb", or "textproto"
+//
+// Returns:
+//
+//	error: Any error encountered.
+func (configs *ReleaseConfigs) WriteArtifact(outDir, product, format string) error {
+	return WriteMessage(
+		filepath.Join(outDir, fmt.Sprintf("all_release_configs-%s.%s", product, format)),
+		&configs.Artifact)
 }
 
 func ReleaseConfigsFactory() (c *ReleaseConfigs) {
 	return &ReleaseConfigs{
-		Aliases:          make(map[string]*string),
-		FlagArtifacts:    make(map[string]*FlagArtifact),
-		ReleaseConfigs:   make(map[string]*ReleaseConfig),
-		ConfigDirs:       []string{},
-		ConfigDirIndexes: make(ReleaseConfigDirMap),
+		Aliases:              make(map[string]*string),
+		FlagArtifacts:        make(map[string]*FlagArtifact),
+		ReleaseConfigs:       make(map[string]*ReleaseConfig),
+		releaseConfigMapsMap: make(map[string]*ReleaseConfigMap),
+		configDirs:           []string{},
+		configDirIndexes:     make(ReleaseConfigDirMap),
 	}
 }
 
@@ -109,7 +111,7 @@ func ReleaseConfigMapFactory(protoPath string) (m *ReleaseConfigMap) {
 		ReleaseConfigContributions: make(map[string]*ReleaseConfigContribution),
 	}
 	if protoPath != "" {
-		LoadTextproto(protoPath, &m.proto)
+		LoadMessage(protoPath, &m.proto)
 	}
 	return m
 }
@@ -145,7 +147,7 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 		}
 		// If the input didn't specify a value, create one (== UnspecifiedValue).
 		if flagDeclaration.Value == nil {
-			flagDeclaration.Value = &release_config_proto.Value{Val: &release_config_proto.Value_UnspecifiedValue{false}}
+			flagDeclaration.Value = &rc_proto.Value{Val: &rc_proto.Value_UnspecifiedValue{false}}
 		}
 		m.FlagDeclarations = append(m.FlagDeclarations, *flagDeclaration)
 		name := *flagDeclaration.Name
@@ -156,7 +158,7 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 		}
 		// Set the initial value in the flag artifact.
 		configs.FlagArtifacts[name].UpdateValue(
-			FlagValue{path: path, proto: release_config_proto.FlagValue{
+			FlagValue{path: path, proto: rc_proto.FlagValue{
 				Name: proto.String(name), Value: flagDeclaration.Value}})
 		return nil
 	})
@@ -166,7 +168,7 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 
 	err = WalkTextprotoFiles(dir, "release_configs", func(path string, d fs.DirEntry, err error) error {
 		releaseConfigContribution := &ReleaseConfigContribution{path: path, DeclarationIndex: ConfigDirIndex}
-		LoadTextproto(path, &releaseConfigContribution.proto)
+		LoadMessage(path, &releaseConfigContribution.proto)
 		name := *releaseConfigContribution.proto.Name
 		if fmt.Sprintf("%s.textproto", name) != filepath.Base(path) {
 			return fmt.Errorf("%s incorrectly declares release config %s", path, name)
@@ -197,6 +199,7 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 		return err
 	}
 	configs.ReleaseConfigMaps = append(configs.ReleaseConfigMaps, m)
+	configs.releaseConfigMapsMap[dir] = m
 	return nil
 }
 
@@ -212,16 +215,23 @@ func (configs *ReleaseConfigs) GetReleaseConfig(name string) (*ReleaseConfig, er
 	return nil, fmt.Errorf("Missing config %s.  Trace=%v", name, trace)
 }
 
-func (configs *ReleaseConfigs) DumpMakefile(outDir, targetRelease string) error {
-	outFile := filepath.Join(outDir, "release_config.mk")
+// Write the makefile for this targetRelease.
+func (configs *ReleaseConfigs) WriteMakefile(outFile, targetRelease string) error {
 	makeVars := make(map[string]string)
+	var allReleaseNames []string
+	for _, v := range configs.ReleaseConfigs {
+		allReleaseNames = append(allReleaseNames, v.Name)
+		allReleaseNames = append(allReleaseNames, v.OtherNames...)
+	}
 	config, err := configs.GetReleaseConfig(targetRelease)
 	if err != nil {
 		return err
 	}
+
+	myFlagArtifacts := config.FlagArtifacts.Clone()
 	// Sort the flags by name first.
 	names := []string{}
-	for k, _ := range config.FlagArtifacts {
+	for k, _ := range myFlagArtifacts {
 		names = append(names, k)
 	}
 	slices.SortFunc(names, func(a, b string) int {
@@ -237,12 +247,12 @@ func (configs *ReleaseConfigs) DumpMakefile(outDir, targetRelease string) error 
 	}
 
 	for _, name := range names {
-		flag := config.FlagArtifacts[name]
+		flag := myFlagArtifacts[name]
 		decl := flag.FlagDeclaration
 
-		// cName := strings.ToLower(release_config_proto.Container_name[decl.GetContainer()])
+		// cName := strings.ToLower(rc_proto.Container_name[decl.GetContainer()])
 		cName := strings.ToLower(decl.Container.String())
-		if cName == strings.ToLower(release_config_proto.Container_ALL.String()) {
+		if cName == strings.ToLower(rc_proto.Container_ALL.String()) {
 			partitions["product"] = append(partitions["product"], name)
 			partitions["system"] = append(partitions["system"], name)
 			partitions["system_ext"] = append(partitions["system_ext"], name)
@@ -277,7 +287,13 @@ func (configs *ReleaseConfigs) DumpMakefile(outDir, targetRelease string) error 
 	//   _ALL_RELEASE_FLAGS.PARTITIONS.*
 	//   all _ALL_RELEASE_FLAGS.*, sorted by name
 	//   Final flag values, sorted by name.
-	data := fmt.Sprintf("_ALL_RELEASE_FLAGS :=$= %s\n", strings.Join(names, " "))
+	data := fmt.Sprintf("# TARGET_RELEASE=%s\n", config.Name)
+	if targetRelease != config.Name {
+		data += fmt.Sprintf("# User specified TARGET_RELEASE=%s\n", targetRelease)
+	}
+	// The variable _all_release_configs will get deleted during processing, so do not mark it read-only.
+	data += fmt.Sprintf("_all_release_configs := %s\n", strings.Join(allReleaseNames, " "))
+	data += fmt.Sprintf("_ALL_RELEASE_FLAGS :=$= %s\n", strings.Join(names, " "))
 	for _, pName := range pNames {
 		data += fmt.Sprintf("_ALL_RELEASE_FLAGS.PARTITIONS.%s :=$= %s\n", pName, strings.Join(partitions[pName], " "))
 	}
@@ -285,8 +301,6 @@ func (configs *ReleaseConfigs) DumpMakefile(outDir, targetRelease string) error 
 		data += fmt.Sprintf("%s :=$= %s\n", vName, makeVars[vName])
 	}
 	data += "\n\n# Values for all build flags\n"
-	data += fmt.Sprintf("RELEASE_ACONFIG_VALUE_SETS :=$= %s\n",
-		strings.Join(config.ReleaseConfigArtifact.AconfigValueSets, " "))
 	for _, name := range names {
 		data += fmt.Sprintf("%s :=$= %s\n", name, makeVars[name])
 	}
@@ -321,16 +335,23 @@ func (configs *ReleaseConfigs) GenerateReleaseConfigs(targetRelease string) erro
 	if err != nil {
 		return err
 	}
-	configs.Artifact = release_config_proto.ReleaseConfigsArtifact{
+	configs.Artifact = rc_proto.ReleaseConfigsArtifact{
 		ReleaseConfig: releaseConfig.ReleaseConfigArtifact,
-		OtherReleaseConfigs: func() []*release_config_proto.ReleaseConfigArtifact {
-			orc := []*release_config_proto.ReleaseConfigArtifact{}
+		OtherReleaseConfigs: func() []*rc_proto.ReleaseConfigArtifact {
+			orc := []*rc_proto.ReleaseConfigArtifact{}
 			for name, config := range configs.ReleaseConfigs {
 				if name != releaseConfig.Name {
 					orc = append(orc, config.ReleaseConfigArtifact)
 				}
 			}
 			return orc
+		}(),
+		ReleaseConfigMapsMap: func() map[string]*rc_proto.ReleaseConfigMap {
+			ret := make(map[string]*rc_proto.ReleaseConfigMap)
+			for k, v := range configs.releaseConfigMapsMap {
+				ret[k] = &v.proto
+			}
+			return ret
 		}(),
 	}
 	return nil
@@ -351,8 +372,8 @@ func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease strin
 	for idx, releaseConfigMapPath := range releaseConfigMapPaths {
 		// Maintain an ordered list of release config directories.
 		configDir := filepath.Dir(releaseConfigMapPath)
-		configs.ConfigDirIndexes[configDir] = idx
-		configs.ConfigDirs = append(configs.ConfigDirs, configDir)
+		configs.configDirIndexes[configDir] = idx
+		configs.configDirs = append(configs.configDirs, configDir)
 		err = configs.LoadReleaseConfigMap(releaseConfigMapPath, idx)
 		if err != nil {
 			return nil, err
