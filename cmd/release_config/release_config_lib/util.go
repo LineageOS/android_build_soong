@@ -15,6 +15,7 @@
 package release_config_lib
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -24,6 +25,8 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
+
+var disableWarnings bool
 
 type StringList []string
 
@@ -36,15 +39,66 @@ func (l *StringList) String() string {
 	return fmt.Sprintf("%v", *l)
 }
 
-func LoadTextproto(path string, message proto.Message) error {
+// Write a marshalled message to a file.
+//
+// Marshal the message based on the extension of the path we are writing it to.
+//
+// Args:
+//
+//	path string: the path of the file to write to.  Directories are not created.
+//	  Supported extensions are: ".json", ".pb", and ".textproto".
+//	message proto.Message: the message to write.
+//
+// Returns:
+//
+//	error: any error encountered.
+func WriteMessage(path string, message proto.Message) (err error) {
+	var data []byte
+	switch filepath.Ext(path) {
+	case ".json":
+		data, err = json.MarshalIndent(message, "", "  ")
+	case ".pb":
+		data, err = proto.Marshal(message)
+	case ".textproto":
+		data, err = prototext.MarshalOptions{Multiline: true}.Marshal(message)
+	default:
+		return fmt.Errorf("Unknown message format for %s", path)
+	}
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0644)
+}
+
+// Read a message from a file.
+//
+// The message is unmarshalled based on the extension of the file read.
+//
+// Args:
+//
+//	path string: the path of the file to read.
+//	message proto.Message: the message to unmarshal the message into.
+//
+// Returns:
+//
+//	error: any error encountered.
+func LoadMessage(path string, message proto.Message) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	ret := prototext.Unmarshal(data, message)
-	return ret
+	switch filepath.Ext(path) {
+	case ".json":
+		return json.Unmarshal(data, message)
+	case ".pb":
+		return proto.Unmarshal(data, message)
+	case ".textproto":
+		return prototext.Unmarshal(data, message)
+	}
+	return fmt.Errorf("Unknown message format for %s", path)
 }
 
+// Call Func for any textproto files found in {root}/{subdir}.
 func WalkTextprotoFiles(root string, subdir string, Func fs.WalkDirFunc) error {
 	path := filepath.Join(root, subdir)
 	if _, err := os.Stat(path); err != nil {
@@ -62,6 +116,19 @@ func WalkTextprotoFiles(root string, subdir string, Func fs.WalkDirFunc) error {
 	})
 }
 
+// Turn off all warning output
+func DisableWarnings() {
+	disableWarnings = true
+}
+
+func warnf(format string, args ...any) (n int, err error) {
+	if !disableWarnings {
+		return fmt.Printf(format, args...)
+	}
+	return 0, nil
+}
+
+// Returns the default value for release config artifacts.
 func GetDefaultOutDir() string {
 	outEnv := os.Getenv("OUT_DIR")
 	if outEnv == "" {
@@ -70,6 +137,7 @@ func GetDefaultOutDir() string {
 	return filepath.Join(outEnv, "soong", "release-config")
 }
 
+// Return the default list of map files to use.
 func GetDefaultMapPaths() StringList {
 	var defaultMapPaths StringList
 	defaultLocations := StringList{

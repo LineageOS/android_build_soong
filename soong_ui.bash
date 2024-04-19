@@ -35,6 +35,7 @@ source ${TOP}/build/soong/scripts/microfactory.bash
 soong_build_go soong_ui android/soong/cmd/soong_ui
 soong_build_go mk2rbc android/soong/mk2rbc/mk2rbc
 soong_build_go rbcrun rbcrun/rbcrun
+soong_build_go release-config android/soong/cmd/release_config/release_config
 
 cd ${TOP}
 exec "$(getoutdir)/soong_ui" "$@"
