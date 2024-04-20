@@ -89,7 +89,10 @@ func ProcessBuildFlags(dir string, namespaceMap map[string]string) error {
 	for _, line := range lines {
 		if comment := commentRegexp.FindStringSubmatch(commentRegexp.FindString(line)); comment != nil {
 			// Description is the text from any contiguous series of lines before a `flag()` call.
-			description += fmt.Sprintf(" %s", strings.TrimSpace(comment[commentRegexp.SubexpIndex("comment")]))
+			descLine := strings.TrimSpace(comment[commentRegexp.SubexpIndex("comment")])
+			if !strings.HasPrefix(descLine, "keep-sorted") {
+				description += fmt.Sprintf(" %s", descLine)
+			}
 			continue
 		}
 		matches := declRegexp.FindStringSubmatch(declRegexp.FindString(line))
@@ -218,7 +221,7 @@ func ProcessReleaseConfigMap(dir string, descriptionMap map[string]string) error
 	} else {
 		fmt.Printf("Processing %s\n", path)
 	}
-	configRegexp, err := regexp.Compile("^..call[[:space:]]+declare-release-config,[[:space:]]+(?<name>[_a-z0-0A-Z]+),[[:space:]]+(?<files>[^,]*)(,[[:space:]]*(?<inherits>.*)|[[:space:]]*)[)]$")
+	configRegexp, err := regexp.Compile("^..call[[:space:]]+declare-release-config,[[:space:]]+(?<name>[_a-z0-9A-Z]+),[[:space:]]+(?<files>[^,]*)(,[[:space:]]*(?<inherits>.*)|[[:space:]]*)[)]$")
 	if err != nil {
 		return err
 	}
