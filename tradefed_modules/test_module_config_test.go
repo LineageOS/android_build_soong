@@ -19,6 +19,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/google/blueprint"
 )
 
 const bp = `
@@ -345,6 +347,67 @@ func TestModuleConfigHostDuplicateTestSuitesGiveErrors(t *testing.T) {
 	).ExtendWithErrorHandler(
 		android.FixtureExpectsAtLeastOneErrorMatchingPattern("TestSuite some-compat exists in the base")).
 		RunTestWithBp(t, badBp)
+}
+
+func TestTestOnlyProvider(t *testing.T) {
+	t.Parallel()
+	ctx := android.GroupFixturePreparers(
+		java.PrepareForTestWithJavaDefaultModules,
+		android.FixtureRegisterWithContext(RegisterTestModuleConfigBuildComponents),
+	).RunTestWithBp(t, `
+                // These should be test-only
+                test_module_config_host {
+                        name: "host-derived-test",
+                        base: "host-base",
+                        exclude_filters: ["android.test.example.devcodelab.DevCodelabTest#testHelloFail"],
+                        include_annotations: ["android.platform.test.annotations.LargeTest"],
+                        test_suites: ["general-tests"],
+                }
+
+                test_module_config {
+                        name: "derived-test",
+                        base: "base",
+                        exclude_filters: ["android.test.example.devcodelab.DevCodelabTest#testHelloFail"],
+                        include_annotations: ["android.platform.test.annotations.LargeTest"],
+                        test_suites: ["general-tests"],
+                }
+
+		android_test {
+			name: "base",
+			sdk_version: "current",
+                        data: ["data/testfile"],
+		}
+
+		java_test_host {
+			name: "host-base",
+                        srcs: ["a.java"],
+                        test_suites: ["general-tests"],
+		}`,
+	)
+
+	// Visit all modules and ensure only the ones that should
+	// marked as test-only are marked as test-only.
+
+	actualTestOnly := []string{}
+	ctx.VisitAllModules(func(m blueprint.Module) {
+		if provider, ok := android.OtherModuleProvider(ctx.TestContext.OtherModuleProviderAdaptor(), m, android.TestOnlyProviderKey); ok {
+			if provider.TestOnly {
+				actualTestOnly = append(actualTestOnly, m.Name())
+			}
+		}
+	})
+	expectedTestOnlyModules := []string{
+		"host-derived-test",
+		"derived-test",
+		// android_test and java_test_host are tests too.
+		"host-base",
+		"base",
+	}
+
+	notEqual, left, right := android.ListSetDifference(expectedTestOnlyModules, actualTestOnly)
+	if notEqual {
+		t.Errorf("test-only: Expected but not found: %v, Found but not expected: %v", left, right)
+	}
 }
 
 // Use for situations where the entries map contains pairs:  [srcPath:installedPath1, srcPath2:installedPath2]

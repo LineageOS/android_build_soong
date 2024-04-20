@@ -706,11 +706,6 @@ func (p *Prebuilt) usePrebuilt(ctx BaseMutatorContext, source Module, prebuilt M
 		return true
 	}
 
-	// If the use_source_config_var property is set then it overrides the prefer property setting.
-	if configVar := p.properties.Use_source_config_var; configVar != nil {
-		return !ctx.Config().VendorConfig(proptools.String(configVar.Config_namespace)).Bool(proptools.String(configVar.Var_name))
-	}
-
 	// TODO: use p.Properties.Name and ctx.ModuleDir to override preference
 	return Bool(p.properties.Prefer)
 }

@@ -18,10 +18,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"android/soong/android"
 	"android/soong/cc"
+
+	"github.com/google/blueprint"
 )
 
 type pyModule struct {
@@ -357,6 +360,76 @@ cc_binary {
 				})
 			}
 		})
+	}
+}
+
+func TestTestOnlyProvider(t *testing.T) {
+	t.Parallel()
+	ctx := android.GroupFixturePreparers(
+		PrepareForTestWithPythonBuildComponents,
+		android.PrepareForTestWithAllowMissingDependencies,
+	).RunTestWithBp(t, `
+                // These should be test-only
+                python_library { name: "py-lib-test", test_only: true }
+                python_library { name: "py-lib-test-host", test_only: true, host_supported: true }
+                python_test {    name: "py-test", srcs: ["py-test.py"] }
+                python_test_host { name: "py-test-host", srcs: ["py-test-host.py"] }
+                python_binary_host { name: "py-bin-test", srcs: ["py-bin-test.py"] }
+
+                // These should not be.
+                python_library { name: "py-lib" }
+                python_binary_host { name: "py-bin", srcs: ["py-bin.py"] }
+	`)
+
+	// Visit all modules and ensure only the ones that should
+	// marked as test-only are marked as test-only.
+
+	actualTestOnly := []string{}
+	ctx.VisitAllModules(func(m blueprint.Module) {
+		if provider, ok := android.OtherModuleProvider(ctx.TestContext.OtherModuleProviderAdaptor(), m, android.TestOnlyProviderKey); ok {
+			if provider.TestOnly {
+				actualTestOnly = append(actualTestOnly, m.Name())
+			}
+		}
+	})
+	expectedTestOnlyModules := []string{
+		"py-lib-test",
+		"py-lib-test-host",
+		"py-test",
+		"py-test-host",
+	}
+
+	notEqual, left, right := android.ListSetDifference(expectedTestOnlyModules, actualTestOnly)
+	if notEqual {
+		t.Errorf("test-only: Expected but not found: %v, Found but not expected: %v", left, right)
+	}
+}
+
+// Don't allow setting test-only on things that are always tests or never tests.
+func TestInvalidTestOnlyTargets(t *testing.T) {
+	testCases := []string{
+		` python_test { name: "py-test", test_only: true, srcs: ["py-test.py"] } `,
+		` python_test_host { name: "py-test-host", test_only: true, srcs: ["py-test-host.py"] } `,
+		` python_defaults { name: "py-defaults", test_only: true, srcs: ["foo.py"] } `,
+	}
+
+	for i, bp := range testCases {
+		ctx := android.GroupFixturePreparers(
+			PrepareForTestWithPythonBuildComponents,
+			android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
+
+				ctx.RegisterModuleType("python_defaults", DefaultsFactory)
+			}),
+			android.PrepareForTestWithAllowMissingDependencies).
+			ExtendWithErrorHandler(android.FixtureIgnoreErrors).
+			RunTestWithBp(t, bp)
+		if len(ctx.Errs) != 1 {
+			t.Errorf("Expected err setting test_only in testcase #%d: %d errs", i, len(ctx.Errs))
+			continue
+		}
+		if !strings.Contains(ctx.Errs[0].Error(), "unrecognized property \"test_only\"") {
+			t.Errorf("ERR: %s bad bp: %s", ctx.Errs[0], bp)
+		}
 	}
 }
 

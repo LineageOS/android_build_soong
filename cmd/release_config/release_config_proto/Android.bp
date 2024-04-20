@@ -18,7 +18,7 @@ package {
 
 bootstrap_go_package {
     name: "soong-cmd-release_config-proto",
-    pkgPath: "android/soong/release_config/release_config_proto",
+    pkgPath: "android/soong/cmd/release_config/release_config_proto",
     deps: [
         "golang-protobuf-reflect-protoreflect",
         "golang-protobuf-runtime-protoimpl",
