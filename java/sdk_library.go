@@ -3316,6 +3316,7 @@ func (module *sdkLibraryXml) GenerateAndroidBuildActions(ctx android.ModuleConte
 	android.WriteFileRuleVerbatim(ctx, module.outputFilePath, xmlContent)
 
 	module.installDirPath = android.PathForModuleInstall(ctx, "etc", module.SubDir())
+	ctx.PackageFile(module.installDirPath, libName+".xml", module.outputFilePath)
 }
 
 func (module *sdkLibraryXml) AndroidMkEntries() []android.AndroidMkEntries {
