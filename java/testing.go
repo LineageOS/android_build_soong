@@ -711,7 +711,7 @@ var PrepareForTestWithFakeApexMutator = android.GroupFixturePreparers(
 
 func registerFakeApexMutator(ctx android.RegistrationContext) {
 	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("apex", fakeApexMutator).Parallel()
+		ctx.Transition("apex", &fakeApexMutator{})
 	})
 }
 
@@ -726,16 +726,30 @@ var _ apexModuleBase = (*SdkLibrary)(nil)
 // `apex_available`. It helps us avoid a dependency on the real mutator defined in "soong-apex",
 // which will cause a cyclic dependency, and it provides an easy way to create an APEX variant for
 // testing without dealing with all the complexities in the real mutator.
-func fakeApexMutator(mctx android.BottomUpMutatorContext) {
-	switch mctx.Module().(type) {
+type fakeApexMutator struct{}
+
+func (f *fakeApexMutator) Split(ctx android.BaseModuleContext) []string {
+	switch ctx.Module().(type) {
 	case *Library, *SdkLibrary:
-		if len(mctx.Module().(apexModuleBase).ApexAvailable()) > 0 {
-			modules := mctx.CreateVariations("", "apex1000")
-			apexInfo := android.ApexInfo{
-				ApexVariationName: "apex1000",
-			}
-			mctx.SetVariationProvider(modules[1], android.ApexInfoProvider, apexInfo)
+		return []string{"", "apex1000"}
+	}
+	return []string{""}
+}
+
+func (f *fakeApexMutator) OutgoingTransition(ctx android.OutgoingTransitionContext, sourceVariation string) string {
+	return sourceVariation
+}
+
+func (f *fakeApexMutator) IncomingTransition(ctx android.IncomingTransitionContext, incomingVariation string) string {
+	return incomingVariation
+}
+
+func (f *fakeApexMutator) Mutate(ctx android.BottomUpMutatorContext, variation string) {
+	if variation != "" {
+		apexInfo := android.ApexInfo{
+			ApexVariationName: "apex1000",
 		}
+		android.SetProvider(ctx, android.ApexInfoProvider, apexInfo)
 	}
 }
 
