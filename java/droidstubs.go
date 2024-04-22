@@ -954,11 +954,8 @@ func (d *Droidstubs) everythingOptionalCmd(ctx android.ModuleContext, cmd *andro
 		if d.properties.Check_api.Api_lint.New_since != nil {
 			newSince = android.PathsForModuleSrc(ctx, []string{proptools.String(d.properties.Check_api.Api_lint.New_since)})
 		}
-		if len(newSince) > 0 {
-			cmd.FlagForEachInput("--api-lint ", newSince)
-		} else {
-			cmd.Flag("--api-lint")
-		}
+		cmd.Flag("--api-lint")
+		cmd.FlagForEachInput("--api-lint-previous-api ", newSince)
 		d.apiLintReport = android.PathForModuleOut(ctx, Everything.String(), "api_lint_report.txt")
 		cmd.FlagWithOutput("--report-even-if-suppressed ", d.apiLintReport) // TODO:  Change to ":api-lint"
 
