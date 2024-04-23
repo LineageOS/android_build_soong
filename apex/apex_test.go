@@ -10691,6 +10691,18 @@ func TestAconfigFilesJavaAndCcDeps(t *testing.T) {
 			name: "server_configurable_flags",
 			srcs: ["server_configurable_flags.cc"],
 		}
+		cc_library {
+			name: "libbase",
+			srcs: ["libbase.cc"],
+		}
+		cc_library {
+			name: "libaconfig_storage_read_api_cc",
+			srcs: ["libaconfig_storage_read_api_cc.cc"],
+		}
+		cc_library {
+			name: "libaconfig_storage_protos_cc",
+			srcs: ["libaconfig_storage_protos_cc.cc"],
+		}
 	`)
 
 	mod := ctx.ModuleForTests("myapex", "android_common_myapex")
