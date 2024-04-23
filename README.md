@@ -463,18 +463,32 @@ soong_config_string_variable {
 This example describes a new `acme_cc_defaults` module type that extends the
 `cc_defaults` module type, with four additional conditionals based on variables
 `board`, `feature`, `impl` and `width` which can affect properties `cflags` and
-`srcs`. Additionally, each conditional will contain a `conditions_default`
-property can affect `cflags` and `srcs` in the following conditions:
+`srcs`. The four types of soong variables control properties in the following
+ways.
 
-* bool variable (e.g. `feature`): the variable is unspecified or not set to a true value
+* bool variable (e.g. `feature`): Properties are applied if set to `true`.
+* list variable (e.g. `impl`): (lists of strings properties only) Properties are
+  applied for each value in the list, using `%s` substitution. For example, if
+  the property is `["%s.cpp", "%s.h"]` and the list value is `foo bar`,
+  the result is `["foo.cpp", "foo.h", "bar.cpp", "bar.h"]`.
+* value variable (e.g. `width`): (strings or lists of strings) The value are
+  directly substituted into properties using `%s`.
+* string variable (e.g. `board`): Properties are applied only if they match the
+  variable's value.
+
+Additionally, each conditional containing a `conditions_default` property can
+affect `cflags` and `srcs` in the following conditions:
+
+* bool variable (e.g. `feature`): the variable is unspecified or not set to
+  `true`
 * list variable (e.g. `impl`): the variable is unspecified
 * value variable (e.g. `width`): the variable is unspecified
-* string variable (e.g. `board`): the variable is unspecified or the variable is set to a string unused in the
-given module. For example, with `board`, if the `board`
-conditional contains the properties `soc_a` and `conditions_default`, when
-board=soc_b, the `cflags` and `srcs` values under `conditions_default` will be
-used. To specify that no properties should be amended for `soc_b`, you can set
-`soc_b: {},`.
+* string variable (e.g. `board`): the variable is unspecified or the variable is
+  set to a string unused in the given module. For example, with `board`, if the
+  `board` conditional contains the properties `soc_a` and `conditions_default`,
+  when `board` is `soc_b`, the `cflags` and `srcs` values under
+  `conditions_default` is used. To specify that no properties should be amended
+  for `soc_b`, you can set `soc_b: {},`.
 
 The values of the variables can be set from a product's `BoardConfig.mk` file:
 ```
