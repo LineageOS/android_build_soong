@@ -58,6 +58,26 @@ func testCCCodegenModeHelper(t *testing.T, bpMode string, ruleMode string) {
     		srcs: ["server_configurable_flags.cc"],
 			}
 
+			cc_library {
+    		name: "libbase",
+    		srcs: ["libbase.cc"],
+			}
+
+			cc_library {
+    		name: "liblog",
+    		srcs: ["liblog.cc"],
+			}
+
+			cc_library {
+    		name: "libaconfig_storage_read_api_cc",
+    		srcs: ["libaconfig_storage_read_api_cc.cc"],
+			}
+
+			cc_library {
+    		name: "libaconfig_storage_protos_cc",
+    		srcs: ["libaconfig_storage_protos_cc.cc"],
+			}
+
 			cc_aconfig_library {
 				name: "my_cc_aconfig_library",
 				aconfig_declarations: "my_aconfig_declarations",
@@ -99,6 +119,27 @@ func testIncorrectCCCodegenModeHelper(t *testing.T, bpMode string, err string) {
     		name: "server_configurable_flags",
     		srcs: ["server_configurable_flags.cc"],
 			}
+
+			cc_library {
+    		name: "libbase",
+    		srcs: ["libbase.cc"],
+			}
+
+			cc_library {
+    		name: "liblog",
+    		srcs: ["liblog.cc"],
+			}
+
+			cc_library {
+    		name: "libaconfig_storage_read_api_cc",
+    		srcs: ["libaconfig_storage_read_api_cc.cc"],
+			}
+
+			cc_library {
+    		name: "libaconfig_storage_protos_cc",
+    		srcs: ["libaconfig_storage_protos_cc.cc"],
+			}
+
 
 			cc_aconfig_library {
 				name: "my_cc_aconfig_library",
@@ -150,6 +191,30 @@ func TestAndroidMkCcLibrary(t *testing.T) {
 		cc_library {
 			name: "server_configurable_flags",
 			srcs: ["server_configurable_flags.cc"],
+			vendor_available: true,
+		}
+
+		cc_library {
+			name: "libbase",
+			srcs: ["libbase.cc"],
+			vendor_available: true,
+		}
+
+		cc_library {
+			name: "liblog",
+			srcs: ["liblog.cc"],
+			vendor_available: true,
+		}
+
+		cc_library {
+			name: "libaconfig_storage_read_api_cc",
+			srcs: ["libaconfig_storage_read_api_cc.cc"],
+			vendor_available: true,
+		}
+
+		cc_library {
+			name: "libaconfig_storage_protos_cc",
+			srcs: ["libaconfig_storage_protos_cc.cc"],
 			vendor_available: true,
 		}
 	`
