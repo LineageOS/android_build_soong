@@ -610,11 +610,10 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if BoolDefault(d.properties.Check_api.Api_lint.Enabled, false) {
 		doApiLint = true
 
+		cmd.Flag("--api-lint")
 		newSince := android.OptionalPathForModuleSrc(ctx, d.properties.Check_api.Api_lint.New_since)
 		if newSince.Valid() {
-			cmd.FlagWithInput("--api-lint ", newSince.Path())
-		} else {
-			cmd.Flag("--api-lint")
+			cmd.FlagWithInput("--api-lint-previous-api ", newSince.Path())
 		}
 		d.apiLintReport = android.PathForModuleOut(ctx, "metalava", "api_lint_report.txt")
 		cmd.FlagWithOutput("--report-even-if-suppressed ", d.apiLintReport) // TODO:  Change to ":api-lint"
