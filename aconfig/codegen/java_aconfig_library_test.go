@@ -35,6 +35,7 @@ func runJavaAndroidMkTest(t *testing.T, bp string) {
 			aconfig_declarations {
 				name: "my_aconfig_declarations_foo",
 				package: "com.example.package.foo",
+				container: "system",
 				srcs: ["foo.aconfig"],
 			}
 
@@ -46,6 +47,7 @@ func runJavaAndroidMkTest(t *testing.T, bp string) {
 			aconfig_declarations {
 				name: "my_aconfig_declarations_bar",
 				package: "com.example.package.bar",
+				container: "system",
 				srcs: ["bar.aconfig"],
 			}
 
@@ -60,7 +62,7 @@ func runJavaAndroidMkTest(t *testing.T, bp string) {
 	entry := android.AndroidMkEntriesForTest(t, result.TestContext, module)[0]
 
 	makeVar := entry.EntryMap["LOCAL_ACONFIG_FILES"]
-	android.EnsureListContainsSuffix(t, makeVar, "android_common/aconfig_merged.pb")
+	android.EnsureListContainsSuffix(t, makeVar, "android_common/system/aconfig_merged.pb")
 }
 
 func TestAndroidMkJavaLibrary(t *testing.T) {
@@ -175,6 +177,7 @@ func testCodegenMode(t *testing.T, bpMode string, ruleMode string) {
 			aconfig_declarations {
 				name: "my_aconfig_declarations",
 				package: "com.example.package",
+				container: "com.android.foo",
 				srcs: ["foo.aconfig"],
 				exportable: true,
 			}
@@ -200,6 +203,7 @@ func testCodegenModeWithError(t *testing.T, bpMode string, err string) {
 			aconfig_declarations {
 				name: "my_aconfig_declarations",
 				package: "com.example.package",
+				container: "com.android.foo",
 				srcs: ["foo.aconfig"],
 			}
 
@@ -233,4 +237,53 @@ func TestForceReadOnlyMode(t *testing.T) {
 
 func TestUnsupportedMode(t *testing.T) {
 	testCodegenModeWithError(t, "mode: `unsupported`,", "mode: \"unsupported\" is not a supported mode")
+}
+
+func TestMkEntriesMatchedContainer(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		PrepareForTestWithAconfigBuildComponents,
+		java.PrepareForTestWithJavaDefaultModules).
+		ExtendWithErrorHandler(android.FixtureExpectsNoErrors).
+		RunTestWithBp(t, `
+			aconfig_declarations {
+				name: "my_aconfig_declarations_foo",
+				package: "com.example.package.foo",
+				container: "system",
+				srcs: ["foo.aconfig"],
+			}
+
+			java_aconfig_library {
+				name: "my_java_aconfig_library_foo",
+				aconfig_declarations: "my_aconfig_declarations_foo",
+			}
+
+			aconfig_declarations {
+				name: "my_aconfig_declarations_bar",
+				package: "com.example.package.bar",
+				container: "system_ext",
+				srcs: ["bar.aconfig"],
+			}
+
+			java_aconfig_library {
+				name: "my_java_aconfig_library_bar",
+				aconfig_declarations: "my_aconfig_declarations_bar",
+			}
+
+			java_library {
+				name: "my_module",
+				srcs: [
+					"src/foo.java",
+				],
+				static_libs: [
+					"my_java_aconfig_library_foo",
+					"my_java_aconfig_library_bar",
+				],
+				platform_apis: true,
+			}
+		`)
+
+	module := result.ModuleForTests("my_module", "android_common").Module()
+	entry := android.AndroidMkEntriesForTest(t, result.TestContext, module)[0]
+	makeVar := entry.EntryMap["LOCAL_ACONFIG_FILES"]
+	android.EnsureListContainsSuffix(t, makeVar, "my_aconfig_declarations_foo/intermediate.pb")
 }
