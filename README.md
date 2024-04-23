@@ -449,6 +449,7 @@ soong_config_module_type {
     config_namespace: "acme",
     variables: ["board"],
     bool_variables: ["feature"],
+    list_variables: ["impl"],
     value_variables: ["width"],
     properties: ["cflags", "srcs"],
 }
@@ -460,12 +461,13 @@ soong_config_string_variable {
 ```
 
 This example describes a new `acme_cc_defaults` module type that extends the
-`cc_defaults` module type, with three additional conditionals based on
-variables `board`, `feature` and `width`, which can affect properties `cflags`
-and `srcs`. Additionally, each conditional will contain a `conditions_default`
+`cc_defaults` module type, with four additional conditionals based on variables
+`board`, `feature`, `impl` and `width` which can affect properties `cflags` and
+`srcs`. Additionally, each conditional will contain a `conditions_default`
 property can affect `cflags` and `srcs` in the following conditions:
 
 * bool variable (e.g. `feature`): the variable is unspecified or not set to a true value
+* list variable (e.g. `impl`): the variable is unspecified
 * value variable (e.g. `width`): the variable is unspecified
 * string variable (e.g. `board`): the variable is unspecified or the variable is set to a string unused in the
 given module. For example, with `board`, if the `board`
@@ -478,6 +480,7 @@ The values of the variables can be set from a product's `BoardConfig.mk` file:
 ```
 $(call soong_config_set,acme,board,soc_a)
 $(call soong_config_set,acme,feature,true)
+$(call soong_config_set,acme,impl,foo.cpp bar.cpp)
 $(call soong_config_set,acme,width,200)
 ```
 
@@ -519,6 +522,12 @@ acme_cc_defaults {
                 cflags: ["-DWIDTH=DEFAULT"],
             },
         },
+        impl: {
+            srcs: ["impl/%s"],
+            conditions_default: {
+                srcs: ["impl/default.cpp"],
+            },
+        },
     },
 }
 
@@ -530,7 +539,8 @@ cc_library {
 ```
 
 With the `BoardConfig.mk` snippet above, `libacme_foo` would build with
-`cflags: "-DGENERIC -DSOC_A -DFEATURE -DWIDTH=200"`.
+`cflags: "-DGENERIC -DSOC_A -DFEATURE -DWIDTH=200"` and
+`srcs: ["*.cpp", "impl/foo.cpp", "impl/bar.cpp"]`.
 
 Alternatively, with `DefaultBoardConfig.mk`:
 
@@ -539,12 +549,14 @@ SOONG_CONFIG_NAMESPACES += acme
 SOONG_CONFIG_acme += \
     board \
     feature \
+    impl \
     width \
 
 SOONG_CONFIG_acme_feature := false
 ```
 
-then `libacme_foo` would build with `cflags: "-DGENERIC -DSOC_DEFAULT -DFEATURE_DEFAULT -DSIZE=DEFAULT"`.
+then `libacme_foo` would build with `cflags: "-DGENERIC -DSOC_DEFAULT -DFEATURE_DEFAULT -DSIZE=DEFAULT"`
+and `srcs: ["*.cpp", "impl/default.cpp"]`.
 
 Alternatively, with `DefaultBoardConfig.mk`:
 
@@ -553,13 +565,15 @@ SOONG_CONFIG_NAMESPACES += acme
 SOONG_CONFIG_acme += \
     board \
     feature \
+    impl \
     width \
 
 SOONG_CONFIG_acme_board := soc_c
+SOONG_CONFIG_acme_impl := baz
 ```
 
 then `libacme_foo` would build with `cflags: "-DGENERIC -DSOC_DEFAULT
--DFEATURE_DEFAULT -DSIZE=DEFAULT"`.
+-DFEATURE_DEFAULT -DSIZE=DEFAULT"` and `srcs: ["*.cpp", "impl/baz.cpp"]`.
 
 `soong_config_module_type` modules will work best when used to wrap defaults
 modules (`cc_defaults`, `java_defaults`, etc.), which can then be referenced
