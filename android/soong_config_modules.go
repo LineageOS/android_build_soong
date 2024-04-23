@@ -64,6 +64,7 @@ type soongConfigModuleTypeImportProperties struct {
 // specified in `conditions_default` will only be used under the following conditions:
 //   bool variable: the variable is unspecified or not set to a true value
 //   value variable: the variable is unspecified
+//   list variable: the variable is unspecified
 //   string variable: the variable is unspecified or the variable is set to a string unused in the
 //                    given module. For example, string variable `test` takes values: "a" and "b",
 //                    if the module contains a property `a` and `conditions_default`, when test=b,
@@ -104,6 +105,12 @@ type soongConfigModuleTypeImportProperties struct {
 //                     cflags: ["-DWIDTH=DEFAULT"],
 //                 },
 //             },
+//             impl: {
+//                 srcs: ["impl/%s"],
+//                 conditions_default: {
+//                     srcs: ["impl/default.cpp"],
+//                 },
+//             },
 //         },
 //     }
 //
@@ -122,6 +129,7 @@ type soongConfigModuleTypeImportProperties struct {
 //         variables: ["board"],
 //         bool_variables: ["feature"],
 //         value_variables: ["width"],
+//         list_variables: ["impl"],
 //         properties: ["cflags", "srcs"],
 //     }
 //
@@ -135,8 +143,10 @@ type soongConfigModuleTypeImportProperties struct {
 //     $(call add_soong_config_var_value, acme, board, soc_a)
 //     $(call add_soong_config_var_value, acme, feature, true)
 //     $(call add_soong_config_var_value, acme, width, 200)
+//     $(call add_soong_config_var_value, acme, impl, foo.cpp bar.cpp)
 //
-// Then libacme_foo would build with cflags "-DGENERIC -DSOC_A -DFEATURE -DWIDTH=200".
+// Then libacme_foo would build with cflags "-DGENERIC -DSOC_A -DFEATURE -DWIDTH=200" and srcs
+// ["*.cpp", "impl/foo.cpp", "impl/bar.cpp"].
 //
 // Alternatively, if acme BoardConfig.mk file contained:
 //
@@ -148,7 +158,9 @@ type soongConfigModuleTypeImportProperties struct {
 //     SOONG_CONFIG_acme_feature := false
 //
 // Then libacme_foo would build with cflags:
-//   "-DGENERIC -DSOC_DEFAULT -DFEATURE_DEFAULT -DSIZE=DEFAULT".
+//   "-DGENERIC -DSOC_DEFAULT -DFEATURE_DEFAULT -DSIZE=DEFAULT"
+// and with srcs:
+//   ["*.cpp", "impl/default.cpp"].
 //
 // Similarly, if acme BoardConfig.mk file contained:
 //
@@ -158,9 +170,13 @@ type soongConfigModuleTypeImportProperties struct {
 //         feature \
 //
 //     SOONG_CONFIG_acme_board := soc_c
+//     SOONG_CONFIG_acme_impl := foo.cpp bar.cpp
 //
 // Then libacme_foo would build with cflags:
-//   "-DGENERIC -DSOC_DEFAULT -DFEATURE_DEFAULT -DSIZE=DEFAULT".
+//   "-DGENERIC -DSOC_DEFAULT -DFEATURE_DEFAULT -DSIZE=DEFAULT"
+// and with srcs:
+//   ["*.cpp", "impl/foo.cpp", "impl/bar.cpp"].
+//
 
 func SoongConfigModuleTypeImportFactory() Module {
 	module := &soongConfigModuleTypeImport{}
@@ -201,6 +217,7 @@ type soongConfigModuleTypeModule struct {
 //
 //	bool variable: the variable is unspecified or not set to a true value
 //	value variable: the variable is unspecified
+//	list variable: the variable is unspecified
 //	string variable: the variable is unspecified or the variable is set to a string unused in the
 //	                 given module. For example, string variable `test` takes values: "a" and "b",
 //	                 if the module contains a property `a` and `conditions_default`, when test=b,
@@ -209,56 +226,63 @@ type soongConfigModuleTypeModule struct {
 //
 // For example, an Android.bp file could have:
 //
-//	    soong_config_module_type {
-//	        name: "acme_cc_defaults",
-//	        module_type: "cc_defaults",
-//	        config_namespace: "acme",
-//	        variables: ["board"],
-//	        bool_variables: ["feature"],
-//	        value_variables: ["width"],
-//	        properties: ["cflags", "srcs"],
-//	    }
+//	soong_config_module_type {
+//	    name: "acme_cc_defaults",
+//	    module_type: "cc_defaults",
+//	    config_namespace: "acme",
+//	    variables: ["board"],
+//	    bool_variables: ["feature"],
+//	    value_variables: ["width"],
+//	    list_variables: ["impl"],
+//	    properties: ["cflags", "srcs"],
+//	}
 //
-//	    soong_config_string_variable {
-//	        name: "board",
-//	        values: ["soc_a", "soc_b"],
-//	    }
+//	soong_config_string_variable {
+//	    name: "board",
+//	    values: ["soc_a", "soc_b"],
+//	}
 //
-//	    acme_cc_defaults {
-//	        name: "acme_defaults",
-//	        cflags: ["-DGENERIC"],
-//	        soong_config_variables: {
-//	            board: {
-//	                soc_a: {
-//	                    cflags: ["-DSOC_A"],
-//	                },
-//	                soc_b: {
-//	                    cflags: ["-DSOC_B"],
-//	                },
-//	                conditions_default: {
-//	                    cflags: ["-DSOC_DEFAULT"],
-//	                },
+//	acme_cc_defaults {
+//	    name: "acme_defaults",
+//	    cflags: ["-DGENERIC"],
+//	    soong_config_variables: {
+//	        board: {
+//	            soc_a: {
+//	                cflags: ["-DSOC_A"],
 //	            },
-//	            feature: {
-//	                cflags: ["-DFEATURE"],
-//	                conditions_default: {
-//	                    cflags: ["-DFEATURE_DEFAULT"],
-//	                },
+//	            soc_b: {
+//	                cflags: ["-DSOC_B"],
 //	            },
-//	            width: {
-//		               cflags: ["-DWIDTH=%s"],
-//	                conditions_default: {
-//	                    cflags: ["-DWIDTH=DEFAULT"],
-//	                },
+//	            conditions_default: {
+//	                cflags: ["-DSOC_DEFAULT"],
 //	            },
 //	        },
-//	    }
+//	        feature: {
+//	            cflags: ["-DFEATURE"],
+//	            conditions_default: {
+//	                cflags: ["-DFEATURE_DEFAULT"],
+//	            },
+//	        },
+//	        width: {
+//	            cflags: ["-DWIDTH=%s"],
+//	            conditions_default: {
+//	                cflags: ["-DWIDTH=DEFAULT"],
+//	            },
+//	        },
+//	        impl: {
+//	            srcs: ["impl/%s"],
+//	            conditions_default: {
+//	                srcs: ["impl/default.cpp"],
+//	            },
+//	        },
+//	    },
+//	}
 //
-//	    cc_library {
-//	        name: "libacme_foo",
-//	        defaults: ["acme_defaults"],
-//	        srcs: ["*.cpp"],
-//	    }
+//	cc_library {
+//	    name: "libacme_foo",
+//	    defaults: ["acme_defaults"],
+//	    srcs: ["*.cpp"],
+//	}
 //
 // If an acme BoardConfig.mk file contained:
 //
@@ -270,8 +294,10 @@ type soongConfigModuleTypeModule struct {
 //	SOONG_CONFIG_acme_board := soc_a
 //	SOONG_CONFIG_acme_feature := true
 //	SOONG_CONFIG_acme_width := 200
+//	SOONG_CONFIG_acme_impl := foo.cpp bar.cpp
 //
-// Then libacme_foo would build with cflags "-DGENERIC -DSOC_A -DFEATURE".
+// Then libacme_foo would build with cflags "-DGENERIC -DSOC_A -DFEATURE" and srcs
+// ["*.cpp", "impl/foo.cpp", "impl/bar.cpp"].
 func SoongConfigModuleTypeFactory() Module {
 	module := &soongConfigModuleTypeModule{}
 
