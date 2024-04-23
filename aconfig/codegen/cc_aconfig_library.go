@@ -33,6 +33,11 @@ var ccDeclarationsTag = ccDeclarationsTagType{}
 
 const baseLibDep = "server_configurable_flags"
 
+const libBaseDep = "libbase"
+const libLogDep = "liblog"
+const libAconfigStorageReadApiCcDep = "libaconfig_storage_read_api_cc"
+const libAconfigStorageProtosCcDep = "libaconfig_storage_protos_cc"
+
 type CcAconfigLibraryProperties struct {
 	// name of the aconfig_declarations module to generate a library for
 	Aconfig_declarations string
@@ -82,6 +87,11 @@ func (this *CcAconfigLibraryCallbacks) GeneratorDeps(ctx cc.DepsContext, deps cc
 	// Add a dependency for the aconfig flags base library if it is not forced read only
 	if mode != "force-read-only" {
 		deps.SharedLibs = append(deps.SharedLibs, baseLibDep)
+
+		deps.SharedLibs = append(deps.SharedLibs, libBaseDep)
+		deps.SharedLibs = append(deps.SharedLibs, libLogDep)
+		deps.SharedLibs = append(deps.SharedLibs, libAconfigStorageReadApiCcDep)
+		deps.SharedLibs = append(deps.SharedLibs, libAconfigStorageProtosCcDep)
 	}
 	// TODO: It'd be really nice if we could reexport this library and not make everyone do it.
 
