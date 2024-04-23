@@ -227,3 +227,22 @@ func TestBindgenFlagFile(t *testing.T) {
 	// TODO: The best we can do right now is check $flagfiles. Once bindgen.go switches to RuleBuilder,
 	// we may be able to check libbinder.RuleParams.Command to see if it contains $(cat /dev/null flag_file.txt)
 }
+
+
+func TestBindgenHandleStaticInlining(t *testing.T) {
+	ctx := testRust(t, `
+		rust_bindgen {
+			name: "libbindgen",
+			wrapper_src: "src/any.h",
+			crate_name: "bindgen",
+			stem: "libbindgen",
+			source_stem: "bindings",
+			handle_static_inline: true
+		}
+	`)
+	libbindgen := ctx.ModuleForTests("libbindgen", "android_arm64_armv8-a_source").Output("bindings.rs")
+	// Make sure the flag to support `static inline` functions is present
+	if !strings.Contains(libbindgen.Args["flags"], "--wrap-static-fns") {
+		t.Errorf("missing flag to handle static inlining in rust_bindgen rule: flags %#v", libbindgen.Args["flags"])
+	}
+}

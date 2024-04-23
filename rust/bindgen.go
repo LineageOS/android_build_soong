@@ -101,6 +101,9 @@ type BindgenProperties struct {
 	//
 	// "my_bindgen [flags] wrapper_header.h -o [output_path] -- [clang flags]"
 	Custom_bindgen string
+
+	// flag to indicate if bindgen should handle `static inline` functions (default is false)
+	Handle_static_inline bool
 }
 
 type bindgenDecorator struct {
@@ -232,6 +235,9 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 
 	bindgenFlags := defaultBindgenFlags
 	bindgenFlags = append(bindgenFlags, esc(b.Properties.Bindgen_flags)...)
+	if b.Properties.Handle_static_inline {
+		bindgenFlags = append(bindgenFlags, "--experimental --wrap-static-fns")
+	}
 
 	// cat reads from stdin if its command line is empty,
 	// so we pass in /dev/null if there are no other flag files
