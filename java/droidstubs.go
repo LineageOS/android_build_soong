@@ -708,8 +708,8 @@ func metalavaUseRbe(ctx android.ModuleContext) bool {
 	return ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_METALAVA")
 }
 
-func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersion javaVersion, srcs android.Paths,
-	srcJarList android.Path, bootclasspath, classpath classpath, homeDir android.WritablePath) *android.RuleBuilderCommand {
+func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, srcs android.Paths,
+	srcJarList android.Path, homeDir android.WritablePath, params stubsCommandConfigParams) *android.RuleBuilderCommand {
 	rule.Command().Text("rm -rf").Flag(homeDir.String())
 	rule.Command().Text("mkdir -p").Flag(homeDir.String())
 
@@ -739,14 +739,14 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 	cmd.BuiltTool("metalava").ImplicitTool(ctx.Config().HostJavaToolPath(ctx, "metalava.jar")).
 		Flag(config.JavacVmFlags).
 		Flag(config.MetalavaAddOpens).
-		FlagWithArg("--java-source ", javaVersion.String()).
-		FlagWithRspFileInputList("@", android.PathForModuleOut(ctx, "metalava.rsp"), srcs).
+		FlagWithArg("--java-source ", params.javaVersion.String()).
+		FlagWithRspFileInputList("@", android.PathForModuleOut(ctx, fmt.Sprintf("%s.metalava.rsp", params.stubsType.String())), srcs).
 		FlagWithInput("@", srcJarList)
 
 	// Metalava does not differentiate between bootclasspath and classpath and has not done so for
 	// years, so it is unlikely to change any time soon.
-	combinedPaths := append(([]android.Path)(nil), bootclasspath.Paths()...)
-	combinedPaths = append(combinedPaths, classpath.Paths()...)
+	combinedPaths := append(([]android.Path)(nil), params.deps.bootClasspath.Paths()...)
+	combinedPaths = append(combinedPaths, params.deps.classpath.Paths()...)
 	if len(combinedPaths) > 0 {
 		cmd.FlagWithInputList("--classpath ", combinedPaths, ":")
 	}
@@ -827,8 +827,7 @@ func (d *Droidstubs) commonMetalavaStubCmd(ctx android.ModuleContext, rule *andr
 	srcJarList := zipSyncCmd(ctx, rule, params.srcJarDir, d.Javadoc.srcJars)
 
 	homeDir := android.PathForModuleOut(ctx, params.stubConfig.stubsType.String(), "home")
-	cmd := metalavaCmd(ctx, rule, params.stubConfig.javaVersion, d.Javadoc.srcFiles, srcJarList,
-		params.stubConfig.deps.bootClasspath, params.stubConfig.deps.classpath, homeDir)
+	cmd := metalavaCmd(ctx, rule, d.Javadoc.srcFiles, srcJarList, homeDir, params.stubConfig)
 	cmd.Implicits(d.Javadoc.implicits)
 
 	d.stubsFlags(ctx, cmd, params.stubsDir, params.stubConfig.stubsType, params.stubConfig.checkApi)
@@ -954,11 +953,8 @@ func (d *Droidstubs) everythingOptionalCmd(ctx android.ModuleContext, cmd *andro
 		if d.properties.Check_api.Api_lint.New_since != nil {
 			newSince = android.PathsForModuleSrc(ctx, []string{proptools.String(d.properties.Check_api.Api_lint.New_since)})
 		}
-		if len(newSince) > 0 {
-			cmd.FlagForEachInput("--api-lint ", newSince)
-		} else {
-			cmd.Flag("--api-lint")
-		}
+		cmd.Flag("--api-lint")
+		cmd.FlagForEachInput("--api-lint-previous-api ", newSince)
 		d.apiLintReport = android.PathForModuleOut(ctx, Everything.String(), "api_lint_report.txt")
 		cmd.FlagWithOutput("--report-even-if-suppressed ", d.apiLintReport) // TODO:  Change to ":api-lint"
 

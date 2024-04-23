@@ -117,6 +117,10 @@ type ModuleTypeProperties struct {
 	// inserted into the properties with %s substitution.
 	Value_variables []string
 
+	// the list of SOONG_CONFIG list variables that this module type will read. Each value will be
+	// inserted into the properties with %s substitution.
+	List_variables []string
+
 	// the list of properties that this module type will extend.
 	Properties []string
 }
@@ -468,6 +472,18 @@ func newModuleType(props *ModuleTypeProperties) (*ModuleType, []error) {
 		})
 	}
 
+	for _, name := range props.List_variables {
+		if err := checkVariableName(name); err != nil {
+			return nil, []error{fmt.Errorf("list_variables %s", err)}
+		}
+
+		mt.Variables = append(mt.Variables, &listVariable{
+			baseVariable: baseVariable{
+				variable: name,
+			},
+		})
+	}
+
 	return mt, nil
 }
 
@@ -730,6 +746,90 @@ func (s *valueVariable) printfIntoPropertyRecursive(fieldName []string, propStru
 	return nil
 }
 
+// Struct to allow conditions set based on a list variable, supporting string substitution.
+type listVariable struct {
+	baseVariable
+}
+
+func (s *listVariable) variableValuesType() reflect.Type {
+	return emptyInterfaceType
+}
+
+// initializeProperties initializes a property to zero value of typ with an additional conditions
+// default field.
+func (s *listVariable) initializeProperties(v reflect.Value, typ reflect.Type) {
+	initializePropertiesWithDefault(v, typ)
+}
+
+// PropertiesToApply returns an interface{} value based on initializeProperties to be applied to
+// the module. If the variable was not set, conditions_default interface will be returned;
+// otherwise, the interface in values, without conditions_default will be returned with all
+// appropriate string substitutions based on variable being set.
+func (s *listVariable) PropertiesToApply(config SoongConfig, values reflect.Value) (interface{}, error) {
+	// If this variable was not referenced in the module, there are no properties to apply.
+	if !values.IsValid() || values.Elem().IsZero() {
+		return nil, nil
+	}
+	if !config.IsSet(s.variable) {
+		return conditionsDefaultField(values.Elem().Elem()).Interface(), nil
+	}
+	configValues := strings.Split(config.String(s.variable), " ")
+
+	values = removeDefault(values)
+	propStruct := values.Elem()
+	if !propStruct.IsValid() {
+		return nil, nil
+	}
+	if err := s.printfIntoPropertyRecursive(nil, propStruct, configValues); err != nil {
+		return nil, err
+	}
+
+	return values.Interface(), nil
+}
+
+func (s *listVariable) printfIntoPropertyRecursive(fieldName []string, propStruct reflect.Value, configValues []string) error {
+	for i := 0; i < propStruct.NumField(); i++ {
+		field := propStruct.Field(i)
+		kind := field.Kind()
+		if kind == reflect.Ptr {
+			if field.IsNil() {
+				continue
+			}
+			field = field.Elem()
+			kind = field.Kind()
+		}
+		switch kind {
+		case reflect.Slice:
+			elemType := field.Type().Elem()
+			newLen := field.Len() * len(configValues)
+			newField := reflect.MakeSlice(field.Type(), 0, newLen)
+			for j := 0; j < field.Len(); j++ {
+				for _, configValue := range configValues {
+					res := reflect.Indirect(reflect.New(elemType))
+					res.Set(field.Index(j))
+					err := printfIntoProperty(res, configValue)
+					if err != nil {
+						fieldName = append(fieldName, propStruct.Type().Field(i).Name)
+						return fmt.Errorf("soong_config_variables.%s.%s: %s", s.variable, strings.Join(fieldName, "."), err)
+					}
+					newField = reflect.Append(newField, res)
+				}
+			}
+			field.Set(newField)
+		case reflect.Struct:
+			fieldName = append(fieldName, propStruct.Type().Field(i).Name)
+			if err := s.printfIntoPropertyRecursive(fieldName, field, configValues); err != nil {
+				return err
+			}
+			fieldName = fieldName[:len(fieldName)-1]
+		default:
+			fieldName = append(fieldName, propStruct.Type().Field(i).Name)
+			return fmt.Errorf("soong_config_variables.%s.%s: unsupported property type %q", s.variable, strings.Join(fieldName, "."), kind)
+		}
+	}
+	return nil
+}
+
 func printfIntoProperty(propertyValue reflect.Value, configValue string) error {
 	s := propertyValue.String()
 
@@ -739,7 +839,7 @@ func printfIntoProperty(propertyValue reflect.Value, configValue string) error {
 	}
 
 	if count > 1 {
-		return fmt.Errorf("value variable properties only support a single '%%'")
+		return fmt.Errorf("list/value variable properties only support a single '%%'")
 	}
 
 	if !strings.Contains(s, "%s") {

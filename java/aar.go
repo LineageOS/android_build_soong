@@ -418,6 +418,9 @@ func (a *aapt) buildActions(ctx android.ModuleContext, opts aaptBuildActionOptio
 	if a.isLibrary {
 		linkFlags = append(linkFlags, "--static-lib")
 	}
+	if opts.forceNonFinalResourceIDs {
+		linkFlags = append(linkFlags, "--non-final-ids")
+	}
 
 	linkFlags = append(linkFlags, "--no-static-lib-packages")
 	if a.isLibrary && a.useResourceProcessorBusyBox(ctx) {

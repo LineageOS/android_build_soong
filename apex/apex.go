@@ -72,7 +72,7 @@ func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
 	// Run mark_platform_availability before the apexMutator as the apexMutator needs to know whether
 	// it should create a platform variant.
 	ctx.BottomUp("mark_platform_availability", markPlatformAvailability).Parallel()
-	ctx.BottomUp("apex", apexMutator).Parallel()
+	ctx.Transition("apex", &apexTransitionMutator{})
 	ctx.BottomUp("apex_directly_in_any", apexDirectlyInAnyMutator).Parallel()
 	ctx.BottomUp("apex_dcla_deps", apexDCLADepsMutator).Parallel()
 	// Register after apex_info mutator so that it can use ApexVariationName
@@ -1081,6 +1081,10 @@ func apexInfoMutator(mctx android.TopDownMutatorContext) {
 	if a, ok := mctx.Module().(ApexInfoMutator); ok {
 		a.ApexInfoMutator(mctx)
 	}
+
+	if am, ok := mctx.Module().(android.ApexModule); ok {
+		android.ApexInfoMutator(mctx, am)
+	}
 	enforceAppUpdatability(mctx)
 }
 
@@ -1281,40 +1285,41 @@ func markPlatformAvailability(mctx android.BottomUpMutatorContext) {
 	}
 }
 
-// apexMutator visits each module and creates apex variations if the module was marked in the
-// previous run of apexInfoMutator.
-func apexMutator(mctx android.BottomUpMutatorContext) {
-	if !mctx.Module().Enabled() {
-		return
-	}
+type apexTransitionMutator struct{}
 
-	// This is the usual path.
-	if am, ok := mctx.Module().(android.ApexModule); ok && am.CanHaveApexVariants() {
-		android.CreateApexVariations(mctx, am)
-		return
-	}
-
+func (a *apexTransitionMutator) Split(ctx android.BaseModuleContext) []string {
 	// apexBundle itself is mutated so that it and its dependencies have the same apex variant.
-	// Note that a default variation "" is also created as an alias, and the default dependency
-	// variation is set to the default variation. This is to allow an apex to depend on another
-	// module which is outside of the apex. This is because the dependent module is not mutated
-	// for this apex variant.
-	createApexVariation := func(apexBundleName string) {
-		defaultVariation := ""
-		mctx.SetDefaultDependencyVariation(&defaultVariation)
-		mctx.CreateVariations(apexBundleName)
-		mctx.CreateAliasVariation(defaultVariation, apexBundleName)
-	}
-
-	if ai, ok := mctx.Module().(ApexInfoMutator); ok && apexModuleTypeRequiresVariant(ai) {
-		createApexVariation(ai.ApexVariationName())
-	} else if o, ok := mctx.Module().(*OverrideApex); ok {
+	if ai, ok := ctx.Module().(ApexInfoMutator); ok && apexModuleTypeRequiresVariant(ai) {
+		return []string{ai.ApexVariationName()}
+	} else if o, ok := ctx.Module().(*OverrideApex); ok {
 		apexBundleName := o.GetOverriddenModuleName()
 		if apexBundleName == "" {
-			mctx.ModuleErrorf("base property is not set")
-			return
+			ctx.ModuleErrorf("base property is not set")
 		}
-		createApexVariation(apexBundleName)
+		return []string{apexBundleName}
+	}
+	return []string{""}
+}
+
+func (a *apexTransitionMutator) OutgoingTransition(ctx android.OutgoingTransitionContext, sourceVariation string) string {
+	return sourceVariation
+}
+
+func (a *apexTransitionMutator) IncomingTransition(ctx android.IncomingTransitionContext, incomingVariation string) string {
+	if am, ok := ctx.Module().(android.ApexModule); ok && am.CanHaveApexVariants() {
+		return android.IncomingApexTransition(ctx, incomingVariation)
+	} else if ai, ok := ctx.Module().(ApexInfoMutator); ok {
+		return ai.ApexVariationName()
+	} else if o, ok := ctx.Module().(*OverrideApex); ok {
+		return o.GetOverriddenModuleName()
+	}
+
+	return ""
+}
+
+func (a *apexTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, variation string) {
+	if am, ok := ctx.Module().(android.ApexModule); ok && am.CanHaveApexVariants() {
+		android.MutateApexTransition(ctx, variation)
 	}
 }
 

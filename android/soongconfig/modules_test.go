@@ -291,11 +291,13 @@ func Test_createAffectablePropertiesType(t *testing.T) {
 type properties struct {
 	A *string
 	B bool
+	C []string
 }
 
-type boolVarProps struct {
+type varProps struct {
 	A                  *string
 	B                  bool
+	C                  []string
 	Conditions_default *properties
 }
 
@@ -309,6 +311,19 @@ type stringSoongConfigVars struct {
 
 type valueSoongConfigVars struct {
 	My_value_var interface{}
+}
+
+type listProperties struct {
+	C []string
+}
+
+type listVarProps struct {
+	C                  []string
+	Conditions_default *listProperties
+}
+
+type listSoongConfigVars struct {
+	List_var interface{}
 }
 
 func Test_PropertiesToApply_Bool(t *testing.T) {
@@ -330,7 +345,7 @@ func Test_PropertiesToApply_Bool(t *testing.T) {
 		Soong_config_variables boolSoongConfigVars
 	}{
 		Soong_config_variables: boolSoongConfigVars{
-			Bool_var: &boolVarProps{
+			Bool_var: &varProps{
 				A:                  boolVarPositive.A,
 				B:                  boolVarPositive.B,
 				Conditions_default: conditionsDefault,
@@ -373,6 +388,59 @@ func Test_PropertiesToApply_Bool(t *testing.T) {
 	}
 }
 
+func Test_PropertiesToApply_List(t *testing.T) {
+	mt, _ := newModuleType(&ModuleTypeProperties{
+		Module_type:      "foo",
+		Config_namespace: "bar",
+		List_variables:   []string{"my_list_var"},
+		Properties:       []string{"c"},
+	})
+	conditionsDefault := &listProperties{
+		C: []string{"default"},
+	}
+	actualProps := &struct {
+		Soong_config_variables listSoongConfigVars
+	}{
+		Soong_config_variables: listSoongConfigVars{
+			List_var: &listVarProps{
+				C:                  []string{"A=%s", "B=%s"},
+				Conditions_default: conditionsDefault,
+			},
+		},
+	}
+	props := reflect.ValueOf(actualProps)
+
+	testCases := []struct {
+		name      string
+		config    SoongConfig
+		wantProps []interface{}
+	}{
+		{
+			name:      "no_vendor_config",
+			config:    Config(map[string]string{}),
+			wantProps: []interface{}{conditionsDefault},
+		},
+		{
+			name:   "value_var_set",
+			config: Config(map[string]string{"my_list_var": "hello there"}),
+			wantProps: []interface{}{&listProperties{
+				C: []string{"A=hello", "A=there", "B=hello", "B=there"},
+			}},
+		},
+	}
+
+	for _, tc := range testCases {
+		gotProps, err := PropertiesToApply(mt, props, tc.config)
+		if err != nil {
+			t.Errorf("%s: Unexpected error in PropertiesToApply: %s", tc.name, err)
+		}
+
+		if !reflect.DeepEqual(gotProps, tc.wantProps) {
+			t.Errorf("%s: Expected %s, got %s", tc.name, tc.wantProps, gotProps)
+		}
+	}
+}
+
 func Test_PropertiesToApply_Value(t *testing.T) {
 	mt, _ := newModuleType(&ModuleTypeProperties{
 		Module_type:      "foo",
@@ -388,7 +456,7 @@ func Test_PropertiesToApply_Value(t *testing.T) {
 		Soong_config_variables valueSoongConfigVars
 	}{
 		Soong_config_variables: valueSoongConfigVars{
-			My_value_var: &boolVarProps{
+			My_value_var: &varProps{
 				A:                  proptools.StringPtr("A=%s"),
 				B:                  true,
 				Conditions_default: conditionsDefault,
@@ -524,7 +592,7 @@ func Test_PropertiesToApply_String_Error(t *testing.T) {
 		Soong_config_variables stringSoongConfigVars
 	}{
 		Soong_config_variables: stringSoongConfigVars{
-			String_var: &boolVarProps{
+			String_var: &varProps{
 				A:                  stringVarPositive.A,
 				B:                  stringVarPositive.B,
 				Conditions_default: conditionsDefault,
