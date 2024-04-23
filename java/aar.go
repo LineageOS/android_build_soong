@@ -968,6 +968,9 @@ type AARImportProperties struct {
 	// will be passed transitively through android_libraries to an android_app.
 	//TODO(b/241138093) evaluate whether we can have this flag default to true for Bazel conversion
 	Extract_jni *bool
+
+	// If set, overrides the manifest extracted from the AAR with the provided path.
+	Manifest *string `android:"path"`
 }
 
 type AARImport struct {
@@ -990,7 +993,7 @@ type AARImport struct {
 	exportPackage                      android.WritablePath
 	transitiveAaptResourcePackagesFile android.Path
 	extraAaptPackagesFile              android.WritablePath
-	manifest                           android.WritablePath
+	manifest                           android.Path
 	assetsPackage                      android.WritablePath
 	rTxt                               android.WritablePath
 	rJar                               android.WritablePath
@@ -1166,7 +1169,15 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	jarName := ctx.ModuleName() + ".jar"
 	extractedAARDir := android.PathForModuleOut(ctx, "aar")
 	classpathFile := extractedAARDir.Join(ctx, jarName)
-	a.manifest = extractedAARDir.Join(ctx, "AndroidManifest.xml")
+
+	extractedManifest := extractedAARDir.Join(ctx, "AndroidManifest.xml")
+	providedManifest := android.OptionalPathForModuleSrc(ctx, a.properties.Manifest)
+	if providedManifest.Valid() {
+		a.manifest = providedManifest.Path()
+	} else {
+		a.manifest = extractedManifest
+	}
+
 	a.rTxt = extractedAARDir.Join(ctx, "R.txt")
 	a.assetsPackage = android.PathForModuleOut(ctx, "assets.zip")
 	a.proguardFlags = extractedAARDir.Join(ctx, "proguard.txt")
@@ -1187,7 +1198,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        unzipAAR,
 		Input:       a.aarPath,
-		Outputs:     android.WritablePaths{classpathFile, a.proguardFlags, a.manifest, a.assetsPackage, a.rTxt},
+		Outputs:     android.WritablePaths{classpathFile, a.proguardFlags, extractedManifest, a.assetsPackage, a.rTxt},
 		Description: "unzip AAR",
 		Args: map[string]string{
 			"outDir":             extractedAARDir.String(),
