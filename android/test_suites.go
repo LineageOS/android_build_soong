@@ -14,6 +14,11 @@
 
 package android
 
+import (
+	"path/filepath"
+	"strings"
+)
+
 func init() {
 	RegisterParallelSingletonType("testsuites", testSuiteFilesFactory)
 }
@@ -23,8 +28,8 @@ func testSuiteFilesFactory() Singleton {
 }
 
 type testSuiteFiles struct {
-	robolectric WritablePath
-	ravenwood   WritablePath
+	robolectric []Path
+	ravenwood   []Path
 }
 
 type TestSuiteModule interface {
@@ -48,53 +53,107 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 	})
 
 	t.robolectric = robolectricTestSuite(ctx, files["robolectric-tests"])
-	ctx.Phony("robolectric-tests", t.robolectric)
+	ctx.Phony("robolectric-tests", t.robolectric...)
 
 	t.ravenwood = ravenwoodTestSuite(ctx, files["ravenwood-tests"])
-	ctx.Phony("ravenwood-tests", t.ravenwood)
+	ctx.Phony("ravenwood-tests", t.ravenwood...)
 }
 
 func (t *testSuiteFiles) MakeVars(ctx MakeVarsContext) {
-	ctx.DistForGoal("robolectric-tests", t.robolectric)
-	ctx.DistForGoal("ravenwood-tests", t.ravenwood)
+	ctx.DistForGoal("robolectric-tests", t.robolectric...)
+	ctx.DistForGoal("ravenwood-tests", t.ravenwood...)
 }
 
-func robolectricTestSuite(ctx SingletonContext, files map[string]InstallPaths) WritablePath {
+func robolectricTestSuite(ctx SingletonContext, files map[string]InstallPaths) []Path {
 	var installedPaths InstallPaths
 	for _, module := range SortedKeys(files) {
 		installedPaths = append(installedPaths, files[module]...)
 	}
-	testCasesDir := pathForInstall(ctx, ctx.Config().BuildOS, X86, "testcases")
 
-	outputFile := PathForOutput(ctx, "packaging", "robolectric-tests.zip")
+	outputFile := pathForPackaging(ctx, "robolectric-tests.zip")
 	rule := NewRuleBuilder(pctx, ctx)
 	rule.Command().BuiltTool("soong_zip").
 		FlagWithOutput("-o ", outputFile).
 		FlagWithArg("-P ", "host/testcases").
-		FlagWithArg("-C ", testCasesDir.String()).
+		FlagWithArg("-C ", pathForTestCases(ctx).String()).
 		FlagWithRspFileInputList("-r ", outputFile.ReplaceExtension(ctx, "rsp"), installedPaths.Paths()).
+		Flag("-sha256") // necessary to save cas_uploader's time
+
+	testList := buildTestList(ctx, "robolectric-tests_list", installedPaths)
+	testListZipOutputFile := pathForPackaging(ctx, "robolectric-tests_list.zip")
+
+	rule.Command().BuiltTool("soong_zip").
+		FlagWithOutput("-o ", testListZipOutputFile).
+		FlagWithArg("-C ", pathForPackaging(ctx).String()).
+		FlagWithInput("-f ", testList).
 		Flag("-sha256")
+
 	rule.Build("robolectric_tests_zip", "robolectric-tests.zip")
 
-	return outputFile
+	return []Path{outputFile, testListZipOutputFile}
 }
 
-func ravenwoodTestSuite(ctx SingletonContext, files map[string]InstallPaths) WritablePath {
+func ravenwoodTestSuite(ctx SingletonContext, files map[string]InstallPaths) []Path {
 	var installedPaths InstallPaths
 	for _, module := range SortedKeys(files) {
 		installedPaths = append(installedPaths, files[module]...)
 	}
-	testCasesDir := pathForInstall(ctx, ctx.Config().BuildOS, X86, "testcases")
 
-	outputFile := PathForOutput(ctx, "packaging", "ravenwood-tests.zip")
+	outputFile := pathForPackaging(ctx, "ravenwood-tests.zip")
 	rule := NewRuleBuilder(pctx, ctx)
 	rule.Command().BuiltTool("soong_zip").
 		FlagWithOutput("-o ", outputFile).
 		FlagWithArg("-P ", "host/testcases").
-		FlagWithArg("-C ", testCasesDir.String()).
+		FlagWithArg("-C ", pathForTestCases(ctx).String()).
 		FlagWithRspFileInputList("-r ", outputFile.ReplaceExtension(ctx, "rsp"), installedPaths.Paths()).
+		Flag("-sha256") // necessary to save cas_uploader's time
+
+	testList := buildTestList(ctx, "ravenwood-tests_list", installedPaths)
+	testListZipOutputFile := pathForPackaging(ctx, "ravenwood-tests_list.zip")
+
+	rule.Command().BuiltTool("soong_zip").
+		FlagWithOutput("-o ", testListZipOutputFile).
+		FlagWithArg("-C ", pathForPackaging(ctx).String()).
+		FlagWithInput("-f ", testList).
 		Flag("-sha256")
+
 	rule.Build("ravenwood_tests_zip", "ravenwood-tests.zip")
 
+	return []Path{outputFile, testListZipOutputFile}
+}
+
+func buildTestList(ctx SingletonContext, listFile string, installedPaths InstallPaths) Path {
+	buf := &strings.Builder{}
+	for _, p := range installedPaths {
+		if p.Ext() != ".config" {
+			continue
+		}
+		pc, err := toTestListPath(p.String(), pathForTestCases(ctx).String(), "host/testcases")
+		if err != nil {
+			ctx.Errorf("Failed to convert path: %s, %v", p.String(), err)
+			continue
+		}
+		buf.WriteString(pc)
+		buf.WriteString("\n")
+	}
+	outputFile := pathForPackaging(ctx, listFile)
+	WriteFileRuleVerbatim(ctx, outputFile, buf.String())
 	return outputFile
+}
+
+func toTestListPath(path, relativeRoot, prefix string) (string, error) {
+	dest, err := filepath.Rel(relativeRoot, path)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(prefix, dest), nil
+}
+
+func pathForPackaging(ctx PathContext, pathComponents ...string) OutputPath {
+	pathComponents = append([]string{"packaging"}, pathComponents...)
+	return PathForOutput(ctx, pathComponents...)
+}
+
+func pathForTestCases(ctx PathContext) InstallPath {
+	return pathForInstall(ctx, ctx.Config().BuildOS, X86, "testcases")
 }
