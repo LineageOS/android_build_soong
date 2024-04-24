@@ -46,6 +46,7 @@ func TestRustAconfigLibrary(t *testing.T) {
 			aconfig_declarations {
 				name: "my_aconfig_declarations",
 				package: "com.example.package",
+				container: "com.android.foo",
 				srcs: ["foo.aconfig"],
 			}
 
@@ -131,6 +132,7 @@ func testRustCodegenModeHelper(t *testing.T, bpMode string, ruleMode string) {
 			aconfig_declarations {
 				name: "my_aconfig_declarations",
 				package: "com.example.package",
+				container: "com.android.foo",
 				srcs: ["foo.aconfig"],
 			}
 			rust_aconfig_library {
@@ -193,6 +195,7 @@ func testIncorrectRustCodegenModeHelper(t *testing.T, bpMode string, err string)
 			aconfig_declarations {
 				name: "my_aconfig_declarations",
 				package: "com.example.package",
+				container: "com.android.foo",
 				srcs: ["foo.aconfig"],
 			}
 			rust_aconfig_library {

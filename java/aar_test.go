@@ -15,8 +15,9 @@
 package java
 
 import (
-	"android/soong/android"
 	"testing"
+
+	"android/soong/android"
 )
 
 func TestAarImportProducesJniPackages(t *testing.T) {
@@ -98,6 +99,7 @@ func TestLibraryFlagsPackages(t *testing.T) {
 		aconfig_declarations {
 			name: "bar",
 			package: "com.example.package.bar",
+			container: "com.android.foo",
 			srcs: [
 				"bar.aconfig",
 			],
@@ -105,6 +107,7 @@ func TestLibraryFlagsPackages(t *testing.T) {
 		aconfig_declarations {
 			name: "baz",
 			package: "com.example.package.baz",
+			container: "com.android.foo",
 			srcs: [
 				"baz.aconfig",
 			],
