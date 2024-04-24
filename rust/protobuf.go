@@ -16,6 +16,7 @@ package rust
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"android/soong/android"
@@ -122,41 +123,65 @@ func (proto *protobufDecorator) GenerateSource(ctx ModuleContext, deps PathDeps)
 	// stemFile must be first here as the first path in BaseSourceProvider.OutputFiles is the library entry-point.
 	var outputs android.WritablePaths
 
-	rule := android.NewRuleBuilder(pctx, ctx)
+	for i, shard := range android.ShardPaths(protoFiles, 50) {
+		rule := android.NewRuleBuilder(pctx, ctx)
 
-	for _, protoFile := range protoFiles {
-		// Since we're iterating over the protoFiles already, make sure they're not redeclared in grpcFiles
-		if android.InList(protoFile.String(), grpcFiles.Strings()) {
-			ctx.PropertyErrorf("protos",
-				"A proto can only be added once to either grpc_protos or protos. %q is declared in both properties",
-				protoFile.String())
+		for _, protoFile := range shard {
+			// Since we're iterating over the protoFiles already, make sure they're not redeclared in grpcFiles
+			if android.InList(protoFile.String(), grpcFiles.Strings()) {
+				ctx.PropertyErrorf("protos",
+					"A proto can only be added once to either grpc_protos or protos. %q is declared in both properties",
+					protoFile.String())
+			}
+
+			protoName := strings.TrimSuffix(protoFile.Base(), ".proto")
+			proto.protoNames = append(proto.protoNames, protoName)
+
+			protoOut := android.PathForModuleOut(ctx, protoName+".rs")
+			depFile := android.PathForModuleOut(ctx, protoName+".d")
+
+			ruleOutputs := android.WritablePaths{protoOut, depFile}
+
+			android.ProtoRule(rule, protoFile, protoFlags, protoFlags.Deps, outDir, depFile, ruleOutputs)
+			outputs = append(outputs, ruleOutputs...)
 		}
 
-		protoName := strings.TrimSuffix(protoFile.Base(), ".proto")
-		proto.protoNames = append(proto.protoNames, protoName)
+		ruleName := "protoc"
+		ruleDesc := "protoc"
+		if i > 0 {
+			ruleName += "_" + strconv.Itoa(i+1)
+			ruleDesc += " " + strconv.Itoa(i+1)
+		}
 
-		protoOut := android.PathForModuleOut(ctx, protoName+".rs")
-		depFile := android.PathForModuleOut(ctx, protoName+".d")
-
-		ruleOutputs := android.WritablePaths{protoOut, depFile}
-
-		android.ProtoRule(rule, protoFile, protoFlags, protoFlags.Deps, outDir, depFile, ruleOutputs)
-		outputs = append(outputs, ruleOutputs...)
+		rule.Build(ruleName, ruleDesc)
 	}
 
-	for _, grpcFile := range grpcFiles {
-		grpcName := strings.TrimSuffix(grpcFile.Base(), ".proto")
-		proto.grpcNames = append(proto.grpcNames, grpcName)
+	for i, shard := range android.ShardPaths(grpcFiles, 50) {
+		rule := android.NewRuleBuilder(pctx, ctx)
 
-		// GRPC protos produce two files, a proto.rs and a proto_grpc.rs
-		protoOut := android.WritablePath(android.PathForModuleOut(ctx, grpcName+".rs"))
-		grpcOut := android.WritablePath(android.PathForModuleOut(ctx, grpcName+grpcSuffix+".rs"))
-		depFile := android.PathForModuleOut(ctx, grpcName+".d")
+		for _, grpcFile := range shard {
+			grpcName := strings.TrimSuffix(grpcFile.Base(), ".proto")
+			proto.grpcNames = append(proto.grpcNames, grpcName)
 
-		ruleOutputs := android.WritablePaths{protoOut, grpcOut, depFile}
+			// GRPC protos produce two files, a proto.rs and a proto_grpc.rs
+			protoOut := android.WritablePath(android.PathForModuleOut(ctx, grpcName+".rs"))
+			grpcOut := android.WritablePath(android.PathForModuleOut(ctx, grpcName+grpcSuffix+".rs"))
+			depFile := android.PathForModuleOut(ctx, grpcName+".d")
 
-		android.ProtoRule(rule, grpcFile, grpcProtoFlags, grpcProtoFlags.Deps, outDir, depFile, ruleOutputs)
-		outputs = append(outputs, ruleOutputs...)
+			ruleOutputs := android.WritablePaths{protoOut, grpcOut, depFile}
+
+			android.ProtoRule(rule, grpcFile, grpcProtoFlags, grpcProtoFlags.Deps, outDir, depFile, ruleOutputs)
+			outputs = append(outputs, ruleOutputs...)
+		}
+
+		ruleName := "protoc_grpc"
+		ruleDesc := "protoc grpc"
+		if i > 0 {
+			ruleName += "_" + strconv.Itoa(i+1)
+			ruleDesc += " " + strconv.Itoa(i+1)
+		}
+
+		rule.Build(ruleName, ruleDesc)
 	}
 
 	// Check that all proto base filenames are unique as outputs are written to the same directory.
@@ -167,8 +192,6 @@ func (proto *protobufDecorator) GenerateSource(ctx ModuleContext, deps PathDeps)
 	}
 
 	android.WriteFileRule(ctx, stemFile, proto.genModFileContents())
-
-	rule.Build("protoc_"+ctx.ModuleName(), "protoc "+ctx.ModuleName())
 
 	// stemFile must be first here as the first path in BaseSourceProvider.OutputFiles is the library entry-point.
 	proto.BaseSourceProvider.OutputFiles = append(android.Paths{stemFile}, outputs.Paths()...)
