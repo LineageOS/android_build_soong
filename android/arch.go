@@ -975,12 +975,18 @@ func filterArchStruct(field reflect.StructField, prefix string) (bool, reflect.S
 			panic(fmt.Errorf("unexpected tag format %q", field.Tag))
 		}
 		// these tags don't need to be present in the runtime generated struct type.
-		values = RemoveListFromList(values, []string{"arch_variant", "variant_prepend", "path", "replace_instead_of_append"})
+		// However replace_instead_of_append does, because it's read by the blueprint
+		// property extending util functions, which can operate on these generated arch
+		// property structs.
+		values = RemoveListFromList(values, []string{"arch_variant", "variant_prepend", "path"})
 		if len(values) > 0 {
-			panic(fmt.Errorf("unknown tags %q in field %q", values, prefix+field.Name))
+			if values[0] != "replace_instead_of_append" || len(values) > 1 {
+				panic(fmt.Errorf("unknown tags %q in field %q", values, prefix+field.Name))
+			}
+			field.Tag = `android:"replace_instead_of_append"`
+		} else {
+			field.Tag = ``
 		}
-
-		field.Tag = ``
 		return true, field
 	}
 	return false, field
