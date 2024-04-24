@@ -160,6 +160,9 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 		configs.FlagArtifacts[name].UpdateValue(
 			FlagValue{path: path, proto: rc_proto.FlagValue{
 				Name: proto.String(name), Value: flagDeclaration.Value}})
+		if configs.FlagArtifacts[name].Redacted {
+			return fmt.Errorf("%s may not be redacted by default.", *flagDeclaration.Name)
+		}
 		return nil
 	})
 	if err != nil {
