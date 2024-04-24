@@ -33,6 +33,7 @@ func main() {
 	var configs *rc_lib.ReleaseConfigs
 	var json, pb, textproto bool
 	var product string
+	var allMake bool
 
 	defaultRelease := os.Getenv("TARGET_RELEASE")
 	if defaultRelease == "" {
@@ -48,6 +49,7 @@ func main() {
 	flag.BoolVar(&textproto, "textproto", true, "write artifacts as text protobuf")
 	flag.BoolVar(&json, "json", true, "write artifacts as json")
 	flag.BoolVar(&pb, "pb", true, "write artifacts as binary protobuf")
+	flag.BoolVar(&allMake, "all_make", true, "write makefiles for all release configs")
 	flag.Parse()
 
 	if quiet {
@@ -70,10 +72,20 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	makefilePath := filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.mk", product, releaseName))
-	err = configs.WriteMakefile(makefilePath, targetRelease)
-	if err != nil {
-		panic(err)
+	if allMake {
+		for k, _ := range configs.ReleaseConfigs {
+			makefilePath := filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.mk", product, k))
+			err = configs.WriteMakefile(makefilePath, k)
+			if err != nil {
+				panic(err)
+			}
+		}
+	} else {
+		makefilePath := filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.mk", product, releaseName))
+		err = configs.WriteMakefile(makefilePath, targetRelease)
+		if err != nil {
+			panic(err)
+		}
 	}
 	if json {
 		err = configs.WriteArtifact(outputDir, product, "json")
