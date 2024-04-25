@@ -29,6 +29,7 @@ var (
 type lsdumpTag string
 
 const (
+	apexLsdumpTag     lsdumpTag = "APEX"
 	llndkLsdumpTag    lsdumpTag = "LLNDK"
 	ndkLsdumpTag      lsdumpTag = "NDK"
 	platformLsdumpTag lsdumpTag = "PLATFORM"
@@ -39,6 +40,8 @@ const (
 // Return the prebuilt ABI dump directory for a tag; an empty string for an opt-in dump.
 func (tag *lsdumpTag) dirName() string {
 	switch *tag {
+	case apexLsdumpTag:
+		return "platform"
 	case ndkLsdumpTag:
 		return "ndk"
 	case llndkLsdumpTag:
@@ -134,11 +137,13 @@ func classifySourceAbiDump(ctx android.BaseModuleContext) []lsdumpTag {
 		if m.isImplementationForLLNDKPublic() {
 			result = append(result, llndkLsdumpTag)
 		}
-		// Return NDK if the library is both NDK and APEX.
-		// TODO(b/309880485): Split NDK and APEX ABI.
 		if m.IsNdk(ctx.Config()) {
 			result = append(result, ndkLsdumpTag)
-		} else if m.library.hasStubsVariants() || headerAbiChecker.enabled() {
+		}
+		// APEX and opt-in platform dumps are placed in the same directory.
+		if m.library.hasStubsVariants() {
+			result = append(result, apexLsdumpTag)
+		} else if headerAbiChecker.enabled() {
 			result = append(result, platformLsdumpTag)
 		}
 	} else if headerAbiChecker.enabled() {
