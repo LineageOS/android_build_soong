@@ -114,6 +114,10 @@ message flag_value {
 
   // Value for the flag
   optional value value = 201;
+
+  // If true, the flag is completely removed from the release config as if
+  // never declared.
+  optional bool redacted = 202;
 }
 
 // This replaces $(call declare-release-config).

@@ -36,6 +36,10 @@ type FlagArtifact struct {
 
 	// The value of the flag.
 	Value *rc_proto.Value
+
+	// This flag is redacted.  Set by UpdateValue when the FlagValue proto
+	// says to redact it.
+	Redacted bool
 }
 
 // Key is flag name.
@@ -85,6 +89,11 @@ func (src FlagArtifacts) Clone() (dst FlagArtifacts) {
 func (fa *FlagArtifact) UpdateValue(flagValue FlagValue) error {
 	name := *flagValue.proto.Name
 	fa.Traces = append(fa.Traces, &rc_proto.Tracepoint{Source: proto.String(flagValue.path), Value: flagValue.proto.Value})
+	if flagValue.proto.GetRedacted() {
+		fa.Redacted = true
+		fmt.Printf("Redacting flag %s in %s\n", name, flagValue.path)
+		return nil
+	}
 	if fa.Value.GetObsolete() {
 		return fmt.Errorf("Attempting to set obsolete flag %s. Trace=%v", name, fa.Traces)
 	}
@@ -111,6 +120,9 @@ func (fa *FlagArtifact) UpdateValue(flagValue FlagValue) error {
 
 // Marshal the FlagArtifact into a flag_artifact message.
 func (fa *FlagArtifact) Marshal() (*rc_proto.FlagArtifact, error) {
+	if fa.Redacted {
+		return nil, nil
+	}
 	return &rc_proto.FlagArtifact{
 		FlagDeclaration: fa.FlagDeclaration,
 		Value:           fa.Value,
