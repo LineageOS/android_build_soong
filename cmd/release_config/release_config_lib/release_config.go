@@ -150,21 +150,25 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 		}
 		myDirsMap[contrib.DeclarationIndex] = true
 		for _, value := range contrib.FlagValues {
-			fa, ok := myFlags[*value.proto.Name]
+			name := *value.proto.Name
+			fa, ok := myFlags[name]
 			if !ok {
-				return fmt.Errorf("Setting value for undefined flag %s in %s\n", *value.proto.Name, value.path)
+				return fmt.Errorf("Setting value for undefined flag %s in %s\n", name, value.path)
 			}
 			myDirsMap[fa.DeclarationIndex] = true
 			if fa.DeclarationIndex > contrib.DeclarationIndex {
 				// Setting location is to the left of declaration.
-				return fmt.Errorf("Setting value for flag %s not allowed in %s\n", *value.proto.Name, value.path)
+				return fmt.Errorf("Setting value for flag %s not allowed in %s\n", name, value.path)
 			}
 			if isRoot && *fa.FlagDeclaration.Workflow != workflowManual {
 				// The "root" release config can only contain workflow: MANUAL flags.
-				return fmt.Errorf("Setting value for non-MANUAL flag %s is not allowed in %s", *value.proto.Name, value.path)
+				return fmt.Errorf("Setting value for non-MANUAL flag %s is not allowed in %s", name, value.path)
 			}
 			if err := fa.UpdateValue(*value); err != nil {
 				return err
+			}
+			if fa.Redacted {
+				delete(myFlags, name)
 			}
 		}
 	}
