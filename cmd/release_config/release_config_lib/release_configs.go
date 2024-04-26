@@ -118,8 +118,13 @@ func ReleaseConfigMapFactory(protoPath string) (m *ReleaseConfigMap) {
 
 func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex int) error {
 	m := ReleaseConfigMapFactory(path)
-	if m.proto.DefaultContainer == nil {
+	if m.proto.DefaultContainers == nil {
 		return fmt.Errorf("Release config map %s lacks default_container", path)
+	}
+	for _, container := range m.proto.DefaultContainers {
+		if !validContainer(container) {
+			return fmt.Errorf("Release config map %s has invalid container %s", path, container)
+		}
 	}
 	dir := filepath.Dir(path)
 	// Record any aliases, checking for duplicates.
@@ -138,9 +143,16 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 	err = WalkTextprotoFiles(dir, "flag_declarations", func(path string, d fs.DirEntry, err error) error {
 		flagDeclaration := FlagDeclarationFactory(path)
 		// Container must be specified.
-		if flagDeclaration.Container == nil {
-			flagDeclaration.Container = m.proto.DefaultContainer
+		if flagDeclaration.Containers == nil {
+			flagDeclaration.Containers = m.proto.DefaultContainers
+		} else {
+			for _, container := range flagDeclaration.Containers {
+				if !validContainer(container) {
+					return fmt.Errorf("Flag declaration %s has invalid container %s", path, container)
+				}
+			}
 		}
+
 		// TODO: once we have namespaces initialized, we can throw an error here.
 		if flagDeclaration.Namespace == nil {
 			flagDeclaration.Namespace = proto.String("android_UNKNOWN")
@@ -253,19 +265,12 @@ func (configs *ReleaseConfigs) WriteMakefile(outFile, targetRelease string) erro
 		flag := myFlagArtifacts[name]
 		decl := flag.FlagDeclaration
 
-		// cName := strings.ToLower(rc_proto.Container_name[decl.GetContainer()])
-		cName := strings.ToLower(decl.Container.String())
-		if cName == strings.ToLower(rc_proto.Container_ALL.String()) {
-			partitions["product"] = append(partitions["product"], name)
-			partitions["system"] = append(partitions["system"], name)
-			partitions["system_ext"] = append(partitions["system_ext"], name)
-			partitions["vendor"] = append(partitions["vendor"], name)
-		} else {
-			partitions[cName] = append(partitions[cName], name)
+		for _, container := range decl.Containers {
+			partitions[container] = append(partitions[container], name)
 		}
 		value := MarshalValue(flag.Value)
 		makeVars[name] = value
-		addVar(name, "PARTITIONS", cName)
+		addVar(name, "PARTITIONS", strings.Join(decl.Containers, " "))
 		addVar(name, "DEFAULT", MarshalValue(decl.Value))
 		addVar(name, "VALUE", value)
 		addVar(name, "DECLARED_IN", *flag.Traces[0].Source)

@@ -20,13 +20,17 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
 
-var disableWarnings bool
+var (
+	disableWarnings    bool
+	containerRegexp, _ = regexp.Compile("^[a-z][a-z0-9]*([._][a-z][a-z0-9]*)*$")
+)
 
 type StringList []string
 
@@ -126,6 +130,10 @@ func warnf(format string, args ...any) (n int, err error) {
 		return fmt.Printf(format, args...)
 	}
 	return 0, nil
+}
+
+func validContainer(container string) bool {
+	return containerRegexp.MatchString(container)
 }
 
 // Returns the default value for release config artifacts.
