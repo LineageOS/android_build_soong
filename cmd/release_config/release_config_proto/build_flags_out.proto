@@ -52,6 +52,11 @@ message flag_artifact {
   repeated tracepoint traces = 8;
 }
 
+message flag_artifacts {
+  // The artifacts
+  repeated flag_artifact flag_artifacts = 1;
+}
+
 message release_config_artifact {
   // The name of the release config.
   // See # name for format detail
