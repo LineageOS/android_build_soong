@@ -72,6 +72,11 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	if err = config.WritePartitionBuildFlags(outputDir, product, targetRelease); err != nil {
+		panic(err)
+	}
+
 	if allMake {
 		for k, _ := range configs.ReleaseConfigs {
 			makefilePath := filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.mk", product, k))
