@@ -15,7 +15,10 @@
 package release_config_lib
 
 import (
+	"cmp"
 	"fmt"
+	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -67,6 +70,9 @@ type ReleaseConfig struct {
 
 	// We have begun compiling this release config.
 	compileInProgress bool
+
+	// Partitioned artifacts for {partition}/etc/build_flags.json
+	PartitionBuildFlags map[string]*rc_proto.FlagArtifacts
 }
 
 func ReleaseConfigFactory(name string, index int) (c *ReleaseConfig) {
@@ -206,6 +212,34 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 		}
 	}
 
+	// Now build the per-partition artifacts
+	config.PartitionBuildFlags = make(map[string]*rc_proto.FlagArtifacts)
+	addPartitionArtifact := func(container string, artifact *rc_proto.FlagArtifact) {
+		if _, ok := config.PartitionBuildFlags[container]; !ok {
+			config.PartitionBuildFlags[container] = &rc_proto.FlagArtifacts{}
+		}
+		config.PartitionBuildFlags[container].FlagArtifacts = append(config.PartitionBuildFlags[container].FlagArtifacts, artifact)
+	}
+	for _, v := range config.FlagArtifacts {
+		container := strings.ToLower(rc_proto.Container_name[int32(v.FlagDeclaration.GetContainer())])
+		artifact, err := v.MarshalWithoutTraces()
+		if err != nil {
+			return err
+		}
+		switch container {
+		case "all":
+			for cVal, cName := range rc_proto.Container_name {
+				// Skip unspecified, and "ALL", but place the flag in the rest.
+				if cVal == 0 || cName == "ALL" {
+					continue
+				}
+				cName = strings.ToLower(cName)
+				addPartitionArtifact(cName, artifact)
+			}
+		default:
+			addPartitionArtifact(container, artifact)
+		}
+	}
 	config.ReleaseConfigArtifact = &rc_proto.ReleaseConfigArtifact{
 		Name:       proto.String(config.Name),
 		OtherNames: config.OtherNames,
@@ -232,5 +266,18 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 	}
 
 	config.compileInProgress = false
+	return nil
+}
+
+func (config *ReleaseConfig) WritePartitionBuildFlags(outDir, product, targetRelease string) error {
+	var err error
+	for partition, flags := range config.PartitionBuildFlags {
+		slices.SortFunc(flags.FlagArtifacts, func(a, b *rc_proto.FlagArtifact) int {
+			return cmp.Compare(*a.FlagDeclaration.Name, *b.FlagDeclaration.Name)
+		})
+		if err = WriteMessage(filepath.Join(outDir, fmt.Sprintf("build_flags_%s-%s-%s.json", partition, config.Name, product)), flags); err != nil {
+			return err
+		}
+	}
 	return nil
 }
