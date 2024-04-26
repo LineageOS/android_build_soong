@@ -115,6 +115,7 @@ func (callbacks *JavaAconfigDeclarationsLibraryCallbacks) GenerateSourceJarBuild
 		module.AddJarJarRenameRule(declarations.Package+".Flags", "")
 		module.AddJarJarRenameRule(declarations.Package+".FeatureFlags", "")
 		module.AddJarJarRenameRule(declarations.Package+".FeatureFlagsImpl", "")
+		module.AddJarJarRenameRule(declarations.Package+".CustomFeatureFlags", "")
 		module.AddJarJarRenameRule(declarations.Package+".FakeFeatureFlagsImpl", "")
 	}
 
