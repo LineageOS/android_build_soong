@@ -129,3 +129,14 @@ func (fa *FlagArtifact) Marshal() (*rc_proto.FlagArtifact, error) {
 		Traces:          fa.Traces,
 	}, nil
 }
+
+// Marshal the FlagArtifact without Traces.
+func (fa *FlagArtifact) MarshalWithoutTraces() (*rc_proto.FlagArtifact, error) {
+	if fa.Redacted {
+		return nil, nil
+	}
+	return &rc_proto.FlagArtifact{
+		FlagDeclaration: fa.FlagDeclaration,
+		Value:           fa.Value,
+	}, nil
+}

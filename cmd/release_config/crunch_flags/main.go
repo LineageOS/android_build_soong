@@ -163,7 +163,7 @@ func ProcessBuildFlags(dir string, namespaceMap map[string]string) error {
 }
 
 func ProcessBuildConfigs(dir, name string, paths []string, releaseProto *rc_proto.ReleaseConfig) error {
-	valRegexp, err := regexp.Compile("[[:space:]]+value.\"(?<name>[A-Z_0-9]+)\",[[:space:]]*(?<value>[^,)]*)")
+	valRegexp, err := regexp.Compile("[[:space:]]+value.\"(?<name>[A-Z_0-9]+)\",[[:space:]]*(?<value>(\"[^\"]*\"|[^\",)]*))")
 	if err != nil {
 		return err
 	}

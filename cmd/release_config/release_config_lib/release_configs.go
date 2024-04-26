@@ -372,9 +372,14 @@ func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease strin
 	}
 
 	configs := ReleaseConfigsFactory()
+	mapsRead := make(map[string]bool)
 	for idx, releaseConfigMapPath := range releaseConfigMapPaths {
 		// Maintain an ordered list of release config directories.
 		configDir := filepath.Dir(releaseConfigMapPath)
+		if mapsRead[configDir] {
+			continue
+		}
+		mapsRead[configDir] = true
 		configs.configDirIndexes[configDir] = idx
 		configs.configDirs = append(configs.configDirs, configDir)
 		err = configs.LoadReleaseConfigMap(releaseConfigMapPath, idx)
