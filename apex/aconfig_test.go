@@ -165,6 +165,9 @@ func TestValidationAcrossContainersExportedPass(t *testing.T) {
 				cc_library {
 					name: "libbase",
 					srcs: ["libbase.cc"],
+			                apex_available: [
+				            "myapex",
+			                ],
 				}
 				cc_library {
 					name: "libaconfig_storage_read_api_cc",
@@ -425,6 +428,9 @@ func TestValidationAcrossContainersNotExportedFail(t *testing.T) {
 				cc_library {
 					name: "libbase",
 					srcs: ["libbase.cc"],
+			                apex_available: [
+				            "myapex",
+			                ],
 				}
 				cc_library {
 					name: "libaconfig_storage_read_api_cc",
@@ -487,6 +493,9 @@ func TestValidationAcrossContainersNotExportedFail(t *testing.T) {
 				cc_library {
 					name: "libbase",
 					srcs: ["libbase.cc"],
+			                apex_available: [
+				            "myapex",
+			                ],
 				}
 				cc_library {
 					name: "libaconfig_storage_read_api_cc",
