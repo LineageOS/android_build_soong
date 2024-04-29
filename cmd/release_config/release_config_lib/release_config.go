@@ -109,23 +109,17 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 	config.FlagArtifacts = configs.FlagArtifacts.Clone()
 	// Add RELEASE_ACONFIG_VALUE_SETS
 	workflowManual := rc_proto.Workflow(rc_proto.Workflow_MANUAL)
-	container := rc_proto.Container(rc_proto.Container_ALL)
 	releaseAconfigValueSets := FlagArtifact{
 		FlagDeclaration: &rc_proto.FlagDeclaration{
 			Name:        proto.String("RELEASE_ACONFIG_VALUE_SETS"),
 			Namespace:   proto.String("android_UNKNOWN"),
 			Description: proto.String("Aconfig value sets assembled by release-config"),
 			Workflow:    &workflowManual,
-			Container:   &container,
-			Value:       &rc_proto.Value{Val: &rc_proto.Value_StringValue{""}},
+			Containers:  []string{"system", "system_ext", "product", "vendor"},
+			Value:       &rc_proto.Value{Val: &rc_proto.Value_UnspecifiedValue{false}},
 		},
 		DeclarationIndex: -1,
-		Traces: []*rc_proto.Tracepoint{
-			&rc_proto.Tracepoint{
-				Source: proto.String("$release-config"),
-				Value:  &rc_proto.Value{Val: &rc_proto.Value_StringValue{""}},
-			},
-		},
+		Traces:           []*rc_proto.Tracepoint{},
 	}
 	config.FlagArtifacts["RELEASE_ACONFIG_VALUE_SETS"] = &releaseAconfigValueSets
 
@@ -163,22 +157,22 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 	}
 	myDirsMap := make(map[int]bool)
 	for _, contrib := range contributionsToApply {
-		if len(contrib.proto.AconfigValueSets) > 0 {
-			contribAconfigValueSets := []string{}
-			for _, v := range contrib.proto.AconfigValueSets {
-				if _, ok := myAconfigValueSetsMap[v]; !ok {
-					contribAconfigValueSets = append(contribAconfigValueSets, v)
-					myAconfigValueSetsMap[v] = true
-				}
+		contribAconfigValueSets := []string{}
+		// Gather the aconfig_value_sets from this contribution that are not already in the list.
+		for _, v := range contrib.proto.AconfigValueSets {
+			if _, ok := myAconfigValueSetsMap[v]; !ok {
+				contribAconfigValueSets = append(contribAconfigValueSets, v)
+				myAconfigValueSetsMap[v] = true
 			}
-			myAconfigValueSets = append(myAconfigValueSets, contribAconfigValueSets...)
-			releaseAconfigValueSets.Traces = append(
-				releaseAconfigValueSets.Traces,
-				&rc_proto.Tracepoint{
-					Source: proto.String(contrib.path),
-					Value:  &rc_proto.Value{Val: &rc_proto.Value_StringValue{strings.Join(contribAconfigValueSets, " ")}},
-				})
 		}
+		myAconfigValueSets = append(myAconfigValueSets, contribAconfigValueSets...)
+		releaseAconfigValueSets.Traces = append(
+			releaseAconfigValueSets.Traces,
+			&rc_proto.Tracepoint{
+				Source: proto.String(contrib.path),
+				Value:  &rc_proto.Value{Val: &rc_proto.Value_StringValue{strings.Join(contribAconfigValueSets, " ")}},
+			})
+
 		myDirsMap[contrib.DeclarationIndex] = true
 		for _, value := range contrib.FlagValues {
 			name := *value.proto.Name
@@ -214,30 +208,16 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 
 	// Now build the per-partition artifacts
 	config.PartitionBuildFlags = make(map[string]*rc_proto.FlagArtifacts)
-	addPartitionArtifact := func(container string, artifact *rc_proto.FlagArtifact) {
-		if _, ok := config.PartitionBuildFlags[container]; !ok {
-			config.PartitionBuildFlags[container] = &rc_proto.FlagArtifacts{}
-		}
-		config.PartitionBuildFlags[container].FlagArtifacts = append(config.PartitionBuildFlags[container].FlagArtifacts, artifact)
-	}
 	for _, v := range config.FlagArtifacts {
-		container := strings.ToLower(rc_proto.Container_name[int32(v.FlagDeclaration.GetContainer())])
 		artifact, err := v.MarshalWithoutTraces()
 		if err != nil {
 			return err
 		}
-		switch container {
-		case "all":
-			for cVal, cName := range rc_proto.Container_name {
-				// Skip unspecified, and "ALL", but place the flag in the rest.
-				if cVal == 0 || cName == "ALL" {
-					continue
-				}
-				cName = strings.ToLower(cName)
-				addPartitionArtifact(cName, artifact)
+		for _, container := range v.FlagDeclaration.Containers {
+			if _, ok := config.PartitionBuildFlags[container]; !ok {
+				config.PartitionBuildFlags[container] = &rc_proto.FlagArtifacts{}
 			}
-		default:
-			addPartitionArtifact(container, artifact)
+			config.PartitionBuildFlags[container].FlagArtifacts = append(config.PartitionBuildFlags[container].FlagArtifacts, artifact)
 		}
 	}
 	config.ReleaseConfigArtifact = &rc_proto.ReleaseConfigArtifact{
