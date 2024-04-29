@@ -22,6 +22,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -152,6 +153,7 @@ func (this *CcAconfigLibraryCallbacks) GeneratorBuildActions(ctx cc.ModuleContex
 		Args: map[string]string{
 			"gendir": this.generatedDir.String(),
 			"mode":   mode,
+			"debug":  strconv.FormatBool(ctx.Config().ReleaseReadFromNewStorageCc()),
 		},
 	})
 
