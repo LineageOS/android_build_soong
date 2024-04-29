@@ -3671,34 +3671,13 @@ func ensureExactDeapexedContents(t *testing.T, ctx *android.TestContext, moduleN
 
 func vndkLibrariesTxtFiles(vers ...string) (result string) {
 	for _, v := range vers {
-		if v == "current" {
-			for _, txt := range []string{"vndkcore", "vndksp", "vndkprivate", "vndkproduct"} {
-				result += `
-					` + txt + `_libraries_txt {
-						name: "` + txt + `.libraries.txt",
-						insert_vndk_version: true,
-					}
-				`
-			}
+		for _, txt := range []string{"llndk", "vndkcore", "vndksp", "vndkprivate", "vndkproduct"} {
 			result += `
-				llndk_libraries_txt {
-					name: "llndk.libraries.txt",
-				}
-				llndk_libraries_txt_for_apex {
-					name: "llndk.libraries.txt.apex",
-					stem: "llndk.libraries.txt",
-					insert_vndk_version: true,
-				}
-			`
-		} else {
-			for _, txt := range []string{"llndk", "vndkcore", "vndksp", "vndkprivate", "vndkproduct"} {
-				result += `
 					prebuilt_etc {
 						name: "` + txt + `.libraries.` + v + `.txt",
 						src: "dummy.txt",
 					}
 				`
-			}
 		}
 	}
 	return
