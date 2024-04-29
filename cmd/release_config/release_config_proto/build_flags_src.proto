@@ -53,19 +53,6 @@ enum workflow {
   MANUAL = 3;
 }
 
-enum container {
-  UNSPECIFIED_container = 0;
-
-  // All containers
-  ALL = 1;
-
-  // Specific containers
-  PRODUCT = 2;
-  SYSTEM = 3;
-  SYSTEM_EXT = 4;
-  VENDOR = 5;
-}
-
 message value {
   oneof val {
     bool unspecified_value = 200;
@@ -100,7 +87,7 @@ message flag_declaration {
 
   // The container for this flag.  This overrides any default container given
   // in the release_config_map message.
-  optional container container = 206;
+  repeated string containers = 206;
 
   // The package associated with this flag.
   // (when Gantry is ready for it) optional string package = 207;
@@ -152,7 +139,7 @@ message release_config_map {
   optional string description = 2;
 
   // The default container for flags declared here.
-  optional container default_container = 3;
+  repeated string default_containers = 3;
 
   // If needed, we can add these fields instead of hardcoding the location.
   // Flag declarations: `flag_declarations/*.textproto`
