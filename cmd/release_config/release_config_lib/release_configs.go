@@ -365,11 +365,14 @@ func (configs *ReleaseConfigs) GenerateReleaseConfigs(targetRelease string) erro
 	return nil
 }
 
-func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease string) (*ReleaseConfigs, error) {
+func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease string, useBuildVar bool) (*ReleaseConfigs, error) {
 	var err error
 
 	if len(releaseConfigMapPaths) == 0 {
-		releaseConfigMapPaths = GetDefaultMapPaths()
+		releaseConfigMapPaths, err = GetDefaultMapPaths(useBuildVar)
+		if err != nil {
+			return nil, err
+		}
 		if len(releaseConfigMapPaths) == 0 {
 			return nil, fmt.Errorf("No maps found")
 		}
