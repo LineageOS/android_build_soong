@@ -615,11 +615,36 @@ func (d *Droidstubs) apiLevelsGenerationFlags(ctx android.ModuleContext, cmd *an
 
 	filename := proptools.StringDefault(d.properties.Api_levels_jar_filename, "android.jar")
 
+	// TODO: Avoid the duplication of API surfaces, reuse apiScope.
+	// Add all relevant --android-jar-pattern patterns for Metalava.
+	// When parsing a stub jar for a specific version, Metalava picks the first pattern that defines
+	// an actual file present on disk (in the order the patterns were passed). For system APIs for
+	// privileged apps that are only defined since API level 21 (Lollipop), fallback to public stubs
+	// for older releases. Similarly, module-lib falls back to system API.
+	var sdkDirs []string
+	switch proptools.StringDefault(d.properties.Api_levels_sdk_type, "public") {
+	case "system-server":
+		sdkDirs = []string{"system-server", "module-lib", "system", "public"}
+	case "module-lib":
+		sdkDirs = []string{"module-lib", "system", "public"}
+	case "system":
+		sdkDirs = []string{"system", "public"}
+	case "public":
+		sdkDirs = []string{"public"}
+	default:
+		ctx.PropertyErrorf("api_levels_sdk_type", "needs to be one of %v", allowedApiLevelSdkTypes)
+		return
+	}
+
+	// Use the first item in the sdkDirs array as that is the sdk type for the target API levels
+	// being generated but has the advantage over `Api_levels_sdk_type` as it has been validated.
+	extensionsPattern := fmt.Sprintf(`/extensions/[0-9]+/%s/.*\.jar`, sdkDirs[0])
+
 	var dirs []string
 	var extensions_dir string
 	ctx.VisitDirectDepsWithTag(metalavaAPILevelsAnnotationsDirTag, func(m android.Module) {
 		if t, ok := m.(*ExportedDroiddocDir); ok {
-			extRegex := regexp.MustCompile(t.dir.String() + `/extensions/[0-9]+/public/.*\.jar`)
+			extRegex := regexp.MustCompile(t.dir.String() + extensionsPattern)
 
 			// Grab the first extensions_dir and we find while scanning ExportedDroiddocDir.deps;
 			// ideally this should be read from prebuiltApis.properties.Extensions_*
@@ -650,26 +675,6 @@ func (d *Droidstubs) apiLevelsGenerationFlags(ctx android.ModuleContext, cmd *an
 				"module %q is not a metalava api-levels-annotations dir", ctx.OtherModuleName(m))
 		}
 	})
-
-	// Add all relevant --android-jar-pattern patterns for Metalava.
-	// When parsing a stub jar for a specific version, Metalava picks the first pattern that defines
-	// an actual file present on disk (in the order the patterns were passed). For system APIs for
-	// privileged apps that are only defined since API level 21 (Lollipop), fallback to public stubs
-	// for older releases. Similarly, module-lib falls back to system API.
-	var sdkDirs []string
-	switch proptools.StringDefault(d.properties.Api_levels_sdk_type, "public") {
-	case "system-server":
-		sdkDirs = []string{"system-server", "module-lib", "system", "public"}
-	case "module-lib":
-		sdkDirs = []string{"module-lib", "system", "public"}
-	case "system":
-		sdkDirs = []string{"system", "public"}
-	case "public":
-		sdkDirs = []string{"public"}
-	default:
-		ctx.PropertyErrorf("api_levels_sdk_type", "needs to be one of %v", allowedApiLevelSdkTypes)
-		return
-	}
 
 	for _, sdkDir := range sdkDirs {
 		for _, dir := range dirs {
