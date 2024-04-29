@@ -89,8 +89,7 @@ func (this *CcAconfigLibraryCallbacks) GeneratorDeps(ctx cc.DepsContext, deps cc
 
 		deps.SharedLibs = append(deps.SharedLibs, libAconfigStorageReadApiCcDep)
 		deps.SharedLibs = append(deps.SharedLibs, libLogDep)
-
-		deps.StaticLibs = append(deps.StaticLibs, libBaseDep)
+		deps.SharedLibs = append(deps.SharedLibs, libBaseDep)
 	}
 	// TODO: It'd be really nice if we could reexport this library and not make everyone do it.
 
