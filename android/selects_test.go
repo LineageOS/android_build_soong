@@ -633,6 +633,61 @@ func TestSelects(t *testing.T) {
 			},
 			expectedError: "Expected all branches of a select on condition boolean_var_for_testing\\(\\) to have type bool, found string",
 		},
+		{
+			name: "Assigning select to nonconfigurable bool",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_nonconfigurable_bool: select(arch(), {
+					"x86_64": true,
+					default: false,
+				}),
+			}
+			`,
+			expectedError: `can't assign select statement to non-configurable property "my_nonconfigurable_bool"`,
+		},
+		{
+			name: "Assigning select to nonconfigurable string",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_nonconfigurable_string: select(arch(), {
+					"x86_64": "x86!",
+					default: "unknown!",
+				}),
+			}
+			`,
+			expectedError: `can't assign select statement to non-configurable property "my_nonconfigurable_string"`,
+		},
+		{
+			name: "Assigning appended selects to nonconfigurable string",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_nonconfigurable_string: select(arch(), {
+					"x86_64": "x86!",
+					default: "unknown!",
+				}) + select(os(), {
+					"darwin": "_darwin!",
+					default: "unknown!",
+				}),
+			}
+			`,
+			expectedError: `can't assign select statement to non-configurable property "my_nonconfigurable_string"`,
+		},
+		{
+			name: "Assigning select to nonconfigurable string list",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_nonconfigurable_string_list: select(arch(), {
+					"x86_64": ["foo", "bar"],
+					default: ["baz", "qux"],
+				}),
+			}
+			`,
+			expectedError: `can't assign select statement to non-configurable property "my_nonconfigurable_string_list"`,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -674,11 +729,14 @@ func TestSelects(t *testing.T) {
 }
 
 type selectsTestProvider struct {
-	my_bool               *bool
-	my_string             *string
-	my_string_list        *[]string
-	my_paths              *[]string
-	replacing_string_list *[]string
+	my_bool                        *bool
+	my_string                      *string
+	my_string_list                 *[]string
+	my_paths                       *[]string
+	replacing_string_list          *[]string
+	my_nonconfigurable_bool        *bool
+	my_nonconfigurable_string      *string
+	my_nonconfigurable_string_list []string
 }
 
 func (p *selectsTestProvider) String() string {
@@ -690,23 +748,42 @@ func (p *selectsTestProvider) String() string {
 	if p.my_string != nil {
 		myStringStr = *p.my_string
 	}
+	myNonconfigurableStringStr := "nil"
+	if p.my_string != nil {
+		myNonconfigurableStringStr = *p.my_nonconfigurable_string
+	}
 	return fmt.Sprintf(`selectsTestProvider {
 	my_bool: %v,
 	my_string: %s,
     my_string_list: %s,
     my_paths: %s,
 	replacing_string_list %s,
-}`, myBoolStr, myStringStr, p.my_string_list, p.my_paths, p.replacing_string_list)
+	my_nonconfigurable_bool: %v,
+	my_nonconfigurable_string: %s,
+	my_nonconfigurable_string_list: %s,
+}`,
+		myBoolStr,
+		myStringStr,
+		p.my_string_list,
+		p.my_paths,
+		p.replacing_string_list,
+		p.my_nonconfigurable_bool,
+		myNonconfigurableStringStr,
+		p.my_nonconfigurable_string_list,
+	)
 }
 
 var selectsTestProviderKey = blueprint.NewProvider[selectsTestProvider]()
 
 type selectsMockModuleProperties struct {
-	My_bool               proptools.Configurable[bool]
-	My_string             proptools.Configurable[string]
-	My_string_list        proptools.Configurable[[]string]
-	My_paths              proptools.Configurable[[]string] `android:"path"`
-	Replacing_string_list proptools.Configurable[[]string] `android:"replace_instead_of_append,arch_variant"`
+	My_bool                        proptools.Configurable[bool]
+	My_string                      proptools.Configurable[string]
+	My_string_list                 proptools.Configurable[[]string]
+	My_paths                       proptools.Configurable[[]string] `android:"path"`
+	Replacing_string_list          proptools.Configurable[[]string] `android:"replace_instead_of_append,arch_variant"`
+	My_nonconfigurable_bool        *bool
+	My_nonconfigurable_string      *string
+	My_nonconfigurable_string_list []string
 }
 
 type selectsMockModule struct {
@@ -717,11 +794,14 @@ type selectsMockModule struct {
 
 func (p *selectsMockModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	SetProvider(ctx, selectsTestProviderKey, selectsTestProvider{
-		my_bool:               p.properties.My_bool.Get(ctx),
-		my_string:             p.properties.My_string.Get(ctx),
-		my_string_list:        p.properties.My_string_list.Get(ctx),
-		my_paths:              p.properties.My_paths.Get(ctx),
-		replacing_string_list: p.properties.Replacing_string_list.Get(ctx),
+		my_bool:                        p.properties.My_bool.Get(ctx),
+		my_string:                      p.properties.My_string.Get(ctx),
+		my_string_list:                 p.properties.My_string_list.Get(ctx),
+		my_paths:                       p.properties.My_paths.Get(ctx),
+		replacing_string_list:          p.properties.Replacing_string_list.Get(ctx),
+		my_nonconfigurable_bool:        p.properties.My_nonconfigurable_bool,
+		my_nonconfigurable_string:      p.properties.My_nonconfigurable_string,
+		my_nonconfigurable_string_list: p.properties.My_nonconfigurable_string_list,
 	})
 }
 
