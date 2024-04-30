@@ -206,6 +206,9 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 		if err2 != nil {
 			return err2
 		}
+		if releaseConfigContribution.proto.GetAconfigFlagsOnly() {
+			config.AconfigFlagsOnly = true
+		}
 		m.ReleaseConfigContributions[name] = releaseConfigContribution
 		config.Contributions = append(config.Contributions, releaseConfigContribution)
 		return nil

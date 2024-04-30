@@ -160,6 +160,9 @@ func SetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 	if err != nil {
 		return err
 	}
+	if release.AconfigFlagsOnly {
+		return fmt.Errorf("%s does not allow build flag overrides", targetRelease)
+	}
 	flagArtifact, ok := release.FlagArtifacts[name]
 	if !ok {
 		return fmt.Errorf("Unknown build flag %s", name)
