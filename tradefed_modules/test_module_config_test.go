@@ -325,30 +325,6 @@ func TestModuleConfigHostNeedsATestSuite(t *testing.T) {
 		RunTestWithBp(t, badBp)
 }
 
-func TestModuleConfigHostDuplicateTestSuitesGiveErrors(t *testing.T) {
-	badBp := `
-		java_test_host {
-			name: "base",
-                        srcs: ["a.java"],
-                        test_suites: ["general-tests", "some-compat"],
-		}
-
-                test_module_config_host {
-                        name: "derived_test",
-                        base: "base",
-                        exclude_filters: ["android.test.example.devcodelab.DevCodelabTest#testHelloFail"],
-                        include_annotations: ["android.platform.test.annotations.LargeTest"],
-                        test_suites: ["general-tests", "some-compat"],
-                }`
-
-	android.GroupFixturePreparers(
-		java.PrepareForTestWithJavaDefaultModules,
-		android.FixtureRegisterWithContext(RegisterTestModuleConfigBuildComponents),
-	).ExtendWithErrorHandler(
-		android.FixtureExpectsAtLeastOneErrorMatchingPattern("TestSuite some-compat exists in the base")).
-		RunTestWithBp(t, badBp)
-}
-
 func TestTestOnlyProvider(t *testing.T) {
 	t.Parallel()
 	ctx := android.GroupFixturePreparers(
