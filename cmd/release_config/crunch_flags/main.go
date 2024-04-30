@@ -311,8 +311,9 @@ func main() {
 	var dirs rc_lib.StringList
 	var namespacesFile string
 	var descriptionsFile string
+	defaultTopDir, err := rc_lib.GetTopDir()
 
-	flag.StringVar(&top, "top", ".", "path to top of workspace")
+	flag.StringVar(&top, "top", defaultTopDir, "path to top of workspace")
 	flag.Var(&dirs, "dir", "directory to process, relative to the top of the workspace")
 	flag.StringVar(&namespacesFile, "namespaces", "", "location of file with 'flag_name namespace' information")
 	flag.StringVar(&descriptionsFile, "descriptions", "", "location of file with 'directory description' information")

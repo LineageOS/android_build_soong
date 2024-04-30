@@ -184,6 +184,7 @@ func main() {
 	var err error
 	var commonFlags Flags
 	var configs *rc_lib.ReleaseConfigs
+	var useBuildVar bool
 
 	outEnv := os.Getenv("OUT_DIR")
 	if outEnv == "" {
@@ -195,6 +196,7 @@ func main() {
 	flag.Var(&commonFlags.maps, "map", "path to a release_config_map.textproto. may be repeated")
 	flag.StringVar(&commonFlags.outDir, "out_dir", rc_lib.GetDefaultOutDir(), "basepath for the output. Multiple formats are created")
 	flag.Var(&commonFlags.targetReleases, "release", "TARGET_RELEASE for this build")
+	flag.BoolVar(&useBuildVar, "use_get_build_var", true, "use get_build_var PRODUCT_RELEASE_CONFIG_MAPS")
 	flag.Parse()
 
 	if commonFlags.quiet {
@@ -215,7 +217,7 @@ func main() {
 		// If the users said `--release --all`, grab trunk staging for simplicity.
 		relName = "trunk_staging"
 	}
-	configs, err = rc_lib.ReadReleaseConfigMaps(commonFlags.maps, relName)
+	configs, err = rc_lib.ReadReleaseConfigMaps(commonFlags.maps, relName, true)
 	if err != nil {
 		panic(err)
 	}

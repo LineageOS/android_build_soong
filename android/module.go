@@ -2142,13 +2142,13 @@ func (e configurationEvalutor) PropertyErrorf(property string, fmt string, args 
 func (e configurationEvalutor) EvaluateConfiguration(condition proptools.ConfigurableCondition, property string) proptools.ConfigurableValue {
 	ctx := e.ctx
 	m := e.m
-	switch condition.FunctionName {
+	switch condition.FunctionName() {
 	case "release_variable":
-		if len(condition.Args) != 1 {
-			ctx.OtherModulePropertyErrorf(m, property, "release_variable requires 1 argument, found %d", len(condition.Args))
+		if condition.NumArgs() != 1 {
+			ctx.OtherModulePropertyErrorf(m, property, "release_variable requires 1 argument, found %d", condition.NumArgs())
 			return proptools.ConfigurableValueUndefined()
 		}
-		if v, ok := ctx.Config().productVariables.BuildFlags[condition.Args[0]]; ok {
+		if v, ok := ctx.Config().productVariables.BuildFlags[condition.Arg(0)]; ok {
 			return proptools.ConfigurableValueString(v)
 		}
 		return proptools.ConfigurableValueUndefined()
@@ -2157,12 +2157,12 @@ func (e configurationEvalutor) EvaluateConfiguration(condition proptools.Configu
 		ctx.OtherModulePropertyErrorf(m, property, "TODO(b/323382414): Product variables are not yet supported in selects")
 		return proptools.ConfigurableValueUndefined()
 	case "soong_config_variable":
-		if len(condition.Args) != 2 {
-			ctx.OtherModulePropertyErrorf(m, property, "soong_config_variable requires 2 arguments, found %d", len(condition.Args))
+		if condition.NumArgs() != 2 {
+			ctx.OtherModulePropertyErrorf(m, property, "soong_config_variable requires 2 arguments, found %d", condition.NumArgs())
 			return proptools.ConfigurableValueUndefined()
 		}
-		namespace := condition.Args[0]
-		variable := condition.Args[1]
+		namespace := condition.Arg(0)
+		variable := condition.Arg(1)
 		if n, ok := ctx.Config().productVariables.VendorVars[namespace]; ok {
 			if v, ok := n[variable]; ok {
 				return proptools.ConfigurableValueString(v)
@@ -2170,8 +2170,8 @@ func (e configurationEvalutor) EvaluateConfiguration(condition proptools.Configu
 		}
 		return proptools.ConfigurableValueUndefined()
 	case "arch":
-		if len(condition.Args) != 0 {
-			ctx.OtherModulePropertyErrorf(m, property, "arch requires no arguments, found %d", len(condition.Args))
+		if condition.NumArgs() != 0 {
+			ctx.OtherModulePropertyErrorf(m, property, "arch requires no arguments, found %d", condition.NumArgs())
 			return proptools.ConfigurableValueUndefined()
 		}
 		if !m.base().ArchReady() {
@@ -2180,8 +2180,8 @@ func (e configurationEvalutor) EvaluateConfiguration(condition proptools.Configu
 		}
 		return proptools.ConfigurableValueString(m.base().Arch().ArchType.Name)
 	case "os":
-		if len(condition.Args) != 0 {
-			ctx.OtherModulePropertyErrorf(m, property, "os requires no arguments, found %d", len(condition.Args))
+		if condition.NumArgs() != 0 {
+			ctx.OtherModulePropertyErrorf(m, property, "os requires no arguments, found %d", condition.NumArgs())
 			return proptools.ConfigurableValueUndefined()
 		}
 		// the arch mutator runs after the os mutator, we can just use this to enforce that os is ready.
@@ -2194,8 +2194,8 @@ func (e configurationEvalutor) EvaluateConfiguration(condition proptools.Configu
 		// We currently don't have any other boolean variables (we should add support for typing
 		// the soong config variables), so add this fake one for testing the boolean select
 		// functionality.
-		if len(condition.Args) != 0 {
-			ctx.OtherModulePropertyErrorf(m, property, "boolean_var_for_testing requires 0 arguments, found %d", len(condition.Args))
+		if condition.NumArgs() != 0 {
+			ctx.OtherModulePropertyErrorf(m, property, "boolean_var_for_testing requires 0 arguments, found %d", condition.NumArgs())
 			return proptools.ConfigurableValueUndefined()
 		}
 
