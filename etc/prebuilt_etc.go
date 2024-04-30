@@ -58,6 +58,9 @@ func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_usr_share", PrebuiltUserShareFactory)
 	ctx.RegisterModuleType("prebuilt_usr_share_host", PrebuiltUserShareHostFactory)
 	ctx.RegisterModuleType("prebuilt_usr_hyphendata", PrebuiltUserHyphenDataFactory)
+	ctx.RegisterModuleType("prebuilt_usr_keylayout", PrebuiltUserKeyLayoutFactory)
+	ctx.RegisterModuleType("prebuilt_usr_keychars", PrebuiltUserKeyCharsFactory)
+	ctx.RegisterModuleType("prebuilt_usr_idc", PrebuiltUserIdcFactory)
 	ctx.RegisterModuleType("prebuilt_font", PrebuiltFontFactory)
 	ctx.RegisterModuleType("prebuilt_firmware", PrebuiltFirmwareFactory)
 	ctx.RegisterModuleType("prebuilt_dsp", PrebuiltDSPFactory)
@@ -617,6 +620,39 @@ func PrebuiltUserShareHostFactory() android.Module {
 func PrebuiltUserHyphenDataFactory() android.Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module, "usr/hyphen-data")
+	// This module is device-only
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+// prebuilt_usr_keylayout is for a prebuilt artifact that is installed in
+// <partition>/usr/keylayout/<sub_dir> directory.
+func PrebuiltUserKeyLayoutFactory() android.Module {
+	module := &PrebuiltEtc{}
+	InitPrebuiltEtcModule(module, "usr/keylayout")
+	// This module is device-only
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+// prebuilt_usr_keychars is for a prebuilt artifact that is installed in
+// <partition>/usr/keychars/<sub_dir> directory.
+func PrebuiltUserKeyCharsFactory() android.Module {
+	module := &PrebuiltEtc{}
+	InitPrebuiltEtcModule(module, "usr/keychars")
+	// This module is device-only
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+// prebuilt_usr_idc is for a prebuilt artifact that is installed in
+// <partition>/usr/idc/<sub_dir> directory.
+func PrebuiltUserIdcFactory() android.Module {
+	module := &PrebuiltEtc{}
+	InitPrebuiltEtcModule(module, "usr/idc")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
 	android.InitDefaultableModule(module)
