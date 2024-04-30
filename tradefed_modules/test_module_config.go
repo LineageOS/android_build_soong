@@ -160,33 +160,15 @@ func (m *testModuleConfigModule) GenerateAndroidBuildActions(ctx android.ModuleC
 
 }
 
-// Any test suites in base should not be repeated in the derived class, except "general-tests".
-// We may restrict derived tests to only be "general-tests" as it doesn't make sense to add a slice
-// of a test to compatibility suite.
+// Ensure at least one test_suite is listed.  Ideally it should be general-tests
+// or device-tests, whichever is listed in base and prefer general-tests if both are listed.
+// However this is not enforced yet.
 //
-// Returns ErrorMessage, false on problems
-// Returns _, true if okay.
+// Returns true if okay and reports errors via ModuleErrorf.
 func (m *testModuleConfigModule) validateTestSuites(ctx android.ModuleContext) bool {
 	if len(m.tradefedProperties.Test_suites) == 0 {
-		ctx.ModuleErrorf("At least one test-suite must be set or this won't run. Use \"general-tests\"")
+		ctx.ModuleErrorf("At least one test-suite must be set or this won't run. Use \"general-tests\" or \"device-tests\"")
 		return false
-	}
-
-	derivedSuites := make(map[string]bool)
-	// See if any suites in base is also in derived (other than general-tests)
-	for _, s := range m.tradefedProperties.Test_suites {
-		if s != "general-tests" {
-			derivedSuites[s] = true
-		}
-	}
-	if len(derivedSuites) == 0 {
-		return true
-	}
-	for _, baseSuite := range m.provider.TestSuites {
-		if derivedSuites[baseSuite] {
-			ctx.ModuleErrorf("TestSuite %s exists in the base, do not add it here", baseSuite)
-			return false
-		}
 	}
 
 	return true
