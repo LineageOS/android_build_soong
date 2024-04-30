@@ -43,6 +43,11 @@ type PackagingSpec struct {
 	effectiveLicenseFiles *Paths
 
 	partition string
+
+	// Whether this packaging spec represents an installation of the srcPath (i.e. this struct
+	// is created via InstallFile or InstallSymlink) or a simple packaging (i.e. created via
+	// PackageFile).
+	skipInstall bool
 }
 
 // Get file name of installed package
@@ -72,6 +77,10 @@ func (p *PackagingSpec) EffectiveLicenseFiles() Paths {
 
 func (p *PackagingSpec) Partition() string {
 	return p.partition
+}
+
+func (p *PackagingSpec) SkipInstall() bool {
+	return p.skipInstall
 }
 
 type PackageModule interface {

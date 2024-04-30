@@ -476,6 +476,7 @@ func (m *moduleContext) packageFile(fullInstallPath InstallPath, srcPath Path, e
 		executable:            executable,
 		effectiveLicenseFiles: &licenseFiles,
 		partition:             fullInstallPath.partition,
+		skipInstall:           m.skipInstall(),
 	}
 	m.packagingSpecs = append(m.packagingSpecs, spec)
 	return spec
@@ -599,6 +600,7 @@ func (m *moduleContext) InstallSymlink(installPath InstallPath, name string, src
 		symlinkTarget:    relPath,
 		executable:       false,
 		partition:        fullInstallPath.partition,
+		skipInstall:      m.skipInstall(),
 	})
 
 	return fullInstallPath
@@ -640,6 +642,7 @@ func (m *moduleContext) InstallAbsoluteSymlink(installPath InstallPath, name str
 		symlinkTarget:    absPath,
 		executable:       false,
 		partition:        fullInstallPath.partition,
+		skipInstall:      m.skipInstall(),
 	})
 
 	return fullInstallPath
