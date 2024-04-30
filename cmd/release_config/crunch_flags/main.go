@@ -15,18 +15,29 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// When a flag declaration has an initial value that is a string, the default workflow is PREBUILT.
-// If the flag name starts with any of prefixes in manualFlagNamePrefixes, it is MANUAL.
-var manualFlagNamePrefixes []string = []string{
-	"RELEASE_ACONFIG_",
-	"RELEASE_PLATFORM_",
-}
+var (
+	// When a flag declaration has an initial value that is a string, the default workflow is PREBUILT.
+	// If the flag name starts with any of prefixes in manualFlagNamePrefixes, it is MANUAL.
+	manualFlagNamePrefixes []string = []string{
+		"RELEASE_ACONFIG_",
+		"RELEASE_PLATFORM_",
+	}
 
-var defaultFlagNamespace string = "android_UNKNOWN"
+	// Set `aconfig_flags_only: true` in these release configs.
+	aconfigFlagsOnlyConfigs map[string]bool = map[string]bool{
+		"trunk_food": true,
+	}
+
+	// Default namespace value.  This is intentionally invalid.
+	defaultFlagNamespace string = "android_UNKNOWN"
+
+	// What is the current name for "next".
+	nextName string = "ap3a"
+)
 
 func RenameNext(name string) string {
 	if name == "next" {
-		return "ap3a"
+		return nextName
 	}
 	return name
 }
@@ -205,6 +216,9 @@ func ProcessBuildConfigs(dir, name string, paths []string, releaseProto *rc_prot
 				fmt.Printf("%s: Unexpected value %s=%s\n", path, valName, valValue)
 			}
 			if flagValue != nil {
+				if releaseProto.AconfigFlagsOnly {
+					return fmt.Errorf("%s does not allow build flag overrides", RenameNext(name))
+				}
 				valPath := filepath.Join(dir, "flag_values", RenameNext(name), fmt.Sprintf("%s.textproto", valName))
 				err := WriteFile(valPath, flagValue)
 				if err != nil {
@@ -284,6 +298,9 @@ func ProcessReleaseConfigMap(dir string, descriptionMap map[string]string) error
 		name := config[configRegexp.SubexpIndex("name")]
 		releaseConfig := &rc_proto.ReleaseConfig{
 			Name: proto.String(RenameNext(name)),
+		}
+		if aconfigFlagsOnlyConfigs[name] {
+			releaseConfig.AconfigFlagsOnly = true
 		}
 		configFiles := config[configRegexp.SubexpIndex("files")]
 		files := strings.Split(strings.ReplaceAll(configFiles, "$(local_dir)", dir+"/"), " ")
