@@ -28,6 +28,7 @@ func TestSelects(t *testing.T) {
 		name          string
 		bp            string
 		provider      selectsTestProvider
+		providers     map[string]selectsTestProvider
 		vendorVars    map[string]map[string]string
 		expectedError string
 	}{
@@ -411,6 +412,42 @@ func TestSelects(t *testing.T) {
 			},
 		},
 		{
+			name: "defaults applied to multiple modules",
+			bp: `
+			my_module_type {
+				name: "foo2",
+				defaults: ["bar"],
+				my_string_list: select(soong_config_variable("my_namespace", "my_variable"), {
+					"a": ["a1"],
+					default: ["b1"],
+				}),
+			}
+			my_module_type {
+				name: "foo",
+				defaults: ["bar"],
+				my_string_list: select(soong_config_variable("my_namespace", "my_variable"), {
+					"a": ["a1"],
+					default: ["b1"],
+				}),
+			}
+			my_defaults {
+				name: "bar",
+				my_string_list: select(soong_config_variable("my_namespace", "my_variable2"), {
+					"a": ["a2"],
+					default: ["b2"],
+				}),
+			}
+			`,
+			providers: map[string]selectsTestProvider{
+				"foo": {
+					my_string_list: &[]string{"b2", "b1"},
+				},
+				"foo2": {
+					my_string_list: &[]string{"b2", "b1"},
+				},
+			},
+		},
+		{
 			name: "Replacing string list",
 			bp: `
 			my_module_type {
@@ -617,10 +654,19 @@ func TestSelects(t *testing.T) {
 			result := fixtures.RunTestWithBp(t, tc.bp)
 
 			if tc.expectedError == "" {
-				m := result.ModuleForTests("foo", "android_arm64_armv8-a")
-				p, _ := OtherModuleProvider(result.testContext.OtherModuleProviderAdaptor(), m.Module(), selectsTestProviderKey)
-				if !reflect.DeepEqual(p, tc.provider) {
-					t.Errorf("Expected:\n  %q\ngot:\n  %q", tc.provider.String(), p.String())
+				if len(tc.providers) == 0 {
+					tc.providers = map[string]selectsTestProvider{
+						"foo": tc.provider,
+					}
+				}
+
+				for moduleName := range tc.providers {
+					expected := tc.providers[moduleName]
+					m := result.ModuleForTests(moduleName, "android_arm64_armv8-a")
+					p, _ := OtherModuleProvider(result.testContext.OtherModuleProviderAdaptor(), m.Module(), selectsTestProviderKey)
+					if !reflect.DeepEqual(p, expected) {
+						t.Errorf("Expected:\n  %q\ngot:\n  %q", expected.String(), p.String())
+					}
 				}
 			}
 		})
