@@ -34,6 +34,7 @@ func main() {
 	var json, pb, textproto bool
 	var product string
 	var allMake bool
+	var useBuildVar bool
 
 	defaultRelease := os.Getenv("TARGET_RELEASE")
 	if defaultRelease == "" {
@@ -50,6 +51,8 @@ func main() {
 	flag.BoolVar(&json, "json", true, "write artifacts as json")
 	flag.BoolVar(&pb, "pb", true, "write artifacts as binary protobuf")
 	flag.BoolVar(&allMake, "all_make", true, "write makefiles for all release configs")
+	flag.BoolVar(&useBuildVar, "use_get_build_var", false, "use get_build_var PRODUCT_RELEASE_CONFIG_MAPS")
+
 	flag.Parse()
 
 	if quiet {
@@ -59,7 +62,7 @@ func main() {
 	if err = os.Chdir(top); err != nil {
 		panic(err)
 	}
-	configs, err = rc_lib.ReadReleaseConfigMaps(releaseConfigMapPaths, targetRelease)
+	configs, err = rc_lib.ReadReleaseConfigMaps(releaseConfigMapPaths, targetRelease, useBuildVar)
 	if err != nil {
 		panic(err)
 	}
