@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -145,22 +146,64 @@ func GetDefaultOutDir() string {
 	return filepath.Join(outEnv, "soong", "release-config")
 }
 
+// Find the top of the workspace.
+//
+// This mirrors the logic in build/envsetup.sh's gettop().
+func GetTopDir() (topDir string, err error) {
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return
+	}
+	topFile := "build/make/core/envsetup.mk"
+	for topDir = workingDir; topDir != "/"; topDir = filepath.Dir(topDir) {
+		if _, err = os.Stat(filepath.Join(topDir, topFile)); err == nil {
+			return filepath.Rel(workingDir, topDir)
+		}
+	}
+	return "", fmt.Errorf("Unable to locate top of workspace")
+}
+
 // Return the default list of map files to use.
-func GetDefaultMapPaths() StringList {
+func GetDefaultMapPaths(queryMaps bool) (defaultLocations StringList, err error) {
 	var defaultMapPaths StringList
-	defaultLocations := StringList{
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return
+	}
+	defer func() {
+		os.Chdir(workingDir)
+	}()
+	topDir, err := GetTopDir()
+	os.Chdir(topDir)
+
+	defaultLocations = StringList{
 		"build/release/release_config_map.textproto",
 		"vendor/google_shared/build/release/release_config_map.textproto",
 		"vendor/google/release/release_config_map.textproto",
 	}
 	for _, path := range defaultLocations {
-		if _, err := os.Stat(path); err == nil {
+		if _, err = os.Stat(path); err == nil {
 			defaultMapPaths = append(defaultMapPaths, path)
 		}
 	}
-	prodMaps := os.Getenv("PRODUCT_RELEASE_CONFIG_MAPS")
-	if prodMaps != "" {
+
+	var prodMaps string
+	if queryMaps {
+		getBuildVar := exec.Command("build/soong/soong_ui.bash", "--dumpvar-mode", "PRODUCT_RELEASE_CONFIG_MAPS")
+		var stdout strings.Builder
+		getBuildVar.Stdin = strings.NewReader("")
+		getBuildVar.Stdout = &stdout
+		err = getBuildVar.Run()
+		if err != nil {
+			return
+		}
+		prodMaps = stdout.String()
+	} else {
+		prodMaps = os.Getenv("PRODUCT_RELEASE_CONFIG_MAPS")
+	}
+	prodMaps = strings.TrimSpace(prodMaps)
+	if len(prodMaps) > 0 {
 		defaultMapPaths = append(defaultMapPaths, strings.Split(prodMaps, " ")...)
 	}
-	return defaultMapPaths
+	return
 }
