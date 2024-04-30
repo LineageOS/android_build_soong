@@ -221,6 +221,7 @@ func (b *platformBootclasspathModule) generateClasspathProtoBuildActions(ctx and
 	// ART and platform boot jars must have a corresponding entry in DEX2OATBOOTCLASSPATH
 	classpathJars := configuredJarListToClasspathJars(ctx, configuredJars, BOOTCLASSPATH, DEX2OATBOOTCLASSPATH)
 	b.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, configuredJars, classpathJars)
+	b.classpathFragmentBase().installClasspathProto(ctx)
 }
 
 func (b *platformBootclasspathModule) configuredJars(ctx android.ModuleContext) android.ConfiguredJarList {
