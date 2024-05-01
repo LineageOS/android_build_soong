@@ -433,7 +433,7 @@ func (s *ccRustFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) 
 			return
 		}
 		// Discard non-fuzz targets.
-		if ok := fuzz.IsValid(ccModule.FuzzModuleStruct()); !ok {
+		if ok := fuzz.IsValid(ctx, ccModule.FuzzModuleStruct()); !ok {
 			return
 		}
 

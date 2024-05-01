@@ -16,8 +16,9 @@ package android
 
 import (
 	"fmt"
-	"github.com/google/blueprint"
 	"reflect"
+
+	"github.com/google/blueprint"
 )
 
 // A sortable component is one whose registration order affects the order in which it is executed

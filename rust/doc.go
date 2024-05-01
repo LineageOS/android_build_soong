@@ -38,7 +38,7 @@ func (n *rustdocSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 		FlagWithArg("-D ", docDir.String())
 
 	ctx.VisitAllModules(func(module android.Module) {
-		if !module.Enabled() {
+		if !module.Enabled(ctx) {
 			return
 		}
 

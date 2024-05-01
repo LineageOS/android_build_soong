@@ -322,7 +322,7 @@ func performOverrideMutator(ctx BottomUpMutatorContext) {
 }
 
 func overridableModuleDepsMutator(ctx BottomUpMutatorContext) {
-	if b, ok := ctx.Module().(OverridableModule); ok && b.Enabled() {
+	if b, ok := ctx.Module().(OverridableModule); ok && b.Enabled(ctx) {
 		b.OverridablePropertiesDepsMutator(ctx)
 	}
 }

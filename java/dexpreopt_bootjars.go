@@ -562,7 +562,7 @@ func gatherBootclasspathFragments(ctx android.ModuleContext) map[string]android.
 	return ctx.Config().Once(dexBootJarsFragmentsKey, func() interface{} {
 		fragments := make(map[string]android.Module)
 		ctx.WalkDeps(func(child, parent android.Module) bool {
-			if !isActiveModule(child) {
+			if !isActiveModule(ctx, child) {
 				return false
 			}
 			tag := ctx.OtherModuleDependencyTag(child)
@@ -1125,7 +1125,7 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 	image.unstrippedInstalls = unstrippedInstalls
 
 	// Only set the licenseMetadataFile from the active module.
-	if isActiveModule(ctx.Module()) {
+	if isActiveModule(ctx, ctx.Module()) {
 		image.licenseMetadataFile = android.OptionalPathForPath(ctx.LicenseMetadataFile())
 	}
 
