@@ -98,7 +98,6 @@ type MakeVarsContext interface {
 	BlueprintFile(module blueprint.Module) string
 
 	ModuleErrorf(module blueprint.Module, format string, args ...interface{})
-	OtherModulePropertyErrorf(module Module, property, format string, args ...interface{})
 	Errorf(format string, args ...interface{})
 
 	VisitAllModules(visit func(Module))
@@ -266,7 +265,7 @@ func (s *makeVarsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	}
 
 	ctx.VisitAllModules(func(m Module) {
-		if provider, ok := m.(ModuleMakeVarsProvider); ok && m.Enabled(ctx) {
+		if provider, ok := m.(ModuleMakeVarsProvider); ok && m.Enabled() {
 			mctx := &makeVarsContext{
 				SingletonContext: ctx,
 			}

@@ -299,7 +299,7 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 				case android.HostToolProvider:
 					// A HostToolProvider provides the path to a tool, which will be copied
 					// into the sandbox.
-					if !t.(android.Module).Enabled(ctx) {
+					if !t.(android.Module).Enabled() {
 						if ctx.Config().AllowMissingDependencies() {
 							ctx.AddMissingDependencies([]string{tool})
 						} else {

@@ -849,7 +849,7 @@ func translateAndroidModule(ctx SingletonContext, w io.Writer, moduleInfoJSONs *
 	mod blueprint.Module, provider AndroidMkDataProvider) error {
 
 	amod := mod.(Module).base()
-	if shouldSkipAndroidMkProcessing(ctx, amod) {
+	if shouldSkipAndroidMkProcessing(amod) {
 		return nil
 	}
 
@@ -939,7 +939,7 @@ func WriteAndroidMkData(w io.Writer, data AndroidMkData) {
 
 func translateAndroidMkEntriesModule(ctx SingletonContext, w io.Writer, moduleInfoJSONs *[]*ModuleInfoJSON,
 	mod blueprint.Module, provider AndroidMkEntriesProvider) error {
-	if shouldSkipAndroidMkProcessing(ctx, mod.(Module).base()) {
+	if shouldSkipAndroidMkProcessing(mod.(Module).base()) {
 		return nil
 	}
 
@@ -961,11 +961,11 @@ func translateAndroidMkEntriesModule(ctx SingletonContext, w io.Writer, moduleIn
 	return nil
 }
 
-func ShouldSkipAndroidMkProcessing(ctx ConfigAndErrorContext, module Module) bool {
-	return shouldSkipAndroidMkProcessing(ctx, module.base())
+func ShouldSkipAndroidMkProcessing(module Module) bool {
+	return shouldSkipAndroidMkProcessing(module.base())
 }
 
-func shouldSkipAndroidMkProcessing(ctx ConfigAndErrorContext, module *ModuleBase) bool {
+func shouldSkipAndroidMkProcessing(module *ModuleBase) bool {
 	if !module.commonProperties.NamespaceExportedToMake {
 		// TODO(jeffrygaston) do we want to validate that there are no modules being
 		// exported to Kati that depend on this module?
@@ -984,7 +984,7 @@ func shouldSkipAndroidMkProcessing(ctx ConfigAndErrorContext, module *ModuleBase
 		return true
 	}
 
-	return !module.Enabled(ctx) ||
+	return !module.Enabled() ||
 		module.commonProperties.HideFromMake ||
 		// Make does not understand LinuxBionic
 		module.Os() == LinuxBionic ||

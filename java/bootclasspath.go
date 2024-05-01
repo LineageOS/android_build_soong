@@ -127,10 +127,7 @@ func reportMissingVariationDependency(ctx android.BottomUpMutatorContext, variat
 // added by addDependencyOntoApexModulePair.
 func gatherApexModulePairDepsWithTag(ctx android.BaseModuleContext, tag blueprint.DependencyTag) []android.Module {
 	var modules []android.Module
-	isActiveModulePred := func(module android.Module) bool {
-		return isActiveModule(ctx, module)
-	}
-	ctx.VisitDirectDepsIf(isActiveModulePred, func(module android.Module) {
+	ctx.VisitDirectDepsIf(isActiveModule, func(module android.Module) {
 		t := ctx.OtherModuleDependencyTag(module)
 		if t == tag {
 			modules = append(modules, module)
