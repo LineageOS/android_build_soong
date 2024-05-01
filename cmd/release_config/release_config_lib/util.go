@@ -128,7 +128,7 @@ func DisableWarnings() {
 
 func warnf(format string, args ...any) (n int, err error) {
 	if !disableWarnings {
-		return fmt.Printf(format, args...)
+		return fmt.Fprintf(os.Stderr, format, args...)
 	}
 	return 0, nil
 }
@@ -164,8 +164,8 @@ func GetTopDir() (topDir string, err error) {
 }
 
 // Return the default list of map files to use.
-func GetDefaultMapPaths(queryMaps bool) (defaultLocations StringList, err error) {
-	var defaultMapPaths StringList
+func GetDefaultMapPaths(queryMaps bool) (defaultMapPaths StringList, err error) {
+	var defaultLocations StringList
 	workingDir, err := os.Getwd()
 	if err != nil {
 		return

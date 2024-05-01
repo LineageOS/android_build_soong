@@ -96,7 +96,7 @@ func (singleton *projectGeneratorSingleton) mergeDependencies(ctx android.Single
 		var childId int
 		cInfo, known := singleton.knownCrates[rChild.Name()]
 		if !known {
-			childId, ok = singleton.addCrate(ctx, rChild, make(map[string]int))
+			childId, ok = singleton.addCrate(ctx, rChild)
 			if !ok {
 				return
 			}
@@ -119,7 +119,7 @@ func isModuleSupported(ctx android.SingletonContext, module android.Module) (*Mo
 	if !ok {
 		return nil, false
 	}
-	if !rModule.Enabled() {
+	if !rModule.Enabled(ctx) {
 		return nil, false
 	}
 	return rModule, true
@@ -128,7 +128,8 @@ func isModuleSupported(ctx android.SingletonContext, module android.Module) (*Mo
 // addCrate adds a crate to singleton.project.Crates ensuring that required
 // dependencies are also added. It returns the index of the new crate in
 // singleton.project.Crates
-func (singleton *projectGeneratorSingleton) addCrate(ctx android.SingletonContext, rModule *Module, deps map[string]int) (int, bool) {
+func (singleton *projectGeneratorSingleton) addCrate(ctx android.SingletonContext, rModule *Module) (int, bool) {
+	deps := make(map[string]int)
 	rootModule, err := rModule.compiler.checkedCrateRootPath()
 	if err != nil {
 		return 0, false
@@ -180,7 +181,7 @@ func (singleton *projectGeneratorSingleton) appendCrateAndDependencies(ctx andro
 	if cInfo, ok := singleton.knownCrates[module.Name()]; ok {
 		// If we have a new device variant, override the old one
 		if !cInfo.Device && rModule.Device() {
-			singleton.addCrate(ctx, rModule, cInfo.Deps)
+			singleton.addCrate(ctx, rModule)
 			return
 		}
 		crate := singleton.project.Crates[cInfo.Idx]
@@ -188,7 +189,7 @@ func (singleton *projectGeneratorSingleton) appendCrateAndDependencies(ctx andro
 		singleton.project.Crates[cInfo.Idx] = crate
 		return
 	}
-	singleton.addCrate(ctx, rModule, make(map[string]int))
+	singleton.addCrate(ctx, rModule)
 }
 
 func (singleton *projectGeneratorSingleton) GenerateBuildActions(ctx android.SingletonContext) {

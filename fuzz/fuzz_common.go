@@ -449,10 +449,10 @@ func IsValidFrameworkForModule(targetFramework Framework, lang Lang, moduleFrame
 	}
 }
 
-func IsValid(fuzzModule FuzzModule) bool {
+func IsValid(ctx android.ConfigAndErrorContext, fuzzModule FuzzModule) bool {
 	// Discard ramdisk + vendor_ramdisk + recovery modules, they're duplicates of
 	// fuzz targets we're going to package anyway.
-	if !fuzzModule.Enabled() || fuzzModule.InRamdisk() || fuzzModule.InVendorRamdisk() || fuzzModule.InRecovery() {
+	if !fuzzModule.Enabled(ctx) || fuzzModule.InRamdisk() || fuzzModule.InVendorRamdisk() || fuzzModule.InRecovery() {
 		return false
 	}
 

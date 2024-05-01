@@ -253,6 +253,22 @@ func TestForceReadOnly(t *testing.T) {
 				aconfig_declarations: "my_aconfig_declarations",
 				mode: "force-read-only",
 			}
+
+
+			cc_library {
+    		                name: "libbase",
+    		                srcs: ["libbase.cc"],
+			}
+
+			cc_library {
+    		                name: "liblog",
+    		                srcs: ["liblog.cc"],
+			}
+
+			cc_library {
+    		                name: "libaconfig_storage_read_api_cc",
+    		                srcs: ["libaconfig_storage_read_api_cc.cc"],
+			}
 		`))
 
 	module := result.ModuleForTests("my_cc_aconfig_library", "android_arm64_armv8-a_shared").Module()

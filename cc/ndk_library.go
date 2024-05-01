@@ -148,7 +148,7 @@ func ndkLibraryVersions(ctx android.BaseMutatorContext, from android.ApiLevel) [
 }
 
 func (this *stubDecorator) stubsVersions(ctx android.BaseMutatorContext) []string {
-	if !ctx.Module().Enabled() {
+	if !ctx.Module().Enabled(ctx) {
 		return nil
 	}
 	if ctx.Target().NativeBridge == android.NativeBridgeEnabled {
