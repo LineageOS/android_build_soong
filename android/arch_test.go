@@ -423,7 +423,7 @@ func TestArchMutator(t *testing.T) {
 		variants := ctx.ModuleVariantsForTests(name)
 		for _, variant := range variants {
 			m := ctx.ModuleForTests(name, variant)
-			if m.Module().Enabled() {
+			if m.Module().Enabled(PanickingConfigAndErrorContext(ctx)) {
 				ret = append(ret, variant)
 			}
 		}
@@ -533,7 +533,7 @@ func TestArchMutatorNativeBridge(t *testing.T) {
 		variants := ctx.ModuleVariantsForTests(name)
 		for _, variant := range variants {
 			m := ctx.ModuleForTests(name, variant)
-			if m.Module().Enabled() {
+			if m.Module().Enabled(PanickingConfigAndErrorContext(ctx)) {
 				ret = append(ret, variant)
 			}
 		}

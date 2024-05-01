@@ -69,13 +69,13 @@ func JavaFuzzFactory() android.Module {
 
 	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
 		disableLinuxBionic := struct {
-			Target struct {
-				Linux_bionic struct {
-					Enabled *bool
-				}
-			}
-		}{}
-		disableLinuxBionic.Target.Linux_bionic.Enabled = proptools.BoolPtr(false)
+			Enabled proptools.Configurable[bool]
+		}{
+			Enabled: android.CreateSelectOsToBool(map[string]*bool{
+				"":             nil,
+				"linux_bionic": proptools.BoolPtr(false),
+			}),
+		}
 		ctx.AppendProperties(&disableLinuxBionic)
 	})
 
@@ -179,7 +179,7 @@ func (s *javaFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 			javaFuzzModule.ApexModuleBase,
 		}
 
-		if ok := fuzz.IsValid(fuzzModuleValidator); !ok {
+		if ok := fuzz.IsValid(ctx, fuzzModuleValidator); !ok {
 			return
 		}
 

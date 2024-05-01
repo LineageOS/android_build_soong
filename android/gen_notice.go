@@ -62,7 +62,7 @@ func (s *genNoticeBuildRules) GenerateBuildActions(ctx SingletonContext) {
 				if mod == nil {
 					continue
 				}
-				if !mod.Enabled() { // don't depend on variants without build rules
+				if !mod.Enabled(ctx) { // don't depend on variants without build rules
 					continue
 				}
 				modules = append(modules, mod)
