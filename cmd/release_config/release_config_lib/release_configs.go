@@ -117,9 +117,12 @@ func ReleaseConfigMapFactory(protoPath string) (m *ReleaseConfigMap) {
 }
 
 func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex int) error {
+	if _, err := os.Stat(path); err != nil {
+		return fmt.Errorf("%s does not exist\n", path)
+	}
 	m := ReleaseConfigMapFactory(path)
 	if m.proto.DefaultContainers == nil {
-		return fmt.Errorf("Release config map %s lacks default_container", path)
+		return fmt.Errorf("Release config map %s lacks default_containers", path)
 	}
 	for _, container := range m.proto.DefaultContainers {
 		if !validContainer(container) {
@@ -205,6 +208,9 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 		})
 		if err2 != nil {
 			return err2
+		}
+		if releaseConfigContribution.proto.GetAconfigFlagsOnly() {
+			config.AconfigFlagsOnly = true
 		}
 		m.ReleaseConfigContributions[name] = releaseConfigContribution
 		config.Contributions = append(config.Contributions, releaseConfigContribution)
@@ -376,7 +382,7 @@ func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease strin
 		if len(releaseConfigMapPaths) == 0 {
 			return nil, fmt.Errorf("No maps found")
 		}
-		fmt.Printf("No --map argument provided.  Using: --map %s\n", strings.Join(releaseConfigMapPaths, " --map "))
+		warnf("No --map argument provided.  Using: --map %s\n", strings.Join(releaseConfigMapPaths, " --map "))
 	}
 
 	configs := ReleaseConfigsFactory()
@@ -390,6 +396,8 @@ func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease strin
 		mapsRead[configDir] = true
 		configs.configDirIndexes[configDir] = idx
 		configs.configDirs = append(configs.configDirs, configDir)
+		// Force the path to be the textproto path, so that both the scl and textproto formats can coexist.
+		releaseConfigMapPath = filepath.Join(configDir, "release_config_map.textproto")
 		err = configs.LoadReleaseConfigMap(releaseConfigMapPath, idx)
 		if err != nil {
 			return nil, err

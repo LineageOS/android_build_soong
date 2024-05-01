@@ -62,6 +62,10 @@ type ReleaseConfig struct {
 	// The names of release configs that we inherit
 	InheritNames []string
 
+	// True if this release config only allows inheritance and aconfig flag
+	// overrides. Build flag value overrides are an error.
+	AconfigFlagsOnly bool
+
 	// Unmarshalled flag artifacts
 	FlagArtifacts FlagArtifacts
 
@@ -174,6 +178,9 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 			})
 
 		myDirsMap[contrib.DeclarationIndex] = true
+		if config.AconfigFlagsOnly && len(contrib.FlagValues) > 0 {
+			return fmt.Errorf("%s does not allow build flag overrides", config.Name)
+		}
 		for _, value := range contrib.FlagValues {
 			name := *value.proto.Name
 			fa, ok := config.FlagArtifacts[name]

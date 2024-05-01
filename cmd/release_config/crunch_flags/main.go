@@ -15,18 +15,29 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// When a flag declaration has an initial value that is a string, the default workflow is PREBUILT.
-// If the flag name starts with any of prefixes in manualFlagNamePrefixes, it is MANUAL.
-var manualFlagNamePrefixes []string = []string{
-	"RELEASE_ACONFIG_",
-	"RELEASE_PLATFORM_",
-}
+var (
+	// When a flag declaration has an initial value that is a string, the default workflow is PREBUILT.
+	// If the flag name starts with any of prefixes in manualFlagNamePrefixes, it is MANUAL.
+	manualFlagNamePrefixes []string = []string{
+		"RELEASE_ACONFIG_",
+		"RELEASE_PLATFORM_",
+	}
 
-var defaultFlagNamespace string = "android_UNKNOWN"
+	// Set `aconfig_flags_only: true` in these release configs.
+	aconfigFlagsOnlyConfigs map[string]bool = map[string]bool{
+		"trunk_food": true,
+	}
+
+	// Default namespace value.  This is intentionally invalid.
+	defaultFlagNamespace string = "android_UNKNOWN"
+
+	// What is the current name for "next".
+	nextName string = "ap3a"
+)
 
 func RenameNext(name string) string {
 	if name == "next" {
-		return "ap3a"
+		return nextName
 	}
 	return name
 }
@@ -205,6 +216,9 @@ func ProcessBuildConfigs(dir, name string, paths []string, releaseProto *rc_prot
 				fmt.Printf("%s: Unexpected value %s=%s\n", path, valName, valValue)
 			}
 			if flagValue != nil {
+				if releaseProto.GetAconfigFlagsOnly() {
+					return fmt.Errorf("%s does not allow build flag overrides", RenameNext(name))
+				}
 				valPath := filepath.Join(dir, "flag_values", RenameNext(name), fmt.Sprintf("%s.textproto", valName))
 				err := WriteFile(valPath, flagValue)
 				if err != nil {
@@ -285,6 +299,9 @@ func ProcessReleaseConfigMap(dir string, descriptionMap map[string]string) error
 		releaseConfig := &rc_proto.ReleaseConfig{
 			Name: proto.String(RenameNext(name)),
 		}
+		if aconfigFlagsOnlyConfigs[name] {
+			releaseConfig.AconfigFlagsOnly = proto.Bool(true)
+		}
 		configFiles := config[configRegexp.SubexpIndex("files")]
 		files := strings.Split(strings.ReplaceAll(configFiles, "$(local_dir)", dir+"/"), " ")
 		configInherits := config[configRegexp.SubexpIndex("inherits")]
@@ -311,16 +328,26 @@ func main() {
 	var dirs rc_lib.StringList
 	var namespacesFile string
 	var descriptionsFile string
+	var debug bool
 	defaultTopDir, err := rc_lib.GetTopDir()
 
 	flag.StringVar(&top, "top", defaultTopDir, "path to top of workspace")
 	flag.Var(&dirs, "dir", "directory to process, relative to the top of the workspace")
 	flag.StringVar(&namespacesFile, "namespaces", "", "location of file with 'flag_name namespace' information")
 	flag.StringVar(&descriptionsFile, "descriptions", "", "location of file with 'directory description' information")
+	flag.BoolVar(&debug, "debug", false, "turn on debugging output for errors")
 	flag.Parse()
 
+	errorExit := func(err error) {
+		if debug {
+			panic(err)
+		}
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+
 	if err = os.Chdir(top); err != nil {
-		panic(err)
+		errorExit(err)
 	}
 	if len(dirs) == 0 {
 		dirs = rc_lib.StringList{"build/release", "vendor/google_shared/build/release", "vendor/google/release"}
@@ -330,12 +357,12 @@ func main() {
 	if namespacesFile != "" {
 		data, err := os.ReadFile(namespacesFile)
 		if err != nil {
-			panic(err)
+			errorExit(err)
 		}
 		for idx, line := range strings.Split(string(data), "\n") {
 			fields := strings.Split(line, " ")
 			if len(fields) > 2 {
-				panic(fmt.Errorf("line %d: too many fields: %s", idx, line))
+				errorExit(fmt.Errorf("line %d: too many fields: %s", idx, line))
 			}
 			namespaceMap[fields[0]] = fields[1]
 		}
@@ -347,7 +374,7 @@ func main() {
 	if descriptionsFile != "" {
 		data, err := os.ReadFile(descriptionsFile)
 		if err != nil {
-			panic(err)
+			errorExit(err)
 		}
 		for _, line := range strings.Split(string(data), "\n") {
 			if strings.TrimSpace(line) != "" {
@@ -361,12 +388,12 @@ func main() {
 	for _, dir := range dirs {
 		err = ProcessBuildFlags(dir, namespaceMap)
 		if err != nil {
-			panic(err)
+			errorExit(err)
 		}
 
 		err = ProcessReleaseConfigMap(dir, descriptionMap)
 		if err != nil {
-			panic(err)
+			errorExit(err)
 		}
 	}
 }
