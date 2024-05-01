@@ -648,16 +648,17 @@ func (d *Droidstubs) apiLevelsGenerationFlags(ctx android.ModuleContext, cmd *an
 			// Grab the first extensions_dir and we find while scanning ExportedDroiddocDir.deps;
 			// ideally this should be read from prebuiltApis.properties.Extensions_*
 			for _, dep := range t.deps {
+				// Check to see if it matches an extension first.
+				depBase := dep.Base()
 				if extRegex.MatchString(dep.String()) && d.properties.Extensions_info_file != nil {
 					if extensions_dir == "" {
 						extensions_dir = t.dir.String() + "/extensions"
 					}
 					cmd.Implicit(dep)
-				}
-				if dep.Base() == filename {
+				} else if depBase == filename {
+					// Check to see if it matches a dessert release for an SDK, e.g. Android, Car, Wear, etc..
 					cmd.Implicit(dep)
-				}
-				if filename != "android.jar" && dep.Base() == "android.jar" {
+				} else if filename != "android.jar" && depBase == "android.jar" {
 					// Metalava implicitly searches these patterns:
 					//  prebuilts/tools/common/api-versions/android-%/android.jar
 					//  prebuilts/sdk/%/public/android.jar
@@ -1327,7 +1328,7 @@ func (d *Droidstubs) createApiContribution(ctx android.DefaultableHookContext) {
 // use a strict naming convention
 var (
 	droidstubsModuleNamingToSdkKind = map[string]android.SdkKind{
-		//public is commented out since the core libraries use public in their java_sdk_library names
+		// public is commented out since the core libraries use public in their java_sdk_library names
 		"intracore":     android.SdkIntraCore,
 		"intra.core":    android.SdkIntraCore,
 		"system_server": android.SdkSystemServer,
