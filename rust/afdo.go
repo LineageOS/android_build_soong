@@ -39,7 +39,7 @@ func (afdo *afdo) addDep(ctx BaseModuleContext, actx android.BottomUpMutatorCont
 		return
 	}
 
-	if mod, ok := ctx.Module().(*Module); ok && mod.Enabled() {
+	if mod, ok := ctx.Module().(*Module); ok && mod.Enabled(ctx) {
 		fdoProfileName, err := actx.DeviceConfig().AfdoProfile(actx.ModuleName())
 		if err != nil {
 			ctx.ModuleErrorf("%s", err.Error())

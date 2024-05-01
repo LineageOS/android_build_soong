@@ -352,18 +352,14 @@ func NewFuzzer(hod android.HostOrDeviceSupported) *Module {
 			Sanitize struct {
 				Fuzzer *bool
 			}
-			Target struct {
-				Darwin struct {
-					Enabled *bool
-				}
-				Linux_bionic struct {
-					Enabled *bool
-				}
-			}
+			Enabled proptools.Configurable[bool]
 		}{}
 		extraProps.Sanitize.Fuzzer = BoolPtr(true)
-		extraProps.Target.Darwin.Enabled = BoolPtr(false)
-		extraProps.Target.Linux_bionic.Enabled = BoolPtr(false)
+		extraProps.Enabled = android.CreateSelectOsToBool(map[string]*bool{
+			"":             nil,
+			"darwin":       proptools.BoolPtr(false),
+			"linux_bionic": proptools.BoolPtr(false),
+		})
 		ctx.AppendProperties(&extraProps)
 
 		targetFramework := fuzz.GetFramework(ctx, fuzz.Cc)
@@ -433,7 +429,7 @@ func (s *ccRustFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) 
 			return
 		}
 		// Discard non-fuzz targets.
-		if ok := fuzz.IsValid(ccModule.FuzzModuleStruct()); !ok {
+		if ok := fuzz.IsValid(ctx, ccModule.FuzzModuleStruct()); !ok {
 			return
 		}
 
