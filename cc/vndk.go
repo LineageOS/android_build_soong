@@ -323,8 +323,8 @@ func processVndkLibrary(mctx android.BottomUpMutatorContext, m *Module) {
 }
 
 // Check for modules that mustn't be VNDK
-func shouldSkipVndkMutator(ctx android.ConfigAndErrorContext, m *Module) bool {
-	if !m.Enabled(ctx) {
+func shouldSkipVndkMutator(m *Module) bool {
+	if !m.Enabled() {
 		return true
 	}
 	if !m.Device() {
@@ -339,7 +339,7 @@ func shouldSkipVndkMutator(ctx android.ConfigAndErrorContext, m *Module) bool {
 }
 
 func IsForVndkApex(mctx android.BottomUpMutatorContext, m *Module) bool {
-	if shouldSkipVndkMutator(mctx, m) {
+	if shouldSkipVndkMutator(m) {
 		return false
 	}
 
@@ -370,7 +370,7 @@ func VndkMutator(mctx android.BottomUpMutatorContext) {
 		return
 	}
 
-	if shouldSkipVndkMutator(mctx, m) {
+	if shouldSkipVndkMutator(m) {
 		return
 	}
 
@@ -577,7 +577,6 @@ func (txt *vndkLibrariesTxt) SubDir() string {
 func (txt *vndkLibrariesTxt) OutputFiles(tag string) (android.Paths, error) {
 	return android.Paths{txt.outputFile}, nil
 }
-
 func getVndkFileName(m *Module) (string, error) {
 	if library, ok := m.linker.(*libraryDecorator); ok {
 		return library.getLibNameHelper(m.BaseModuleName(), true, false) + ".so", nil

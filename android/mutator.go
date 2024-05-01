@@ -674,11 +674,13 @@ func RegisterComponentsMutator(ctx RegisterMutatorsContext) {
 // on component modules to be added so that they can depend directly on a prebuilt
 // module.
 func componentDepsMutator(ctx BottomUpMutatorContext) {
-	ctx.Module().ComponentDepsMutator(ctx)
+	if m := ctx.Module(); m.Enabled() {
+		m.ComponentDepsMutator(ctx)
+	}
 }
 
 func depsMutator(ctx BottomUpMutatorContext) {
-	if m := ctx.Module(); m.Enabled(ctx) {
+	if m := ctx.Module(); m.Enabled() {
 		m.base().baseDepsMutator(ctx)
 		m.DepsMutator(ctx)
 	}

@@ -60,7 +60,7 @@ type Module interface {
 
 	base() *ModuleBase
 	Disable()
-	Enabled(ctx ConfigAndErrorContext) bool
+	Enabled() bool
 	Target() Target
 	MultiTargets() []Target
 
@@ -287,7 +287,7 @@ type commonProperties struct {
 	// but are not usually required (e.g. superceded by a prebuilt) should not be
 	// disabled as that will prevent them from being built by the checkbuild target
 	// and so prevent early detection of changes that have broken those modules.
-	Enabled proptools.Configurable[bool] `android:"arch_variant,replace_instead_of_append"`
+	Enabled *bool `android:"arch_variant"`
 
 	// Controls the visibility of this module to other modules. Allowable values are one or more of
 	// these formats:
@@ -1392,11 +1392,14 @@ func (m *ModuleBase) PartitionTag(config DeviceConfig) string {
 	return partition
 }
 
-func (m *ModuleBase) Enabled(ctx ConfigAndErrorContext) bool {
+func (m *ModuleBase) Enabled() bool {
 	if m.commonProperties.ForcedDisabled {
 		return false
 	}
-	return m.commonProperties.Enabled.GetOrDefault(m.ConfigurableEvaluator(ctx), !m.Os().DefaultDisabled)
+	if m.commonProperties.Enabled == nil {
+		return !m.Os().DefaultDisabled
+	}
+	return *m.commonProperties.Enabled
 }
 
 func (m *ModuleBase) Disable() {
@@ -1640,7 +1643,7 @@ func (m *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 		// not be created if the module is not exported to make.
 		// Those could depend on the build target and fail to compile
 		// for the current build target.
-		if !ctx.Config().KatiEnabled() || !shouldSkipAndroidMkProcessing(ctx, a) {
+		if !ctx.Config().KatiEnabled() || !shouldSkipAndroidMkProcessing(a) {
 			allCheckbuildFiles = append(allCheckbuildFiles, a.checkbuildFiles...)
 		}
 	})
@@ -1832,7 +1835,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		checkDistProperties(ctx, fmt.Sprintf("dists[%d]", i), &m.distProperties.Dists[i])
 	}
 
-	if m.Enabled(ctx) {
+	if m.Enabled() {
 		// ensure all direct android.Module deps are enabled
 		ctx.VisitDirectDepsBlueprint(func(bm blueprint.Module) {
 			if m, ok := bm.(Module); ok {
@@ -2133,7 +2136,7 @@ func (m *ModuleBase) ConfigurableEvaluator(ctx ConfigAndErrorContext) proptools.
 }
 
 func (e configurationEvalutor) PropertyErrorf(property string, fmt string, args ...interface{}) {
-	e.ctx.OtherModulePropertyErrorf(e.m, property, fmt, args...)
+	e.ctx.OtherModulePropertyErrorf(e.m, property, fmt, args)
 }
 
 func (e configurationEvalutor) EvaluateConfiguration(condition proptools.ConfigurableCondition, property string) proptools.ConfigurableValue {
@@ -2532,7 +2535,7 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 	}
 	osDeps := map[osAndCross]Paths{}
 	ctx.VisitAllModules(func(module Module) {
-		if module.Enabled(ctx) {
+		if module.Enabled() {
 			key := osAndCross{os: module.Target().Os, hostCross: module.Target().HostCross}
 			osDeps[key] = append(osDeps[key], module.base().checkbuildFiles...)
 		}

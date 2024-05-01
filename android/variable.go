@@ -58,13 +58,13 @@ type variableProperties struct {
 		// unbundled_build is a catch-all property to annotate modules that don't build in one or
 		// more unbundled branches, usually due to dependencies missing from the manifest.
 		Unbundled_build struct {
-			Enabled proptools.Configurable[bool] `android:"arch_variant,replace_instead_of_append"`
+			Enabled *bool `android:"arch_variant"`
 		} `android:"arch_variant"`
 
 		// similar to `Unbundled_build`, but `Always_use_prebuilt_sdks` means that it uses prebuilt
 		// sdk specifically.
 		Always_use_prebuilt_sdks struct {
-			Enabled proptools.Configurable[bool] `android:"arch_variant,replace_instead_of_append"`
+			Enabled *bool `android:"arch_variant"`
 		} `android:"arch_variant"`
 
 		Malloc_not_svelte struct {
