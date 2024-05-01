@@ -20,8 +20,6 @@ import (
 	"android/soong/fuzz"
 	"android/soong/rust/config"
 	"path/filepath"
-
-	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -66,14 +64,17 @@ func NewRustFuzz(hod android.HostOrDeviceSupported) (*Module, *fuzzDecorator) {
 	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
 
 		extraProps := struct {
-			Enabled proptools.Configurable[bool]
-		}{
-			Enabled: android.CreateSelectOsToBool(map[string]*bool{
-				"":             nil,
-				"darwin":       proptools.BoolPtr(false),
-				"linux_bionic": proptools.BoolPtr(false),
-			}),
-		}
+			Target struct {
+				Darwin struct {
+					Enabled *bool
+				}
+				Linux_bionic struct {
+					Enabled *bool
+				}
+			}
+		}{}
+		extraProps.Target.Darwin.Enabled = cc.BoolPtr(false)
+		extraProps.Target.Linux_bionic.Enabled = cc.BoolPtr(false)
 		ctx.AppendProperties(&extraProps)
 	})
 
