@@ -119,6 +119,9 @@ message release_config {
   // List of names of the aconfig_value_set soong module(s) for this
   // contribution.
   repeated string aconfig_value_sets = 3;
+
+  // Only aconfig flags are allowed in this release config.
+  optional bool aconfig_flags_only = 4;
 }
 
 // Any aliases.  These are used for continuous integration builder config.
