@@ -137,7 +137,6 @@ type filesystemProperties struct {
 // partitions like system.img. For example, cc_library modules are placed under ./lib[64] directory.
 func filesystemFactory() android.Module {
 	module := &filesystem{}
-	module.filterPackagingSpec = module.filterInstallablePackagingSpec
 	initFilesystemModule(module)
 	return module
 }
@@ -188,12 +187,6 @@ func (f *filesystem) installFileName() string {
 
 func (f *filesystem) partitionName() string {
 	return proptools.StringDefault(f.properties.Partition_name, f.Name())
-}
-
-func (f *filesystem) filterInstallablePackagingSpec(ps android.PackagingSpec) bool {
-	// Filesystem module respects the installation semantic. A PackagingSpec from a module with
-	// IsSkipInstall() is skipped.
-	return !ps.SkipInstall()
 }
 
 var pctx = android.NewPackageContext("android/soong/filesystem")
