@@ -50,6 +50,25 @@ type PackagingSpec struct {
 	skipInstall bool
 }
 
+func (p *PackagingSpec) Equals(other *PackagingSpec) bool {
+	if other == nil {
+		return false
+	}
+	if p.relPathInPackage != other.relPathInPackage {
+		return false
+	}
+	if p.srcPath != other.srcPath || p.symlinkTarget != other.symlinkTarget {
+		return false
+	}
+	if p.executable != other.executable {
+		return false
+	}
+	if p.partition != other.partition {
+		return false
+	}
+	return true
+}
+
 // Get file name of installed package
 func (p *PackagingSpec) FileName() string {
 	if p.relPathInPackage != "" {
@@ -243,9 +262,15 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilter(ctx ModuleContext, filter
 					continue
 				}
 			}
-			if _, ok := m[ps.relPathInPackage]; !ok {
-				m[ps.relPathInPackage] = ps
+			dstPath := ps.relPathInPackage
+			if existingPs, ok := m[dstPath]; ok {
+				if !existingPs.Equals(&ps) {
+					ctx.ModuleErrorf("packaging conflict at %v:\n%v\n%v", dstPath, existingPs, ps)
+				}
+				continue
 			}
+
+			m[dstPath] = ps
 		}
 	})
 	return m
