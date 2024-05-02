@@ -258,7 +258,7 @@ func (sanitize *sanitize) deps(ctx BaseModuleContext, deps Deps) Deps {
 
 func rustSanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 	if mod, ok := mctx.Module().(*Module); ok && mod.sanitize != nil {
-		if !mod.Enabled() {
+		if !mod.Enabled(mctx) {
 			return
 		}
 

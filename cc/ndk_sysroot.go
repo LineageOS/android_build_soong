@@ -150,7 +150,7 @@ func (n *ndkSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	var installPaths android.Paths
 	var licensePaths android.Paths
 	ctx.VisitAllModules(func(module android.Module) {
-		if m, ok := module.(android.Module); ok && !m.Enabled() {
+		if m, ok := module.(android.Module); ok && !m.Enabled(ctx) {
 			return
 		}
 

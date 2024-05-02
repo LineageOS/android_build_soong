@@ -181,7 +181,7 @@ func llndkMutator(mctx android.BottomUpMutatorContext) {
 		return
 	}
 
-	if shouldSkipLlndkMutator(m) {
+	if shouldSkipLlndkMutator(mctx, m) {
 		return
 	}
 
@@ -201,8 +201,8 @@ func llndkMutator(mctx android.BottomUpMutatorContext) {
 }
 
 // Check for modules that mustn't be LLNDK
-func shouldSkipLlndkMutator(m *Module) bool {
-	if !m.Enabled() {
+func shouldSkipLlndkMutator(mctx android.BottomUpMutatorContext, m *Module) bool {
+	if !m.Enabled(mctx) {
 		return true
 	}
 	if !m.Device() {

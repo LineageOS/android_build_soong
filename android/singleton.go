@@ -284,5 +284,5 @@ func (s *singletonContextAdaptor) moduleProvider(module blueprint.Module, provid
 }
 
 func (s *singletonContextAdaptor) OtherModulePropertyErrorf(module Module, property string, format string, args ...interface{}) {
-	s.blueprintSingletonContext().OtherModulePropertyErrorf(module, property, format, args)
+	s.blueprintSingletonContext().OtherModulePropertyErrorf(module, property, format, args...)
 }
