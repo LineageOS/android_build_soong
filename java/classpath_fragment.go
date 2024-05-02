@@ -151,10 +151,14 @@ func configuredJarListToClasspathJars(ctx android.ModuleContext, configuredJars 
 	return jars
 }
 
+func (c *ClasspathFragmentBase) outputFilename() string {
+	return strings.ToLower(c.classpathType.String()) + ".pb"
+}
+
 func (c *ClasspathFragmentBase) generateClasspathProtoBuildActions(ctx android.ModuleContext, configuredJars android.ConfiguredJarList, jars []classpathJar) {
 	generateProto := proptools.BoolDefault(c.properties.Generate_classpaths_proto, true)
 	if generateProto {
-		outputFilename := strings.ToLower(c.classpathType.String()) + ".pb"
+		outputFilename := c.outputFilename()
 		c.outputFilepath = android.PathForModuleOut(ctx, outputFilename).OutputPath
 		c.installDirPath = android.PathForModuleInstall(ctx, "etc", "classpaths")
 
@@ -179,6 +183,10 @@ func (c *ClasspathFragmentBase) generateClasspathProtoBuildActions(ctx android.M
 		ClasspathFragmentProtoOutput:     c.outputFilepath,
 	}
 	android.SetProvider(ctx, ClasspathFragmentProtoContentInfoProvider, classpathProtoInfo)
+}
+
+func (c *ClasspathFragmentBase) installClasspathProto(ctx android.ModuleContext) android.InstallPath {
+	return ctx.InstallFile(c.installDirPath, c.outputFilename(), c.outputFilepath)
 }
 
 func writeClasspathsTextproto(ctx android.ModuleContext, output android.WritablePath, jars []classpathJar) {

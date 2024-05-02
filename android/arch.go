@@ -486,7 +486,7 @@ func osMutator(bpctx blueprint.BottomUpMutatorContext) {
 			// dependencies on OsType variants that are explicitly disabled in their
 			// properties. The CommonOS variant will still depend on disabled variants
 			// if they are disabled afterwards, e.g. in archMutator if
-			if module.Enabled(mctx) {
+			if module.Enabled() {
 				mctx.AddInterVariantDependency(commonOsToOsSpecificVariantTag, commonOSVariant, module)
 			}
 		}
@@ -511,7 +511,7 @@ func GetOsSpecificVariantsOfCommonOSVariant(mctx BaseModuleContext) []Module {
 	var variants []Module
 	mctx.VisitDirectDeps(func(m Module) {
 		if mctx.OtherModuleDependencyTag(m) == commonOsToOsSpecificVariantTag {
-			if m.Enabled(mctx) {
+			if m.Enabled() {
 				variants = append(variants, m)
 			}
 		}

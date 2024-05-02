@@ -3671,34 +3671,13 @@ func ensureExactDeapexedContents(t *testing.T, ctx *android.TestContext, moduleN
 
 func vndkLibrariesTxtFiles(vers ...string) (result string) {
 	for _, v := range vers {
-		if v == "current" {
-			for _, txt := range []string{"vndkcore", "vndksp", "vndkprivate", "vndkproduct"} {
-				result += `
-					` + txt + `_libraries_txt {
-						name: "` + txt + `.libraries.txt",
-						insert_vndk_version: true,
-					}
-				`
-			}
+		for _, txt := range []string{"llndk", "vndkcore", "vndksp", "vndkprivate", "vndkproduct"} {
 			result += `
-				llndk_libraries_txt {
-					name: "llndk.libraries.txt",
-				}
-				llndk_libraries_txt_for_apex {
-					name: "llndk.libraries.txt.apex",
-					stem: "llndk.libraries.txt",
-					insert_vndk_version: true,
-				}
-			`
-		} else {
-			for _, txt := range []string{"llndk", "vndkcore", "vndksp", "vndkprivate", "vndkproduct"} {
-				result += `
 					prebuilt_etc {
 						name: "` + txt + `.libraries.` + v + `.txt",
 						src: "dummy.txt",
 					}
 				`
-			}
 		}
 	}
 	return
@@ -5622,21 +5601,8 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 			compile_dex: true,
 		}
 	`
-		// This test disables libbar, which causes the ComponentDepsMutator to add
-		// deps on libbar.stubs and other sub-modules that don't exist. We can
-		// enable AllowMissingDependencies to work around that, but enabling that
-		// causes extra checks for missing source files to dex_bootjars, so add those
-		// to the mock fs as well.
-		preparer2 := android.GroupFixturePreparers(
-			preparer,
-			android.PrepareForTestWithAllowMissingDependencies,
-			android.FixtureMergeMockFs(map[string][]byte{
-				"build/soong/scripts/check_boot_jars/package_allowed_list.txt": nil,
-				"frameworks/base/config/boot-profile.txt":                      nil,
-			}),
-		)
 
-		ctx := testDexpreoptWithApexes(t, bp, "", preparer2, fragment)
+		ctx := testDexpreoptWithApexes(t, bp, "", preparer, fragment)
 		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/prebuilt_myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
 		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/prebuilt_myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
@@ -9254,7 +9220,7 @@ func TestPrebuiltStubLibDep(t *testing.T) {
 								continue
 							}
 							mod := ctx.ModuleForTests(modName, variant).Module().(*cc.Module)
-							if !mod.Enabled(android.PanickingConfigAndErrorContext(ctx)) || mod.IsHideFromMake() {
+							if !mod.Enabled() || mod.IsHideFromMake() {
 								continue
 							}
 							for _, ent := range android.AndroidMkEntriesForTest(t, ctx, mod) {

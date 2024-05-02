@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 
 	"android/soong/android"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
@@ -234,7 +233,7 @@ func (p *platformCompatConfigSingleton) GenerateBuildActions(ctx android.Singlet
 	var compatConfigMetadata android.Paths
 
 	ctx.VisitAllModules(func(module android.Module) {
-		if !module.Enabled(ctx) {
+		if !module.Enabled() {
 			return
 		}
 		if c, ok := module.(platformCompatConfigMetadataProvider); ok {
