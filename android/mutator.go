@@ -594,11 +594,16 @@ func (a *androidTransitionMutator) IncomingTransition(bpctx blueprint.IncomingTr
 
 func (a *androidTransitionMutator) Mutate(ctx blueprint.BottomUpMutatorContext, variation string) {
 	if am, ok := ctx.Module().(Module); ok {
+		if variation != "" {
+			// TODO: this should really be checking whether the TransitionMutator affected this module, not
+			//  the empty variant, but TransitionMutator has no concept of skipping a module.
+			base := am.base()
+			base.commonProperties.DebugMutators = append(base.commonProperties.DebugMutators, a.name)
+			base.commonProperties.DebugVariations = append(base.commonProperties.DebugVariations, variation)
+		}
+
 		mctx := bottomUpMutatorContextFactory(ctx, am, a.finalPhase)
 		defer bottomUpMutatorContextPool.Put(mctx)
-		base := am.base()
-		base.commonProperties.DebugMutators = append(base.commonProperties.DebugMutators, a.name)
-		base.commonProperties.DebugVariations = append(base.commonProperties.DebugVariations, variation)
 		a.mutator.Mutate(mctx, variation)
 	}
 }
