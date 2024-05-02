@@ -21,6 +21,7 @@ var (
 	manualFlagNamePrefixes []string = []string{
 		"RELEASE_ACONFIG_",
 		"RELEASE_PLATFORM_",
+		"RELEASE_BUILD_FLAGS_",
 	}
 
 	// Set `aconfig_flags_only: true` in these release configs.
