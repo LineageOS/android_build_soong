@@ -1322,7 +1322,7 @@ func currRefAbiDumpSdkVersion(ctx ModuleContext) string {
 // sourceAbiDiff registers a build statement to compare linked sAbi dump files (.lsdump).
 func (library *libraryDecorator) sourceAbiDiff(ctx android.ModuleContext,
 	sourceDump, referenceDump android.Path,
-	baseName, nameExt string, isLlndkOrNdk, allowExtensions bool,
+	baseName, nameExt string, isLlndk, allowExtensions bool,
 	sourceVersion, errorMessage string) {
 
 	extraFlags := []string{"-target-version", sourceVersion}
@@ -1334,7 +1334,7 @@ func (library *libraryDecorator) sourceAbiDiff(ctx android.ModuleContext,
 			"-allow-unreferenced-changes",
 			"-allow-unreferenced-elf-symbol-changes")
 	}
-	if isLlndkOrNdk {
+	if isLlndk {
 		extraFlags = append(extraFlags, "-consider-opaque-types-different")
 	}
 	if allowExtensions {
@@ -1350,23 +1350,23 @@ func (library *libraryDecorator) sourceAbiDiff(ctx android.ModuleContext,
 
 func (library *libraryDecorator) crossVersionAbiDiff(ctx android.ModuleContext,
 	sourceDump, referenceDump android.Path,
-	baseName string, isLlndkOrNdk bool, sourceVersion, prevVersion string) {
+	baseName string, isLlndk bool, sourceVersion, prevVersion string) {
 
 	errorMessage := "error: Please follow https://android.googlesource.com/platform/development/+/main/vndk/tools/header-checker/README.md#configure-cross_version-abi-check to resolve the ABI difference between your source code and version " + prevVersion + "."
 
 	library.sourceAbiDiff(ctx, sourceDump, referenceDump, baseName, prevVersion,
-		isLlndkOrNdk, true /* allowExtensions */, sourceVersion, errorMessage)
+		isLlndk, true /* allowExtensions */, sourceVersion, errorMessage)
 }
 
 func (library *libraryDecorator) sameVersionAbiDiff(ctx android.ModuleContext,
 	sourceDump, referenceDump android.Path,
-	baseName, nameExt string, isLlndkOrNdk bool) {
+	baseName, nameExt string, isLlndk bool) {
 
 	libName := strings.TrimSuffix(baseName, filepath.Ext(baseName))
 	errorMessage := "error: Please update ABI references with: $$ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py -l " + libName
 
 	library.sourceAbiDiff(ctx, sourceDump, referenceDump, baseName, nameExt,
-		isLlndkOrNdk, false /* allowExtensions */, "current", errorMessage)
+		isLlndk, false /* allowExtensions */, "current", errorMessage)
 }
 
 func (library *libraryDecorator) optInAbiDiff(ctx android.ModuleContext,
@@ -1381,7 +1381,7 @@ func (library *libraryDecorator) optInAbiDiff(ctx android.ModuleContext,
 	}
 
 	library.sourceAbiDiff(ctx, sourceDump, referenceDump, baseName, nameExt,
-		false /* isLlndkOrNdk */, false /* allowExtensions */, "current", errorMessage)
+		false /* isLlndk */, false /* allowExtensions */, "current", errorMessage)
 }
 
 func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, deps PathDeps, objs Objects, fileName string, soFile android.Path) {
@@ -1436,7 +1436,6 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, deps PathD
 			dumpDir := filepath.Join("prebuilts", "abi-dumps", dumpDirName)
 			isLlndk := (tag == llndkLsdumpTag)
 			isApex := (tag == apexLsdumpTag)
-			isNdk := (tag == ndkLsdumpTag)
 			binderBitness := ctx.DeviceConfig().BinderBitness()
 			nameExt := ""
 			if isLlndk {
@@ -1468,7 +1467,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, deps PathD
 			prevDumpFile := getRefAbiDumpFile(ctx, prevDumpDir, fileName)
 			if prevDumpFile.Valid() {
 				library.crossVersionAbiDiff(ctx, sourceDump, prevDumpFile.Path(),
-					fileName, isLlndk || isNdk, currVersion, nameExt+prevVersion)
+					fileName, isLlndk, currVersion, nameExt+prevVersion)
 			}
 			// Check against the current version.
 			sourceDump = implDump
@@ -1488,7 +1487,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, deps PathD
 			currDumpFile := getRefAbiDumpFile(ctx, currDumpDir, fileName)
 			if currDumpFile.Valid() {
 				library.sameVersionAbiDiff(ctx, sourceDump, currDumpFile.Path(),
-					fileName, nameExt, isLlndk || isNdk)
+					fileName, nameExt, isLlndk)
 			}
 		}
 		// Check against the opt-in reference dumps.
