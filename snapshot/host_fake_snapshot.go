@@ -116,7 +116,7 @@ func (c *hostFakeSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 			prebuilts[android.RemoveOptionalPrebuiltPrefix(module.Name())] = true
 			return
 		}
-		if !module.Enabled() || module.IsHideFromMake() {
+		if !module.Enabled(ctx) || module.IsHideFromMake() {
 			return
 		}
 		apexInfo, _ := android.SingletonModuleProvider(ctx, module, android.ApexInfoProvider)

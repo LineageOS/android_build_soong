@@ -1287,3 +1287,21 @@ func EnsureListContainsSuffix(t *testing.T, result []string, expected string) {
 		t.Errorf("%q is not found in %v", expected, result)
 	}
 }
+
+type panickingConfigAndErrorContext struct {
+	ctx *TestContext
+}
+
+func (ctx *panickingConfigAndErrorContext) OtherModulePropertyErrorf(module Module, property, fmt string, args ...interface{}) {
+	panic(ctx.ctx.PropertyErrorf(module, property, fmt, args...).Error())
+}
+
+func (ctx *panickingConfigAndErrorContext) Config() Config {
+	return ctx.ctx.Config()
+}
+
+func PanickingConfigAndErrorContext(ctx *TestContext) ConfigAndErrorContext {
+	return &panickingConfigAndErrorContext{
+		ctx: ctx,
+	}
+}

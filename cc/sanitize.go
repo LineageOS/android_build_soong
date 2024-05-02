@@ -82,7 +82,7 @@ var (
 	hwasanGlobalOptions = []string{"heap_history_size=1023", "stack_history_size=512",
 		"export_memory_stats=0", "max_malloc_fill_size=131072", "malloc_fill_byte=0"}
 	memtagStackCommonFlags = []string{"-march=armv8-a+memtag"}
-	memtagStackLlvmFlags = []string{"-dom-tree-reachability-max-bbs-to-explore=128"}
+	memtagStackLlvmFlags   = []string{"-dom-tree-reachability-max-bbs-to-explore=128"}
 
 	hostOnlySanitizeFlags   = []string{"-fno-sanitize-recover=all"}
 	deviceOnlySanitizeFlags = []string{"-fsanitize-trap=all"}
@@ -858,7 +858,7 @@ func (s *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 
 		flags.Local.CFlags = append(flags.Local.CFlags, cfiCflags...)
 		flags.Local.AsFlags = append(flags.Local.AsFlags, cfiAsflags...)
-		flags.CFlagsDeps = append(flags.CFlagsDeps, android.PathForSource(ctx, cfiBlocklistPath + "/" + cfiBlocklistFilename))
+		flags.CFlagsDeps = append(flags.CFlagsDeps, android.PathForSource(ctx, cfiBlocklistPath+"/"+cfiBlocklistFilename))
 		if Bool(s.Properties.Sanitize.Config.Cfi_assembly_support) {
 			flags.Local.CFlags = append(flags.Local.CFlags, cfiAssemblySupportFlag)
 		}
@@ -1378,7 +1378,7 @@ func sanitizerRuntimeDepsMutator(mctx android.TopDownMutatorContext) {
 // Add the dependency to the runtime library for each of the sanitizer variants
 func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 	if c, ok := mctx.Module().(*Module); ok && c.sanitize != nil {
-		if !c.Enabled() {
+		if !c.Enabled(mctx) {
 			return
 		}
 		var sanitizers []string
