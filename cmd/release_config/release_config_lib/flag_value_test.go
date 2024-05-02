@@ -24,7 +24,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type testCaseFlagValue struct {
+type testCaseFlagValueFactory struct {
 	protoPath string
 	name      string
 	data      []byte
@@ -32,14 +32,14 @@ type testCaseFlagValue struct {
 	err       error
 }
 
-func (tc testCaseFlagValue) assertProtoEqual(t *testing.T, expected, actual proto.Message) {
+func (tc testCaseFlagValueFactory) assertProtoEqual(t *testing.T, expected, actual proto.Message) {
 	if !proto.Equal(expected, actual) {
 		t.Errorf("Expected %q found %q", expected, actual)
 	}
 }
 
-func TestFlagValue(t *testing.T) {
-	testCases := []testCaseFlagValue{
+func TestFlagValueFactory(t *testing.T) {
+	testCases := []testCaseFlagValueFactory{
 		{
 			name:      "stringVal",
 			protoPath: "build/release/flag_values/test/RELEASE_FOO.textproto",
@@ -63,5 +63,52 @@ func TestFlagValue(t *testing.T) {
 		}
 		actual := FlagValueFactory(path)
 		tc.assertProtoEqual(t, &tc.expected, &actual.proto)
+	}
+}
+
+type testCaseMarshalValue struct {
+	name     string
+	value    *rc_proto.Value
+	expected string
+}
+
+func TestMarshalValue(t *testing.T) {
+	testCases := []testCaseMarshalValue{
+		{
+			name:     "nil",
+			value:    nil,
+			expected: "",
+		},
+		{
+			name:     "unspecified",
+			value:    &rc_proto.Value{},
+			expected: "",
+		},
+		{
+			name:     "false",
+			value:    &rc_proto.Value{Val: &rc_proto.Value_BoolValue{false}},
+			expected: "",
+		},
+		{
+			name:     "true",
+			value:    &rc_proto.Value{Val: &rc_proto.Value_BoolValue{true}},
+			expected: "true",
+		},
+		{
+			name:     "string",
+			value:    &rc_proto.Value{Val: &rc_proto.Value_StringValue{"BAR"}},
+			expected: "BAR",
+		},
+		{
+			name:     "obsolete",
+			value:    &rc_proto.Value{Val: &rc_proto.Value_Obsolete{true}},
+			expected: " #OBSOLETE",
+		},
+	}
+	for _, tc := range testCases {
+		actual := MarshalValue(tc.value)
+		if actual != tc.expected {
+			t.Errorf("Expected %q found %q", tc.expected, actual)
+		}
 	}
 }
