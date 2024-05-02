@@ -818,12 +818,12 @@ func (c *config) GetenvWithDefault(key string, defaultValue string) string {
 }
 
 func (c *config) IsEnvTrue(key string) bool {
-	value := c.Getenv(key)
+	value := strings.ToLower(c.Getenv(key))
 	return value == "1" || value == "y" || value == "yes" || value == "on" || value == "true"
 }
 
 func (c *config) IsEnvFalse(key string) bool {
-	value := c.Getenv(key)
+	value := strings.ToLower(c.Getenv(key))
 	return value == "0" || value == "n" || value == "no" || value == "off" || value == "false"
 }
 
