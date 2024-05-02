@@ -612,7 +612,7 @@ func (l *lintSingleton) copyLintDependencies(ctx android.SingletonContext) {
 		apiVersionsDb := findModuleOrErr(ctx, files.apiVersionsModule)
 		if apiVersionsDb == nil {
 			if !ctx.Config().AllowMissingDependencies() {
-				ctx.Errorf("lint: missing module api_versions_public")
+				ctx.Errorf("lint: missing module %s", files.apiVersionsModule)
 			}
 			return
 		}
@@ -620,7 +620,7 @@ func (l *lintSingleton) copyLintDependencies(ctx android.SingletonContext) {
 		sdkAnnotations := findModuleOrErr(ctx, files.annotationsModule)
 		if sdkAnnotations == nil {
 			if !ctx.Config().AllowMissingDependencies() {
-				ctx.Errorf("lint: missing module sdk-annotations.zip")
+				ctx.Errorf("lint: missing module %s", files.annotationsModule)
 			}
 			return
 		}
