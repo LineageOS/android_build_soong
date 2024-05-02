@@ -72,19 +72,19 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	releaseName := config.Name
 	err = os.MkdirAll(outputDir, 0775)
 	if err != nil {
 		panic(err)
 	}
 
-	makefilePath := filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.mk", product, releaseName))
+	makefilePath := filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.mk", product, targetRelease))
 	useProto, ok := config.FlagArtifacts["RELEASE_BUILD_FLAGS_IN_PROTOBUF"]
 	if guard && (!ok || rc_lib.MarshalValue(useProto.Value) == "") {
 		// We were told to guard operation and either we have no build flag, or it is False.
 		// Write an empty file so that release_config.mk will use the old process.
 		os.WriteFile(makefilePath, []byte{}, 0644)
 	} else if allMake {
+		// Write one makefile per release config, using the canonical release name.
 		for k, _ := range configs.ReleaseConfigs {
 			makefilePath = filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.mk", product, k))
 			err = configs.WriteMakefile(makefilePath, k)
