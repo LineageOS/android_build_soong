@@ -35,6 +35,7 @@ func main() {
 	var product string
 	var allMake bool
 	var useBuildVar bool
+	var guard bool
 
 	defaultRelease := os.Getenv("TARGET_RELEASE")
 	if defaultRelease == "" {
@@ -52,6 +53,7 @@ func main() {
 	flag.BoolVar(&pb, "pb", true, "write artifacts as binary protobuf")
 	flag.BoolVar(&allMake, "all_make", true, "write makefiles for all release configs")
 	flag.BoolVar(&useBuildVar, "use_get_build_var", false, "use get_build_var PRODUCT_RELEASE_CONFIG_MAPS")
+	flag.BoolVar(&guard, "guard", true, "whether to guard with RELEASE_BUILD_FLAGS_IN_PROTOBUF")
 
 	flag.Parse()
 
@@ -76,20 +78,21 @@ func main() {
 		panic(err)
 	}
 
-	if err = config.WritePartitionBuildFlags(outputDir, product, targetRelease); err != nil {
-		panic(err)
-	}
-
-	if allMake {
+	makefilePath := filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.mk", product, releaseName))
+	useProto, ok := config.FlagArtifacts["RELEASE_BUILD_FLAGS_IN_PROTOBUF"]
+	if guard && (!ok || rc_lib.MarshalValue(useProto.Value) == "") {
+		// We were told to guard operation and either we have no build flag, or it is False.
+		// Write an empty file so that release_config.mk will use the old process.
+		os.WriteFile(makefilePath, []byte{}, 0644)
+	} else if allMake {
 		for k, _ := range configs.ReleaseConfigs {
-			makefilePath := filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.mk", product, k))
+			makefilePath = filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.mk", product, k))
 			err = configs.WriteMakefile(makefilePath, k)
 			if err != nil {
 				panic(err)
 			}
 		}
 	} else {
-		makefilePath := filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.mk", product, releaseName))
 		err = configs.WriteMakefile(makefilePath, targetRelease)
 		if err != nil {
 			panic(err)
@@ -113,4 +116,8 @@ func main() {
 			panic(err)
 		}
 	}
+	if err = config.WritePartitionBuildFlags(outputDir, product, targetRelease); err != nil {
+		panic(err)
+	}
+
 }

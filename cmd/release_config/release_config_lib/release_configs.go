@@ -95,7 +95,7 @@ func (configs *ReleaseConfigs) WriteArtifact(outDir, product, format string) err
 }
 
 func ReleaseConfigsFactory() (c *ReleaseConfigs) {
-	return &ReleaseConfigs{
+	configs := ReleaseConfigs{
 		Aliases:              make(map[string]*string),
 		FlagArtifacts:        make(map[string]*FlagArtifact),
 		ReleaseConfigs:       make(map[string]*ReleaseConfig),
@@ -103,6 +103,21 @@ func ReleaseConfigsFactory() (c *ReleaseConfigs) {
 		configDirs:           []string{},
 		configDirIndexes:     make(ReleaseConfigDirMap),
 	}
+	workflowManual := rc_proto.Workflow(rc_proto.Workflow_MANUAL)
+	releaseAconfigValueSets := FlagArtifact{
+		FlagDeclaration: &rc_proto.FlagDeclaration{
+			Name:        proto.String("RELEASE_ACONFIG_VALUE_SETS"),
+			Namespace:   proto.String("android_UNKNOWN"),
+			Description: proto.String("Aconfig value sets assembled by release-config"),
+			Workflow:    &workflowManual,
+			Containers:  []string{"system", "system_ext", "product", "vendor"},
+			Value:       &rc_proto.Value{Val: &rc_proto.Value_UnspecifiedValue{false}},
+		},
+		DeclarationIndex: -1,
+		Traces:           []*rc_proto.Tracepoint{},
+	}
+	configs.FlagArtifacts["RELEASE_ACONFIG_VALUE_SETS"] = &releaseAconfigValueSets
+	return &configs
 }
 
 func ReleaseConfigMapFactory(protoPath string) (m *ReleaseConfigMap) {
@@ -166,6 +181,9 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 		}
 		m.FlagDeclarations = append(m.FlagDeclarations, *flagDeclaration)
 		name := *flagDeclaration.Name
+		if name == "RELEASE_ACONFIG_VALUE_SETS" {
+			return fmt.Errorf("%s: %s is a reserved build flag", path, name)
+		}
 		if def, ok := configs.FlagArtifacts[name]; !ok {
 			configs.FlagArtifacts[name] = &FlagArtifact{FlagDeclaration: flagDeclaration, DeclarationIndex: ConfigDirIndex}
 		} else if !proto.Equal(def.FlagDeclaration, flagDeclaration) {
@@ -176,7 +194,7 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 			FlagValue{path: path, proto: rc_proto.FlagValue{
 				Name: proto.String(name), Value: flagDeclaration.Value}})
 		if configs.FlagArtifacts[name].Redacted {
-			return fmt.Errorf("%s may not be redacted by default.", *flagDeclaration.Name)
+			return fmt.Errorf("%s may not be redacted by default.", name)
 		}
 		return nil
 	})
@@ -202,6 +220,9 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 			flagValue := FlagValueFactory(path)
 			if fmt.Sprintf("%s.textproto", *flagValue.proto.Name) != filepath.Base(path) {
 				return fmt.Errorf("%s incorrectly sets value for flag %s", path, *flagValue.proto.Name)
+			}
+			if *flagValue.proto.Name == "RELEASE_ACONFIG_VALUE_SETS" {
+				return fmt.Errorf("%s: %s is a reserved build flag", path, *flagValue.proto.Name)
 			}
 			releaseConfigContribution.FlagValues = append(releaseConfigContribution.FlagValues, flagValue)
 			return nil
@@ -382,7 +403,9 @@ func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease strin
 		if len(releaseConfigMapPaths) == 0 {
 			return nil, fmt.Errorf("No maps found")
 		}
-		warnf("No --map argument provided.  Using: --map %s\n", strings.Join(releaseConfigMapPaths, " --map "))
+		if !useBuildVar {
+			warnf("No --map argument provided.  Using: --map %s\n", strings.Join(releaseConfigMapPaths, " --map "))
+		}
 	}
 
 	configs := ReleaseConfigsFactory()

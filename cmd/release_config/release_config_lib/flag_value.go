@@ -52,6 +52,9 @@ func UnmarshalValue(str string) *rc_proto.Value {
 }
 
 func MarshalValue(value *rc_proto.Value) string {
+	if value == nil {
+		return ""
+	}
 	switch val := value.Val.(type) {
 	case *rc_proto.Value_UnspecifiedValue:
 		// Value was never set.
