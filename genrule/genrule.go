@@ -714,13 +714,13 @@ func NewGenSrcs() *Module {
 			rule := getSandboxedRuleBuilder(ctx, android.NewRuleBuilder(pctx, ctx).Sbox(genDir, nil))
 
 			for _, in := range shard {
-				outFile := android.GenPathWithExt(ctx, finalSubDir, in, String(properties.Output_extension))
+				outFile := android.GenPathWithExtAndTrimExt(ctx, finalSubDir, in, String(properties.Output_extension), String(properties.Trim_extension))
 
 				// If sharding is enabled, then outFile is the path to the output file in
 				// the shard directory, and copyTo is the path to the output file in the
 				// final directory.
 				if len(shards) > 1 {
-					shardFile := android.GenPathWithExt(ctx, genSubDir, in, String(properties.Output_extension))
+					shardFile := android.GenPathWithExtAndTrimExt(ctx, genSubDir, in, String(properties.Output_extension), String(properties.Trim_extension))
 					copyTo = append(copyTo, outFile)
 					outFile = shardFile
 				}
@@ -786,6 +786,9 @@ type genSrcsProperties struct {
 
 	// Additional files needed for build that are not tooling related.
 	Data []string `android:"path"`
+
+	// Trim the matched extension for each input file, and it should start with ".".
+	Trim_extension *string
 }
 
 const defaultShardSize = 50
