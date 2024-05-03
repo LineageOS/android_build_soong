@@ -835,7 +835,21 @@ func (p *prebuiltCommon) providePrebuiltInfo(ctx android.ModuleContext) {
 	android.SetProvider(ctx, android.PrebuiltInfoProvider, info)
 }
 
+// Uses an object provided by its deps to validate that the contents of bcpf have been added to the global
+// PRODUCT_APEX_BOOT_JARS
+// This validation will only run on the apex which is active for this product/release_config
+func validateApexClasspathFragments(ctx android.ModuleContext) {
+	ctx.VisitDirectDeps(func(m android.Module) {
+		if info, exists := android.OtherModuleProvider(ctx, m, java.ClasspathFragmentValidationInfoProvider); exists {
+			ctx.ModuleErrorf("%s in contents of %s must also be declared in PRODUCT_APEX_BOOT_JARS", info.UnknownJars, info.ClasspathFragmentModuleName)
+		}
+	})
+}
+
 func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	// Validate contents of classpath fragments
+	validateApexClasspathFragments(ctx)
+
 	p.apexKeysPath = writeApexKeys(ctx, p)
 	// TODO(jungjw): Check the key validity.
 	p.inputApex = android.OptionalPathForModuleSrc(ctx, p.prebuiltCommonProperties.Selected_apex).Path()
@@ -1059,6 +1073,9 @@ func (a *ApexSet) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 }
 
 func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	// Validate contents of classpath fragments
+	validateApexClasspathFragments(ctx)
+
 	a.apexKeysPath = writeApexKeys(ctx, a)
 	a.installFilename = a.InstallFilename()
 	if !strings.HasSuffix(a.installFilename, imageApexSuffix) && !strings.HasSuffix(a.installFilename, imageCapexSuffix) {
