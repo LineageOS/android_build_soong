@@ -36,6 +36,7 @@ import (
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/pathtools"
+	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -541,6 +542,11 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint
 		a.SetPath("LOCAL_SOONG_INSTALLED_MODULE", base.katiInstalls[len(base.katiInstalls)-1].to)
 		a.SetString("LOCAL_SOONG_INSTALL_PAIRS", base.katiInstalls.BuiltInstalled())
 		a.SetPaths("LOCAL_SOONG_INSTALL_SYMLINKS", base.katiSymlinks.InstallPaths().Paths())
+	} else {
+		// Soong may not have generated the install rule also when `no_full_install: true`.
+		// Mark this module as uninstallable in order to prevent Make from creating an
+		// install rule there.
+		a.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", proptools.Bool(base.commonProperties.No_full_install))
 	}
 
 	if len(base.testData) > 0 {

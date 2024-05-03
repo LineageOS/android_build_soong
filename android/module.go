@@ -484,6 +484,11 @@ type commonProperties struct {
 	// Set by osMutator.
 	CommonOSVariant bool `blueprint:"mutated"`
 
+	// When set to true, this module is not installed to the full install path (ex: under
+	// out/target/product/<name>/<partition>). It can be installed only to the packaging
+	// modules like android_filesystem.
+	No_full_install *bool
+
 	// When HideFromMake is set to true, no entry for this variant will be emitted in the
 	// generated Android.mk file.
 	HideFromMake bool `blueprint:"mutated"`
