@@ -151,7 +151,7 @@ func init() {
 			"LOCAL_CLANG_CFLAGS":                  "clang_cflags",
 			"LOCAL_YACCFLAGS":                     "yacc.flags",
 			"LOCAL_SANITIZE_RECOVER":              "sanitize.recover",
-			"LOCAL_LOGTAGS_FILES":                 "logtags",
+			"LOCAL_SOONG_LOGTAGS_FILES":           "logtags",
 			"LOCAL_EXPORT_HEADER_LIBRARY_HEADERS": "export_header_lib_headers",
 			"LOCAL_EXPORT_SHARED_LIBRARY_HEADERS": "export_shared_lib_headers",
 			"LOCAL_EXPORT_STATIC_LIBRARY_HEADERS": "export_static_lib_headers",

@@ -61,6 +61,7 @@ bootstrap_go_package {
         "license_metadata.go",
         "license_sdk_member.go",
         "licenses.go",
+        "logtags.go",
         "makevars.go",
         "metrics.go",
         "module.go",
