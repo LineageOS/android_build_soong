@@ -27,7 +27,6 @@ import (
 
 func init() {
 	pctx.SourcePathVariable("logtagsCmd", "build/make/tools/java-event-log-tags.py")
-	pctx.SourcePathVariable("mergeLogtagsCmd", "build/make/tools/merge-event-log-tags.py")
 	pctx.SourcePathVariable("logtagsLib", "build/make/tools/event_log_tags.py")
 }
 
@@ -36,12 +35,6 @@ var (
 		blueprint.RuleParams{
 			Command:     "$logtagsCmd -o $out $in",
 			CommandDeps: []string{"$logtagsCmd", "$logtagsLib"},
-		})
-
-	mergeLogtags = pctx.AndroidStaticRule("mergeLogtags",
-		blueprint.RuleParams{
-			Command:     "$mergeLogtagsCmd -o $out $in",
-			CommandDeps: []string{"$mergeLogtagsCmd", "$logtagsLib"},
 		})
 )
 
@@ -178,37 +171,9 @@ func (j *Module) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 		outSrcFiles = append(outSrcFiles, srcJarFiles...)
 	}
 
+	android.SetProvider(ctx, android.LogtagsProviderKey, &android.LogtagsInfo{
+		Logtags: j.logtagsSrcs,
+	})
+
 	return outSrcFiles
-}
-
-func LogtagsSingleton() android.Singleton {
-	return &logtagsSingleton{}
-}
-
-type logtagsProducer interface {
-	logtags() android.Paths
-}
-
-func (j *Module) logtags() android.Paths {
-	return j.logtagsSrcs
-}
-
-var _ logtagsProducer = (*Module)(nil)
-
-type logtagsSingleton struct{}
-
-func (l *logtagsSingleton) GenerateBuildActions(ctx android.SingletonContext) {
-	var allLogtags android.Paths
-	ctx.VisitAllModules(func(module android.Module) {
-		if logtags, ok := module.(logtagsProducer); ok {
-			allLogtags = append(allLogtags, logtags.logtags()...)
-		}
-	})
-
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        mergeLogtags,
-		Description: "merge logtags",
-		Output:      android.PathForIntermediates(ctx, "all-event-log-tags.txt"),
-		Inputs:      allLogtags,
-	})
 }
