@@ -75,7 +75,6 @@ func registerJavaBuildComponents(ctx android.RegistrationContext) {
 		ctx.BottomUp("jacoco_deps", jacocoDepsMutator).Parallel()
 	})
 
-	ctx.RegisterParallelSingletonType("logtags", LogtagsSingleton)
 	ctx.RegisterParallelSingletonType("kythe_java_extract", kytheExtractJavaFactory)
 }
 
