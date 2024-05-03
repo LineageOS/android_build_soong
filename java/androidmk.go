@@ -453,6 +453,8 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 				if app.Name() != "framework-res" {
 					android.SetAconfigFileMkEntries(&app.ModuleBase, entries, app.mergedAconfigFiles)
 				}
+
+				entries.AddStrings("LOCAL_SOONG_LOGTAGS_FILES", app.logtagsSrcs.Strings()...)
 			},
 		},
 		ExtraFooters: []android.AndroidMkExtraFootersFunc{
