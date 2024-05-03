@@ -28,6 +28,7 @@ package android
 // module based on it.
 
 import (
+	"fmt"
 	"sort"
 	"sync"
 
@@ -120,7 +121,7 @@ type OverridableModule interface {
 	addOverride(o OverrideModule)
 	getOverrides() []OverrideModule
 
-	override(ctx BaseModuleContext, m Module, o OverrideModule)
+	override(ctx BaseModuleContext, bm OverridableModule, o OverrideModule)
 	GetOverriddenBy() string
 	GetOverriddenByModuleDir() string
 
@@ -191,15 +192,14 @@ func (b *OverridableModuleBase) setOverridesProperty(overridesProperty *[]string
 }
 
 // Overrides a base module with the given OverrideModule.
-func (b *OverridableModuleBase) override(ctx BaseModuleContext, m Module, o OverrideModule) {
-
+func (b *OverridableModuleBase) override(ctx BaseModuleContext, bm OverridableModule, o OverrideModule) {
 	for _, p := range b.overridableProperties {
 		for _, op := range o.getOverridingProperties() {
 			if proptools.TypeEqual(p, op) {
 				err := proptools.ExtendProperties(p, op, nil, proptools.OrderReplace)
 				if err != nil {
 					if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
-						ctx.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
+						ctx.OtherModulePropertyErrorf(bm, propertyErr.Property, "%s", propertyErr.Err.Error())
 					} else {
 						panic(err)
 					}
@@ -210,7 +210,7 @@ func (b *OverridableModuleBase) override(ctx BaseModuleContext, m Module, o Over
 	// Adds the base module to the overrides property, if exists, of the overriding module. See the
 	// comment on OverridableModuleBase.overridesProperty for details.
 	if b.overridesProperty != nil {
-		*b.overridesProperty = append(*b.overridesProperty, ctx.ModuleName())
+		*b.overridesProperty = append(*b.overridesProperty, ctx.OtherModuleName(bm))
 	}
 	b.overridableModuleProperties.OverriddenBy = o.Name()
 	b.overridableModuleProperties.OverriddenByModuleDir = o.ModuleDir()
@@ -235,7 +235,7 @@ func (b *OverridableModuleBase) OverridablePropertiesDepsMutator(ctx BottomUpMut
 // to keep them in this order and not put any order mutators between them.
 func RegisterOverridePostDepsMutators(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("override_deps", overrideModuleDepsMutator).Parallel()
-	ctx.BottomUp("perform_override", performOverrideMutator).Parallel()
+	ctx.Transition("override", &overrideTransitionMutator{})
 	// overridableModuleDepsMutator calls OverridablePropertiesDepsMutator so that overridable modules can
 	// add deps from overridable properties.
 	ctx.BottomUp("overridable_deps", overridableModuleDepsMutator).Parallel()
@@ -262,18 +262,6 @@ func overrideModuleDepsMutator(ctx BottomUpMutatorContext) {
 			ctx.PropertyErrorf("base", "%q is not a valid module name", base)
 			return
 		}
-		// See if there's a prebuilt module that overrides this override module with prefer flag,
-		// in which case we call HideFromMake on the corresponding variant later.
-		ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(dep Module) {
-			prebuilt := GetEmbeddedPrebuilt(dep)
-			if prebuilt == nil {
-				panic("PrebuiltDepTag leads to a non-prebuilt module " + dep.Name())
-			}
-			if prebuilt.UsePrebuilt() {
-				module.setOverriddenByPrebuilt(dep)
-				return
-			}
-		})
 		baseModule := ctx.AddDependency(ctx.Module(), overrideBaseDepTag, *module.getOverrideModuleProperties().Base)[0]
 		if o, ok := baseModule.(OverridableModule); ok {
 			overrideModule := ctx.Module().(OverrideModule)
@@ -285,11 +273,13 @@ func overrideModuleDepsMutator(ctx BottomUpMutatorContext) {
 
 // Now, goes through all overridable modules, finds all modules overriding them, creates a local
 // variant for each of them, and performs the actual overriding operation by calling override().
-func performOverrideMutator(ctx BottomUpMutatorContext) {
+type overrideTransitionMutator struct{}
+
+func (overrideTransitionMutator) Split(ctx BaseModuleContext) []string {
 	if b, ok := ctx.Module().(OverridableModule); ok {
 		overrides := b.getOverrides()
 		if len(overrides) == 0 {
-			return
+			return []string{""}
 		}
 		variants := make([]string, len(overrides)+1)
 		// The first variant is for the original, non-overridden, base module.
@@ -297,27 +287,69 @@ func performOverrideMutator(ctx BottomUpMutatorContext) {
 		for i, o := range overrides {
 			variants[i+1] = o.(Module).Name()
 		}
-		mods := ctx.CreateLocalVariations(variants...)
-		// Make the original variation the default one to depend on if no other override module variant
-		// is specified.
-		ctx.AliasVariation(variants[0])
-		for i, o := range overrides {
-			mods[i+1].(OverridableModule).override(ctx, mods[i+1], o)
-			if prebuilt := o.getOverriddenByPrebuilt(); prebuilt != nil {
-				// The overriding module itself, too, is overridden by a prebuilt.
-				// Perform the same check for replacement
-				checkInvariantsForSourceAndPrebuilt(ctx, mods[i+1], prebuilt)
-				// Copy the flag and hide it in make
-				mods[i+1].ReplacedByPrebuilt()
-			}
-		}
+		return variants
 	} else if o, ok := ctx.Module().(OverrideModule); ok {
 		// Create a variant of the overriding module with its own name. This matches the above local
 		// variant name rule for overridden modules, and thus allows ReplaceDependencies to match the
 		// two.
-		ctx.CreateLocalVariations(o.Name())
-		// To allow dependencies to be added without having to know the above variation.
-		ctx.AliasVariation(o.Name())
+		return []string{o.Name()}
+	}
+
+	return []string{""}
+}
+
+func (overrideTransitionMutator) OutgoingTransition(ctx OutgoingTransitionContext, sourceVariation string) string {
+	if o, ok := ctx.Module().(OverrideModule); ok {
+		if ctx.DepTag() == overrideBaseDepTag {
+			return o.Name()
+		}
+	}
+
+	// Variations are always local and shouldn't affect the variant used for dependencies
+	return ""
+}
+
+func (overrideTransitionMutator) IncomingTransition(ctx IncomingTransitionContext, incomingVariation string) string {
+	if _, ok := ctx.Module().(OverridableModule); ok {
+		return incomingVariation
+	} else if o, ok := ctx.Module().(OverrideModule); ok {
+		// To allow dependencies to be added without having to know the variation.
+		return o.Name()
+	}
+
+	return ""
+}
+
+func (overrideTransitionMutator) Mutate(ctx BottomUpMutatorContext, variation string) {
+	if o, ok := ctx.Module().(OverrideModule); ok {
+		overridableDeps := ctx.GetDirectDepsWithTag(overrideBaseDepTag)
+		if len(overridableDeps) > 1 {
+			panic(fmt.Errorf("expected a single dependency with overrideBaseDepTag, found %q", overridableDeps))
+		} else if len(overridableDeps) == 1 {
+			b := overridableDeps[0].(OverridableModule)
+			b.override(ctx, b, o)
+
+			checkPrebuiltReplacesOverride(ctx, b)
+		}
+	}
+}
+
+func checkPrebuiltReplacesOverride(ctx BottomUpMutatorContext, b OverridableModule) {
+	// See if there's a prebuilt module that overrides this override module with prefer flag,
+	// in which case we call HideFromMake on the corresponding variant later.
+	prebuiltDeps := ctx.GetDirectDepsWithTag(PrebuiltDepTag)
+	for _, prebuiltDep := range prebuiltDeps {
+		prebuilt := GetEmbeddedPrebuilt(prebuiltDep)
+		if prebuilt == nil {
+			panic("PrebuiltDepTag leads to a non-prebuilt module " + prebuiltDep.Name())
+		}
+		if prebuilt.UsePrebuilt() {
+			// The overriding module itself, too, is overridden by a prebuilt.
+			// Perform the same check for replacement
+			checkInvariantsForSourceAndPrebuilt(ctx, b, prebuiltDep)
+			// Copy the flag and hide it in make
+			b.ReplacedByPrebuilt()
+		}
 	}
 }
 
