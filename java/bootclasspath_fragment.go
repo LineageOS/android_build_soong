@@ -474,7 +474,7 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 	// Only perform a consistency check if this module is the active module. That will prevent an
 	// unused prebuilt that was created without instrumentation from breaking an instrumentation
 	// build.
-	if isActiveModule(ctx.Module()) {
+	if isActiveModule(ctx, ctx.Module()) {
 		b.bootclasspathFragmentPropertyCheck(ctx)
 	}
 
@@ -519,7 +519,7 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 // empty string if this module should not provide a boot image profile.
 func (b *BootclasspathFragmentModule) getProfileProviderApex(ctx android.BaseModuleContext) string {
 	// Only use the profile from the module that is preferred.
-	if !isActiveModule(ctx.Module()) {
+	if !isActiveModule(ctx, ctx.Module()) {
 		return ""
 	}
 
@@ -590,7 +590,7 @@ func (b *BootclasspathFragmentModule) configuredJars(ctx android.ModuleContext) 
 		// So ignore it even if it is not in PRODUCT_APEX_BOOT_JARS.
 		// TODO(b/202896428): Add better way to handle this.
 		_, unknown = android.RemoveFromList("android.car-module", unknown)
-		if isActiveModule(ctx.Module()) && len(unknown) > 0 {
+		if isActiveModule(ctx, ctx.Module()) && len(unknown) > 0 {
 			ctx.ModuleErrorf("%s in contents must also be declared in PRODUCT_APEX_BOOT_JARS", unknown)
 		}
 	}

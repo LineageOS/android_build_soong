@@ -279,7 +279,7 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		sanitizerLibs := android.SortedStringValues(sanitizerVariables)
 		var sanitizerLibStems []string
 		ctx.VisitAllModules(func(m android.Module) {
-			if !m.Enabled() {
+			if !m.Enabled(ctx) {
 				return
 			}
 

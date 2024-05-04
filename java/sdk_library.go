@@ -2294,7 +2294,7 @@ func (module *SdkLibrary) getApiDir() string {
 // once for public API level and once for system API level
 func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookContext) {
 	// If the module has been disabled then don't create any child modules.
-	if !module.Enabled() {
+	if !module.Enabled(mctx) {
 		return
 	}
 

@@ -320,7 +320,7 @@ type BaseProperties struct {
 
 	// *.logtags files, to combine together in order to generate the /system/etc/event-log-tags
 	// file
-	Logtags []string
+	Logtags []string `android:"path"`
 
 	// Make this module available when building for ramdisk.
 	// On device without a dedicated recovery partition, the module is only
@@ -909,6 +909,8 @@ type Module struct {
 
 	// Aconfig files for all transitive deps.  Also exposed via TransitiveDeclarationsInfo
 	mergedAconfigFiles map[string]android.Paths
+
+	logtagsPaths android.Paths
 }
 
 func (c *Module) AddJSONData(d *map[string]interface{}) {
@@ -1998,6 +2000,11 @@ func (d *Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	ctx := moduleContextFromAndroidModuleContext(actx, c)
 
+	c.logtagsPaths = android.PathsForModuleSrc(actx, c.Properties.Logtags)
+	android.SetProvider(ctx, android.LogtagsProviderKey, &android.LogtagsInfo{
+		Logtags: c.logtagsPaths,
+	})
+
 	// If Test_only is set on a module in bp file, respect the setting, otherwise
 	// see if is a known test module type.
 	testOnly := c.testModule || c.testLibrary()
@@ -2509,7 +2516,7 @@ func (c *Module) shouldUseApiSurface() bool {
 }
 
 func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
-	if !c.Enabled() {
+	if !c.Enabled(actx) {
 		return
 	}
 
@@ -2757,7 +2764,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 }
 
 func BeginMutator(ctx android.BottomUpMutatorContext) {
-	if c, ok := ctx.Module().(*Module); ok && c.Enabled() {
+	if c, ok := ctx.Module().(*Module); ok && c.Enabled(ctx) {
 		c.beginMutator(ctx)
 	}
 }

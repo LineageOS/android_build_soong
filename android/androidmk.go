@@ -36,6 +36,7 @@ import (
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/pathtools"
+	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -541,6 +542,11 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint
 		a.SetPath("LOCAL_SOONG_INSTALLED_MODULE", base.katiInstalls[len(base.katiInstalls)-1].to)
 		a.SetString("LOCAL_SOONG_INSTALL_PAIRS", base.katiInstalls.BuiltInstalled())
 		a.SetPaths("LOCAL_SOONG_INSTALL_SYMLINKS", base.katiSymlinks.InstallPaths().Paths())
+	} else {
+		// Soong may not have generated the install rule also when `no_full_install: true`.
+		// Mark this module as uninstallable in order to prevent Make from creating an
+		// install rule there.
+		a.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", proptools.Bool(base.commonProperties.No_full_install))
 	}
 
 	if len(base.testData) > 0 {
@@ -849,7 +855,7 @@ func translateAndroidModule(ctx SingletonContext, w io.Writer, moduleInfoJSONs *
 	mod blueprint.Module, provider AndroidMkDataProvider) error {
 
 	amod := mod.(Module).base()
-	if shouldSkipAndroidMkProcessing(amod) {
+	if shouldSkipAndroidMkProcessing(ctx, amod) {
 		return nil
 	}
 
@@ -939,7 +945,7 @@ func WriteAndroidMkData(w io.Writer, data AndroidMkData) {
 
 func translateAndroidMkEntriesModule(ctx SingletonContext, w io.Writer, moduleInfoJSONs *[]*ModuleInfoJSON,
 	mod blueprint.Module, provider AndroidMkEntriesProvider) error {
-	if shouldSkipAndroidMkProcessing(mod.(Module).base()) {
+	if shouldSkipAndroidMkProcessing(ctx, mod.(Module).base()) {
 		return nil
 	}
 
@@ -961,11 +967,11 @@ func translateAndroidMkEntriesModule(ctx SingletonContext, w io.Writer, moduleIn
 	return nil
 }
 
-func ShouldSkipAndroidMkProcessing(module Module) bool {
-	return shouldSkipAndroidMkProcessing(module.base())
+func ShouldSkipAndroidMkProcessing(ctx ConfigAndErrorContext, module Module) bool {
+	return shouldSkipAndroidMkProcessing(ctx, module.base())
 }
 
-func shouldSkipAndroidMkProcessing(module *ModuleBase) bool {
+func shouldSkipAndroidMkProcessing(ctx ConfigAndErrorContext, module *ModuleBase) bool {
 	if !module.commonProperties.NamespaceExportedToMake {
 		// TODO(jeffrygaston) do we want to validate that there are no modules being
 		// exported to Kati that depend on this module?
@@ -984,7 +990,7 @@ func shouldSkipAndroidMkProcessing(module *ModuleBase) bool {
 		return true
 	}
 
-	return !module.Enabled() ||
+	return !module.Enabled(ctx) ||
 		module.commonProperties.HideFromMake ||
 		// Make does not understand LinuxBionic
 		module.Os() == LinuxBionic ||

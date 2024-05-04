@@ -1074,7 +1074,7 @@ type ApexInfoMutator interface {
 // specific variant to modules that support the ApexInfoMutator.
 // It also propagates updatable=true to apps of updatable apexes
 func apexInfoMutator(mctx android.TopDownMutatorContext) {
-	if !mctx.Module().Enabled() {
+	if !mctx.Module().Enabled(mctx) {
 		return
 	}
 
@@ -1091,7 +1091,7 @@ func apexInfoMutator(mctx android.TopDownMutatorContext) {
 // apexStrictUpdatibilityLintMutator propagates strict_updatability_linting to transitive deps of a mainline module
 // This check is enforced for updatable modules
 func apexStrictUpdatibilityLintMutator(mctx android.TopDownMutatorContext) {
-	if !mctx.Module().Enabled() {
+	if !mctx.Module().Enabled(mctx) {
 		return
 	}
 	if apex, ok := mctx.Module().(*apexBundle); ok && apex.checkStrictUpdatabilityLinting() {
@@ -1118,7 +1118,7 @@ func apexStrictUpdatibilityLintMutator(mctx android.TopDownMutatorContext) {
 
 // enforceAppUpdatability propagates updatable=true to apps of updatable apexes
 func enforceAppUpdatability(mctx android.TopDownMutatorContext) {
-	if !mctx.Module().Enabled() {
+	if !mctx.Module().Enabled(mctx) {
 		return
 	}
 	if apex, ok := mctx.Module().(*apexBundle); ok && apex.Updatable() {
@@ -1196,7 +1196,7 @@ func (a *apexBundle) checkStrictUpdatabilityLinting() bool {
 // unique apex variations for this module. See android/apex.go for more about unique apex variant.
 // TODO(jiyong): move this to android/apex.go?
 func apexUniqueVariationsMutator(mctx android.BottomUpMutatorContext) {
-	if !mctx.Module().Enabled() {
+	if !mctx.Module().Enabled(mctx) {
 		return
 	}
 	if am, ok := mctx.Module().(android.ApexModule); ok {
@@ -1208,7 +1208,7 @@ func apexUniqueVariationsMutator(mctx android.BottomUpMutatorContext) {
 // the apex in order to retrieve its contents later.
 // TODO(jiyong): move this to android/apex.go?
 func apexTestForDepsMutator(mctx android.BottomUpMutatorContext) {
-	if !mctx.Module().Enabled() {
+	if !mctx.Module().Enabled(mctx) {
 		return
 	}
 	if am, ok := mctx.Module().(android.ApexModule); ok {
@@ -1223,7 +1223,7 @@ func apexTestForDepsMutator(mctx android.BottomUpMutatorContext) {
 
 // TODO(jiyong): move this to android/apex.go?
 func apexTestForMutator(mctx android.BottomUpMutatorContext) {
-	if !mctx.Module().Enabled() {
+	if !mctx.Module().Enabled(mctx) {
 		return
 	}
 	if _, ok := mctx.Module().(android.ApexModule); ok {
@@ -1337,7 +1337,7 @@ func apexModuleTypeRequiresVariant(module ApexInfoMutator) bool {
 // See android.UpdateDirectlyInAnyApex
 // TODO(jiyong): move this to android/apex.go?
 func apexDirectlyInAnyMutator(mctx android.BottomUpMutatorContext) {
-	if !mctx.Module().Enabled() {
+	if !mctx.Module().Enabled(mctx) {
 		return
 	}
 	if am, ok := mctx.Module().(android.ApexModule); ok {
@@ -1965,7 +1965,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 	if _, ok := depTag.(android.ExcludeFromApexContentsTag); ok {
 		return false
 	}
-	if mod, ok := child.(android.Module); ok && !mod.Enabled() {
+	if mod, ok := child.(android.Module); ok && !mod.Enabled(ctx) {
 		return false
 	}
 	depName := ctx.OtherModuleName(child)

@@ -92,11 +92,7 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 			ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 				func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 					if len(library.logtagsSrcs) > 0 {
-						var logtags []string
-						for _, l := range library.logtagsSrcs {
-							logtags = append(logtags, l.Rel())
-						}
-						entries.AddStrings("LOCAL_LOGTAGS_FILES", logtags...)
+						entries.AddStrings("LOCAL_SOONG_LOGTAGS_FILES", library.logtagsSrcs.Strings()...)
 					}
 
 					if library.installFile == nil {
@@ -457,6 +453,8 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 				if app.Name() != "framework-res" {
 					android.SetAconfigFileMkEntries(&app.ModuleBase, entries, app.mergedAconfigFiles)
 				}
+
+				entries.AddStrings("LOCAL_SOONG_LOGTAGS_FILES", app.logtagsSrcs.Strings()...)
 			},
 		},
 		ExtraFooters: []android.AndroidMkExtraFootersFunc{

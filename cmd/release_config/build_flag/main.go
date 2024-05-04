@@ -325,7 +325,12 @@ func main() {
 	}
 
 	if len(commonFlags.targetReleases) == 0 {
-		commonFlags.targetReleases = rc_lib.StringList{"trunk_staging"}
+		release, ok := os.LookupEnv("TARGET_RELEASE")
+		if ok {
+			commonFlags.targetReleases = rc_lib.StringList{release}
+		} else {
+			commonFlags.targetReleases = rc_lib.StringList{"trunk_staging"}
+		}
 	}
 
 	if err = os.Chdir(commonFlags.top); err != nil {

@@ -179,7 +179,7 @@ func (s *javaFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 			javaFuzzModule.ApexModuleBase,
 		}
 
-		if ok := fuzz.IsValid(fuzzModuleValidator); !ok {
+		if ok := fuzz.IsValid(ctx, fuzzModuleValidator); !ok {
 			return
 		}
 

@@ -88,7 +88,7 @@ func (c *Module) AndroidMkEntries() []android.AndroidMkEntries {
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				if len(c.Properties.Logtags) > 0 {
-					entries.AddStrings("LOCAL_LOGTAGS_FILES", c.Properties.Logtags...)
+					entries.AddStrings("LOCAL_SOONG_LOGTAGS_FILES", c.logtagsPaths.Strings()...)
 				}
 				// Note: Pass the exact value of AndroidMkSystemSharedLibs to the Make
 				// world, even if it is an empty list. In the Make world,

@@ -18,6 +18,7 @@ package provenance
 
 import (
 	"android/soong/android"
+
 	"github.com/google/blueprint"
 )
 
@@ -68,6 +69,15 @@ type provenanceInfoSingleton struct {
 
 func (p *provenanceInfoSingleton) GenerateBuildActions(context android.SingletonContext) {
 	allMetaDataFiles := make([]android.Path, 0)
+	moduleFilter := func(module android.Module) bool {
+		if !module.Enabled(context) || module.IsSkipInstall() {
+			return false
+		}
+		if p, ok := module.(ProvenanceMetadata); ok {
+			return p.ProvenanceMetaDataFile().String() != ""
+		}
+		return false
+	}
 	context.VisitAllModulesIf(moduleFilter, func(module android.Module) {
 		if p, ok := module.(ProvenanceMetadata); ok {
 			allMetaDataFiles = append(allMetaDataFiles, p.ProvenanceMetaDataFile())
@@ -89,16 +99,6 @@ func (p *provenanceInfoSingleton) GenerateBuildActions(context android.Singleton
 	})
 
 	context.Phony("droidcore", android.PathForPhony(context, "provenance_metadata"))
-}
-
-func moduleFilter(module android.Module) bool {
-	if !module.Enabled() || module.IsSkipInstall() {
-		return false
-	}
-	if p, ok := module.(ProvenanceMetadata); ok {
-		return p.ProvenanceMetaDataFile().String() != ""
-	}
-	return false
 }
 
 func GenerateArtifactProvenanceMetaData(ctx android.ModuleContext, artifactPath android.Path, installedFile android.InstallPath) android.OutputPath {

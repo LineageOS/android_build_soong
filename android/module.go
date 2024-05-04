@@ -60,7 +60,7 @@ type Module interface {
 
 	base() *ModuleBase
 	Disable()
-	Enabled() bool
+	Enabled(ctx ConfigAndErrorContext) bool
 	Target() Target
 	MultiTargets() []Target
 
@@ -287,7 +287,7 @@ type commonProperties struct {
 	// but are not usually required (e.g. superceded by a prebuilt) should not be
 	// disabled as that will prevent them from being built by the checkbuild target
 	// and so prevent early detection of changes that have broken those modules.
-	Enabled *bool `android:"arch_variant"`
+	Enabled proptools.Configurable[bool] `android:"arch_variant,replace_instead_of_append"`
 
 	// Controls the visibility of this module to other modules. Allowable values are one or more of
 	// these formats:
@@ -483,6 +483,11 @@ type commonProperties struct {
 	//
 	// Set by osMutator.
 	CommonOSVariant bool `blueprint:"mutated"`
+
+	// When set to true, this module is not installed to the full install path (ex: under
+	// out/target/product/<name>/<partition>). It can be installed only to the packaging
+	// modules like android_filesystem.
+	No_full_install *bool
 
 	// When HideFromMake is set to true, no entry for this variant will be emitted in the
 	// generated Android.mk file.
@@ -1392,14 +1397,11 @@ func (m *ModuleBase) PartitionTag(config DeviceConfig) string {
 	return partition
 }
 
-func (m *ModuleBase) Enabled() bool {
+func (m *ModuleBase) Enabled(ctx ConfigAndErrorContext) bool {
 	if m.commonProperties.ForcedDisabled {
 		return false
 	}
-	if m.commonProperties.Enabled == nil {
-		return !m.Os().DefaultDisabled
-	}
-	return *m.commonProperties.Enabled
+	return m.commonProperties.Enabled.GetOrDefault(m.ConfigurableEvaluator(ctx), !m.Os().DefaultDisabled)
 }
 
 func (m *ModuleBase) Disable() {
@@ -1643,7 +1645,7 @@ func (m *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 		// not be created if the module is not exported to make.
 		// Those could depend on the build target and fail to compile
 		// for the current build target.
-		if !ctx.Config().KatiEnabled() || !shouldSkipAndroidMkProcessing(a) {
+		if !ctx.Config().KatiEnabled() || !shouldSkipAndroidMkProcessing(ctx, a) {
 			allCheckbuildFiles = append(allCheckbuildFiles, a.checkbuildFiles...)
 		}
 	})
@@ -1835,7 +1837,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		checkDistProperties(ctx, fmt.Sprintf("dists[%d]", i), &m.distProperties.Dists[i])
 	}
 
-	if m.Enabled() {
+	if m.Enabled(ctx) {
 		// ensure all direct android.Module deps are enabled
 		ctx.VisitDirectDepsBlueprint(func(bm blueprint.Module) {
 			if m, ok := bm.(Module); ok {
@@ -2136,7 +2138,7 @@ func (m *ModuleBase) ConfigurableEvaluator(ctx ConfigAndErrorContext) proptools.
 }
 
 func (e configurationEvalutor) PropertyErrorf(property string, fmt string, args ...interface{}) {
-	e.ctx.OtherModulePropertyErrorf(e.m, property, fmt, args)
+	e.ctx.OtherModulePropertyErrorf(e.m, property, fmt, args...)
 }
 
 func (e configurationEvalutor) EvaluateConfiguration(condition proptools.ConfigurableCondition, property string) proptools.ConfigurableValue {
@@ -2535,7 +2537,7 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 	}
 	osDeps := map[osAndCross]Paths{}
 	ctx.VisitAllModules(func(module Module) {
-		if module.Enabled() {
+		if module.Enabled(ctx) {
 			key := osAndCross{os: module.Target().Os, hostCross: module.Target().HostCross}
 			osDeps[key] = append(osDeps[key], module.base().checkbuildFiles...)
 		}

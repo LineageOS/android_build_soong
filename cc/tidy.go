@@ -220,7 +220,7 @@ func collectTidyObjModuleTargets(ctx android.SingletonContext, module android.Mo
 
 	// (1) Collect all obj/tidy files into OS-specific groups.
 	ctx.VisitAllModuleVariants(module, func(variant android.Module) {
-		if ctx.Config().KatiEnabled() && android.ShouldSkipAndroidMkProcessing(variant) {
+		if ctx.Config().KatiEnabled() && android.ShouldSkipAndroidMkProcessing(ctx, variant) {
 			return
 		}
 		if m, ok := variant.(*Module); ok {

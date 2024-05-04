@@ -293,15 +293,14 @@ type BottomUpMutatorContext interface {
 	// WalkDeps, etc.
 	AddInterVariantDependency(tag blueprint.DependencyTag, from, to blueprint.Module)
 
-	// ReplaceDependencies replaces all dependencies on the identical variant of the module with the
-	// specified name with the current variant of this module.  Replacements don't take effect until
-	// after the mutator pass is finished.
+	// ReplaceDependencies finds all the variants of the module with the specified name, then
+	// replaces all dependencies onto those variants with the current variant of this module.
+	// Replacements don't take effect until after the mutator pass is finished.
 	ReplaceDependencies(string)
 
-	// ReplaceDependencies replaces all dependencies on the identical variant of the module with the
-	// specified name with the current variant of this module as long as the supplied predicate returns
-	// true.
-	//
+	// ReplaceDependenciesIf finds all the variants of the module with the specified name, then
+	// replaces all dependencies onto those variants with the current variant of this module
+	// as long as the supplied predicate returns true.
 	// Replacements don't take effect until after the mutator pass is finished.
 	ReplaceDependenciesIf(string, blueprint.ReplaceDependencyPredicate)
 
@@ -595,11 +594,16 @@ func (a *androidTransitionMutator) IncomingTransition(bpctx blueprint.IncomingTr
 
 func (a *androidTransitionMutator) Mutate(ctx blueprint.BottomUpMutatorContext, variation string) {
 	if am, ok := ctx.Module().(Module); ok {
+		if variation != "" {
+			// TODO: this should really be checking whether the TransitionMutator affected this module, not
+			//  the empty variant, but TransitionMutator has no concept of skipping a module.
+			base := am.base()
+			base.commonProperties.DebugMutators = append(base.commonProperties.DebugMutators, a.name)
+			base.commonProperties.DebugVariations = append(base.commonProperties.DebugVariations, variation)
+		}
+
 		mctx := bottomUpMutatorContextFactory(ctx, am, a.finalPhase)
 		defer bottomUpMutatorContextPool.Put(mctx)
-		base := am.base()
-		base.commonProperties.DebugMutators = append(base.commonProperties.DebugMutators, a.name)
-		base.commonProperties.DebugVariations = append(base.commonProperties.DebugVariations, variation)
 		a.mutator.Mutate(mctx, variation)
 	}
 }
@@ -674,13 +678,11 @@ func RegisterComponentsMutator(ctx RegisterMutatorsContext) {
 // on component modules to be added so that they can depend directly on a prebuilt
 // module.
 func componentDepsMutator(ctx BottomUpMutatorContext) {
-	if m := ctx.Module(); m.Enabled() {
-		m.ComponentDepsMutator(ctx)
-	}
+	ctx.Module().ComponentDepsMutator(ctx)
 }
 
 func depsMutator(ctx BottomUpMutatorContext) {
-	if m := ctx.Module(); m.Enabled() {
+	if m := ctx.Module(); m.Enabled(ctx) {
 		m.base().baseDepsMutator(ctx)
 		m.DepsMutator(ctx)
 	}
