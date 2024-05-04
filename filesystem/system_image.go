@@ -98,5 +98,5 @@ func (s *systemImage) buildLinkerConfigFile(ctx android.ModuleContext, root andr
 // Note that "apex" module installs its contents to "apex"(fake partition) as well
 // for symbol lookup by imitating "activated" paths.
 func (s *systemImage) filterPackagingSpec(ps android.PackagingSpec) bool {
-	return ps.Partition() == "system"
+	return s.filesystem.filterInstallablePackagingSpec(ps) && ps.Partition() == "system"
 }
