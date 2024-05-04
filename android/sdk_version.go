@@ -40,9 +40,15 @@ type SdkContext interface {
 // SdkKind represents a particular category of an SDK spec like public, system, test, etc.
 type SdkKind int
 
+// These are generally ordered from the narrower sdk version to the wider sdk version,
+// but not all entries have a strict subset/superset relationship.
+// For example, SdkTest and SdkModule do not have a strict subset/superset relationship but both
+// are supersets of SdkSystem.
+// The general trend should be kept when an additional sdk kind is added.
 const (
 	SdkInvalid SdkKind = iota
 	SdkNone
+	SdkToolchain // API surface provided by ART to compile other API domains
 	SdkCore
 	SdkCorePlatform
 	SdkIntraCore // API surface provided by one core module to another
@@ -53,7 +59,6 @@ const (
 	SdkModule
 	SdkSystemServer
 	SdkPrivate
-	SdkToolchain // API surface provided by ART to compile other API domains
 )
 
 // String returns the string representation of this SdkKind
