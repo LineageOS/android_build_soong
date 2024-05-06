@@ -608,6 +608,10 @@ func transformSourceToObj(ctx ModuleContext, subdir string, srcFiles, noTidySrcs
 			ccCmd = "clang++"
 			moduleFlags = cppflags
 			moduleToolingFlags = toolingCppflags
+		case ".rs":
+			// A source provider (e.g. rust_bindgen) may provide both rs and c files.
+			// Ignore the rs files.
+			continue
 		case ".h", ".hpp":
 			ctx.PropertyErrorf("srcs", "Header file %s is not supported, instead use export_include_dirs or local_include_dirs.", srcFile)
 			continue
