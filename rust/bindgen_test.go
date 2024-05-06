@@ -228,9 +228,39 @@ func TestBindgenFlagFile(t *testing.T) {
 	// we may be able to check libbinder.RuleParams.Command to see if it contains $(cat /dev/null flag_file.txt)
 }
 
-
 func TestBindgenHandleStaticInlining(t *testing.T) {
 	ctx := testRust(t, `
+		rust_bindgen {
+			name: "libbindgen",
+			wrapper_src: "src/any.h",
+			crate_name: "bindgen",
+			stem: "libbindgen",
+			source_stem: "bindings",
+			handle_static_inline: true,
+			static_inline_library: "libbindgen_staticfns"
+		}
+
+		cc_library_static {
+			name: "libbindgen_staticfns",
+			srcs: [":libbindgen"],
+			include_dirs: ["src/"],
+		}
+	`)
+	libbindgen := ctx.ModuleForTests("libbindgen", "android_arm64_armv8-a_source").Output("bindings.rs")
+	// Make sure the flag to support `static inline` functions is present
+	if !strings.Contains(libbindgen.Args["flags"], "--wrap-static-fns") {
+		t.Errorf("missing flag to handle static inlining in rust_bindgen rule: flags %#v", libbindgen.Args["flags"])
+	}
+
+	if !strings.Contains(libbindgen.Args["flags"], "--wrap-static-fns-path") {
+		t.Errorf("missing flag to define path for static inlining C source from bindgen (--wrap-static-fns-path): flags %#v", libbindgen.Args["flags"])
+	}
+
+}
+
+func TestBindgenStaticInlineProperties(t *testing.T) {
+	// Make sure handle_static_inline without static_inline_library generates an error
+	testRustError(t, "requires declaring static_inline_library to the corresponding cc_library module that includes the generated C source from bindgen", `
 		rust_bindgen {
 			name: "libbindgen",
 			wrapper_src: "src/any.h",
@@ -240,9 +270,20 @@ func TestBindgenHandleStaticInlining(t *testing.T) {
 			handle_static_inline: true
 		}
 	`)
-	libbindgen := ctx.ModuleForTests("libbindgen", "android_arm64_armv8-a_source").Output("bindings.rs")
-	// Make sure the flag to support `static inline` functions is present
-	if !strings.Contains(libbindgen.Args["flags"], "--wrap-static-fns") {
-		t.Errorf("missing flag to handle static inlining in rust_bindgen rule: flags %#v", libbindgen.Args["flags"])
-	}
+	testRustError(t, "requires declaring handle_static_inline", `
+		rust_bindgen {
+			name: "libbindgen",
+			wrapper_src: "src/any.h",
+			crate_name: "bindgen",
+			stem: "libbindgen",
+			source_stem: "bindings",
+			static_inline_library: "libbindgen_staticfns"
+		}
+
+		cc_library_static {
+			name: "libbindgen_staticfns",
+			srcs: [":libbindgen"],
+			include_dirs: ["src/"],
+		}
+	`)
 }
