@@ -1566,7 +1566,7 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			addStaticDeps(config.BuiltinsRuntimeLibrary(toolchain), true)
 		}
 
-		if runtimeSharedLibrary != "" && (toolchain.Bionic() || toolchain.Musl() || c.sanitize.Properties.UbsanRuntimeDep) {
+		if runtimeSharedLibrary != "" && (toolchain.Bionic() || toolchain.Musl()) {
 			// UBSan is supported on non-bionic linux host builds as well
 
 			// Adding dependency to the runtime library. We are using *FarVariation*
