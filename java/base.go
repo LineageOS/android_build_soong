@@ -1682,7 +1682,11 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 			j.dexJarFile = makeDexJarPathFromPath(dexOutputFile)
 
 			// Dexpreopting
-			j.dexpreopt(ctx, android.RemoveOptionalPrebuiltPrefix(ctx.ModuleName()), dexOutputFile)
+			libName := android.RemoveOptionalPrebuiltPrefix(ctx.ModuleName())
+			if j.SdkLibraryName() != nil && strings.HasSuffix(ctx.ModuleName(), ".impl") {
+				libName = strings.TrimSuffix(libName, ".impl")
+			}
+			j.dexpreopt(ctx, libName, dexOutputFile)
 
 			outputFile = dexOutputFile
 		} else {

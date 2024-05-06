@@ -950,6 +950,10 @@ type commonToSdkLibraryAndImport struct {
 	// Path to the header jars of the implementation library
 	// This is non-empty only when api_only is false.
 	implLibraryHeaderJars android.Paths
+
+	// The reference to the implementation library created by the source module.
+	// Is nil if the source module does not exist.
+	implLibraryModule *Library
 }
 
 func (c *commonToSdkLibraryAndImport) initCommon(module commonSdkLibraryAndImportModule) {
@@ -994,6 +998,10 @@ func (c *commonToSdkLibraryAndImport) uniqueApexVariations() bool {
 
 func (c *commonToSdkLibraryAndImport) generateCommonBuildActions(ctx android.ModuleContext) {
 	c.doctagPaths = android.PathsForModuleSrc(ctx, c.commonSdkLibraryProperties.Doctag_files)
+}
+
+func (c *commonToSdkLibraryAndImport) getImplLibraryModule() *Library {
+	return c.implLibraryModule
 }
 
 // Module name of the runtime implementation library
@@ -1372,6 +1380,8 @@ type SdkLibraryDependency interface {
 
 	// sharedLibrary returns true if this can be used as a shared library.
 	sharedLibrary() bool
+
+	getImplLibraryModule() *Library
 }
 
 type SdkLibrary struct {
@@ -1383,12 +1393,28 @@ type SdkLibrary struct {
 	scopeToProperties map[*apiScope]*ApiScopeProperties
 
 	commonToSdkLibraryAndImport
+
+	builtInstalledForApex []dexpreopterInstall
 }
 
 var _ SdkLibraryDependency = (*SdkLibrary)(nil)
 
 func (module *SdkLibrary) generateTestAndSystemScopesByDefault() bool {
 	return module.sdkLibraryProperties.Generate_system_and_test_apis
+}
+
+func (module *SdkLibrary) DexJarBuildPath(ctx android.ModuleErrorfContext) OptionalDexJarPath {
+	if module.implLibraryModule != nil {
+		return module.implLibraryModule.DexJarBuildPath(ctx)
+	}
+	return makeUnsetDexJarPath()
+}
+
+func (module *SdkLibrary) DexJarInstallPath() android.Path {
+	if module.implLibraryModule != nil {
+		return module.implLibraryModule.DexJarInstallPath()
+	}
+	return nil
 }
 
 func (module *SdkLibrary) getGeneratedApiScopes(ctx android.EarlyModuleContext) apiScopes {
@@ -1442,6 +1468,10 @@ func (module *SdkLibrary) getGeneratedApiScopes(ctx android.EarlyModuleContext) 
 var _ android.ModuleWithMinSdkVersionCheck = (*SdkLibrary)(nil)
 
 func (module *SdkLibrary) CheckMinSdkVersion(ctx android.ModuleContext) {
+	CheckMinSdkVersion(ctx, &module.Library)
+}
+
+func CheckMinSdkVersion(ctx android.ModuleContext, module *Library) {
 	android.CheckMinSdkVersion(ctx, module.MinSdkVersion(ctx), func(c android.ModuleContext, do android.PayloadDepsCallback) {
 		ctx.WalkDeps(func(child android.Module, parent android.Module) bool {
 			isExternal := !module.depIsInSameApex(ctx, child)
@@ -1538,10 +1568,6 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 		m += "Please see the documentation of the prebuilt_apis module type (and a usage example in prebuilts/sdk) for a convenient way to generate these."
 		ctx.ModuleErrorf(m)
 	}
-	if module.requiresRuntimeImplementationLibrary() {
-		// Only add the deps for the library if it is actually going to be built.
-		module.Library.deps(ctx)
-	}
 }
 
 func (module *SdkLibrary) OutputFiles(tag string) (android.Paths, error) {
@@ -1550,7 +1576,7 @@ func (module *SdkLibrary) OutputFiles(tag string) (android.Paths, error) {
 		return paths, err
 	}
 	if module.requiresRuntimeImplementationLibrary() {
-		return module.Library.OutputFiles(tag)
+		return module.implLibraryModule.OutputFiles(tag)
 	}
 	if tag == "" {
 		return nil, nil
@@ -1565,18 +1591,12 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		// TODO (b/331665856): Implement a principled solution for this.
 		module.HideFromMake()
 	}
-	if proptools.String(module.deviceProperties.Min_sdk_version) != "" {
-		module.CheckMinSdkVersion(ctx)
-	}
 
 	module.generateCommonBuildActions(ctx)
 
-	// Only build an implementation library if required.
-	if module.requiresRuntimeImplementationLibrary() {
-		// stubsLinkType must be set before calling Library.GenerateAndroidBuildActions
-		module.Library.stubsLinkType = Unknown
-		module.Library.GenerateAndroidBuildActions(ctx)
-	}
+	module.stem = proptools.StringDefault(module.overridableProperties.Stem, ctx.ModuleName())
+
+	module.provideHiddenAPIPropertyInfo(ctx)
 
 	// Collate the components exported by this module. All scope specific modules are exported but
 	// the impl and xml component modules are not.
@@ -1603,9 +1623,39 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		if tag == implLibraryTag {
 			if dep, ok := android.OtherModuleProvider(ctx, to, JavaInfoProvider); ok {
 				module.implLibraryHeaderJars = append(module.implLibraryHeaderJars, dep.HeaderJars...)
+				module.implLibraryModule = to.(*Library)
+				android.SetProvider(ctx, JavaInfoProvider, dep)
 			}
 		}
 	})
+
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
+	if !apexInfo.IsForPlatform() {
+		module.hideApexVariantFromMake = true
+	}
+
+	if module.implLibraryModule != nil {
+		if ctx.Device() {
+			module.classesJarPaths = android.Paths{module.implLibraryModule.implementationJarFile}
+			module.bootDexJarPath = module.implLibraryModule.bootDexJarPath
+			module.uncompressDexState = module.implLibraryModule.uncompressDexState
+			module.active = module.implLibraryModule.active
+		}
+
+		module.outputFile = module.implLibraryModule.outputFile
+		module.dexJarFile = makeDexJarPathFromPath(module.implLibraryModule.dexJarFile.Path())
+		module.headerJarFile = module.implLibraryModule.headerJarFile
+		module.implementationAndResourcesJar = module.implLibraryModule.implementationAndResourcesJar
+		module.builtInstalledForApex = module.implLibraryModule.builtInstalledForApex
+		module.dexpreopter.configPath = module.implLibraryModule.dexpreopter.configPath
+		module.dexpreopter.outputProfilePathOnHost = module.implLibraryModule.dexpreopter.outputProfilePathOnHost
+
+		if !module.Host() {
+			module.hostdexInstallFile = module.implLibraryModule.hostdexInstallFile
+		}
+
+		android.SetProvider(ctx, blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: module.implLibraryModule.uniqueSrcFiles.Strings()})
+	}
 
 	// Make the set of components exported by this module available for use elsewhere.
 	exportedComponentInfo := android.ExportedComponentsInfo{Components: android.SortedKeys(exportedComponents)}
@@ -1636,13 +1686,18 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	android.SetProvider(ctx, android.AdditionalSdkInfoProvider, android.AdditionalSdkInfo{additionalSdkInfo})
 }
 
+func (module *SdkLibrary) BuiltInstalledForApex() []dexpreopterInstall {
+	return module.builtInstalledForApex
+}
+
 func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
 	if !module.requiresRuntimeImplementationLibrary() {
 		return nil
 	}
 	entriesList := module.Library.AndroidMkEntries()
+	entries := &entriesList[0]
+	entries.Required = append(entries.Required, module.implLibraryModuleName())
 	if module.sharedLibrary() {
-		entries := &entriesList[0]
 		entries.Required = append(entries.Required, module.xmlPermissionsModuleName())
 	}
 	return entriesList
@@ -1763,20 +1818,21 @@ func (module *SdkLibrary) createImplLibrary(mctx android.DefaultableHookContext)
 		Libs           []string
 		Static_libs    []string
 		Apex_available []string
+		Stem           *string
 	}{
 		Name:       proptools.StringPtr(module.implLibraryModuleName()),
 		Visibility: visibility,
 		// Set the instrument property to ensure it is instrumented when instrumentation is required.
 		Instrument: true,
-		// Set the impl_only libs. Note that the module's "Libs" get appended as well, via the
-		// addition of &module.properties below.
-		Libs: module.sdkLibraryProperties.Impl_only_libs,
-		// Set the impl_only static libs. Note that the module's "static_libs" get appended as well, via the
-		// addition of &module.properties below.
-		Static_libs: module.sdkLibraryProperties.Impl_only_static_libs,
+
+		Libs: append(module.properties.Libs, module.sdkLibraryProperties.Impl_only_libs...),
+
+		Static_libs: append(module.properties.Static_libs, module.sdkLibraryProperties.Impl_only_static_libs...),
 		// Pass the apex_available settings down so that the impl library can be statically
 		// embedded within a library that is added to an APEX. Needed for updatable-media.
 		Apex_available: module.ApexAvailable(),
+
+		Stem: proptools.StringPtr(module.Name()),
 	}
 
 	properties := []interface{}{
@@ -2165,6 +2221,9 @@ func (module *SdkLibrary) compareAgainstLatestApi(apiScope *apiScope) bool {
 func (module *SdkLibrary) DepIsInSameApex(mctx android.BaseModuleContext, dep android.Module) bool {
 	depTag := mctx.OtherModuleDependencyTag(dep)
 	if depTag == xmlPermissionsFileTag {
+		return true
+	}
+	if dep.Name() == module.implLibraryModuleName() {
 		return true
 	}
 	return module.Library.DepIsInSameApex(mctx, dep)
@@ -2591,10 +2650,6 @@ type SdkLibraryImport struct {
 	scopeProperties map[*apiScope]*sdkLibraryScopeProperties
 
 	commonToSdkLibraryAndImport
-
-	// The reference to the implementation library created by the source module.
-	// Is nil if the source module does not exist.
-	implLibraryModule *Library
 
 	// The reference to the xml permissions module created by the source module.
 	// Is nil if the source module does not exist.
@@ -3560,7 +3615,8 @@ func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMembe
 	s.Min_device_sdk = sdk.commonSdkLibraryProperties.Min_device_sdk
 	s.Max_device_sdk = sdk.commonSdkLibraryProperties.Max_device_sdk
 
-	if sdk.dexpreopter.dexpreoptProperties.Dex_preopt_result.Profile_guided {
+	implLibrary := sdk.getImplLibraryModule()
+	if implLibrary != nil && implLibrary.dexpreopter.dexpreoptProperties.Dex_preopt_result.Profile_guided {
 		s.DexPreoptProfileGuided = proptools.BoolPtr(true)
 	}
 }
