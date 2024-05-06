@@ -102,8 +102,17 @@ type BindgenProperties struct {
 	// "my_bindgen [flags] wrapper_header.h -o [output_path] -- [clang flags]"
 	Custom_bindgen string
 
-	// flag to indicate if bindgen should handle `static inline` functions (default is false)
-	Handle_static_inline bool
+	// flag to indicate if bindgen should handle `static inline` functions (default is false).
+	// If true, Static_inline_library must be set.
+	Handle_static_inline *bool
+
+	// module name of the corresponding cc_library_static which includes the static_inline wrapper
+	// generated functions from bindgen. Must be used together with handle_static_inline.
+	//
+	// If there are no static inline functions provided through the header file,
+	// then bindgen (as of 0.69.2) will silently fail to output a .c file, and
+	// the cc_library_static depending on this module will fail compilation.
+	Static_inline_library *string
 }
 
 type bindgenDecorator struct {
@@ -159,6 +168,18 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 
 	var cflags []string
 	var implicits android.Paths
+	var implicitOutputs android.WritablePaths
+	var validations android.Paths
+
+	if Bool(b.Properties.Handle_static_inline) && b.Properties.Static_inline_library == nil {
+		ctx.PropertyErrorf("handle_static_inline",
+			"requires declaring static_inline_library to the corresponding cc_library module that includes the generated C source from bindgen.")
+	}
+
+	if b.Properties.Static_inline_library != nil && !Bool(b.Properties.Handle_static_inline) {
+		ctx.PropertyErrorf("static_inline_library",
+			"requires declaring handle_static_inline.")
+	}
 
 	implicits = append(implicits, deps.depGeneratedHeaders...)
 
@@ -235,8 +256,11 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 
 	bindgenFlags := defaultBindgenFlags
 	bindgenFlags = append(bindgenFlags, esc(b.Properties.Bindgen_flags)...)
-	if b.Properties.Handle_static_inline {
-		bindgenFlags = append(bindgenFlags, "--experimental --wrap-static-fns")
+	if Bool(b.Properties.Handle_static_inline) {
+		outputStaticFnsFile := android.PathForModuleOut(ctx, b.BaseSourceProvider.getStem(ctx)+".c")
+		implicitOutputs = append(implicitOutputs, outputStaticFnsFile)
+		validations = append(validations, outputStaticFnsFile)
+		bindgenFlags = append(bindgenFlags, []string{"--experimental", "--wrap-static-fns", "--wrap-static-fns-path=" + outputStaticFnsFile.String()}...)
 	}
 
 	// cat reads from stdin if its command line is empty,
@@ -285,11 +309,13 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	}
 
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        bindgen,
-		Description: strings.Join([]string{cmdDesc, wrapperFile.Path().Rel()}, " "),
-		Output:      outputFile,
-		Input:       wrapperFile.Path(),
-		Implicits:   implicits,
+		Rule:            bindgen,
+		Description:     strings.Join([]string{cmdDesc, wrapperFile.Path().Rel()}, " "),
+		Output:          outputFile,
+		Input:           wrapperFile.Path(),
+		Implicits:       implicits,
+		ImplicitOutputs: implicitOutputs,
+		Validations:     validations,
 		Args: map[string]string{
 			"cmd":       cmd,
 			"flags":     strings.Join(bindgenFlags, " "),
@@ -299,6 +325,14 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	})
 
 	b.BaseSourceProvider.OutputFiles = android.Paths{outputFile}
+
+	// Append any additional implicit outputs after the entry point source.
+	// We append any generated .c file here so it can picked up by cc_library_static modules.
+	// Those CC modules need to be sure not to pass any included .rs files to Clang.
+	// We don't have to worry about the additional .c files for Rust modules as only the entry point
+	// is passed to rustc.
+	b.BaseSourceProvider.OutputFiles = append(b.BaseSourceProvider.OutputFiles, implicitOutputs.Paths()...)
+
 	return outputFile
 }
 
@@ -348,6 +382,14 @@ func (b *bindgenDecorator) SourceProviderDeps(ctx DepsContext, deps Deps) Deps {
 		deps = bionicDeps(ctx, deps, false)
 	} else if ctx.Os() == android.LinuxMusl {
 		deps = muslDeps(ctx, deps, false)
+	}
+
+	if !ctx.RustModule().Source() && b.Properties.Static_inline_library != nil {
+		// This is not the source variant, so add the static inline library as a dependency.
+		//
+		// This is necessary to avoid a circular dependency between the source variant and the
+		// dependent cc module.
+		deps.StaticLibs = append(deps.StaticLibs, String(b.Properties.Static_inline_library))
 	}
 
 	deps.SharedLibs = append(deps.SharedLibs, b.ClangProperties.Shared_libs...)

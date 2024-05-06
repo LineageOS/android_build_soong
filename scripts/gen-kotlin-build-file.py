@@ -79,7 +79,7 @@ def main():
         elif src.endswith('.kt'):
           f.write('    <sources path="%s"/>\n' % path)
         else:
-          raise RuntimeError('unknown source file type %s' % file)
+          raise RuntimeError(f'unknown source file type {src} from rspfile {rsp_file}')
 
     for rsp_file in args.common_srcs:
       for src in NinjaRspFileReader(rsp_file):
