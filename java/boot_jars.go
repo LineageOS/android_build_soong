@@ -21,8 +21,8 @@ import (
 // isActiveModule returns true if the given module should be considered for boot
 // jars, i.e. if it's enabled and the preferred one in case of source and
 // prebuilt alternatives.
-func isActiveModule(module android.Module) bool {
-	if !module.Enabled() {
+func isActiveModule(ctx android.ConfigAndErrorContext, module android.Module) bool {
+	if !module.Enabled(ctx) {
 		return false
 	}
 	return android.IsModulePreferred(module)

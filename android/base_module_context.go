@@ -325,7 +325,7 @@ func (b *baseModuleContext) validateAndroidModule(module blueprint.Module, tag b
 		return nil
 	}
 
-	if !aModule.Enabled() {
+	if !aModule.Enabled(b) {
 		if t, ok := tag.(AllowDisabledModuleDependency); !ok || !t.AllowDisabledModuleDependency(aModule) {
 			if b.Config().AllowMissingDependencies() {
 				b.AddMissingDependencies([]string{b.OtherModuleName(aModule)})

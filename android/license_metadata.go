@@ -36,7 +36,7 @@ var (
 func buildLicenseMetadata(ctx ModuleContext, licenseMetadataFile WritablePath) {
 	base := ctx.Module().base()
 
-	if !base.Enabled() {
+	if !base.Enabled(ctx) {
 		return
 	}
 
@@ -69,7 +69,7 @@ func buildLicenseMetadata(ctx ModuleContext, licenseMetadataFile WritablePath) {
 		if dep == nil {
 			return
 		}
-		if !dep.Enabled() {
+		if !dep.Enabled(ctx) {
 			return
 		}
 

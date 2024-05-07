@@ -1385,7 +1385,7 @@ func sanitizerRuntimeDepsMutator(mctx android.TopDownMutatorContext) {
 // Add the dependency to the runtime library for each of the sanitizer variants
 func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 	if c, ok := mctx.Module().(*Module); ok && c.sanitize != nil {
-		if !c.Enabled() {
+		if !c.Enabled(mctx) {
 			return
 		}
 		var sanitizers []string

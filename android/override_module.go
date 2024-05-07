@@ -354,7 +354,7 @@ func checkPrebuiltReplacesOverride(ctx BottomUpMutatorContext, b OverridableModu
 }
 
 func overridableModuleDepsMutator(ctx BottomUpMutatorContext) {
-	if b, ok := ctx.Module().(OverridableModule); ok && b.Enabled() {
+	if b, ok := ctx.Module().(OverridableModule); ok && b.Enabled(ctx) {
 		b.OverridablePropertiesDepsMutator(ctx)
 	}
 }
