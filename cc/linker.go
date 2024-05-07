@@ -431,7 +431,7 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	if ctx.toolchain().Bionic() {
 		// libclang_rt.builtins has to be last on the command line
 		if linker.Properties.libCrt() && !ctx.header() {
-			deps.UnexportedStaticLibs = append(deps.UnexportedStaticLibs, config.BuiltinsRuntimeLibrary(ctx.toolchain()))
+			deps.UnexportedStaticLibs = append(deps.UnexportedStaticLibs, config.BuiltinsRuntimeLibrary())
 		}
 
 		if inList("libdl", deps.SharedLibs) {
@@ -454,7 +454,7 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		}
 	} else if ctx.toolchain().Musl() {
 		if linker.Properties.libCrt() && !ctx.header() {
-			deps.UnexportedStaticLibs = append(deps.UnexportedStaticLibs, config.BuiltinsRuntimeLibrary(ctx.toolchain()))
+			deps.UnexportedStaticLibs = append(deps.UnexportedStaticLibs, config.BuiltinsRuntimeLibrary())
 		}
 	}
 

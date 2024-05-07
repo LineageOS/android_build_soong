@@ -28,6 +28,16 @@ var (
 	modulesWarningsAllowedKey    = android.NewOnceKey("ModulesWarningsAllowed")
 	modulesUsingWnoErrorKey      = android.NewOnceKey("ModulesUsingWnoError")
 	modulesMissingProfileFileKey = android.NewOnceKey("ModulesMissingProfileFile")
+	sanitizerVariables           = map[string]string{
+		"ADDRESS_SANITIZER_RUNTIME_LIBRARY":   config.AddressSanitizerRuntimeLibrary(),
+		"HWADDRESS_SANITIZER_RUNTIME_LIBRARY": config.HWAddressSanitizerRuntimeLibrary(),
+		"HWADDRESS_SANITIZER_STATIC_LIBRARY":  config.HWAddressSanitizerStaticLibrary(),
+		"UBSAN_RUNTIME_LIBRARY":               config.UndefinedBehaviorSanitizerRuntimeLibrary(),
+		"UBSAN_MINIMAL_RUNTIME_LIBRARY":       config.UndefinedBehaviorSanitizerMinimalRuntimeLibrary(),
+		"TSAN_RUNTIME_LIBRARY":                config.ThreadSanitizerRuntimeLibrary(),
+		"SCUDO_RUNTIME_LIBRARY":               config.ScudoRuntimeLibrary(),
+		"SCUDO_MINIMAL_RUNTIME_LIBRARY":       config.ScudoMinimalRuntimeLibrary(),
+	}
 )
 
 func init() {
@@ -261,43 +271,9 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 	}, " "))
 
 	if target.Os.Class == android.Device {
-		sanitizerVariables := map[string]string{
-			"ADDRESS_SANITIZER_RUNTIME_LIBRARY":   config.AddressSanitizerRuntimeLibrary(toolchain),
-			"HWADDRESS_SANITIZER_RUNTIME_LIBRARY": config.HWAddressSanitizerRuntimeLibrary(toolchain),
-			"HWADDRESS_SANITIZER_STATIC_LIBRARY":  config.HWAddressSanitizerStaticLibrary(toolchain),
-			"UBSAN_RUNTIME_LIBRARY":               config.UndefinedBehaviorSanitizerRuntimeLibrary(toolchain),
-			"UBSAN_MINIMAL_RUNTIME_LIBRARY":       config.UndefinedBehaviorSanitizerMinimalRuntimeLibrary(toolchain),
-			"TSAN_RUNTIME_LIBRARY":                config.ThreadSanitizerRuntimeLibrary(toolchain),
-			"SCUDO_RUNTIME_LIBRARY":               config.ScudoRuntimeLibrary(toolchain),
-			"SCUDO_MINIMAL_RUNTIME_LIBRARY":       config.ScudoMinimalRuntimeLibrary(toolchain),
-		}
-
 		for variable, value := range sanitizerVariables {
 			ctx.Strict(secondPrefix+variable, value)
 		}
-
-		sanitizerLibs := android.SortedStringValues(sanitizerVariables)
-		var sanitizerLibStems []string
-		ctx.VisitAllModules(func(m android.Module) {
-			if !m.Enabled(ctx) {
-				return
-			}
-
-			ccModule, _ := m.(*Module)
-			if ccModule == nil || ccModule.library == nil || !ccModule.library.shared() {
-				return
-			}
-
-			if android.InList(strings.TrimPrefix(ctx.ModuleName(m), "prebuilt_"), sanitizerLibs) &&
-				m.Target().Os == target.Os && m.Target().Arch.ArchType == target.Arch.ArchType {
-				outputFile := ccModule.outputFile
-				if outputFile.Valid() {
-					sanitizerLibStems = append(sanitizerLibStems, outputFile.Path().Base())
-				}
-			}
-		})
-		sanitizerLibStems = android.SortedUniqueStrings(sanitizerLibStems)
-		ctx.Strict(secondPrefix+"SANITIZER_STEMS", strings.Join(sanitizerLibStems, " "))
 	}
 
 	// This is used by external/gentoo/...

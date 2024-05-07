@@ -128,13 +128,13 @@ func (fuzzBin *fuzzBinary) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	if ctx.Config().Getenv("FUZZ_FRAMEWORK") == "AFL" {
 		deps.HeaderLibs = append(deps.HeaderLibs, "libafl_headers")
 	} else {
-		deps.StaticLibs = append(deps.StaticLibs, config.LibFuzzerRuntimeLibrary(ctx.toolchain()))
+		deps.StaticLibs = append(deps.StaticLibs, config.LibFuzzerRuntimeLibrary())
 		// Fuzzers built with HWASAN should use the interceptors for better
 		// mutation based on signals in strcmp, memcpy, etc. This is only needed for
 		// fuzz targets, not generic HWASAN-ified binaries or libraries.
 		if module, ok := ctx.Module().(*Module); ok {
 			if module.IsSanitizerEnabled(Hwasan) {
-				deps.StaticLibs = append(deps.StaticLibs, config.LibFuzzerRuntimeInterceptors(ctx.toolchain()))
+				deps.StaticLibs = append(deps.StaticLibs, config.LibFuzzerRuntimeInterceptors())
 			}
 		}
 	}
