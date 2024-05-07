@@ -195,7 +195,7 @@ func isContainerFromFileExtensions(installPaths InstallPaths, builtPaths Paths) 
 
 	for _, path := range paths {
 		switch path.Ext() {
-		case ".zip", ".tar", ".tgz", ".tar.gz", ".img", ".srcszip", ".apex":
+		case ".zip", ".tar", ".tgz", ".tar.gz", ".img", ".srcszip", ".apex", ".capex":
 			return true
 		}
 	}
