@@ -121,6 +121,11 @@ func (txt *llndkLibrariesTxtModule) GenerateAndroidBuildActions(ctx android.Modu
 }
 
 func (txt *llndkLibrariesTxtModule) GenerateSingletonBuildActions(ctx android.SingletonContext) {
+	if txt.outputFile.String() == "" {
+		// Skip if target file path is empty
+		return
+	}
+
 	ctx.VisitAllModules(func(m android.Module) {
 		if c, ok := m.(*Module); ok && c.VendorProperties.IsLLNDK && !c.Header() && !c.IsVndkPrebuiltLibrary() {
 			filename, err := getVndkFileName(c)
