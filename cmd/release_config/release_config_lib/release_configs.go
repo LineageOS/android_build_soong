@@ -131,6 +131,32 @@ func ReleaseConfigMapFactory(protoPath string) (m *ReleaseConfigMap) {
 	return m
 }
 
+// Find the top of the release config contribution directory.
+// Returns the parent of the flag_declarations and flag_values directories.
+func (configs *ReleaseConfigs) GetDirIndex(path string) (int, error) {
+	for p := path; p != "."; p = filepath.Dir(p) {
+		if idx, ok := configs.configDirIndexes[p]; ok {
+			return idx, nil
+		}
+	}
+	return -1, fmt.Errorf("Could not determine release config directory from %s", path)
+}
+
+// Determine the default directory for writing a flag value.
+//
+// Returns the path of the highest-Indexed one of:
+//   - Where the flag is declared
+//   - Where the release config is first declared
+//   - The last place the value is being written.
+func (configs *ReleaseConfigs) GetFlagValueDirectory(config *ReleaseConfig, flag *FlagArtifact) (string, error) {
+	current, err := configs.GetDirIndex(*flag.Traces[len(flag.Traces)-1].Source)
+	if err != nil {
+		return "", err
+	}
+	index := max(flag.DeclarationIndex, config.DeclarationIndex, current)
+	return configs.configDirs[index], nil
+}
+
 func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex int) error {
 	if _, err := os.Stat(path); err != nil {
 		return fmt.Errorf("%s does not exist\n", path)
