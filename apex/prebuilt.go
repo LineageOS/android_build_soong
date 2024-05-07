@@ -503,9 +503,6 @@ type Prebuilt struct {
 	inputApex android.Path
 
 	provenanceMetaDataFile android.OutputPath
-
-	// Single aconfig "cache file" merged from this module and all dependencies.
-	mergedAconfigFiles map[string]android.Paths
 }
 
 type ApexFileProperties struct {
@@ -881,8 +878,6 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		p.installedFile = ctx.InstallFile(p.installDir, p.installFilename, p.inputApex, p.compatSymlinks...)
 		p.provenanceMetaDataFile = provenance.GenerateArtifactProvenanceMetaData(ctx, p.inputApex, p.installedFile)
 	}
-
-	android.CollectDependencyAconfigFiles(ctx, &p.mergedAconfigFiles)
 }
 
 func (p *Prebuilt) ProvenanceMetaDataFile() android.OutputPath {

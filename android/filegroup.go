@@ -56,9 +56,6 @@ type fileGroup struct {
 	DefaultableModuleBase
 	properties fileGroupProperties
 	srcs       Paths
-
-	// Aconfig files for all transitive deps.  Also exposed via TransitiveDeclarationsInfo
-	mergedAconfigFiles map[string]Paths
 }
 
 var _ SourceFileProducer = (*fileGroup)(nil)
@@ -97,7 +94,6 @@ func (fg *fileGroup) GenerateAndroidBuildActions(ctx ModuleContext) {
 		fg.srcs = PathsWithModuleSrcSubDir(ctx, fg.srcs, String(fg.properties.Path))
 	}
 	SetProvider(ctx, blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: fg.srcs.Strings()})
-	CollectDependencyAconfigFiles(ctx, &fg.mergedAconfigFiles)
 
 	var aconfigDeclarations []string
 	var intermediateCacheOutputPaths Paths
