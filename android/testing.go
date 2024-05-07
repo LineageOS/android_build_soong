@@ -1122,7 +1122,7 @@ func AndroidMkEntriesForTest(t *testing.T, ctx *TestContext, mod blueprint.Modul
 
 	entriesList := p.AndroidMkEntries()
 	aconfigUpdateAndroidMkEntries(ctx, mod.(Module), &entriesList)
-	for i := range entriesList {
+	for i, _ := range entriesList {
 		entriesList[i].fillInEntries(ctx, mod)
 	}
 	return entriesList
