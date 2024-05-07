@@ -446,8 +446,15 @@ func (library *libraryDecorator) sharedLibFilename(ctx ModuleContext) string {
 	return library.getStem(ctx) + ctx.toolchain().SharedLibSuffix()
 }
 
+// Library cfg flags common to all variants
+func CommonLibraryCfgFlags(ctx android.ModuleContext, flags Flags) Flags {
+	return flags
+}
+
 func (library *libraryDecorator) cfgFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = library.baseCompiler.cfgFlags(ctx, flags)
+	flags = CommonLibraryCfgFlags(ctx, flags)
+
 	if library.dylib() {
 		// We need to add a dependency on std in order to link crates as dylibs.
 		// The hack to add this dependency is guarded by the following cfg so
@@ -455,8 +462,15 @@ func (library *libraryDecorator) cfgFlags(ctx ModuleContext, flags Flags) Flags 
 		library.baseCompiler.Properties.Cfgs = append(library.baseCompiler.Properties.Cfgs, "android_dylib")
 	}
 
-	flags.RustFlags = append(flags.RustFlags, library.baseCompiler.cfgsToFlags()...)
-	flags.RustdocFlags = append(flags.RustdocFlags, library.baseCompiler.cfgsToFlags()...)
+	flags.RustFlags = append(flags.RustFlags, cfgsToFlags(library.baseCompiler.Properties.Cfgs)...)
+	flags.RustdocFlags = append(flags.RustdocFlags, cfgsToFlags(library.baseCompiler.Properties.Cfgs)...)
+
+	return flags
+}
+
+// Common flags applied to all libraries irrespective of properties or variant should be included here
+func CommonLibraryCompilerFlags(ctx android.ModuleContext, flags Flags) Flags {
+	flags.RustFlags = append(flags.RustFlags, "-C metadata="+ctx.ModuleName())
 
 	return flags
 }
@@ -464,7 +478,8 @@ func (library *libraryDecorator) cfgFlags(ctx ModuleContext, flags Flags) Flags 
 func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = library.baseCompiler.compilerFlags(ctx, flags)
 
-	flags.RustFlags = append(flags.RustFlags, "-C metadata="+ctx.ModuleName())
+	flags = CommonLibraryCompilerFlags(ctx, flags)
+
 	if library.shared() || library.static() {
 		library.includeDirs = append(library.includeDirs, android.PathsForModuleSrc(ctx, library.Properties.Include_dirs)...)
 		library.includeDirs = append(library.includeDirs, android.PathsForModuleSrc(ctx, library.Properties.Export_include_dirs)...)
