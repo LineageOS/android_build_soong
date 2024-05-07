@@ -266,7 +266,7 @@ func SetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 		return fmt.Errorf("Unknown build flag %s", name)
 	}
 	if valueDir == "" {
-		mapDir, err := GetMapDir(*flagArtifact.Traces[len(flagArtifact.Traces)-1].Source)
+		mapDir, err := configs.GetFlagValueDirectory(release, flagArtifact)
 		if err != nil {
 			return err
 		}
