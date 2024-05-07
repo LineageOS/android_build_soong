@@ -29,7 +29,7 @@ import (
 
 // One directory's contribution to the a release config.
 type ReleaseConfigContribution struct {
-	// Paths to files providing this config.
+	// Path of the file providing this config contribution.
 	path string
 
 	// The index of the config directory where this release config
