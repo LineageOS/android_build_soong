@@ -4477,5 +4477,54 @@ func TestAppMinSdkVersionOverride(t *testing.T) {
 		fooOverride.BuildParams.Args["args"],
 		"--minSdkVersion  33",
 	)
+}
 
+func TestNonUpdatableSystem(t *testing.T) {
+	ctx := testApp(t, `
+		android_app {
+			name: "foo",
+			srcs: ["a.java"],
+			sdk_version: "current",
+			aaptflags: [
+				"--version-code 1",
+			],
+		}
+		android_app {
+			name: "bar",
+			srcs: ["a.java"],
+			sdk_version: "current",
+		}
+		android_test {
+			name: "baz",
+			srcs: ["a.java"],
+			sdk_version: "current",
+		}
+		android_test_helper_app {
+			name: "baz_helper",
+			srcs: ["a.java"],
+			sdk_version: "current",
+		}
+	`)
+
+	hasNonUpdatableSystemFlag := func(module android.TestingModule) bool {
+		moduleAapt2LinkRule := module.Rule("android/soong/java.aapt2Link")
+		linkFlags := moduleAapt2LinkRule.Args["flags"]
+		return strings.Contains(linkFlags, "--non-updatable-system")
+	}
+
+	foo := ctx.ModuleForTests("foo", "android_common")
+	android.AssertBoolEquals(t, "app should not pass `--non-updatable-flags` when --version-code is specified",
+		false, hasNonUpdatableSystemFlag(foo))
+
+	bar := ctx.ModuleForTests("bar", "android_common")
+	android.AssertBoolEquals(t, "app should pass `--non-updatable-flags` when --version-code is not specified",
+		true, hasNonUpdatableSystemFlag(bar))
+
+	baz := ctx.ModuleForTests("baz", "android_common")
+	android.AssertBoolEquals(t, "test should not pass `--non-updatable-flags` even if --version-code is not specified",
+		false, hasNonUpdatableSystemFlag(baz))
+
+	baz_helper := ctx.ModuleForTests("baz_helper", "android_common")
+	android.AssertBoolEquals(t, "test should not pass `--non-updatable-flags` even if --version-code is not specified",
+		false, hasNonUpdatableSystemFlag(baz_helper))
 }
