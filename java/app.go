@@ -90,17 +90,20 @@ type appProperties struct {
 	Stl *string `android:"arch_variant"`
 
 	// Store native libraries uncompressed in the APK and set the android:extractNativeLibs="false" manifest
-	// flag so that they are used from inside the APK at runtime. This property is respected only for
-	// APKs built using android_test or android_test_helper_app. For other APKs, this property is ignored
-	// and native libraries are always embedded compressed.
+	// flag so that they are used from inside the APK at runtime.  Defaults to true for android_test modules unless
+	// sdk_version or min_sdk_version is set to a version that doesn't support it (<23), defaults to true for
+	// android_app modules that are embedded to APEXes, defaults to false for other module types where the native
+	// libraries are generally preinstalled outside the APK.
 	Use_embedded_native_libs *bool
 
 	// Store dex files uncompressed in the APK and set the android:useEmbeddedDex="true" manifest attribute so that
 	// they are used from inside the APK at runtime.
 	Use_embedded_dex *bool
 
-	// Allows compressing of embedded native libs. Only for android_test and android_test_helper_app.
-	AllowCompressingNativeLibs bool `blueprint:"mutated"`
+	// Forces native libraries to always be packaged into the APK,
+	// Use_embedded_native_libs still selects whether they are stored uncompressed and aligned or compressed.
+	// True for android_test* modules.
+	AlwaysPackageNativeLibs bool `blueprint:"mutated"`
 
 	// If set, find and merge all NOTICE files that this module and its dependencies have and store
 	// it in the APK as an asset.
@@ -400,20 +403,14 @@ func (a *AndroidApp) checkJniLibsSdkVersion(ctx android.ModuleContext, minSdkVer
 // Returns true if the native libraries should be stored in the APK uncompressed and the
 // extractNativeLibs application flag should be set to false in the manifest.
 func (a *AndroidApp) useEmbeddedNativeLibs(ctx android.ModuleContext) bool {
-	var useEmbedded bool
-	if a.appProperties.AllowCompressingNativeLibs {
-		useEmbedded = BoolDefault(a.appProperties.Use_embedded_native_libs, true)
-	} else {
-		useEmbedded = true // always uncompress for non-test apps
-	}
-
 	minSdkVersion, err := a.MinSdkVersion(ctx).EffectiveVersion(ctx)
 	if err != nil {
 		ctx.PropertyErrorf("min_sdk_version", "invalid value %q: %s", a.MinSdkVersion(ctx), err)
 	}
-	supported := minSdkVersion.FinalOrFutureInt() >= 23
 
-	return useEmbedded && supported
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
+	return (minSdkVersion.FinalOrFutureInt() >= 23 && Bool(a.appProperties.Use_embedded_native_libs)) ||
+		!apexInfo.IsForPlatform()
 }
 
 // Returns whether this module should have the dex file stored uncompressed in the APK.
@@ -436,23 +433,9 @@ func (a *AndroidApp) shouldUncompressDex(ctx android.ModuleContext) bool {
 }
 
 func (a *AndroidApp) shouldEmbedJnis(ctx android.BaseModuleContext) bool {
-	// Always!
-	return true
-}
-
-func (a *AndroidApp) shouldCollectRecursiveNativeDeps(ctx android.ModuleContext) bool {
-	// JNI libs are always embedded, but whether to embed their transitive dependencies as well
-	// or not is determined here. For most of the apps built here (using the platform build
-	// system), we don't need to collect the transitive deps because they will anyway be
-	// available in the partition image where the app will be installed to.
-	//
-	// Collecting transitive dependencies is required only for unbundled apps.
 	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
-	apkInApex := !apexInfo.IsForPlatform()
-	testApp := a.appProperties.AllowCompressingNativeLibs
-	unbundledApp := ctx.Config().UnbundledBuild() || apkInApex || testApp
-
-	return a.shouldEmbedJnis(ctx) && unbundledApp
+	return ctx.Config().UnbundledBuild() || Bool(a.appProperties.Use_embedded_native_libs) ||
+		!apexInfo.IsForPlatform() || a.appProperties.AlwaysPackageNativeLibs
 }
 
 func generateAaptRenamePackageFlags(packageName string, renameResourcesPackage bool) []string {
@@ -846,7 +829,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	dexJarFile, packageResources := a.dexBuildActions(ctx)
 
-	jniLibs, prebuiltJniPackages, certificates := collectAppDeps(ctx, a, a.shouldCollectRecursiveNativeDeps(ctx), !Bool(a.appProperties.Jni_uses_platform_apis))
+	jniLibs, prebuiltJniPackages, certificates := collectAppDeps(ctx, a, a.shouldEmbedJnis(ctx), !Bool(a.appProperties.Jni_uses_platform_apis))
 	jniJarFile := a.jniBuildActions(jniLibs, prebuiltJniPackages, ctx)
 
 	if ctx.Failed() {
@@ -1417,7 +1400,8 @@ func AndroidTestFactory() android.Module {
 	module.Module.properties.Instrument = true
 	module.Module.properties.Supports_static_instrumentation = true
 	module.Module.properties.Installable = proptools.BoolPtr(true)
-	module.appProperties.AllowCompressingNativeLibs = true
+	module.appProperties.Use_embedded_native_libs = proptools.BoolPtr(true)
+	module.appProperties.AlwaysPackageNativeLibs = true
 	module.Module.dexpreopter.isTest = true
 	module.Module.linter.properties.Lint.Test = proptools.BoolPtr(true)
 
@@ -1472,7 +1456,8 @@ func AndroidTestHelperAppFactory() android.Module {
 	module.Module.dexProperties.Optimize.EnabledByDefault = true
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
-	module.appProperties.AllowCompressingNativeLibs = true
+	module.appProperties.Use_embedded_native_libs = proptools.BoolPtr(true)
+	module.appProperties.AlwaysPackageNativeLibs = true
 	module.Module.dexpreopter.isTest = true
 	module.Module.linter.properties.Lint.Test = proptools.BoolPtr(true)
 
