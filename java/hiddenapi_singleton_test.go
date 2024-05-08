@@ -303,7 +303,7 @@ func TestHiddenAPIEncoding_JavaSdkLibrary(t *testing.T) {
 	`)
 
 	checkDexEncoded := func(t *testing.T, name, unencodedDexJar, encodedDexJar string) {
-		moduleForTests := result.ModuleForTests(name, "android_common")
+		moduleForTests := result.ModuleForTests(name+".impl", "android_common")
 
 		encodeDexRule := moduleForTests.Rule("hiddenAPIEncodeDex")
 		actualUnencodedDexJar := encodeDexRule.Input
@@ -319,18 +319,8 @@ func TestHiddenAPIEncoding_JavaSdkLibrary(t *testing.T) {
 
 	// The java_library embedded with the java_sdk_library must be dex encoded.
 	t.Run("foo", func(t *testing.T) {
-		expectedUnencodedDexJar := "out/soong/.intermediates/foo/android_common/aligned/foo.jar"
-		expectedEncodedDexJar := "out/soong/.intermediates/foo/android_common/hiddenapi/foo.jar"
+		expectedUnencodedDexJar := "out/soong/.intermediates/foo.impl/android_common/aligned/foo.jar"
+		expectedEncodedDexJar := "out/soong/.intermediates/foo.impl/android_common/hiddenapi/foo.jar"
 		checkDexEncoded(t, "foo", expectedUnencodedDexJar, expectedEncodedDexJar)
-	})
-
-	// The dex jar of the child implementation java_library of the java_sdk_library is not currently
-	// dex encoded.
-	t.Run("foo.impl", func(t *testing.T) {
-		fooImpl := result.ModuleForTests("foo.impl", "android_common")
-		encodeDexRule := fooImpl.MaybeRule("hiddenAPIEncodeDex")
-		if encodeDexRule.Rule != nil {
-			t.Errorf("foo.impl is not expected to be encoded")
-		}
 	})
 }

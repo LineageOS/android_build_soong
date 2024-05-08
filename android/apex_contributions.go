@@ -101,12 +101,12 @@ type apexContributionsDepTag struct {
 }
 
 var (
-	acDepTag = apexContributionsDepTag{}
+	AcDepTag = apexContributionsDepTag{}
 )
 
 // Creates a dep to each selected apex_contributions
 func (a *allApexContributions) DepsMutator(ctx BottomUpMutatorContext) {
-	ctx.AddDependency(ctx.Module(), acDepTag, ctx.Config().AllApexContributions()...)
+	ctx.AddDependency(ctx.Module(), AcDepTag, ctx.Config().AllApexContributions()...)
 }
 
 // Set PrebuiltSelectionInfoProvider in post deps phase
@@ -131,7 +131,7 @@ func (a *allApexContributions) SetPrebuiltSelectionInfoProvider(ctx BaseModuleCo
 	// (e.g. shiba and shiba_fullmte)
 	// Eventually these product variants will have their own release config maps.
 	if !proptools.Bool(ctx.Config().BuildIgnoreApexContributionContents()) {
-		ctx.VisitDirectDepsWithTag(acDepTag, func(child Module) {
+		ctx.VisitDirectDepsWithTag(AcDepTag, func(child Module) {
 			if m, ok := child.(*apexContributions); ok {
 				addContentsToProvider(&p, m)
 			} else {
