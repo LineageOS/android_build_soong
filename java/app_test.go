@@ -2013,8 +2013,8 @@ func TestJNIPackaging(t *testing.T) {
 		packaged   bool
 		compressed bool
 	}{
-		{"app", true, false},
-		{"app_noembed", true, false},
+		{"app", false, false},
+		{"app_noembed", false, false},
 		{"app_embed", true, false},
 		{"test", true, false},
 		{"test_noembed", true, true},
@@ -3319,7 +3319,8 @@ func TestUsesLibraries(t *testing.T) {
 	// These also include explicit `uses_libs`/`optional_uses_libs` entries, as they may be
 	// propagated from dependencies.
 	actualManifestFixerArgs := app.Output("manifest_fixer/AndroidManifest.xml").Args["args"]
-	expectManifestFixerArgs := `--uses-library foo ` +
+	expectManifestFixerArgs := `--extract-native-libs=true ` +
+		`--uses-library foo ` +
 		`--uses-library com.non.sdk.lib ` +
 		`--uses-library qux ` +
 		`--uses-library quuz ` +
@@ -4109,7 +4110,7 @@ func TestAppIncludesJniPackages(t *testing.T) {
 		},
 		{
 			name:       "aary-no-use-embedded",
-			hasPackage: true,
+			hasPackage: false,
 		},
 	}
 
