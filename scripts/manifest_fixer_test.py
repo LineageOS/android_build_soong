@@ -479,8 +479,8 @@ class AddExtractNativeLibsTest(unittest.TestCase):
     self.assert_xml_equal(output, expected)
 
   def test_conflict(self):
-    manifest_input = self.manifest_tmpl % self.extract_native_libs('true')
-    self.assertRaises(RuntimeError, self.run_test, manifest_input, False)
+    manifest_input = self.manifest_tmpl % self.extract_native_libs('false')
+    self.assertRaises(RuntimeError, self.run_test, manifest_input, True)
 
 
 class AddNoCodeApplicationTest(unittest.TestCase):
