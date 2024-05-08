@@ -62,8 +62,8 @@ def parse_args():
                             'in the manifest.'))
   parser.add_argument('--extract-native-libs', dest='extract_native_libs',
                       default=None, type=lambda x: (str(x).lower() == 'true'),
-                      help=('specify if the app wants to use embedded native libraries. Must not '
-                            'be true if manifest says false.'))
+                      help=('specify if the app wants to use embedded native libraries. Must not conflict '
+                            'if already declared in the manifest.'))
   parser.add_argument('--has-no-code', dest='has_no_code', action='store_true',
                       help=('adds hasCode="false" attribute to application. Ignored if application elem '
                             'already has a hasCode attribute.'))
@@ -299,16 +299,7 @@ def add_extract_native_libs(doc, extract_native_libs):
     attr = doc.createAttributeNS(android_ns, 'android:extractNativeLibs')
     attr.value = value
     application.setAttributeNode(attr)
-  elif attr.value == "false" and value == "true":
-    # Note that we don't disallow the case of extractNativeLibs="true" in manifest and
-    # --extract-native-libs="false". This is fine because --extract-native-libs="false" means that
-    # the build system didn't compress the JNI libs, which is a fine choice for built-in apps. At
-    # runtime the JNI libs will be extracted to outside of the APK, but everything will still work
-    # okay.
-    #
-    # The opposite (extractNativeLibs="false" && --extract-native-libs="true") should however be
-    # disallowed because otherwise that would make an ill-formed APK; JNI libs are stored compressed
-    # but they won't be extracted. There's no way to execute the JNI libs.
+  elif attr.value != value:
     raise RuntimeError('existing attribute extractNativeLibs="%s" conflicts with --extract-native-libs="%s"' %
                        (attr.value, value))
 
