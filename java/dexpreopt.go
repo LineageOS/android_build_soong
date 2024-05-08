@@ -196,8 +196,10 @@ func disableSourceApexVariant(ctx android.BaseModuleContext) bool {
 	}
 	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	psi := android.PrebuiltSelectionInfoMap{}
-	ctx.VisitDirectDepsWithTag(android.PrebuiltDepTag, func(am android.Module) {
-		psi, _ = android.OtherModuleProvider(ctx, am, android.PrebuiltSelectionInfoProvider)
+	ctx.VisitDirectDeps(func(am android.Module) {
+		if prebuiltSelectionInfo, ok := android.OtherModuleProvider(ctx, am, android.PrebuiltSelectionInfoProvider); ok {
+			psi = prebuiltSelectionInfo
+		}
 	})
 	// Find the apex variant for this module
 	_, apexVariantsWithoutTestApexes, _ := android.ListSetDifference(apexInfo.InApexVariants, apexInfo.TestApexes)

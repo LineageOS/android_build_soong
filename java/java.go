@@ -674,6 +674,10 @@ type Library struct {
 
 var _ android.ApexModule = (*Library)(nil)
 
+func (j *Library) CheckDepsMinSdkVersion(ctx android.ModuleContext) {
+	CheckMinSdkVersion(ctx, j)
+}
+
 // Provides access to the list of permitted packages from apex boot jars.
 type PermittedPackagesForUpdatableBootJars interface {
 	PermittedPackagesForUpdatableBootJars() []string
@@ -902,6 +906,12 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.minSdkVersion = j.MinSdkVersion(ctx)
 	j.maxSdkVersion = j.MaxSdkVersion(ctx)
 
+	// Check min_sdk_version of the transitive dependencies if this module is created from
+	// java_sdk_library.
+	if j.deviceProperties.Min_sdk_version != nil && j.SdkLibraryName() != nil {
+		j.CheckDepsMinSdkVersion(ctx)
+	}
+
 	// SdkLibrary.GenerateAndroidBuildActions(ctx) sets the stubsLinkType to Unknown.
 	// If the stubsLinkType has already been set to Unknown, the stubsLinkType should
 	// not be overridden.
@@ -932,8 +942,12 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.checkSdkVersions(ctx)
 	j.checkHeadersOnly(ctx)
 	if ctx.Device() {
+		libName := j.Name()
+		if j.SdkLibraryName() != nil && strings.HasSuffix(libName, ".impl") {
+			libName = proptools.String(j.SdkLibraryName())
+		}
 		j.dexpreopter.installPath = j.dexpreopter.getInstallPath(
-			ctx, j.Name(), android.PathForModuleInstall(ctx, "framework", j.Stem()+".jar"))
+			ctx, libName, android.PathForModuleInstall(ctx, "framework", j.Stem()+".jar"))
 		j.dexpreopter.isSDKLibrary = j.deviceProperties.IsSDKLibrary
 		setUncompressDex(ctx, &j.dexpreopter, &j.dexer)
 		j.dexpreopter.uncompressedDex = *j.dexProperties.Uncompress_dex
@@ -944,8 +958,24 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 	j.compile(ctx, nil, nil, nil)
 
-	exclusivelyForApex := !apexInfo.IsForPlatform()
-	if (Bool(j.properties.Installable) || ctx.Host()) && !exclusivelyForApex {
+	// If this module is an impl library created from java_sdk_library,
+	// install the files under the java_sdk_library module outdir instead of this module outdir.
+	if j.SdkLibraryName() != nil && strings.HasSuffix(j.Name(), ".impl") {
+		j.setInstallRules(ctx, proptools.String(j.SdkLibraryName()))
+	} else {
+		j.setInstallRules(ctx, ctx.ModuleName())
+	}
+
+	android.SetProvider(ctx, android.TestOnlyProviderKey, android.TestModuleInformation{
+		TestOnly:       Bool(j.sourceProperties.Test_only),
+		TopLevelTarget: j.sourceProperties.Top_level_test_target,
+	})
+}
+
+func (j *Library) setInstallRules(ctx android.ModuleContext, installModuleName string) {
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
+
+	if (Bool(j.properties.Installable) || ctx.Host()) && apexInfo.IsForPlatform() {
 		var extraInstallDeps android.InstallPaths
 		if j.InstallMixin != nil {
 			extraInstallDeps = j.InstallMixin(ctx, j.outputFile)
@@ -962,22 +992,27 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			if !ctx.Host() {
 				archDir = ctx.DeviceConfig().DeviceArch()
 			}
-			installDir = android.PathForModuleInstall(ctx, ctx.ModuleName(), archDir)
+			installDir = android.PathForModuleInstall(ctx, installModuleName, archDir)
 		} else {
 			installDir = android.PathForModuleInstall(ctx, "framework")
 		}
 		j.installFile = ctx.InstallFile(installDir, j.Stem()+".jar", j.outputFile, extraInstallDeps...)
 	}
-
-	android.SetProvider(ctx, android.TestOnlyProviderKey, android.TestModuleInformation{
-		TestOnly:       Bool(j.sourceProperties.Test_only),
-		TopLevelTarget: j.sourceProperties.Top_level_test_target,
-	})
 }
 
 func (j *Library) DepsMutator(ctx android.BottomUpMutatorContext) {
 	j.usesLibrary.deps(ctx, false)
 	j.deps(ctx)
+
+	if j.SdkLibraryName() != nil && strings.HasSuffix(j.Name(), ".impl") {
+		if dexpreopt.IsDex2oatNeeded(ctx) {
+			dexpreopt.RegisterToolDeps(ctx)
+		}
+		prebuiltSdkLibExists := ctx.OtherModuleExists(android.PrebuiltNameFromSource(proptools.String(j.SdkLibraryName())))
+		if prebuiltSdkLibExists && ctx.OtherModuleExists("all_apex_contributions") {
+			ctx.AddDependency(ctx.Module(), android.AcDepTag, "all_apex_contributions")
+		}
+	}
 }
 
 const (

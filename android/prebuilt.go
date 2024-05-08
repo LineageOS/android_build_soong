@@ -437,7 +437,7 @@ func PrebuiltSourceDepsMutator(ctx BottomUpMutatorContext) {
 		// TODO: When all branches contain this singleton module, make this strict
 		// TODO: Add this dependency only for mainline prebuilts and not every prebuilt module
 		if ctx.OtherModuleExists("all_apex_contributions") {
-			ctx.AddDependency(m, acDepTag, "all_apex_contributions")
+			ctx.AddDependency(m, AcDepTag, "all_apex_contributions")
 		}
 
 	}
@@ -474,7 +474,7 @@ func PrebuiltSelectModuleMutator(ctx BottomUpMutatorContext) {
 		}
 		// Propagate the provider received from `all_apex_contributions`
 		// to the source module
-		ctx.VisitDirectDepsWithTag(acDepTag, func(am Module) {
+		ctx.VisitDirectDepsWithTag(AcDepTag, func(am Module) {
 			psi, _ := OtherModuleProvider(ctx, am, PrebuiltSelectionInfoProvider)
 			SetProvider(ctx, PrebuiltSelectionInfoProvider, psi)
 		})
@@ -580,7 +580,7 @@ func PrebuiltPostDepsMutator(ctx BottomUpMutatorContext) {
 		bmn, _ := m.(baseModuleName)
 		name := bmn.BaseModuleName()
 		psi := PrebuiltSelectionInfoMap{}
-		ctx.VisitDirectDepsWithTag(acDepTag, func(am Module) {
+		ctx.VisitDirectDepsWithTag(AcDepTag, func(am Module) {
 			psi, _ = OtherModuleProvider(ctx, am, PrebuiltSelectionInfoProvider)
 		})
 

@@ -536,7 +536,7 @@ func IsMetaDependencyTag(tag blueprint.DependencyTag) bool {
 		return true
 	} else if tag == licensesTag {
 		return true
-	} else if tag == acDepTag {
+	} else if tag == AcDepTag {
 		return true
 	}
 	return false
