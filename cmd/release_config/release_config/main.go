@@ -83,19 +83,23 @@ func main() {
 		// We were told to guard operation and either we have no build flag, or it is False.
 		// Write an empty file so that release_config.mk will use the old process.
 		os.WriteFile(makefilePath, []byte{}, 0644)
-	} else if allMake {
+		return
+	}
+	// Write the makefile where release_config.mk is going to look for it.
+	err = configs.WriteMakefile(makefilePath, targetRelease)
+	if err != nil {
+		panic(err)
+	}
+	if allMake {
 		// Write one makefile per release config, using the canonical release name.
 		for k, _ := range configs.ReleaseConfigs {
-			makefilePath = filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.mk", product, k))
-			err = configs.WriteMakefile(makefilePath, k)
-			if err != nil {
-				panic(err)
+			if k != targetRelease {
+				makefilePath = filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.mk", product, k))
+				err = configs.WriteMakefile(makefilePath, k)
+				if err != nil {
+					panic(err)
+				}
 			}
-		}
-	} else {
-		err = configs.WriteMakefile(makefilePath, targetRelease)
-		if err != nil {
-			panic(err)
 		}
 	}
 	if json {
