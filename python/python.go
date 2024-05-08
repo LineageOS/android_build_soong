@@ -506,8 +506,8 @@ func (p *PythonLibraryModule) genModulePathMappings(ctx android.ModuleContext, p
 	}
 
 	for _, d := range expandedData {
-		if d.Ext() == pyExt || d.Ext() == protoExt {
-			ctx.PropertyErrorf("data", "found (.py|.proto) file: %q!", d.String())
+		if d.Ext() == pyExt {
+			ctx.PropertyErrorf("data", "found (.py) file: %q!", d.String())
 			continue
 		}
 		runfilesPath := filepath.Join(pkgPath, d.Rel())
@@ -523,19 +523,19 @@ func (p *PythonLibraryModule) createSrcsZip(ctx android.ModuleContext, pkgPath s
 	relativeRootMap := make(map[string]android.Paths)
 	var protoSrcs android.Paths
 	addPathMapping := func(path pathMapping) {
-		// handle proto sources separately
-		if path.src.Ext() == protoExt {
-			protoSrcs = append(protoSrcs, path.src)
-		} else {
-			relativeRoot := strings.TrimSuffix(path.src.String(), path.src.Rel())
-			relativeRootMap[relativeRoot] = append(relativeRootMap[relativeRoot], path.src)
-		}
+		relativeRoot := strings.TrimSuffix(path.src.String(), path.src.Rel())
+		relativeRootMap[relativeRoot] = append(relativeRootMap[relativeRoot], path.src)
 	}
 
 	// "srcs" or "data" properties may contain filegroups so it might happen that
 	// the root directory for each source path is different.
 	for _, path := range p.srcsPathMappings {
-		addPathMapping(path)
+		// handle proto sources separately
+		if path.src.Ext() == protoExt {
+			protoSrcs = append(protoSrcs, path.src)
+		} else {
+			addPathMapping(path)
+		}
 	}
 	for _, path := range p.dataPathMappings {
 		addPathMapping(path)
