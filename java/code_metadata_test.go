@@ -7,6 +7,7 @@ import (
 	"android/soong/android"
 	soongTesting "android/soong/testing"
 	"android/soong/testing/code_metadata_internal_proto"
+
 	"google.golang.org/protobuf/proto"
 )
 

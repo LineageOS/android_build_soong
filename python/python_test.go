@@ -50,7 +50,7 @@ var (
 		" Second file: in module %s at path %q."
 	noSrcFileErr      = moduleVariantErrTemplate + "doesn't have any source files!"
 	badSrcFileExtErr  = moduleVariantErrTemplate + "srcs: found non (.py|.proto) file: %q!"
-	badDataFileExtErr = moduleVariantErrTemplate + "data: found (.py|.proto) file: %q!"
+	badDataFileExtErr = moduleVariantErrTemplate + "data: found (.py) file: %q!"
 	bpFile            = "Android.bp"
 
 	data = []struct {

@@ -161,8 +161,8 @@ func TestJavaSdkLibrary_RequireXmlPermissionFile(t *testing.T) {
 		moduleName string
 		expected   []string
 	}{
-		{"foo-shared_library", []string{"foo-shared_library.xml"}},
-		{"foo-no_shared_library", nil},
+		{"foo-shared_library", []string{"foo-shared_library.impl", "foo-shared_library.xml"}},
+		{"foo-no_shared_library", []string{"foo-no_shared_library.impl"}},
 	}
 	for _, tc := range testCases {
 		mod := result.ModuleForTests(tc.moduleName, "android_common").Module()

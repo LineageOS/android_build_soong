@@ -186,13 +186,13 @@ func TestJavaSdkLibrary(t *testing.T) {
 	// test if quuz have created the api_contribution module
 	result.ModuleForTests(apiScopePublic.stubsSourceModuleName("quuz")+".api.contribution", "")
 
-	fooDexJar := result.ModuleForTests("foo", "android_common").Rule("d8")
-	// tests if kotlinc generated files are NOT excluded from output of foo.
-	android.AssertStringDoesNotContain(t, "foo dex", fooDexJar.BuildParams.Args["mergeZipsFlags"], "-stripFile META-INF/*.kotlin_module")
+	fooImplDexJar := result.ModuleForTests("foo.impl", "android_common").Rule("d8")
+	// tests if kotlinc generated files are NOT excluded from output of foo.impl.
+	android.AssertStringDoesNotContain(t, "foo.impl dex", fooImplDexJar.BuildParams.Args["mergeZipsFlags"], "-stripFile META-INF/*.kotlin_module")
 
-	barDexJar := result.ModuleForTests("bar", "android_common").Rule("d8")
-	// tests if kotlinc generated files are excluded from output of bar.
-	android.AssertStringDoesContain(t, "bar dex", barDexJar.BuildParams.Args["mergeZipsFlags"], "-stripFile META-INF/*.kotlin_module")
+	barImplDexJar := result.ModuleForTests("bar.impl", "android_common").Rule("d8")
+	// tests if kotlinc generated files are excluded from output of bar.impl.
+	android.AssertStringDoesContain(t, "bar.impl dex", barImplDexJar.BuildParams.Args["mergeZipsFlags"], "-stripFile META-INF/*.kotlin_module")
 }
 
 func TestJavaSdkLibrary_UpdatableLibrary(t *testing.T) {
@@ -1457,11 +1457,11 @@ func TestSdkLibrary_CheckMinSdkVersion(t *testing.T) {
 	preparer.RunTestWithBp(t, `
 		java_sdk_library {
 			name: "sdklib",
-            srcs: ["a.java"],
-            static_libs: ["util"],
-            min_sdk_version: "30",
+			srcs: ["a.java"],
+			static_libs: ["util"],
+			min_sdk_version: "30",
 			unsafe_ignore_missing_latest_api: true,
-        }
+		}
 
 		java_library {
 			name: "util",

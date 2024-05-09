@@ -353,7 +353,7 @@ func TestPlatformBootclasspath_HiddenAPIMonolithicFiles(t *testing.T) {
 
 	// All the intermediate rules use the same inputs.
 	expectedIntermediateInputs := `
-		out/soong/.intermediates/bar/android_common/javac/bar.jar
+		out/soong/.intermediates/bar.impl/android_common/javac/bar.jar
 		out/soong/.intermediates/foo-hiddenapi-annotations/android_common/javac/foo-hiddenapi-annotations.jar
 		out/soong/.intermediates/foo/android_common/javac/foo.jar
 	`

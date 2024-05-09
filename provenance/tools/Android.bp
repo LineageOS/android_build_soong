@@ -23,11 +23,6 @@ python_binary_host {
     srcs: [
         "gen_provenance_metadata.py",
     ],
-    version: {
-        py3: {
-            embedded_launcher: true,
-        },
-    },
     libs: [
         "provenance_metadata_proto",
         "libprotobuf-python",
