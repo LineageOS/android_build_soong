@@ -370,8 +370,6 @@ var (
 		"-Wno-unqualified-std-cast-call",
 		"-Wno-array-parameter",
 		"-Wno-gnu-offsetof-extensions",
-		// TODO: Enable this warning http://b/315245071
-		"-Wno-fortify-source",
 	}
 
 	llvmNextExtraCommonGlobalCflags = []string{
