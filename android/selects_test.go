@@ -546,6 +546,24 @@ func TestSelects(t *testing.T) {
 			},
 		},
 		{
+			name: "Unhandled string value",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
+					"foo": "a",
+					"bar": "b",
+				}),
+			}
+			`,
+			vendorVars: map[string]map[string]string{
+				"my_namespace": {
+					"my_variable": "baz",
+				},
+			},
+			expectedError: `my_string: soong_config_variable\("my_namespace", "my_variable"\) had value "baz", which was not handled by the select statement`,
+		},
+		{
 			name: "Select on boolean",
 			bp: `
 			my_module_type {
@@ -596,7 +614,7 @@ func TestSelects(t *testing.T) {
 				}),
 			}
 			`,
-			expectedError: "foo",
+			expectedError: `my_string: boolean_var_for_testing\(\) had value undefined, which was not handled by the select statement`,
 		},
 		{
 			name: "Select on boolean undefined with default",
