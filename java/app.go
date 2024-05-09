@@ -1232,6 +1232,11 @@ func AndroidAppFactory() android.Module {
 			Manifest:       proptools.StringPtr(":" + rroManifestName),
 			Resource_dirs:  a.aaptProperties.Resource_dirs,
 		}
+		if !Bool(a.aaptProperties.Aapt_include_all_resources) {
+			for _, aaptConfig := range ctx.Config().ProductAAPTConfig() {
+				rroProperties.Aaptflags = append(rroProperties.Aaptflags, "-c", aaptConfig)
+			}
+		}
 		ctx.CreateModule(RuntimeResourceOverlayFactory, &rroProperties)
 	})
 
