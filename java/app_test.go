@@ -2043,6 +2043,44 @@ func TestJNIPackaging(t *testing.T) {
 	}
 }
 
+func TestJNITranstiveDepsInstallation(t *testing.T) {
+	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
+		android_app {
+			name: "app",
+			jni_libs: ["libjni"],
+			platform_apis: true,
+		}
+
+		cc_library {
+			name: "libjni",
+			shared_libs: ["libplatform"],
+			system_shared_libs: [],
+			stl: "none",
+			required: ["librequired"],
+		}
+
+		cc_library {
+			name: "libplatform",
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_library {
+			name: "librequired",
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		`)
+
+	app := ctx.ModuleForTests("app", "android_common")
+	jniLibZip := app.Output("jnilibs.zip")
+	android.AssertPathsEndWith(t, "embedd jni lib mismatch", []string{"libjni.so"}, jniLibZip.Implicits)
+
+	install := app.Rule("Cp")
+	android.AssertPathsEndWith(t, "install dep mismatch", []string{"libplatform.so", "librequired.so"}, install.OrderOnly)
+}
+
 func TestJNISDK(t *testing.T) {
 	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		cc_library {
