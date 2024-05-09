@@ -2145,9 +2145,9 @@ func (e configurationEvalutor) EvaluateConfiguration(condition proptools.Configu
 	ctx := e.ctx
 	m := e.m
 	switch condition.FunctionName() {
-	case "release_variable":
+	case "release_flag":
 		if condition.NumArgs() != 1 {
-			ctx.OtherModulePropertyErrorf(m, property, "release_variable requires 1 argument, found %d", condition.NumArgs())
+			ctx.OtherModulePropertyErrorf(m, property, "release_flag requires 1 argument, found %d", condition.NumArgs())
 			return proptools.ConfigurableValueUndefined()
 		}
 		if v, ok := ctx.Config().productVariables.BuildFlags[condition.Arg(0)]; ok {
