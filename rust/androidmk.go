@@ -69,7 +69,6 @@ func (mod *Module) AndroidMkEntries() []android.AndroidMkEntries {
 				} else if mod.InProduct() {
 					entries.SetBool("LOCAL_IN_PRODUCT", true)
 				}
-				android.SetAconfigFileMkEntries(mod.AndroidModuleBase(), entries, mod.mergedAconfigFiles)
 			},
 		},
 	}
