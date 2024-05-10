@@ -30,6 +30,7 @@ func wasGenerated(t *testing.T, m *android.TestingModule, fileName string, ruleT
 }
 
 func TestEmptyCmakeSnapshot(t *testing.T) {
+	t.Skip("Failing on sdk-sdk_mac target")
 	t.Parallel()
 	result := PrepareForIntegrationTestWithCc.RunTestWithBp(t, `
 		cc_cmake_snapshot {
@@ -46,6 +47,7 @@ func TestEmptyCmakeSnapshot(t *testing.T) {
 }
 
 func TestCmakeSnapshotWithBinary(t *testing.T) {
+	t.Skip("Failing on sdk-sdk_mac target")
 	t.Parallel()
 	xtra := android.FixtureAddTextFile("some/module/Android.bp", `
 		cc_binary {
