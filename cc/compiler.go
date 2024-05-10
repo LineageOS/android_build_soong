@@ -147,6 +147,9 @@ type BaseCompilerProperties struct {
 		// list of aidl_interface sources
 		Sources []string `blueprint:"mutated"`
 
+		// root directory of AIDL sources
+		AidlRoot string `blueprint:"mutated"`
+
 		// AIDL backend language (e.g. "cpp", "ndk")
 		Lang string `blueprint:"mutated"`
 
