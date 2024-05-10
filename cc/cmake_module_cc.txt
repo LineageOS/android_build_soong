@@ -1,0 +1,35 @@
+<<$srcs := getSources .M>>
+<<$includeDirs := getIncludeDirs .Ctx .M>>
+<<$cflags := (getCompilerProperties .M).Cflags>>
+<<$deps := mapLibraries (concat5
+(getLinkerProperties .M).Whole_static_libs
+(getLinkerProperties .M).Static_libs
+(getLinkerProperties .M).Shared_libs
+(getLinkerProperties .M).Header_libs
+(getExtraLibs .M)
+) .Pprop.LibraryMapping>>
+
+# <<.M.Name>>
+<<if $srcs>>
+<<setList .M.Name "_SRCS" "${ANDROID_BUILD_TOP}/" (toStrings $srcs)>>
+add_<<getModuleType .M>>(<<.M.Name>> ${<<.M.Name>>_SRCS})
+<<- else>>
+add_<<getModuleType .M>>(<<.M.Name>> INTERFACE)
+<<- end>>
+add_<<getModuleType .M>>(android::<<.M.Name>> ALIAS <<.M.Name>>)
+<<print "">>
+
+<<- if $includeDirs>>
+<<setList .M.Name "_INCLUDES" "${ANDROID_BUILD_TOP}/" $includeDirs>>
+target_include_directories(<<.M.Name>> <<if $srcs>>PUBLIC<<else>>INTERFACE<<end>> ${<<.M.Name>>_INCLUDES})
+<<end>>
+
+<<- if and $srcs $cflags>>
+<<cflagsList .M.Name "_CFLAGS" $cflags .Snapshot.Properties.Unportable_flags .Snapshot.Properties.Cflags_ignored>>
+target_compile_options(<<.M.Name>> PRIVATE ${<<.M.Name>>_CFLAGS})
+<<end>>
+
+<<- if $deps>>
+<<setList .M.Name "_DEPENDENCIES" "" $deps>>
+target_link_libraries(<<.M.Name>> <<if not $srcs>>INTERFACE <<end ->> ${<<.M.Name>>_DEPENDENCIES})
+<<end>>
