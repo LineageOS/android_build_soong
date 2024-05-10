@@ -25,8 +25,9 @@ import (
 type componentTestModule struct {
 	ModuleBase
 	props struct {
-		Deps         []string
-		Skip_install *bool
+		Deps            []string
+		Build_only_deps []string
+		Skip_install    *bool
 	}
 }
 
@@ -34,6 +35,18 @@ type componentTestModule struct {
 type installDepTag struct {
 	blueprint.BaseDependencyTag
 	InstallAlwaysNeededDependencyTag
+}
+
+// dep tag for build_only_deps
+type buildOnlyDepTag struct {
+	blueprint.BaseDependencyTag
+	InstallAlwaysNeededDependencyTag
+}
+
+var _ SkipToTransitiveDepsTag = (*buildOnlyDepTag)(nil)
+
+func (tag buildOnlyDepTag) SkipToTransitiveDeps() bool {
+	return true
 }
 
 func componentTestModuleFactory() Module {
@@ -45,6 +58,7 @@ func componentTestModuleFactory() Module {
 
 func (m *componentTestModule) DepsMutator(ctx BottomUpMutatorContext) {
 	ctx.AddDependency(ctx.Module(), installDepTag{}, m.props.Deps...)
+	ctx.AddDependency(ctx.Module(), buildOnlyDepTag{}, m.props.Build_only_deps...)
 }
 
 func (m *componentTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
@@ -397,4 +411,31 @@ func TestPackagingWithSkipInstallDeps(t *testing.T) {
 			deps: ["foo"],
 		}
 		`, []string{"lib64/foo", "lib64/bar", "lib64/baz"})
+}
+
+func TestPackagingWithSkipToTransitvDeps(t *testing.T) {
+	// packag -[deps]-> foo -[build_only_deps]-> bar -[deps]-> baz
+	// bar isn't installed, but it brings baz to its parent.
+	multiTarget := false
+	runPackagingTest(t, multiTarget,
+		`
+		component {
+			name: "foo",
+			build_only_deps: ["bar"],
+		}
+
+		component {
+			name: "bar",
+			deps: ["baz"],
+		}
+
+		component {
+			name: "baz",
+		}
+
+		package_module {
+			name: "package",
+			deps: ["foo"],
+		}
+		`, []string{"lib64/foo", "lib64/baz"})
 }
