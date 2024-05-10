@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 
@@ -23,14 +24,16 @@ import (
 
 func wasGenerated(t *testing.T, m *android.TestingModule, fileName string, ruleType string) {
 	t.Helper()
-	ruleName := m.Output(fileName).Rule.String()
+	ruleName := "<nil>"
+	if rule := m.MaybeOutput(fileName).Rule; rule != nil {
+		ruleName = rule.String()
+	}
 	if !strings.HasSuffix(ruleName, ruleType) {
-		t.Errorf("Main Cmake file wasn't generated, expected rule %v, found %v", ruleType, ruleName)
+		t.Errorf("Main Cmake file wasn't generated properly, expected rule %v, found %v", ruleType, ruleName)
 	}
 }
 
 func TestEmptyCmakeSnapshot(t *testing.T) {
-	t.Skip("Failing on sdk-sdk_mac target")
 	t.Parallel()
 	result := PrepareForIntegrationTestWithCc.RunTestWithBp(t, `
 		cc_cmake_snapshot {
@@ -40,14 +43,17 @@ func TestEmptyCmakeSnapshot(t *testing.T) {
 			include_sources: true,
 		}`)
 
-	snapshotModule := result.ModuleForTests("foo", "")
+	if runtime.GOOS != "linux" {
+		t.Skip("CMake snapshots are only supported on Linux")
+	}
+
+	snapshotModule := result.ModuleForTests("foo", "linux_glibc_x86_64")
 
 	wasGenerated(t, &snapshotModule, "CMakeLists.txt", "rawFileCopy")
 	wasGenerated(t, &snapshotModule, "foo.zip", "")
 }
 
 func TestCmakeSnapshotWithBinary(t *testing.T) {
-	t.Skip("Failing on sdk-sdk_mac target")
 	t.Parallel()
 	xtra := android.FixtureAddTextFile("some/module/Android.bp", `
 		cc_binary {
@@ -65,7 +71,45 @@ func TestCmakeSnapshotWithBinary(t *testing.T) {
 			include_sources: true,
 		}`)
 
-	snapshotModule := result.ModuleForTests("foo", "")
+	if runtime.GOOS != "linux" {
+		t.Skip("CMake snapshots are only supported on Linux")
+	}
+
+	snapshotModule := result.ModuleForTests("foo", "linux_glibc_x86_64")
 
 	wasGenerated(t, &snapshotModule, "some/module/CMakeLists.txt", "rawFileCopy")
+}
+
+func TestCmakeSnapshotAsTestData(t *testing.T) {
+	t.Parallel()
+	result := PrepareForIntegrationTestWithCc.RunTestWithBp(t, `
+		cc_test {
+			name: "foo_test",
+			gtest: false,
+			srcs: [
+				"foo_test.c",
+			],
+			data: [
+				":foo",
+			],
+			target: {
+				android: {enabled: false},
+			},
+		}
+
+		cc_cmake_snapshot {
+			name: "foo",
+			modules: [],
+			prebuilts: ["libc++"],
+			include_sources: true,
+		}`)
+
+	if runtime.GOOS != "linux" {
+		t.Skip("CMake snapshots are only supported on Linux")
+	}
+
+	snapshotModule := result.ModuleForTests("foo", "linux_glibc_x86_64")
+
+	wasGenerated(t, &snapshotModule, "CMakeLists.txt", "rawFileCopy")
+	wasGenerated(t, &snapshotModule, "foo.zip", "")
 }
