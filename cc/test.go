@@ -359,6 +359,12 @@ func (test *testBinary) linkerDeps(ctx DepsContext, deps Deps) Deps {
 func (test *testBinary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = test.binaryDecorator.linkerFlags(ctx, flags)
 	flags = test.testDecorator.linkerFlags(ctx, flags)
+
+	// Add a default rpath to allow tests to dlopen libraries specified in data_libs.
+	// Host modules already get an rpath specified in linker.go.
+	if !ctx.Host() {
+		flags.Global.LdFlags = append(flags.Global.LdFlags, `-Wl,-rpath,\$$ORIGIN`)
+	}
 	return flags
 }
 
