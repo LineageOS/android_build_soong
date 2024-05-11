@@ -44,6 +44,21 @@ func IsInstallDepNeededTag(tag blueprint.DependencyTag) bool {
 	return false
 }
 
+// Dependency tags can implement this interface and return true from SkipToTransitiveDeps to
+// annotate that this dependency isn't installed, but its transitive dependencies are. This is
+// useful when a module is built into another module (ex: static linking) but the module still has
+// runtime dependencies.
+type SkipToTransitiveDepsTag interface {
+	SkipToTransitiveDeps() bool
+}
+
+func IsSkipToTransitiveDepsTag(tag blueprint.DependencyTag) bool {
+	if i, ok := tag.(SkipToTransitiveDepsTag); ok {
+		return i.SkipToTransitiveDeps()
+	}
+	return false
+}
+
 type PropagateAconfigValidationDependencyTag interface {
 	PropagateAconfigValidation() bool
 }

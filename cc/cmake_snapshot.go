@@ -494,13 +494,30 @@ func getIncludeDirs(ctx android.ModuleContext, m *Module) []string {
 	return nil
 }
 
+func cmakeSnapshotLoadHook(ctx android.LoadHookContext) {
+	props := struct {
+		Target struct {
+			Darwin struct {
+				Enabled *bool
+			}
+			Windows struct {
+				Enabled *bool
+			}
+		}
+	}{}
+	props.Target.Darwin.Enabled = proptools.BoolPtr(false)
+	props.Target.Windows.Enabled = proptools.BoolPtr(false)
+	ctx.AppendProperties(&props)
+}
+
 // cmake_snapshot allows defining source packages for release outside of Android build tree.
 // As a result of cmake_snapshot module build, a zip file is generated with CMake build definitions
 // for selected source modules, their dependencies and optionally also the source code itself.
 func CmakeSnapshotFactory() android.Module {
 	module := &CmakeSnapshot{}
 	module.AddProperties(&module.Properties)
-	android.InitAndroidModule(module)
+	android.AddLoadHook(module, cmakeSnapshotLoadHook)
+	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibFirst)
 	return module
 }
 
