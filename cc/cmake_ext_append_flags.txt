@@ -1,0 +1,10 @@
+include(CheckCXXCompilerFlag)
+
+macro(append_cxx_flags_if_supported VAR)
+  foreach(FLAG ${ARGN})
+    check_cxx_compiler_flag(${FLAG} HAS_FLAG${FLAG})
+    if(${HAS_FLAG${FLAG}})
+      list(APPEND ${VAR} ${FLAG})
+    endif()
+  endforeach()
+endmacro()

@@ -1,0 +1,8 @@
+# <<.M.Name>>
+
+<<setList .M.Name "_SRCS" "${ANDROID_BUILD_TOP}/" (getCompilerProperties .M).AidlInterface.Sources>>
+
+<<setList .M.Name "_AIDLFLAGS" "" (getCompilerProperties .M).AidlInterface.Flags>>
+
+add_aidl_library(<<.M.Name>> <<(getCompilerProperties .M).AidlInterface.Lang>> "${<<.M.Name>>_SRCS}" "${<<.M.Name>>_AIDLFLAGS}")
+add_library(android::<<.M.Name>> ALIAS <<.M.Name>>)

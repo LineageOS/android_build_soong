@@ -180,9 +180,6 @@ type Module struct {
 
 	subName string
 	subDir  string
-
-	// Aconfig files for all transitive deps.  Also exposed via TransitiveDeclarationsInfo
-	mergedAconfigFiles map[string]android.Paths
 }
 
 type taskFunc func(ctx android.ModuleContext, rawCommand string, srcFiles android.Paths) []generateTask
@@ -588,24 +585,6 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		})
 		g.outputDeps = android.Paths{phonyFile}
 	}
-	android.CollectDependencyAconfigFiles(ctx, &g.mergedAconfigFiles)
-}
-
-func (g *Module) AndroidMkEntries() []android.AndroidMkEntries {
-	ret := android.AndroidMkEntries{
-		OutputFile: android.OptionalPathForPath(g.outputFiles[0]),
-		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
-			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-				android.SetAconfigFileMkEntries(g.AndroidModuleBase(), entries, g.mergedAconfigFiles)
-			},
-		},
-	}
-
-	return []android.AndroidMkEntries{ret}
-}
-
-func (g *Module) AndroidModuleBase() *android.ModuleBase {
-	return &g.ModuleBase
 }
 
 // Collect information for opening IDE project files in java/jdeps.go.

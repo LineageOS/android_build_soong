@@ -1,0 +1,47 @@
+function(add_aidl_library NAME LANG SOURCES AIDLFLAGS)
+    if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.20")
+        cmake_policy(SET CMP0116 NEW)
+    endif()
+
+    set(GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/.intermediates/${NAME}-source")
+    set(GEN_SOURCES)
+    foreach(SOURCE ${SOURCES})
+        get_filename_component(SOURCE_WE ${SOURCE} NAME_WE)
+        get_filename_component(SOURCE_ABSOLUTE ${SOURCE} ABSOLUTE)
+        get_filename_component(SOURCE_DIR ${SOURCE_ABSOLUTE} DIRECTORY)
+        set(GEN_SOURCE "${GEN_DIR}/${SOURCE_WE}.cpp")
+        set(DEPFILE_ARG)
+        if (NOT ${CMAKE_GENERATOR} MATCHES "Unix Makefiles")
+            set(DEPFILE_ARG DEPFILE "${GEN_SOURCE}.d")
+        endif()
+        add_custom_command(
+            OUTPUT "${GEN_SOURCE}"
+            MAIN_DEPENDENCY "${SOURCE_ABSOLUTE}"
+            ${DEPFILE_ARG}
+            COMMAND "${AIDL_BIN}"
+            ARGS
+            --lang=${LANG}
+            --include="${SOURCE_DIR}"
+            --dep="${GEN_SOURCE}.d"
+            --out="${GEN_DIR}"
+            --header_out="${GEN_DIR}/include"
+            --ninja
+            --structured
+            --min_sdk_version=current
+            ${AIDLFLAGS}
+            "${SOURCE_ABSOLUTE}"
+        )
+        list(APPEND GEN_SOURCES "${GEN_SOURCE}")
+    endforeach()
+
+    add_library(${NAME} ${GEN_SOURCES})
+
+    target_include_directories(${NAME}
+        PUBLIC
+        "${GEN_DIR}/include"
+        "${ANDROID_BUILD_TOP}/frameworks/native/libs/binder/ndk/include_${LANG}"
+    )
+    target_link_libraries(${NAME}
+        libbinder_sdk
+    )
+endfunction()

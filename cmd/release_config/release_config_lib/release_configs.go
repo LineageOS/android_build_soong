@@ -291,6 +291,9 @@ func (configs *ReleaseConfigs) WriteMakefile(outFile, targetRelease string) erro
 		allReleaseNames = append(allReleaseNames, v.Name)
 		allReleaseNames = append(allReleaseNames, v.OtherNames...)
 	}
+	slices.SortFunc(allReleaseNames, func(a, b string) int {
+		return cmp.Compare(a, b)
+	})
 	config, err := configs.GetReleaseConfig(targetRelease)
 	if err != nil {
 		return err

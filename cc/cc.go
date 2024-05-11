@@ -353,6 +353,10 @@ type BaseProperties struct {
 	// for building binaries that are started before APEXes are activated.
 	Bootstrap *bool
 
+	// Allows this module to be included in CMake release snapshots to be built outside of Android
+	// build system and source tree.
+	Cmake_snapshot_supported *bool
+
 	// Even if DeviceConfig().VndkUseCoreVariant() is set, this module must use vendor variant.
 	// see soong/cc/config/vndk.go
 	MustUseVendorVariant bool `blueprint:"mutated"`
@@ -588,6 +592,7 @@ type compiler interface {
 	compilerDeps(ctx DepsContext, deps Deps) Deps
 	compilerFlags(ctx ModuleContext, flags Flags, deps PathDeps) Flags
 	compilerProps() []interface{}
+	baseCompilerProps() BaseCompilerProperties
 
 	appendCflags([]string)
 	appendAsflags([]string)
@@ -602,6 +607,7 @@ type linker interface {
 	linkerDeps(ctx DepsContext, deps Deps) Deps
 	linkerFlags(ctx ModuleContext, flags Flags) Flags
 	linkerProps() []interface{}
+	baseLinkerProps() BaseLinkerProperties
 	useClangLld(actx ModuleContext) bool
 
 	link(ctx ModuleContext, flags Flags, deps PathDeps, objs Objects) android.Path
@@ -906,9 +912,6 @@ type Module struct {
 	apexSdkVersion android.ApiLevel
 
 	hideApexVariantFromMake bool
-
-	// Aconfig files for all transitive deps.  Also exposed via TransitiveDeclarationsInfo
-	mergedAconfigFiles map[string]android.Paths
 
 	logtagsPaths android.Paths
 }
@@ -1993,10 +1996,6 @@ func (c *Module) stubLibraryMultipleApexViolation(ctx android.ModuleContext) boo
 	return false
 }
 
-func (d *Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	android.CollectDependencyAconfigFiles(ctx, &d.mergedAconfigFiles)
-}
-
 func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	ctx := moduleContextFromAndroidModuleContext(actx, c)
 
@@ -2163,7 +2162,9 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 	android.SetProvider(ctx, blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: deps.GeneratedSources.Strings()})
 
-	android.CollectDependencyAconfigFiles(ctx, &c.mergedAconfigFiles)
+	if Bool(c.Properties.Cmake_snapshot_supported) {
+		android.SetProvider(ctx, cmakeSnapshotSourcesProvider, android.GlobFiles(ctx, ctx.ModuleDir()+"/**/*", nil))
+	}
 
 	c.maybeInstall(ctx, apexInfo)
 
@@ -4063,9 +4064,6 @@ type Defaults struct {
 	android.ModuleBase
 	android.DefaultsModuleBase
 	android.ApexModuleBase
-
-	// Aconfig files for all transitive deps.  Also exposed via TransitiveDeclarationsInfo
-	mergedAconfigFiles map[string]android.Paths
 }
 
 // cc_defaults provides a set of properties that can be inherited by other cc
