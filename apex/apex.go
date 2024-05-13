@@ -137,10 +137,6 @@ type apexBundleProperties struct {
 	// Rust binaries with prefer_rlib:true add unnecessary dependencies.
 	Unwanted_transitive_deps []string
 
-	// The minimum SDK version that this APEX must support at minimum. This is usually set to
-	// the SDK version that the APEX was first introduced.
-	Min_sdk_version *string
-
 	// Whether this APEX is considered updatable or not. When set to true, this will enforce
 	// additional rules for making sure that the APEX is truly updatable. To be updatable,
 	// min_sdk_version should be set as well. This will also disable the size optimizations like
@@ -388,6 +384,10 @@ type overridableProperties struct {
 
 	// Trim against a specific Dynamic Common Lib APEX
 	Trim_against *string
+
+	// The minimum SDK version that this APEX must support at minimum. This is usually set to
+	// the SDK version that the APEX was first introduced.
+	Min_sdk_version *string
 }
 
 type apexBundle struct {
@@ -1035,6 +1035,11 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 	// be built for this apexBundle.
 
 	apexVariationName := mctx.ModuleName() // could be com.android.foo
+	if overridable, ok := mctx.Module().(android.OverridableModule); ok && overridable.GetOverriddenBy() != "" {
+		// use the overridden name com.mycompany.android.foo
+		apexVariationName = overridable.GetOverriddenBy()
+	}
+
 	a.properties.ApexVariationName = apexVariationName
 	testApexes := []string{}
 	if a.testApex {
@@ -1099,7 +1104,7 @@ func apexStrictUpdatibilityLintMutator(mctx android.TopDownMutatorContext) {
 	if !mctx.Module().Enabled(mctx) {
 		return
 	}
-	if apex, ok := mctx.Module().(*apexBundle); ok && apex.checkStrictUpdatabilityLinting() {
+	if apex, ok := mctx.Module().(*apexBundle); ok && apex.checkStrictUpdatabilityLinting(mctx) {
 		mctx.WalkDeps(func(child, parent android.Module) bool {
 			// b/208656169 Do not propagate strict updatability linting to libcore/
 			// These libs are available on the classpath during compilation
@@ -1193,8 +1198,9 @@ var (
 	}
 )
 
-func (a *apexBundle) checkStrictUpdatabilityLinting() bool {
-	return a.Updatable() && !android.InList(a.ApexVariationName(), skipStrictUpdatabilityLintAllowlist)
+func (a *apexBundle) checkStrictUpdatabilityLinting(mctx android.TopDownMutatorContext) bool {
+	// The allowlist contains the base apex name, so use that instead of the ApexVariationName
+	return a.Updatable() && !android.InList(mctx.ModuleName(), skipStrictUpdatabilityLintAllowlist)
 }
 
 // apexUniqueVariationsMutator checks if any dependencies use unique apex variations. If so, use
@@ -1295,13 +1301,12 @@ type apexTransitionMutator struct{}
 func (a *apexTransitionMutator) Split(ctx android.BaseModuleContext) []string {
 	// apexBundle itself is mutated so that it and its dependencies have the same apex variant.
 	if ai, ok := ctx.Module().(ApexInfoMutator); ok && apexModuleTypeRequiresVariant(ai) {
-		return []string{ai.ApexVariationName()}
-	} else if o, ok := ctx.Module().(*OverrideApex); ok {
-		apexBundleName := o.GetOverriddenModuleName()
-		if apexBundleName == "" {
-			ctx.ModuleErrorf("base property is not set")
+		if overridable, ok := ctx.Module().(android.OverridableModule); ok && overridable.GetOverriddenBy() != "" {
+			return []string{overridable.GetOverriddenBy()}
 		}
-		return []string{apexBundleName}
+		return []string{ai.ApexVariationName()}
+	} else if _, ok := ctx.Module().(*OverrideApex); ok {
+		return []string{ctx.ModuleName()}
 	}
 	return []string{""}
 }
@@ -1314,9 +1319,12 @@ func (a *apexTransitionMutator) IncomingTransition(ctx android.IncomingTransitio
 	if am, ok := ctx.Module().(android.ApexModule); ok && am.CanHaveApexVariants() {
 		return android.IncomingApexTransition(ctx, incomingVariation)
 	} else if ai, ok := ctx.Module().(ApexInfoMutator); ok {
+		if overridable, ok := ctx.Module().(android.OverridableModule); ok && overridable.GetOverriddenBy() != "" {
+			return overridable.GetOverriddenBy()
+		}
 		return ai.ApexVariationName()
-	} else if o, ok := ctx.Module().(*OverrideApex); ok {
-		return o.GetOverriddenModuleName()
+	} else if _, ok := ctx.Module().(*OverrideApex); ok {
+		return ctx.Module().Name()
 	}
 
 	return ""
@@ -2652,7 +2660,7 @@ func (a *apexBundle) minSdkVersionValue(ctx android.EarlyModuleContext) string {
 	// Only override the minSdkVersion value on Apexes which already specify
 	// a min_sdk_version (it's optional for non-updatable apexes), and that its
 	// min_sdk_version value is lower than the one to override with.
-	minApiLevel := android.MinSdkVersionFromValue(ctx, proptools.String(a.properties.Min_sdk_version))
+	minApiLevel := android.MinSdkVersionFromValue(ctx, proptools.String(a.overridableProperties.Min_sdk_version))
 	if minApiLevel.IsNone() {
 		return ""
 	}

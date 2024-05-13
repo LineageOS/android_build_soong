@@ -262,6 +262,20 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.BaseModuleContext, libName s
 		if !isApexSystemServerJar {
 			return true
 		}
+		ai, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
+		allApexInfos := []android.ApexInfo{}
+		if allApexInfosProvider, ok := android.ModuleProvider(ctx, android.AllApexInfoProvider); ok {
+			allApexInfos = allApexInfosProvider.ApexInfos
+		}
+		if len(allApexInfos) > 0 && !ai.MinSdkVersion.EqualTo(allApexInfos[0].MinSdkVersion) {
+			// Apex system server jars are dexpreopted and installed on to the system image.
+			// Since we can have BigAndroid and Go variants of system server jar providing apexes,
+			// and these two variants can have different min_sdk_versions, hide one of the apex variants
+			// from make to prevent collisions.
+			//
+			// Unlike cc, min_sdk_version does not have an effect on the build actions of java libraries.
+			ctx.Module().MakeUninstallable()
+		}
 	} else {
 		// Don't preopt the platform variant of an APEX system server jar to avoid conflicts.
 		if isApexSystemServerJar {
@@ -502,7 +516,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, libName string, dexJa
 	// Prebuilts are active, do not copy the dexpreopt'd source javalib to out/soong/system_server_dexjars
 	// The javalib from the deapexed prebuilt will be copied to this location.
 	// TODO (b/331665856): Implement a principled solution for this.
-	copyApexSystemServerJarDex := !disableSourceApexVariant(ctx)
+	copyApexSystemServerJarDex := !disableSourceApexVariant(ctx) && !ctx.Module().IsHideFromMake()
 	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(
 		ctx, globalSoong, global, dexpreoptConfig, appProductPackages, copyApexSystemServerJarDex)
 	if err != nil {
