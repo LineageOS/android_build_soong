@@ -1490,6 +1490,11 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, deps PathD
 					fileName, nameExt, isLlndk)
 			}
 		}
+		// Ensure that a module tagged with only platformLsdumpTag has ref_dump_dirs.
+		// Android.bp in vendor projects should be cleaned up before this is enforced for vendorLsdumpTag and productLsdumpTag.
+		if len(headerAbiChecker.Ref_dump_dirs) == 0 && len(tags) == 1 && tags[0] == platformLsdumpTag {
+			ctx.ModuleErrorf("header_abi_checker is explicitly enabled, but no ref_dump_dirs are specified.")
+		}
 		// Check against the opt-in reference dumps.
 		for i, optInDumpDir := range headerAbiChecker.Ref_dump_dirs {
 			optInDumpDirPath := android.PathForModuleSrc(ctx, optInDumpDir)
