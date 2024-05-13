@@ -108,7 +108,7 @@ func needToWriteNinjaHint(ctx *android.Context) bool {
 	case "always":
 		return true
 	case "depend":
-		if _, err := os.Stat(filepath.Join(ctx.Config().OutDir(), ".ninja_log")); errors.Is(err, os.ErrNotExist) {
+		if _, err := os.Stat(filepath.Join(topDir, ctx.Config().OutDir(), ".ninja_log")); errors.Is(err, os.ErrNotExist) {
 			return true
 		}
 	}
