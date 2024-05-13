@@ -43,8 +43,6 @@ func (tag *lsdumpTag) dirName() string {
 		return "platform"
 	case llndkLsdumpTag:
 		return "vndk"
-	case platformLsdumpTag:
-		return "platform"
 	default:
 		return ""
 	}
@@ -134,10 +132,10 @@ func classifySourceAbiDump(ctx android.BaseModuleContext) []lsdumpTag {
 		if m.isImplementationForLLNDKPublic() {
 			result = append(result, llndkLsdumpTag)
 		}
-		// APEX and opt-in platform dumps are placed in the same directory.
 		if m.library.hasStubsVariants() {
 			result = append(result, apexLsdumpTag)
-		} else if headerAbiChecker.enabled() {
+		}
+		if headerAbiChecker.enabled() {
 			result = append(result, platformLsdumpTag)
 		}
 	} else if headerAbiChecker.enabled() {
