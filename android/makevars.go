@@ -507,7 +507,7 @@ EXTRA_INSTALL_ZIPS :=
 		if extraFiles := install.extraFiles; extraFiles != nil {
 			fmt.Fprintf(buf, "\t( unzip -qDD -d '%s' '%s' 2>&1 | grep -v \"zipfile is empty\"; exit $${PIPESTATUS[0]} ) || \\\n", extraFiles.dir.String(), extraFiles.zip.String())
 			fmt.Fprintf(buf, "\t  ( code=$$?; if [ $$code -ne 0 -a $$code -ne 1 ]; then exit $$code; fi )\n")
-			fmt.Fprintf(buf, "EXTRA_INSTALL_ZIPS += %s:%s\n", extraFiles.dir.String(), extraFiles.zip.String())
+			fmt.Fprintf(buf, "EXTRA_INSTALL_ZIPS += %s:%s:%s\n", install.to.String(), extraFiles.dir.String(), extraFiles.zip.String())
 		}
 
 		fmt.Fprintln(buf)
