@@ -1842,6 +1842,7 @@ func (module *SdkLibrary) createImplLibrary(mctx android.DefaultableHookContext)
 		&module.dexProperties,
 		&module.dexpreoptProperties,
 		&module.linter.properties,
+		&module.overridableProperties,
 		&props,
 		module.sdkComponentPropertiesForChildLibrary(),
 	}
