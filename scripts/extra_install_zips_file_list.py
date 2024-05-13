@@ -18,13 +18,16 @@ def main():
     parser.add_argument('staging_dir',
         help='Path to the partition staging directory')
     parser.add_argument('extra_install_zips', nargs='*',
-        help='The value of EXTRA_INSTALL_ZIPS from make. It should be a list of extraction_dir:zip_file pairs.')
+        help='The value of EXTRA_INSTALL_ZIPS from make. '
+        'It should be a list of primary_file:extraction_dir:zip_file trios. '
+        'The primary file will be ignored by this script, you should ensure that '
+        'the list of trios given to this script is already filtered by relevant primary files.')
     args = parser.parse_args()
 
     staging_dir = args.staging_dir.removesuffix('/') + '/'
 
-    for zip_pair in args.extra_install_zips:
-        d, z = zip_pair.split(':')
+    for zip_trio in args.extra_install_zips:
+        _, d, z = zip_trio.split(':')
         d = d.removesuffix('/') + '/'
 
         if d.startswith(staging_dir):
