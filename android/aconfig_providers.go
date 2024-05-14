@@ -130,6 +130,7 @@ func aconfigUpdateAndroidBuildActions(ctx ModuleContext) {
 			AconfigFiles: mergedAconfigFiles,
 			ModeInfos:    mergedModeInfos,
 		})
+		ctx.Module().base().aconfigFilePaths = getAconfigFilePaths(ctx.Module().base(), mergedAconfigFiles)
 	}
 }
 
