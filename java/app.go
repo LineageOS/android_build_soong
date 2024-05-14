@@ -440,21 +440,6 @@ func (a *AndroidApp) shouldEmbedJnis(ctx android.BaseModuleContext) bool {
 	return true
 }
 
-func (a *AndroidApp) shouldCollectRecursiveNativeDeps(ctx android.ModuleContext) bool {
-	// JNI libs are always embedded, but whether to embed their transitive dependencies as well
-	// or not is determined here. For most of the apps built here (using the platform build
-	// system), we don't need to collect the transitive deps because they will anyway be
-	// available in the partition image where the app will be installed to.
-	//
-	// Collecting transitive dependencies is required only for unbundled apps.
-	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
-	apkInApex := !apexInfo.IsForPlatform()
-	testApp := a.appProperties.AllowCompressingNativeLibs
-	unbundledApp := ctx.Config().UnbundledBuild() || apkInApex || testApp
-
-	return a.shouldEmbedJnis(ctx) && unbundledApp
-}
-
 func generateAaptRenamePackageFlags(packageName string, renameResourcesPackage bool) []string {
 	aaptFlags := []string{"--rename-manifest-package " + packageName}
 	if renameResourcesPackage {
@@ -846,7 +831,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	dexJarFile, packageResources := a.dexBuildActions(ctx)
 
-	jniLibs, prebuiltJniPackages, certificates := collectAppDeps(ctx, a, a.shouldCollectRecursiveNativeDeps(ctx), !Bool(a.appProperties.Jni_uses_platform_apis))
+	jniLibs, prebuiltJniPackages, certificates := collectAppDeps(ctx, a, a.shouldEmbedJnis(ctx), !Bool(a.appProperties.Jni_uses_platform_apis))
 	jniJarFile := a.jniBuildActions(jniLibs, prebuiltJniPackages, ctx)
 
 	if ctx.Failed() {
