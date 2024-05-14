@@ -111,8 +111,12 @@ func (d *dexer) effectiveOptimizeEnabled() bool {
 	return BoolDefault(d.dexProperties.Optimize.Enabled, d.dexProperties.Optimize.EnabledByDefault)
 }
 
-func (d *DexProperties) resourceShrinkingEnabled() bool {
-	return BoolDefault(d.Optimize.Optimized_shrink_resources, Bool(d.Optimize.Shrink_resources))
+func (d *DexProperties) resourceShrinkingEnabled(ctx android.ModuleContext) bool {
+	return !ctx.Config().Eng() && BoolDefault(d.Optimize.Optimized_shrink_resources, Bool(d.Optimize.Shrink_resources))
+}
+
+func (d *DexProperties) optimizedResourceShrinkingEnabled(ctx android.ModuleContext) bool {
+	return d.resourceShrinkingEnabled(ctx) && Bool(d.Optimize.Optimized_shrink_resources)
 }
 
 var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
