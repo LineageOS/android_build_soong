@@ -368,17 +368,6 @@ type dependencyTag struct {
 	static bool
 }
 
-var _ android.SkipToTransitiveDepsTag = (*dependencyTag)(nil)
-
-func (depTag dependencyTag) SkipToTransitiveDeps() bool {
-	// jni_libs are not installed because they are always embedded into the app. However,
-	// transitive deps of jni_libs themselves should be installed along with the app.
-	if IsJniDepTag(depTag) {
-		return true
-	}
-	return false
-}
-
 // installDependencyTag is a dependency tag that is annotated to cause the installed files of the
 // dependency to be installed when the parent module is installed.
 type installDependencyTag struct {

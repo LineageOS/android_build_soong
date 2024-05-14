@@ -1474,27 +1474,15 @@ func (m *ModuleBase) computeInstallDeps(ctx ModuleContext) ([]*DepSet[InstallPat
 	var installDeps []*DepSet[InstallPath]
 	var packagingSpecs []*DepSet[PackagingSpec]
 	ctx.VisitDirectDeps(func(dep Module) {
-		depTag := ctx.OtherModuleDependencyTag(dep)
-		// If this is true, the direct outputs from the module is not gathered, but its
-		// transitive deps are still gathered.
-		skipToTransitive := IsSkipToTransitiveDepsTag(depTag)
-		if isInstallDepNeeded(dep, depTag) || skipToTransitive {
+		if isInstallDepNeeded(dep, ctx.OtherModuleDependencyTag(dep)) {
 			// Installation is still handled by Make, so anything hidden from Make is not
 			// installable.
 			if !dep.IsHideFromMake() && !dep.IsSkipInstall() {
-				if skipToTransitive {
-					installDeps = append(installDeps, dep.base().installFilesDepSet.transitive...)
-				} else {
-					installDeps = append(installDeps, dep.base().installFilesDepSet)
-				}
+				installDeps = append(installDeps, dep.base().installFilesDepSet)
 			}
 			// Add packaging deps even when the dependency is not installed so that uninstallable
 			// modules can still be packaged.  Often the package will be installed instead.
-			if skipToTransitive {
-				packagingSpecs = append(packagingSpecs, dep.base().packagingSpecsDepSet.transitive...)
-			} else {
-				packagingSpecs = append(packagingSpecs, dep.base().packagingSpecsDepSet)
-			}
+			packagingSpecs = append(packagingSpecs, dep.base().packagingSpecsDepSet)
 		}
 	})
 

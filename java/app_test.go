@@ -2013,8 +2013,8 @@ func TestJNIPackaging(t *testing.T) {
 		packaged   bool
 		compressed bool
 	}{
-		{"app", true, false},
-		{"app_noembed", true, false},
+		{"app", false, false},
+		{"app_noembed", false, false},
 		{"app_embed", true, false},
 		{"test", true, false},
 		{"test_noembed", true, true},
@@ -2041,44 +2041,6 @@ func TestJNIPackaging(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestJNITranstiveDepsInstallation(t *testing.T) {
-	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
-		android_app {
-			name: "app",
-			jni_libs: ["libjni"],
-			platform_apis: true,
-		}
-
-		cc_library {
-			name: "libjni",
-			shared_libs: ["libplatform"],
-			system_shared_libs: [],
-			stl: "none",
-			required: ["librequired"],
-		}
-
-		cc_library {
-			name: "libplatform",
-			system_shared_libs: [],
-			stl: "none",
-		}
-
-		cc_library {
-			name: "librequired",
-			system_shared_libs: [],
-			stl: "none",
-		}
-
-		`)
-
-	app := ctx.ModuleForTests("app", "android_common")
-	jniLibZip := app.Output("jnilibs.zip")
-	android.AssertPathsEndWith(t, "embedd jni lib mismatch", []string{"libjni.so"}, jniLibZip.Implicits)
-
-	install := app.Rule("Cp")
-	android.AssertPathsEndWith(t, "install dep mismatch", []string{"libplatform.so", "librequired.so"}, install.OrderOnly)
 }
 
 func TestJNISDK(t *testing.T) {
@@ -3357,7 +3319,8 @@ func TestUsesLibraries(t *testing.T) {
 	// These also include explicit `uses_libs`/`optional_uses_libs` entries, as they may be
 	// propagated from dependencies.
 	actualManifestFixerArgs := app.Output("manifest_fixer/AndroidManifest.xml").Args["args"]
-	expectManifestFixerArgs := `--uses-library foo ` +
+	expectManifestFixerArgs := `--extract-native-libs=true ` +
+		`--uses-library foo ` +
 		`--uses-library com.non.sdk.lib ` +
 		`--uses-library qux ` +
 		`--uses-library quuz ` +
@@ -4147,7 +4110,7 @@ func TestAppIncludesJniPackages(t *testing.T) {
 		},
 		{
 			name:       "aary-no-use-embedded",
-			hasPackage: true,
+			hasPackage: false,
 		},
 	}
 
