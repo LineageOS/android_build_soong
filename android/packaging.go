@@ -48,6 +48,9 @@ type PackagingSpec struct {
 	// is created via InstallFile or InstallSymlink) or a simple packaging (i.e. created via
 	// PackageFile).
 	skipInstall bool
+
+	// Paths of aconfig files for the built artifact
+	aconfigPaths *Paths
 }
 
 func (p *PackagingSpec) Equals(other *PackagingSpec) bool {
@@ -100,6 +103,11 @@ func (p *PackagingSpec) Partition() string {
 
 func (p *PackagingSpec) SkipInstall() bool {
 	return p.skipInstall
+}
+
+// Paths of aconfig files for the built artifact
+func (p *PackagingSpec) GetAconfigPaths() Paths {
+	return *p.aconfigPaths
 }
 
 type PackageModule interface {
