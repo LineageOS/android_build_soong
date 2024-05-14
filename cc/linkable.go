@@ -73,6 +73,12 @@ type LinkableInterface interface {
 	// RustLibraryInterface returns true if this is a Rust library module
 	RustLibraryInterface() bool
 
+	// CrateName returns the crateName for a Rust library, panics if not a Rust library.
+	CrateName() string
+
+	// DepFlags returns a slice of Rustc string flags, panics if not a Rust library
+	ExportedCrateLinkDirs() []string
+
 	// BaseModuleName returns the android.ModuleBase.BaseModuleName() value for this module.
 	BaseModuleName() string
 
@@ -380,6 +386,7 @@ type FlagExporterInfo struct {
 	SystemIncludeDirs android.Paths // System include directories to be included with -isystem
 	Flags             []string      // Exported raw flags.
 	Deps              android.Paths
+	RustRlibDeps      []RustRlibDep
 	GeneratedHeaders  android.Paths
 }
 

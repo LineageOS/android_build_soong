@@ -302,6 +302,24 @@ func RemoveFromList(s string, list []string) (bool, []string) {
 	return removed, result
 }
 
+// FirstUniqueFunc returns all unique elements of a slice, keeping the first copy of
+// each.  It does not modify the input slice. The eq function should return true
+// if two elements can be considered equal.
+func FirstUniqueFunc[SortableList ~[]Sortable, Sortable any](list SortableList, eq func(a, b Sortable) bool) SortableList {
+	k := 0
+outer:
+	for i := 0; i < len(list); i++ {
+		for j := 0; j < k; j++ {
+			if eq(list[i], list[j]) {
+				continue outer
+			}
+		}
+		list[k] = list[i]
+		k++
+	}
+	return list[:k]
+}
+
 // FirstUniqueStrings returns all unique elements of a slice of strings, keeping the first copy of
 // each.  It does not modify the input slice.
 func FirstUniqueStrings(list []string) []string {

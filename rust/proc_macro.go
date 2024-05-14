@@ -76,6 +76,7 @@ func (procMacro *procMacroDecorator) compile(ctx ModuleContext, flags Flags, dep
 	srcPath := crateRootPath(ctx, procMacro)
 	ret := TransformSrctoProcMacro(ctx, srcPath, deps, flags, outputFile)
 	procMacro.baseCompiler.unstrippedOutputFile = outputFile
+
 	return ret
 }
 

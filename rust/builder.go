@@ -21,6 +21,7 @@ import (
 	"github.com/google/blueprint"
 
 	"android/soong/android"
+	"android/soong/cc"
 	"android/soong/rust/config"
 )
 
@@ -118,6 +119,7 @@ type buildOutput struct {
 
 func init() {
 	pctx.HostBinToolVariable("SoongZipCmd", "soong_zip")
+	cc.TransformRlibstoStaticlib = TransformRlibstoStaticlib
 }
 
 type transformProperties struct {
@@ -164,6 +166,48 @@ func TransformSrcToBinary(ctx ModuleContext, mainSrc android.Path, deps PathDeps
 func TransformSrctoRlib(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
 	outputFile android.WritablePath) buildOutput {
 	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, getTransformProperties(ctx, "rlib"))
+}
+
+func TransformRlibstoStaticlib(ctx android.ModuleContext, mainSrc android.Path, deps []cc.RustRlibDep,
+	outputFile android.WritablePath) android.Path {
+
+	var rustPathDeps PathDeps
+	var rustFlags Flags
+
+	for _, rlibDep := range deps {
+		rustPathDeps.RLibs = append(rustPathDeps.RLibs, RustLibrary{Path: rlibDep.LibPath, CrateName: rlibDep.CrateName})
+		rustPathDeps.linkDirs = append(rustPathDeps.linkDirs, rlibDep.LinkDirs...)
+	}
+
+	ccModule := ctx.(cc.ModuleContext).Module().(*cc.Module)
+	toolchain := config.FindToolchain(ctx.Os(), ctx.Arch())
+	t := transformProperties{
+		// Crate name can be a predefined value as this is a staticlib and
+		// it does not need to be unique. The crate name is used for name
+		// mangling, but it is mixed with the metadata for that purpose, which we
+		// already set to the module name.
+		crateName:       "generated_rust_staticlib",
+		is64Bit:         toolchain.Is64Bit(),
+		targetTriple:    toolchain.RustTriple(),
+		bootstrap:       ccModule.Bootstrap(),
+		inRecovery:      ccModule.InRecovery(),
+		inRamdisk:       ccModule.InRamdisk(),
+		inVendorRamdisk: ccModule.InVendorRamdisk(),
+
+		// crateType indicates what type of crate to build
+		crateType: "staticlib",
+
+		// synthetic indicates whether this is an actual Rust module or not
+		synthetic: true,
+	}
+
+	rustFlags = CommonDefaultFlags(ctx, toolchain, rustFlags)
+	rustFlags = CommonLibraryCompilerFlags(ctx, rustFlags)
+	rustFlags.GlobalRustFlags = append(rustFlags.GlobalRustFlags, "-C lto=thin")
+
+	rustFlags.EmitXrefs = false
+
+	return transformSrctoCrate(ctx, mainSrc, rustPathDeps, rustFlags, outputFile, t).outputFile
 }
 
 func TransformSrctoDylib(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,

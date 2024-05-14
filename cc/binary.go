@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 
 	"android/soong/android"
+
 	"github.com/google/blueprint"
 )
 
@@ -424,6 +425,10 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 
 	validations = append(validations, objs.tidyDepFiles...)
 	linkerDeps = append(linkerDeps, flags.LdFlagsDeps...)
+
+	if generatedLib := generateRustStaticlib(ctx, deps.RustRlibDeps); generatedLib != nil {
+		deps.StaticLibs = append(deps.StaticLibs, generatedLib)
+	}
 
 	// Register link action.
 	transformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs, deps.StaticLibs,
