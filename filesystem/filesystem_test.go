@@ -497,3 +497,70 @@ func TestTrackPhonyAsRequiredDep(t *testing.T) {
 		android.AssertStringListContains(t, "missing entry", fs.entries, e)
 	}
 }
+
+func TestFilterOutUnsupportedArches(t *testing.T) {
+	result := fixture.RunTestWithBp(t, `
+		android_filesystem {
+			name: "fs_64_only",
+			deps: ["foo"],
+		}
+
+		android_filesystem {
+			name: "fs_64_32",
+			compile_multilib: "both",
+			multilib: {
+				first: {
+					deps: ["foo"],
+				},
+			},
+		}
+
+		cc_binary {
+			name: "foo",
+			required: ["phony"],
+		}
+
+		phony {
+			name: "phony",
+			required: [
+				"libbar",
+				"app",
+			],
+		}
+
+		cc_library {
+			name: "libbar",
+		}
+
+		android_app {
+			name: "app",
+			srcs: ["a.java"],
+			platform_apis: true,
+		}
+	`)
+	testcases := []struct {
+		fsName     string
+		expected   []string
+		unexpected []string
+	}{
+		{
+			fsName:     "fs_64_only",
+			expected:   []string{"app/app/app.apk", "bin/foo", "lib64/libbar.so"},
+			unexpected: []string{"lib/libbar.so"},
+		},
+		{
+			fsName:     "fs_64_32",
+			expected:   []string{"app/app/app.apk", "bin/foo", "lib64/libbar.so", "lib/libbar.so"},
+			unexpected: []string{},
+		},
+	}
+	for _, c := range testcases {
+		fs := result.ModuleForTests(c.fsName, "android_common").Module().(*filesystem)
+		for _, e := range c.expected {
+			android.AssertStringListContains(t, "missing entry", fs.entries, e)
+		}
+		for _, e := range c.unexpected {
+			android.AssertStringListDoesNotContain(t, "unexpected entry", fs.entries, e)
+		}
+	}
+}
