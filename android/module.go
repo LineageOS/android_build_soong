@@ -1069,7 +1069,8 @@ func addRequiredDeps(ctx BottomUpMutatorContext) {
 		// TODO(jiyong): the Make-side does this only when the required module is a shared
 		// library or a native test.
 		bothInAndroid := ctx.Device() && target.Os.Class == Device
-		nativeArch := InList(ctx.Arch().ArchType.Multilib, []string{"lib32", "lib64"})
+		nativeArch := InList(ctx.Arch().ArchType.Multilib, []string{"lib32", "lib64"}) &&
+			InList(target.Arch.ArchType.Multilib, []string{"lib32", "lib64"})
 		sameBitness := ctx.Arch().ArchType.Multilib == target.Arch.ArchType.Multilib
 		if bothInAndroid && nativeArch && !sameBitness {
 			return

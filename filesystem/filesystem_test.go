@@ -465,3 +465,35 @@ func TestPreventDuplicatedEntries(t *testing.T) {
 		}
 	`)
 }
+
+func TestTrackPhonyAsRequiredDep(t *testing.T) {
+	result := fixture.RunTestWithBp(t, `
+		android_filesystem {
+			name: "fs",
+			deps: ["foo"],
+		}
+
+		cc_binary {
+			name: "foo",
+			required: ["phony"],
+		}
+
+		phony {
+			name: "phony",
+			required: ["libbar"],
+		}
+
+		cc_library {
+			name: "libbar",
+		}
+	`)
+
+	fs := result.ModuleForTests("fs", "android_common").Module().(*filesystem)
+	expected := []string{
+		"bin/foo",
+		"lib64/libbar.so",
+	}
+	for _, e := range expected {
+		android.AssertStringListContains(t, "missing entry", fs.entries, e)
+	}
+}
