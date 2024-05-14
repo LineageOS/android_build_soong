@@ -482,6 +482,10 @@ func (m *moduleContext) PackageFile(installPath InstallPath, name string, srcPat
 	return m.packageFile(fullInstallPath, srcPath, false)
 }
 
+func (m *moduleContext) getAconfigPaths() *Paths {
+	return &m.module.base().aconfigFilePaths
+}
+
 func (m *moduleContext) packageFile(fullInstallPath InstallPath, srcPath Path, executable bool) PackagingSpec {
 	licenseFiles := m.Module().EffectiveLicenseFiles()
 	spec := PackagingSpec{
@@ -492,6 +496,7 @@ func (m *moduleContext) packageFile(fullInstallPath InstallPath, srcPath Path, e
 		effectiveLicenseFiles: &licenseFiles,
 		partition:             fullInstallPath.partition,
 		skipInstall:           m.skipInstall(),
+		aconfigPaths:          m.getAconfigPaths(),
 	}
 	m.packagingSpecs = append(m.packagingSpecs, spec)
 	return spec
@@ -616,6 +621,7 @@ func (m *moduleContext) InstallSymlink(installPath InstallPath, name string, src
 		executable:       false,
 		partition:        fullInstallPath.partition,
 		skipInstall:      m.skipInstall(),
+		aconfigPaths:     m.getAconfigPaths(),
 	})
 
 	return fullInstallPath
@@ -658,6 +664,7 @@ func (m *moduleContext) InstallAbsoluteSymlink(installPath InstallPath, name str
 		executable:       false,
 		partition:        fullInstallPath.partition,
 		skipInstall:      m.skipInstall(),
+		aconfigPaths:     m.getAconfigPaths(),
 	})
 
 	return fullInstallPath

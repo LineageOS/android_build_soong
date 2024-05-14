@@ -902,6 +902,9 @@ type ModuleBase struct {
 	installedInitRcPaths         InstallPaths
 	installedVintfFragmentsPaths InstallPaths
 
+	// Merged Aconfig files for all transitive deps.
+	aconfigFilePaths Paths
+
 	// set of dependency module:location mappings used to populate the license metadata for
 	// apex containers.
 	licenseInstallMap []string

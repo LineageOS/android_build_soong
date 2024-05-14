@@ -15,6 +15,7 @@ bootstrap_go_package {
         "soong-phony", // for testing
     ],
     srcs: [
+        "aconfig_files.go",
         "avb_add_hash_footer.go",
         "avb_gen_vbmeta_image.go",
         "bootimg.go",

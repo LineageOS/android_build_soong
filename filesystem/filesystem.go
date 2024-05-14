@@ -131,6 +131,9 @@ type filesystemProperties struct {
 	// Default is false
 	Build_logtags *bool
 
+	// Install aconfig_flags.pb file for the modules installed in this partition.
+	Gen_aconfig_flags_pb *bool
+
 	Fsverity fsverityProperties
 }
 
@@ -300,6 +303,7 @@ func (f *filesystem) buildImageUsingBuildImage(ctx android.ModuleContext) androi
 	f.addMakeBuiltFiles(ctx, builder, rootDir)
 	f.buildFsverityMetadataFiles(ctx, builder, specs, rootDir, rebasedDir)
 	f.buildEventLogtagsFile(ctx, builder, rebasedDir)
+	f.buildAconfigFlagsFiles(ctx, builder, specs, rebasedDir)
 
 	// run host_init_verifier
 	// Ideally we should have a concept of pluggable linters that verify the generated image.
@@ -441,6 +445,7 @@ func (f *filesystem) buildCpioImage(ctx android.ModuleContext, compressed bool) 
 	f.buildNonDepsFiles(ctx, builder, rootDir)
 	f.buildFsverityMetadataFiles(ctx, builder, specs, rootDir, rebasedDir)
 	f.buildEventLogtagsFile(ctx, builder, rebasedDir)
+	f.buildAconfigFlagsFiles(ctx, builder, specs, rebasedDir)
 
 	output := android.PathForModuleOut(ctx, f.installFileName()).OutputPath
 	cmd := builder.Command().
