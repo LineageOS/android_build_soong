@@ -334,6 +334,7 @@ func (a *AndroidTestHelperApp) GenerateAndroidBuildActions(ctx android.ModuleCon
 
 func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.checkAppSdkVersions(ctx)
+	a.checkEmbedJnis(ctx)
 	a.generateAndroidBuildActions(ctx)
 	a.generateJavaUsedByApex(ctx)
 }
@@ -376,6 +377,17 @@ func (a *AndroidApp) checkAppSdkVersions(ctx android.ModuleContext) {
 
 	a.checkPlatformAPI(ctx)
 	a.checkSdkVersions(ctx)
+}
+
+// Ensures that use_embedded_native_libs are set for apk-in-apex
+func (a *AndroidApp) checkEmbedJnis(ctx android.BaseModuleContext) {
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
+	apkInApex := !apexInfo.IsForPlatform()
+	hasJnis := len(a.appProperties.Jni_libs) > 0
+
+	if apkInApex && hasJnis && !Bool(a.appProperties.Use_embedded_native_libs) {
+		ctx.ModuleErrorf("APK in APEX should have use_embedded_native_libs: true")
+	}
 }
 
 // If an updatable APK sets min_sdk_version, min_sdk_vesion of JNI libs should match with it.
@@ -433,9 +445,9 @@ func (a *AndroidApp) shouldUncompressDex(ctx android.ModuleContext) bool {
 }
 
 func (a *AndroidApp) shouldEmbedJnis(ctx android.BaseModuleContext) bool {
-	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	return ctx.Config().UnbundledBuild() || Bool(a.appProperties.Use_embedded_native_libs) ||
-		!apexInfo.IsForPlatform() || a.appProperties.AlwaysPackageNativeLibs
+		Bool(a.appProperties.Updatable) ||
+		a.appProperties.AlwaysPackageNativeLibs
 }
 
 func generateAaptRenamePackageFlags(packageName string, renameResourcesPackage bool) []string {
