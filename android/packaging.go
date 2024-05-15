@@ -142,6 +142,10 @@ type PackagingBase struct {
 	// for rare cases like when there's a dependency to a module which exists in certain repo
 	// checkouts, this is needed.
 	IgnoreMissingDependencies bool
+
+	// If this is set to true by a module type inheriting PackagingBase, the deps property
+	// collects the first target only even with compile_multilib: true.
+	DepsCollectFirstTargetOnly bool
 }
 
 type depsProperty struct {
@@ -154,6 +158,7 @@ type packagingMultilibProperties struct {
 	Common depsProperty `android:"arch_variant"`
 	Lib32  depsProperty `android:"arch_variant"`
 	Lib64  depsProperty `android:"arch_variant"`
+	Both   depsProperty `android:"arch_variant"`
 }
 
 type packagingArchProperties struct {
@@ -194,11 +199,28 @@ func (p *PackagingBase) getDepsForArch(ctx BaseModuleContext, arch ArchType) []s
 		ret = append(ret, p.properties.Multilib.Common.Deps...)
 	}
 
-	for i, t := range ctx.MultiTargets() {
-		if t.Arch.ArchType == arch {
-			ret = append(ret, p.properties.Deps...)
-			if i == 0 {
-				ret = append(ret, p.properties.Multilib.First.Deps...)
+	if p.DepsCollectFirstTargetOnly {
+		if len(p.properties.Multilib.First.Deps) > 0 {
+			ctx.PropertyErrorf("multilib.first.deps", "not supported. use \"deps\" instead")
+		}
+		for i, t := range ctx.MultiTargets() {
+			if t.Arch.ArchType == arch {
+				ret = append(ret, p.properties.Multilib.Both.Deps...)
+				if i == 0 {
+					ret = append(ret, p.properties.Deps...)
+				}
+			}
+		}
+	} else {
+		if len(p.properties.Multilib.Both.Deps) > 0 {
+			ctx.PropertyErrorf("multilib.both.deps", "not supported. use \"deps\" instead")
+		}
+		for i, t := range ctx.MultiTargets() {
+			if t.Arch.ArchType == arch {
+				ret = append(ret, p.properties.Deps...)
+				if i == 0 {
+					ret = append(ret, p.properties.Multilib.First.Deps...)
+				}
 			}
 		}
 	}
