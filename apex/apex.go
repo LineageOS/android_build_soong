@@ -1633,7 +1633,7 @@ func apexFileForShBinary(ctx android.BaseModuleContext, sh *sh.ShBinary) apexFil
 
 func apexFileForPrebuiltEtc(ctx android.BaseModuleContext, prebuilt prebuilt_etc.PrebuiltEtcModule, outputFile android.Path) apexFile {
 	dirInApex := filepath.Join(prebuilt.BaseDir(), prebuilt.SubDir())
-	return newApexFile(ctx, outputFile, strings.ReplaceAll(outputFile.Rel(), "/", "_"), dirInApex, etc, prebuilt)
+	return newApexFile(ctx, outputFile, outputFile.Base(), dirInApex, etc, prebuilt)
 }
 
 func apexFileForCompatConfig(ctx android.BaseModuleContext, config java.PlatformCompatConfigIntf, depName string) apexFile {
