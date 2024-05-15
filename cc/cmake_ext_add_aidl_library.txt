@@ -1,35 +1,51 @@
-function(add_aidl_library NAME LANG SOURCES AIDLFLAGS)
+function(add_aidl_library NAME LANG AIDLROOT SOURCES AIDLFLAGS)
     if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.20")
         cmake_policy(SET CMP0116 NEW)
     endif()
 
+    # Strip trailing slash
+    get_filename_component(AIDLROOT_TRAILING "${AIDLROOT}" NAME)
+    if ("${AIDLROOT_TRAILING}" STREQUAL "")
+        get_filename_component(AIDLROOT "${AIDLROOT}foo" DIRECTORY)
+    endif()
+
     set(GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/.intermediates/${NAME}-source")
     set(GEN_SOURCES)
-    foreach(SOURCE ${SOURCES})
-        get_filename_component(SOURCE_WE ${SOURCE} NAME_WE)
-        get_filename_component(SOURCE_ABSOLUTE ${SOURCE} ABSOLUTE)
-        get_filename_component(SOURCE_DIR ${SOURCE_ABSOLUTE} DIRECTORY)
-        set(GEN_SOURCE "${GEN_DIR}/${SOURCE_WE}.cpp")
+    foreach (SOURCE ${SOURCES})
+        set(SOURCE_FULL ${AIDLROOT}/${SOURCE})
+        get_filename_component(SOURCE_WLE ${SOURCE} NAME_WLE)
+        get_filename_component(SOURCE_SUBDIR ${SOURCE} DIRECTORY)
+        set(GEN_SOURCE "${GEN_DIR}/${SOURCE_SUBDIR}/${SOURCE_WLE}.cpp")
+
+        file(READ "${SOURCE}" SOURCE_CONTENTS)
+        string(FIND "${SOURCE_CONTENTS}" "@VintfStability" VINTF_MATCH)
+        set(STABILITY_FLAG)
+        if (${VINTF_MATCH} GREATER_EQUAL 0)
+            set(STABILITY_FLAG --stability vintf)
+        endif()
+
         set(DEPFILE_ARG)
         if (NOT ${CMAKE_GENERATOR} MATCHES "Unix Makefiles")
             set(DEPFILE_ARG DEPFILE "${GEN_SOURCE}.d")
         endif()
+
         add_custom_command(
             OUTPUT "${GEN_SOURCE}"
-            MAIN_DEPENDENCY "${SOURCE_ABSOLUTE}"
+            MAIN_DEPENDENCY "${SOURCE_FULL}"
             ${DEPFILE_ARG}
             COMMAND "${AIDL_BIN}"
             ARGS
             --lang=${LANG}
-            --include="${SOURCE_DIR}"
+            --include="${AIDLROOT}"
             --dep="${GEN_SOURCE}.d"
             --out="${GEN_DIR}"
             --header_out="${GEN_DIR}/include"
             --ninja
             --structured
             --min_sdk_version=current
+            ${STABILITY_FLAG}
             ${AIDLFLAGS}
-            "${SOURCE_ABSOLUTE}"
+            "${SOURCE_FULL}"
         )
         list(APPEND GEN_SOURCES "${GEN_SOURCE}")
     endforeach()
@@ -39,9 +55,14 @@ function(add_aidl_library NAME LANG SOURCES AIDLFLAGS)
     target_include_directories(${NAME}
         PUBLIC
         "${GEN_DIR}/include"
-        "${ANDROID_BUILD_TOP}/frameworks/native/libs/binder/ndk/include_${LANG}"
     )
+
+    if (${LANG} MATCHES "ndk")
+        set(BINDER_LIB_NAME "libbinder_ndk_sdk")
+    else()
+        set(BINDER_LIB_NAME "libbinder_sdk")
+    endif()
     target_link_libraries(${NAME}
-        libbinder_sdk
+        ${BINDER_LIB_NAME}
     )
 endfunction()
