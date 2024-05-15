@@ -439,7 +439,8 @@ func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease strin
 
 	configs := ReleaseConfigsFactory()
 	mapsRead := make(map[string]bool)
-	for idx, releaseConfigMapPath := range releaseConfigMapPaths {
+	var idx int
+	for _, releaseConfigMapPath := range releaseConfigMapPaths {
 		// Maintain an ordered list of release config directories.
 		configDir := filepath.Dir(releaseConfigMapPath)
 		if mapsRead[configDir] {
@@ -454,6 +455,7 @@ func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease strin
 		if err != nil {
 			return nil, err
 		}
+		idx += 1
 	}
 
 	// Now that we have all of the release config maps, can meld them and generate the artifacts.
