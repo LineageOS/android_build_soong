@@ -47,6 +47,7 @@ type compiler interface {
 	edition() string
 	features() []string
 	rustdoc(ctx ModuleContext, flags Flags, deps PathDeps) android.OptionalPath
+	Thinlto() bool
 
 	// Output directory in which source-generated code from dependencies is
 	// copied. This is equivalent to Cargo's OUT_DIR variable.
@@ -231,6 +232,15 @@ type BaseCompilerProperties struct {
 
 	// If cargo_env_compat is true, sets the CARGO_PKG_VERSION env var to this value.
 	Cargo_pkg_version *string
+
+	// Control whether LTO is used for the final (Rust) linkage. This does not impact
+	// cross-language LTO.
+	Lto struct {
+		// Whether thin LTO should be enabled. By default this is true.
+		// LTO provides such a large code size benefit for Rust, this should always
+		// be enabled for production builds unless there's a clear need to disable it.
+		Thin *bool `android:"arch_variant"`
+	} `android:"arch_variant"`
 }
 
 type baseCompiler struct {
@@ -271,6 +281,11 @@ type baseCompiler struct {
 
 func (compiler *baseCompiler) Disabled() bool {
 	return false
+}
+
+// Thin LTO is enabled by default.
+func (compiler *baseCompiler) Thinlto() bool {
+	return BoolDefault(compiler.Properties.Lto.Thin, true)
 }
 
 func (compiler *baseCompiler) SetDisabled() {
