@@ -120,6 +120,16 @@ func ReleaseConfigsFactory() (c *ReleaseConfigs) {
 	return &configs
 }
 
+func (configs *ReleaseConfigs) GetSortedReleaseConfigs() (ret []*ReleaseConfig) {
+	for _, config := range configs.ReleaseConfigs {
+		ret = append(ret, config)
+	}
+	slices.SortFunc(ret, func(a, b *ReleaseConfig) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+	return ret
+}
+
 func ReleaseConfigMapFactory(protoPath string) (m *ReleaseConfigMap) {
 	m = &ReleaseConfigMap{
 		path:                       protoPath,
@@ -283,9 +293,7 @@ func (configs *ReleaseConfigs) GetReleaseConfig(name string) (*ReleaseConfig, er
 	return nil, fmt.Errorf("Missing config %s.  Trace=%v", name, trace)
 }
 
-// Write the makefile for this targetRelease.
-func (configs *ReleaseConfigs) WriteMakefile(outFile, targetRelease string) error {
-	makeVars := make(map[string]string)
+func (configs *ReleaseConfigs) GetAllReleaseNames() []string {
 	var allReleaseNames []string
 	for _, v := range configs.ReleaseConfigs {
 		allReleaseNames = append(allReleaseNames, v.Name)
@@ -294,6 +302,12 @@ func (configs *ReleaseConfigs) WriteMakefile(outFile, targetRelease string) erro
 	slices.SortFunc(allReleaseNames, func(a, b string) int {
 		return cmp.Compare(a, b)
 	})
+	return allReleaseNames
+}
+
+// Write the makefile for this targetRelease.
+func (configs *ReleaseConfigs) WriteMakefile(outFile, targetRelease string) error {
+	makeVars := make(map[string]string)
 	config, err := configs.GetReleaseConfig(targetRelease)
 	if err != nil {
 		return err
@@ -356,7 +370,7 @@ func (configs *ReleaseConfigs) WriteMakefile(outFile, targetRelease string) erro
 		data += fmt.Sprintf("# User specified TARGET_RELEASE=%s\n", targetRelease)
 	}
 	// The variable _all_release_configs will get deleted during processing, so do not mark it read-only.
-	data += fmt.Sprintf("_all_release_configs := %s\n", strings.Join(allReleaseNames, " "))
+	data += fmt.Sprintf("_all_release_configs := %s\n", strings.Join(configs.GetAllReleaseNames(), " "))
 	data += fmt.Sprintf("_ALL_RELEASE_FLAGS :=$= %s\n", strings.Join(names, " "))
 	for _, pName := range pNames {
 		data += fmt.Sprintf("_ALL_RELEASE_FLAGS.PARTITIONS.%s :=$= %s\n", pName, strings.Join(partitions[pName], " "))
@@ -388,8 +402,9 @@ func (configs *ReleaseConfigs) GenerateReleaseConfigs(targetRelease string) erro
 		configs.ReleaseConfigs[name].OtherNames = aliases
 	}
 
-	for _, config := range configs.ReleaseConfigs {
-		err := config.GenerateReleaseConfig(configs)
+	sortedReleaseConfigs := configs.GetSortedReleaseConfigs()
+	for _, c := range sortedReleaseConfigs {
+		err := c.GenerateReleaseConfig(configs)
 		if err != nil {
 			return err
 		}
@@ -399,17 +414,16 @@ func (configs *ReleaseConfigs) GenerateReleaseConfigs(targetRelease string) erro
 	if err != nil {
 		return err
 	}
+	orc := []*rc_proto.ReleaseConfigArtifact{}
+	for _, c := range sortedReleaseConfigs {
+		if c.Name != releaseConfig.Name {
+			orc = append(orc, c.ReleaseConfigArtifact)
+		}
+	}
+
 	configs.Artifact = rc_proto.ReleaseConfigsArtifact{
-		ReleaseConfig: releaseConfig.ReleaseConfigArtifact,
-		OtherReleaseConfigs: func() []*rc_proto.ReleaseConfigArtifact {
-			orc := []*rc_proto.ReleaseConfigArtifact{}
-			for name, config := range configs.ReleaseConfigs {
-				if name != releaseConfig.Name {
-					orc = append(orc, config.ReleaseConfigArtifact)
-				}
-			}
-			return orc
-		}(),
+		ReleaseConfig:       releaseConfig.ReleaseConfigArtifact,
+		OtherReleaseConfigs: orc,
 		ReleaseConfigMapsMap: func() map[string]*rc_proto.ReleaseConfigMap {
 			ret := make(map[string]*rc_proto.ReleaseConfigMap)
 			for k, v := range configs.releaseConfigMapsMap {
