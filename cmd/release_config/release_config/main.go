@@ -51,7 +51,7 @@ func main() {
 	flag.BoolVar(&textproto, "textproto", true, "write artifacts as text protobuf")
 	flag.BoolVar(&json, "json", true, "write artifacts as json")
 	flag.BoolVar(&pb, "pb", true, "write artifacts as binary protobuf")
-	flag.BoolVar(&allMake, "all_make", true, "write makefiles for all release configs")
+	flag.BoolVar(&allMake, "all_make", false, "write makefiles for all release configs")
 	flag.BoolVar(&useBuildVar, "use_get_build_var", false, "use get_build_var PRODUCT_RELEASE_CONFIG_MAPS")
 	flag.BoolVar(&guard, "guard", true, "whether to guard with RELEASE_BUILD_FLAGS_IN_PROTOBUF")
 

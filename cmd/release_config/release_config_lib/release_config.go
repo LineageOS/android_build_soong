@@ -91,7 +91,8 @@ func (config *ReleaseConfig) InheritConfig(iConfig *ReleaseConfig) error {
 			return fmt.Errorf("Could not inherit flag %s from %s", name, iConfig.Name)
 		}
 		if name == "RELEASE_ACONFIG_VALUE_SETS" {
-			if len(fa.Traces) > 0 {
+			// If there is a value assigned, add the trace.
+			if len(fa.Value.GetStringValue()) > 0 {
 				myFa.Traces = append(myFa.Traces, fa.Traces...)
 				myFa.Value = &rc_proto.Value{Val: &rc_proto.Value_StringValue{
 					myFa.Value.GetStringValue() + " " + fa.Value.GetStringValue()}}
