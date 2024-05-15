@@ -192,13 +192,16 @@ func parseTemplate(templateContents string) *template.Template {
 		},
 		"getExtraLibs":   getExtraLibs,
 		"getIncludeDirs": getIncludeDirs,
-		"mapLibraries": func(libs []string, mapping map[string]LibraryMappingProperty) []string {
+		"mapLibraries": func(ctx android.ModuleContext, m *Module, libs []string, mapping map[string]LibraryMappingProperty) []string {
 			var mappedLibs []string
 			for _, lib := range libs {
 				mappedLib, exists := mapping[lib]
 				if exists {
 					lib = mappedLib.Mapped_name
 				} else {
+					if !ctx.OtherModuleExists(lib) {
+						ctx.OtherModuleErrorf(m, "Dependency %s doesn't exist", lib)
+					}
 					lib = "android::" + lib
 				}
 				if lib == "" {
@@ -209,6 +212,21 @@ func parseTemplate(templateContents string) *template.Template {
 			sort.Strings(mappedLibs)
 			mappedLibs = slices.Compact(mappedLibs)
 			return mappedLibs
+		},
+		"getAidlSources": func(m *Module) []string {
+			aidlInterface := m.compiler.baseCompilerProps().AidlInterface
+			aidlRoot := aidlInterface.AidlRoot + string(filepath.Separator)
+			if aidlInterface.AidlRoot == "" {
+				aidlRoot = ""
+			}
+			var sources []string
+			for _, src := range aidlInterface.Sources {
+				if !strings.HasPrefix(src, aidlRoot) {
+					panic(fmt.Sprintf("Aidl source '%v' doesn't start with '%v'", src, aidlRoot))
+				}
+				sources = append(sources, src[len(aidlRoot):])
+			}
+			return sources
 		},
 	}
 
@@ -282,14 +300,14 @@ func (m *CmakeSnapshot) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	var pregeneratedModules []*Module
 	ctx.WalkDeps(func(dep_a android.Module, parent android.Module) bool {
 		moduleName := ctx.OtherModuleName(dep_a)
-		dep, ok := dep_a.(*Module)
-		if !ok {
-			return false // not a cc module
-		}
 		if visited := visitedModules[moduleName]; visited {
 			return false // visit only once
 		}
 		visitedModules[moduleName] = true
+		dep, ok := dep_a.(*Module)
+		if !ok {
+			return false // not a cc module
+		}
 		if mapping, ok := pprop.LibraryMapping[moduleName]; ok {
 			if mapping.Package_pregenerated != "" {
 				pregeneratedModules = append(pregeneratedModules, dep)
