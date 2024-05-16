@@ -16,8 +16,8 @@ import (
 )
 
 var (
-	// When a flag declaration has an initial value that is a string, the default workflow is PREBUILT.
-	// If the flag name starts with any of prefixes in manualFlagNamePrefixes, it is MANUAL.
+	// When a flag declaration has an initial value that is a string, the default workflow is WorkflowPrebuilt.
+	// If the flag name starts with any of prefixes in manualFlagNamePrefixes, it is WorkflowManual.
 	manualFlagNamePrefixes []string = []string{
 		"RELEASE_ACONFIG_",
 		"RELEASE_PLATFORM_",
@@ -133,8 +133,8 @@ func ProcessBuildFlags(dir string, namespaceMap map[string]string) error {
 			Containers:  containers,
 		}
 		description = ""
-		// Most build flags are `workflow: PREBUILT`.
-		workflow := rc_proto.Workflow(rc_proto.Workflow_PREBUILT)
+		// Most build flags are `workflow: WorkflowPrebuilt`.
+		workflow := rc_proto.Workflow(rc_proto.Workflow_WorkflowPrebuilt)
 		switch {
 		case declName == "RELEASE_ACONFIG_VALUE_SETS":
 			if strings.HasPrefix(declValue, "\"") {
@@ -142,21 +142,21 @@ func ProcessBuildFlags(dir string, namespaceMap map[string]string) error {
 			}
 			continue
 		case strings.HasPrefix(declValue, "\""):
-			// String values mean that the flag workflow is (most likely) either MANUAL or PREBUILT.
+			// String values mean that the flag workflow is (most likely) either WorkflowManual or WorkflowPrebuilt.
 			declValue = declValue[1 : len(declValue)-1]
 			flagDeclaration.Value = &rc_proto.Value{Val: &rc_proto.Value_StringValue{declValue}}
 			for _, prefix := range manualFlagNamePrefixes {
 				if strings.HasPrefix(declName, prefix) {
-					workflow = rc_proto.Workflow(rc_proto.Workflow_MANUAL)
+					workflow = rc_proto.Workflow(rc_proto.Workflow_WorkflowManual)
 					break
 				}
 			}
 		case declValue == "False" || declValue == "True":
-			// Boolean values are LAUNCH flags.
+			// Boolean values are WorkflowLaunch flags.
 			flagDeclaration.Value = &rc_proto.Value{Val: &rc_proto.Value_BoolValue{declValue == "True"}}
-			workflow = rc_proto.Workflow(rc_proto.Workflow_LAUNCH)
+			workflow = rc_proto.Workflow(rc_proto.Workflow_WorkflowLaunch)
 		case declValue == "None":
-			// Use PREBUILT workflow with no initial value.
+			// Use WorkflowPrebuilt workflow with no initial value.
 		default:
 			fmt.Printf("%s: Unexpected value %s=%s\n", path, declName, declValue)
 		}
