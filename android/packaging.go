@@ -51,6 +51,9 @@ type PackagingSpec struct {
 
 	// Paths of aconfig files for the built artifact
 	aconfigPaths *Paths
+
+	// ArchType of the module which produced this packaging spec
+	archType ArchType
 }
 
 func (p *PackagingSpec) Equals(other *PackagingSpec) bool {
@@ -260,11 +263,31 @@ func (p *PackagingBase) AddDeps(ctx BottomUpMutatorContext, depTag blueprint.Dep
 
 func (p *PackagingBase) GatherPackagingSpecsWithFilter(ctx ModuleContext, filter func(PackagingSpec) bool) map[string]PackagingSpec {
 	m := make(map[string]PackagingSpec)
+
+	var arches []ArchType
+	for _, target := range p.getSupportedTargets(ctx) {
+		arches = append(arches, target.Arch.ArchType)
+	}
+
+	// filter out packaging specs for unsupported architecture
+	filterArch := func(ps PackagingSpec) bool {
+		for _, arch := range arches {
+			if arch == ps.archType {
+				return true
+			}
+		}
+		return false
+	}
+
 	ctx.VisitDirectDeps(func(child Module) {
 		if pi, ok := ctx.OtherModuleDependencyTag(child).(PackagingItem); !ok || !pi.IsPackagingItem() {
 			return
 		}
 		for _, ps := range child.TransitivePackagingSpecs() {
+			if !filterArch(ps) {
+				continue
+			}
+
 			if filter != nil {
 				if !filter(ps) {
 					continue
