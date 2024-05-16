@@ -11539,3 +11539,42 @@ func TestAconfifDeclarationsValidation(t *testing.T) {
 		"depend on java_aconfig_library not passed as an input",
 		aconfigFlagArgs, fmt.Sprintf("%s/%s/intermediate.pb", outDir, "quux"))
 }
+
+func TestMultiplePrebuiltsWithSameBase(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			prebuilts: ["myetc", "myetc2"],
+			min_sdk_version: "29",
+		}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		prebuilt_etc {
+			name: "myetc",
+			src: "myprebuilt",
+			filename: "myfilename",
+		}
+		prebuilt_etc {
+			name: "myetc2",
+			sub_dir: "mysubdir",
+			src: "myprebuilt",
+			filename: "myfilename",
+		}
+	`, withFiles(android.MockFS{
+		"packages/modules/common/build/allowed_deps.txt": nil,
+	}))
+
+	ab := ctx.ModuleForTests("myapex", "android_common_myapex").Module().(*apexBundle)
+	data := android.AndroidMkDataForTest(t, ctx, ab)
+	var builder strings.Builder
+	data.Custom(&builder, ab.BaseModuleName(), "TARGET_", "", data)
+	androidMk := builder.String()
+
+	android.AssertStringDoesContain(t, "not found", androidMk, "LOCAL_MODULE := etc_myfilename.myapex")
+	android.AssertStringDoesContain(t, "not found", androidMk, "LOCAL_MODULE := etc_mysubdir_myfilename.myapex")
+}

@@ -1,7 +1,7 @@
 <<$srcs := getSources .M>>
 <<$includeDirs := getIncludeDirs .Ctx .M>>
 <<$cflags := (getCompilerProperties .M).Cflags>>
-<<$deps := mapLibraries (concat5
+<<$deps := mapLibraries .Ctx .M (concat5
 (getLinkerProperties .M).Whole_static_libs
 (getLinkerProperties .M).Static_libs
 (getLinkerProperties .M).Shared_libs
