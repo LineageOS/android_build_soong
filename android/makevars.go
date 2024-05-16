@@ -513,6 +513,7 @@ EXTRA_INSTALL_ZIPS :=
 		fmt.Fprintln(buf)
 	}
 	fmt.Fprintf(buf, ".KATI_READONLY := EXTRA_INSTALL_ZIPS\n")
+	fmt.Fprintf(buf, "$(KATI_visibility_prefix EXTRA_INSTALL_ZIPS,build/make/core/Makefile)\n")
 
 	for _, symlink := range symlinks {
 		fmt.Fprintf(buf, "%s:", symlink.to.String())
