@@ -590,11 +590,34 @@ func (b *BootclasspathFragmentModule) configuredJars(ctx android.ModuleContext) 
 		// So ignore it even if it is not in PRODUCT_APEX_BOOT_JARS.
 		// TODO(b/202896428): Add better way to handle this.
 		_, unknown = android.RemoveFromList("android.car-module", unknown)
-		if isActiveModule(ctx, ctx.Module()) && len(unknown) > 0 {
-			ctx.ModuleErrorf("%s in contents must also be declared in PRODUCT_APEX_BOOT_JARS", unknown)
+		if isApexVariant(ctx) && len(unknown) > 0 {
+			if android.IsModulePrebuilt(ctx.Module()) {
+				// prebuilt bcpf. the validation of this will be done at the top-level apex
+				providerClasspathFragmentValidationInfoProvider(ctx, unknown)
+			} else if !disableSourceApexVariant(ctx) {
+				// source bcpf, and prebuilt apex are not selected.
+				ctx.ModuleErrorf("%s in contents must also be declared in PRODUCT_APEX_BOOT_JARS", unknown)
+			}
 		}
 	}
 	return jars
+}
+
+var ClasspathFragmentValidationInfoProvider = blueprint.NewProvider[ClasspathFragmentValidationInfo]()
+
+type ClasspathFragmentValidationInfo struct {
+	ClasspathFragmentModuleName string
+	UnknownJars                 []string
+}
+
+// Set a provider with the list of jars that have not been added to PRODUCT_APEX_BOOT_JARS
+// The validation will be done in the ctx of the top-level _selected_ apex
+func providerClasspathFragmentValidationInfoProvider(ctx android.ModuleContext, unknown []string) {
+	info := ClasspathFragmentValidationInfo{
+		ClasspathFragmentModuleName: ctx.ModuleName(),
+		UnknownJars:                 unknown,
+	}
+	android.SetProvider(ctx, ClasspathFragmentValidationInfoProvider, info)
 }
 
 // generateHiddenAPIBuildActions generates all the hidden API related build rules.
