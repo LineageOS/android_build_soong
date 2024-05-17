@@ -107,7 +107,7 @@ func ReleaseConfigsFactory() (c *ReleaseConfigs) {
 		configDirIndexes:     make(ReleaseConfigDirMap),
 		FilesUsedMap:         make(map[string]bool),
 	}
-	workflowManual := rc_proto.Workflow(rc_proto.Workflow_MANUAL)
+	workflowManual := rc_proto.Workflow(rc_proto.Workflow_WorkflowManual)
 	releaseAconfigValueSets := FlagArtifact{
 		FlagDeclaration: &rc_proto.FlagDeclaration{
 			Name:        proto.String("RELEASE_ACONFIG_VALUE_SETS"),
