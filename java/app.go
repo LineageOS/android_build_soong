@@ -274,16 +274,37 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 		variation := append(jniTarget.Variations(),
 			blueprint.Variation{Mutator: "link", Variation: "shared"})
 
-		// If the app builds against an Android SDK use the SDK variant of JNI dependencies
-		// unless jni_uses_platform_apis is set.
-		// Don't require the SDK variant for apps that are shipped on vendor, etc., as they already
-		// have stable APIs through the VNDK.
-		if (usesSDK && !a.RequiresStableAPIs(ctx) &&
-			!Bool(a.appProperties.Jni_uses_platform_apis)) ||
-			Bool(a.appProperties.Jni_uses_sdk_apis) {
+		// Test whether to use the SDK variant or the non-SDK variant of JNI dependencies.
+		// Many factors are considered here.
+		// 1. Basically, the selection follows whether the app has sdk_version set or not.
+		jniUsesSdkVariant := usesSDK
+		// 2. However, jni_uses_platform_apis and jni_uses_sdk_apis can override it
+		if Bool(a.appProperties.Jni_uses_sdk_apis) {
+			jniUsesSdkVariant = true
+		}
+		if Bool(a.appProperties.Jni_uses_platform_apis) {
+			jniUsesSdkVariant = false
+		}
+		// 3. Then the use of SDK variant is again prohibited for the following cases:
+		// 3.1. the app is shipped on unbundled partitions like vendor. Since the entire
+		// partition (not only the app) is considered unbudled, there's no need to use the
+		// SDK variant.
+		// 3.2. the app doesn't support embedding the JNI libs
+		if a.RequiresStableAPIs(ctx) || !a.shouldEmbedJnis(ctx) {
+			jniUsesSdkVariant = false
+		}
+		if jniUsesSdkVariant {
 			variation = append(variation, blueprint.Variation{Mutator: "sdk", Variation: "sdk"})
 		}
-		ctx.AddFarVariationDependencies(variation, jniLibTag, a.appProperties.Jni_libs...)
+
+		// Use the installable dep tag when the JNIs are not embedded
+		var tag dependencyTag
+		if a.shouldEmbedJnis(ctx) {
+			tag = jniLibTag
+		} else {
+			tag = jniInstallTag
+		}
+		ctx.AddFarVariationDependencies(variation, tag, a.appProperties.Jni_libs...)
 	}
 	for _, aconfig_declaration := range a.aaptProperties.Flags_packages {
 		ctx.AddDependency(ctx.Module(), aconfigDeclarationTag, aconfig_declaration)
@@ -841,7 +862,9 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	dexJarFile, packageResources := a.dexBuildActions(ctx)
 
-	jniLibs, prebuiltJniPackages, certificates := collectAppDeps(ctx, a, a.shouldEmbedJnis(ctx), !Bool(a.appProperties.Jni_uses_platform_apis))
+	// No need to check the SDK version of the JNI deps unless we embed them
+	checkNativeSdkVersion := a.shouldEmbedJnis(ctx) && !Bool(a.appProperties.Jni_uses_platform_apis)
+	jniLibs, prebuiltJniPackages, certificates := collectAppDeps(ctx, a, a.shouldEmbedJnis(ctx), checkNativeSdkVersion)
 	jniJarFile := a.jniBuildActions(jniLibs, prebuiltJniPackages, ctx)
 
 	if ctx.Failed() {
@@ -932,10 +955,6 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 				archStr := jniLib.target.Arch.ArchType.String()
 				symlinkDir := a.installDir.Join(ctx, "lib", archStr)
 				for _, installedLib := range jniLib.installPaths {
-					// install the symlink target along with the app
-					extraInstalledPaths = append(extraInstalledPaths, installedLib)
-					ctx.PackageFile(installedLib, "", jniLib.path)
-
 					// install the symlink itself
 					symlinkName := installedLib.Base()
 					symlinkTarget := android.InstallPathToOnDevicePath(ctx, installedLib)
