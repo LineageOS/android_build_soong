@@ -37,9 +37,10 @@ func TestLibraryVariants(t *testing.T) {
 		}`)
 
 	// Test all variants are being built.
+	libfooStatic := ctx.ModuleForTests("libfoo.ffi", "linux_glibc_x86_64_static").Rule("rustc")
 	libfooRlib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_rlib_rlib-std").Rule("rustc")
 	libfooDylib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_dylib").Rule("rustc")
-	libfooStatic := ctx.ModuleForTests("libfoo.ffi", "linux_glibc_x86_64_static").Rule("rustc")
+	libfooFFIRlib := ctx.ModuleForTests("libfoo.ffi", "linux_glibc_x86_64_rlib_rlib-std").Rule("rustc")
 	libfooShared := ctx.ModuleForTests("libfoo.ffi", "linux_glibc_x86_64_shared").Rule("rustc")
 
 	rlibCrateType := "rlib"
@@ -60,6 +61,11 @@ func TestLibraryVariants(t *testing.T) {
 	// Test crate type for C static libraries is correct.
 	if !strings.Contains(libfooStatic.Args["rustcFlags"], "crate-type="+staticCrateType) {
 		t.Errorf("missing crate-type for static variant, expecting %#v, rustcFlags: %#v", staticCrateType, libfooStatic.Args["rustcFlags"])
+	}
+
+	// Test crate type for FFI rlibs is correct
+	if !strings.Contains(libfooFFIRlib.Args["rustcFlags"], "crate-type="+rlibCrateType) {
+		t.Errorf("missing crate-type for static variant, expecting %#v, rustcFlags: %#v", rlibCrateType, libfooFFIRlib.Args["rustcFlags"])
 	}
 
 	// Test crate type for C shared libraries is correct.
@@ -182,15 +188,20 @@ func TestSharedLibraryToc(t *testing.T) {
 
 func TestStaticLibraryLinkage(t *testing.T) {
 	ctx := testRust(t, `
-		rust_ffi_static {
+		rust_ffi {
 			name: "libfoo",
 			srcs: ["foo.rs"],
 			crate_name: "foo",
 		}`)
 
-	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_static")
+	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_rlib_rlib-std")
+	libfooStatic := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_static")
 
 	if !android.InList("libstd", libfoo.Module().(*Module).Properties.AndroidMkRlibs) {
+		t.Errorf("Static libstd rlib expected to be a dependency of Rust rlib libraries. Rlib deps are: %#v",
+			libfoo.Module().(*Module).Properties.AndroidMkDylibs)
+	}
+	if !android.InList("libstd", libfooStatic.Module().(*Module).Properties.AndroidMkRlibs) {
 		t.Errorf("Static libstd rlib expected to be a dependency of Rust static libraries. Rlib deps are: %#v",
 			libfoo.Module().(*Module).Properties.AndroidMkDylibs)
 	}
@@ -198,6 +209,12 @@ func TestStaticLibraryLinkage(t *testing.T) {
 
 func TestNativeDependencyOfRlib(t *testing.T) {
 	ctx := testRust(t, `
+		rust_ffi_rlib {
+			name: "libffi_rlib",
+			crate_name: "ffi_rlib",
+			rlibs: ["librust_rlib"],
+			srcs: ["foo.rs"],
+		}
 		rust_ffi_static {
 			name: "libffi_static",
 			crate_name: "ffi_static",
@@ -224,10 +241,12 @@ func TestNativeDependencyOfRlib(t *testing.T) {
 	rustRlibRlibStd := ctx.ModuleForTests("librust_rlib", "android_arm64_armv8-a_rlib_rlib-std")
 	rustRlibDylibStd := ctx.ModuleForTests("librust_rlib", "android_arm64_armv8-a_rlib_dylib-std")
 	ffiStatic := ctx.ModuleForTests("libffi_static", "android_arm64_armv8-a_static")
+	ffiRlib := ctx.ModuleForTests("libffi_rlib", "android_arm64_armv8-a_rlib_rlib-std")
 
 	modules := []android.TestingModule{
 		rustRlibRlibStd,
 		rustRlibDylibStd,
+		ffiRlib,
 		ffiStatic,
 	}
 
@@ -290,27 +309,28 @@ func TestAutoDeps(t *testing.T) {
 
 	libfooRlib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_rlib_rlib-std")
 	libfooDylib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_dylib")
+	libfooFFIRlib := ctx.ModuleForTests("libfoo.ffi", "linux_glibc_x86_64_rlib_rlib-std")
 	libfooStatic := ctx.ModuleForTests("libfoo.ffi", "linux_glibc_x86_64_static")
 	libfooShared := ctx.ModuleForTests("libfoo.ffi", "linux_glibc_x86_64_shared")
 
-	for _, static := range []android.TestingModule{libfooRlib, libfooStatic} {
+	for _, static := range []android.TestingModule{libfooRlib, libfooStatic, libfooFFIRlib} {
 		if !android.InList("libbar.rlib-std", static.Module().(*Module).Properties.AndroidMkRlibs) {
-			t.Errorf("libbar not present as rlib dependency in static lib")
+			t.Errorf("libbar not present as rlib dependency in static lib: %s", static.Module().Name())
 		}
 		if android.InList("libbar", static.Module().(*Module).Properties.AndroidMkDylibs) {
-			t.Errorf("libbar present as dynamic dependency in static lib")
+			t.Errorf("libbar present as dynamic dependency in static lib: %s", static.Module().Name())
 		}
 	}
 
 	for _, dyn := range []android.TestingModule{libfooDylib, libfooShared} {
 		if !android.InList("libbar", dyn.Module().(*Module).Properties.AndroidMkDylibs) {
-			t.Errorf("libbar not present as dynamic dependency in dynamic lib")
+			t.Errorf("libbar not present as dynamic dependency in dynamic lib: %s", dyn.Module().Name())
 		}
 		if android.InList("libbar", dyn.Module().(*Module).Properties.AndroidMkRlibs) {
-			t.Errorf("libbar present as rlib dependency in dynamic lib")
+			t.Errorf("libbar present as rlib dependency in dynamic lib: %s", dyn.Module().Name())
 		}
 		if !android.InList("librlib_only", dyn.Module().(*Module).Properties.AndroidMkRlibs) {
-			t.Errorf("librlib_only should be selected by rustlibs as an rlib.")
+			t.Errorf("librlib_only should be selected by rustlibs as an rlib: %s.", dyn.Module().Name())
 		}
 	}
 }
@@ -375,6 +395,7 @@ func TestLibstdLinkage(t *testing.T) {
 
 	libbarShared := ctx.ModuleForTests("libbar", "android_arm64_armv8-a_shared").Module().(*Module)
 	libbarStatic := ctx.ModuleForTests("libbar", "android_arm64_armv8-a_static").Module().(*Module)
+	libbarFFIRlib := ctx.ModuleForTests("libbar", "android_arm64_armv8-a_rlib_rlib-std").Module().(*Module)
 
 	// prefer_rlib works the same for both rust_library and rust_ffi, so a single check is sufficient here.
 	libbarRlibStd := ctx.ModuleForTests("libbar.prefer_rlib", "android_arm64_armv8-a_shared").Module().(*Module)
@@ -397,6 +418,12 @@ func TestLibstdLinkage(t *testing.T) {
 	}
 	if !android.InList("libfoo.rlib-std", libbarStatic.Properties.AndroidMkRlibs) {
 		t.Errorf("Device rust_ffi_static does not link dependent rustlib rlib-std variant")
+	}
+	if !android.InList("libstd", libbarFFIRlib.Properties.AndroidMkRlibs) {
+		t.Errorf("Device rust_ffi_rlib does not link libstd as an rlib")
+	}
+	if !android.InList("libfoo.rlib-std", libbarFFIRlib.Properties.AndroidMkRlibs) {
+		t.Errorf("Device rust_ffi_rlib does not link dependent rustlib rlib-std variant")
 	}
 	if !android.InList("libstd", libbarRlibStd.Properties.AndroidMkRlibs) {
 		t.Errorf("rust_ffi with prefer_rlib does not link libstd as an rlib")

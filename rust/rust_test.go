@@ -150,15 +150,11 @@ func TestDepsTracking(t *testing.T) {
 			host_supported: true,
 			name: "cc_stubs_dep",
 		}
-		rust_ffi_host_static {
+		cc_library_host_static {
 			name: "libstatic",
-			srcs: ["foo.rs"],
-			crate_name: "static",
 		}
-		rust_ffi_host_static {
+		cc_library_host_static {
 			name: "libwholestatic",
-			srcs: ["foo.rs"],
-			crate_name: "wholestatic",
 		}
 		rust_ffi_host_shared {
 			name: "libshared",
@@ -432,6 +428,105 @@ func TestRustAliases(t *testing.T) {
 	}
 	if !strings.Contains(fooRustc.Args["libFlags"], "--extern baz=out/soong/.intermediates/libbaz/android_arm64_armv8-a_dylib/unstripped/libbaz.dylib.so") {
 		t.Errorf("--extern baz=out/soong/.intermediates/libbaz/android_arm64_armv8-a_dylib/unstripped/libbaz.dylib.so flag not being passed to rustc for rust_binary with aliases. libFlags: %#v", fooRustc.Args["libFlags"])
+	}
+}
+
+func TestRustRlibs(t *testing.T) {
+	ctx := testRust(t, `
+		rust_ffi_rlib {
+			name: "libbar",
+			crate_name: "bar",
+			srcs: ["src/lib.rs"],
+			export_include_dirs: ["bar_includes"]
+		}
+
+		rust_ffi_rlib {
+			name: "libfoo",
+			crate_name: "foo",
+			srcs: ["src/lib.rs"],
+			export_include_dirs: ["foo_includes"]
+		}
+
+		cc_library_shared {
+			name: "libcc_shared",
+			srcs:["foo.c"],
+			static_rlibs: ["libbar"],
+		}
+
+		cc_library_static {
+			name: "libcc_static",
+			srcs:["foo.c"],
+			static_rlibs: ["libfoo"],
+		}
+
+		cc_binary {
+			name: "ccBin",
+			srcs:["foo.c"],
+			static_rlibs: ["libbar"],
+			static_libs: ["libcc_static"],
+		}
+		`)
+
+	libbar := ctx.ModuleForTests("libbar", "android_arm64_armv8-a_rlib_rlib-std").Rule("rustc")
+	libcc_shared_rustc := ctx.ModuleForTests("libcc_shared", "android_arm64_armv8-a_shared").Rule("rustc")
+	libcc_shared_ld := ctx.ModuleForTests("libcc_shared", "android_arm64_armv8-a_shared").Rule("ld")
+	libcc_shared_cc := ctx.ModuleForTests("libcc_shared", "android_arm64_armv8-a_shared").Rule("cc")
+	ccbin_rustc := ctx.ModuleForTests("ccBin", "android_arm64_armv8-a").Rule("rustc")
+	ccbin_ld := ctx.ModuleForTests("ccBin", "android_arm64_armv8-a").Rule("ld")
+	ccbin_cc := ctx.ModuleForTests("ccBin", "android_arm64_armv8-a").Rule("cc")
+
+	if !strings.Contains(libbar.Args["rustcFlags"], "crate-type=rlib") {
+		t.Errorf("missing crate-type for static variant, expecting %#v, rustcFlags: %#v", "rlib", libbar.Args["rustcFlags"])
+	}
+
+	// Make sure there's a rustc command, and it's producing a staticlib
+	if !strings.Contains(libcc_shared_rustc.Args["rustcFlags"], "crate-type=staticlib") {
+		t.Errorf("missing crate-type for static variant, expecting %#v, rustcFlags: %#v",
+			"staticlib", libcc_shared_rustc.Args["rustcFlags"])
+	}
+
+	// Make sure the static lib is included in the ld command
+	if !strings.Contains(libcc_shared_ld.Args["libFlags"], "generated_rust_staticlib/liblibcc_shared_rust_staticlib.a") {
+		t.Errorf("missing generated static library in linker step libFlags %#v, libFlags: %#v",
+			"libcc_shared.generated_rust_staticlib.a", libcc_shared_ld.Args["libFlags"])
+	}
+
+	// Make sure the static lib includes are in the cc command
+	if !strings.Contains(libcc_shared_cc.Args["cFlags"], "-Ibar_includes") {
+		t.Errorf("missing rlibs includes, expecting %#v, cFlags: %#v",
+			"-Ibar_includes", libcc_shared_cc.Args["cFlags"])
+	}
+
+	// Make sure there's a rustc command, and it's producing a staticlib
+	if !strings.Contains(ccbin_rustc.Args["rustcFlags"], "crate-type=staticlib") {
+		t.Errorf("missing crate-type for static variant, expecting %#v, rustcFlags: %#v", "staticlib", ccbin_rustc.Args["rustcFlags"])
+	}
+
+	// Make sure the static lib is included in the cc command
+	if !strings.Contains(ccbin_ld.Args["libFlags"], "generated_rust_staticlib/libccBin_rust_staticlib.a") {
+		t.Errorf("missing generated static library in linker step libFlags, expecting %#v, libFlags: %#v",
+			"ccBin.generated_rust_staticlib.a", ccbin_ld.Args["libFlags"])
+	}
+
+	// Make sure the static lib includes are in the ld command
+	if !strings.Contains(ccbin_cc.Args["cFlags"], "-Ibar_includes") {
+		t.Errorf("missing rlibs includes, expecting %#v, cFlags: %#v",
+			"-Ibar_includes", ccbin_cc.Args)
+	}
+
+	// Make sure that direct dependencies and indirect dependencies are
+	// propagating correctly to the generated rlib.
+	if !strings.Contains(ccbin_rustc.Args["libFlags"], "--extern foo=") {
+		t.Errorf("Missing indirect dependency libfoo when writing generated Rust staticlib: %#v", ccbin_rustc.Args["libFlags"])
+	}
+	if !strings.Contains(ccbin_rustc.Args["libFlags"], "--extern bar=") {
+		t.Errorf("Missing direct dependency libbar when writing generated Rust staticlib: %#v", ccbin_rustc.Args["libFlags"])
+	}
+
+	// Test indirect includes propagation
+	if !strings.Contains(ccbin_cc.Args["cFlags"], "-Ifoo_includes") {
+		t.Errorf("missing rlibs includes, expecting %#v, cFlags: %#v",
+			"-Ifoo_includes", ccbin_cc.Args)
 	}
 }
 

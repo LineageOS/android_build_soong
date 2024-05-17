@@ -47,7 +47,7 @@ func (cov *coverage) deps(ctx DepsContext, deps Deps) Deps {
 
 		// no_std modules are missing libprofiler_builtins which provides coverage, so we need to add it as a dependency.
 		if rustModule, ok := ctx.Module().(*Module); ok && rustModule.compiler.noStdlibs() {
-			ctx.AddVariationDependencies([]blueprint.Variation{{Mutator: "rust_libraries", Variation: "rlib"}}, rlibDepTag, ProfilerBuiltins)
+			ctx.AddVariationDependencies([]blueprint.Variation{{Mutator: "rust_libraries", Variation: "rlib"}, {Mutator: "link", Variation: ""}}, rlibDepTag, ProfilerBuiltins)
 		}
 	}
 

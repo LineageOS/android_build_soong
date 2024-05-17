@@ -46,6 +46,9 @@ func TestSourceProviderCollision(t *testing.T) {
 }
 
 func TestCompilationOutputFiles(t *testing.T) {
+
+	// Note: Rustdoc output is produced for the PrimaryModule, so if the variant
+	// order changes, then it may be produced for a different variant.
 	ctx := testRust(t, `
 		rust_library {
 			name: "libfizz_buzz",
@@ -123,6 +126,16 @@ func TestCompilationOutputFiles(t *testing.T) {
 				"out/soong/.intermediates/librust_ffi/android_arm64_armv8-a_static/librust_ffi.a.clippy",
 				"out/soong/.intermediates/librust_ffi/android_arm64_armv8-a_static/meta_lic",
 				"out/soong/.intermediates/librust_ffi/android_arm64_armv8-a_static/rustdoc.timestamp",
+			},
+		},
+		{
+			testName:   "rust_ffi rlib",
+			moduleName: "librust_ffi",
+			variant:    "android_arm64_armv8-a_rlib_rlib-std",
+			expectedFiles: []string{
+				"out/soong/.intermediates/librust_ffi/android_arm64_armv8-a_rlib_rlib-std/librust_ffi.rlib",
+				"out/soong/.intermediates/librust_ffi/android_arm64_armv8-a_rlib_rlib-std/librust_ffi.rlib.clippy",
+				"out/soong/.intermediates/librust_ffi/android_arm64_armv8-a_rlib_rlib-std/meta_lic",
 			},
 		},
 		{
