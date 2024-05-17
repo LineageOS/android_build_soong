@@ -491,7 +491,6 @@ type jniLib struct {
 	coverageFile   android.OptionalPath
 	unstrippedFile android.Path
 	partition      string
-	installPaths   android.InstallPaths
 }
 
 func sdkDeps(ctx android.BottomUpMutatorContext, sdkContext android.SdkContext, d dexer) {

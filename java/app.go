@@ -911,26 +911,6 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 			installed := ctx.InstallFile(a.installDir, extra.Base(), extra)
 			extraInstalledPaths = append(extraInstalledPaths, installed)
 		}
-		// If we don't embed jni libs, make sure that those are installed along with the
-		// app, and also place symlinks to the installed paths under the lib/<arch>
-		// directory of the app installation directory. ex:
-		// /system/app/MyApp/lib/arm64/libfoo.so -> /system/lib64/libfoo.so
-		if !a.embeddedJniLibs {
-			for _, jniLib := range jniLibs {
-				archStr := jniLib.target.Arch.ArchType.String()
-				symlinkDir := a.installDir.Join(ctx, "lib", archStr)
-				for _, installedLib := range jniLib.installPaths {
-					// install the symlink target along with the app
-					extraInstalledPaths = append(extraInstalledPaths, installedLib)
-					ctx.PackageFile(installedLib, "", jniLib.path)
-
-					// install the symlink itself
-					symlinkName := installedLib.Base()
-					symlinkTarget := android.InstallPathToOnDevicePath(ctx, installedLib)
-					ctx.InstallAbsoluteSymlink(symlinkDir, symlinkName, symlinkTarget)
-				}
-			}
-		}
 		ctx.InstallFile(a.installDir, a.outputFile.Base(), a.outputFile, extraInstalledPaths...)
 	}
 
@@ -1018,7 +998,6 @@ func collectJniDeps(ctx android.ModuleContext,
 						coverageFile:   dep.CoverageOutputFile(),
 						unstrippedFile: dep.UnstrippedOutputFile(),
 						partition:      dep.Partition(),
-						installPaths:   dep.FilesToInstall(),
 					})
 				} else if ctx.Config().AllowMissingDependencies() {
 					ctx.AddMissingDependencies([]string{otherName})
