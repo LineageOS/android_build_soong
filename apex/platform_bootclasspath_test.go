@@ -795,3 +795,127 @@ func TestNonBootJarInFragment(t *testing.T) {
 			}
 		`)
 }
+
+// Source and prebuilt apex provide different set of boot jars
+func TestNonBootJarMissingInPrebuiltFragment(t *testing.T) {
+	bp := `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			bootclasspath_fragments: ["apex-fragment"],
+			updatable: false,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_library {
+			name: "foo",
+			srcs: ["b.java"],
+			installable: true,
+			apex_available: ["myapex"],
+			permitted_packages: ["foo"],
+		}
+
+		java_library {
+			name: "bar",
+			srcs: ["b.java"],
+			installable: true,
+			apex_available: ["myapex"],
+			permitted_packages: ["bar"],
+		}
+
+		bootclasspath_fragment {
+			name: "apex-fragment",
+			contents: ["foo", "bar"],
+			apex_available:[ "myapex" ],
+			hidden_api: {
+				split_packages: ["*"],
+			},
+		}
+
+		prebuilt_apex {
+			name: "com.google.android.myapex", // mainline prebuilt selection logic in soong relies on the naming convention com.google.android
+			apex_name: "myapex",
+			source_apex_name: "myapex",
+			src: "myapex.apex",
+			exported_bootclasspath_fragments: ["apex-fragment"],
+		}
+
+		java_import {
+			name: "foo",
+			jars: ["foo.jar"],
+			apex_available: ["myapex"],
+			permitted_packages: ["foo"],
+		}
+
+		prebuilt_bootclasspath_fragment {
+			name: "apex-fragment",
+			contents: ["foo"], // Unlike the source fragment, this is missing bar
+			apex_available:[ "myapex" ],
+			hidden_api: {
+				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
+				metadata: "my-bootclasspath-fragment/metadata.csv",
+				index: "my-bootclasspath-fragment/index.csv",
+				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
+				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+			},
+		}
+
+		apex_contributions {
+			name: "my_apex_contributions",
+			api_domain: "myapex",
+			contents: [%v],
+		}
+	`
+	testCases := []struct {
+		desc                     string
+		configuredBootJars       []string
+		apexContributionContents string
+		errorExpected            bool
+	}{
+		{
+			desc:               "Source apex is selected, and APEX_BOOT_JARS is correctly configured for source apex builds",
+			configuredBootJars: []string{"myapex:foo", "myapex:bar"},
+		},
+		{
+			desc:               "Source apex is selected, and APEX_BOOT_JARS is missing bar",
+			configuredBootJars: []string{"myapex:foo"},
+			errorExpected:      true,
+		},
+		{
+			desc:                     "Prebuilt apex is selected, and APEX_BOOT_JARS is correctly configured for prebuilt apex build",
+			configuredBootJars:       []string{"myapex:foo"},
+			apexContributionContents: `"prebuilt_com.google.android.myapex"`,
+		},
+		{
+			desc:                     "Prebuilt apex is selected, and APEX_BOOT_JARS is missing foo",
+			configuredBootJars:       []string{"myapex:bar"},
+			apexContributionContents: `"prebuilt_com.google.android.myapex"`,
+			errorExpected:            true,
+		},
+	}
+
+	for _, tc := range testCases {
+		fixture := android.GroupFixturePreparers(
+			prepareForTestWithPlatformBootclasspath,
+			PrepareForTestWithApexBuildComponents,
+			prepareForTestWithMyapex,
+			java.FixtureConfigureApexBootJars(tc.configuredBootJars...),
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.BuildFlags = map[string]string{
+					"RELEASE_APEX_CONTRIBUTIONS_ART": "my_apex_contributions",
+				}
+			}),
+		)
+		if tc.errorExpected {
+			fixture = fixture.ExtendWithErrorHandler(
+				android.FixtureExpectsAtLeastOneErrorMatchingPattern(`in contents.*must also be declared in PRODUCT_APEX_BOOT_JARS`),
+			)
+		}
+		fixture.RunTestWithBp(t, fmt.Sprintf(bp, tc.apexContributionContents))
+	}
+}

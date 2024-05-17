@@ -22,7 +22,7 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
-func (f *filesystem) buildAconfigFlagsFiles(ctx android.ModuleContext, builder *android.RuleBuilder, specs map[string]android.PackagingSpec, dir android.Path) {
+func (f *filesystem) buildAconfigFlagsFiles(ctx android.ModuleContext, builder *android.RuleBuilder, specs map[string]android.PackagingSpec, dir android.OutputPath) {
 	if !proptools.Bool(f.properties.Gen_aconfig_flags_pb) {
 		return
 	}
@@ -31,15 +31,6 @@ func (f *filesystem) buildAconfigFlagsFiles(ctx android.ModuleContext, builder *
 	aconfigToolPath := ctx.Config().HostToolPath(ctx, "aconfig")
 	cmd := builder.Command().Tool(aconfigFlagsBuilderPath).Implicit(aconfigToolPath)
 
-	installAconfigFlags := filepath.Join(dir.String(), "etc", "aconfig_flags_"+f.partitionName()+".pb")
-
-	var sb strings.Builder
-	sb.WriteString("set -e\n")
-	sb.WriteString(aconfigToolPath.String())
-	sb.WriteString(" dump-cache --dedup --format protobuf --out ")
-	sb.WriteString(installAconfigFlags)
-	sb.WriteString(" \\\n")
-
 	var caches []string
 	for _, ps := range specs {
 		cmd.Implicits(ps.GetAconfigPaths())
@@ -47,12 +38,45 @@ func (f *filesystem) buildAconfigFlagsFiles(ctx android.ModuleContext, builder *
 	}
 	caches = android.SortedUniqueStrings(caches)
 
+	var sbCaches strings.Builder
 	for _, cache := range caches {
-		sb.WriteString("  --cache ")
-		sb.WriteString(cache)
-		sb.WriteString(" \\\n")
+		sbCaches.WriteString("  --cache ")
+		sbCaches.WriteString(cache)
+		sbCaches.WriteString(" \\\n")
 	}
+	sbCaches.WriteRune('\n')
+
+	var sb strings.Builder
+	sb.WriteString("set -e\n")
+
+	installAconfigFlagsPath := dir.Join(ctx, "etc", "aconfig_flags.pb")
+	sb.WriteString(aconfigToolPath.String())
+	sb.WriteString(" dump-cache --dedup --format protobuf --out ")
+	sb.WriteString(installAconfigFlagsPath.String())
+	sb.WriteString(" \\\n")
+	sb.WriteString(sbCaches.String())
+	cmd.ImplicitOutput(installAconfigFlagsPath)
+
+	installAconfigStorageDir := dir.Join(ctx, "etc", "aconfig")
+	sb.WriteString("mkdir -p ")
+	sb.WriteString(installAconfigStorageDir.String())
 	sb.WriteRune('\n')
+
+	generatePartitionAconfigStorageFile := func(fileType, fileName string) {
+		sb.WriteString(aconfigToolPath.String())
+		sb.WriteString(" create-storage --container ")
+		sb.WriteString(f.PartitionType())
+		sb.WriteString(" --file ")
+		sb.WriteString(fileType)
+		sb.WriteString(" --out ")
+		sb.WriteString(filepath.Join(installAconfigStorageDir.String(), fileName))
+		sb.WriteString(" \\\n")
+		sb.WriteString(sbCaches.String())
+		cmd.ImplicitOutput(installAconfigStorageDir.Join(ctx, fileName))
+	}
+	generatePartitionAconfigStorageFile("package_map", "package.map")
+	generatePartitionAconfigStorageFile("flag_map", "flag.map")
+	generatePartitionAconfigStorageFile("flag_val", "flag.val")
 
 	android.WriteExecutableFileRuleVerbatim(ctx, aconfigFlagsBuilderPath, sb.String())
 }
