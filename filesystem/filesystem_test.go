@@ -508,11 +508,7 @@ func TestFilterOutUnsupportedArches(t *testing.T) {
 		android_filesystem {
 			name: "fs_64_32",
 			compile_multilib: "both",
-			multilib: {
-				first: {
-					deps: ["foo"],
-				},
-			},
+			deps: ["foo"],
 		}
 
 		cc_binary {
