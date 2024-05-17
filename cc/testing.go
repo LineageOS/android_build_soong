@@ -300,6 +300,7 @@ func commonDefaultModules() string {
 			system_shared_libs: [],
 			stl: "none",
 			vendor_available: true,
+			vendor_ramdisk_available: true,
 			product_available: true,
 			recovery_available: true,
 			host_supported: true,

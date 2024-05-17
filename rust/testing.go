@@ -49,16 +49,28 @@ var PrepareForIntegrationTestWithRust = android.GroupFixturePreparers(
 func GatherRequiredDepsForTest() string {
 	bp := `
 		rust_prebuilt_library {
-				name: "libstd",
-				crate_name: "std",
-				rlib: {
-					srcs: ["libstd.rlib"],
-				},
-				dylib: {
-					srcs: ["libstd.so"],
-				},
-				host_supported: true,
-				sysroot: true,
+			name: "libstd",
+			crate_name: "std",
+			rlib: {
+				srcs: ["libstd/libstd.rlib"],
+			},
+			dylib: {
+				srcs: ["libstd/libstd.so"],
+			},
+			host_supported: true,
+			sysroot: true,
+		}
+		rust_prebuilt_library {
+			name: "libcore.sysroot",
+			crate_name: "core",
+			rlib: {
+				srcs: ["libcore/libcore.rlib"],
+			},
+			dylib: {
+				srcs: ["libcore/libcore.so"],
+			},
+			host_supported: true,
+			sysroot: true,
 		}
 		//////////////////////////////
 		// Device module requirements
@@ -176,10 +188,12 @@ func registerRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("rust_fuzz_host", RustFuzzHostFactory)
 	ctx.RegisterModuleType("rust_ffi", RustFFIFactory)
 	ctx.RegisterModuleType("rust_ffi_shared", RustFFISharedFactory)
-	ctx.RegisterModuleType("rust_ffi_static", RustFFIStaticFactory)
+	ctx.RegisterModuleType("rust_ffi_rlib", RustFFIRlibFactory)
+	ctx.RegisterModuleType("rust_ffi_static", RustFFIStaticRlibFactory)
 	ctx.RegisterModuleType("rust_ffi_host", RustFFIHostFactory)
 	ctx.RegisterModuleType("rust_ffi_host_shared", RustFFISharedHostFactory)
-	ctx.RegisterModuleType("rust_ffi_host_static", RustFFIStaticHostFactory)
+	ctx.RegisterModuleType("rust_ffi_host_rlib", RustFFIRlibHostFactory)
+	ctx.RegisterModuleType("rust_ffi_host_static", RustFFIStaticRlibHostFactory)
 	ctx.RegisterModuleType("rust_proc_macro", ProcMacroFactory)
 	ctx.RegisterModuleType("rust_protobuf", RustProtobufFactory)
 	ctx.RegisterModuleType("rust_protobuf_host", RustProtobufHostFactory)
