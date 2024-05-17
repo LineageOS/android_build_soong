@@ -325,6 +325,11 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	// the fragments will have already provided the flags that are needed.
 	classesJars := monolithicInfo.ClassesJars
 
+	if len(classesJars) == 0 {
+		// This product does not include any monolithic jars. Monolithic hiddenapi flag generation is not required.
+		return bootDexJarByModule
+	}
+
 	// Create the input to pass to buildRuleToGenerateHiddenAPIStubFlagsFile
 	input := newHiddenAPIFlagInput()
 

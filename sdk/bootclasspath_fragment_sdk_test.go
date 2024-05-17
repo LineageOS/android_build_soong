@@ -281,6 +281,19 @@ func testSnapshotWithBootClasspathFragment_Contents(t *testing.T, sdk string, co
 				"RELEASE_HIDDEN_API_EXPORTABLE_STUBS": "true",
 			}
 		}),
+		// Make sure that we have atleast one platform library so that we can check the monolithic hiddenapi
+		// file creation.
+		java.FixtureConfigureBootJars("platform:foo"),
+		android.FixtureModifyMockFS(func(fs android.MockFS) {
+			fs["platform/Android.bp"] = []byte(`
+		java_library {
+			name: "foo",
+			srcs: ["Test.java"],
+			compile_dex: true,
+		}
+		`)
+			fs["platform/Test.java"] = nil
+		}),
 
 		android.FixtureWithRootAndroidBp(sdk+`
 			apex {

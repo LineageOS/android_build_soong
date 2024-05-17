@@ -198,13 +198,22 @@ func TestHiddenAPISingletonSdks(t *testing.T) {
 				hiddenApiFixtureFactory,
 				tc.preparer,
 				prepareForTestWithDefaultPlatformBootclasspath,
+				// Make sure that we have atleast one platform library so that we can check the monolithic hiddenapi
+				// file creation.
+				FixtureConfigureBootJars("platform:foo"),
 				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 					variables.Always_use_prebuilt_sdks = proptools.BoolPtr(tc.unbundledBuild)
 					variables.BuildFlags = map[string]string{
 						"RELEASE_HIDDEN_API_EXPORTABLE_STUBS": "true",
 					}
 				}),
-			).RunTest(t)
+			).RunTestWithBp(t, `
+		java_library {
+			name: "foo",
+			srcs: ["a.java"],
+			compile_dex: true,
+		}
+		`)
 
 			hiddenAPI := result.ModuleForTests("platform-bootclasspath", "android_common")
 			hiddenapiRule := hiddenAPI.Rule("platform-bootclasspath-monolithic-hiddenapi-stub-flags")
