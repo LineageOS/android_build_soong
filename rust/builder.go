@@ -158,7 +158,9 @@ func getTransformProperties(ctx ModuleContext, crateType string) transformProper
 
 func TransformSrcToBinary(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
 	outputFile android.WritablePath) buildOutput {
-	flags.GlobalRustFlags = append(flags.GlobalRustFlags, "-C lto=thin")
+	if ctx.RustModule().compiler.Thinlto() {
+		flags.GlobalRustFlags = append(flags.GlobalRustFlags, "-C lto=thin")
+	}
 
 	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, getTransformProperties(ctx, "bin"))
 }
@@ -212,20 +214,28 @@ func TransformRlibstoStaticlib(ctx android.ModuleContext, mainSrc android.Path, 
 
 func TransformSrctoDylib(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
 	outputFile android.WritablePath) buildOutput {
-	flags.GlobalRustFlags = append(flags.GlobalRustFlags, "-C lto=thin")
+	if ctx.RustModule().compiler.Thinlto() {
+		flags.GlobalRustFlags = append(flags.GlobalRustFlags, "-C lto=thin")
+	}
 
 	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, getTransformProperties(ctx, "dylib"))
 }
 
 func TransformSrctoStatic(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
 	outputFile android.WritablePath) buildOutput {
-	flags.GlobalRustFlags = append(flags.GlobalRustFlags, "-C lto=thin")
+	if ctx.RustModule().compiler.Thinlto() {
+		flags.GlobalRustFlags = append(flags.GlobalRustFlags, "-C lto=thin")
+	}
+
 	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, getTransformProperties(ctx, "staticlib"))
 }
 
 func TransformSrctoShared(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
 	outputFile android.WritablePath) buildOutput {
-	flags.GlobalRustFlags = append(flags.GlobalRustFlags, "-C lto=thin")
+	if ctx.RustModule().compiler.Thinlto() {
+		flags.GlobalRustFlags = append(flags.GlobalRustFlags, "-C lto=thin")
+	}
+
 	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, getTransformProperties(ctx, "cdylib"))
 }
 
