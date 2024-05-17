@@ -5908,7 +5908,6 @@ func TestApexWithApps(t *testing.T) {
 			srcs: ["foo/bar/MyClass.java"],
 			sdk_version: "current",
 			system_modules: "none",
-			use_embedded_native_libs: true,
 			jni_libs: ["libjni"],
 			stl: "none",
 			apex_available: [ "myapex" ],
