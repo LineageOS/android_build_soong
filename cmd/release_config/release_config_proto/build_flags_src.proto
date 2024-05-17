@@ -39,18 +39,18 @@ option go_package = "android/soong/release_config/release_config_proto";
 //      com.android.1mypackage are invalid
 
 enum workflow {
-  UNSPECIFIED_workflow = 0;
+  WorkflowUnspecified = 0;
 
   // Boolean value flags that progress from false to true.
-  LAUNCH = 1;
+  WorkflowLaunch = 1;
 
   // String value flags that get updated with new version strings to control
   // prebuilt inclusion.
-  PREBUILT = 2;
+  WorkflowPrebuilt = 2;
 
   // Manually managed outside flags.  These are likely to be found in a
   // different directory than flags with other workflows.
-  MANUAL = 3;
+  WorkflowManual = 3;
 }
 
 message value {
