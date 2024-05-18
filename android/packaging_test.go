@@ -95,12 +95,13 @@ func (m *packageTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	m.entries = m.CopyDepsToZip(ctx, m.GatherPackagingSpecs(ctx), zipFile)
 }
 
-type packageTestModuleConfig struct {
+type testConfig struct {
 	multiTarget                bool
 	depsCollectFirstTargetOnly bool
+	debuggable                 bool
 }
 
-func runPackagingTest(t *testing.T, config packageTestModuleConfig, bp string, expected []string) {
+func runPackagingTest(t *testing.T, config testConfig, bp string, expected []string) {
 	t.Helper()
 
 	var archVariant string
@@ -120,6 +121,9 @@ func runPackagingTest(t *testing.T, config packageTestModuleConfig, bp string, e
 			ctx.RegisterModuleType("component", componentTestModuleFactory)
 			ctx.RegisterModuleType("package_module", moduleFactory)
 		}),
+		FixtureModifyProductVariables(func(variables FixtureProductVariables) {
+			variables.Debuggable = proptools.BoolPtr(config.debuggable)
+		}),
 		FixtureWithRootAndroidBp(bp),
 	).RunTest(t)
 
@@ -131,7 +135,7 @@ func runPackagingTest(t *testing.T, config packageTestModuleConfig, bp string, e
 }
 
 func TestPackagingBaseMultiTarget(t *testing.T) {
-	config := packageTestModuleConfig{
+	config := testConfig{
 		multiTarget:                true,
 		depsCollectFirstTargetOnly: false,
 	}
@@ -258,7 +262,7 @@ func TestPackagingBaseMultiTarget(t *testing.T) {
 }
 
 func TestPackagingBaseSingleTarget(t *testing.T) {
-	config := packageTestModuleConfig{
+	config := testConfig{
 		multiTarget:                false,
 		depsCollectFirstTargetOnly: false,
 	}
@@ -383,7 +387,7 @@ func TestPackagingBaseSingleTarget(t *testing.T) {
 func TestPackagingWithSkipInstallDeps(t *testing.T) {
 	// package -[dep]-> foo -[dep]-> bar      -[dep]-> baz
 	// Packaging should continue transitively through modules that are not installed.
-	config := packageTestModuleConfig{
+	config := testConfig{
 		multiTarget:                false,
 		depsCollectFirstTargetOnly: false,
 	}
@@ -412,7 +416,7 @@ func TestPackagingWithSkipInstallDeps(t *testing.T) {
 }
 
 func TestPackagingWithDepsCollectFirstTargetOnly(t *testing.T) {
-	config := packageTestModuleConfig{
+	config := testConfig{
 		multiTarget:                true,
 		depsCollectFirstTargetOnly: true,
 	}
@@ -536,4 +540,47 @@ func TestPackagingWithDepsCollectFirstTargetOnly(t *testing.T) {
 			compile_multilib: "both",
 		}
 		`, []string{"lib64/foo", "lib64/bar"})
+}
+
+func TestDebuggableDeps(t *testing.T) {
+	bp := `
+		component {
+			name: "foo",
+		}
+
+		component {
+			name: "bar",
+			deps: ["baz"],
+		}
+
+		component {
+			name: "baz",
+		}
+
+		package_module {
+			name: "package",
+			deps: ["foo"] + select(product_variable("debuggable"), {
+				true: ["bar"],
+				default: [],
+			}),
+		}`
+	testcases := []struct {
+		debuggable bool
+		expected   []string
+	}{
+		{
+			debuggable: true,
+			expected:   []string{"lib64/foo", "lib64/bar", "lib64/baz"},
+		},
+		{
+			debuggable: false,
+			expected:   []string{"lib64/foo"},
+		},
+	}
+	for _, tc := range testcases {
+		config := testConfig{
+			debuggable: tc.debuggable,
+		}
+		runPackagingTest(t, config, bp, tc.expected)
+	}
 }
