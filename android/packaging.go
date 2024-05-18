@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 // PackagingSpec abstracts a request to place a built artifact at a certain path in a package. A
@@ -150,7 +151,7 @@ type PackagingBase struct {
 
 type depsProperty struct {
 	// Modules to include in this package
-	Deps []string `android:"arch_variant"`
+	Deps proptools.Configurable[[]string] `android:"arch_variant"`
 }
 
 type packagingMultilibProperties struct {
@@ -169,8 +170,8 @@ type packagingArchProperties struct {
 }
 
 type PackagingProperties struct {
-	Deps     []string                    `android:"arch_variant"`
-	Multilib packagingMultilibProperties `android:"arch_variant"`
+	Deps     proptools.Configurable[[]string] `android:"arch_variant"`
+	Multilib packagingMultilibProperties      `android:"arch_variant"`
 	Arch     packagingArchProperties
 }
 
@@ -188,38 +189,42 @@ func (p *PackagingBase) packagingBase() *PackagingBase {
 // multi target, deps is selected for each of the targets and is NOT selected for the current
 // architecture which would be Common.
 func (p *PackagingBase) getDepsForArch(ctx BaseModuleContext, arch ArchType) []string {
+	get := func(prop proptools.Configurable[[]string]) []string {
+		return prop.GetOrDefault(ctx, nil)
+	}
+
 	var ret []string
 	if arch == ctx.Target().Arch.ArchType && len(ctx.MultiTargets()) == 0 {
-		ret = append(ret, p.properties.Deps...)
+		ret = append(ret, get(p.properties.Deps)...)
 	} else if arch.Multilib == "lib32" {
-		ret = append(ret, p.properties.Multilib.Lib32.Deps...)
+		ret = append(ret, get(p.properties.Multilib.Lib32.Deps)...)
 	} else if arch.Multilib == "lib64" {
-		ret = append(ret, p.properties.Multilib.Lib64.Deps...)
+		ret = append(ret, get(p.properties.Multilib.Lib64.Deps)...)
 	} else if arch == Common {
-		ret = append(ret, p.properties.Multilib.Common.Deps...)
+		ret = append(ret, get(p.properties.Multilib.Common.Deps)...)
 	}
 
 	if p.DepsCollectFirstTargetOnly {
-		if len(p.properties.Multilib.First.Deps) > 0 {
+		if len(get(p.properties.Multilib.First.Deps)) > 0 {
 			ctx.PropertyErrorf("multilib.first.deps", "not supported. use \"deps\" instead")
 		}
 		for i, t := range ctx.MultiTargets() {
 			if t.Arch.ArchType == arch {
-				ret = append(ret, p.properties.Multilib.Both.Deps...)
+				ret = append(ret, get(p.properties.Multilib.Both.Deps)...)
 				if i == 0 {
-					ret = append(ret, p.properties.Deps...)
+					ret = append(ret, get(p.properties.Deps)...)
 				}
 			}
 		}
 	} else {
-		if len(p.properties.Multilib.Both.Deps) > 0 {
+		if len(get(p.properties.Multilib.Both.Deps)) > 0 {
 			ctx.PropertyErrorf("multilib.both.deps", "not supported. use \"deps\" instead")
 		}
 		for i, t := range ctx.MultiTargets() {
 			if t.Arch.ArchType == arch {
-				ret = append(ret, p.properties.Deps...)
+				ret = append(ret, get(p.properties.Deps)...)
 				if i == 0 {
-					ret = append(ret, p.properties.Multilib.First.Deps...)
+					ret = append(ret, get(p.properties.Multilib.First.Deps)...)
 				}
 			}
 		}
@@ -228,13 +233,13 @@ func (p *PackagingBase) getDepsForArch(ctx BaseModuleContext, arch ArchType) []s
 	if ctx.Arch().ArchType == Common {
 		switch arch {
 		case Arm64:
-			ret = append(ret, p.properties.Arch.Arm64.Deps...)
+			ret = append(ret, get(p.properties.Arch.Arm64.Deps)...)
 		case Arm:
-			ret = append(ret, p.properties.Arch.Arm.Deps...)
+			ret = append(ret, get(p.properties.Arch.Arm.Deps)...)
 		case X86_64:
-			ret = append(ret, p.properties.Arch.X86_64.Deps...)
+			ret = append(ret, get(p.properties.Arch.X86_64.Deps)...)
 		case X86:
-			ret = append(ret, p.properties.Arch.X86.Deps...)
+			ret = append(ret, get(p.properties.Arch.X86.Deps)...)
 		}
 	}
 
