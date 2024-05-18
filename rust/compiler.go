@@ -47,6 +47,7 @@ type compiler interface {
 	edition() string
 	features() []string
 	rustdoc(ctx ModuleContext, flags Flags, deps PathDeps) android.OptionalPath
+	Thinlto() bool
 
 	// Output directory in which source-generated code from dependencies is
 	// copied. This is equivalent to Cargo's OUT_DIR variable.
@@ -231,6 +232,15 @@ type BaseCompilerProperties struct {
 
 	// If cargo_env_compat is true, sets the CARGO_PKG_VERSION env var to this value.
 	Cargo_pkg_version *string
+
+	// Control whether LTO is used for the final (Rust) linkage. This does not impact
+	// cross-language LTO.
+	Lto struct {
+		// Whether thin LTO should be enabled. By default this is true.
+		// LTO provides such a large code size benefit for Rust, this should always
+		// be enabled for production builds unless there's a clear need to disable it.
+		Thin *bool `android:"arch_variant"`
+	} `android:"arch_variant"`
 }
 
 type baseCompiler struct {
@@ -271,6 +281,11 @@ type baseCompiler struct {
 
 func (compiler *baseCompiler) Disabled() bool {
 	return false
+}
+
+// Thin LTO is enabled by default.
+func (compiler *baseCompiler) Thinlto() bool {
+	return BoolDefault(compiler.Properties.Lto.Thin, true)
 }
 
 func (compiler *baseCompiler) SetDisabled() {
@@ -322,9 +337,9 @@ func (compiler *baseCompiler) compilerProps() []interface{} {
 	return []interface{}{&compiler.Properties}
 }
 
-func (compiler *baseCompiler) cfgsToFlags() []string {
+func cfgsToFlags(cfgs []string) []string {
 	flags := []string{}
-	for _, cfg := range compiler.Properties.Cfgs {
+	for _, cfg := range cfgs {
 		flags = append(flags, "--cfg '"+cfg+"'")
 	}
 
@@ -351,23 +366,61 @@ func (compiler *baseCompiler) featureFlags(ctx ModuleContext, flags Flags) Flags
 	return flags
 }
 
-func (compiler *baseCompiler) cfgFlags(ctx ModuleContext, flags Flags) Flags {
-	if ctx.RustModule().InVendorOrProduct() {
-		compiler.Properties.Cfgs = append(compiler.Properties.Cfgs, "android_vndk")
-		if ctx.RustModule().InVendor() {
-			compiler.Properties.Cfgs = append(compiler.Properties.Cfgs, "android_vendor")
-		} else if ctx.RustModule().InProduct() {
-			compiler.Properties.Cfgs = append(compiler.Properties.Cfgs, "android_product")
+func CommonDefaultCfgFlags(flags Flags, vendor bool, product bool) Flags {
+	var cfgs []string
+	if vendor || product {
+		cfgs = append(cfgs, "android_vndk")
+		if vendor {
+			cfgs = append(cfgs, "android_vendor")
+		} else if product {
+			cfgs = append(cfgs, "android_product")
 		}
 	}
 
-	flags.RustFlags = append(flags.RustFlags, compiler.cfgsToFlags()...)
-	flags.RustdocFlags = append(flags.RustdocFlags, compiler.cfgsToFlags()...)
+	flags.RustFlags = append(flags.RustFlags, cfgsToFlags(cfgs)...)
+	flags.RustdocFlags = append(flags.RustdocFlags, cfgsToFlags(cfgs)...)
+	return flags
+}
+
+func (compiler *baseCompiler) cfgFlags(ctx ModuleContext, flags Flags) Flags {
+	flags = CommonDefaultCfgFlags(flags, ctx.RustModule().InVendor(), ctx.RustModule().InProduct())
+
+	flags.RustFlags = append(flags.RustFlags, cfgsToFlags(compiler.Properties.Cfgs)...)
+	flags.RustdocFlags = append(flags.RustdocFlags, cfgsToFlags(compiler.Properties.Cfgs)...)
+
+	return flags
+}
+
+func CommonDefaultFlags(ctx android.ModuleContext, toolchain config.Toolchain, flags Flags) Flags {
+	flags.GlobalRustFlags = append(flags.GlobalRustFlags, config.GlobalRustFlags...)
+	flags.GlobalRustFlags = append(flags.GlobalRustFlags, toolchain.ToolchainRustFlags())
+	flags.GlobalLinkFlags = append(flags.GlobalLinkFlags, toolchain.ToolchainLinkFlags())
+	flags.EmitXrefs = ctx.Config().EmitXrefRules()
+
+	if ctx.Host() && !ctx.Windows() {
+		flags.LinkFlags = append(flags.LinkFlags, cc.RpathFlags(ctx)...)
+	}
+
+	if ctx.Os() == android.Linux {
+		// Add -lc, -lrt, -ldl, -lpthread, -lm and -lgcc_s to glibc builds to match
+		// the default behavior of device builds.
+		flags.LinkFlags = append(flags.LinkFlags, config.LinuxHostGlobalLinkFlags...)
+	} else if ctx.Os() == android.Darwin {
+		// Add -lc, -ldl, -lpthread and -lm to glibc darwin builds to match the default
+		// behavior of device builds.
+		flags.LinkFlags = append(flags.LinkFlags,
+			"-lc",
+			"-ldl",
+			"-lpthread",
+			"-lm",
+		)
+	}
 	return flags
 }
 
 func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 
+	flags = CommonDefaultFlags(ctx, ctx.toolchain(), flags)
 	lintFlags, err := config.RustcLintsForDir(ctx.ModuleDir(), compiler.Properties.Lints)
 	if err != nil {
 		ctx.PropertyErrorf("lints", err.Error())
@@ -396,29 +449,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 	flags.RustFlags = append(flags.RustFlags, "--edition="+compiler.edition())
 	flags.RustdocFlags = append(flags.RustdocFlags, "--edition="+compiler.edition())
 	flags.LinkFlags = append(flags.LinkFlags, compiler.Properties.Ld_flags...)
-	flags.GlobalRustFlags = append(flags.GlobalRustFlags, config.GlobalRustFlags...)
-	flags.GlobalRustFlags = append(flags.GlobalRustFlags, ctx.toolchain().ToolchainRustFlags())
-	flags.GlobalLinkFlags = append(flags.GlobalLinkFlags, ctx.toolchain().ToolchainLinkFlags())
-	flags.EmitXrefs = ctx.Config().EmitXrefRules()
 
-	if ctx.Host() && !ctx.Windows() {
-		flags.LinkFlags = append(flags.LinkFlags, cc.RpathFlags(ctx)...)
-	}
-
-	if ctx.Os() == android.Linux {
-		// Add -lc, -lrt, -ldl, -lpthread, -lm and -lgcc_s to glibc builds to match
-		// the default behavior of device builds.
-		flags.LinkFlags = append(flags.LinkFlags, config.LinuxHostGlobalLinkFlags...)
-	} else if ctx.Os() == android.Darwin {
-		// Add -lc, -ldl, -lpthread and -lm to glibc darwin builds to match the default
-		// behavior of device builds.
-		flags.LinkFlags = append(flags.LinkFlags,
-			"-lc",
-			"-ldl",
-			"-lpthread",
-			"-lm",
-		)
-	}
 	return flags
 }
 
@@ -568,11 +599,11 @@ func (compiler *baseCompiler) installTestData(ctx ModuleContext, data []android.
 	compiler.installDeps = append(compiler.installDeps, installedData...)
 }
 
-func (compiler *baseCompiler) getStem(ctx ModuleContext) string {
+func (compiler *baseCompiler) getStem(ctx android.ModuleContext) string {
 	return compiler.getStemWithoutSuffix(ctx) + String(compiler.Properties.Suffix)
 }
 
-func (compiler *baseCompiler) getStemWithoutSuffix(ctx BaseModuleContext) string {
+func (compiler *baseCompiler) getStemWithoutSuffix(ctx android.BaseModuleContext) string {
 	stem := ctx.ModuleName()
 	if String(compiler.Properties.Stem) != "" {
 		stem = String(compiler.Properties.Stem)

@@ -152,6 +152,7 @@ func filesystemFactory() android.Module {
 func initFilesystemModule(module *filesystem) {
 	module.AddProperties(&module.properties)
 	android.InitPackageModule(module)
+	module.PackagingBase.DepsCollectFirstTargetOnly = true
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 }

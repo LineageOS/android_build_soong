@@ -158,6 +158,8 @@ type Module struct {
 	sourceProvider   SourceProvider
 	subAndroidMkOnce map[SubAndroidMkProvider]bool
 
+	exportedLinkDirs []string
+
 	// Output file to be installed, may be stripped or unstripped.
 	outputFile android.OptionalPath
 
@@ -231,8 +233,8 @@ func (mod *Module) SelectedStl() string {
 
 func (mod *Module) NonCcVariants() bool {
 	if mod.compiler != nil {
-		if _, ok := mod.compiler.(libraryInterface); ok {
-			return false
+		if library, ok := mod.compiler.(libraryInterface); ok {
+			return library.buildRlib() || library.buildDylib()
 		}
 	}
 	panic(fmt.Errorf("NonCcVariants called on non-library module: %q", mod.BaseModuleName()))
@@ -462,6 +464,11 @@ type PathDeps struct {
 	linkDirs    []string
 	linkObjects []string
 
+	// exportedLinkDirs are exported linkDirs for direct rlib dependencies to
+	// cc_library_static dependants of rlibs.
+	// Track them separately from linkDirs so superfluous -L flags don't get emitted.
+	exportedLinkDirs []string
+
 	// Used by bindgen modules which call clang
 	depClangFlags         []string
 	depIncludePaths       android.Paths
@@ -474,6 +481,9 @@ type PathDeps struct {
 	// Paths to generated source files
 	SrcDeps          android.Paths
 	srcProviderFiles android.Paths
+
+	// Used by Generated Libraries
+	depExportedRlibs []cc.RustRlibDep
 }
 
 type RustLibraries []RustLibrary
@@ -538,6 +548,10 @@ func (mod *Module) IsNativeCoverageNeeded(ctx android.IncomingTransitionContext)
 
 func (mod *Module) VndkVersion() string {
 	return mod.Properties.VndkVersion
+}
+
+func (mod *Module) ExportedCrateLinkDirs() []string {
+	return mod.exportedLinkDirs
 }
 
 func (mod *Module) PreventInstall() bool {
@@ -652,15 +666,6 @@ func (mod *Module) UnstrippedOutputFile() android.Path {
 		return mod.compiler.unstrippedOutputFilePath()
 	}
 	return nil
-}
-
-func (mod *Module) IncludeDirs() android.Paths {
-	if mod.compiler != nil {
-		if library, ok := mod.compiler.(*libraryDecorator); ok {
-			return library.includeDirs
-		}
-	}
-	panic(fmt.Errorf("IncludeDirs called on non-library module: %q", mod.BaseModuleName()))
 }
 
 func (mod *Module) SetStatic() {
@@ -911,6 +916,10 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 
 	deps := mod.depsToPaths(ctx)
+	// Export linkDirs for CC rust generatedlibs
+	mod.exportedLinkDirs = append(mod.exportedLinkDirs, deps.exportedLinkDirs...)
+	mod.exportedLinkDirs = append(mod.exportedLinkDirs, deps.linkDirs...)
+
 	flags := Flags{
 		Toolchain: toolchain,
 	}
@@ -988,6 +997,9 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 			if ctx.Failed() {
 				return
 			}
+			// Export your own directory as a linkDir
+			mod.exportedLinkDirs = append(mod.exportedLinkDirs, linkPathFromFilePath(mod.OutputFile().Path()))
+
 		}
 
 		ctx.Phony("rust", ctx.RustModule().OutputFile().Path())
@@ -1218,7 +1230,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			return
 		}
 
-		if rustDep, ok := dep.(*Module); ok && !rustDep.CcLibraryInterface() {
+		if rustDep, ok := dep.(*Module); ok && !rustDep.Static() && !rustDep.Shared() {
 			//Handle Rust Modules
 			makeLibName := rustMakeLibName(ctx, mod, rustDep, depName+rustDep.Properties.RustSubName)
 
@@ -1244,9 +1256,16 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				mod.Properties.AndroidMkRlibs = append(mod.Properties.AndroidMkRlibs, makeLibName)
 				mod.Properties.SnapshotRlibs = append(mod.Properties.SnapshotRlibs, cc.BaseLibName(depName))
 
+				// rust_ffi rlibs may export include dirs, so collect those here.
+				exportedInfo, _ := android.OtherModuleProvider(ctx, dep, cc.FlagExporterInfoProvider)
+				depPaths.depIncludePaths = append(depPaths.depIncludePaths, exportedInfo.IncludeDirs...)
+				depPaths.exportedLinkDirs = append(depPaths.exportedLinkDirs, linkPathFromFilePath(rustDep.OutputFile().Path()))
+
 			case procMacroDepTag:
 				directProcMacroDeps = append(directProcMacroDeps, rustDep)
 				mod.Properties.AndroidMkProcMacroLibs = append(mod.Properties.AndroidMkProcMacroLibs, makeLibName)
+				// proc_macro link dirs need to be exported, so collect those here.
+				depPaths.exportedLinkDirs = append(depPaths.exportedLinkDirs, linkPathFromFilePath(rustDep.OutputFile().Path()))
 
 			case sourceDepTag:
 				if _, ok := mod.sourceProvider.(*protobufDecorator); ok {
@@ -1276,12 +1295,12 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				directSrcProvidersDeps = append(directSrcProvidersDeps, rustDep)
 			}
 
+			exportedInfo, _ := android.OtherModuleProvider(ctx, dep, FlagExporterInfoProvider)
 			//Append the dependencies exportedDirs, except for proc-macros which target a different arch/OS
 			if depTag != procMacroDepTag {
-				exportedInfo, _ := android.OtherModuleProvider(ctx, dep, FlagExporterInfoProvider)
-				depPaths.linkDirs = append(depPaths.linkDirs, exportedInfo.LinkDirs...)
 				depPaths.depFlags = append(depPaths.depFlags, exportedInfo.Flags...)
 				depPaths.linkObjects = append(depPaths.linkObjects, exportedInfo.LinkObjects...)
+				depPaths.linkDirs = append(depPaths.linkDirs, exportedInfo.LinkDirs...)
 			}
 
 			if depTag == dylibDepTag || depTag == rlibDepTag || depTag == procMacroDepTag {
@@ -1291,6 +1310,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					lib.exportLinkDirs(linkDir)
 				}
 			}
+
 			if depTag == sourceDepTag {
 				if _, ok := mod.sourceProvider.(*protobufDecorator); ok && mod.Source() {
 					if _, ok := rustDep.sourceProvider.(*protobufDecorator); ok {
@@ -1555,6 +1575,7 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	}
 
 	rlibDepVariations := commonDepVariations
+	rlibDepVariations = append(rlibDepVariations, blueprint.Variation{Mutator: "link", Variation: ""})
 
 	if lib, ok := mod.compiler.(libraryInterface); !ok || !lib.sysroot() {
 		rlibDepVariations = append(rlibDepVariations,
@@ -1570,6 +1591,8 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 	// dylibs
 	dylibDepVariations := append(commonDepVariations, blueprint.Variation{Mutator: "rust_libraries", Variation: dylibVariation})
+	dylibDepVariations = append(dylibDepVariations, blueprint.Variation{Mutator: "link", Variation: ""})
+
 	for _, lib := range deps.Dylibs {
 		actx.AddVariationDependencies(dylibDepVariations, dylibDepTag, lib)
 	}
@@ -1589,7 +1612,7 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 					// otherwise select the rlib variant.
 					autoDepVariations := append(commonDepVariations,
 						blueprint.Variation{Mutator: "rust_libraries", Variation: autoDep.variation})
-
+					autoDepVariations = append(autoDepVariations, blueprint.Variation{Mutator: "link", Variation: ""})
 					if actx.OtherModuleDependencyVariantExists(autoDepVariations, lib) {
 						actx.AddVariationDependencies(autoDepVariations, autoDep.depTag, lib)
 
@@ -1604,7 +1627,11 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			for _, lib := range deps.Rustlibs {
 				srcProviderVariations := append(commonDepVariations,
 					blueprint.Variation{Mutator: "rust_libraries", Variation: "source"})
+				srcProviderVariations = append(srcProviderVariations, blueprint.Variation{Mutator: "link", Variation: ""})
 
+				// Only add rustlib dependencies if they're source providers themselves.
+				// This is used to track which crate names need to be added to the source generated
+				// in the rust_protobuf mod.rs.
 				if actx.OtherModuleDependencyVariantExists(srcProviderVariations, lib) {
 					actx.AddVariationDependencies(srcProviderVariations, sourceDepTag, lib)
 				}
@@ -1616,7 +1643,7 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	if deps.Stdlibs != nil {
 		if mod.compiler.stdLinkage(ctx) == RlibLinkage {
 			for _, lib := range deps.Stdlibs {
-				actx.AddVariationDependencies(append(commonDepVariations, []blueprint.Variation{{Mutator: "rust_libraries", Variation: "rlib"}}...),
+				actx.AddVariationDependencies(append(commonDepVariations, []blueprint.Variation{{Mutator: "rust_libraries", Variation: "rlib"}, {Mutator: "link", Variation: ""}}...),
 					rlibDepTag, lib)
 			}
 		} else {

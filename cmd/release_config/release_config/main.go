@@ -77,7 +77,7 @@ func main() {
 		panic(err)
 	}
 
-	makefilePath := filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.mk", product, targetRelease))
+	makefilePath := filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.varmk", product, targetRelease))
 	useProto, ok := config.FlagArtifacts["RELEASE_BUILD_FLAGS_IN_PROTOBUF"]
 	if guard && (!ok || rc_lib.MarshalValue(useProto.Value) == "") {
 		// We were told to guard operation and either we have no build flag, or it is False.
@@ -94,7 +94,7 @@ func main() {
 		// Write one makefile per release config, using the canonical release name.
 		for _, c := range configs.GetSortedReleaseConfigs() {
 			if c.Name != targetRelease {
-				makefilePath = filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.mk", product, c.Name))
+				makefilePath = filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.varmk", product, c.Name))
 				err = configs.WriteMakefile(makefilePath, c.Name)
 				if err != nil {
 					panic(err)

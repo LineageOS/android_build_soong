@@ -69,6 +69,9 @@ type ReleaseConfig struct {
 	// Unmarshalled flag artifacts
 	FlagArtifacts FlagArtifacts
 
+	// The files used by this release config
+	FilesUsedMap map[string]bool
+
 	// Generated release config
 	ReleaseConfigArtifact *rc_proto.ReleaseConfigArtifact
 
@@ -80,10 +83,17 @@ type ReleaseConfig struct {
 }
 
 func ReleaseConfigFactory(name string, index int) (c *ReleaseConfig) {
-	return &ReleaseConfig{Name: name, DeclarationIndex: index}
+	return &ReleaseConfig{
+		Name:             name,
+		DeclarationIndex: index,
+		FilesUsedMap:     make(map[string]bool),
+	}
 }
 
 func (config *ReleaseConfig) InheritConfig(iConfig *ReleaseConfig) error {
+	for f := range iConfig.FilesUsedMap {
+		config.FilesUsedMap[f] = true
+	}
 	for _, fa := range iConfig.FlagArtifacts {
 		name := *fa.FlagDeclaration.Name
 		myFa, ok := config.FlagArtifacts[name]
@@ -104,6 +114,17 @@ func (config *ReleaseConfig) InheritConfig(iConfig *ReleaseConfig) error {
 		}
 	}
 	return nil
+}
+
+func (config *ReleaseConfig) GetSortedFileList() []string {
+	ret := []string{}
+	for k := range config.FilesUsedMap {
+		ret = append(ret, k)
+	}
+	slices.SortFunc(ret, func(a, b string) int {
+		return cmp.Compare(a, b)
+	})
+	return ret
 }
 
 func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) error {
@@ -145,9 +166,18 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 			return err
 		}
 	}
+
+	// If we inherited nothing, then we need to mark the global files as used for this
+	// config.  If we inherited, then we already marked them as part of inheritance.
+	if len(config.InheritNames) == 0 {
+		for f := range configs.FilesUsedMap {
+			config.FilesUsedMap[f] = true
+		}
+	}
+
 	contributionsToApply = append(contributionsToApply, config.Contributions...)
 
-	workflowManual := rc_proto.Workflow(rc_proto.Workflow_MANUAL)
+	workflowManual := rc_proto.Workflow(rc_proto.Workflow_WorkflowManual)
 	myDirsMap := make(map[int]bool)
 	for _, contrib := range contributionsToApply {
 		contribAconfigValueSets := []string{}
@@ -181,8 +211,8 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 				return fmt.Errorf("Setting value for flag %s not allowed in %s\n", name, value.path)
 			}
 			if isRoot && *fa.FlagDeclaration.Workflow != workflowManual {
-				// The "root" release config can only contain workflow: MANUAL flags.
-				return fmt.Errorf("Setting value for non-MANUAL flag %s is not allowed in %s", name, value.path)
+				// The "root" release config can only contain workflow: WorkflowManual flags.
+				return fmt.Errorf("Setting value for non-WorkflowManual flag %s is not allowed in %s", name, value.path)
 			}
 			if err := fa.UpdateValue(*value); err != nil {
 				return err

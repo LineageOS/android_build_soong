@@ -67,6 +67,9 @@ type ReleaseConfigs struct {
 	// Map of directory to *ReleaseConfigMap
 	releaseConfigMapsMap map[string]*ReleaseConfigMap
 
+	// The files used by all release configs
+	FilesUsedMap map[string]bool
+
 	// The list of config directories used.
 	configDirs []string
 
@@ -102,8 +105,9 @@ func ReleaseConfigsFactory() (c *ReleaseConfigs) {
 		releaseConfigMapsMap: make(map[string]*ReleaseConfigMap),
 		configDirs:           []string{},
 		configDirIndexes:     make(ReleaseConfigDirMap),
+		FilesUsedMap:         make(map[string]bool),
 	}
-	workflowManual := rc_proto.Workflow(rc_proto.Workflow_MANUAL)
+	workflowManual := rc_proto.Workflow(rc_proto.Workflow_WorkflowManual)
 	releaseAconfigValueSets := FlagArtifact{
 		FlagDeclaration: &rc_proto.FlagDeclaration{
 			Name:        proto.String("RELEASE_ACONFIG_VALUE_SETS"),
@@ -180,6 +184,7 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 			return fmt.Errorf("Release config map %s has invalid container %s", path, container)
 		}
 	}
+	configs.FilesUsedMap[path] = true
 	dir := filepath.Dir(path)
 	// Record any aliases, checking for duplicates.
 	for _, alias := range m.proto.Aliases {
@@ -226,6 +231,7 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 			return fmt.Errorf("Duplicate definition of %s", *flagDeclaration.Name)
 		}
 		// Set the initial value in the flag artifact.
+		configs.FilesUsedMap[path] = true
 		configs.FlagArtifacts[name].UpdateValue(
 			FlagValue{path: path, proto: rc_proto.FlagValue{
 				Name: proto.String(name), Value: flagDeclaration.Value}})
@@ -249,6 +255,7 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 			configs.ReleaseConfigs[name] = ReleaseConfigFactory(name, ConfigDirIndex)
 		}
 		config := configs.ReleaseConfigs[name]
+		config.FilesUsedMap[path] = true
 		config.InheritNames = append(config.InheritNames, releaseConfigContribution.proto.Inherits...)
 
 		// Only walk flag_values/{RELEASE} for defined releases.
@@ -260,6 +267,7 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 			if *flagValue.proto.Name == "RELEASE_ACONFIG_VALUE_SETS" {
 				return fmt.Errorf("%s: %s is a reserved build flag", path, *flagValue.proto.Name)
 			}
+			config.FilesUsedMap[path] = true
 			releaseConfigContribution.FlagValues = append(releaseConfigContribution.FlagValues, flagValue)
 			return nil
 		})
@@ -371,6 +379,7 @@ func (configs *ReleaseConfigs) WriteMakefile(outFile, targetRelease string) erro
 	}
 	// The variable _all_release_configs will get deleted during processing, so do not mark it read-only.
 	data += fmt.Sprintf("_all_release_configs := %s\n", strings.Join(configs.GetAllReleaseNames(), " "))
+	data += fmt.Sprintf("_used_files := %s\n", strings.Join(config.GetSortedFileList(), " "))
 	data += fmt.Sprintf("_ALL_RELEASE_FLAGS :=$= %s\n", strings.Join(names, " "))
 	for _, pName := range pNames {
 		data += fmt.Sprintf("_ALL_RELEASE_FLAGS.PARTITIONS.%s :=$= %s\n", pName, strings.Join(partitions[pName], " "))

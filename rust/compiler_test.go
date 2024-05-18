@@ -63,6 +63,35 @@ func TestCfgsToFlags(t *testing.T) {
 	}
 }
 
+func TestLtoFlag(t *testing.T) {
+	ctx := testRust(t, `
+		rust_library_host {
+			name: "libfoo",
+			srcs: ["foo.rs"],
+			crate_name: "foo",
+			lto: {
+				thin: false,
+			}
+		}
+
+		rust_library_host {
+			name: "libfoo_lto",
+			srcs: ["foo.rs"],
+			crate_name: "foo",
+		}
+		`)
+
+	libfoo := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_dylib").Rule("rustc")
+	libfooLto := ctx.ModuleForTests("libfoo_lto", "linux_glibc_x86_64_dylib").Rule("rustc")
+
+	if strings.Contains(libfoo.Args["rustcFlags"], "-C lto=thin") {
+		t.Fatalf("libfoo expected to disable lto -- rustcFlags: %#v", libfoo.Args["rustcFlags"])
+	}
+	if !strings.Contains(libfooLto.Args["rustcFlags"], "-C lto=thin") {
+		t.Fatalf("libfoo expected to enable lto by default -- rustcFlags: %#v", libfooLto.Args["rustcFlags"])
+	}
+}
+
 // Test that we reject multiple source files.
 func TestEnforceSingleSourceFile(t *testing.T) {
 
