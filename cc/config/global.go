@@ -136,6 +136,11 @@ var (
 		// displaying logs in web browsers.
 		"-fmessage-length=0",
 
+		// Disable C++17 "relaxed template template argument matching" as a workaround for
+		// our out-dated libcxx.
+		// http://b/341084395
+		"-fno-relaxed-template-template-args",
+
 		// Using simple template names reduces the size of debug builds.
 		"-gsimple-template-names",
 
