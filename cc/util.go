@@ -68,6 +68,7 @@ func flagsToBuilderFlags(in Flags) builderFlags {
 		needTidyFiles:   in.NeedTidyFiles,
 		sAbiDump:        in.SAbiDump,
 		emitXrefs:       in.EmitXrefs,
+		clangVerify:     in.ClangVerify,
 
 		systemIncludeFlags: strings.Join(in.SystemIncludeFlags, " "),
 

@@ -46,18 +46,18 @@ var (
 		blueprint.RuleParams{
 			Depfile:     "${out}.d",
 			Deps:        blueprint.DepsGCC,
-			Command:     "$relPwd ${config.CcWrapper}$ccCmd -c $cFlags -MD -MF ${out}.d -o $out $in",
+			Command:     "$relPwd ${config.CcWrapper}$ccCmd -c $cFlags -MD -MF ${out}.d -o $out $in$postCmd",
 			CommandDeps: []string{"$ccCmd"},
 		},
-		"ccCmd", "cFlags")
+		"ccCmd", "cFlags", "postCmd")
 
 	// Rule to invoke gcc with given command and flags, but no dependencies.
 	ccNoDeps = pctx.AndroidStaticRule("ccNoDeps",
 		blueprint.RuleParams{
-			Command:     "$relPwd $ccCmd -c $cFlags -o $out $in",
+			Command:     "$relPwd $ccCmd -c $cFlags -o $out $in$postCmd",
 			CommandDeps: []string{"$ccCmd"},
 		},
-		"ccCmd", "cFlags")
+		"ccCmd", "cFlags", "postCmd")
 
 	// Rules to invoke ld to link binaries. Uses a .rsp file to list dependencies, as there may
 	// be many.
@@ -400,6 +400,7 @@ type builderFlags struct {
 	gcovCoverage  bool
 	sAbiDump      bool
 	emitXrefs     bool
+	clangVerify   bool
 
 	assemblerWithCpp bool // True if .s files should be processed with the c preprocessor.
 
@@ -591,6 +592,7 @@ func transformSourceToObj(ctx ModuleContext, subdir string, srcFiles, noTidySrcs
 		var moduleToolingFlags string
 
 		var ccCmd string
+		var postCmd string
 		tidy := flags.tidy
 		coverage := flags.gcovCoverage
 		dump := flags.sAbiDump
@@ -635,6 +637,10 @@ func transformSourceToObj(ctx ModuleContext, subdir string, srcFiles, noTidySrcs
 
 		ccCmd = "${config.ClangBin}/" + ccCmd
 
+		if flags.clangVerify {
+			postCmd = " && touch $$out"
+		}
+
 		var implicitOutputs android.WritablePaths
 		if coverage {
 			gcnoFile := android.ObjPathWithExt(ctx, subdir, srcFile, "gcno")
@@ -651,8 +657,9 @@ func transformSourceToObj(ctx ModuleContext, subdir string, srcFiles, noTidySrcs
 			Implicits:       cFlagsDeps,
 			OrderOnly:       pathDeps,
 			Args: map[string]string{
-				"cFlags": shareFlags("cFlags", moduleFlags),
-				"ccCmd":  ccCmd, // short and not shared
+				"cFlags":  shareFlags("cFlags", moduleFlags),
+				"ccCmd":   ccCmd, // short and not shared
+				"postCmd": postCmd,
 			},
 		})
 

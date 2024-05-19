@@ -260,6 +260,7 @@ type Flags struct {
 	GcovCoverage  bool // True if coverage files should be generated.
 	SAbiDump      bool // True if header abi dumps should be generated.
 	EmitXrefs     bool // If true, generate Ninja rules to generate emitXrefs input files for Kythe
+	ClangVerify   bool // If true, append cflags "-Xclang -verify" and append "&& touch $out" to the clang command line.
 
 	// The instruction set required for clang ("arm" or "thumb").
 	RequiredInstructionSet string
