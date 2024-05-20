@@ -908,7 +908,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Check min_sdk_version of the transitive dependencies if this module is created from
 	// java_sdk_library.
-	if j.deviceProperties.Min_sdk_version != nil && j.SdkLibraryName() != nil {
+	if j.overridableProperties.Min_sdk_version != nil && j.SdkLibraryName() != nil {
 		j.CheckDepsMinSdkVersion(ctx)
 	}
 
@@ -1096,7 +1096,7 @@ func (p *librarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberCo
 
 	// If the min_sdk_version was set then add the canonical representation of the API level to the
 	// snapshot.
-	if j.deviceProperties.Min_sdk_version != nil {
+	if j.overridableProperties.Min_sdk_version != nil {
 		canonical, err := android.ReplaceFinalizedCodenames(ctx.SdkModuleContext().Config(), j.minSdkVersion.String())
 		if err != nil {
 			ctx.ModuleErrorf("%s", err)

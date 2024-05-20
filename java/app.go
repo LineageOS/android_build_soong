@@ -338,23 +338,12 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.generateJavaUsedByApex(ctx)
 }
 
-func (a *AndroidApp) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
-	defaultMinSdkVersion := a.Module.MinSdkVersion(ctx)
-	if proptools.Bool(a.appProperties.Updatable) {
-		overrideApiLevel := android.MinSdkVersionFromValue(ctx, ctx.DeviceConfig().ApexGlobalMinSdkVersionOverride())
-		if !overrideApiLevel.IsNone() && overrideApiLevel.CompareTo(defaultMinSdkVersion) > 0 {
-			return overrideApiLevel
-		}
-	}
-	return defaultMinSdkVersion
-}
-
 func (a *AndroidApp) checkAppSdkVersions(ctx android.ModuleContext) {
 	if a.Updatable() {
 		if !a.SdkVersion(ctx).Stable() {
 			ctx.PropertyErrorf("sdk_version", "Updatable apps must use stable SDKs, found %v", a.SdkVersion(ctx))
 		}
-		if String(a.deviceProperties.Min_sdk_version) == "" {
+		if String(a.overridableProperties.Min_sdk_version) == "" {
 			ctx.PropertyErrorf("updatable", "updatable apps must set min_sdk_version.")
 		}
 
