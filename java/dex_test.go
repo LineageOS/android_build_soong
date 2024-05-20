@@ -662,3 +662,30 @@ func TestProguardFlagsInheritanceAppImport(t *testing.T) {
 	android.AssertStringDoesContain(t, "expected aarimports's proguard flags",
 		appR8.Args["r8Flags"], "proguard.txt")
 }
+
+func TestR8FlagsArtProfile(t *testing.T) {
+	result := PrepareForTestWithJavaDefaultModules.RunTestWithBp(t, `
+		android_app {
+			name: "app",
+			srcs: ["foo.java"],
+			platform_apis: true,
+			dex_preopt: {
+				profile_guided: true,
+				profile: "profile.txt.prof",
+				enable_profile_rewriting: true,
+			},
+		}
+	`)
+
+	app := result.ModuleForTests("app", "android_common")
+	appR8 := app.Rule("r8")
+	android.AssertStringDoesContain(t, "expected --art-profile in app r8 flags",
+		appR8.Args["r8Flags"], "--art-profile")
+
+	appDexpreopt := app.Rule("dexpreopt")
+	android.AssertStringDoesContain(t,
+		"expected --art-profile output to be used to create .prof binary",
+		appDexpreopt.RuleParams.Command,
+		"--create-profile-from=out/soong/.intermediates/app/android_common/profile.prof.txt --output-profile-type=app",
+	)
+}
