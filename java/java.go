@@ -366,14 +366,14 @@ type dependencyTag struct {
 	toolchain bool
 
 	static bool
+
+	installable bool
 }
 
-// installDependencyTag is a dependency tag that is annotated to cause the installed files of the
-// dependency to be installed when the parent module is installed.
-type installDependencyTag struct {
-	blueprint.BaseDependencyTag
-	android.InstallAlwaysNeededDependencyTag
-	name string
+var _ android.InstallNeededDependencyTag = (*dependencyTag)(nil)
+
+func (d dependencyTag) InstallDepNeeded() bool {
+	return d.installable
 }
 
 func (d dependencyTag) LicenseAnnotations() []android.LicenseAnnotation {
@@ -405,7 +405,7 @@ func makeUsesLibraryDependencyTag(sdkVersion int, optional bool) usesLibraryDepe
 }
 
 func IsJniDepTag(depTag blueprint.DependencyTag) bool {
-	return depTag == jniLibTag
+	return depTag == jniLibTag || depTag == jniInstallTag
 }
 
 var (
@@ -434,8 +434,8 @@ var (
 	javaApiContributionTag  = dependencyTag{name: "java-api-contribution"}
 	depApiSrcsTag           = dependencyTag{name: "dep-api-srcs"}
 	aconfigDeclarationTag   = dependencyTag{name: "aconfig-declaration"}
-	jniInstallTag           = installDependencyTag{name: "jni install"}
-	binaryInstallTag        = installDependencyTag{name: "binary install"}
+	jniInstallTag           = dependencyTag{name: "jni install", runtimeLinked: true, installable: true}
+	binaryInstallTag        = dependencyTag{name: "binary install", runtimeLinked: true, installable: true}
 	usesLibReqTag           = makeUsesLibraryDependencyTag(dexpreopt.AnySdkVersion, false)
 	usesLibOptTag           = makeUsesLibraryDependencyTag(dexpreopt.AnySdkVersion, true)
 	usesLibCompat28OptTag   = makeUsesLibraryDependencyTag(28, true)
@@ -491,6 +491,7 @@ type jniLib struct {
 	coverageFile   android.OptionalPath
 	unstrippedFile android.Path
 	partition      string
+	installPaths   android.InstallPaths
 }
 
 func sdkDeps(ctx android.BottomUpMutatorContext, sdkContext android.SdkContext, d dexer) {
