@@ -17,6 +17,7 @@ type CoreModuleInfoJSON struct {
 	HostDependencies   []string `json:"host_dependencies,omitempty"`   // $(sort $(ALL_MODULES.$(m).HOST_REQUIRED_FROM_TARGET))
 	TargetDependencies []string `json:"target_dependencies,omitempty"` // $(sort $(ALL_MODULES.$(m).TARGET_REQUIRED_FROM_HOST))
 	Data               []string `json:"data,omitempty"`                // $(sort $(ALL_MODULES.$(m).TEST_DATA))
+	Required           []string `json:"required,omitempty"`            // $(sort $(ALL_MODULES.$(m).REQUIRED_FROM_TARGET))
 }
 
 type ModuleInfoJSON struct {
@@ -77,6 +78,7 @@ func encodeModuleInfoJSON(w io.Writer, moduleInfoJSON *ModuleInfoJSON) error {
 	sortAndUnique(&moduleInfoJSONCopy.core.HostDependencies)
 	sortAndUnique(&moduleInfoJSONCopy.core.TargetDependencies)
 	sortAndUnique(&moduleInfoJSONCopy.core.Data)
+	sortAndUnique(&moduleInfoJSONCopy.core.Required)
 
 	sortAndUnique(&moduleInfoJSONCopy.Class)
 	sortAndUnique(&moduleInfoJSONCopy.Tags)
