@@ -229,10 +229,6 @@ type DeviceProperties struct {
 	// If the SDK kind is empty, it will be set to public.
 	Sdk_version *string
 
-	// if not blank, set the minimum version of the sdk that the compiled artifacts will run against.
-	// Defaults to sdk_version if not set. See sdk_version for possible values.
-	Min_sdk_version *string
-
 	// if not blank, set the maximum version of the sdk that the compiled artifacts will run against.
 	// Defaults to empty string "". See sdk_version for possible values.
 	Max_sdk_version *string
@@ -312,6 +308,10 @@ type OverridableProperties struct {
 	// Otherwise, both the overridden and the overriding modules will have the same output name, which
 	// can cause the duplicate output error.
 	Stem *string
+
+	// if not blank, set the minimum version of the sdk that the compiled artifacts will run against.
+	// Defaults to sdk_version if not set. See sdk_version for possible values.
+	Min_sdk_version *string
 }
 
 // Functionality common to Module and Import
@@ -738,8 +738,8 @@ func (j *Module) SystemModules() string {
 }
 
 func (j *Module) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
-	if j.deviceProperties.Min_sdk_version != nil {
-		return android.ApiLevelFrom(ctx, *j.deviceProperties.Min_sdk_version)
+	if j.overridableProperties.Min_sdk_version != nil {
+		return android.ApiLevelFrom(ctx, *j.overridableProperties.Min_sdk_version)
 	}
 	return j.SdkVersion(ctx).ApiLevel
 }
