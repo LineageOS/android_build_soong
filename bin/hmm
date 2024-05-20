@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# Copyright (C) 2022 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+cat <<EOF
+
+Run "m help" for help with the build system itself.
+
+Invoke ". build/envsetup.sh" from your shell to add the following functions to your environment:
+- lunch:      lunch <product_name>-<release_type>-<build_variant>
+              Selects <product_name> as the product to build, and <build_variant> as the variant to
+              build, and stores those selections in the environment to be read by subsequent
+              invocations of 'm' etc.
+- tapas:      tapas [<App1> <App2> ...] [arm|x86|arm64|x86_64] [eng|userdebug|user]
+              Sets up the build environment for building unbundled apps (APKs).
+- banchan:    banchan <module1> [<module2> ...] \\
+                      [arm|x86|arm64|riscv64|x86_64|arm64_only|x86_64only] [eng|userdebug|user]
+              Sets up the build environment for building unbundled modules (APEXes).
+- croot:      Changes directory to the top of the tree, or a subdirectory thereof.
+- m:          Makes from the top of the tree.
+- mm:         Builds and installs all of the modules in the current directory, and their
+              dependencies.
+- mmm:        Builds and installs all of the modules in the supplied directories, and their
+              dependencies.
+              To limit the modules being built use the syntax: mmm dir/:target1,target2.
+- mma:        Same as 'mm'
+- mmma:       Same as 'mmm'
+- provision:  Flash device with all required partitions. Options will be passed on to fastboot.
+- cgrep:      Greps on all local C/C++ files.
+- ggrep:      Greps on all local Gradle files.
+- gogrep:     Greps on all local Go files.
+- jgrep:      Greps on all local Java files.
+- jsongrep:   Greps on all local Json files.
+- ktgrep:     Greps on all local Kotlin files.
+- resgrep:    Greps on all local res/*.xml files.
+- mangrep:    Greps on all local AndroidManifest.xml files.
+- mgrep:      Greps on all local Makefiles and *.bp files.
+- owngrep:    Greps on all local OWNERS files.
+- rsgrep:     Greps on all local Rust files.
+- sepgrep:    Greps on all local sepolicy files.
+- sgrep:      Greps on all local source files.
+- tomlgrep:   Greps on all local Toml files.
+- pygrep:     Greps on all local Python files.
+- godir:      Go to the directory containing a file.
+- allmod:     List all modules.
+- gomod:      Go to the directory containing a module.
+- bmod:       Get the Bazel label of a Soong module if it is converted with bp2build.
+- pathmod:    Get the directory containing a module.
+- outmod:     Gets the location of a module's installed outputs with a certain extension.
+- dirmods:    Gets the modules defined in a given directory.
+- installmod: Adb installs a module's built APK.
+- refreshmod: Refresh list of modules for allmod/gomod/pathmod/outmod/installmod.
+- syswrite:   Remount partitions (e.g. system.img) as writable, rebooting if necessary.
+
+Environment options:
+- SANITIZE_HOST: Set to 'address' to use ASAN for all host modules.
+- ANDROID_QUIET_BUILD: set to 'true' to display only the essential messages.
+
+Look at build/make/envsetup for more functions:
+EOF
+    local T=$(gettop)
+    local A=""
+    local i
+    for i in `(cat $T/build/envsetup.sh | sed -n "/^[[:blank:]]*function /s/function \([a-z]*\).*/\1/p" | sort | uniq`; do
+      A="$A $i"
+    done
+    echo $A
