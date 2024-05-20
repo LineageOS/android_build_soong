@@ -15,7 +15,9 @@
 package release_config_lib
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 
 	rc_proto "android/soong/cmd/release_config/release_config_proto"
 
@@ -44,6 +46,63 @@ type FlagArtifact struct {
 
 // Key is flag name.
 type FlagArtifacts map[string]*FlagArtifact
+
+func FlagArtifactFactory(declPath string) *FlagArtifact {
+	fd := &rc_proto.FlagDeclaration{}
+	fa := &FlagArtifact{
+		FlagDeclaration:  fd,
+		DeclarationIndex: -1,
+		Traces:           []*rc_proto.Tracepoint{},
+	}
+	if declPath != "" {
+		LoadMessage(declPath, fd)
+		fa.Value = fd.GetValue()
+		fa.Traces = append(fa.Traces, &rc_proto.Tracepoint{Source: proto.String(declPath), Value: fa.Value})
+	}
+	return fa
+}
+
+func FlagArtifactsFactory(artifactsPath string) *FlagArtifacts {
+	ret := make(FlagArtifacts)
+	if artifactsPath != "" {
+		fas := &rc_proto.FlagArtifacts{}
+		LoadMessage(artifactsPath, fas)
+		for _, fa_pb := range fas.FlagArtifacts {
+			fa := &FlagArtifact{}
+			fa.FlagDeclaration = fa_pb.GetFlagDeclaration()
+			if val := fa_pb.GetValue(); val != nil {
+				fa.Value = val
+			}
+			if traces := fa_pb.GetTraces(); traces != nil {
+				fa.Traces = traces
+			}
+			ret[*fa.FlagDeclaration.Name] = fa
+		}
+	}
+	return &ret
+}
+
+func (fa *FlagArtifact) GenerateFlagArtifact() *rc_proto.FlagArtifact {
+	ret := &rc_proto.FlagArtifact{FlagDeclaration: fa.FlagDeclaration}
+	if fa.Value != nil {
+		ret.Value = fa.Value
+	}
+	if len(fa.Traces) > 0 {
+		ret.Traces = fa.Traces
+	}
+	return ret
+}
+
+func (fas *FlagArtifacts) GenerateFlagArtifacts() *rc_proto.FlagArtifacts {
+	ret := &rc_proto.FlagArtifacts{FlagArtifacts: []*rc_proto.FlagArtifact{}}
+	for _, fa := range *fas {
+		ret.FlagArtifacts = append(ret.FlagArtifacts, fa.GenerateFlagArtifact())
+	}
+	slices.SortFunc(ret.FlagArtifacts, func(a, b *rc_proto.FlagArtifact) int {
+		return cmp.Compare(*a.FlagDeclaration.Name, *b.FlagDeclaration.Name)
+	})
+	return ret
+}
 
 // Create a clone of the flag artifact.
 //
