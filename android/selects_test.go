@@ -688,6 +688,29 @@ func TestSelects(t *testing.T) {
 			`,
 			expectedError: `can't assign select statement to non-configurable property "my_nonconfigurable_string_list"`,
 		},
+		{
+			name: "Select in variable",
+			bp: `
+			my_second_variable = ["after.cpp"]
+			my_variable = select(soong_config_variable("my_namespace", "my_variable"), {
+				"a": ["a.cpp"],
+				"b": ["b.cpp"],
+				default: ["c.cpp"],
+			}) + my_second_variable
+			my_module_type {
+				name: "foo",
+				my_string_list: ["before.cpp"] + my_variable,
+			}
+			`,
+			provider: selectsTestProvider{
+				my_string_list: &[]string{"before.cpp", "a.cpp", "after.cpp"},
+			},
+			vendorVars: map[string]map[string]string{
+				"my_namespace": {
+					"my_variable": "a",
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
