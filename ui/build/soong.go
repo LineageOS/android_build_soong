@@ -15,7 +15,6 @@
 package build
 
 import (
-	"android/soong/ui/tracer"
 	"fmt"
 	"io/fs"
 	"os"
@@ -25,6 +24,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"android/soong/ui/tracer"
 
 	"android/soong/bazel"
 	"android/soong/ui/metrics"
@@ -270,7 +271,13 @@ func bootstrapEpochCleanup(ctx Context, config Config) {
 	} else if !exists {
 		// The tree is out of date for the current epoch, delete files used by bootstrap
 		// and force the primary builder to rerun.
-		os.Remove(config.SoongNinjaFile())
+		soongNinjaFile := config.SoongNinjaFile()
+		os.Remove(soongNinjaFile)
+		for _, file := range blueprint.GetNinjaShardFiles(soongNinjaFile) {
+			if ok, _ := fileExists(file); ok {
+				os.Remove(file)
+			}
+		}
 		for _, globFile := range bootstrapGlobFileList(config) {
 			os.Remove(globFile)
 		}
@@ -680,7 +687,13 @@ func runSoong(ctx Context, config Config) {
 
 	loadSoongBuildMetrics(ctx, config, beforeSoongTimestamp)
 
-	distGzipFile(ctx, config, config.SoongNinjaFile(), "soong")
+	soongNinjaFile := config.SoongNinjaFile()
+	distGzipFile(ctx, config, soongNinjaFile, "soong")
+	for _, file := range blueprint.GetNinjaShardFiles(soongNinjaFile) {
+		if ok, _ := fileExists(file); ok {
+			distGzipFile(ctx, config, file, "soong")
+		}
+	}
 	distFile(ctx, config, config.SoongVarsFile(), "soong")
 
 	if !config.SkipKati() {
