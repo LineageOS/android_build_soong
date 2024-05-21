@@ -15,7 +15,6 @@
 package android
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -648,7 +647,6 @@ func TestPrefer32Deps(t *testing.T) {
 		}
 		bp := strings.Replace(bpTemplate, "%COMPILE_MULTILIB%", tc.compileMultilib, -1)
 		bp = strings.Replace(bp, "%DEPS%", `["`+strings.Join(tc.deps, `", "`)+`"]`, -1)
-		fmt.Printf("bp = %s\n", bp)
 		runPackagingTest(t, config, bp, tc.expected)
 	}
 }
