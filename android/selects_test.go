@@ -792,13 +792,21 @@ type selectsMockModule struct {
 	properties selectsMockModuleProperties
 }
 
+func optionalToPtr[T any](o proptools.ConfigurableOptional[T]) *T {
+	if o.IsEmpty() {
+		return nil
+	}
+	x := o.Get()
+	return &x
+}
+
 func (p *selectsMockModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	SetProvider(ctx, selectsTestProviderKey, selectsTestProvider{
-		my_bool:                        p.properties.My_bool.Get(ctx),
-		my_string:                      p.properties.My_string.Get(ctx),
-		my_string_list:                 p.properties.My_string_list.Get(ctx),
-		my_paths:                       p.properties.My_paths.Get(ctx),
-		replacing_string_list:          p.properties.Replacing_string_list.Get(ctx),
+		my_bool:                        optionalToPtr(p.properties.My_bool.Get(ctx)),
+		my_string:                      optionalToPtr(p.properties.My_string.Get(ctx)),
+		my_string_list:                 optionalToPtr(p.properties.My_string_list.Get(ctx)),
+		my_paths:                       optionalToPtr(p.properties.My_paths.Get(ctx)),
+		replacing_string_list:          optionalToPtr(p.properties.Replacing_string_list.Get(ctx)),
 		my_nonconfigurable_bool:        p.properties.My_nonconfigurable_bool,
 		my_nonconfigurable_string:      p.properties.My_nonconfigurable_string,
 		my_nonconfigurable_string_list: p.properties.My_nonconfigurable_string_list,
