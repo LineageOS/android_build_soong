@@ -177,7 +177,7 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 
 	contributionsToApply = append(contributionsToApply, config.Contributions...)
 
-	workflowManual := rc_proto.Workflow(rc_proto.Workflow_WorkflowManual)
+	workflowManual := rc_proto.Workflow(rc_proto.Workflow_Workflow_Manual)
 	myDirsMap := make(map[int]bool)
 	for _, contrib := range contributionsToApply {
 		contribAconfigValueSets := []string{}
@@ -211,8 +211,8 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 				return fmt.Errorf("Setting value for flag %s not allowed in %s\n", name, value.path)
 			}
 			if isRoot && *fa.FlagDeclaration.Workflow != workflowManual {
-				// The "root" release config can only contain workflow: WorkflowManual flags.
-				return fmt.Errorf("Setting value for non-WorkflowManual flag %s is not allowed in %s", name, value.path)
+				// The "root" release config can only contain workflow: Workflow_Manual flags.
+				return fmt.Errorf("Setting value for non-Workflow_Manual flag %s is not allowed in %s", name, value.path)
 			}
 			if err := fa.UpdateValue(*value); err != nil {
 				return err
