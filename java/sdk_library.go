@@ -1504,6 +1504,12 @@ func IsXmlPermissionsFileDepTag(depTag blueprint.DependencyTag) bool {
 
 var implLibraryTag = sdkLibraryComponentTag{name: "impl-library"}
 
+var _ android.InstallNeededDependencyTag = sdkLibraryComponentTag{}
+
+func (t sdkLibraryComponentTag) InstallDepNeeded() bool {
+	return t.name == "xml-permissions-file" || t.name == "impl-library"
+}
+
 // Add the dependencies on the child modules in the component deps mutator.
 func (module *SdkLibrary) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
 	for _, apiScope := range module.getGeneratedApiScopes(ctx) {
