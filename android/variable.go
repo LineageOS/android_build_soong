@@ -492,6 +492,8 @@ type ProductVariables struct {
 
 	BuildFlags map[string]string `json:",omitempty"`
 
+	BuildFlagTypes map[string]string `json:",omitempty"`
+
 	BuildFromSourceStub *bool `json:",omitempty"`
 
 	BuildIgnoreApexContributionContents *bool `json:",omitempty"`
