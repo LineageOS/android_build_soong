@@ -15,6 +15,8 @@
 package android
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/google/blueprint"
@@ -581,6 +583,72 @@ func TestDebuggableDeps(t *testing.T) {
 		config := testConfig{
 			debuggable: tc.debuggable,
 		}
+		runPackagingTest(t, config, bp, tc.expected)
+	}
+}
+
+func TestPrefer32Deps(t *testing.T) {
+	bpTemplate := `
+		component {
+			name: "foo",
+			compile_multilib: "both", // not needed but for clarity
+		}
+
+		component {
+			name: "foo_32only",
+			compile_multilib: "prefer32",
+		}
+
+		component {
+			name: "foo_64only",
+			compile_multilib: "64",
+		}
+
+		package_module {
+			name: "package",
+			compile_multilib: "%COMPILE_MULTILIB%",
+			multilib: {
+				prefer32: {
+					deps: %DEPS%,
+				},
+			},
+		}
+	`
+
+	testcases := []struct {
+		compileMultilib string
+		deps            []string
+		expected        []string
+	}{
+		{
+			compileMultilib: "first",
+			deps:            []string{"foo", "foo_64only"},
+			expected:        []string{"lib64/foo", "lib64/foo_64only"},
+		},
+		{
+			compileMultilib: "64",
+			deps:            []string{"foo", "foo_64only"},
+			expected:        []string{"lib64/foo", "lib64/foo_64only"},
+		},
+		{
+			compileMultilib: "32",
+			deps:            []string{"foo", "foo_32only"},
+			expected:        []string{"lib32/foo", "lib32/foo_32only"},
+		},
+		{
+			compileMultilib: "both",
+			deps:            []string{"foo", "foo_32only", "foo_64only"},
+			expected:        []string{"lib32/foo", "lib32/foo_32only", "lib64/foo_64only"},
+		},
+	}
+	for _, tc := range testcases {
+		config := testConfig{
+			multiTarget:                true,
+			depsCollectFirstTargetOnly: true,
+		}
+		bp := strings.Replace(bpTemplate, "%COMPILE_MULTILIB%", tc.compileMultilib, -1)
+		bp = strings.Replace(bp, "%DEPS%", `["`+strings.Join(tc.deps, `", "`)+`"]`, -1)
+		fmt.Printf("bp = %s\n", bp)
 		runPackagingTest(t, config, bp, tc.expected)
 	}
 }

@@ -3218,3 +3218,32 @@ func TestVendorSdkVersion(t *testing.T) {
 	testSdkVersionFlag("libfoo", "30")
 	testSdkVersionFlag("libbar", "29")
 }
+
+func TestClangVerify(t *testing.T) {
+	t.Parallel()
+
+	ctx := testCc(t, `
+		cc_library {
+			name: "lib_no_clang_verify",
+			srcs: ["libnocv.cc"],
+		}
+
+		cc_library {
+			name: "lib_clang_verify",
+			srcs: ["libcv.cc"],
+			clang_verify: true,
+		}
+	`)
+
+	module := ctx.ModuleForTests("lib_no_clang_verify", "android_arm64_armv8-a_shared")
+
+	cFlags_no_cv := module.Rule("cc").Args["cFlags"]
+	if strings.Contains(cFlags_no_cv, "-Xclang") || strings.Contains(cFlags_no_cv, "-verify") {
+		t.Errorf("expected %q not in cflags, got %q", "-Xclang -verify", cFlags_no_cv)
+	}
+
+	cFlags_cv := ctx.ModuleForTests("lib_clang_verify", "android_arm64_armv8-a_shared").Rule("cc").Args["cFlags"]
+	if strings.Contains(cFlags_cv, "-Xclang") && strings.Contains(cFlags_cv, "-verify") {
+		t.Errorf("expected %q in cflags, got %q", "-Xclang -verify", cFlags_cv)
+	}
+}

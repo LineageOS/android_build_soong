@@ -17,7 +17,6 @@ package java
 import (
 	"fmt"
 	"io"
-	"strings"
 
 	"android/soong/android"
 
@@ -414,22 +413,11 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 					jniSymbols := app.JNISymbolsInstalls(app.installPathForJNISymbols.String())
 					entries.SetString("LOCAL_SOONG_JNI_LIBS_SYMBOLS", jniSymbols.String())
 				} else {
+					var names []string
 					for _, jniLib := range app.jniLibs {
-						entries.AddStrings("LOCAL_SOONG_JNI_LIBS_"+jniLib.target.Arch.ArchType.String(), jniLib.name)
-						var partitionTag string
-
-						// Mimic the creation of partition_tag in build/make,
-						// which defaults to an empty string when the partition is system.
-						// Otherwise, capitalize with a leading _
-						if jniLib.partition == "system" {
-							partitionTag = ""
-						} else {
-							split := strings.Split(jniLib.partition, "/")
-							partitionTag = "_" + strings.ToUpper(split[len(split)-1])
-						}
-						entries.AddStrings("LOCAL_SOONG_JNI_LIBS_PARTITION_"+jniLib.target.Arch.ArchType.String(),
-							jniLib.name+":"+partitionTag)
+						names = append(names, jniLib.name)
 					}
+					entries.AddStrings("LOCAL_REQUIRED_MODULES", names...)
 				}
 
 				if len(app.jniCoverageOutputs) > 0 {
