@@ -216,6 +216,7 @@ func GetDefaultMapPaths(queryMaps bool) (defaultMapPaths StringList, err error) 
 		var stdout strings.Builder
 		getBuildVar.Stdin = strings.NewReader("")
 		getBuildVar.Stdout = &stdout
+		getBuildVar.Stderr = os.Stderr
 		err = getBuildVar.Run()
 		if err != nil {
 			return
