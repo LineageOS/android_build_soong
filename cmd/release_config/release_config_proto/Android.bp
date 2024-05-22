@@ -24,6 +24,8 @@ bootstrap_go_package {
         "golang-protobuf-runtime-protoimpl",
     ],
     srcs: [
+        "build_flags_common.pb.go",
+        "build_flags_declarations.pb.go",
         "build_flags_src.pb.go",
         "build_flags_out.pb.go",
     ],
