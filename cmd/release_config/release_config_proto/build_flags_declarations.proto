@@ -1,0 +1,75 @@
+//
+// Copyright (C) 2024 The Android Open-Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto2";
+package android.release_config_proto;
+option go_package = "android/soong/release_config/release_config_proto";
+
+import "build_flags_common.proto";
+
+// This protobuf file defines messages used to represent the
+// all_build_flag_declarations artifact for use in automated systems, such as
+// Gantry.
+//
+// The following format requirements apply across various message fields:
+//
+// # name: name of the flag
+//
+//    format: an uppercase string in SNAKE_CASE format starting with RELEASE_,
+//      no consecutive underscores, and no leading digit. For example
+//      RELEASE_MY_PACKAGE_FLAG is a valid name, while MY_PACKAGE_FLAG, and
+//      RELEASE_MY_PACKAGE__FLAG are invalid.
+//
+// # package: package to which the flag belongs
+//
+//    format: lowercase strings in snake_case format, delimited by dots, no
+//      consecutive underscores and no leading digit in each string. For example
+//      com.android.mypackage is a valid name while com.android.myPackage,
+//      com.android.1mypackage are invalid
+
+message flag_declaration_artifact {
+  // The name of the flag.
+  // See # name for format detail
+  optional string name = 1;
+
+  // Namespace the flag belongs to (required)
+  // See # namespace for format detail
+  optional string namespace = 2;
+
+  // Text description of the flag's purpose.
+  optional string description = 3;
+
+  // reserve this for bug, if needed.
+  reserved 4;
+
+  // Where the flag was declared.
+  optional string declaration_path = 5;
+
+  // Workflow for this flag.
+  optional workflow workflow = 205;
+
+  // The container for this flag.  This overrides any default container given
+  // in the release_config_map message.
+  repeated string containers = 206;
+
+  // The package associated with this flag.
+  // (when Gantry is ready for it) optional string package = 207;
+  reserved 207;
+}
+
+message flag_declaration_artifacts {
+  // The artifacts
+  repeated flag_declaration_artifact flag_declaration_artifacts = 1;
+}
