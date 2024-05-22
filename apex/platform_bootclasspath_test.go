@@ -865,6 +865,36 @@ func TestNonBootJarMissingInPrebuiltFragment(t *testing.T) {
 			},
 		}
 
+		// Another prebuilt apex, but this is not selected during the build.
+		prebuilt_apex {
+			name: "com.google.android.myapex.v2", // mainline prebuilt selection logic in soong relies on the naming convention com.google.android
+			apex_name: "myapex",
+			source_apex_name: "myapex",
+			src: "myapex.apex",
+			exported_bootclasspath_fragments: ["apex-fragment.v2"],
+		}
+
+		java_import {
+			name: "bar",
+			jars: ["bar.jar"],
+			apex_available: ["myapex"],
+			permitted_packages: ["bar"],
+		}
+
+		prebuilt_bootclasspath_fragment {
+			name: "apex-fragment.v2",
+			contents: ["bar"], // Unlike the source fragment, this is missing foo
+			apex_available:[ "myapex" ],
+			hidden_api: {
+				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
+				metadata: "my-bootclasspath-fragment/metadata.csv",
+				index: "my-bootclasspath-fragment/index.csv",
+				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
+				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+			},
+		}
+
+
 		apex_contributions {
 			name: "my_apex_contributions",
 			api_domain: "myapex",
