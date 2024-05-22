@@ -107,7 +107,7 @@ func ReleaseConfigsFactory() (c *ReleaseConfigs) {
 		configDirIndexes:     make(ReleaseConfigDirMap),
 		FilesUsedMap:         make(map[string]bool),
 	}
-	workflowManual := rc_proto.Workflow(rc_proto.Workflow_WorkflowManual)
+	workflowManual := rc_proto.Workflow(rc_proto.Workflow_MANUAL)
 	releaseAconfigValueSets := FlagArtifact{
 		FlagDeclaration: &rc_proto.FlagDeclaration{
 			Name:        proto.String("RELEASE_ACONFIG_VALUE_SETS"),
@@ -348,6 +348,7 @@ func (configs *ReleaseConfigs) WriteMakefile(outFile, targetRelease string) erro
 		}
 		value := MarshalValue(flag.Value)
 		makeVars[name] = value
+		addVar(name, "TYPE", ValueType(flag.Value))
 		addVar(name, "PARTITIONS", strings.Join(decl.Containers, " "))
 		addVar(name, "DEFAULT", MarshalValue(decl.Value))
 		addVar(name, "VALUE", value)
@@ -356,7 +357,7 @@ func (configs *ReleaseConfigs) WriteMakefile(outFile, targetRelease string) erro
 		addVar(name, "NAMESPACE", *decl.Namespace)
 	}
 	pNames := []string{}
-	for k, _ := range partitions {
+	for k := range partitions {
 		pNames = append(pNames, k)
 	}
 	slices.SortFunc(pNames, func(a, b string) int {
