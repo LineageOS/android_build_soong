@@ -74,3 +74,22 @@ func MarshalValue(value *rc_proto.Value) string {
 		return ""
 	}
 }
+
+// Returns a string representation of the type of the value for make
+func ValueType(value *rc_proto.Value) string {
+	if value == nil || value.Val == nil {
+		return "unspecified"
+	}
+	switch value.Val.(type) {
+	case *rc_proto.Value_UnspecifiedValue:
+		return "unspecified"
+	case *rc_proto.Value_StringValue:
+		return "string"
+	case *rc_proto.Value_BoolValue:
+		return "bool"
+	case *rc_proto.Value_Obsolete:
+		return "obsolete"
+	default:
+		panic("Unhandled type")
+	}
+}

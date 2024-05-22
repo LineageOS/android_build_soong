@@ -2157,8 +2157,18 @@ func (e configurationEvalutor) EvaluateConfiguration(condition proptools.Configu
 			ctx.OtherModulePropertyErrorf(m, property, "release_flag requires 1 argument, found %d", condition.NumArgs())
 			return proptools.ConfigurableValueUndefined()
 		}
-		if v, ok := ctx.Config().productVariables.BuildFlags[condition.Arg(0)]; ok {
-			return proptools.ConfigurableValueString(v)
+		if ty, ok := ctx.Config().productVariables.BuildFlagTypes[condition.Arg(0)]; ok {
+			v := ctx.Config().productVariables.BuildFlags[condition.Arg(0)]
+			switch ty {
+			case "unspecified", "obsolete":
+				return proptools.ConfigurableValueUndefined()
+			case "string":
+				return proptools.ConfigurableValueString(v)
+			case "bool":
+				return proptools.ConfigurableValueBool(v == "true")
+			default:
+				panic("unhandled release flag type: " + ty)
+			}
 		}
 		return proptools.ConfigurableValueUndefined()
 	case "product_variable":
