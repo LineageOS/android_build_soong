@@ -73,7 +73,7 @@ func main() {
 		(*flagArtifacts)[*fa.FlagDeclaration.Name] = fa
 	}
 
-	message := flagArtifacts.GenerateFlagArtifacts()
+	message := flagArtifacts.GenerateFlagDeclarationArtifacts()
 	err = rc_lib.WriteFormattedMessage(flags.output, flags.format, message)
 	if err != nil {
 		errorExit(err)
