@@ -17,6 +17,8 @@ syntax = "proto2";
 package android.release_config_proto;
 option go_package = "android/soong/release_config/release_config_proto";
 
+import "build_flags_common.proto";
+
 // This protobuf file defines messages used to represent the build flags used by
 // a release in a more human-editable form.  It is used for on-disk files in the
 // source tree.
@@ -41,21 +43,6 @@ option go_package = "android/soong/release_config/release_config_proto";
 //      consecutive underscores and no leading digit in each string. For example
 //      com.android.mypackage is a valid name while com.android.myPackage,
 //      com.android.1mypackage are invalid
-
-enum workflow {
-  Workflow_Unspecified = 0;
-
-  // Boolean value flags that progress from false to true.
-  LAUNCH = 1;
-
-  // String value flags that get updated with new version strings to control
-  // prebuilt inclusion.
-  PREBUILT = 2;
-
-  // Manually managed outside flags.  These are likely to be found in a
-  // different directory than flags with other workflows.
-  MANUAL = 3;
-}
 
 message value {
   oneof val {
