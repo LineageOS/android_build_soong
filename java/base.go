@@ -715,7 +715,12 @@ func (j *Module) shouldInstrumentInApex(ctx android.BaseModuleContext) bool {
 	// doesn't make sense) or framework libraries (e.g. libraries found in the InstrumentFrameworkModules list) unless EMMA_INSTRUMENT_FRAMEWORK is true.
 	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	isJacocoAgent := ctx.ModuleName() == "jacocoagent"
-	if j.DirectlyInAnyApex() && !isJacocoAgent && !apexInfo.IsForPlatform() {
+
+	isApexVariantSdkLibImplLib := j.SdkLibraryName() != nil &&
+		strings.HasSuffix(j.Name(), ".impl") &&
+		len(apexInfo.InApexVariants) > 0
+
+	if (j.DirectlyInAnyApex() || isApexVariantSdkLibImplLib) && !isJacocoAgent && !apexInfo.IsForPlatform() {
 		if !inList(ctx.ModuleName(), config.InstrumentFrameworkModules) {
 			return true
 		} else if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
