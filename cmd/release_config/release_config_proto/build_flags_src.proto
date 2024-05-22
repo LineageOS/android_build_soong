@@ -46,15 +46,15 @@ enum workflow {
   Workflow_Unspecified = 0;
 
   // Boolean value flags that progress from false to true.
-  Workflow_Launch = 1;
+  LAUNCH = 1;
 
   // String value flags that get updated with new version strings to control
   // prebuilt inclusion.
-  Workflow_Prebuilt = 2;
+  PREBUILT = 2;
 
   // Manually managed outside flags.  These are likely to be found in a
   // different directory than flags with other workflows.
-  Workflow_Manual = 3;
+  MANUAL = 3;
 }
 
 message value {
