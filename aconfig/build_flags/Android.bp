@@ -14,6 +14,7 @@ bootstrap_go_package {
     ],
     srcs: [
         "all_build_flag_declarations.go",
+        "build_flags.go",
         "declarations.go",
         "init.go",
     ],
