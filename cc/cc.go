@@ -1623,14 +1623,6 @@ func (ctx *moduleContextImpl) useSdk() bool {
 
 func (ctx *moduleContextImpl) sdkVersion() string {
 	if ctx.ctx.Device() {
-		config := ctx.ctx.Config()
-		if !config.IsVndkDeprecated() && ctx.useVndk() {
-			vndkVer := ctx.mod.VndkVersion()
-			if inList(vndkVer, config.PlatformVersionActiveCodenames()) {
-				return "current"
-			}
-			return vndkVer
-		}
 		return String(ctx.mod.Properties.Sdk_version)
 	}
 	return ""
@@ -1647,7 +1639,7 @@ func (ctx *moduleContextImpl) minSdkVersion() string {
 
 	if ctx.ctx.Device() {
 		config := ctx.ctx.Config()
-		if config.IsVndkDeprecated() && ctx.inVendor() {
+		if ctx.inVendor() {
 			// If building for vendor with final API, then use the latest _stable_ API as "current".
 			if config.VendorApiLevelFrozen() && (ver == "" || ver == "current") {
 				ver = config.PlatformSdkVersion().String()
