@@ -761,6 +761,23 @@ func TestSelects(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Property appending with variable",
+			bp: `
+			my_variable = ["b.cpp"]
+			my_module_type {
+				name: "foo",
+				my_string_list: ["a.cpp"] + my_variable + select(soong_config_variable("my_namespace", "my_variable"), {
+					"a": ["a.cpp"],
+					"b": ["b.cpp"],
+					default: ["c.cpp"],
+				}),
+			}
+			`,
+			provider: selectsTestProvider{
+				my_string_list: &[]string{"a.cpp", "b.cpp", "c.cpp"},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
