@@ -638,7 +638,7 @@ func transformSourceToObj(ctx ModuleContext, subdir string, srcFiles, noTidySrcs
 		ccCmd = "${config.ClangBin}/" + ccCmd
 
 		if flags.clangVerify {
-			postCmd = " && touch $$out"
+			postCmd = " && touch " + objFile.String()
 		}
 
 		var implicitOutputs android.WritablePaths
