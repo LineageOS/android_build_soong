@@ -733,11 +733,18 @@ func (s *valueVariable) printfIntoPropertyRecursive(fieldName []string, propStru
 		case reflect.Bool:
 			// Nothing to do
 		case reflect.Struct:
-			fieldName = append(fieldName, propStruct.Type().Field(i).Name)
-			if err := s.printfIntoPropertyRecursive(fieldName, field, configValue); err != nil {
-				return err
+			if proptools.IsConfigurable(field.Type()) {
+				if err := proptools.PrintfIntoConfigurable(field.Interface(), configValue); err != nil {
+					fieldName = append(fieldName, propStruct.Type().Field(i).Name)
+					return fmt.Errorf("soong_config_variables.%s.%s: %s", s.variable, strings.Join(fieldName, "."), err)
+				}
+			} else {
+				fieldName = append(fieldName, propStruct.Type().Field(i).Name)
+				if err := s.printfIntoPropertyRecursive(fieldName, field, configValue); err != nil {
+					return err
+				}
+				fieldName = fieldName[:len(fieldName)-1]
 			}
-			fieldName = fieldName[:len(fieldName)-1]
 		default:
 			fieldName = append(fieldName, propStruct.Type().Field(i).Name)
 			return fmt.Errorf("soong_config_variables.%s.%s: unsupported property type %q", s.variable, strings.Join(fieldName, "."), kind)

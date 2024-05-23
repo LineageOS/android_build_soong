@@ -729,6 +729,38 @@ func TestSelects(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Soong config value variable on configurable property",
+			bp: `
+			soong_config_module_type {
+				name: "soong_config_my_module_type",
+				module_type: "my_module_type",
+				config_namespace: "my_namespace",
+				value_variables: ["my_variable"],
+				properties: ["my_string", "my_string_list"],
+			}
+
+			soong_config_my_module_type {
+				name: "foo",
+				my_string_list: ["before.cpp"],
+				soong_config_variables: {
+					my_variable: {
+						my_string_list: ["after_%s.cpp"],
+						my_string: "%s.cpp",
+					},
+				},
+			}
+			`,
+			provider: selectsTestProvider{
+				my_string:      proptools.StringPtr("foo.cpp"),
+				my_string_list: &[]string{"before.cpp", "after_foo.cpp"},
+			},
+			vendorVars: map[string]map[string]string{
+				"my_namespace": {
+					"my_variable": "foo",
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -736,6 +768,7 @@ func TestSelects(t *testing.T) {
 			fixtures := GroupFixturePreparers(
 				PrepareForTestWithDefaults,
 				PrepareForTestWithArchMutator,
+				PrepareForTestWithSoongConfigModuleBuildComponents,
 				FixtureRegisterWithContext(func(ctx RegistrationContext) {
 					ctx.RegisterModuleType("my_module_type", newSelectsMockModule)
 					ctx.RegisterModuleType("my_defaults", newSelectsMockModuleDefaults)
@@ -790,7 +823,7 @@ func (p *selectsTestProvider) String() string {
 		myStringStr = *p.my_string
 	}
 	myNonconfigurableStringStr := "nil"
-	if p.my_string != nil {
+	if p.my_nonconfigurable_string != nil {
 		myNonconfigurableStringStr = *p.my_nonconfigurable_string
 	}
 	return fmt.Sprintf(`selectsTestProvider {
