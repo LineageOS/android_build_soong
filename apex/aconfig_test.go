@@ -23,6 +23,7 @@ import (
 	"android/soong/genrule"
 	"android/soong/java"
 	"android/soong/rust"
+
 	"github.com/google/blueprint/proptools"
 )
 
@@ -172,10 +173,6 @@ func TestValidationAcrossContainersExportedPass(t *testing.T) {
 				cc_library {
 					name: "libaconfig_storage_read_api_cc",
 					srcs: ["libaconfig_storage_read_api_cc.cc"],
-				}
-				cc_library {
-					name: "libaconfig_storage_protos_cc",
-					srcs: ["libaconfig_storage_protos_cc.cc"],
 				}
 				aconfig_declarations {
 					name: "my_aconfig_declarations_bar",
@@ -436,10 +433,6 @@ func TestValidationAcrossContainersNotExportedFail(t *testing.T) {
 					name: "libaconfig_storage_read_api_cc",
 					srcs: ["libaconfig_storage_read_api_cc.cc"],
 				}
-				cc_library {
-					name: "libaconfig_storage_protos_cc",
-					srcs: ["libaconfig_storage_protos_cc.cc"],
-				}
 				aconfig_declarations {
 					name: "my_aconfig_declarations_foo",
 					package: "com.example.package",
@@ -500,10 +493,6 @@ func TestValidationAcrossContainersNotExportedFail(t *testing.T) {
 				cc_library {
 					name: "libaconfig_storage_read_api_cc",
 					srcs: ["libaconfig_storage_read_api_cc.cc"],
-				}
-				cc_library {
-					name: "libaconfig_storage_protos_cc",
-					srcs: ["libaconfig_storage_protos_cc.cc"],
 				}
 				aconfig_declarations {
 					name: "my_aconfig_declarations_foo",
