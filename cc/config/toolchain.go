@@ -209,58 +209,58 @@ func addPrefix(list []string, prefix string) []string {
 	return list
 }
 
-func LibclangRuntimeLibrary(t Toolchain, library string) string {
+func LibclangRuntimeLibrary(library string) string {
 	return "libclang_rt." + library
 }
 
-func BuiltinsRuntimeLibrary(t Toolchain) string {
-	return LibclangRuntimeLibrary(t, "builtins")
+func BuiltinsRuntimeLibrary() string {
+	return LibclangRuntimeLibrary("builtins")
 }
 
-func AddressSanitizerRuntimeLibrary(t Toolchain) string {
-	return LibclangRuntimeLibrary(t, "asan")
+func AddressSanitizerRuntimeLibrary() string {
+	return LibclangRuntimeLibrary("asan")
 }
 
-func AddressSanitizerStaticRuntimeLibrary(t Toolchain) string {
-	return LibclangRuntimeLibrary(t, "asan.static")
+func AddressSanitizerStaticRuntimeLibrary() string {
+	return LibclangRuntimeLibrary("asan.static")
 }
 
-func AddressSanitizerCXXStaticRuntimeLibrary(t Toolchain) string {
-	return LibclangRuntimeLibrary(t, "asan_cxx.static")
+func AddressSanitizerCXXStaticRuntimeLibrary() string {
+	return LibclangRuntimeLibrary("asan_cxx.static")
 }
 
-func HWAddressSanitizerRuntimeLibrary(t Toolchain) string {
-	return LibclangRuntimeLibrary(t, "hwasan")
+func HWAddressSanitizerRuntimeLibrary() string {
+	return LibclangRuntimeLibrary("hwasan")
 }
 
-func HWAddressSanitizerStaticLibrary(t Toolchain) string {
-	return LibclangRuntimeLibrary(t, "hwasan_static")
+func HWAddressSanitizerStaticLibrary() string {
+	return LibclangRuntimeLibrary("hwasan_static")
 }
 
-func UndefinedBehaviorSanitizerRuntimeLibrary(t Toolchain) string {
-	return LibclangRuntimeLibrary(t, "ubsan_standalone")
+func UndefinedBehaviorSanitizerRuntimeLibrary() string {
+	return LibclangRuntimeLibrary("ubsan_standalone")
 }
 
-func UndefinedBehaviorSanitizerMinimalRuntimeLibrary(t Toolchain) string {
-	return LibclangRuntimeLibrary(t, "ubsan_minimal")
+func UndefinedBehaviorSanitizerMinimalRuntimeLibrary() string {
+	return LibclangRuntimeLibrary("ubsan_minimal")
 }
 
-func ThreadSanitizerRuntimeLibrary(t Toolchain) string {
-	return LibclangRuntimeLibrary(t, "tsan")
+func ThreadSanitizerRuntimeLibrary() string {
+	return LibclangRuntimeLibrary("tsan")
 }
 
-func ScudoRuntimeLibrary(t Toolchain) string {
-	return LibclangRuntimeLibrary(t, "scudo")
+func ScudoRuntimeLibrary() string {
+	return LibclangRuntimeLibrary("scudo")
 }
 
-func ScudoMinimalRuntimeLibrary(t Toolchain) string {
-	return LibclangRuntimeLibrary(t, "scudo_minimal")
+func ScudoMinimalRuntimeLibrary() string {
+	return LibclangRuntimeLibrary("scudo_minimal")
 }
 
-func LibFuzzerRuntimeLibrary(t Toolchain) string {
-	return LibclangRuntimeLibrary(t, "fuzzer")
+func LibFuzzerRuntimeLibrary() string {
+	return LibclangRuntimeLibrary("fuzzer")
 }
 
-func LibFuzzerRuntimeInterceptors(t Toolchain) string {
-	return LibclangRuntimeLibrary(t, "fuzzer_interceptors")
+func LibFuzzerRuntimeInterceptors() string {
+	return LibclangRuntimeLibrary("fuzzer_interceptors")
 }
