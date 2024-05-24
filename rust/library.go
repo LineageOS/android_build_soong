@@ -504,15 +504,19 @@ func (library *libraryDecorator) cfgFlags(ctx ModuleContext, flags Flags) Flags 
 	flags = library.baseCompiler.cfgFlags(ctx, flags)
 	flags = CommonLibraryCfgFlags(ctx, flags)
 
+	cfgs := library.baseCompiler.Properties.Cfgs.GetOrDefault(ctx, nil)
+
 	if library.dylib() {
 		// We need to add a dependency on std in order to link crates as dylibs.
 		// The hack to add this dependency is guarded by the following cfg so
 		// that we don't force a dependency when it isn't needed.
-		library.baseCompiler.Properties.Cfgs = append(library.baseCompiler.Properties.Cfgs, "android_dylib")
+		cfgs = append(cfgs, "android_dylib")
 	}
 
-	flags.RustFlags = append(flags.RustFlags, cfgsToFlags(library.baseCompiler.Properties.Cfgs)...)
-	flags.RustdocFlags = append(flags.RustdocFlags, cfgsToFlags(library.baseCompiler.Properties.Cfgs)...)
+	cfgFlags := cfgsToFlags(cfgs)
+
+	flags.RustFlags = append(flags.RustFlags, cfgFlags...)
+	flags.RustdocFlags = append(flags.RustdocFlags, cfgFlags...)
 
 	return flags
 }
