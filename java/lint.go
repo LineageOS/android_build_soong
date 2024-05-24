@@ -319,25 +319,19 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.Ru
 	cmd.FlagWithInput("@",
 		android.PathForSource(ctx, "build/soong/java/lint_defaults.txt"))
 
-	if l.compileSdkKind == android.SdkPublic {
-		cmd.FlagForEachArg("--error_check ", l.extraMainlineLintErrors)
-	} else {
-		// TODO(b/268261262): Remove this branch. We're demoting NewApi to a warning due to pre-existing issues that need to be fixed.
-		cmd.FlagForEachArg("--warning_check ", l.extraMainlineLintErrors)
-	}
+	cmd.FlagForEachArg("--error_check ", l.extraMainlineLintErrors)
 	cmd.FlagForEachArg("--disable_check ", l.properties.Lint.Disabled_checks)
 	cmd.FlagForEachArg("--warning_check ", l.properties.Lint.Warning_checks)
 	cmd.FlagForEachArg("--error_check ", l.properties.Lint.Error_checks)
 	cmd.FlagForEachArg("--fatal_check ", l.properties.Lint.Fatal_checks)
 
-	// TODO(b/193460475): Re-enable strict updatability linting
-	//if l.GetStrictUpdatabilityLinting() {
-	//	// Verify the module does not baseline issues that endanger safe updatability.
-	//	if baselinePath := l.getBaselineFilepath(ctx); baselinePath.Valid() {
-	//		cmd.FlagWithInput("--baseline ", baselinePath.Path())
-	//		cmd.FlagForEachArg("--disallowed_issues ", updatabilityChecks)
-	//	}
-	//}
+	if l.GetStrictUpdatabilityLinting() {
+		// Verify the module does not baseline issues that endanger safe updatability.
+		if l.properties.Lint.Baseline_filename != nil {
+			cmd.FlagWithInput("--baseline ", android.PathForModuleSrc(ctx, *l.properties.Lint.Baseline_filename))
+			cmd.FlagForEachArg("--disallowed_issues ", updatabilityChecks)
+		}
+	}
 
 	return lintPaths{
 		projectXML: projectXMLPath,

@@ -91,9 +91,8 @@ func TestJavaLintUsesCorrectBpConfig(t *testing.T) {
 		t.Error("did not use the correct file for baseline")
 	}
 
-	if !strings.Contains(*sboxProto.Commands[0].Command, "--warning_check NewApi") {
-		// TODO(b/268261262): Change this to check for --error_check
-		t.Error("should check NewApi warnings")
+	if !strings.Contains(*sboxProto.Commands[0].Command, "--error_check NewApi") {
+		t.Error("should check NewApi errors")
 	}
 
 	if !strings.Contains(*sboxProto.Commands[0].Command, "--error_check SomeCheck") {
@@ -153,52 +152,55 @@ func TestJavaLintBypassUpdatableChecks(t *testing.T) {
 	}
 }
 
-// TODO(b/193460475): Re-enable this test
-//func TestJavaLintStrictUpdatabilityLinting(t *testing.T) {
-//	bp := `
-//		java_library {
-//			name: "foo",
-//			srcs: [
-//				"a.java",
-//			],
-//			static_libs: ["bar"],
-//			min_sdk_version: "29",
-//			sdk_version: "current",
-//			lint: {
-//				strict_updatability_linting: true,
-//			},
-//		}
-//
-//		java_library {
-//			name: "bar",
-//			srcs: [
-//				"a.java",
-//			],
-//			min_sdk_version: "29",
-//			sdk_version: "current",
-//		}
-//	`
-//	fs := android.MockFS{
-//		"lint-baseline.xml": nil,
-//	}
-//
-//	result := android.GroupFixturePreparers(PrepareForTestWithJavaDefaultModules, fs.AddToFixture()).
-//		RunTestWithBp(t, bp)
-//
-//	foo := result.ModuleForTests("foo", "android_common")
-//	sboxProto := android.RuleBuilderSboxProtoForTests(t, foo.Output("lint.sbox.textproto"))
-//	if !strings.Contains(*sboxProto.Commands[0].Command,
-//		"--baseline lint-baseline.xml --disallowed_issues NewApi") {
-//		t.Error("did not restrict baselining NewApi")
-//	}
-//
-//	bar := result.ModuleForTests("bar", "android_common")
-//	sboxProto = android.RuleBuilderSboxProtoForTests(t, bar.Output("lint.sbox.textproto"))
-//	if !strings.Contains(*sboxProto.Commands[0].Command,
-//		"--baseline lint-baseline.xml --disallowed_issues NewApi") {
-//		t.Error("did not restrict baselining NewApi")
-//	}
-//}
+func TestJavaLintStrictUpdatabilityLinting(t *testing.T) {
+	bp := `
+		java_library {
+			name: "foo",
+			srcs: [
+				"a.java",
+			],
+			static_libs: ["bar"],
+			min_sdk_version: "29",
+			sdk_version: "current",
+			lint: {
+				strict_updatability_linting: true,
+				baseline_filename: "lint-baseline.xml",
+			},
+		}
+
+		java_library {
+			name: "bar",
+			srcs: [
+				"a.java",
+			],
+			min_sdk_version: "29",
+			sdk_version: "current",
+			lint: {
+				baseline_filename: "lint-baseline.xml",
+			}
+		}
+	`
+	fs := android.MockFS{
+		"lint-baseline.xml": nil,
+	}
+
+	result := android.GroupFixturePreparers(PrepareForTestWithJavaDefaultModules, fs.AddToFixture()).
+		RunTestWithBp(t, bp)
+
+	foo := result.ModuleForTests("foo", "android_common")
+	sboxProto := android.RuleBuilderSboxProtoForTests(t, result.TestContext, foo.Output("lint.sbox.textproto"))
+	if !strings.Contains(*sboxProto.Commands[0].Command,
+		"--baseline lint-baseline.xml --disallowed_issues NewApi") {
+		t.Error("did not restrict baselining NewApi")
+	}
+
+	bar := result.ModuleForTests("bar", "android_common")
+	sboxProto = android.RuleBuilderSboxProtoForTests(t, result.TestContext, bar.Output("lint.sbox.textproto"))
+	if !strings.Contains(*sboxProto.Commands[0].Command,
+		"--baseline lint-baseline.xml --disallowed_issues NewApi") {
+		t.Error("did not restrict baselining NewApi")
+	}
+}
 
 func TestJavaLintDatabaseSelectionFull(t *testing.T) {
 	testCases := []struct {
