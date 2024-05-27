@@ -165,7 +165,6 @@ type LinkableInterface interface {
 	// IsVndkSp returns true if this is a VNDK-SP module.
 	IsVndkSp() bool
 
-	MustUseVendorVariant() bool
 	IsVndk() bool
 	IsVndkExt() bool
 	IsVndkPrivate() bool
