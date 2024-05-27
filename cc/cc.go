@@ -374,10 +374,6 @@ type BaseProperties struct {
 	// build system and source tree.
 	Cmake_snapshot_supported *bool
 
-	// Even if DeviceConfig().VndkUseCoreVariant() is set, this module must use vendor variant.
-	// see soong/cc/config/vndk.go
-	MustUseVendorVariant bool `blueprint:"mutated"`
-
 	Installable *bool `android:"arch_variant"`
 
 	// Set by factories of module types that can only be referenced from variants compiled against
@@ -479,10 +475,6 @@ type VendorProperties struct {
 	// IsLLNDK is set to true for the vendor variant of a cc_library module that has LLNDK stubs.
 	IsLLNDK bool `blueprint:"mutated"`
 
-	// IsVNDKUsingCoreVariant is true for VNDK modules if the global VndkUseCoreVariant option is
-	// set and the module is not listed in VndkMustUseVendorVariantList.
-	IsVNDKUsingCoreVariant bool `blueprint:"mutated"`
-
 	// IsVNDKCore is set if a VNDK module does not set the vndk.support_system_process property.
 	IsVNDKCore bool `blueprint:"mutated"`
 
@@ -548,7 +540,6 @@ type ModuleContextIntf interface {
 	apexVariationName() string
 	apexSdkVersion() android.ApiLevel
 	bootstrap() bool
-	mustUseVendorVariant() bool
 	nativeCoverage() bool
 	directlyInAnyApex() bool
 	isPreventInstall() bool
@@ -1472,10 +1463,6 @@ func (c *Module) SubName() string {
 	return c.Properties.SubName
 }
 
-func (c *Module) MustUseVendorVariant() bool {
-	return c.IsVndkSp() || c.Properties.MustUseVendorVariant
-}
-
 func (c *Module) getVndkExtendsModuleName() string {
 	if vndkdep := c.vndkdep; vndkdep != nil {
 		return vndkdep.getVndkExtendsModuleName()
@@ -1766,10 +1753,6 @@ func (ctx *moduleContextImpl) IsVndkExt() bool {
 
 func (ctx *moduleContextImpl) IsVendorPublicLibrary() bool {
 	return ctx.mod.IsVendorPublicLibrary()
-}
-
-func (ctx *moduleContextImpl) mustUseVendorVariant() bool {
-	return ctx.mod.MustUseVendorVariant()
 }
 
 func (ctx *moduleContextImpl) selectedStl() string {
@@ -3648,12 +3631,7 @@ func MakeLibName(ctx android.ModuleContext, c LinkableInterface, ccDep LinkableI
 		}
 	}
 
-	if ctx.DeviceConfig().VndkUseCoreVariant() && ccDep.IsVndk() && !ccDep.MustUseVendorVariant() &&
-		!c.InRamdisk() && !c.InVendorRamdisk() && !c.InRecovery() {
-		// The vendor module is a no-vendor-variant VNDK library.  Depend on the
-		// core module instead.
-		return libName
-	} else if ccDep.InVendorOrProduct() && nonSystemVariantsExist {
+	if ccDep.InVendorOrProduct() && nonSystemVariantsExist {
 		// The vendor and product modules in Make will have been renamed to not conflict with the
 		// core module, so update the dependency name here accordingly.
 		return libName + ccDep.SubName()
@@ -3866,8 +3844,6 @@ func GetMakeLinkType(actx android.ModuleContext, c LinkableInterface) string {
 		// TODO(b/114741097): use the correct ndk stl once build errors have been fixed
 		//family, link := getNdkStlFamilyAndLinkType(c)
 		//return fmt.Sprintf("native:ndk:%s:%s", family, link)
-	} else if actx.DeviceConfig().VndkUseCoreVariant() && !c.MustUseVendorVariant() {
-		return "native:platform_vndk"
 	} else {
 		return "native:platform"
 	}

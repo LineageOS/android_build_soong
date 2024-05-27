@@ -15,7 +15,6 @@ bootstrap_go_package {
         "global.go",
         "tidy.go",
         "toolchain.go",
-        "vndk.go",
 
         "bionic.go",
 
