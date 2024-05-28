@@ -993,6 +993,7 @@ func (d *Droidstubs) everythingStubCmd(ctx android.ModuleContext, params stubsCo
 func (d *Droidstubs) everythingOptionalCmd(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, doApiLint bool, doCheckReleased bool) {
 
 	// Add API lint options.
+	treatDocumentationIssuesAsErrors := false
 	if doApiLint {
 		var newSince android.Paths
 		if d.properties.Check_api.Api_lint.New_since != nil {
@@ -1006,7 +1007,7 @@ func (d *Droidstubs) everythingOptionalCmd(ctx android.ModuleContext, cmd *andro
 		// TODO(b/154317059): Clean up this allowlist by baselining and/or checking in last-released.
 		if d.Name() != "android.car-system-stubs-docs" &&
 			d.Name() != "android.car-stubs-docs" {
-			cmd.Flag("--lints-as-errors")
+			treatDocumentationIssuesAsErrors = true
 			cmd.Flag("--warnings-as-errors") // Most lints are actually warnings.
 		}
 
@@ -1050,6 +1051,11 @@ func (d *Droidstubs) everythingOptionalCmd(ctx android.ModuleContext, cmd *andro
 		msg += `************************************************************\n'`
 
 		cmd.FlagWithArg("--error-message:api-lint ", msg)
+	}
+
+	if !treatDocumentationIssuesAsErrors {
+		// Treat documentation issues as warnings, but error when new.
+		cmd.Flag("--error-when-new-category").Flag("Documentation")
 	}
 
 	// Add "check released" options. (Detect incompatible API changes from the last public release)
