@@ -6,6 +6,7 @@ import (
 	"os"
 
 	rc_lib "android/soong/cmd/release_config/release_config_lib"
+	rc_proto "android/soong/cmd/release_config/release_config_proto"
 )
 
 type Flags struct {
@@ -62,18 +63,17 @@ func main() {
 	}
 
 	flagArtifacts := rc_lib.FlagArtifactsFactory("")
+	intermediates := []*rc_proto.FlagDeclarationArtifacts{}
 	for _, intermediate := range flags.intermediates {
-		fas := rc_lib.FlagArtifactsFactory(intermediate)
-		for _, fa := range *fas {
-			(*flagArtifacts)[*fa.FlagDeclaration.Name] = fa
-		}
+		fda := rc_lib.FlagDeclarationArtifactsFactory(intermediate)
+		intermediates = append(intermediates, fda)
 	}
 	for _, decl := range flags.decls {
 		fa := rc_lib.FlagArtifactFactory(decl)
 		(*flagArtifacts)[*fa.FlagDeclaration.Name] = fa
 	}
 
-	message := flagArtifacts.GenerateFlagDeclarationArtifacts()
+	message := flagArtifacts.GenerateFlagDeclarationArtifacts(intermediates)
 	err = rc_lib.WriteFormattedMessage(flags.output, flags.format, message)
 	if err != nil {
 		errorExit(err)
