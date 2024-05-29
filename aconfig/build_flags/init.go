@@ -69,6 +69,7 @@ var (
 
 func init() {
 	RegisterBuildComponents(android.InitRegistrationContext)
+	pctx.Import("android/soong/android")
 	pctx.HostBinToolVariable("buildFlagDeclarations", "build-flag-declarations")
 }
 
