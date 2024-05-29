@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2022 The Android Open Source Project
+# Copyright (C) 2024 The Android Open Source Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# Common script utilities
+source $(cd $(dirname $BASH_SOURCE) &> /dev/null && pwd)/../../make/shell_utils.sh
 
 cat <<EOF
 
@@ -56,7 +59,6 @@ Invoke ". build/envsetup.sh" from your shell to add the following functions to y
 - godir:      Go to the directory containing a file.
 - allmod:     List all modules.
 - gomod:      Go to the directory containing a module.
-- bmod:       Get the Bazel label of a Soong module if it is converted with bp2build.
 - pathmod:    Get the directory containing a module.
 - outmod:     Gets the location of a module's installed outputs with a certain extension.
 - dirmods:    Gets the modules defined in a given directory.
@@ -68,12 +70,12 @@ Environment options:
 - SANITIZE_HOST: Set to 'address' to use ASAN for all host modules.
 - ANDROID_QUIET_BUILD: set to 'true' to display only the essential messages.
 
-Look at build/make/envsetup for more functions:
+Look at the source to view more functions. The complete list is:
 EOF
-    local T=$(gettop)
-    local A=""
-    local i
-    for i in `(cat $T/build/envsetup.sh | sed -n "/^[[:blank:]]*function /s/function \([a-z]*\).*/\1/p" | sort | uniq`; do
+    T=$(gettop)
+    A=""
+    for i in `cat $T/build/envsetup.sh | sed -n "/^[[:blank:]]*function /s/function \([a-z_]*\).*/\1/p" | sort | uniq`; do
       A="$A $i"
     done
     echo $A
+
