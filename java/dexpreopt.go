@@ -19,6 +19,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/google/blueprint/proptools"
+
 	"android/soong/android"
 	"android/soong/dexpreopt"
 )
@@ -139,6 +141,10 @@ type dexpreopter struct {
 	// The path to the profile that dexpreopter accepts. It must be in the binary format. If this is
 	// set, it overrides the profile settings in `dexpreoptProperties`.
 	inputProfilePathOnHost android.Path
+
+	// The path to the profile that matches the dex optimized by r8/d8. It is in text format. If this is
+	// set, it will be converted to a binary profile which will be subsequently used for dexpreopt.
+	rewrittenProfile android.Path
 }
 
 type DexpreoptProperties struct {
@@ -158,6 +164,11 @@ type DexpreoptProperties struct {
 		// defaults to searching for a file that matches the name of this module in the default
 		// profile location set by PRODUCT_DEX_PREOPT_PROFILE_DIR, or empty if not found.
 		Profile *string `android:"path"`
+
+		// If set to true, r8/d8 will use `profile` as input to generate a new profile that matches
+		// the optimized dex.
+		// The new profile will be subsequently used as the profile to dexpreopt the dex file.
+		Enable_profile_rewriting *bool
 	}
 
 	Dex_preopt_result struct {
@@ -421,13 +432,17 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, libName string, dexJa
 	if d.inputProfilePathOnHost != nil {
 		profileClassListing = android.OptionalPathForPath(d.inputProfilePathOnHost)
 	} else if BoolDefault(d.dexpreoptProperties.Dex_preopt.Profile_guided, true) && !forPrebuiltApex(ctx) {
-		// If dex_preopt.profile_guided is not set, default it based on the existence of the
-		// dexprepot.profile option or the profile class listing.
-		if String(d.dexpreoptProperties.Dex_preopt.Profile) != "" {
+		// If enable_profile_rewriting is set, use the rewritten profile instead of the checked-in profile
+		if d.EnableProfileRewriting() {
+			profileClassListing = android.OptionalPathForPath(d.GetRewrittenProfile())
+			profileIsTextListing = true
+		} else if profile := d.GetProfile(); profile != "" {
+			// If dex_preopt.profile_guided is not set, default it based on the existence of the
+			// dexprepot.profile option or the profile class listing.
 			profileClassListing = android.OptionalPathForPath(
-				android.PathForModuleSrc(ctx, String(d.dexpreoptProperties.Dex_preopt.Profile)))
+				android.PathForModuleSrc(ctx, profile))
 			profileBootListing = android.ExistentPathForSource(ctx,
-				ctx.ModuleDir(), String(d.dexpreoptProperties.Dex_preopt.Profile)+"-boot")
+				ctx.ModuleDir(), profile+"-boot")
 			profileIsTextListing = true
 		} else if global.ProfileDir != "" {
 			profileClassListing = android.ExistentPathForSource(ctx,
@@ -587,4 +602,24 @@ func (d *dexpreopter) OutputProfilePathOnHost() android.Path {
 
 func (d *dexpreopter) disableDexpreopt() {
 	d.shouldDisableDexpreopt = true
+}
+
+func (d *dexpreopter) EnableProfileRewriting() bool {
+	return proptools.Bool(d.dexpreoptProperties.Dex_preopt.Enable_profile_rewriting)
+}
+
+func (d *dexpreopter) GetProfile() string {
+	return proptools.String(d.dexpreoptProperties.Dex_preopt.Profile)
+}
+
+func (d *dexpreopter) GetProfileGuided() bool {
+	return proptools.Bool(d.dexpreoptProperties.Dex_preopt.Profile_guided)
+}
+
+func (d *dexpreopter) GetRewrittenProfile() android.Path {
+	return d.rewrittenProfile
+}
+
+func (d *dexpreopter) SetRewrittenProfile(p android.Path) {
+	d.rewrittenProfile = p
 }
