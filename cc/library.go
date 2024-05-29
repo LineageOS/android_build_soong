@@ -419,11 +419,6 @@ type libraryDecorator struct {
 
 	postInstallCmds []string
 
-	// If useCoreVariant is true, the vendor variant of a VNDK library is
-	// not installed.
-	useCoreVariant       bool
-	checkSameCoreVariant bool
-
 	skipAPIDefine bool
 
 	// Decorated interfaces
@@ -1764,27 +1759,6 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 					library.baseInstaller.subDir = "vndk-sp"
 				} else {
 					library.baseInstaller.subDir = "vndk"
-				}
-			}
-
-			// In some cases we want to use core variant for VNDK-Core libs.
-			// Skip product variant since VNDKs use only the vendor variant.
-			if ctx.isVndk() && !ctx.isVndkSp() && !ctx.IsVndkExt() && !ctx.inProduct() {
-				mayUseCoreVariant := true
-
-				if ctx.mustUseVendorVariant() {
-					mayUseCoreVariant = false
-				}
-
-				if ctx.Config().CFIEnabledForPath(ctx.ModuleDir()) {
-					mayUseCoreVariant = false
-				}
-
-				if mayUseCoreVariant {
-					library.checkSameCoreVariant = true
-					if ctx.DeviceConfig().VndkUseCoreVariant() {
-						library.useCoreVariant = true
-					}
 				}
 			}
 
