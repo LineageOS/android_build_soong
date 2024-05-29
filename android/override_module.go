@@ -253,6 +253,15 @@ type overrideBaseDependencyTag struct {
 
 var overrideBaseDepTag overrideBaseDependencyTag
 
+// Override module should always override the source module.
+// Overrides are implemented as a variant of the overridden module, and the build actions are created in the
+// module context of the overridden module.
+// If we replace override module with the prebuilt of the overridden module, `GenerateAndroidBuildActions` for
+// the override module will have a very different meaning.
+func (tag overrideBaseDependencyTag) ReplaceSourceWithPrebuilt() bool {
+	return false
+}
+
 // Adds dependency on the base module to the overriding module so that they can be visited in the
 // next phase.
 func overrideModuleDepsMutator(ctx BottomUpMutatorContext) {
