@@ -102,10 +102,23 @@ func (fa *FlagArtifact) GenerateFlagDeclarationArtifact() *rc_proto.FlagDeclarat
 	return ret
 }
 
-func (fas *FlagArtifacts) GenerateFlagDeclarationArtifacts() *rc_proto.FlagDeclarationArtifacts {
+func FlagDeclarationArtifactsFactory(path string) *rc_proto.FlagDeclarationArtifacts {
+	ret := &rc_proto.FlagDeclarationArtifacts{}
+	if path != "" {
+		LoadMessage(path, ret)
+	} else {
+		ret.FlagDeclarationArtifacts = []*rc_proto.FlagDeclarationArtifact{}
+	}
+	return ret
+}
+
+func (fas *FlagArtifacts) GenerateFlagDeclarationArtifacts(intermediates []*rc_proto.FlagDeclarationArtifacts) *rc_proto.FlagDeclarationArtifacts {
 	ret := &rc_proto.FlagDeclarationArtifacts{FlagDeclarationArtifacts: []*rc_proto.FlagDeclarationArtifact{}}
 	for _, fa := range *fas {
 		ret.FlagDeclarationArtifacts = append(ret.FlagDeclarationArtifacts, fa.GenerateFlagDeclarationArtifact())
+	}
+	for _, fda := range intermediates {
+		ret.FlagDeclarationArtifacts = append(ret.FlagDeclarationArtifacts, fda.FlagDeclarationArtifacts...)
 	}
 	slices.SortFunc(ret.FlagDeclarationArtifacts, func(a, b *rc_proto.FlagDeclarationArtifact) int {
 		return cmp.Compare(*a.Name, *b.Name)
