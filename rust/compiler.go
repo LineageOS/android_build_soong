@@ -197,7 +197,7 @@ type BaseCompilerProperties struct {
 	Features []string `android:"arch_variant"`
 
 	// list of configuration options to enable for this crate. To enable features, use the "features" property.
-	Cfgs []string `android:"arch_variant"`
+	Cfgs proptools.Configurable[[]string] `android:"arch_variant"`
 
 	// specific rust edition that should be used if the default version is not desired
 	Edition *string `android:"arch_variant"`
@@ -338,7 +338,7 @@ func (compiler *baseCompiler) compilerProps() []interface{} {
 }
 
 func cfgsToFlags(cfgs []string) []string {
-	flags := []string{}
+	flags := make([]string, 0, len(cfgs))
 	for _, cfg := range cfgs {
 		flags = append(flags, "--cfg '"+cfg+"'")
 	}
@@ -385,8 +385,9 @@ func CommonDefaultCfgFlags(flags Flags, vendor bool, product bool) Flags {
 func (compiler *baseCompiler) cfgFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = CommonDefaultCfgFlags(flags, ctx.RustModule().InVendor(), ctx.RustModule().InProduct())
 
-	flags.RustFlags = append(flags.RustFlags, cfgsToFlags(compiler.Properties.Cfgs)...)
-	flags.RustdocFlags = append(flags.RustdocFlags, cfgsToFlags(compiler.Properties.Cfgs)...)
+	cfgFlags := cfgsToFlags(compiler.Properties.Cfgs.GetOrDefault(ctx, nil))
+	flags.RustFlags = append(flags.RustFlags, cfgFlags...)
+	flags.RustdocFlags = append(flags.RustdocFlags, cfgFlags...)
 
 	return flags
 }
