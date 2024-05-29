@@ -284,13 +284,15 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 	return nil
 }
 
-func (config *ReleaseConfig) WritePartitionBuildFlags(outDir, product, targetRelease string) error {
+func (config *ReleaseConfig) WritePartitionBuildFlags(outDir string) error {
 	var err error
 	for partition, flags := range config.PartitionBuildFlags {
 		slices.SortFunc(flags.FlagArtifacts, func(a, b *rc_proto.FlagArtifact) int {
 			return cmp.Compare(*a.FlagDeclaration.Name, *b.FlagDeclaration.Name)
 		})
-		if err = WriteMessage(filepath.Join(outDir, fmt.Sprintf("build_flags_%s-%s-%s.json", partition, config.Name, product)), flags); err != nil {
+		// The json file name must not be modified as this is read from
+		// build_flags_json module
+		if err = WriteMessage(filepath.Join(outDir, fmt.Sprintf("build_flags_%s.json", partition)), flags); err != nil {
 			return err
 		}
 	}
