@@ -1076,6 +1076,12 @@ func addRequiredDeps(ctx BottomUpMutatorContext) {
 			return
 		}
 
+		// ... also don't make a dependency between native bridge arch and non-native bridge
+		// arches. b/342945184
+		if ctx.Target().NativeBridge != target.NativeBridge {
+			return
+		}
+
 		variation := target.Variations()
 		if ctx.OtherModuleFarDependencyVariantExists(variation, depName) {
 			ctx.AddFarVariationDependencies(variation, RequiredDepTag, depName)
