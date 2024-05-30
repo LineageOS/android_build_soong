@@ -341,10 +341,6 @@ func (mod *Module) Bootstrap() bool {
 	return Bool(mod.Properties.Bootstrap)
 }
 
-func (mod *Module) MustUseVendorVariant() bool {
-	return true
-}
-
 func (mod *Module) SubName() string {
 	return mod.Properties.SubName
 }

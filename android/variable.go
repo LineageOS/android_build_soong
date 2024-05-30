@@ -183,6 +183,7 @@ type variableProperties struct {
 		Release_aidl_use_unfrozen struct {
 			Cflags          []string
 			Cmd             *string
+			Required        []string
 			Vintf_fragments []string
 		}
 	} `android:"arch_variant"`
@@ -363,7 +364,6 @@ type ProductVariables struct {
 
 	PgoAdditionalProfileDirs []string `json:",omitempty"`
 
-	VndkUseCoreVariant         *bool `json:",omitempty"`
 	VndkSnapshotBuildArtifacts *bool `json:",omitempty"`
 
 	DirectedVendorSnapshot bool            `json:",omitempty"`

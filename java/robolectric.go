@@ -116,7 +116,7 @@ func (r *robolectricTest) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 	if v := String(r.robolectricProperties.Robolectric_prebuilt_version); v != "" {
 		ctx.AddVariationDependencies(nil, libTag, fmt.Sprintf(robolectricPrebuiltLibPattern, v))
-	} else if !proptools.BoolDefault(r.robolectricProperties.Strict_mode, true) {
+	} else if !proptools.Bool(r.robolectricProperties.Strict_mode) {
 		if proptools.Bool(r.robolectricProperties.Upstream) {
 			ctx.AddVariationDependencies(nil, libTag, robolectricCurrentLib+"_upstream")
 		} else {
@@ -124,7 +124,7 @@ func (r *robolectricTest) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 	}
 
-	if proptools.BoolDefault(r.robolectricProperties.Strict_mode, true) {
+	if proptools.Bool(r.robolectricProperties.Strict_mode) {
 		ctx.AddVariationDependencies(nil, roboRuntimeOnlyTag, robolectricCurrentLib+"_upstream")
 	}
 
