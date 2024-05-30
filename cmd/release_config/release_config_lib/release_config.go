@@ -162,6 +162,9 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 		if _, ok := myInheritsSet[inherit]; ok {
 			continue
 		}
+		if isBuildPrefix && configs.Aliases[inherit] != nil {
+			return fmt.Errorf("%s cannot inherit from alias %s", config.Name, inherit)
+		}
 		myInherits = append(myInherits, inherit)
 		myInheritsSet[inherit] = true
 		iConfig, err := configs.GetReleaseConfig(inherit)
