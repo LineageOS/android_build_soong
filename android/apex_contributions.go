@@ -106,7 +106,13 @@ var (
 
 // Creates a dep to each selected apex_contributions
 func (a *allApexContributions) DepsMutator(ctx BottomUpMutatorContext) {
-	ctx.AddDependency(ctx.Module(), AcDepTag, ctx.Config().AllApexContributions()...)
+	// Skip apex_contributions if BuildApexContributionContents is true
+	// This product config var allows some products in the same family to use mainline modules from source
+	// (e.g. shiba and shiba_fullmte)
+	// Eventually these product variants will have their own release config maps.
+	if !proptools.Bool(ctx.Config().BuildIgnoreApexContributionContents()) {
+		ctx.AddDependency(ctx.Module(), AcDepTag, ctx.Config().AllApexContributions()...)
+	}
 }
 
 // Set PrebuiltSelectionInfoProvider in post deps phase
@@ -126,19 +132,13 @@ func (a *allApexContributions) SetPrebuiltSelectionInfoProvider(ctx BaseModuleCo
 	}
 
 	p := PrebuiltSelectionInfoMap{}
-	// Skip apex_contributions if BuildApexContributionContents is true
-	// This product config var allows some products in the same family to use mainline modules from source
-	// (e.g. shiba and shiba_fullmte)
-	// Eventually these product variants will have their own release config maps.
-	if !proptools.Bool(ctx.Config().BuildIgnoreApexContributionContents()) {
-		ctx.VisitDirectDepsWithTag(AcDepTag, func(child Module) {
-			if m, ok := child.(*apexContributions); ok {
-				addContentsToProvider(&p, m)
-			} else {
-				ctx.ModuleErrorf("%s is not an apex_contributions module\n", child.Name())
-			}
-		})
-	}
+	ctx.VisitDirectDepsWithTag(AcDepTag, func(child Module) {
+		if m, ok := child.(*apexContributions); ok {
+			addContentsToProvider(&p, m)
+		} else {
+			ctx.ModuleErrorf("%s is not an apex_contributions module\n", child.Name())
+		}
+	})
 	SetProvider(ctx, PrebuiltSelectionInfoProvider, p)
 }
 
