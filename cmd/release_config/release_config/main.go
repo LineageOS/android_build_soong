@@ -31,7 +31,7 @@ func main() {
 	var outputDir string
 	var err error
 	var configs *rc_lib.ReleaseConfigs
-	var json, pb, textproto bool
+	var json, pb, textproto, inheritance bool
 	var product string
 	var allMake bool
 	var useBuildVar bool
@@ -52,6 +52,7 @@ func main() {
 	flag.BoolVar(&json, "json", true, "write artifacts as json")
 	flag.BoolVar(&pb, "pb", true, "write artifacts as binary protobuf")
 	flag.BoolVar(&allMake, "all_make", false, "write makefiles for all release configs")
+	flag.BoolVar(&inheritance, "inheritance", true, "write inheritance graph")
 	flag.BoolVar(&useBuildVar, "use_get_build_var", false, "use get_build_var PRODUCT_RELEASE_CONFIG_MAPS")
 	flag.BoolVar(&guard, "guard", true, "whether to guard with RELEASE_BUILD_FLAGS_IN_PROTOBUF")
 
@@ -100,6 +101,13 @@ func main() {
 					panic(err)
 				}
 			}
+		}
+	}
+	if inheritance {
+		inheritPath := filepath.Join(outputDir, fmt.Sprintf("inheritance_graph-%s.dot", product))
+		err = configs.WriteInheritanceGraph(inheritPath)
+		if err != nil {
+			panic(err)
 		}
 	}
 	if json {
