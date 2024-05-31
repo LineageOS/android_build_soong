@@ -83,6 +83,10 @@ message release_config_artifact {
   // The release config directories used for this config.
   // For example, "build/release".
   repeated string directories = 6;
+
+  // Prior stage(s) for flag advancement (during development).
+  // Once a flag has met criteria in a prior stage, it can advance to this one.
+  repeated string prior_stages = 7;
 }
 
 message release_configs_artifact {
