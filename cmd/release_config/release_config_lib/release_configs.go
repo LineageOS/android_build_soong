@@ -454,8 +454,8 @@ func (configs *ReleaseConfigs) WriteMakefile(outFile, targetRelease string) erro
 	if targetRelease != config.Name {
 		data += fmt.Sprintf("# User specified TARGET_RELEASE=%s\n", targetRelease)
 	}
-	// The variable _all_release_configs will get deleted during processing, so do not mark it read-only.
-	data += fmt.Sprintf("_all_release_configs := %s\n", strings.Join(configs.GetAllReleaseNames(), " "))
+	// As it stands this list is not per-product, but conceptually it is, and will be.
+	data += fmt.Sprintf("ALL_RELEASE_CONFIGS_FOR_PRODUCT :=$= %s\n", strings.Join(configs.GetAllReleaseNames(), " "))
 	data += fmt.Sprintf("_used_files := %s\n", strings.Join(config.GetSortedFileList(), " "))
 	data += fmt.Sprintf("_ALL_RELEASE_FLAGS :=$= %s\n", strings.Join(names, " "))
 	for _, pName := range pNames {
