@@ -119,6 +119,10 @@ func (d *DexProperties) optimizedResourceShrinkingEnabled(ctx android.ModuleCont
 	return d.resourceShrinkingEnabled(ctx) && Bool(d.Optimize.Optimized_shrink_resources)
 }
 
+func (d *dexer) optimizeOrObfuscateEnabled() bool {
+	return d.effectiveOptimizeEnabled() && (proptools.Bool(d.dexProperties.Optimize.Optimize) || proptools.Bool(d.dexProperties.Optimize.Obfuscate))
+}
+
 var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +

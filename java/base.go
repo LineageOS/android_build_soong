@@ -1655,6 +1655,11 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 				classesJar:    implementationAndResourcesJar,
 				jarName:       jarName,
 			}
+			if j.GetProfileGuided() && j.optimizeOrObfuscateEnabled() && !j.EnableProfileRewriting() {
+				ctx.PropertyErrorf("enable_profile_rewriting",
+					"Enable_profile_rewriting must be true when profile_guided dexpreopt and R8 optimization/obfuscation is turned on. The attached profile should be sourced from an unoptimized/unobfuscated APK.",
+				)
+			}
 			if j.EnableProfileRewriting() {
 				profile := j.GetProfile()
 				if profile == "" || !j.GetProfileGuided() {
