@@ -22,6 +22,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"google.golang.org/protobuf/encoding/prototext"
@@ -157,6 +158,15 @@ func warnf(format string, args ...any) (n int, err error) {
 		return fmt.Printf(format, args...)
 	}
 	return 0, nil
+}
+
+func SortedMapKeys(inputMap map[string]bool) []string {
+	ret := []string{}
+	for k := range inputMap {
+		ret = append(ret, k)
+	}
+	slices.Sort(ret)
+	return ret
 }
 
 func validContainer(container string) bool {

@@ -113,6 +113,10 @@ message release_config {
 
   // Only aconfig flags are allowed in this release config.
   optional bool aconfig_flags_only = 4;
+
+  // Prior stage(s) for flag advancement (during development).
+  // Once a flag has met criteria in a prior stage, it can advance to this one.
+  repeated string prior_stages = 5;
 }
 
 // Any aliases.  These are used for continuous integration builder config.
