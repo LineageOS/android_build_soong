@@ -18,6 +18,7 @@ import (
 	"cmp"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -137,9 +138,15 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 	config.compileInProgress = true
 	isRoot := config.Name == "root"
 
+	// Is this a build-prefix release config, such as 'ap3a'?
+	isBuildPrefix, err := regexp.MatchString("^[a-z][a-z][0-9][0-9a-z]$", config.Name)
+	if err != nil {
+		return err
+	}
 	// Start with only the flag declarations.
 	config.FlagArtifacts = configs.FlagArtifacts.Clone()
 	releaseAconfigValueSets := config.FlagArtifacts["RELEASE_ACONFIG_VALUE_SETS"]
+	releasePlatformVersion := config.FlagArtifacts["RELEASE_PLATFORM_VERSION"]
 
 	// Generate any configs we need to inherit.  This will detect loops in
 	// the config.
@@ -147,7 +154,7 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 	myInherits := []string{}
 	myInheritsSet := make(map[string]bool)
 	// If there is a "root" release config, it is the start of every inheritance chain.
-	_, err := configs.GetReleaseConfig("root")
+	_, err = configs.GetReleaseConfig("root")
 	if err == nil && !isRoot {
 		config.InheritNames = append([]string{"root"}, config.InheritNames...)
 	}
@@ -179,6 +186,20 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 
 	workflowManual := rc_proto.Workflow(rc_proto.Workflow_MANUAL)
 	myDirsMap := make(map[int]bool)
+	if isBuildPrefix && releasePlatformVersion != nil {
+		if MarshalValue(releasePlatformVersion.Value) != strings.ToUpper(config.Name) {
+			value := FlagValue{
+				path: config.Contributions[0].path,
+				proto: rc_proto.FlagValue{
+					Name:  releasePlatformVersion.FlagDeclaration.Name,
+					Value: UnmarshalValue(strings.ToUpper(config.Name)),
+				},
+			}
+			if err := releasePlatformVersion.UpdateValue(value); err != nil {
+				return err
+			}
+		}
+	}
 	for _, contrib := range contributionsToApply {
 		contribAconfigValueSets := []string{}
 		// Gather the aconfig_value_sets from this contribution, allowing duplicates for simplicity.
