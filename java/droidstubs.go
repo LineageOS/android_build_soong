@@ -1153,6 +1153,9 @@ func (d *Droidstubs) optionalStubCmd(ctx android.ModuleContext, params stubsComm
 		}
 	}
 
+	// Treat documentation issues as warnings, but error when new.
+	cmd.Flag("--error-when-new-category").Flag("Documentation")
+
 	if params.stubConfig.generateStubs {
 		rule.Command().
 			BuiltTool("soong_zip").

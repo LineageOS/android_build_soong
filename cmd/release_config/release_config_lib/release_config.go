@@ -18,6 +18,7 @@ import (
 	"cmp"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -80,6 +81,10 @@ type ReleaseConfig struct {
 
 	// Partitioned artifacts for {partition}/etc/build_flags.json
 	PartitionBuildFlags map[string]*rc_proto.FlagArtifacts
+
+	// Prior stage(s) for flag advancement (during development).
+	// Once a flag has met criteria in a prior stage, it can advance to this one.
+	PriorStagesMap map[string]bool
 }
 
 func ReleaseConfigFactory(name string, index int) (c *ReleaseConfig) {
@@ -87,6 +92,7 @@ func ReleaseConfigFactory(name string, index int) (c *ReleaseConfig) {
 		Name:             name,
 		DeclarationIndex: index,
 		FilesUsedMap:     make(map[string]bool),
+		PriorStagesMap:   make(map[string]bool),
 	}
 }
 
@@ -117,14 +123,7 @@ func (config *ReleaseConfig) InheritConfig(iConfig *ReleaseConfig) error {
 }
 
 func (config *ReleaseConfig) GetSortedFileList() []string {
-	ret := []string{}
-	for k := range config.FilesUsedMap {
-		ret = append(ret, k)
-	}
-	slices.SortFunc(ret, func(a, b string) int {
-		return cmp.Compare(a, b)
-	})
-	return ret
+	return SortedMapKeys(config.FilesUsedMap)
 }
 
 func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) error {
@@ -137,9 +136,15 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 	config.compileInProgress = true
 	isRoot := config.Name == "root"
 
+	// Is this a build-prefix release config, such as 'ap3a'?
+	isBuildPrefix, err := regexp.MatchString("^[a-z][a-z][0-9][0-9a-z]$", config.Name)
+	if err != nil {
+		return err
+	}
 	// Start with only the flag declarations.
 	config.FlagArtifacts = configs.FlagArtifacts.Clone()
 	releaseAconfigValueSets := config.FlagArtifacts["RELEASE_ACONFIG_VALUE_SETS"]
+	releasePlatformVersion := config.FlagArtifacts["RELEASE_PLATFORM_VERSION"]
 
 	// Generate any configs we need to inherit.  This will detect loops in
 	// the config.
@@ -147,13 +152,16 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 	myInherits := []string{}
 	myInheritsSet := make(map[string]bool)
 	// If there is a "root" release config, it is the start of every inheritance chain.
-	_, err := configs.GetReleaseConfig("root")
+	_, err = configs.GetReleaseConfig("root")
 	if err == nil && !isRoot {
 		config.InheritNames = append([]string{"root"}, config.InheritNames...)
 	}
 	for _, inherit := range config.InheritNames {
 		if _, ok := myInheritsSet[inherit]; ok {
 			continue
+		}
+		if isBuildPrefix && configs.Aliases[inherit] != nil {
+			return fmt.Errorf("%s cannot inherit from alias %s", config.Name, inherit)
 		}
 		myInherits = append(myInherits, inherit)
 		myInheritsSet[inherit] = true
@@ -179,6 +187,20 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 
 	workflowManual := rc_proto.Workflow(rc_proto.Workflow_MANUAL)
 	myDirsMap := make(map[int]bool)
+	if isBuildPrefix && releasePlatformVersion != nil {
+		if MarshalValue(releasePlatformVersion.Value) != strings.ToUpper(config.Name) {
+			value := FlagValue{
+				path: config.Contributions[0].path,
+				proto: rc_proto.FlagValue{
+					Name:  releasePlatformVersion.FlagDeclaration.Name,
+					Value: UnmarshalValue(strings.ToUpper(config.Name)),
+				},
+			}
+			if err := releasePlatformVersion.UpdateValue(value); err != nil {
+				return err
+			}
+		}
+	}
 	for _, contrib := range contributionsToApply {
 		contribAconfigValueSets := []string{}
 		// Gather the aconfig_value_sets from this contribution, allowing duplicates for simplicity.
@@ -195,6 +217,9 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 				Value:  &rc_proto.Value{Val: &rc_proto.Value_StringValue{contribAconfigValueSetsString}},
 			})
 
+		for _, priorStage := range contrib.proto.PriorStages {
+			config.PriorStagesMap[priorStage] = true
+		}
 		myDirsMap[contrib.DeclarationIndex] = true
 		if config.AconfigFlagsOnly && len(contrib.FlagValues) > 0 {
 			return fmt.Errorf("%s does not allow build flag overrides", config.Name)
@@ -278,6 +303,7 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 		AconfigValueSets: myAconfigValueSets,
 		Inherits:         myInherits,
 		Directories:      directories,
+		PriorStages:      SortedMapKeys(config.PriorStagesMap),
 	}
 
 	config.compileInProgress = false

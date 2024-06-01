@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# Copyright (C) 2024 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+if [[ $# -eq 1 ]]; then
+    # Override anything that's already set
+    export TARGET_PRODUCT=$1
+elif [[ -z $TARGET_PRODUCT ]]; then
+    echo "Usage: list_releases [PRODUCT]" 1>&2
+    echo "" 1>&2
+    echo "If the optional PRODUCT parameter is bit provided, then TARGET_PRODUCT" 1>&2
+    echo "must have been set, for example by lunch or banchan." 1>&2
+    exit 1
+fi
+
+
+
+# Common script utilities
+source $(cd $(dirname $BASH_SOURCE) &> /dev/null && pwd)/../../make/shell_utils.sh
+
+require_top
+
+# In almost call cases including get_build_var, TARGET_RELEASE is required,
+# but the list of available products is not dependent on the release config
+# (but note that the list of available release configs is dependent on the
+# product). So for list_products, we'll just set it to trunk_staging, which
+# exists everwhere, so we don't trigger the unspecified TARGET_RELEASE error.
+
+# We also unset TARGET_BUILD_APPS, so it doesn't interfere.
+
+TARGET_RELEASE=trunk_staging TARGET_BUILD_APPS= $TOP/build/soong/soong_ui.bash --dumpvar-mode ALL_RELEASE_CONFIGS_FOR_PRODUCT | sed 's/ /\n/g'
+
+exit $?

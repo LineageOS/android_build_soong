@@ -689,3 +689,27 @@ func TestR8FlagsArtProfile(t *testing.T) {
 		"--create-profile-from=out/soong/.intermediates/app/android_common/profile.prof.txt --output-profile-type=app",
 	)
 }
+
+// This test checks that users explicitly set `enable_profile_rewriting` to true when the following are true
+// 1. optimize or obfuscate is enabled AND
+// 2. dex_preopt.profile_guided is enabled
+//
+// The rewritten profile should be used since the dex signatures in the checked-in profile will not match the optimized binary.
+func TestEnableProfileRewritingIsRequiredForOptimizedApps(t *testing.T) {
+	testJavaError(t,
+		"Enable_profile_rewriting must be true when profile_guided dexpreopt and R8 optimization/obfuscation is turned on",
+		`
+android_app {
+	name: "app",
+	srcs: ["foo.java"],
+	platform_apis: true,
+	dex_preopt: {
+		profile_guided: true,
+		profile: "profile.txt.prof",
+		// enable_profile_rewriting is not set, this is an error
+	},
+	optimize: {
+		optimize: true,
+	}
+}`)
+}
