@@ -16,6 +16,7 @@ package tradefed_modules
 import (
 	"android/soong/android"
 	"android/soong/java"
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -69,15 +70,36 @@ func TestModuleConfigAndroidTest(t *testing.T) {
 	entries := android.AndroidMkEntriesForTest(t, ctx.TestContext, derived.Module())[0]
 
 	// Ensure some entries from base are there, specifically support files for data and helper apps.
-	assertEntryPairValues(t, entries.EntryMap["LOCAL_COMPATIBILITY_SUPPORT_FILES"], []string{"HelperApp.apk", "data/testfile"})
+	// Do not use LOCAL_COMPATIBILITY_SUPPORT_FILES, but instead use LOCAL_SOONG_INSTALLED_COMPATIBILITY_SUPPORT_FILES
+	android.AssertStringPathsRelativeToTopEquals(t, "support-files", ctx.Config,
+		[]string{"out/soong/target/product/test_device/testcases/derived_test/arm64/base.apk",
+			"out/soong/target/product/test_device/testcases/derived_test/HelperApp.apk",
+			"out/soong/target/product/test_device/testcases/derived_test/data/testfile"},
+		entries.EntryMap["LOCAL_SOONG_INSTALLED_COMPATIBILITY_SUPPORT_FILES"])
+	android.AssertArrayString(t, "", entries.EntryMap["LOCAL_COMPATIBILITY_SUPPORT_FILES"], []string{})
+
+	android.AssertArrayString(t, "", entries.EntryMap["LOCAL_REQUIRED_MODULES"], []string{"base"})
+	android.AssertArrayString(t, "", entries.EntryMap["LOCAL_CERTIFICATE"], []string{"build/make/target/product/security/testkey.x509.pem"})
+	android.AssertStringEquals(t, "", entries.Class, "APPS")
 
 	// And some new derived entries are there.
 	android.AssertArrayString(t, "", entries.EntryMap["LOCAL_MODULE_TAGS"], []string{"tests"})
 
-	// And ones we override
-	android.AssertArrayString(t, "", entries.EntryMap["LOCAL_SOONG_JNI_LIBS_SYMBOLS"], []string{""})
-
 	android.AssertStringMatches(t, "", entries.EntryMap["LOCAL_FULL_TEST_CONFIG"][0], "derived_test/android_common/test_config_fixer/derived_test.config")
+
+	// Check the footer lines.  Our support files should depend on base's support files.
+	convertedActual := make([]string, 5)
+	for i, e := range entries.FooterLinesForTests() {
+		// AssertStringPathsRelativeToTop doesn't replace both instances
+		convertedActual[i] = strings.Replace(e, ctx.Config.SoongOutDir(), "", 2)
+	}
+	android.AssertArrayString(t, fmt.Sprintf("%s", ctx.Config.SoongOutDir()), convertedActual, []string{
+		"include $(BUILD_SYSTEM)/soong_app_prebuilt.mk",
+		"/target/product/test_device/testcases/derived_test/arm64/base.apk: /target/product/test_device/testcases/base/arm64/base.apk",
+		"/target/product/test_device/testcases/derived_test/HelperApp.apk: /target/product/test_device/testcases/base/HelperApp.apk",
+		"/target/product/test_device/testcases/derived_test/data/testfile: /target/product/test_device/testcases/base/data/testfile",
+		"",
+	})
 }
 
 // Make sure we call test-config-fixer with the right args.
@@ -92,7 +114,7 @@ func TestModuleConfigOptions(t *testing.T) {
 	derived := ctx.ModuleForTests("derived_test", "android_common")
 	rule_cmd := derived.Rule("fix_test_config").RuleParams.Command
 	android.AssertStringDoesContain(t, "Bad FixConfig rule inputs", rule_cmd,
-		`--test-file-name=derived_test.apk --orig-test-file-name=base.apk --test-runner-options='[{"Name":"exclude-filter","Key":"","Value":"android.test.example.devcodelab.DevCodelabTest#testHelloFail"},{"Name":"include-annotation","Key":"","Value":"android.platform.test.annotations.LargeTest"}]'`)
+		`--test-runner-options='[{"Name":"exclude-filter","Key":"","Value":"android.test.example.devcodelab.DevCodelabTest#testHelloFail"},{"Name":"include-annotation","Key":"","Value":"android.platform.test.annotations.LargeTest"}]'`)
 }
 
 // Ensure we error for a base we don't support.
@@ -195,7 +217,13 @@ func TestModuleConfigMultipleDerivedTestsWriteDistinctMakeEntries(t *testing.T) 
 			name: "base",
 			sdk_version: "current",
                         srcs: ["a.java"],
+                        data: [":HelperApp", "data/testfile"],
 		}
+
+                android_test_helper_app {
+                        name: "HelperApp",
+                        srcs: ["helper.java"],
+                }
 
                 test_module_config {
                         name: "derived_test",
@@ -220,8 +248,12 @@ func TestModuleConfigMultipleDerivedTestsWriteDistinctMakeEntries(t *testing.T) 
 		derived := ctx.ModuleForTests("derived_test", "android_common")
 		entries := android.AndroidMkEntriesForTest(t, ctx.TestContext, derived.Module())[0]
 		// All these should be the same in both derived tests
-		assertEntryPairValues(t, entries.EntryMap["LOCAL_COMPATIBILITY_SUPPORT_FILES"], []string{"HelperApp.apk", "data/testfile"})
-		android.AssertArrayString(t, "", entries.EntryMap["LOCAL_SOONG_JNI_LIBS_SYMBOLS"], []string{""})
+		android.AssertStringPathsRelativeToTopEquals(t, "support-files", ctx.Config,
+			[]string{"out/soong/target/product/test_device/testcases/derived_test/arm64/base.apk",
+				"out/soong/target/product/test_device/testcases/derived_test/HelperApp.apk",
+				"out/soong/target/product/test_device/testcases/derived_test/data/testfile"},
+			entries.EntryMap["LOCAL_SOONG_INSTALLED_COMPATIBILITY_SUPPORT_FILES"])
+
 		// Except this one, which points to the updated tradefed xml file.
 		android.AssertStringMatches(t, "", entries.EntryMap["LOCAL_FULL_TEST_CONFIG"][0], "derived_test/android_common/test_config_fixer/derived_test.config")
 		// And this one, the module name.
@@ -232,8 +264,11 @@ func TestModuleConfigMultipleDerivedTestsWriteDistinctMakeEntries(t *testing.T) 
 		derived := ctx.ModuleForTests("another_derived_test", "android_common")
 		entries := android.AndroidMkEntriesForTest(t, ctx.TestContext, derived.Module())[0]
 		// All these should be the same in both derived tests
-		assertEntryPairValues(t, entries.EntryMap["LOCAL_COMPATIBILITY_SUPPORT_FILES"], []string{"HelperApp.apk", "data/testfile"})
-		android.AssertArrayString(t, "", entries.EntryMap["LOCAL_SOONG_JNI_LIBS_SYMBOLS"], []string{""})
+		android.AssertStringPathsRelativeToTopEquals(t, "support-files", ctx.Config,
+			[]string{"out/soong/target/product/test_device/testcases/another_derived_test/arm64/base.apk",
+				"out/soong/target/product/test_device/testcases/another_derived_test/HelperApp.apk",
+				"out/soong/target/product/test_device/testcases/another_derived_test/data/testfile"},
+			entries.EntryMap["LOCAL_SOONG_INSTALLED_COMPATIBILITY_SUPPORT_FILES"])
 		// Except this one, which points to the updated tradefed xml file.
 		android.AssertStringMatches(t, "", entries.EntryMap["LOCAL_FULL_TEST_CONFIG"][0], "another_derived_test/android_common/test_config_fixer/another_derived_test.config")
 		// And this one, the module name.
@@ -269,6 +304,8 @@ func TestModuleConfigHostBasics(t *testing.T) {
 	allEntries := android.AndroidMkEntriesForTest(t, ctx.TestContext, mod)
 	entries := allEntries[0]
 	android.AssertArrayString(t, "", entries.EntryMap["LOCAL_MODULE"], []string{"derived_test"})
+	android.AssertArrayString(t, "", entries.EntryMap["LOCAL_SDK_VERSION"], []string{"private_current"})
+	android.AssertStringEquals(t, "", entries.Class, "JAVA_LIBRARIES")
 
 	if !mod.Host() {
 		t.Errorf("host bit is not set for a java_test_host module.")
@@ -383,18 +420,5 @@ func TestTestOnlyProvider(t *testing.T) {
 	notEqual, left, right := android.ListSetDifference(expectedTestOnlyModules, actualTestOnly)
 	if notEqual {
 		t.Errorf("test-only: Expected but not found: %v, Found but not expected: %v", left, right)
-	}
-}
-
-// Use for situations where the entries map contains pairs:  [srcPath:installedPath1, srcPath2:installedPath2]
-// and we want to compare the RHS of the pairs, i.e. installedPath1, installedPath2
-func assertEntryPairValues(t *testing.T, actual []string, expected []string) {
-	for i, e := range actual {
-		parts := strings.Split(e, ":")
-		if len(parts) != 2 {
-			t.Errorf("Expected entry to have a value delimited by :, received: %s", e)
-			return
-		}
-		android.AssertStringEquals(t, "", parts[1], expected[i])
 	}
 }

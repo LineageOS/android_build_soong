@@ -6,7 +6,8 @@ import (
 	"github.com/google/blueprint"
 )
 
-// Output files we need from a base test that we derive from.
+// Data that test_module_config[_host] modules types will need from
+// their dependencies to write out build rules and AndroidMkEntries.
 type BaseTestProviderData struct {
 	// data files and apps for android_test
 	InstalledFiles android.Paths
@@ -19,8 +20,14 @@ type BaseTestProviderData struct {
 	RequiredModuleNames     []string
 	// List of test suites base uses.
 	TestSuites []string
-	// Used for bases that are Host
+	// True indicates the base modules is built for Host.
 	IsHost bool
+	// Base's sdk version for AndroidMkEntries, generally only used for Host modules.
+	LocalSdkVersion string
+	// Base's certificate for AndroidMkEntries, generally only used for device modules.
+	LocalCertificate string
+	// Indicates if the base module was a unit test.
+	IsUnitTest bool
 }
 
 var BaseTestProviderKey = blueprint.NewProvider[BaseTestProviderData]()
