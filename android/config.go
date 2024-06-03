@@ -1916,10 +1916,10 @@ func (c *deviceConfig) HostFakeSnapshotEnabled() bool {
 }
 
 func (c *deviceConfig) ShippingApiLevel() ApiLevel {
-	if c.config.productVariables.ShippingApiLevel == nil {
+	if c.config.productVariables.Shipping_api_level == nil {
 		return NoneApiLevel
 	}
-	apiLevel, _ := strconv.Atoi(*c.config.productVariables.ShippingApiLevel)
+	apiLevel, _ := strconv.Atoi(*c.config.productVariables.Shipping_api_level)
 	return uncheckedFinalApiLevel(apiLevel)
 }
 
