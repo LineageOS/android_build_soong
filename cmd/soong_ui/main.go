@@ -155,7 +155,6 @@ func main() {
 
 	// Create a new trace file writer, making it log events to the log instance.
 	trace := tracer.New(log)
-	defer trace.Close()
 
 	// Create a new Status instance, which manages action counts and event output channels.
 	stat := &status.Status{}
@@ -194,13 +193,28 @@ func main() {
 	soongMetricsFile := filepath.Join(logsDir, c.logsPrefix+"soong_metrics")
 	rbeMetricsFile := filepath.Join(logsDir, c.logsPrefix+"rbe_metrics.pb")
 	soongBuildMetricsFile := filepath.Join(logsDir, c.logsPrefix+"soong_build_metrics.pb")
+	buildTraceFile := filepath.Join(logsDir, c.logsPrefix+"build.trace.gz")
 
 	metricsFiles := []string{
 		buildErrorFile,        // build error strings
 		rbeMetricsFile,        // high level metrics related to remote build execution.
 		soongMetricsFile,      // high level metrics related to this build system.
 		soongBuildMetricsFile, // high level metrics related to soong build
+		buildTraceFile,
 	}
+
+	defer func() {
+		stat.Finish()
+		criticalPath.WriteToMetrics(met)
+		met.Dump(soongMetricsFile)
+		if !config.SkipMetricsUpload() {
+			build.UploadMetrics(buildCtx, config, c.simpleOutput, buildStarted, metricsFiles...)
+		}
+	}()
+
+	// This has to come after the metrics uploading function, so that
+	// build.trace.gz is closed and ready for upload.
+	defer trace.Close()
 
 	os.MkdirAll(logsDir, 0777)
 
@@ -222,16 +236,7 @@ func main() {
 		config = freshConfig()
 	}
 
-	defer func() {
-		stat.Finish()
-		criticalPath.WriteToMetrics(met)
-		met.Dump(soongMetricsFile)
-		if !config.SkipMetricsUpload() {
-			build.UploadMetrics(buildCtx, config, c.simpleOutput, buildStarted, metricsFiles...)
-		}
-	}()
 	c.run(buildCtx, config, args)
-
 }
 
 // This function must not modify config, since product config may cause us to recreate the config,
