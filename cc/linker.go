@@ -65,6 +65,10 @@ type BaseLinkerProperties struct {
 	// This flag should only be necessary for compiling low-level libraries like libc.
 	Allow_undefined_symbols *bool `android:"arch_variant"`
 
+	// ignore max page size. By default, max page size must be the
+	// max page size set for the target.
+	Ignore_max_page_size *bool `android:"arch_variant"`
+
 	// don't link in libclang_rt.builtins-*.a
 	No_libcrt *bool `android:"arch_variant"`
 
