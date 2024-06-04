@@ -487,8 +487,6 @@ type ProductVariables struct {
 
 	ReleaseDefaultModuleBuildFromSource *bool `json:",omitempty"`
 
-	KeepVndk *bool `json:",omitempty"`
-
 	CheckVendorSeappViolations *bool `json:",omitempty"`
 
 	BuildFlags map[string]string `json:",omitempty"`
