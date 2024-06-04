@@ -486,14 +486,14 @@ func (p *prebuiltLibraryLinker) AndroidMkEntries(ctx AndroidMkContext, entries *
 	ctx.subAndroidMk(entries, p.libraryDecorator)
 	if p.shared() {
 		ctx.subAndroidMk(entries, &p.prebuiltLinker)
-		androidMkWriteAllowUndefinedSymbols(p.baseLinker, entries)
+		androidMkWritePrebuiltOptions(p.baseLinker, entries)
 	}
 }
 
 func (p *prebuiltBinaryLinker) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
 	ctx.subAndroidMk(entries, p.binaryDecorator)
 	ctx.subAndroidMk(entries, &p.prebuiltLinker)
-	androidMkWriteAllowUndefinedSymbols(p.baseLinker, entries)
+	androidMkWritePrebuiltOptions(p.baseLinker, entries)
 }
 
 func (a *apiLibraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
@@ -524,11 +524,17 @@ func (a *apiHeadersDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *an
 	})
 }
 
-func androidMkWriteAllowUndefinedSymbols(linker *baseLinker, entries *android.AndroidMkEntries) {
+func androidMkWritePrebuiltOptions(linker *baseLinker, entries *android.AndroidMkEntries) {
 	allow := linker.Properties.Allow_undefined_symbols
 	if allow != nil {
 		entries.ExtraEntries = append(entries.ExtraEntries, func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 			entries.SetBool("LOCAL_ALLOW_UNDEFINED_SYMBOLS", *allow)
+		})
+	}
+	ignore := linker.Properties.Ignore_max_page_size
+	if ignore != nil {
+		entries.ExtraEntries = append(entries.ExtraEntries, func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+			entries.SetBool("LOCAL_IGNORE_MAX_PAGE_SIZE", *ignore)
 		})
 	}
 }
