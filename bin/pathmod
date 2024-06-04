@@ -14,25 +14,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Get the path of a specific module in the android tree, as cached in module-info.json.
-# If any build change is made, and it should be reflected in the output, you should run
-# 'refreshmod' first.  Note: This is the inverse of dirmods.
+'''
+Get the path of a specific module in the android tree, as cached in module-info.json.
+If any build change is made, and it should be reflected in the output, you should run
+'refreshmod' first.  Note: This is the inverse of dirmods.
+'''
 
 import sys
 sys.dont_write_bytecode = True
 
-import modinfo
-
+import argparse
 import os
 
+import modinfo
 
-def main(argv):
-    if len(argv) != 2:
-        sys.stderr.write("usage: pathmod <module>\n")
-        sys.exit(1)
 
-    path = modinfo.GetModule(modinfo.ReadModuleInfo(), argv[1])['path'][0]
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('module')
+    args = parser.parse_args()
+
+    path = modinfo.GetModule(modinfo.ReadModuleInfo(), args.module)['path'][0]
     print(os.path.join(os.getenv("ANDROID_BUILD_TOP", ""), path))
 
 if __name__ == "__main__":
-    main(sys.argv)
+    main()
