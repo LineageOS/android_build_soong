@@ -14,25 +14,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+'''
+Lists all modules in the given directory or its decendant directories, as cached
+in module-info.json. If any build change is made, and it should be reflected in
+the output, you should run 'refreshmod' first.
+'''
+
 import sys
 sys.dont_write_bytecode = True
 
-import modinfo
-
+import argparse
 import os
 
-# Get the path of a specific module in the android tree, as cached in module-info.json.
-# If any build change is made, and it should be reflected in the output, you should run
-# 'refreshmod' first.  Note: This is the inverse of pathmod.
+import modinfo
 
-def main(argv):
-    if len(argv) != 2:
-        sys.stderr.write("usage: usage: dirmods <path>\n")
-        sys.exit(1)
 
-    d = argv[1]
-    while d.endswith('/'):
-        d = d[:-1]
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('path')
+    args = parser.parse_args()
+
+    d = os.path.normpath(args.path)
     prefix = d + '/'
 
     module_info = modinfo.ReadModuleInfo()
@@ -49,4 +51,4 @@ def main(argv):
         print(name)
 
 if __name__ == "__main__":
-    main(sys.argv)
+    main()
