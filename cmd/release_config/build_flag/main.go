@@ -48,6 +48,11 @@ type Flags struct {
 
 	// Panic on errors.
 	debug bool
+
+	// Allow missing release config.
+	// If true, and we cannot find the named release config, values for
+	// `trunk_staging` will be used.
+	allowMissing bool
 }
 
 type CommandFunc func(*rc_lib.ReleaseConfigs, Flags, string, []string) error
@@ -284,7 +289,7 @@ func SetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 	}
 
 	// Reload the release configs.
-	configs, err = rc_lib.ReadReleaseConfigMaps(commonFlags.maps, commonFlags.targetReleases[0], commonFlags.useGetBuildVar)
+	configs, err = rc_lib.ReadReleaseConfigMaps(commonFlags.maps, commonFlags.targetReleases[0], commonFlags.useGetBuildVar, commonFlags.allowMissing)
 	if err != nil {
 		return err
 	}
@@ -307,6 +312,7 @@ func main() {
 	flag.Var(&commonFlags.maps, "map", "path to a release_config_map.textproto. may be repeated")
 	flag.StringVar(&commonFlags.outDir, "out-dir", rc_lib.GetDefaultOutDir(), "basepath for the output. Multiple formats are created")
 	flag.Var(&commonFlags.targetReleases, "release", "TARGET_RELEASE for this build")
+	flag.BoolVar(&commonFlags.allowMissing, "allow-missing", false, "Use trunk_staging values if release not found")
 	flag.BoolVar(&commonFlags.allReleases, "all-releases", false, "operate on all releases. (Ignored for set command)")
 	flag.BoolVar(&commonFlags.useGetBuildVar, "use-get-build-var", true, "use get_build_var PRODUCT_RELEASE_CONFIG_MAPS to get needed maps")
 	flag.BoolVar(&commonFlags.debug, "debug", false, "turn on debugging output for errors")
@@ -342,7 +348,7 @@ func main() {
 	if relName == "--all" || relName == "-all" {
 		commonFlags.allReleases = true
 	}
-	configs, err = rc_lib.ReadReleaseConfigMaps(commonFlags.maps, relName, commonFlags.useGetBuildVar)
+	configs, err = rc_lib.ReadReleaseConfigMaps(commonFlags.maps, relName, commonFlags.useGetBuildVar, commonFlags.allowMissing)
 	if err != nil {
 		errorExit(err)
 	}
