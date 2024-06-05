@@ -2103,7 +2103,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			}
 		case bpfTag:
 			if bpfProgram, ok := child.(bpf.BpfModule); ok {
-				filesToCopy, _ := bpfProgram.OutputFiles("")
+				filesToCopy := android.OutputFilesForModule(ctx, bpfProgram, "")
 				apex_sub_dir := bpfProgram.SubDir()
 				for _, bpfFile := range filesToCopy {
 					vctx.filesInfo = append(vctx.filesInfo, apexFileForBpfProgram(ctx, bpfFile, apex_sub_dir, bpfProgram))
