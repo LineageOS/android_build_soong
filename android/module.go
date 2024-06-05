@@ -915,6 +915,10 @@ type ModuleBase struct {
 	// moduleInfoJSON can be filled out by GenerateAndroidBuildActions to write a JSON file that will
 	// be included in the final module-info.json produced by Make.
 	moduleInfoJSON *ModuleInfoJSON
+
+	// outputFiles stores the output of a module by tag and is used to set
+	// the OutputFilesProvider in GenerateBuildActions
+	outputFiles OutputFilesInfo
 }
 
 func (m *ModuleBase) AddJSONData(d *map[string]interface{}) {
@@ -1996,6 +2000,10 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	m.buildParams = ctx.buildParams
 	m.ruleParams = ctx.ruleParams
 	m.variables = ctx.variables
+
+	if m.outputFiles.DefaultOutputFiles != nil || m.outputFiles.TaggedOutputFiles != nil {
+		SetProvider(ctx, OutputFilesProvider, m.outputFiles)
+	}
 }
 
 func SetJarJarPrefixHandler(handler func(ModuleContext)) {
@@ -2445,11 +2453,15 @@ func OutputFileForModule(ctx PathContext, module blueprint.Module, tag string) P
 }
 
 func outputFilesForModule(ctx PathContext, module blueprint.Module, tag string) (Paths, error) {
+	outputFilesFromProvider, err := outputFilesForModuleFromProvider(ctx, module, tag)
+	if outputFilesFromProvider != nil || err != nil {
+		return outputFilesFromProvider, err
+	}
 	if outputFileProducer, ok := module.(OutputFileProducer); ok {
 		paths, err := outputFileProducer.OutputFiles(tag)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get output file from module %q: %s",
-				pathContextName(ctx, module), err.Error())
+			return nil, fmt.Errorf("failed to get output file from module %q at tag %q: %s",
+				pathContextName(ctx, module), tag, err.Error())
 		}
 		return paths, nil
 	} else if sourceFileProducer, ok := module.(SourceFileProducer); ok {
@@ -2459,9 +2471,53 @@ func outputFilesForModule(ctx PathContext, module blueprint.Module, tag string) 
 		paths := sourceFileProducer.Srcs()
 		return paths, nil
 	} else {
-		return nil, fmt.Errorf("module %q is not an OutputFileProducer", pathContextName(ctx, module))
+		return nil, fmt.Errorf("module %q is not an OutputFileProducer or SourceFileProducer", pathContextName(ctx, module))
 	}
 }
+
+// This method uses OutputFilesProvider for output files
+// *inter-module-communication*.
+// If mctx module is the same as the param module the output files are obtained
+// from outputFiles property of module base, to avoid both setting and
+// reading OutputFilesProvider before  GenerateBuildActions is finished. Also
+// only empty-string-tag is supported in this case.
+// If a module doesn't have the OutputFilesProvider, nil is returned.
+func outputFilesForModuleFromProvider(ctx PathContext, module blueprint.Module, tag string) (Paths, error) {
+	// TODO: support OutputFilesProvider for singletons
+	mctx, ok := ctx.(ModuleContext)
+	if !ok {
+		return nil, nil
+	}
+	if mctx.Module() != module {
+		if outputFilesProvider, ok := OtherModuleProvider(mctx, module, OutputFilesProvider); ok {
+			if tag == "" {
+				return outputFilesProvider.DefaultOutputFiles, nil
+			} else if taggedOutputFiles, hasTag := outputFilesProvider.TaggedOutputFiles[tag]; hasTag {
+				return taggedOutputFiles, nil
+			} else {
+				return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+			}
+		}
+	} else {
+		if tag == "" {
+			return mctx.Module().base().outputFiles.DefaultOutputFiles, nil
+		} else {
+			return nil, fmt.Errorf("unsupported tag %q for module getting its own output files", tag)
+		}
+	}
+	// TODO: Add a check for param module not having OutputFilesProvider set
+	return nil, nil
+}
+
+type OutputFilesInfo struct {
+	// default output files when tag is an empty string ""
+	DefaultOutputFiles Paths
+
+	// the corresponding output files for given tags
+	TaggedOutputFiles map[string]Paths
+}
+
+var OutputFilesProvider = blueprint.NewProvider[OutputFilesInfo]()
 
 // Modules can implement HostToolProvider and return a valid OptionalPath from HostToolPath() to
 // specify that they can be used as a tool by a genrule module.

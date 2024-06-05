@@ -492,7 +492,7 @@ func TestJavaSdkLibrary_AccessOutputFiles_NoAnnotations(t *testing.T) {
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("foo"),
 	).
-		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`module "bar" variant "android_common": path dependency ":foo{.public.annotations.zip}": annotations.zip not available for api scope public`)).
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`module "bar" variant "android_common": failed to get output file from module "foo" at tag ".public.annotations.zip": annotations.zip not available for api scope public`)).
 		RunTestWithBp(t, `
 		java_sdk_library {
 			name: "foo",
