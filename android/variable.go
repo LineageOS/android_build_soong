@@ -55,6 +55,10 @@ type variableProperties struct {
 			Base_dir *string
 		}
 
+		Shipping_api_level struct {
+			Cflags []string
+		}
+
 		// unbundled_build is a catch-all property to annotate modules that don't build in one or
 		// more unbundled branches, usually due to dependencies missing from the manifest.
 		Unbundled_build struct {
@@ -440,7 +444,7 @@ type ProductVariables struct {
 
 	PrebuiltHiddenApiDir *string `json:",omitempty"`
 
-	ShippingApiLevel *string `json:",omitempty"`
+	Shipping_api_level *string `json:",omitempty"`
 
 	BuildBrokenPluginValidation         []string `json:",omitempty"`
 	BuildBrokenClangAsFlags             bool     `json:",omitempty"`
