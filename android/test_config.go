@@ -50,7 +50,7 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 			AAPTCharacteristics:                 stringPtr("nosdcard"),
 			AAPTPrebuiltDPI:                     []string{"xhdpi", "xxhdpi"},
 			UncompressPrivAppDex:                boolPtr(true),
-			ShippingApiLevel:                    stringPtr("30"),
+			Shipping_api_level:                  stringPtr("30"),
 		},
 
 		outDir:       buildDir,
