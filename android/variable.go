@@ -476,7 +476,6 @@ type ProductVariables struct {
 
 	IgnorePrefer32OnDevice bool `json:",omitempty"`
 
-	IncludeTags    []string `json:",omitempty"`
 	SourceRootDirs []string `json:",omitempty"`
 
 	AfdoProfiles []string `json:",omitempty"`

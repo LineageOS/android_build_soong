@@ -1334,10 +1334,6 @@ func (c *config) SourceRootDirs() []string {
 	return c.productVariables.SourceRootDirs
 }
 
-func (c *config) IncludeTags() []string {
-	return c.productVariables.IncludeTags
-}
-
 func (c *config) HostStaticBinaries() bool {
 	return Bool(c.productVariables.HostStaticBinaries)
 }
