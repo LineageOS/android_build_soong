@@ -718,6 +718,9 @@ func (m *moduleContext) SetOutputFiles(outputFiles Paths, tag string) {
 		}
 		m.module.base().outputFiles.DefaultOutputFiles = outputFiles
 	} else {
+		if m.module.base().outputFiles.TaggedOutputFiles == nil {
+			m.module.base().outputFiles.TaggedOutputFiles = make(map[string]Paths)
+		}
 		if _, exists := m.module.base().outputFiles.TaggedOutputFiles[tag]; exists {
 			m.ModuleErrorf("Module %s OutputFiles at tag %s cannot be overwritten", m.ModuleName(), tag)
 		} else {
