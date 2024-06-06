@@ -375,6 +375,7 @@ func loadFromConfigFile(configurable *ProductVariables, filename string) error {
 	} else {
 		// Make a decoder for it
 		jsonDecoder := json.NewDecoder(configFileReader)
+		jsonDecoder.DisallowUnknownFields()
 		err = jsonDecoder.Decode(configurable)
 		if err != nil {
 			return fmt.Errorf("config file: %s did not parse correctly: %s", filename, err.Error())
