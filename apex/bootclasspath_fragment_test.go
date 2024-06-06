@@ -197,6 +197,12 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 			updatable: false,
 		}
 
+		override_apex {
+			name: "com.mycompany.android.art",
+			base: "com.android.art",
+			min_sdk_version: "33", // mycompany overrides the min_sdk_version
+		}
+
 		apex_key {
 			name: "com.android.art.key",
 			public_key: "testkey.avbpubkey",
@@ -323,6 +329,26 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 		// locations for the art image.
 		module := result.ModuleForTests("dex_bootjars", "android_common")
 		checkCopiesToPredefinedLocationForArt(t, result.Config, module, "bar", "foo")
+	})
+
+	t.Run("boot image files from source of override apex", func(t *testing.T) {
+		result := android.GroupFixturePreparers(
+			commonPreparer,
+
+			// Configure some libraries in the art bootclasspath_fragment that match the source
+			// bootclasspath_fragment's contents property.
+			java.FixtureConfigureBootJars("com.android.art:foo", "com.android.art:bar"),
+			dexpreopt.FixtureSetTestOnlyArtBootImageJars("com.android.art:foo", "com.android.art:bar"),
+			addSource("foo", "bar"),
+			java.FixtureSetBootImageInstallDirOnDevice("art", "apex/com.android.art/javalib"),
+		).RunTest(t)
+
+		ensureExactContents(t, result.TestContext, "com.android.art", "android_common_com.mycompany.android.art_com.mycompany.android.art", []string{
+			"etc/boot-image.prof",
+			"etc/classpaths/bootclasspath.pb",
+			"javalib/bar.jar",
+			"javalib/foo.jar",
+		})
 	})
 
 	t.Run("generate boot image profile even if dexpreopt is disabled", func(t *testing.T) {
