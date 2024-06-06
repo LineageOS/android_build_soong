@@ -301,6 +301,5 @@ func runMakeProductConfig(ctx Context, config Config) {
 	config.SetBuildBrokenDupRules(makeVars["BUILD_BROKEN_DUP_RULES"] == "true")
 	config.SetBuildBrokenUsesNetwork(makeVars["BUILD_BROKEN_USES_NETWORK"] == "true")
 	config.SetBuildBrokenNinjaUsesEnvVars(strings.Fields(makeVars["BUILD_BROKEN_NINJA_USES_ENV_VARS"]))
-	config.SetIncludeTags(strings.Fields(makeVars["PRODUCT_INCLUDE_TAGS"]))
 	config.SetSourceRootDirs(strings.Fields(makeVars["PRODUCT_SOURCE_ROOT_DIRS"]))
 }

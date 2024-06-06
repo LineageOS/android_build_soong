@@ -1164,14 +1164,6 @@ func (c *configImpl) SetSourceRootDirs(i []string) {
 	c.sourceRootDirs = i
 }
 
-func (c *configImpl) GetIncludeTags() []string {
-	return c.includeTags
-}
-
-func (c *configImpl) SetIncludeTags(i []string) {
-	c.includeTags = i
-}
-
 func (c *configImpl) GetLogsPrefix() string {
 	return c.logsPrefix
 }
