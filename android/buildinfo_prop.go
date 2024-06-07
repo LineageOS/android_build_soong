@@ -111,10 +111,11 @@ func (p *buildinfoPropModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	cmd.FlagWithArg("--build-id=", config.BuildId())
 	cmd.FlagWithArg("--build-keys=", config.BuildKeys())
 
-	// shouldn't depend on BuildNumberFile and BuildThumbprintFile to prevent from rebuilding
-	// on every incremental build.
-	cmd.FlagWithArg("--build-number-file=", config.BuildNumberFile(ctx).String())
+	// Note: depending on BuildNumberFile will cause the build.prop file to be rebuilt
+	// every build, but that's intentional.
+	cmd.FlagWithInput("--build-number-file=", config.BuildNumberFile(ctx))
 	if shouldAddBuildThumbprint(config) {
+		// In the previous make implementation, a dependency was not added on the thumbprint file
 		cmd.FlagWithArg("--build-thumbprint-file=", config.BuildThumbprintFile(ctx).String())
 	}
 
@@ -123,8 +124,10 @@ func (p *buildinfoPropModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	cmd.FlagWithArg("--build-variant=", buildVariant)
 	cmd.FlagForEachArg("--cpu-abis=", config.DeviceAbi())
 
-	// shouldn't depend on BUILD_DATETIME_FILE to prevent from rebuilding on every incremental
-	// build.
+	// Technically we should also have a dependency on BUILD_DATETIME_FILE,
+	// but it can be either an absolute or relative path, which is hard to turn into
+	// a Path object. So just rely on the BuildNumberFile always changing to cause
+	// us to rebuild.
 	cmd.FlagWithArg("--date-file=", ctx.Config().Getenv("BUILD_DATETIME_FILE"))
 
 	if len(config.ProductLocales()) > 0 {
