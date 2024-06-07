@@ -300,6 +300,9 @@ var (
 		// New warnings to be fixed after clang-r475365
 		"-Wno-error=single-bit-bitfield-constant-conversion", // http://b/243965903
 		"-Wno-error=enum-constexpr-conversion",               // http://b/243964282
+		// New warnings to be fixed after clang-r522817
+		"-Wno-error=invalid-offsetof",
+		"-Wno-error=thread-safety-reference-return",
 
 		// Irrelevant on Android because _we_ don't use exceptions, but causes
 		// lots of build noise because libcxx/libcxxabi do. This can probably
@@ -307,6 +310,9 @@ var (
 		// until then because it causes warnings in the _callers_, not the
 		// project itself.
 		"-Wno-deprecated-dynamic-exception-spec",
+
+		// Allow using VLA CXX extension.
+		"-Wno-vla-cxx-extension",
 	}
 
 	noOverride64GlobalCflags = []string{}
@@ -391,7 +397,7 @@ var (
 
 	// prebuilts/clang default settings.
 	ClangDefaultBase         = "prebuilts/clang/host"
-	ClangDefaultVersion      = "clang-r510928"
+	ClangDefaultVersion      = "clang-r522817"
 	ClangDefaultShortVersion = "18"
 
 	// Directories with warnings from Android.bp files.
