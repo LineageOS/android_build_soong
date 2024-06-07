@@ -519,4 +519,140 @@ java_sdk_library_import {
 		)
 	})
 
+	t.Run("test replacing exportable module", func(t *testing.T) {
+		result := android.GroupFixturePreparers(
+			prepareForSdkTestWithJava,
+			java.PrepareForTestWithJavaDefaultModules,
+			java.PrepareForTestWithJavaSdkLibraryFiles,
+			java.FixtureWithLastReleaseApis("mysdklibrary", "anothersdklibrary"),
+			android.FixtureWithRootAndroidBp(`
+			sdk {
+				name: "mysdk",
+				bootclasspath_fragments: ["mybootclasspathfragment"],
+			}
+
+			bootclasspath_fragment {
+				name: "mybootclasspathfragment",
+				apex_available: ["myapex"],
+				contents: ["mysdklibrary"],
+				hidden_api: {
+					split_packages: ["*"],
+				},
+				core_platform_api: {
+					stub_libs: [
+						"anothersdklibrary.stubs.exportable",
+					],
+				},
+				api: {
+					stub_libs: [
+						"anothersdklibrary",
+					],
+				},
+			}
+
+			java_sdk_library {
+				name: "mysdklibrary",
+				srcs: ["Test.java"],
+				compile_dex: true,
+				min_sdk_version: "S",
+				public: {enabled: true},
+				permitted_packages: ["mysdklibrary"],
+			}
+
+			java_sdk_library {
+				name: "anothersdklibrary",
+				srcs: ["Test.java"],
+				compile_dex: true,
+				min_sdk_version: "S",
+				public: {enabled: true},
+				system: {enabled: true},
+				module_lib: {enabled: true},
+			}
+		`),
+			android.FixtureMergeEnv(map[string]string{
+				"SOONG_SDK_SNAPSHOT_TARGET_BUILD_RELEASE": "S",
+			}),
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.BuildFlags = map[string]string{
+					"RELEASE_HIDDEN_API_EXPORTABLE_STUBS": "true",
+				}
+				variables.Platform_version_active_codenames = []string{"UpsideDownCake", "Tiramisu", "S-V2"}
+			}),
+		).RunTest(t)
+
+		CheckSnapshot(t, result, "mysdk", "",
+			checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+prebuilt_bootclasspath_fragment {
+    name: "mybootclasspathfragment",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["myapex"],
+    contents: ["mysdklibrary"],
+    api: {
+        stub_libs: ["anothersdklibrary"],
+    },
+    core_platform_api: {
+        stub_libs: ["anothersdklibrary.stubs"],
+    },
+    hidden_api: {
+        annotation_flags: "hiddenapi/annotation-flags.csv",
+        metadata: "hiddenapi/metadata.csv",
+        index: "hiddenapi/index.csv",
+        stub_flags: "hiddenapi/stub-flags.csv",
+        all_flags: "hiddenapi/all-flags.csv",
+    },
+}
+
+java_sdk_library_import {
+    name: "mysdklibrary",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    shared_library: true,
+    compile_dex: true,
+    permitted_packages: ["mysdklibrary"],
+    public: {
+        jars: ["sdk_library/public/mysdklibrary-stubs.jar"],
+        stub_srcs: ["sdk_library/public/mysdklibrary_stub_sources"],
+        current_api: "sdk_library/public/mysdklibrary.txt",
+        removed_api: "sdk_library/public/mysdklibrary-removed.txt",
+        sdk_version: "current",
+    },
+}
+
+java_sdk_library_import {
+    name: "anothersdklibrary",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    shared_library: true,
+    compile_dex: true,
+    public: {
+        jars: ["sdk_library/public/anothersdklibrary-stubs.jar"],
+        stub_srcs: ["sdk_library/public/anothersdklibrary_stub_sources"],
+        current_api: "sdk_library/public/anothersdklibrary.txt",
+        removed_api: "sdk_library/public/anothersdklibrary-removed.txt",
+        sdk_version: "current",
+    },
+    system: {
+        jars: ["sdk_library/system/anothersdklibrary-stubs.jar"],
+        stub_srcs: ["sdk_library/system/anothersdklibrary_stub_sources"],
+        current_api: "sdk_library/system/anothersdklibrary.txt",
+        removed_api: "sdk_library/system/anothersdklibrary-removed.txt",
+        sdk_version: "system_current",
+    },
+    module_lib: {
+        jars: ["sdk_library/module-lib/anothersdklibrary-stubs.jar"],
+        stub_srcs: ["sdk_library/module-lib/anothersdklibrary_stub_sources"],
+        current_api: "sdk_library/module-lib/anothersdklibrary.txt",
+        removed_api: "sdk_library/module-lib/anothersdklibrary-removed.txt",
+        sdk_version: "module_current",
+    },
+}
+`),
+		)
+	})
+
 }
