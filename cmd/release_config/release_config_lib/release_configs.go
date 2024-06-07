@@ -87,16 +87,15 @@ func (configs *ReleaseConfigs) WriteInheritanceGraph(outFile string) error {
 	data := []string{}
 	usedAliases := make(map[string]bool)
 	priorStages := make(map[string][]string)
-	rankedStageNames := make(map[string]bool)
 	for _, config := range configs.ReleaseConfigs {
+		if config.Name == "root" {
+			continue
+		}
 		var fillColor string
 		inherits := []string{}
 		for _, inherit := range config.InheritNames {
 			if inherit == "root" {
-				// Only show "root" if we have no other inheritance.
-				if len(config.InheritNames) > 1 {
-					continue
-				}
+				continue
 			}
 			data = append(data, fmt.Sprintf(`"%s" -> "%s"`, config.Name, inherit))
 			inherits = append(inherits, inherit)
@@ -113,14 +112,9 @@ func (configs *ReleaseConfigs) WriteInheritanceGraph(outFile string) error {
 		}
 		// Add links for all of the advancement progressions.
 		for priorStage := range config.PriorStagesMap {
-			stageName := config.Name
-			if len(config.OtherNames) > 0 {
-				stageName = config.OtherNames[0]
-			}
 			data = append(data, fmt.Sprintf(`"%s" -> "%s" [ style=dashed color="#81c995" ]`,
-				priorStage, stageName))
-			priorStages[stageName] = append(priorStages[stageName], priorStage)
-			rankedStageNames[stageName] = true
+				priorStage, config.Name))
+			priorStages[config.Name] = append(priorStages[config.Name], priorStage)
 		}
 		label := config.Name
 		if len(inherits) > 0 {
@@ -129,15 +123,23 @@ func (configs *ReleaseConfigs) WriteInheritanceGraph(outFile string) error {
 		if len(config.OtherNames) > 0 {
 			label += "\\nother names: " + strings.Join(config.OtherNames, " ")
 		}
-		// The active release config has a light blue fill.
-		if config.Name == *configs.Artifact.ReleaseConfig.Name {
+		switch config.Name {
+		case *configs.Artifact.ReleaseConfig.Name:
+			// The active release config has a light blue fill.
 			fillColor = `fillcolor="#d2e3fc" `
+		case "trunk", "trunk_staging":
+			// Certain workflow stages have a light green fill.
+			fillColor = `fillcolor="#ceead6" `
+		default:
+			// Look for "next" and "*_next", make them light green as well.
+			for _, n := range config.OtherNames {
+				if n == "next" || strings.HasSuffix(n, "_next") {
+					fillColor = `fillcolor="#ceead6" `
+				}
+			}
 		}
 		data = append(data,
 			fmt.Sprintf(`"%s" [ label="%s" %s]`, config.Name, label, fillColor))
-	}
-	if len(rankedStageNames) > 0 {
-		data = append(data, fmt.Sprintf("subgraph {rank=same %s}", strings.Join(SortedMapKeys(rankedStageNames), " ")))
 	}
 	slices.Sort(data)
 	data = append([]string{
