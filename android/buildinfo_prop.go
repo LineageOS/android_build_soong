@@ -23,7 +23,7 @@ import (
 
 func init() {
 	ctx := InitRegistrationContext
-	ctx.RegisterParallelSingletonModuleType("buildinfo_prop", buildinfoPropFactory)
+	ctx.RegisterModuleType("buildinfo_prop", buildinfoPropFactory)
 }
 
 type buildinfoPropProperties struct {
@@ -32,7 +32,7 @@ type buildinfoPropProperties struct {
 }
 
 type buildinfoPropModule struct {
-	SingletonModuleBase
+	ModuleBase
 
 	properties buildinfoPropProperties
 
@@ -88,6 +88,10 @@ func shouldAddBuildThumbprint(config Config) bool {
 }
 
 func (p *buildinfoPropModule) GenerateAndroidBuildActions(ctx ModuleContext) {
+	if ctx.ModuleName() != "buildinfo.prop" || ctx.ModuleDir() != "build/soong" {
+		ctx.ModuleErrorf("There can only be one buildinfo_prop module in build/soong")
+		return
+	}
 	p.outputFilePath = PathForModuleOut(ctx, p.Name()).OutputPath
 	if !ctx.Config().KatiEnabled() {
 		WriteFileRule(ctx, p.outputFilePath, "# no buildinfo.prop if kati is disabled")
@@ -111,10 +115,11 @@ func (p *buildinfoPropModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	cmd.FlagWithArg("--build-id=", config.BuildId())
 	cmd.FlagWithArg("--build-keys=", config.BuildKeys())
 
-	// shouldn't depend on BuildNumberFile and BuildThumbprintFile to prevent from rebuilding
-	// on every incremental build.
-	cmd.FlagWithArg("--build-number-file=", config.BuildNumberFile(ctx).String())
+	// Note: depending on BuildNumberFile will cause the build.prop file to be rebuilt
+	// every build, but that's intentional.
+	cmd.FlagWithInput("--build-number-file=", config.BuildNumberFile(ctx))
 	if shouldAddBuildThumbprint(config) {
+		// In the previous make implementation, a dependency was not added on the thumbprint file
 		cmd.FlagWithArg("--build-thumbprint-file=", config.BuildThumbprintFile(ctx).String())
 	}
 
@@ -123,8 +128,10 @@ func (p *buildinfoPropModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	cmd.FlagWithArg("--build-variant=", buildVariant)
 	cmd.FlagForEachArg("--cpu-abis=", config.DeviceAbi())
 
-	// shouldn't depend on BUILD_DATETIME_FILE to prevent from rebuilding on every incremental
-	// build.
+	// Technically we should also have a dependency on BUILD_DATETIME_FILE,
+	// but it can be either an absolute or relative path, which is hard to turn into
+	// a Path object. So just rely on the BuildNumberFile always changing to cause
+	// us to rebuild.
 	cmd.FlagWithArg("--date-file=", ctx.Config().Getenv("BUILD_DATETIME_FILE"))
 
 	if len(config.ProductLocales()) > 0 {
@@ -163,12 +170,8 @@ func (p *buildinfoPropModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	ctx.InstallFile(p.installPath, p.Name(), p.outputFilePath)
 }
 
-func (f *buildinfoPropModule) GenerateSingletonBuildActions(ctx SingletonContext) {
-	// does nothing; buildinfo_prop is a singeton because two buildinfo modules don't make sense.
-}
-
 func (p *buildinfoPropModule) AndroidMkEntries() []AndroidMkEntries {
-	return []AndroidMkEntries{AndroidMkEntries{
+	return []AndroidMkEntries{{
 		Class:      "ETC",
 		OutputFile: OptionalPathForPath(p.outputFilePath),
 		ExtraEntries: []AndroidMkExtraEntriesFunc{
@@ -184,7 +187,7 @@ func (p *buildinfoPropModule) AndroidMkEntries() []AndroidMkEntries {
 // buildinfo_prop module generates a build.prop file, which contains a set of common
 // system/build.prop properties, such as ro.build.version.*.  Not all properties are implemented;
 // currently this module is only for microdroid.
-func buildinfoPropFactory() SingletonModule {
+func buildinfoPropFactory() Module {
 	module := &buildinfoPropModule{}
 	module.AddProperties(&module.properties)
 	InitAndroidModule(module)
