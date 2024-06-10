@@ -324,6 +324,16 @@ func (scopes apiScopes) MapToIndex(accessor func(*apiScope) string) map[string]i
 	return ret
 }
 
+func (scopes apiScopes) ConvertStubsLibraryExportableToEverything(name string) string {
+	for _, scope := range scopes {
+		if strings.HasSuffix(name, scope.exportableStubsLibraryModuleNameSuffix()) {
+			return strings.TrimSuffix(name, scope.exportableStubsLibraryModuleNameSuffix()) +
+				scope.stubsLibraryModuleNameSuffix()
+		}
+	}
+	return name
+}
+
 var (
 	scopeByName    = make(map[string]*apiScope)
 	allScopeNames  []string
@@ -418,7 +428,7 @@ var (
 		},
 		kind: android.SdkSystemServer,
 	})
-	allApiScopes = apiScopes{
+	AllApiScopes = apiScopes{
 		apiScopePublic,
 		apiScopeSystem,
 		apiScopeTest,
@@ -1204,7 +1214,7 @@ func (c *commonToSdkLibraryAndImport) selectScopePaths(ctx android.BaseModuleCon
 	paths := c.findClosestScopePath(apiScope)
 	if paths == nil {
 		var scopes []string
-		for _, s := range allApiScopes {
+		for _, s := range AllApiScopes {
 			if c.findScopePaths(s) != nil {
 				scopes = append(scopes, s.name)
 			}
@@ -1421,7 +1431,7 @@ func (module *SdkLibrary) getGeneratedApiScopes(ctx android.EarlyModuleContext) 
 	// Check to see if any scopes have been explicitly enabled. If any have then all
 	// must be.
 	anyScopesExplicitlyEnabled := false
-	for _, scope := range allApiScopes {
+	for _, scope := range AllApiScopes {
 		scopeProperties := module.scopeToProperties[scope]
 		if scopeProperties.Enabled != nil {
 			anyScopesExplicitlyEnabled = true
@@ -1431,7 +1441,7 @@ func (module *SdkLibrary) getGeneratedApiScopes(ctx android.EarlyModuleContext) 
 
 	var generatedScopes apiScopes
 	enabledScopes := make(map[*apiScope]struct{})
-	for _, scope := range allApiScopes {
+	for _, scope := range AllApiScopes {
 		scopeProperties := module.scopeToProperties[scope]
 		// If any scopes are explicitly enabled then ignore the legacy enabled status.
 		// This is to ensure that any new usages of this module type do not rely on legacy
@@ -1451,7 +1461,7 @@ func (module *SdkLibrary) getGeneratedApiScopes(ctx android.EarlyModuleContext) 
 
 	// Now check to make sure that any scope that is extended by an enabled scope is also
 	// enabled.
-	for _, scope := range allApiScopes {
+	for _, scope := range AllApiScopes {
 		if _, ok := enabledScopes[scope]; ok {
 			extends := scope.extends
 			if extends != nil {
@@ -2580,7 +2590,7 @@ func SdkLibraryFactory() android.Module {
 
 	// Initialize the map from scope to scope specific properties.
 	scopeToProperties := make(map[*apiScope]*ApiScopeProperties)
-	for _, scope := range allApiScopes {
+	for _, scope := range AllApiScopes {
 		scopeToProperties[scope] = scope.scopeSpecificProperties(module)
 	}
 	module.scopeToProperties = scopeToProperties
@@ -2697,7 +2707,7 @@ var allScopeStructType = createAllScopePropertiesStructType()
 // Dynamically create a structure type for each apiscope in allApiScopes.
 func createAllScopePropertiesStructType() reflect.Type {
 	var fields []reflect.StructField
-	for _, apiScope := range allApiScopes {
+	for _, apiScope := range AllApiScopes {
 		field := reflect.StructField{
 			Name: apiScope.fieldName,
 			Type: reflect.TypeOf(sdkLibraryScopeProperties{}),
@@ -2715,7 +2725,7 @@ func createPropertiesInstance() (interface{}, map[*apiScope]*sdkLibraryScopeProp
 	allScopePropertiesStruct := allScopePropertiesPtr.Elem()
 	scopeProperties := make(map[*apiScope]*sdkLibraryScopeProperties)
 
-	for _, apiScope := range allApiScopes {
+	for _, apiScope := range AllApiScopes {
 		field := allScopePropertiesStruct.FieldByName(apiScope.fieldName)
 		scopeProperties[apiScope] = field.Addr().Interface().(*sdkLibraryScopeProperties)
 	}
@@ -3597,7 +3607,7 @@ func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMembe
 	s.Stem = sdk.distStem()
 
 	s.Scopes = make(map[*apiScope]*scopeProperties)
-	for _, apiScope := range allApiScopes {
+	for _, apiScope := range AllApiScopes {
 		paths := sdk.findScopePaths(apiScope)
 		if paths == nil {
 			continue
@@ -3659,7 +3669,7 @@ func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberCo
 
 	stem := s.Stem
 
-	for _, apiScope := range allApiScopes {
+	for _, apiScope := range AllApiScopes {
 		if properties, ok := s.Scopes[apiScope]; ok {
 			scopeSet := propertySet.AddPropertySet(apiScope.propertyName)
 

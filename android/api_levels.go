@@ -291,6 +291,8 @@ var ApiLevelR = uncheckedFinalApiLevel(30)
 
 var ApiLevelUpsideDownCake = uncheckedFinalApiLevel(34)
 
+var ApiLevelVanillaIceCream = uncheckedFinalApiLevel(35)
+
 // ReplaceFinalizedCodenames returns the API level number associated with that API level
 // if the `raw` input is the codename of an API level has been finalized.
 // If the input is *not* a finalized codename, the input is returned unmodified.
