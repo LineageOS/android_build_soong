@@ -232,7 +232,7 @@ func GetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 			} else {
 				outputOneLine(arg, config.Name, "REDACTED", "%s")
 			}
-			if isTrace {
+			if err == nil && isTrace {
 				for _, trace := range config.FlagArtifacts[arg].Traces {
 					fmt.Printf("  => \"%s\" in %s\n", rc_lib.MarshalValue(trace.Value), *trace.Source)
 				}
@@ -244,6 +244,8 @@ func GetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 
 func SetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, args []string) error {
 	var valueDir string
+	var redacted bool
+	var value string
 	if len(commonFlags.targetReleases) > 1 {
 		return fmt.Errorf("set command only allows one --release argument.  Got: %s", strings.Join(commonFlags.targetReleases, " "))
 	}
@@ -251,13 +253,20 @@ func SetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 
 	setFlags := flag.NewFlagSet("set", flag.ExitOnError)
 	setFlags.StringVar(&valueDir, "dir", "", "Directory in which to place the value")
+	setFlags.BoolVar(&redacted, "redacted", false, "Whether the flag should be redacted")
 	setFlags.Parse(args)
 	setArgs := setFlags.Args()
-	if len(setArgs) != 2 {
+	if redacted {
+		if len(setArgs) != 1 {
+			return fmt.Errorf("set command expected '--redacted=true flag', got: --redacted=true %s", strings.Join(setArgs, " "))
+		}
+	} else if len(setArgs) != 2 {
 		return fmt.Errorf("set command expected flag and value, got: %s", strings.Join(setArgs, " "))
 	}
 	name := setArgs[0]
-	value := setArgs[1]
+	if !redacted {
+		value = setArgs[1]
+	}
 	release, err := configs.GetReleaseConfig(targetRelease)
 	targetRelease = release.Name
 	if err != nil {
@@ -296,8 +305,12 @@ func SetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 	}
 
 	flagValue := &rc_proto.FlagValue{
-		Name:  proto.String(name),
-		Value: rc_lib.UnmarshalValue(value),
+		Name: proto.String(name),
+	}
+	if redacted {
+		flagValue.Redacted = proto.Bool(true)
+	} else {
+		flagValue.Value = rc_lib.UnmarshalValue(value)
 	}
 	flagPath := filepath.Join(valueDir, "flag_values", targetRelease, fmt.Sprintf("%s.textproto", name))
 	err = rc_lib.WriteMessage(flagPath, flagValue)
@@ -310,7 +323,7 @@ func SetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 	if err != nil {
 		return err
 	}
-	err = GetCommand(configs, commonFlags, cmd, args[0:1])
+	err = GetCommand(configs, commonFlags, cmd, []string{name})
 	if err != nil {
 		return err
 	}
