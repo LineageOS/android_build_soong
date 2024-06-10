@@ -20,6 +20,8 @@ import (
 
 	"android/soong/android"
 	"android/soong/multitree"
+
+	"github.com/google/blueprint/proptools"
 )
 
 var (
@@ -122,7 +124,7 @@ func (d *apiLibraryDecorator) Name(basename string) string {
 // The directories are not guaranteed to exist during Soong analysis.
 func (d *apiLibraryDecorator) exportIncludes(ctx ModuleContext) {
 	exporterProps := d.flagExporter.Properties
-	for _, dir := range exporterProps.Export_include_dirs {
+	for _, dir := range exporterProps.Export_include_dirs.GetOrDefault(ctx, nil) {
 		d.dirs = append(d.dirs, android.MaybeExistentPathForSource(ctx, ctx.ModuleDir(), dir))
 	}
 	// system headers
@@ -178,16 +180,21 @@ func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps
 				in = variantMod.Src()
 
 				// Copy LLDNK properties to cc_api_library module
-				d.libraryDecorator.flagExporter.Properties.Export_include_dirs = append(
-					d.libraryDecorator.flagExporter.Properties.Export_include_dirs,
+				exportIncludeDirs := append(d.libraryDecorator.flagExporter.Properties.Export_include_dirs.GetOrDefault(ctx, nil),
 					variantMod.exportProperties.Export_include_dirs...)
+				d.libraryDecorator.flagExporter.Properties.Export_include_dirs = proptools.NewConfigurable[[]string](
+					nil,
+					[]proptools.ConfigurableCase[[]string]{
+						proptools.NewConfigurableCase[[]string](nil, &exportIncludeDirs),
+					},
+				)
 
 				// Export headers as system include dirs if specified. Mostly for libc
 				if Bool(variantMod.exportProperties.Export_headers_as_system) {
 					d.libraryDecorator.flagExporter.Properties.Export_system_include_dirs = append(
 						d.libraryDecorator.flagExporter.Properties.Export_system_include_dirs,
-						d.libraryDecorator.flagExporter.Properties.Export_include_dirs...)
-					d.libraryDecorator.flagExporter.Properties.Export_include_dirs = nil
+						d.libraryDecorator.flagExporter.Properties.Export_include_dirs.GetOrDefault(ctx, nil)...)
+					d.libraryDecorator.flagExporter.Properties.Export_include_dirs = proptools.NewConfigurable[[]string](nil, nil)
 				}
 			}
 		}
