@@ -1054,8 +1054,7 @@ func (d *Droidstubs) everythingOptionalCmd(ctx android.ModuleContext, cmd *andro
 	}
 
 	if !treatDocumentationIssuesAsErrors {
-		// Treat documentation issues as warnings, but error when new.
-		cmd.Flag("--error-when-new-category").Flag("Documentation")
+		treatDocumentationIssuesAsWarningErrorWhenNew(cmd)
 	}
 
 	// Add "check released" options. (Detect incompatible API changes from the last public release)
@@ -1081,6 +1080,22 @@ func (d *Droidstubs) everythingOptionalCmd(ctx android.ModuleContext, cmd *andro
 		currentApiFile := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Current.Api_file))
 		cmd.FlagWithInput("--use-same-format-as ", currentApiFile)
 	}
+}
+
+// HIDDEN_DOCUMENTATION_ISSUES is the set of documentation related issues that should always be
+// hidden as they are very noisy and provide little value.
+var HIDDEN_DOCUMENTATION_ISSUES = []string{
+	"Deprecated",
+	"IntDef",
+	"Nullable",
+}
+
+func treatDocumentationIssuesAsWarningErrorWhenNew(cmd *android.RuleBuilderCommand) {
+	// Treat documentation issues as warnings, but error when new.
+	cmd.Flag("--error-when-new-category").Flag("Documentation")
+
+	// Hide some documentation issues that generated a lot of noise for little benefit.
+	cmd.FlagForEachArg("--hide ", HIDDEN_DOCUMENTATION_ISSUES)
 }
 
 // Sandbox rule for generating exportable stubs and other artifacts
@@ -1154,7 +1169,7 @@ func (d *Droidstubs) optionalStubCmd(ctx android.ModuleContext, params stubsComm
 	}
 
 	// Treat documentation issues as warnings, but error when new.
-	cmd.Flag("--error-when-new-category").Flag("Documentation")
+	treatDocumentationIssuesAsWarningErrorWhenNew(cmd)
 
 	if params.stubConfig.generateStubs {
 		rule.Command().
