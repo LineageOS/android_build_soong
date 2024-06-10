@@ -101,7 +101,7 @@ type BaseCompilerProperties struct {
 	Generated_headers []string `android:"arch_variant,variant_prepend"`
 
 	// pass -frtti instead of -fno-rtti
-	Rtti *bool
+	Rtti *bool `android:"arch_variant"`
 
 	// C standard version to use. Can be a specific version (such as "gnu11"),
 	// "experimental" (which will use draft versions like C1x when available),
