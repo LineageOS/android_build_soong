@@ -81,6 +81,8 @@ func (a *avbGenVbmetaImage) GenerateAndroidBuildActions(ctx android.ModuleContex
 	a.output = android.PathForModuleOut(ctx, a.installFileName()).OutputPath
 	cmd.FlagWithOutput("--output_vbmeta_image ", a.output)
 	builder.Build("avbGenVbmetaImage", fmt.Sprintf("avbGenVbmetaImage %s", ctx.ModuleName()))
+
+	ctx.SetOutputFiles([]android.Path{a.output}, "")
 }
 
 var _ android.AndroidMkEntriesProvider = (*avbGenVbmetaImage)(nil)
@@ -97,16 +99,6 @@ func (a *avbGenVbmetaImage) AndroidMkEntries() []android.AndroidMkEntries {
 			},
 		},
 	}}
-}
-
-var _ android.OutputFileProducer = (*avbGenVbmetaImage)(nil)
-
-// Implements android.OutputFileProducer
-func (a *avbGenVbmetaImage) OutputFiles(tag string) (android.Paths, error) {
-	if tag == "" {
-		return []android.Path{a.output}, nil
-	}
-	return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 }
 
 type avbGenVbmetaImageDefaults struct {

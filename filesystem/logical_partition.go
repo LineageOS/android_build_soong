@@ -185,6 +185,8 @@ func (l *logicalPartition) GenerateAndroidBuildActions(ctx android.ModuleContext
 
 	l.installDir = android.PathForModuleInstall(ctx, "etc")
 	ctx.InstallFile(l.installDir, l.installFileName(), l.output)
+
+	ctx.SetOutputFiles([]android.Path{l.output}, "")
 }
 
 // Add a rule that converts the filesystem for the given partition to the given rule builder. The
@@ -230,14 +232,4 @@ func (l *logicalPartition) OutputPath() android.Path {
 
 func (l *logicalPartition) SignedOutputPath() android.Path {
 	return nil // logical partition is not signed by itself
-}
-
-var _ android.OutputFileProducer = (*logicalPartition)(nil)
-
-// Implements android.OutputFileProducer
-func (l *logicalPartition) OutputFiles(tag string) (android.Paths, error) {
-	if tag == "" {
-		return []android.Path{l.output}, nil
-	}
-	return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 }
