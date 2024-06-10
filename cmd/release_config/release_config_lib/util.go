@@ -83,6 +83,11 @@ func WriteMessage(path string, message proto.Message) (err error) {
 //	error: any error encountered.
 func WriteFormattedMessage(path, format string, message proto.Message) (err error) {
 	var data []byte
+	if _, err := os.Stat(filepath.Dir(path)); err != nil {
+		if err = os.MkdirAll(filepath.Dir(path), 0775); err != nil {
+			return err
+		}
+	}
 	switch format {
 	case "json":
 		data, err = json.MarshalIndent(message, "", "  ")

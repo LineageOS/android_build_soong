@@ -278,6 +278,23 @@ func SetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 		valueDir = mapDir
 	}
 
+	var updatedFiles []string
+	rcPath := filepath.Join(valueDir, "release_configs", fmt.Sprintf("%s.textproto", targetRelease))
+	// Create the release config declaration only if necessary.
+	if _, err = os.Stat(rcPath); err != nil {
+		if err = os.MkdirAll(filepath.Dir(rcPath), 0775); err != nil {
+			return err
+		}
+		rcValue := &rc_proto.ReleaseConfig{
+			Name: proto.String(targetRelease),
+		}
+		err = rc_lib.WriteMessage(rcPath, rcValue)
+		if err != nil {
+			return err
+		}
+		updatedFiles = append(updatedFiles, rcPath)
+	}
+
 	flagValue := &rc_proto.FlagValue{
 		Name:  proto.String(name),
 		Value: rc_lib.UnmarshalValue(value),
@@ -297,7 +314,8 @@ func SetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Updated: %s\n", flagPath)
+	updatedFiles = append(updatedFiles, flagPath)
+	fmt.Printf("Added/Updated: %s\n", strings.Join(updatedFiles, " "))
 	return nil
 }
 
