@@ -15,8 +15,6 @@
 package filesystem
 
 import (
-	"fmt"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -88,6 +86,8 @@ func (r *rawBinary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	r.output = outputFile
 	r.installDir = android.PathForModuleInstall(ctx, "etc")
 	ctx.InstallFile(r.installDir, r.installFileName(), r.output)
+
+	ctx.SetOutputFiles([]android.Path{r.output}, "")
 }
 
 var _ android.AndroidMkEntriesProvider = (*rawBinary)(nil)
@@ -108,14 +108,4 @@ func (r *rawBinary) OutputPath() android.Path {
 
 func (r *rawBinary) SignedOutputPath() android.Path {
 	return nil
-}
-
-var _ android.OutputFileProducer = (*rawBinary)(nil)
-
-// Implements android.OutputFileProducer
-func (r *rawBinary) OutputFiles(tag string) (android.Paths, error) {
-	if tag == "" {
-		return []android.Path{r.output}, nil
-	}
-	return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 }

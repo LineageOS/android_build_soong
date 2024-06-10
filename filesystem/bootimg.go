@@ -123,6 +123,8 @@ func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	b.installDir = android.PathForModuleInstall(ctx, "etc")
 	ctx.InstallFile(b.installDir, b.installFileName(), b.output)
+
+	ctx.SetOutputFiles([]android.Path{b.output}, "")
 }
 
 func (b *bootimg) buildBootImage(ctx android.ModuleContext, vendor bool) android.OutputPath {
@@ -291,14 +293,4 @@ func (b *bootimg) SignedOutputPath() android.Path {
 		return b.OutputPath()
 	}
 	return nil
-}
-
-var _ android.OutputFileProducer = (*bootimg)(nil)
-
-// Implements android.OutputFileProducer
-func (b *bootimg) OutputFiles(tag string) (android.Paths, error) {
-	if tag == "" {
-		return []android.Path{b.output}, nil
-	}
-	return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 }

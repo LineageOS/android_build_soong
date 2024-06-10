@@ -221,6 +221,8 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	f.installDir = android.PathForModuleInstall(ctx, "etc")
 	ctx.InstallFile(f.installDir, f.installFileName(), f.output)
+
+	ctx.SetOutputFiles([]android.Path{f.output}, "")
 }
 
 func validatePartitionType(ctx android.ModuleContext, p partition) {
@@ -559,16 +561,6 @@ func (f *filesystem) AndroidMkEntries() []android.AndroidMkEntries {
 			},
 		},
 	}}
-}
-
-var _ android.OutputFileProducer = (*filesystem)(nil)
-
-// Implements android.OutputFileProducer
-func (f *filesystem) OutputFiles(tag string) (android.Paths, error) {
-	if tag == "" {
-		return []android.Path{f.output}, nil
-	}
-	return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 }
 
 // Filesystem is the public interface for the filesystem struct. Currently, it's only for the apex
