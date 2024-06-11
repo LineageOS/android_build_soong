@@ -285,6 +285,11 @@ type BaseProperties struct {
 	// Deprecated. true is the default, false is invalid.
 	Clang *bool `android:"arch_variant"`
 
+	// Aggresively trade performance for smaller binary size.
+	// This should only be used for on-device binaries that are rarely executed and not
+	// performance critical.
+	Optimize_for_size *bool `android:"arch_variant"`
+
 	// The API level that this module is built against. The APIs of this API level will be
 	// visible at build time, but use of any APIs newer than min_sdk_version will render the
 	// module unloadable on older devices.  In the future it will be possible to weakly-link new
@@ -526,6 +531,7 @@ type ModuleContextIntf interface {
 	isCfiAssemblySupportEnabled() bool
 	getSharedFlags() *SharedFlags
 	notInPlatform() bool
+	optimizeForSize() bool
 }
 
 type SharedFlags struct {
@@ -959,6 +965,7 @@ func (c *Module) AddJSONData(d *map[string]interface{}) {
 		"WinMsgSrcs":             hasWinMsg,
 		"YaccSrsc":               hasYacc,
 		"OnlyCSrcs":              !(hasAidl || hasLex || hasProto || hasRenderscript || hasSysprop || hasWinMsg || hasYacc),
+		"OptimizeForSize":        c.OptimizeForSize(),
 	}
 }
 
@@ -1042,6 +1049,10 @@ func (c *Module) StubDecorator() bool {
 		return true
 	}
 	return false
+}
+
+func (c *Module) OptimizeForSize() bool {
+	return Bool(c.Properties.Optimize_for_size)
 }
 
 func (c *Module) SdkVersion() string {
@@ -1532,6 +1543,10 @@ func (ctx *moduleContextImpl) binary() bool {
 
 func (ctx *moduleContextImpl) object() bool {
 	return ctx.mod.Object()
+}
+
+func (ctx *moduleContextImpl) optimizeForSize() bool {
+	return ctx.mod.OptimizeForSize()
 }
 
 func (ctx *moduleContextImpl) canUseSdk() bool {
