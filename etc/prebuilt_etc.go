@@ -268,17 +268,6 @@ func (p *PrebuiltEtc) OutputFile() android.OutputPath {
 	return p.outputFilePaths[0]
 }
 
-var _ android.OutputFileProducer = (*PrebuiltEtc)(nil)
-
-func (p *PrebuiltEtc) OutputFiles(tag string) (android.Paths, error) {
-	switch tag {
-	case "":
-		return p.outputFilePaths.Paths(), nil
-	default:
-		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
-	}
-}
-
 func (p *PrebuiltEtc) SubDir() string {
 	if subDir := proptools.String(p.subdirProperties.Sub_dir); subDir != "" {
 		return subDir
@@ -420,6 +409,8 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	for _, ip := range installs {
 		ip.addInstallRules(ctx)
 	}
+
+	ctx.SetOutputFiles(p.outputFilePaths.Paths(), "")
 }
 
 type installProperties struct {
