@@ -190,7 +190,7 @@ type FlagExporterProperties struct {
 	// be added to the include path (using -I) for this module and any module that links
 	// against this module.  Directories listed in export_include_dirs do not need to be
 	// listed in local_include_dirs.
-	Export_include_dirs []string `android:"arch_variant,variant_prepend"`
+	Export_include_dirs proptools.Configurable[[]string] `android:"arch_variant,variant_prepend"`
 
 	// list of directories that will be added to the system include path
 	// using -isystem for this module and any module that links against this module.
@@ -292,7 +292,7 @@ func (f *flagExporter) exportedIncludes(ctx ModuleContext) android.Paths {
 	if ctx.inProduct() && f.Properties.Target.Product.Override_export_include_dirs != nil {
 		return android.PathsForModuleSrc(ctx, f.Properties.Target.Product.Override_export_include_dirs)
 	}
-	return android.PathsForModuleSrc(ctx, f.Properties.Export_include_dirs)
+	return android.PathsForModuleSrc(ctx, f.Properties.Export_include_dirs.GetOrDefault(ctx, nil))
 }
 
 func (f *flagExporter) exportedSystemIncludes(ctx ModuleContext) android.Paths {
@@ -1588,14 +1588,19 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 		// override the module's export_include_dirs with llndk.override_export_include_dirs
 		// if it is set.
 		if override := library.Properties.Llndk.Override_export_include_dirs; override != nil {
-			library.flagExporter.Properties.Export_include_dirs = override
+			library.flagExporter.Properties.Export_include_dirs = proptools.NewConfigurable[[]string](
+				nil,
+				[]proptools.ConfigurableCase[[]string]{
+					proptools.NewConfigurableCase[[]string](nil, &override),
+				},
+			)
 		}
 
 		if Bool(library.Properties.Llndk.Export_headers_as_system) {
 			library.flagExporter.Properties.Export_system_include_dirs = append(
 				library.flagExporter.Properties.Export_system_include_dirs,
-				library.flagExporter.Properties.Export_include_dirs...)
-			library.flagExporter.Properties.Export_include_dirs = nil
+				library.flagExporter.Properties.Export_include_dirs.GetOrDefault(ctx, nil)...)
+			library.flagExporter.Properties.Export_include_dirs = proptools.NewConfigurable[[]string](nil, nil)
 		}
 	}
 
@@ -1603,7 +1608,12 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 		// override the module's export_include_dirs with vendor_public_library.override_export_include_dirs
 		// if it is set.
 		if override := library.Properties.Vendor_public_library.Override_export_include_dirs; override != nil {
-			library.flagExporter.Properties.Export_include_dirs = override
+			library.flagExporter.Properties.Export_include_dirs = proptools.NewConfigurable[[]string](
+				nil,
+				[]proptools.ConfigurableCase[[]string]{
+					proptools.NewConfigurableCase[[]string](nil, &override),
+				},
+			)
 		}
 	}
 
