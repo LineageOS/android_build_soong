@@ -693,6 +693,11 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		flags.Local.CFlags = append(flags.Local.CFlags, "-fopenmp")
 	}
 
+	if ctx.optimizeForSize() {
+		flags.Local.CFlags = append(flags.Local.CFlags, "-Oz")
+		flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-mllvm,-enable-ml-inliner=release")
+	}
+
 	// Exclude directories from manual binder interface allowed list.
 	//TODO(b/145621474): Move this check into IInterface.h when clang-tidy no longer uses absolute paths.
 	if android.HasAnyPrefix(ctx.ModuleDir(), allowedManualInterfacePaths) {
