@@ -1488,6 +1488,15 @@ func (c *configImpl) SoongVarsFile() string {
 	}
 }
 
+func (c *configImpl) SoongExtraVarsFile() string {
+	targetProduct, err := c.TargetProductOrErr()
+	if err != nil {
+		return filepath.Join(c.SoongOutDir(), "soong.extra.variables")
+	} else {
+		return filepath.Join(c.SoongOutDir(), "soong."+targetProduct+".extra.variables")
+	}
+}
+
 func (c *configImpl) SoongNinjaFile() string {
 	targetProduct, err := c.TargetProductOrErr()
 	if err != nil {

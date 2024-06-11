@@ -64,7 +64,8 @@ func testForDanglingRules(ctx Context, config Config) {
 	outDir := config.OutDir()
 	modulePathsDir := filepath.Join(outDir, ".module_paths")
 	rawFilesDir := filepath.Join(outDir, "soong", "raw")
-	variablesFilePath := filepath.Join(outDir, "soong", "soong.variables")
+	variablesFilePath := config.SoongVarsFile()
+	extraVariablesFilePath := config.SoongExtraVarsFile()
 
 	// dexpreopt.config is an input to the soong_docs action, which runs the
 	// soong_build primary builder. However, this file is created from $(shell)
@@ -95,6 +96,7 @@ func testForDanglingRules(ctx Context, config Config) {
 		if strings.HasPrefix(line, modulePathsDir) ||
 			strings.HasPrefix(line, rawFilesDir) ||
 			line == variablesFilePath ||
+			line == extraVariablesFilePath ||
 			line == dexpreoptConfigFilePath ||
 			line == buildDatetimeFilePath ||
 			line == bpglob ||
