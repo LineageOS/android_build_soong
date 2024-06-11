@@ -1852,7 +1852,7 @@ func (j *Module) compileJavaClasses(ctx android.ModuleContext, jarName string, i
 	classes := android.PathForModuleOut(ctx, "javac", jarName).OutputPath
 	TransformJavaToClasses(ctx, classes, idx, srcFiles, srcJars, annoSrcJar, flags, extraJarDeps)
 
-	if ctx.Config().EmitXrefRules() {
+	if ctx.Config().EmitXrefRules() && ctx.Module() == ctx.PrimaryModule() {
 		extractionFile := android.PathForModuleOut(ctx, kzipName)
 		emitXrefRule(ctx, extractionFile, idx, srcFiles, srcJars, flags, extraJarDeps)
 		j.kytheFiles = append(j.kytheFiles, extractionFile)
