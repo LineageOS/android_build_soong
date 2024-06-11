@@ -82,6 +82,15 @@ func FlagArtifactsFactory(artifactsPath string) *FlagArtifacts {
 	return &ret
 }
 
+func (fas *FlagArtifacts) SortedFlagNames() []string {
+	var names []string
+	for k, _ := range *fas {
+		names = append(names, k)
+	}
+	slices.Sort(names)
+	return names
+}
+
 func (fa *FlagArtifact) GenerateFlagDeclarationArtifact() *rc_proto.FlagDeclarationArtifact {
 	ret := &rc_proto.FlagDeclarationArtifact{
 		Name:            fa.FlagDeclaration.Name,
