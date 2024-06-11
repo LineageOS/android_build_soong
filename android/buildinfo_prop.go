@@ -16,7 +16,6 @@ package android
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -29,6 +28,8 @@ func init() {
 type buildinfoPropProperties struct {
 	// Whether this module is directly installable to one of the partitions. Default: true.
 	Installable *bool
+
+	Product_config *string `android:"path"`
 }
 
 type buildinfoPropModule struct {
@@ -52,24 +53,6 @@ func (p *buildinfoPropModule) OutputFiles(tag string) (Paths, error) {
 		return nil, fmt.Errorf("unsupported tag %q", tag)
 	}
 	return Paths{p.outputFilePath}, nil
-}
-
-func getBuildVariant(config Config) string {
-	if config.Eng() {
-		return "eng"
-	} else if config.Debuggable() {
-		return "userdebug"
-	} else {
-		return "user"
-	}
-}
-
-func getBuildFlavor(config Config) string {
-	buildFlavor := config.DeviceProduct() + "-" + getBuildVariant(config)
-	if InList("address", config.SanitizeDevice()) && !strings.Contains(buildFlavor, "_asan") {
-		buildFlavor += "_asan"
-	}
-	return buildFlavor
 }
 
 func shouldAddBuildThumbprint(config Config) bool {
@@ -101,20 +84,10 @@ func (p *buildinfoPropModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	rule := NewRuleBuilder(pctx, ctx)
 
 	config := ctx.Config()
-	buildVariant := getBuildVariant(config)
-	buildFlavor := getBuildFlavor(config)
 
 	cmd := rule.Command().BuiltTool("buildinfo")
 
-	if config.BoardUseVbmetaDigestInFingerprint() {
-		cmd.Flag("--use-vbmeta-digest-in-fingerprint")
-	}
-
-	cmd.FlagWithArg("--build-flavor=", buildFlavor)
 	cmd.FlagWithInput("--build-hostname-file=", config.BuildHostnameFile(ctx))
-	cmd.FlagWithArg("--build-id=", config.BuildId())
-	cmd.FlagWithArg("--build-keys=", config.BuildKeys())
-
 	// Note: depending on BuildNumberFile will cause the build.prop file to be rebuilt
 	// every build, but that's intentional.
 	cmd.FlagWithInput("--build-number-file=", config.BuildNumberFile(ctx))
@@ -122,42 +95,14 @@ func (p *buildinfoPropModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 		// In the previous make implementation, a dependency was not added on the thumbprint file
 		cmd.FlagWithArg("--build-thumbprint-file=", config.BuildThumbprintFile(ctx).String())
 	}
-
-	cmd.FlagWithArg("--build-type=", config.BuildType())
 	cmd.FlagWithArg("--build-username=", config.Getenv("BUILD_USERNAME"))
-	cmd.FlagWithArg("--build-variant=", buildVariant)
-	cmd.FlagForEachArg("--cpu-abis=", config.DeviceAbi())
-
 	// Technically we should also have a dependency on BUILD_DATETIME_FILE,
 	// but it can be either an absolute or relative path, which is hard to turn into
 	// a Path object. So just rely on the BuildNumberFile always changing to cause
 	// us to rebuild.
 	cmd.FlagWithArg("--date-file=", ctx.Config().Getenv("BUILD_DATETIME_FILE"))
-
-	if len(config.ProductLocales()) > 0 {
-		cmd.FlagWithArg("--default-locale=", config.ProductLocales()[0])
-	}
-
-	cmd.FlagForEachArg("--default-wifi-channels=", config.ProductDefaultWifiChannels())
-	cmd.FlagWithArg("--device=", config.DeviceName())
-	if config.DisplayBuildNumber() {
-		cmd.Flag("--display-build-number")
-	}
-
-	cmd.FlagWithArg("--platform-base-os=", config.PlatformBaseOS())
-	cmd.FlagWithArg("--platform-display-version=", config.PlatformDisplayVersionName())
-	cmd.FlagWithArg("--platform-min-supported-target-sdk-version=", config.PlatformMinSupportedTargetSdkVersion())
 	cmd.FlagWithInput("--platform-preview-sdk-fingerprint-file=", ApiFingerprintPath(ctx))
-	cmd.FlagWithArg("--platform-preview-sdk-version=", config.PlatformPreviewSdkVersion())
-	cmd.FlagWithArg("--platform-sdk-version=", config.PlatformSdkVersion().String())
-	cmd.FlagWithArg("--platform-security-patch=", config.PlatformSecurityPatch())
-	cmd.FlagWithArg("--platform-version=", config.PlatformVersionName())
-	cmd.FlagWithArg("--platform-version-codename=", config.PlatformSdkCodename())
-	cmd.FlagForEachArg("--platform-version-all-codenames=", config.PlatformVersionActiveCodenames())
-	cmd.FlagWithArg("--platform-version-known-codenames=", config.PlatformVersionKnownCodenames())
-	cmd.FlagWithArg("--platform-version-last-stable=", config.PlatformVersionLastStable())
-	cmd.FlagWithArg("--product=", config.DeviceProduct())
-
+	cmd.FlagWithInput("--product-config=", PathForModuleSrc(ctx, proptools.String(p.properties.Product_config)))
 	cmd.FlagWithOutput("--out=", p.outputFilePath)
 
 	rule.Build(ctx.ModuleName(), "generating buildinfo props")

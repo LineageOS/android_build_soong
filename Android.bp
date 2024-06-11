@@ -128,6 +128,8 @@ buildinfo_prop {
     // not installable because this will be included to system/build.prop
     installable: false,
 
+    product_config: ":product_config",
+
     // Currently, only microdroid can refer to buildinfo.prop
     visibility: ["//packages/modules/Virtualization/microdroid"],
 }
