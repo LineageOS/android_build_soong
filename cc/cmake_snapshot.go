@@ -489,16 +489,23 @@ func getModuleType(m *Module) string {
 		return "library"
 	case *testBinary:
 		return "executable"
+	case *benchmarkDecorator:
+		return "executable"
 	}
-	panic(fmt.Sprintf("Unexpected module type: %T", m.compiler))
+	panic(fmt.Sprintf("Unexpected module type: %T", m.linker))
 }
 
 func getExtraLibs(m *Module) []string {
 	switch decorator := m.linker.(type) {
 	case *testBinary:
 		if decorator.testDecorator.gtest() {
-			return []string{"libgtest"}
+			return []string{
+				"libgtest",
+				"libgtest_main",
+			}
 		}
+	case *benchmarkDecorator:
+		return []string{"libgoogle-benchmark"}
 	}
 	return nil
 }
@@ -507,7 +514,7 @@ func getIncludeDirs(ctx android.ModuleContext, m *Module) []string {
 	moduleDir := ctx.OtherModuleDir(m) + string(filepath.Separator)
 	switch decorator := m.compiler.(type) {
 	case *libraryDecorator:
-		return sliceWithPrefix(moduleDir, decorator.flagExporter.Properties.Export_include_dirs)
+		return sliceWithPrefix(moduleDir, decorator.flagExporter.Properties.Export_include_dirs.GetOrDefault(ctx, nil))
 	}
 	return nil
 }

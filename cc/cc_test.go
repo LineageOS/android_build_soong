@@ -658,7 +658,7 @@ func TestMakeLinkType(t *testing.T) {
 	}{
 		{vendorVariant, "libvendor", "native:vendor"},
 		{vendorVariant, "libllndk", "native:vndk"},
-		{vendorVariant27, "prevndk.vndk.27.arm.binder32", "native:vndk"},
+		{vendorVariant27, "prevndk.vndk.27.arm.binder32", "native:vendor"},
 		{coreVariant, "libllndk", "native:platform"},
 	}
 	for _, test := range tests {

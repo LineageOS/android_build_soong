@@ -15,7 +15,6 @@
 package sh
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -188,15 +187,6 @@ func (s *ShBinary) OutputFile() android.OutputPath {
 	return s.outputFilePath
 }
 
-func (s *ShBinary) OutputFiles(tag string) (android.Paths, error) {
-	switch tag {
-	case "":
-		return android.Paths{s.outputFilePath}, nil
-	default:
-		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
-	}
-}
-
 func (s *ShBinary) SubDir() string {
 	return proptools.String(s.properties.Sub_dir)
 }
@@ -271,6 +261,8 @@ func (s *ShBinary) generateAndroidBuildActions(ctx android.ModuleContext) {
 		Input:  s.sourceFilePath,
 	})
 	android.SetProvider(ctx, blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: []string{s.sourceFilePath.String()}})
+
+	ctx.SetOutputFiles(android.Paths{s.outputFilePath}, "")
 }
 
 func (s *ShBinary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
