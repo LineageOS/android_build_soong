@@ -18,46 +18,78 @@
 
 import argparse
 import contextlib
+import json
+import os
 import subprocess
+
+TEST_KEY_DIR = "build/make/target/product/security"
+
+def get_build_variant(product_config):
+  if product_config["Eng"]:
+    return "eng"
+  elif product_config["Debuggable"]:
+    return "userdebug"
+  else:
+    return "user"
+
+def get_build_flavor(product_config):
+  build_flavor = product_config["DeviceProduct"] + "-" + get_build_variant(product_config)
+  if "address" in product_config.get("SanitizeDevice", []) and "_asan" not in build_flavor:
+    build_flavor += "_asan"
+  return build_flavor
+
+def get_build_keys(product_config):
+  default_cert = product_config.get("DefaultAppCertificate", "")
+  if default_cert == "" or default_cert == os.path.join(TEST_KEY_DIR, "testKey"):
+    return "test-keys"
+  return "dev-keys"
 
 def parse_args():
   """Parse commandline arguments."""
   parser = argparse.ArgumentParser()
-  parser.add_argument('--use-vbmeta-digest-in-fingerprint', action='store_true')
-  parser.add_argument('--build-flavor', required=True)
   parser.add_argument('--build-hostname-file', required=True, type=argparse.FileType('r')),
-  parser.add_argument('--build-id', required=True)
-  parser.add_argument('--build-keys', required=True)
   parser.add_argument('--build-number-file', required=True, type=argparse.FileType('r'))
   parser.add_argument('--build-thumbprint-file', type=argparse.FileType('r'))
-  parser.add_argument('--build-type', required=True)
   parser.add_argument('--build-username', required=True)
-  parser.add_argument('--build-variant', required=True)
-  parser.add_argument('--cpu-abis', action='append', required=True)
   parser.add_argument('--date-file', required=True, type=argparse.FileType('r'))
-  parser.add_argument('--default-locale')
-  parser.add_argument('--default-wifi-channels', action='append', default=[])
-  parser.add_argument('--device', required=True)
-  parser.add_argument("--display-build-number", action='store_true')
-  parser.add_argument('--platform-base-os', required=True)
-  parser.add_argument('--platform-display-version', required=True)
-  parser.add_argument('--platform-min-supported-target-sdk-version', required=True)
   parser.add_argument('--platform-preview-sdk-fingerprint-file',
                       required=True,
                       type=argparse.FileType('r'))
-  parser.add_argument('--platform-preview-sdk-version', required=True)
-  parser.add_argument('--platform-sdk-version', required=True)
-  parser.add_argument('--platform-security-patch', required=True)
-  parser.add_argument('--platform-version', required=True)
-  parser.add_argument('--platform-version-codename',required=True)
-  parser.add_argument('--platform-version-all-codenames', action='append', required=True)
-  parser.add_argument('--platform-version-known-codenames', required=True)
-  parser.add_argument('--platform-version-last-stable', required=True)
-  parser.add_argument('--product', required=True)
-
+  parser.add_argument('--product-config', required=True, type=argparse.FileType('r'))
   parser.add_argument('--out', required=True, type=argparse.FileType('w'))
 
-  return parser.parse_args()
+  option = parser.parse_args()
+
+  product_config = json.load(option.product_config)
+  build_flags = product_config["BuildFlags"]
+
+  option.build_flavor = get_build_flavor(product_config)
+  option.build_keys = get_build_keys(product_config)
+  option.build_id = product_config["BuildId"]
+  option.build_type = product_config["BuildType"]
+  option.build_variant = get_build_variant(product_config)
+  option.cpu_abis = product_config["DeviceAbi"]
+  option.default_locale = None
+  if len(product_config.get("ProductLocales", [])) > 0:
+    option.default_locale = product_config["ProductLocales"][0]
+  option.default_wifi_channels = product_config.get("ProductDefaultWifiChannels", [])
+  option.device = product_config["DeviceName"]
+  option.display_build_number = product_config["DisplayBuildNumber"]
+  option.platform_base_os = product_config["Platform_base_os"]
+  option.platform_display_version = product_config["Platform_display_version_name"]
+  option.platform_min_supported_target_sdk_version = build_flags["RELEASE_PLATFORM_MIN_SUPPORTED_TARGET_SDK_VERSION"]
+  option.platform_preview_sdk_version = product_config["Platform_preview_sdk_version"]
+  option.platform_sdk_version = product_config["Platform_sdk_version"]
+  option.platform_security_patch = product_config["Platform_security_patch"]
+  option.platform_version = product_config["Platform_version_name"]
+  option.platform_version_codename = product_config["Platform_sdk_codename"]
+  option.platform_version_all_codenames = product_config["Platform_version_active_codenames"]
+  option.platform_version_known_codenames = product_config["Platform_version_known_codenames"]
+  option.platform_version_last_stable = product_config["Platform_version_last_stable"]
+  option.product = product_config["DeviceProduct"]
+  option.use_vbmeta_digest_in_fingerprint = product_config["BoardUseVbmetaDigestInFingerprint"]
+
+  return option
 
 def main():
   option = parse_args()
