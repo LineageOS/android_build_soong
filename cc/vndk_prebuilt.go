@@ -49,6 +49,8 @@ var (
 //	    },
 //	}
 type vndkPrebuiltProperties struct {
+	VndkProperties
+
 	// VNDK snapshot version.
 	Version *string
 
@@ -267,4 +269,15 @@ func VndkPrebuiltSharedFactory() android.Module {
 
 func init() {
 	android.RegisterModuleType("vndk_prebuilt_shared", VndkPrebuiltSharedFactory)
+}
+
+func IsForVndkApex(mctx android.BottomUpMutatorContext, m *Module) bool {
+	if !m.Enabled(mctx) {
+		return true
+	}
+
+	if p, ok := m.linker.(*vndkPrebuiltLibraryDecorator); ok {
+		return p.MatchesWithDevice(mctx.DeviceConfig()) && Bool(p.properties.Vndk.Enabled)
+	}
+	return false
 }

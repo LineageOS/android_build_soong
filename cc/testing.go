@@ -555,7 +555,6 @@ var PrepareForTestWithCcBuildComponents = android.GroupFixturePreparers(
 		ctx.RegisterModuleType("cc_test_library", TestLibraryFactory)
 		ctx.RegisterModuleType("vndk_prebuilt_shared", VndkPrebuiltSharedFactory)
 
-		RegisterVndkLibraryTxtTypes(ctx)
 		RegisterLlndkLibraryTxtType(ctx)
 	}),
 
@@ -704,7 +703,6 @@ func CreateTestContext(config android.Config) *android.TestContext {
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("vndk_prebuilt_shared", VndkPrebuiltSharedFactory)
 
-	RegisterVndkLibraryTxtTypes(ctx)
 	RegisterLlndkLibraryTxtType(ctx)
 
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
