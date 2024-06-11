@@ -136,3 +136,8 @@ buildinfo_prop {
 all_apex_contributions {
     name: "all_apex_contributions",
 }
+
+product_config {
+    name: "product_config",
+    visibility: ["//visibility:private"],
+}

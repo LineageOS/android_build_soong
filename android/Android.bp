@@ -83,6 +83,7 @@ bootstrap_go_package {
         "plugin.go",
         "prebuilt.go",
         "prebuilt_build_tool.go",
+        "product_config.go",
         "proto.go",
         "provider.go",
         "raw_files.go",
