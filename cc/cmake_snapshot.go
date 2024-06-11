@@ -507,7 +507,7 @@ func getIncludeDirs(ctx android.ModuleContext, m *Module) []string {
 	moduleDir := ctx.OtherModuleDir(m) + string(filepath.Separator)
 	switch decorator := m.compiler.(type) {
 	case *libraryDecorator:
-		return sliceWithPrefix(moduleDir, decorator.flagExporter.Properties.Export_include_dirs)
+		return sliceWithPrefix(moduleDir, decorator.flagExporter.Properties.Export_include_dirs.GetOrDefault(ctx, nil))
 	}
 	return nil
 }
