@@ -163,6 +163,7 @@ func GetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 		for _, fa := range configs.FlagArtifacts {
 			args = append(args, *fa.FlagDeclaration.Name)
 		}
+		slices.Sort(args)
 	}
 
 	var maxVariableNameLen, maxReleaseNameLen int
@@ -232,7 +233,7 @@ func GetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 			} else {
 				outputOneLine(arg, config.Name, "REDACTED", "%s")
 			}
-			if isTrace {
+			if err == nil && isTrace {
 				for _, trace := range config.FlagArtifacts[arg].Traces {
 					fmt.Printf("  => \"%s\" in %s\n", rc_lib.MarshalValue(trace.Value), *trace.Source)
 				}
@@ -244,6 +245,8 @@ func GetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 
 func SetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, args []string) error {
 	var valueDir string
+	var redacted bool
+	var value string
 	if len(commonFlags.targetReleases) > 1 {
 		return fmt.Errorf("set command only allows one --release argument.  Got: %s", strings.Join(commonFlags.targetReleases, " "))
 	}
@@ -251,13 +254,20 @@ func SetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 
 	setFlags := flag.NewFlagSet("set", flag.ExitOnError)
 	setFlags.StringVar(&valueDir, "dir", "", "Directory in which to place the value")
+	setFlags.BoolVar(&redacted, "redacted", false, "Whether the flag should be redacted")
 	setFlags.Parse(args)
 	setArgs := setFlags.Args()
-	if len(setArgs) != 2 {
+	if redacted {
+		if len(setArgs) != 1 {
+			return fmt.Errorf("set command expected '--redacted=true flag', got: --redacted=true %s", strings.Join(setArgs, " "))
+		}
+	} else if len(setArgs) != 2 {
 		return fmt.Errorf("set command expected flag and value, got: %s", strings.Join(setArgs, " "))
 	}
 	name := setArgs[0]
-	value := setArgs[1]
+	if !redacted {
+		value = setArgs[1]
+	}
 	release, err := configs.GetReleaseConfig(targetRelease)
 	targetRelease = release.Name
 	if err != nil {
@@ -278,9 +288,30 @@ func SetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 		valueDir = mapDir
 	}
 
+	var updatedFiles []string
+	rcPath := filepath.Join(valueDir, "release_configs", fmt.Sprintf("%s.textproto", targetRelease))
+	// Create the release config declaration only if necessary.
+	if _, err = os.Stat(rcPath); err != nil {
+		if err = os.MkdirAll(filepath.Dir(rcPath), 0775); err != nil {
+			return err
+		}
+		rcValue := &rc_proto.ReleaseConfig{
+			Name: proto.String(targetRelease),
+		}
+		err = rc_lib.WriteMessage(rcPath, rcValue)
+		if err != nil {
+			return err
+		}
+		updatedFiles = append(updatedFiles, rcPath)
+	}
+
 	flagValue := &rc_proto.FlagValue{
-		Name:  proto.String(name),
-		Value: rc_lib.UnmarshalValue(value),
+		Name: proto.String(name),
+	}
+	if redacted {
+		flagValue.Redacted = proto.Bool(true)
+	} else {
+		flagValue.Value = rc_lib.UnmarshalValue(value)
 	}
 	flagPath := filepath.Join(valueDir, "flag_values", targetRelease, fmt.Sprintf("%s.textproto", name))
 	err = rc_lib.WriteMessage(flagPath, flagValue)
@@ -293,11 +324,12 @@ func SetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 	if err != nil {
 		return err
 	}
-	err = GetCommand(configs, commonFlags, cmd, args[0:1])
+	err = GetCommand(configs, commonFlags, cmd, []string{name})
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Updated: %s\n", flagPath)
+	updatedFiles = append(updatedFiles, flagPath)
+	fmt.Printf("Added/Updated: %s\n", strings.Join(updatedFiles, " "))
 	return nil
 }
 

@@ -133,10 +133,6 @@ type PrebuiltEtcModule interface {
 
 	// Returns the sub install directory relative to BaseDir().
 	SubDir() string
-
-	// Returns an android.OutputPath to the intermediate file, which is the renamed prebuilt source
-	// file.
-	OutputFiles(tag string) (android.Paths, error)
 }
 
 type PrebuiltEtc struct {
