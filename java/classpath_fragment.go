@@ -128,19 +128,21 @@ func configuredJarListToClasspathJars(ctx android.ModuleContext, configuredJars 
 				return m.Name() == configuredJars.Jar(i)
 			}, func(m android.Module) {
 				if s, ok := m.(*SdkLibrary); ok {
+					minSdkVersion := s.MinSdkVersion(ctx)
+					maxSdkVersion := s.MaxSdkVersion(ctx)
 					// TODO(208456999): instead of mapping "current" to latest, min_sdk_version should never be set to "current"
-					if s.minSdkVersion.Specified() {
-						if s.minSdkVersion.IsCurrent() {
+					if minSdkVersion.Specified() {
+						if minSdkVersion.IsCurrent() {
 							jar.minSdkVersion = ctx.Config().DefaultAppTargetSdk(ctx).String()
 						} else {
-							jar.minSdkVersion = s.minSdkVersion.String()
+							jar.minSdkVersion = minSdkVersion.String()
 						}
 					}
-					if s.maxSdkVersion.Specified() {
-						if s.maxSdkVersion.IsCurrent() {
+					if maxSdkVersion.Specified() {
+						if maxSdkVersion.IsCurrent() {
 							jar.maxSdkVersion = ctx.Config().DefaultAppTargetSdk(ctx).String()
 						} else {
-							jar.maxSdkVersion = s.maxSdkVersion.String()
+							jar.maxSdkVersion = maxSdkVersion.String()
 						}
 					}
 				}
