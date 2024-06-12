@@ -1366,4 +1366,89 @@ func TestBootclasspathFragment_AndroidNonUpdatable_AlwaysUsePrebuiltSdks(t *test
 	android.AssertStringDoesContain(t, "test", command, "--test-stub-classpath="+nonUpdatableTestStubs)
 }
 
+func TestBootclasspathFragmentProtoContainsMinSdkVersion(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForTestWithBootclasspathFragment,
+		prepareForTestWithMyapex,
+		// Configure bootclasspath jars to ensure that hidden API encoding is performed on them.
+		java.FixtureConfigureApexBootJars("myapex:foo", "myapex:bar"),
+		// Make sure that the frameworks/base/Android.bp file exists as otherwise hidden API encoding
+		// is disabled.
+		android.FixtureAddTextFile("frameworks/base/Android.bp", ""),
+
+		java.PrepareForTestWithJavaSdkLibraryFiles,
+		java.FixtureWithLastReleaseApis("foo", "bar"),
+	).RunTestWithBp(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			bootclasspath_fragments: [
+				"mybootclasspathfragment",
+			],
+			updatable: false,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_sdk_library {
+			name: "foo",
+			srcs: ["b.java"],
+			shared_library: false,
+			public: {enabled: true},
+			apex_available: [
+				"myapex",
+			],
+			min_sdk_version: "33",
+		}
+
+		java_sdk_library {
+			name: "bar",
+			srcs: ["b.java"],
+			shared_library: false,
+			public: {enabled: true},
+			apex_available: [
+				"myapex",
+			],
+			min_sdk_version: "34",
+		}
+
+		bootclasspath_fragment {
+			name: "mybootclasspathfragment",
+			contents: [
+				"foo",
+				"bar",
+			],
+			apex_available: [
+				"myapex",
+			],
+			hidden_api: {
+				split_packages: ["*"],
+			},
+		}
+	`)
+
+	fragment := result.ModuleForTests("mybootclasspathfragment", "android_common_apex10000")
+	classPathProtoContent := android.ContentFromFileRuleForTests(t, result.TestContext, fragment.Output("bootclasspath.pb.textproto"))
+	// foo
+	ensureContains(t, classPathProtoContent, `jars {
+path: "/apex/myapex/javalib/foo.jar"
+classpath: BOOTCLASSPATH
+min_sdk_version: "33"
+max_sdk_version: ""
+}
+`)
+	// bar
+	ensureContains(t, classPathProtoContent, `jars {
+path: "/apex/myapex/javalib/bar.jar"
+classpath: BOOTCLASSPATH
+min_sdk_version: "34"
+max_sdk_version: ""
+}
+`)
+}
+
 // TODO(b/177892522) - add test for host apex.
