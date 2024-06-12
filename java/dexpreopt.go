@@ -312,10 +312,6 @@ func dexpreoptToolDepsMutator(ctx android.BottomUpMutatorContext) {
 	dexpreopt.RegisterToolDeps(ctx)
 }
 
-func (d *dexpreopter) odexOnSystemOther(ctx android.ModuleContext, libName string, installPath android.InstallPath) bool {
-	return dexpreopt.OdexOnSystemOtherByName(libName, android.InstallPathToOnDevicePath(ctx, installPath), dexpreopt.GetGlobalConfig(ctx))
-}
-
 // Returns the install path of the dex jar of a module.
 //
 // Do not rely on `ApexInfo.ApexVariationName` because it can be something like "apex1000", rather
