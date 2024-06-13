@@ -104,6 +104,7 @@ cc_genrule {
 // Instantiate the dex_bootjars singleton module.
 dex_bootjars {
     name: "dex_bootjars",
+    no_full_install: true,
 }
 
 // Pseudo-test that's run on checkbuilds to ensure that get_clang_version can
