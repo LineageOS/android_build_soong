@@ -236,7 +236,8 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	esc := proptools.NinjaAndShellEscapeList
 
 	// Filter out invalid cflags
-	for _, flag := range b.ClangProperties.Cflags {
+	cflagsProp := b.ClangProperties.Cflags.GetOrDefault(ctx, nil)
+	for _, flag := range cflagsProp {
 		if flag == "-x c++" || flag == "-xc++" {
 			ctx.PropertyErrorf("cflags",
 				"-x c++ should not be specified in cflags; setting cpp_std specifies this is a C++ header, or change the file extension to '.hpp' or '.hh'")
@@ -248,7 +249,7 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	}
 
 	// Module defined clang flags and include paths
-	cflags = append(cflags, esc(b.ClangProperties.Cflags)...)
+	cflags = append(cflags, esc(cflagsProp)...)
 	for _, include := range b.ClangProperties.Local_include_dirs {
 		cflags = append(cflags, "-I"+android.PathForModuleSrc(ctx, include).String())
 		implicits = append(implicits, android.PathForModuleSrc(ctx, include))
