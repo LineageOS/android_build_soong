@@ -135,9 +135,11 @@ func (src *FlagArtifact) Clone() *FlagArtifact {
 	value := &rc_proto.Value{}
 	proto.Merge(value, src.Value)
 	return &FlagArtifact{
-		FlagDeclaration: src.FlagDeclaration,
-		Traces:          src.Traces,
-		Value:           value,
+		FlagDeclaration:  src.FlagDeclaration,
+		Traces:           src.Traces,
+		Value:            value,
+		DeclarationIndex: src.DeclarationIndex,
+		Redacted:         src.Redacted,
 	}
 }
 
