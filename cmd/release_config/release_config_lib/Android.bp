@@ -24,6 +24,7 @@ bootstrap_go_package {
         "golang-protobuf-reflect-protoreflect",
         "golang-protobuf-runtime-protoimpl",
         "soong-cmd-release_config-proto",
+        "blueprint-pathtools",
     ],
     srcs: [
         "flag_artifact.go",
