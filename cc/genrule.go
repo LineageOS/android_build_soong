@@ -62,6 +62,8 @@ func GenRuleFactory() android.Module {
 
 	android.InitApexModule(module)
 
+	android.InitDefaultableModule(module)
+
 	return module
 }
 
