@@ -241,7 +241,7 @@ func (p *PrebuiltEtc) ExtraImageVariations(ctx android.BaseModuleContext) []stri
 	return nil
 }
 
-func (p *PrebuiltEtc) SetImageVariation(ctx android.BaseModuleContext, variation string, module android.Module) {
+func (p *PrebuiltEtc) SetImageVariation(ctx android.BaseModuleContext, variation string) {
 }
 
 func (p *PrebuiltEtc) SourceFilePath(ctx android.ModuleContext) android.Path {
