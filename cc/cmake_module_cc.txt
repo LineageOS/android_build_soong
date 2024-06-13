@@ -8,15 +8,24 @@
 (getLinkerProperties .M).Header_libs
 (getExtraLibs .M)
 ) .Pprop.LibraryMapping>>
+<<$moduleType := getModuleType .M>>
+<<$moduleTypeCmake := "executable">>
+<<if eq $moduleType "library">>
+<<$moduleTypeCmake = "library">>
+<<end>>
 
 # <<.M.Name>>
 <<if $srcs>>
 <<setList .M.Name "_SRCS" "${ANDROID_BUILD_TOP}/" (toStrings $srcs)>>
-add_<<getModuleType .M>>(<<.M.Name>> ${<<.M.Name>>_SRCS})
+add_<<$moduleTypeCmake>>(<<.M.Name>> ${<<.M.Name>>_SRCS})
 <<- else>>
-add_<<getModuleType .M>>(<<.M.Name>> INTERFACE)
+add_<<$moduleTypeCmake>>(<<.M.Name>> INTERFACE)
 <<- end>>
-add_<<getModuleType .M>>(android::<<.M.Name>> ALIAS <<.M.Name>>)
+<<- if eq $moduleType "library">>
+add_library(android::<<.M.Name>> ALIAS <<.M.Name>>)
+<<- else if eq $moduleType "test">>
+add_test(NAME <<.M.Name>> COMMAND <<.M.Name>>)
+<<- end>>
 <<print "">>
 
 <<- if $includeDirs>>
