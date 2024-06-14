@@ -243,10 +243,8 @@ func (s *ShBinary) ExtraImageVariations(ctx android.BaseModuleContext) []string 
 	return extraVariations
 }
 
-func (s *ShBinary) SetImageVariation(ctx android.BaseModuleContext, variation string, module android.Module) {
-	if m, ok := module.(*ShBinary); ok {
-		m.properties.ImageVariation = variation
-	}
+func (s *ShBinary) SetImageVariation(ctx android.BaseModuleContext, variation string) {
+	s.properties.ImageVariation = variation
 }
 
 // Overrides ModuleBase.InstallInRamdisk() so that the install rule respects

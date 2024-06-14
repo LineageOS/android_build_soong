@@ -44,9 +44,8 @@ type ImageInterface interface {
 	ExtraImageVariations(ctx BaseModuleContext) []string
 
 	// SetImageVariation is called for each newly created image variant. The receiver is the original
-	// module, "variation" is the name of the newly created variant and "module" is the newly created
-	// variant itself.
-	SetImageVariation(ctx BaseModuleContext, variation string, module Module)
+	// module, "variation" is the name of the newly created variant. "variation" is set on the receiver.
+	SetImageVariation(ctx BaseModuleContext, variation string)
 }
 
 const (
@@ -106,7 +105,7 @@ func imageMutator(ctx BottomUpMutatorContext) {
 		mod := ctx.CreateVariations(variations...)
 		for i, v := range variations {
 			mod[i].base().setImageVariation(v)
-			m.SetImageVariation(ctx, v, mod[i])
+			mod[i].(ImageInterface).SetImageVariation(ctx, v)
 		}
 	}
 }

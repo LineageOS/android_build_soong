@@ -131,7 +131,7 @@ func (bpf *bpf) ExtraImageVariations(ctx android.BaseModuleContext) []string {
 	return nil
 }
 
-func (bpf *bpf) SetImageVariation(ctx android.BaseModuleContext, variation string, module android.Module) {
+func (bpf *bpf) SetImageVariation(ctx android.BaseModuleContext, variation string) {
 	bpf.properties.VendorInternal = variation == "vendor"
 }
 
