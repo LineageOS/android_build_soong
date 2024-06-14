@@ -511,5 +511,5 @@ func (v *CcApiVariant) ExtraImageVariations(ctx android.BaseModuleContext) []str
 
 	return variations
 }
-func (v *CcApiVariant) SetImageVariation(ctx android.BaseModuleContext, variation string, module android.Module) {
+func (v *CcApiVariant) SetImageVariation(ctx android.BaseModuleContext, variation string) {
 }
