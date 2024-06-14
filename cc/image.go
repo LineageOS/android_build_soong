@@ -628,30 +628,29 @@ func squashRamdiskSrcs(m *Module) {
 	}
 }
 
-func (c *Module) SetImageVariation(ctx android.BaseModuleContext, variant string, module android.Module) {
-	m := module.(*Module)
+func (c *Module) SetImageVariation(ctx android.BaseModuleContext, variant string) {
 	if variant == android.RamdiskVariation {
-		m.MakeAsPlatform()
-		squashRamdiskSrcs(m)
+		c.MakeAsPlatform()
+		squashRamdiskSrcs(c)
 	} else if variant == android.VendorRamdiskVariation {
-		m.MakeAsPlatform()
-		squashVendorRamdiskSrcs(m)
+		c.MakeAsPlatform()
+		squashVendorRamdiskSrcs(c)
 	} else if variant == android.RecoveryVariation {
-		m.MakeAsPlatform()
-		squashRecoverySrcs(m)
+		c.MakeAsPlatform()
+		squashRecoverySrcs(c)
 	} else if strings.HasPrefix(variant, VendorVariation) {
-		m.Properties.ImageVariation = VendorVariation
+		c.Properties.ImageVariation = VendorVariation
 
 		if strings.HasPrefix(variant, VendorVariationPrefix) {
-			m.Properties.VndkVersion = strings.TrimPrefix(variant, VendorVariationPrefix)
+			c.Properties.VndkVersion = strings.TrimPrefix(variant, VendorVariationPrefix)
 		}
-		squashVendorSrcs(m)
+		squashVendorSrcs(c)
 	} else if strings.HasPrefix(variant, ProductVariation) {
-		m.Properties.ImageVariation = ProductVariation
+		c.Properties.ImageVariation = ProductVariation
 		if strings.HasPrefix(variant, ProductVariationPrefix) {
-			m.Properties.VndkVersion = strings.TrimPrefix(variant, ProductVariationPrefix)
+			c.Properties.VndkVersion = strings.TrimPrefix(variant, ProductVariationPrefix)
 		}
-		squashProductSrcs(m)
+		squashProductSrcs(c)
 	}
 
 	if c.NeedsVendorPublicLibraryVariants() &&
