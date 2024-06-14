@@ -88,7 +88,7 @@ func main() {
 		return
 	}
 	// Write the makefile where release_config.mk is going to look for it.
-	err = configs.WriteMakefile(makefilePath, targetRelease)
+	err = config.WriteMakefile(makefilePath, targetRelease, configs)
 	if err != nil {
 		panic(err)
 	}
@@ -97,7 +97,7 @@ func main() {
 		for _, c := range configs.GetSortedReleaseConfigs() {
 			if c.Name != targetRelease {
 				makefilePath = filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.varmk", product, c.Name))
-				err = configs.WriteMakefile(makefilePath, c.Name)
+				err = config.WriteMakefile(makefilePath, c.Name, configs)
 				if err != nil {
 					panic(err)
 				}
