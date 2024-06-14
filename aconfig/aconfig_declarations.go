@@ -15,7 +15,6 @@
 package aconfig
 
 import (
-	"fmt"
 	"strings"
 
 	"android/soong/android"
@@ -44,8 +43,6 @@ type DeclarationsModule struct {
 		// The flags will only be repackaged if this prop is true.
 		Exportable bool
 	}
-
-	intermediatePath android.WritablePath
 }
 
 func DeclarationsFactory() android.Module {
@@ -83,18 +80,6 @@ func (module *DeclarationsModule) DepsMutator(ctx android.BottomUpMutatorContext
 	valuesFromConfig := ctx.Config().ReleaseAconfigValueSets()
 	if len(valuesFromConfig) > 0 {
 		ctx.AddDependency(ctx.Module(), implicitValuesTag, valuesFromConfig...)
-	}
-}
-
-func (module *DeclarationsModule) OutputFiles(tag string) (android.Paths, error) {
-	switch tag {
-	case "":
-		// The default output of this module is the intermediates format, which is
-		// not installable and in a private format that no other rules can handle
-		// correctly.
-		return []android.Path{module.intermediatePath}, nil
-	default:
-		return nil, fmt.Errorf("unsupported aconfig_declarations module reference tag %q", tag)
 	}
 }
 
@@ -171,5 +156,4 @@ func (module *DeclarationsModule) GenerateAndroidBuildActions(ctx android.Module
 		IntermediateCacheOutputPath: intermediateCacheFilePath,
 		IntermediateDumpOutputPath:  intermediateDumpFilePath,
 	})
-
 }
