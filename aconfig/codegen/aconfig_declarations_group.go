@@ -39,11 +39,6 @@ type AconfigDeclarationsGroup struct {
 	android.DefaultableModuleBase
 
 	properties AconfigDeclarationsGroupProperties
-
-	aconfigDeclarationNames      []string
-	intermediateCacheOutputPaths android.Paths
-	javaSrcjars                  android.Paths
-	modeInfos                    map[string]android.ModeInfo
 }
 
 type AconfigDeclarationsGroupProperties struct {
@@ -76,53 +71,45 @@ func (adg *AconfigDeclarationsGroup) DepsMutator(ctx android.BottomUpMutatorCont
 	ctx.AddDependency(ctx.Module(), rustAconfigLibraryTag, adg.properties.Rust_aconfig_libraries...)
 }
 
-func (adg *AconfigDeclarationsGroup) VisitDeps(ctx android.ModuleContext) {
-	adg.modeInfos = make(map[string]android.ModeInfo)
+func (adg *AconfigDeclarationsGroup) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	modeInfos := make(map[string]android.ModeInfo)
+	var aconfigDeclarationNames []string
+	var intermediateCacheOutputPaths android.Paths
+	var javaSrcjars android.Paths
 	ctx.VisitDirectDeps(func(dep android.Module) {
 		tag := ctx.OtherModuleDependencyTag(dep)
 		if provider, ok := android.OtherModuleProvider(ctx, dep, android.CodegenInfoProvider); ok {
 
 			// aconfig declaration names and cache files are collected for all aconfig library dependencies
-			adg.aconfigDeclarationNames = append(adg.aconfigDeclarationNames, provider.AconfigDeclarations...)
-			adg.intermediateCacheOutputPaths = append(adg.intermediateCacheOutputPaths, provider.IntermediateCacheOutputPaths...)
+			aconfigDeclarationNames = append(aconfigDeclarationNames, provider.AconfigDeclarations...)
+			intermediateCacheOutputPaths = append(intermediateCacheOutputPaths, provider.IntermediateCacheOutputPaths...)
 
 			switch tag {
 			case aconfigDeclarationsGroupTag:
 				// Will retrieve outputs from another language codegen modules when support is added
-				adg.javaSrcjars = append(adg.javaSrcjars, provider.Srcjars...)
-				maps.Copy(adg.modeInfos, provider.ModeInfos)
+				javaSrcjars = append(javaSrcjars, provider.Srcjars...)
+				maps.Copy(modeInfos, provider.ModeInfos)
 			case javaAconfigLibraryTag:
-				adg.javaSrcjars = append(adg.javaSrcjars, provider.Srcjars...)
-				maps.Copy(adg.modeInfos, provider.ModeInfos)
+				javaSrcjars = append(javaSrcjars, provider.Srcjars...)
+				maps.Copy(modeInfos, provider.ModeInfos)
 			case ccAconfigLibraryTag:
-				maps.Copy(adg.modeInfos, provider.ModeInfos)
+				maps.Copy(modeInfos, provider.ModeInfos)
 			case rustAconfigLibraryTag:
-				maps.Copy(adg.modeInfos, provider.ModeInfos)
+				maps.Copy(modeInfos, provider.ModeInfos)
 			}
 		}
 	})
-}
 
-func (adg *AconfigDeclarationsGroup) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	adg.VisitDeps(ctx)
-	adg.aconfigDeclarationNames = android.FirstUniqueStrings(adg.aconfigDeclarationNames)
-	adg.intermediateCacheOutputPaths = android.FirstUniquePaths(adg.intermediateCacheOutputPaths)
+	aconfigDeclarationNames = android.FirstUniqueStrings(aconfigDeclarationNames)
+	intermediateCacheOutputPaths = android.FirstUniquePaths(intermediateCacheOutputPaths)
 
 	android.SetProvider(ctx, android.CodegenInfoProvider, android.CodegenInfo{
-		AconfigDeclarations:          adg.aconfigDeclarationNames,
-		IntermediateCacheOutputPaths: adg.intermediateCacheOutputPaths,
-		Srcjars:                      adg.javaSrcjars,
-		ModeInfos:                    adg.modeInfos,
+		AconfigDeclarations:          aconfigDeclarationNames,
+		IntermediateCacheOutputPaths: intermediateCacheOutputPaths,
+		Srcjars:                      javaSrcjars,
+		ModeInfos:                    modeInfos,
 	})
 
-	ctx.SetOutputFiles(adg.intermediateCacheOutputPaths, "")
-	ctx.SetOutputFiles(adg.javaSrcjars, ".srcjars")
-}
-
-func (adg *AconfigDeclarationsGroup) Srcjars() android.Paths {
-	return adg.javaSrcjars
-}
-
-func (adg *AconfigDeclarationsGroup) AconfigDeclarations() []string {
-	return adg.aconfigDeclarationNames
+	ctx.SetOutputFiles(intermediateCacheOutputPaths, "")
+	ctx.SetOutputFiles(javaSrcjars, ".srcjars")
 }
