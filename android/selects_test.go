@@ -778,6 +778,27 @@ func TestSelects(t *testing.T) {
 				my_string_list: &[]string{"a.cpp", "b.cpp", "c.cpp"},
 			},
 		},
+		{
+			name: "Test AppendSimpleValue",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_string_list: ["a.cpp"] + select(soong_config_variable("my_namespace", "my_variable"), {
+					"a": ["a.cpp"],
+					"b": ["b.cpp"],
+					default: ["c.cpp"],
+				}),
+			}
+			`,
+			vendorVars: map[string]map[string]string{
+				"selects_test": {
+					"append_to_string_list": "foo.cpp",
+				},
+			},
+			provider: selectsTestProvider{
+				my_string_list: &[]string{"a.cpp", "c.cpp", "foo.cpp"},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -892,6 +913,10 @@ func optionalToPtr[T any](o proptools.ConfigurableOptional[T]) *T {
 }
 
 func (p *selectsMockModule) GenerateAndroidBuildActions(ctx ModuleContext) {
+	toAppend := ctx.Config().VendorConfig("selects_test").String("append_to_string_list")
+	if toAppend != "" {
+		p.properties.My_string_list.AppendSimpleValue([]string{toAppend})
+	}
 	SetProvider(ctx, selectsTestProviderKey, selectsTestProvider{
 		my_bool:                        optionalToPtr(p.properties.My_bool.Get(ctx)),
 		my_string:                      optionalToPtr(p.properties.My_string.Get(ctx)),
