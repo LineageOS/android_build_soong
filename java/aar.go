@@ -107,6 +107,10 @@ type aaptProperties struct {
 
 	// Names of aconfig_declarations modules that specify aconfig flags that the module depends on.
 	Flags_packages []string
+
+	// If set, `--non-updatable-system` flag is not passed to aapt2 even when
+	// `--version-code` is not specified in the `aaptFlags` property list or in the manifest.
+	DisableNonUpdatableSystem bool `blueprint:"mutated"`
 }
 
 type aapt struct {
@@ -308,9 +312,9 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext android.SdkConte
 	// This behavior has been copied from Make.
 	linkFlags = append(linkFlags, "--target-sdk-version "+minSdkVersion)
 
-	// Version code
-	if !hasVersionCode {
-		linkFlags = append(linkFlags, "--version-code", ctx.Config().PlatformSdkVersion().String())
+	// Mark non updatable when the module does not specify a version code
+	if !a.aaptProperties.DisableNonUpdatableSystem && !hasVersionCode {
+		linkFlags = append(linkFlags, "--non-updatable-system")
 	}
 
 	if !hasVersionName {
