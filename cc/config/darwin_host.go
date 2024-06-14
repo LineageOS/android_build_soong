@@ -50,6 +50,8 @@ var (
 	darwinSupportedSdkVersions = []string{
 		"11",
 		"12",
+		"13",
+		"14",
 	}
 
 	darwinAvailableLibraries = append(
