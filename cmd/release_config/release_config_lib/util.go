@@ -25,6 +25,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/google/blueprint/pathtools"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
@@ -101,7 +102,7 @@ func WriteFormattedMessage(path, format string, message proto.Message) (err erro
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0644)
+	return pathtools.WriteFileIfChanged(path, data, 0644)
 }
 
 // Read a message from a file.
