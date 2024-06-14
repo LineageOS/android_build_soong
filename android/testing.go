@@ -1014,10 +1014,18 @@ func (m TestingModule) VariablesForTestsRelativeToTop() map[string]string {
 	return normalizeStringMapRelativeToTop(m.config, m.module.VariablesForTests())
 }
 
-// OutputFiles calls OutputFileProducer.OutputFiles on the encapsulated module, exits the test
-// immediately if there is an error and otherwise returns the result of calling Paths.RelativeToTop
+// OutputFiles first checks if module base outputFiles property has any output
+// files can be used to return.
+// If not, it calls OutputFileProducer.OutputFiles on the
+// encapsulated module, exits the test immediately if there is an error and
+// otherwise returns the result of calling Paths.RelativeToTop
 // on the returned Paths.
 func (m TestingModule) OutputFiles(t *testing.T, tag string) Paths {
+	// TODO: add non-empty-string tag case and remove OutputFileProducer part
+	if tag == "" && m.module.base().outputFiles.DefaultOutputFiles != nil {
+		return m.module.base().outputFiles.DefaultOutputFiles.RelativeToTop()
+	}
+
 	producer, ok := m.module.(OutputFileProducer)
 	if !ok {
 		t.Fatalf("%q must implement OutputFileProducer\n", m.module.Name())
