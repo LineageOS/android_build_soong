@@ -98,7 +98,7 @@ type BaseCompilerProperties struct {
 
 	// list of generated headers to add to the include path. These are the names
 	// of genrule modules.
-	Generated_headers []string `android:"arch_variant,variant_prepend"`
+	Generated_headers proptools.Configurable[[]string] `android:"arch_variant,variant_prepend"`
 
 	// pass -frtti instead of -fno-rtti
 	Rtti *bool
@@ -302,7 +302,7 @@ func (compiler *baseCompiler) compilerInit(ctx BaseModuleContext) {}
 func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.GeneratedSources = append(deps.GeneratedSources, compiler.Properties.Generated_sources...)
 	deps.GeneratedSources = removeListFromList(deps.GeneratedSources, compiler.Properties.Exclude_generated_sources)
-	deps.GeneratedHeaders = append(deps.GeneratedHeaders, compiler.Properties.Generated_headers...)
+	deps.GeneratedHeaders = append(deps.GeneratedHeaders, compiler.Properties.Generated_headers.GetOrDefault(ctx, nil)...)
 	deps.AidlLibs = append(deps.AidlLibs, compiler.Properties.Aidl.Libs...)
 
 	android.ProtoDeps(ctx, &compiler.Proto)
