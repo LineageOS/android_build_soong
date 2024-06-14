@@ -149,7 +149,7 @@ type StaticOrSharedProperties struct {
 
 	Sanitized Sanitized `android:"arch_variant"`
 
-	Cflags []string `android:"arch_variant"`
+	Cflags proptools.Configurable[[]string] `android:"arch_variant"`
 
 	Enabled            *bool    `android:"arch_variant"`
 	Whole_static_libs  []string `android:"arch_variant"`
@@ -464,9 +464,9 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 	}
 
 	if library.static() {
-		flags.Local.CFlags = append(flags.Local.CFlags, library.StaticProperties.Static.Cflags...)
+		flags.Local.CFlags = append(flags.Local.CFlags, library.StaticProperties.Static.Cflags.GetOrDefault(ctx, nil)...)
 	} else if library.shared() {
-		flags.Local.CFlags = append(flags.Local.CFlags, library.SharedProperties.Shared.Cflags...)
+		flags.Local.CFlags = append(flags.Local.CFlags, library.SharedProperties.Shared.Cflags.GetOrDefault(ctx, nil)...)
 	}
 
 	if library.shared() {
@@ -2066,8 +2066,8 @@ func reuseStaticLibrary(mctx android.BottomUpMutatorContext, static, shared *Mod
 
 		// Check libraries in addition to cflags, since libraries may be exporting different
 		// include directories.
-		if len(staticCompiler.StaticProperties.Static.Cflags) == 0 &&
-			len(sharedCompiler.SharedProperties.Shared.Cflags) == 0 &&
+		if len(staticCompiler.StaticProperties.Static.Cflags.GetOrDefault(mctx, nil)) == 0 &&
+			len(sharedCompiler.SharedProperties.Shared.Cflags.GetOrDefault(mctx, nil)) == 0 &&
 			len(staticCompiler.StaticProperties.Static.Whole_static_libs) == 0 &&
 			len(sharedCompiler.SharedProperties.Shared.Whole_static_libs) == 0 &&
 			len(staticCompiler.StaticProperties.Static.Static_libs) == 0 &&
