@@ -187,6 +187,10 @@ func parseTemplate(templateContents string) *template.Template {
 		"getCompilerProperties": func(m *Module) BaseCompilerProperties {
 			return m.compiler.baseCompilerProps()
 		},
+		"getCflagsProperty": func(ctx android.ModuleContext, m *Module) []string {
+			cflags := m.compiler.baseCompilerProps().Cflags
+			return cflags.GetOrDefault(ctx, nil)
+		},
 		"getLinkerProperties": func(m *Module) BaseLinkerProperties {
 			return m.linker.baseLinkerProps()
 		},
