@@ -67,9 +67,8 @@ func newMonolithicHiddenAPIInfo(ctx android.ModuleContext, flagFilesByCategory F
 
 		case *ClasspathFragmentElement:
 			fragment := e.Module()
-			if ctx.OtherModuleHasProvider(fragment, HiddenAPIInfoProvider) {
-				info := ctx.OtherModuleProvider(fragment, HiddenAPIInfoProvider).(HiddenAPIInfo)
-				monolithicInfo.append(&info)
+			if info, ok := android.OtherModuleProvider(ctx, fragment, HiddenAPIInfoProvider); ok {
+				monolithicInfo.append(ctx, fragment, &info)
 			} else {
 				ctx.ModuleErrorf("%s does not provide hidden API information", fragment)
 			}
@@ -80,14 +79,25 @@ func newMonolithicHiddenAPIInfo(ctx android.ModuleContext, flagFilesByCategory F
 }
 
 // append appends all the files from the supplied info to the corresponding files in this struct.
-func (i *MonolithicHiddenAPIInfo) append(other *HiddenAPIInfo) {
+func (i *MonolithicHiddenAPIInfo) append(ctx android.ModuleContext, otherModule android.Module, other *HiddenAPIInfo) {
 	i.FlagsFilesByCategory.append(other.FlagFilesByCategory)
 	i.AnnotationFlagsPaths = append(i.AnnotationFlagsPaths, other.AnnotationFlagsPath)
 	i.MetadataPaths = append(i.MetadataPaths, other.MetadataPath)
 	i.IndexPaths = append(i.IndexPaths, other.IndexPath)
 
-	i.StubFlagSubsets = append(i.StubFlagSubsets, other.StubFlagSubset())
-	i.FlagSubsets = append(i.FlagSubsets, other.FlagSubset())
+	apexInfo, ok := android.OtherModuleProvider(ctx, otherModule, android.ApexInfoProvider)
+	if !ok {
+		ctx.ModuleErrorf("Could not determine min_version_version of %s\n", otherModule.Name())
+		return
+	}
+	if apexInfo.MinSdkVersion.LessThanOrEqualTo(android.ApiLevelR) {
+		// Restrict verify_overlaps to R and older modules.
+		// The runtime in S does not have the same restriction that
+		// requires the hiddenapi flags to be generated in a monolithic
+		// invocation.
+		i.StubFlagSubsets = append(i.StubFlagSubsets, other.StubFlagSubset())
+		i.FlagSubsets = append(i.FlagSubsets, other.FlagSubset())
+	}
 }
 
-var MonolithicHiddenAPIInfoProvider = blueprint.NewProvider(MonolithicHiddenAPIInfo{})
+var MonolithicHiddenAPIInfoProvider = blueprint.NewProvider[MonolithicHiddenAPIInfo]()

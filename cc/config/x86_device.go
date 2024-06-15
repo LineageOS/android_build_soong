@@ -56,6 +56,11 @@ var (
 		"goldmont-plus": []string{
 			"-march=goldmont-plus",
 		},
+		"goldmont-without-sha-xsaves": []string{
+			"-march=goldmont",
+			"-mno-sha",
+			"-mno-xsaves",
+		},
 		"haswell": []string{
 			"-march=core-avx2",
 		},

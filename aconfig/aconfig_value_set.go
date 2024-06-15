@@ -54,7 +54,7 @@ type valueSetProviderData struct {
 	AvailablePackages map[string]android.Paths
 }
 
-var valueSetProviderKey = blueprint.NewProvider(valueSetProviderData{})
+var valueSetProviderKey = blueprint.NewProvider[valueSetProviderData]()
 
 func (module *ValueSetModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 	deps := ctx.AddDependency(ctx.Module(), valueSetTag, module.properties.Values...)
@@ -73,18 +73,14 @@ func (module *ValueSetModule) GenerateAndroidBuildActions(ctx android.ModuleCont
 	// to append values to their aconfig actions.
 	packages := make(map[string]android.Paths)
 	ctx.VisitDirectDeps(func(dep android.Module) {
-		if !ctx.OtherModuleHasProvider(dep, valuesProviderKey) {
-			// Other modules get injected as dependencies too, for example the license modules
-			return
+		if depData, ok := android.OtherModuleProvider(ctx, dep, valuesProviderKey); ok {
+			srcs := make([]android.Path, len(depData.Values))
+			copy(srcs, depData.Values)
+			packages[depData.Package] = srcs
 		}
-		depData := ctx.OtherModuleProvider(dep, valuesProviderKey).(valuesProviderData)
-
-		srcs := make([]android.Path, len(depData.Values))
-		copy(srcs, depData.Values)
-		packages[depData.Package] = srcs
 
 	})
-	ctx.SetProvider(valueSetProviderKey, valueSetProviderData{
+	android.SetProvider(ctx, valueSetProviderKey, valueSetProviderData{
 		AvailablePackages: packages,
 	})
 }

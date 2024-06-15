@@ -26,7 +26,7 @@ const bloatyDescriptorExt = ".bloaty.csv"
 const protoFilename = "binary_sizes.pb.gz"
 
 var (
-	fileSizeMeasurerKey blueprint.ProviderKey
+	fileSizeMeasurerKey blueprint.ProviderKey[measuredFiles]
 	pctx                = android.NewPackageContext("android/soong/bloaty")
 
 	// bloaty is used to measure a binary section sizes.
@@ -52,7 +52,7 @@ func init() {
 	pctx.SourcePathVariable("bloaty", "prebuilts/build-tools/${hostPrebuiltTag}/bin/bloaty")
 	pctx.HostBinToolVariable("bloatyMerger", "bloaty_merger")
 	android.RegisterParallelSingletonType("file_metrics", fileSizesSingleton)
-	fileSizeMeasurerKey = blueprint.NewProvider(measuredFiles{})
+	fileSizeMeasurerKey = blueprint.NewProvider[measuredFiles]()
 }
 
 // measuredFiles contains the paths of the files measured by a module.
@@ -73,7 +73,7 @@ func MeasureSizeForPaths(ctx android.ModuleContext, paths ...android.OptionalPat
 			mf.paths = append(mf.paths, p)
 		}
 	}
-	ctx.SetProvider(fileSizeMeasurerKey, mf)
+	android.SetProvider(ctx, fileSizeMeasurerKey, mf)
 }
 
 type sizesSingleton struct{}
@@ -85,10 +85,13 @@ func fileSizesSingleton() android.Singleton {
 func (singleton *sizesSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	var deps android.Paths
 	ctx.VisitAllModules(func(m android.Module) {
-		if !ctx.ModuleHasProvider(m, fileSizeMeasurerKey) {
+		if !m.ExportedToMake() {
 			return
 		}
-		filePaths := ctx.ModuleProvider(m, fileSizeMeasurerKey).(measuredFiles)
+		filePaths, ok := android.SingletonModuleProvider(ctx, m, fileSizeMeasurerKey)
+		if !ok {
+			return
+		}
 		for _, path := range filePaths.paths {
 			filePath := path.(android.ModuleOutPath)
 			sizeFile := filePath.InSameDir(ctx, filePath.Base()+bloatyDescriptorExt)

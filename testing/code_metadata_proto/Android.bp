@@ -20,10 +20,24 @@ bootstrap_go_package {
     name: "soong-testing-code_metadata_proto",
     pkgPath: "android/soong/testing/code_metadata_proto",
     deps: [
-            "golang-protobuf-reflect-protoreflect",
-            "golang-protobuf-runtime-protoimpl",
-        ],
+        "golang-protobuf-reflect-protoreflect",
+        "golang-protobuf-runtime-protoimpl",
+    ],
     srcs: [
         "code_metadata.pb.go",
     ],
+}
+
+python_library_host {
+    name: "code-metadata-proto-py",
+    pkg_path: "code_metadata",
+    srcs: [
+        "code_metadata.proto",
+    ],
+    libs: [
+        "libprotobuf-python",
+    ],
+    proto: {
+        canonical_path_from_root: false,
+    },
 }

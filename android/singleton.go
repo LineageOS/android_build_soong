@@ -20,6 +20,8 @@ import (
 
 // SingletonContext
 type SingletonContext interface {
+	blueprintSingletonContext() blueprint.SingletonContext
+
 	Config() Config
 	DeviceConfig() DeviceConfig
 
@@ -33,15 +35,7 @@ type SingletonContext interface {
 	// Allows generating build actions for `referer` based on the metadata for `name` deferred until the singleton context.
 	ModuleVariantsFromName(referer Module, name string) []Module
 
-	// ModuleProvider returns the value, if any, for the provider for a module.  If the value for the
-	// provider was not set it returns the zero value of the type of the provider, which means the
-	// return value can always be type-asserted to the type of the provider.  The return value should
-	// always be considered read-only.  It panics if called before the appropriate mutator or
-	// GenerateBuildActions pass for the provider on the module.
-	ModuleProvider(module blueprint.Module, provider blueprint.ProviderKey) interface{}
-
-	// ModuleHasProvider returns true if the provider for the given module has been set.
-	ModuleHasProvider(module blueprint.Module, provider blueprint.ProviderKey) bool
+	moduleProvider(module blueprint.Module, provider blueprint.AnyProviderKey) (any, bool)
 
 	ModuleErrorf(module blueprint.Module, format string, args ...interface{})
 	Errorf(format string, args ...interface{})
@@ -135,6 +129,10 @@ type singletonContextAdaptor struct {
 	ruleParams  map[blueprint.Rule]blueprint.RuleParams
 }
 
+func (s *singletonContextAdaptor) blueprintSingletonContext() blueprint.SingletonContext {
+	return s.SingletonContext
+}
+
 func (s *singletonContextAdaptor) Config() Config {
 	return s.SingletonContext.Config().(Config)
 }
@@ -172,12 +170,7 @@ func (s *singletonContextAdaptor) Build(pctx PackageContext, params BuildParams)
 		s.buildParams = append(s.buildParams, params)
 	}
 	bparams := convertBuildParams(params)
-	err := validateBuildParams(bparams)
-	if err != nil {
-		s.Errorf("%s: build parameter validation failed: %s", s.Name(), err.Error())
-	}
 	s.SingletonContext.Build(pctx.PackageContext, bparams)
-
 }
 
 func (s *singletonContextAdaptor) Phony(name string, deps ...Path) {
@@ -257,8 +250,8 @@ func (s *singletonContextAdaptor) FinalModule(module Module) Module {
 }
 
 func (s *singletonContextAdaptor) ModuleVariantsFromName(referer Module, name string) []Module {
-	// get qualified module name for visibility enforcement
-	qualified := createQualifiedModuleName(s.ModuleName(referer), s.ModuleDir(referer))
+	// get module reference for visibility enforcement
+	qualified := createVisibilityModuleReference(s.ModuleName(referer), s.ModuleDir(referer), s.ModuleType(referer))
 
 	modules := s.SingletonContext.ModuleVariantsFromName(referer, name)
 	result := make([]Module, 0, len(modules))
@@ -269,7 +262,7 @@ func (s *singletonContextAdaptor) ModuleVariantsFromName(referer Module, name st
 			depDir := s.ModuleDir(module)
 			depQualified := qualifiedModuleName{depDir, depName}
 			// Targets are always visible to other targets in their own package.
-			if depQualified.pkg != qualified.pkg {
+			if depQualified.pkg != qualified.name.pkg {
 				rule := effectiveVisibilityRules(s.Config(), depQualified)
 				if !rule.matches(qualified) {
 					s.ModuleErrorf(referer, "module %q references %q which is not visible to this module\nYou may need to add %q to its visibility",
@@ -281,4 +274,8 @@ func (s *singletonContextAdaptor) ModuleVariantsFromName(referer Module, name st
 		}
 	}
 	return result
+}
+
+func (s *singletonContextAdaptor) moduleProvider(module blueprint.Module, provider blueprint.AnyProviderKey) (any, bool) {
+	return s.SingletonContext.ModuleProvider(module, provider)
 }

@@ -13,3 +13,5 @@ mrziwang@google.com
 spandandas@google.com
 weiwli@google.com
 yudiliu@google.com
+
+per-file build/soong/ui/build/androidmk_denylist.go = joeo@google.com, weiwli@google.com

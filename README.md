@@ -314,6 +314,9 @@ subpackages) can use this module.
 * `["//visibility:override"]`: Discards any rules inherited from defaults or a
 creating module. Can only be used at the beginning of a list of visibility
 rules.
+* `["//visibility:any_partition"]`: Any modules of type android_filesystem
+or android_system_image can use this module. Intended for modules that no one
+should link against, but should still be included in soong-built partitions.
 * `["//some/package:__pkg__", "//other/package:__pkg__"]`: Only modules in
 `some/package` and `other/package` (defined in `some/package/*.bp` and
 `other/package/*.bp`) have access to this module. Note that sub-packages do not
@@ -603,7 +606,7 @@ ANDROID_BUILD_ENVIRONMENT_CONFIG_DIR=build/soong \
 * [Build Performance](docs/perf.md)
 * [Generating CLion Projects](docs/clion.md)
 * [Generating YouCompleteMe/VSCode compile\_commands.json file](docs/compdb.md)
-* Make-specific documentation: [build/make/README.md](https://android.googlesource.com/platform/build/+/master/README.md)
+* Make-specific documentation: [build/make/README.md](https://android.googlesource.com/platform/build/+/main/README.md)
 
 ## Developing for Soong
 

@@ -15,6 +15,7 @@
 package android
 
 import (
+	"cmp"
 	"fmt"
 	"path/filepath"
 	"reflect"
@@ -22,6 +23,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // CopyOf returns a new slice that has the same contents as s.
@@ -105,15 +107,8 @@ func SortedStringKeys[V any](m map[string]V) []string {
 	return SortedKeys(m)
 }
 
-type Ordered interface {
-	~string |
-		~float32 | ~float64 |
-		~int | ~int8 | ~int16 | ~int32 | ~int64 |
-		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
-}
-
 // SortedKeys returns the keys of the given map in the ascending order.
-func SortedKeys[T Ordered, V any](m map[T]V) []T {
+func SortedKeys[T cmp.Ordered, V any](m map[T]V) []T {
 	if len(m) == 0 {
 		return nil
 	}
@@ -596,4 +591,33 @@ func AddToStringSet(set map[string]bool, items []string) {
 	for _, item := range items {
 		set[item] = true
 	}
+}
+
+// SyncMap is a wrapper around sync.Map that provides type safety via generics.
+type SyncMap[K comparable, V any] struct {
+	sync.Map
+}
+
+// Load returns the value stored in the map for a key, or the zero value if no
+// value is present.
+// The ok result indicates whether value was found in the map.
+func (m *SyncMap[K, V]) Load(key K) (value V, ok bool) {
+	v, ok := m.Map.Load(key)
+	if !ok {
+		return *new(V), false
+	}
+	return v.(V), true
+}
+
+// Store sets the value for a key.
+func (m *SyncMap[K, V]) Store(key K, value V) {
+	m.Map.Store(key, value)
+}
+
+// LoadOrStore returns the existing value for the key if present.
+// Otherwise, it stores and returns the given value.
+// The loaded result is true if the value was loaded, false if stored.
+func (m *SyncMap[K, V]) LoadOrStore(key K, value V) (actual V, loaded bool) {
+	v, loaded := m.Map.LoadOrStore(key, value)
+	return v.(V), loaded
 }

@@ -3,7 +3,6 @@ package codegen
 import (
 	"fmt"
 
-	"android/soong/aconfig"
 	"android/soong/android"
 	"android/soong/rust"
 
@@ -24,6 +23,7 @@ type RustAconfigLibraryProperties struct {
 	// default mode is "production", the other accepted modes are:
 	// "test": to generate test mode version of the library
 	// "exported": to generate exported mode version of the library
+	// "force-read-only": to generate force-read-only mode version of the library
 	// an error will be thrown if the mode is not supported
 	Mode *string
 }
@@ -65,7 +65,7 @@ func (a *aconfigDecorator) GenerateSource(ctx rust.ModuleContext, deps rust.Path
 	if len(declarationsModules) != 1 {
 		panic(fmt.Errorf("Exactly one aconfig_declarations property required"))
 	}
-	declarations := ctx.OtherModuleProvider(declarationsModules[0], aconfig.DeclarationsProviderKey).(aconfig.DeclarationsProviderData)
+	declarations, _ := android.OtherModuleProvider(ctx, declarationsModules[0], android.AconfigDeclarationsProviderKey)
 
 	mode := proptools.StringDefault(a.Properties.Mode, "production")
 	if !isModeSupported(mode) {

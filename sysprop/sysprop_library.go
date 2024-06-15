@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"strings"
 	"sync"
 
 	"github.com/google/blueprint"
@@ -29,6 +30,7 @@ import (
 	"android/soong/android"
 	"android/soong/cc"
 	"android/soong/java"
+	"android/soong/rust"
 )
 
 type dependencyTag struct {
@@ -51,7 +53,16 @@ type syspropJavaGenRule struct {
 	genSrcjars android.Paths
 }
 
+type syspropRustGenRule struct {
+	android.ModuleBase
+
+	properties syspropGenProperties
+
+	genSrcs android.Paths
+}
+
 var _ android.OutputFileProducer = (*syspropJavaGenRule)(nil)
+var _ android.OutputFileProducer = (*syspropRustGenRule)(nil)
 
 var (
 	syspropJava = pctx.AndroidStaticRule("syspropJava",
@@ -64,11 +75,20 @@ var (
 				"$soongZipCmd",
 			},
 		}, "scope")
+	syspropRust = pctx.AndroidStaticRule("syspropRust",
+		blueprint.RuleParams{
+			Command: `rm -rf $out_dir && mkdir -p $out_dir && ` +
+				`$syspropRustCmd --scope $scope --rust-output-dir $out_dir $in`,
+			CommandDeps: []string{
+				"$syspropRustCmd",
+			},
+		}, "scope", "out_dir")
 )
 
 func init() {
 	pctx.HostBinToolVariable("soongZipCmd", "soong_zip")
 	pctx.HostBinToolVariable("syspropJavaCmd", "sysprop_java")
+	pctx.HostBinToolVariable("syspropRustCmd", "sysprop_rust")
 }
 
 // syspropJavaGenRule module generates srcjar containing generated java APIs.
@@ -117,6 +137,56 @@ func (g *syspropJavaGenRule) OutputFiles(tag string) (android.Paths, error) {
 
 func syspropJavaGenFactory() android.Module {
 	g := &syspropJavaGenRule{}
+	g.AddProperties(&g.properties)
+	android.InitAndroidModule(g)
+	return g
+}
+
+// syspropRustGenRule module generates rust source files containing generated rust APIs.
+// It also depends on check api rule, so api check has to pass to use sysprop_library.
+func (g *syspropRustGenRule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	var checkApiFileTimeStamp android.WritablePath
+
+	ctx.VisitDirectDeps(func(dep android.Module) {
+		if m, ok := dep.(*syspropLibrary); ok {
+			checkApiFileTimeStamp = m.checkApiFileTimeStamp
+		}
+	})
+
+	for _, syspropFile := range android.PathsForModuleSrc(ctx, g.properties.Srcs) {
+		syspropDir := strings.TrimSuffix(syspropFile.String(), syspropFile.Ext())
+		outputDir := android.PathForModuleGen(ctx, syspropDir, "src")
+		libPath := android.PathForModuleGen(ctx, syspropDir, "src", "lib.rs")
+		parsersPath := android.PathForModuleGen(ctx, syspropDir, "src", "gen_parsers_and_formatters.rs")
+
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        syspropRust,
+			Description: "sysprop_rust " + syspropFile.Rel(),
+			Outputs:     android.WritablePaths{libPath, parsersPath},
+			Input:       syspropFile,
+			Implicit:    checkApiFileTimeStamp,
+			Args: map[string]string{
+				"scope":   g.properties.Scope,
+				"out_dir": outputDir.String(),
+			},
+		})
+
+		g.genSrcs = append(g.genSrcs, libPath, parsersPath)
+	}
+}
+
+func (g *syspropRustGenRule) DepsMutator(ctx android.BottomUpMutatorContext) {
+	// Add a dependency from the stubs to sysprop library so that the generator rule can depend on
+	// the check API rule of the sysprop library.
+	ctx.AddFarVariationDependencies(nil, nil, proptools.String(g.properties.Check_api))
+}
+
+func (g *syspropRustGenRule) OutputFiles(_ string) (android.Paths, error) {
+	return g.genSrcs, nil
+}
+
+func syspropRustGenFactory() android.Module {
+	g := &syspropRustGenRule{}
 	g.AddProperties(&g.properties)
 	android.InitAndroidModule(g)
 	return g
@@ -180,6 +250,12 @@ type syspropLibraryProperties struct {
 		// Forwarded to java_library.min_sdk_version
 		Min_sdk_version *string
 	}
+
+	Rust struct {
+		// Minimum sdk version that the artifact should support when it runs as part of mainline modules(APEX).
+		// Forwarded to rust_library.min_sdk_version
+		Min_sdk_version *string
+	}
 }
 
 var (
@@ -233,6 +309,21 @@ func (m *syspropLibrary) javaGenPublicStubName() string {
 	return m.BaseModuleName() + "_java_gen_public"
 }
 
+func (m *syspropLibrary) rustGenModuleName() string {
+	return m.rustCrateName() + "_rust_gen"
+}
+
+func (m *syspropLibrary) rustGenStubName() string {
+	return "lib" + m.rustCrateName() + "_rust"
+}
+
+func (m *syspropLibrary) rustCrateName() string {
+	moduleName := strings.ToLower(m.BaseModuleName())
+	moduleName = strings.ReplaceAll(moduleName, "-", "_")
+	moduleName = strings.ReplaceAll(moduleName, ".", "_")
+	return moduleName
+}
+
 func (m *syspropLibrary) BaseModuleName() string {
 	return m.ModuleBase.Name()
 }
@@ -251,7 +342,7 @@ func (m *syspropLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 			ctx.PropertyErrorf("srcs", "srcs contains non-sysprop file %q", syspropFile.String())
 		}
 	}
-	ctx.SetProvider(blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: srcs.Strings()})
+	android.SetProvider(ctx, blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: srcs.Strings()})
 
 	if ctx.Failed() {
 		return
@@ -345,6 +436,10 @@ func (m *syspropLibrary) AndroidMk() android.AndroidMkData {
 			fmt.Fprintln(w, "LOCAL_MODULE :=", m.Name())
 			fmt.Fprintf(w, "LOCAL_MODULE_CLASS := FAKE\n")
 			fmt.Fprintf(w, "LOCAL_MODULE_TAGS := optional\n")
+			// AconfigUpdateAndroidMkData may have added elements to Extra.  Process them here.
+			for _, extra := range data.Extra {
+				extra(w, nil)
+			}
 			fmt.Fprintf(w, "include $(BUILD_SYSTEM)/base_rules.mk\n\n")
 			fmt.Fprintf(w, "$(LOCAL_BUILT_MODULE): %s\n", m.checkApiFileTimeStamp.String())
 			fmt.Fprintf(w, "\ttouch $@\n\n")
@@ -428,6 +523,18 @@ type javaLibraryProperties struct {
 	Libs              []string
 	Stem              *string
 	SyspropPublicStub string
+	Apex_available    []string
+	Min_sdk_version   *string
+}
+
+type rustLibraryProperties struct {
+	Name              *string
+	Srcs              []string
+	Installable       *bool
+	Crate_name        string
+	Rustlibs          []string
+	Vendor_available  *bool
+	Product_available *bool
 	Apex_available    []string
 	Min_sdk_version   *string
 }
@@ -559,6 +666,28 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 			Stem:        proptools.StringPtr(m.BaseModuleName()),
 		})
 	}
+
+	// Generate a Rust implementation library.
+	ctx.CreateModule(syspropRustGenFactory, &syspropGenProperties{
+		Srcs:      m.properties.Srcs,
+		Scope:     scope,
+		Name:      proptools.StringPtr(m.rustGenModuleName()),
+		Check_api: proptools.StringPtr(ctx.ModuleName()),
+	})
+	rustProps := rustLibraryProperties{
+		Name:        proptools.StringPtr(m.rustGenStubName()),
+		Srcs:        []string{":" + m.rustGenModuleName()},
+		Installable: proptools.BoolPtr(false),
+		Crate_name:  m.rustCrateName(),
+		Rustlibs: []string{
+			"librustutils",
+		},
+		Vendor_available:  m.properties.Vendor_available,
+		Product_available: m.properties.Product_available,
+		Apex_available:    m.ApexProperties.Apex_available,
+		Min_sdk_version:   proptools.StringPtr("29"),
+	}
+	ctx.CreateModule(rust.RustLibraryFactory, &rustProps)
 
 	// syspropLibraries will be used by property_contexts to check types.
 	// Record absolute paths of sysprop_library to prevent soong_namespace problem.

@@ -24,8 +24,10 @@ import (
 	"sort"
 	"strings"
 
+	"android/soong/aconfig"
 	"android/soong/remoteexec"
 	"android/soong/testing"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -85,6 +87,14 @@ func RegisterJavaSdkMemberTypes() {
 	android.RegisterSdkMemberType(javaSystemserverLibsSdkMemberType)
 	android.RegisterSdkMemberType(javaTestSdkMemberType)
 }
+
+type StubsLinkType int
+
+const (
+	Unknown StubsLinkType = iota
+	Stubs
+	Implementation
+)
 
 var (
 	// Supports adding java header libraries to module_exports and sdk.
@@ -239,13 +249,15 @@ type ProguardSpecInfo struct {
 	UnconditionallyExportedProguardFlags *android.DepSet[android.Path]
 }
 
-var ProguardSpecInfoProvider = blueprint.NewProvider(ProguardSpecInfo{})
+var ProguardSpecInfoProvider = blueprint.NewProvider[ProguardSpecInfo]()
 
 // JavaInfo contains information about a java module for use by modules that depend on it.
 type JavaInfo struct {
 	// HeaderJars is a list of jars that can be passed as the javac classpath in order to link
 	// against this module.  If empty, ImplementationJars should be used instead.
 	HeaderJars android.Paths
+
+	RepackagedHeaderJars android.Paths
 
 	// set of header jars for all transitive libs deps
 	TransitiveLibsHeaderJars *android.DepSet[android.Path]
@@ -293,9 +305,14 @@ type JavaInfo struct {
 	// JacocoReportClassesFile is the path to a jar containing uninstrumented classes that will be
 	// instrumented by jacoco.
 	JacocoReportClassesFile android.Path
+
+	// StubsLinkType provides information about whether the provided jars are stub jars or
+	// implementation jars. If the provider is set by java_sdk_library, the link type is "unknown"
+	// and selection between the stub jar vs implementation jar is deferred to SdkLibrary.sdkJars(...)
+	StubsLinkType StubsLinkType
 }
 
-var JavaInfoProvider = blueprint.NewProvider(JavaInfo{})
+var JavaInfoProvider = blueprint.NewProvider[JavaInfo]()
 
 // SyspropPublicStubInfo contains info about the sysprop public stub library that corresponds to
 // the sysprop implementation library.
@@ -305,7 +322,7 @@ type SyspropPublicStubInfo struct {
 	JavaInfo JavaInfo
 }
 
-var SyspropPublicStubInfoProvider = blueprint.NewProvider(SyspropPublicStubInfo{})
+var SyspropPublicStubInfoProvider = blueprint.NewProvider[SyspropPublicStubInfo]()
 
 // Methods that need to be implemented for a module that is added to apex java_libs property.
 type ApexDependency interface {
@@ -315,7 +332,7 @@ type ApexDependency interface {
 
 // Provides build path and install path to DEX jars.
 type UsesLibraryDependency interface {
-	DexJarBuildPath() OptionalDexJarPath
+	DexJarBuildPath(ctx android.ModuleErrorfContext) OptionalDexJarPath
 	DexJarInstallPath() android.Path
 	ClassLoaderContexts() dexpreopt.ClassLoaderContextMap
 }
@@ -525,6 +542,7 @@ type deps struct {
 	kotlinStdlib            android.Paths
 	kotlinAnnotations       android.Paths
 	kotlinPlugins           android.Paths
+	aconfigProtoFiles       android.Paths
 
 	disableTurbine bool
 }
@@ -568,9 +586,11 @@ const (
 func (v javaVersion) String() string {
 	switch v {
 	case JAVA_VERSION_6:
-		return "1.6"
+		// Java version 1.6 no longer supported, bumping to 1.8
+		return "1.8"
 	case JAVA_VERSION_7:
-		return "1.7"
+		// Java version 1.7 no longer supported, bumping to 1.8
+		return "1.8"
 	case JAVA_VERSION_8:
 		return "1.8"
 	case JAVA_VERSION_9:
@@ -587,10 +607,12 @@ func (v javaVersion) String() string {
 func (v javaVersion) StringForKotlinc() string {
 	// $ ./external/kotlinc/bin/kotlinc -jvm-target foo
 	// error: unknown JVM target version: foo
-	// Supported versions: 1.6, 1.8, 9, 10, 11, 12, 13, 14, 15, 16, 17
+	// Supported versions: 1.8, 9, 10, 11, 12, 13, 14, 15, 16, 17
 	switch v {
+	case JAVA_VERSION_6:
+		return "1.8"
 	case JAVA_VERSION_7:
-		return "1.6"
+		return "1.8"
 	case JAVA_VERSION_9:
 		return "9"
 	default:
@@ -606,9 +628,11 @@ func (v javaVersion) usesJavaModules() bool {
 func normalizeJavaVersion(ctx android.BaseModuleContext, javaVersion string) javaVersion {
 	switch javaVersion {
 	case "1.6", "6":
-		return JAVA_VERSION_6
+		// Java version 1.6 no longer supported, bumping to 1.8
+		return JAVA_VERSION_8
 	case "1.7", "7":
-		return JAVA_VERSION_7
+		// Java version 1.7 no longer supported, bumping to 1.8
+		return JAVA_VERSION_8
 	case "1.8", "8":
 		return JAVA_VERSION_8
 	case "1.9", "9":
@@ -651,9 +675,9 @@ func (j *Library) PermittedPackagesForUpdatableBootJars() []string {
 	return j.properties.Permitted_packages
 }
 
-func shouldUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter) bool {
+func shouldUncompressDex(ctx android.ModuleContext, libName string, dexpreopter *dexpreopter) bool {
 	// Store uncompressed (and aligned) any dex files from jars in APEXes.
-	if apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo); !apexInfo.IsForPlatform() {
+	if apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider); !apexInfo.IsForPlatform() {
 		return true
 	}
 
@@ -663,7 +687,7 @@ func shouldUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter) bo
 	}
 
 	// Store uncompressed dex files that are preopted on /system.
-	if !dexpreopter.dexpreoptDisabled(ctx) && (ctx.Host() || !dexpreopter.odexOnSystemOther(ctx, dexpreopter.installPath)) {
+	if !dexpreopter.dexpreoptDisabled(ctx, libName) && (ctx.Host() || !dexpreopter.odexOnSystemOther(ctx, libName, dexpreopter.installPath)) {
 		return true
 	}
 	if ctx.Config().UncompressPrivAppDex() &&
@@ -678,22 +702,204 @@ func shouldUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter) bo
 func setUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter, dexer *dexer) {
 	if dexer.dexProperties.Uncompress_dex == nil {
 		// If the value was not force-set by the user, use reasonable default based on the module.
-		dexer.dexProperties.Uncompress_dex = proptools.BoolPtr(shouldUncompressDex(ctx, dexpreopter))
+		dexer.dexProperties.Uncompress_dex = proptools.BoolPtr(shouldUncompressDex(ctx, android.RemoveOptionalPrebuiltPrefix(ctx.ModuleName()), dexpreopter))
+	}
+}
+
+// list of java_library modules that set platform_apis: true
+// this property is a no-op for java_library
+// TODO (b/215379393): Remove this allowlist
+var (
+	aospPlatformApiAllowlist = map[string]bool{
+		"adservices-test-scenarios":                         true,
+		"aidl-cpp-java-test-interface-java":                 true,
+		"aidl-test-extras-java":                             true,
+		"aidl-test-interface-java":                          true,
+		"aidl-test-interface-permission-java":               true,
+		"aidl_test_java_client_permission":                  true,
+		"aidl_test_java_client_sdk1":                        true,
+		"aidl_test_java_client_sdk29":                       true,
+		"aidl_test_java_client":                             true,
+		"aidl_test_java_service_permission":                 true,
+		"aidl_test_java_service_sdk1":                       true,
+		"aidl_test_java_service_sdk29":                      true,
+		"aidl_test_java_service":                            true,
+		"aidl_test_loggable_interface-java":                 true,
+		"aidl_test_nonvintf_parcelable-V1-java":             true,
+		"aidl_test_nonvintf_parcelable-V2-java":             true,
+		"aidl_test_unstable_parcelable-java":                true,
+		"aidl_test_vintf_parcelable-V1-java":                true,
+		"aidl_test_vintf_parcelable-V2-java":                true,
+		"android.aidl.test.trunk-V1-java":                   true,
+		"android.aidl.test.trunk-V2-java":                   true,
+		"android.frameworks.location.altitude-V1-java":      true,
+		"android.frameworks.location.altitude-V2-java":      true,
+		"android.frameworks.stats-V1-java":                  true,
+		"android.frameworks.stats-V2-java":                  true,
+		"android.frameworks.stats-V3-java":                  true,
+		"android.hardware.authsecret-V1-java":               true,
+		"android.hardware.authsecret-V2-java":               true,
+		"android.hardware.biometrics.common-V1-java":        true,
+		"android.hardware.biometrics.common-V2-java":        true,
+		"android.hardware.biometrics.common-V3-java":        true,
+		"android.hardware.biometrics.common-V4-java":        true,
+		"android.hardware.biometrics.face-V1-java":          true,
+		"android.hardware.biometrics.face-V2-java":          true,
+		"android.hardware.biometrics.face-V3-java":          true,
+		"android.hardware.biometrics.face-V4-java":          true,
+		"android.hardware.biometrics.fingerprint-V1-java":   true,
+		"android.hardware.biometrics.fingerprint-V2-java":   true,
+		"android.hardware.biometrics.fingerprint-V3-java":   true,
+		"android.hardware.biometrics.fingerprint-V4-java":   true,
+		"android.hardware.bluetooth.lmp_event-V1-java":      true,
+		"android.hardware.confirmationui-V1-java":           true,
+		"android.hardware.confirmationui-V2-java":           true,
+		"android.hardware.gatekeeper-V1-java":               true,
+		"android.hardware.gatekeeper-V2-java":               true,
+		"android.hardware.gnss-V1-java":                     true,
+		"android.hardware.gnss-V2-java":                     true,
+		"android.hardware.gnss-V3-java":                     true,
+		"android.hardware.gnss-V4-java":                     true,
+		"android.hardware.graphics.common-V1-java":          true,
+		"android.hardware.graphics.common-V2-java":          true,
+		"android.hardware.graphics.common-V3-java":          true,
+		"android.hardware.graphics.common-V4-java":          true,
+		"android.hardware.graphics.common-V5-java":          true,
+		"android.hardware.identity-V1-java":                 true,
+		"android.hardware.identity-V2-java":                 true,
+		"android.hardware.identity-V3-java":                 true,
+		"android.hardware.identity-V4-java":                 true,
+		"android.hardware.identity-V5-java":                 true,
+		"android.hardware.identity-V6-java":                 true,
+		"android.hardware.keymaster-V1-java":                true,
+		"android.hardware.keymaster-V2-java":                true,
+		"android.hardware.keymaster-V3-java":                true,
+		"android.hardware.keymaster-V4-java":                true,
+		"android.hardware.keymaster-V5-java":                true,
+		"android.hardware.oemlock-V1-java":                  true,
+		"android.hardware.oemlock-V2-java":                  true,
+		"android.hardware.power.stats-V1-java":              true,
+		"android.hardware.power.stats-V2-java":              true,
+		"android.hardware.power.stats-V3-java":              true,
+		"android.hardware.power-V1-java":                    true,
+		"android.hardware.power-V2-java":                    true,
+		"android.hardware.power-V3-java":                    true,
+		"android.hardware.power-V4-java":                    true,
+		"android.hardware.power-V5-java":                    true,
+		"android.hardware.rebootescrow-V1-java":             true,
+		"android.hardware.rebootescrow-V2-java":             true,
+		"android.hardware.security.authgraph-V1-java":       true,
+		"android.hardware.security.keymint-V1-java":         true,
+		"android.hardware.security.keymint-V2-java":         true,
+		"android.hardware.security.keymint-V3-java":         true,
+		"android.hardware.security.keymint-V4-java":         true,
+		"android.hardware.security.secretkeeper-V1-java":    true,
+		"android.hardware.security.secureclock-V1-java":     true,
+		"android.hardware.security.secureclock-V2-java":     true,
+		"android.hardware.thermal-V1-java":                  true,
+		"android.hardware.thermal-V2-java":                  true,
+		"android.hardware.threadnetwork-V1-java":            true,
+		"android.hardware.weaver-V1-java":                   true,
+		"android.hardware.weaver-V2-java":                   true,
+		"android.hardware.weaver-V3-java":                   true,
+		"android.security.attestationmanager-java":          true,
+		"android.security.authorization-java":               true,
+		"android.security.compat-java":                      true,
+		"android.security.legacykeystore-java":              true,
+		"android.security.maintenance-java":                 true,
+		"android.security.metrics-java":                     true,
+		"android.system.keystore2-V1-java":                  true,
+		"android.system.keystore2-V2-java":                  true,
+		"android.system.keystore2-V3-java":                  true,
+		"android.system.keystore2-V4-java":                  true,
+		"binderReadParcelIface-java":                        true,
+		"binderRecordReplayTestIface-java":                  true,
+		"car-experimental-api-static-lib":                   true,
+		"collector-device-lib-platform":                     true,
+		"com.android.car.oem":                               true,
+		"com.google.hardware.pixel.display-V10-java":        true,
+		"com.google.hardware.pixel.display-V1-java":         true,
+		"com.google.hardware.pixel.display-V2-java":         true,
+		"com.google.hardware.pixel.display-V3-java":         true,
+		"com.google.hardware.pixel.display-V4-java":         true,
+		"com.google.hardware.pixel.display-V5-java":         true,
+		"com.google.hardware.pixel.display-V6-java":         true,
+		"com.google.hardware.pixel.display-V7-java":         true,
+		"com.google.hardware.pixel.display-V8-java":         true,
+		"com.google.hardware.pixel.display-V9-java":         true,
+		"conscrypt-support":                                 true,
+		"cts-keystore-test-util":                            true,
+		"cts-keystore-user-auth-helper-library":             true,
+		"ctsmediautil":                                      true,
+		"CtsNetTestsNonUpdatableLib":                        true,
+		"DpmWrapper":                                        true,
+		"flickerlib-apphelpers":                             true,
+		"flickerlib-helpers":                                true,
+		"flickerlib-parsers":                                true,
+		"flickerlib":                                        true,
+		"hardware.google.bluetooth.ccc-V1-java":             true,
+		"hardware.google.bluetooth.sar-V1-java":             true,
+		"monet":                                             true,
+		"pixel-power-ext-V1-java":                           true,
+		"pixel-power-ext-V2-java":                           true,
+		"pixel_stateresidency_provider_aidl_interface-java": true,
+		"pixel-thermal-ext-V1-java":                         true,
+		"protolog-lib":                                      true,
+		"RkpRegistrationCheck":                              true,
+		"rotary-service-javastream-protos":                  true,
+		"service_based_camera_extensions":                   true,
+		"statsd-helper-test":                                true,
+		"statsd-helper":                                     true,
+		"test-piece-2-V1-java":                              true,
+		"test-piece-2-V2-java":                              true,
+		"test-piece-3-V1-java":                              true,
+		"test-piece-3-V2-java":                              true,
+		"test-piece-3-V3-java":                              true,
+		"test-piece-4-V1-java":                              true,
+		"test-piece-4-V2-java":                              true,
+		"test-root-package-V1-java":                         true,
+		"test-root-package-V2-java":                         true,
+		"test-root-package-V3-java":                         true,
+		"test-root-package-V4-java":                         true,
+		"testServiceIface-java":                             true,
+		"wm-flicker-common-app-helpers":                     true,
+		"wm-flicker-common-assertions":                      true,
+		"wm-shell-flicker-utils":                            true,
+		"wycheproof-keystore":                               true,
+	}
+
+	// Union of aosp and internal allowlists
+	PlatformApiAllowlist = map[string]bool{}
+)
+
+func init() {
+	for k, v := range aospPlatformApiAllowlist {
+		PlatformApiAllowlist[k] = v
 	}
 }
 
 func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-
 	j.provideHiddenAPIPropertyInfo(ctx)
 
 	j.sdkVersion = j.SdkVersion(ctx)
 	j.minSdkVersion = j.MinSdkVersion(ctx)
 	j.maxSdkVersion = j.MaxSdkVersion(ctx)
 
+	// SdkLibrary.GenerateAndroidBuildActions(ctx) sets the stubsLinkType to Unknown.
+	// If the stubsLinkType has already been set to Unknown, the stubsLinkType should
+	// not be overridden.
+	if j.stubsLinkType != Unknown {
+		if proptools.Bool(j.properties.Is_stubs_module) {
+			j.stubsLinkType = Stubs
+		} else {
+			j.stubsLinkType = Implementation
+		}
+	}
+
 	j.stem = proptools.StringDefault(j.overridableDeviceProperties.Stem, ctx.ModuleName())
 
 	proguardSpecInfo := j.collectProguardSpecInfo(ctx)
-	ctx.SetProvider(ProguardSpecInfoProvider, proguardSpecInfo)
+	android.SetProvider(ctx, ProguardSpecInfoProvider, proguardSpecInfo)
 	exportedProguardFlagsFiles := proguardSpecInfo.ProguardFlagsFiles.ToList()
 	j.extraProguardFlagsFiles = append(j.extraProguardFlagsFiles, exportedProguardFlagsFiles...)
 
@@ -701,7 +907,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	writeCombinedProguardFlagsFile(ctx, combinedExportedProguardFlagFile, exportedProguardFlagsFiles)
 	j.combinedExportedProguardFlagsFile = combinedExportedProguardFlagFile
 
-	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	if !apexInfo.IsForPlatform() {
 		j.hideApexVariantFromMake = true
 	}
@@ -710,11 +916,14 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.checkHeadersOnly(ctx)
 	if ctx.Device() {
 		j.dexpreopter.installPath = j.dexpreopter.getInstallPath(
-			ctx, android.PathForModuleInstall(ctx, "framework", j.Stem()+".jar"))
+			ctx, j.Name(), android.PathForModuleInstall(ctx, "framework", j.Stem()+".jar"))
 		j.dexpreopter.isSDKLibrary = j.deviceProperties.IsSDKLibrary
 		setUncompressDex(ctx, &j.dexpreopter, &j.dexer)
 		j.dexpreopter.uncompressedDex = *j.dexProperties.Uncompress_dex
 		j.classLoaderContexts = j.usesLibrary.classLoaderContextForUsesLibDeps(ctx)
+		if j.usesLibrary.shouldDisableDexpreopt {
+			j.dexpreopter.disableDexpreopt()
+		}
 	}
 	j.compile(ctx, nil, nil, nil)
 
@@ -1082,7 +1291,7 @@ func (j *JavaTestImport) InstallInTestcases() bool {
 	return true
 }
 
-func (j *TestHost) IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool {
+func (j *TestHost) IsNativeCoverageNeeded(ctx android.IncomingTransitionContext) bool {
 	return ctx.DeviceConfig().NativeCoverageEnabled()
 }
 
@@ -1222,12 +1431,12 @@ func (j *TestHost) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	j.Test.generateAndroidBuildActionsWithConfig(ctx, configs)
-	ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
+	android.SetProvider(ctx, testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 }
 
 func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.generateAndroidBuildActionsWithConfig(ctx, nil)
-	ctx.SetProvider(testing.TestModuleProviderKey, testing.TestModuleProviderData{})
+	android.SetProvider(ctx, testing.TestModuleProviderKey, testing.TestModuleProviderData{})
 }
 
 func (j *Test) generateAndroidBuildActionsWithConfig(ctx android.ModuleContext, configs []tradefed.Config) {
@@ -1263,7 +1472,7 @@ func (j *Test) generateAndroidBuildActionsWithConfig(ctx android.ModuleContext, 
 	})
 
 	ctx.VisitDirectDepsWithTag(jniLibTag, func(dep android.Module) {
-		sharedLibInfo := ctx.OtherModuleProvider(dep, cc.SharedLibraryInfoProvider).(cc.SharedLibraryInfo)
+		sharedLibInfo, _ := android.OtherModuleProvider(ctx, dep, cc.SharedLibraryInfoProvider)
 		if sharedLibInfo.SharedLibrary != nil {
 			// Copy to an intermediate output directory to append "lib[64]" to the path,
 			// so that it's compatible with the default rpath values.
@@ -1630,7 +1839,7 @@ type JavaApiImportInfo struct {
 	ApiSurface string
 }
 
-var JavaApiImportProvider = blueprint.NewProvider(JavaApiImportInfo{})
+var JavaApiImportProvider = blueprint.NewProvider[JavaApiImportInfo]()
 
 func (ap *JavaApiContribution) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	var apiFile android.Path = nil
@@ -1638,7 +1847,7 @@ func (ap *JavaApiContribution) GenerateAndroidBuildActions(ctx android.ModuleCon
 		apiFile = android.PathForModuleSrc(ctx, String(apiFileString))
 	}
 
-	ctx.SetProvider(JavaApiImportProvider, JavaApiImportInfo{
+	android.SetProvider(ctx, JavaApiImportProvider, JavaApiImportInfo{
 		ApiFile:    apiFile,
 		ApiSurface: proptools.String(ap.properties.Api_surface),
 	})
@@ -1662,6 +1871,10 @@ type ApiLibrary struct {
 	dexJarFile OptionalDexJarPath
 
 	validationPaths android.Paths
+
+	stubsType StubsType
+
+	aconfigProtoFiles android.Paths
 }
 
 type JavaApiLibraryProperties struct {
@@ -1703,6 +1916,20 @@ type JavaApiLibraryProperties struct {
 	// in sync with the source Java files. However, the environment variable
 	// DISABLE_STUB_VALIDATION has precedence over this property.
 	Enable_validation *bool
+
+	// Type of stubs the module should generate. Must be one of "everything", "runtime" or
+	// "exportable". Defaults to "everything".
+	// - "everything" stubs include all non-flagged apis and flagged apis, regardless of the state
+	// of the flag.
+	// - "runtime" stubs include all non-flagged apis and flagged apis that are ENABLED or
+	// READ_WRITE, and all other flagged apis are stripped.
+	// - "exportable" stubs include all non-flagged apis and flagged apis that are ENABLED and
+	// READ_ONLY, and all other flagged apis are stripped.
+	Stubs_type *string
+
+	// List of aconfig_declarations module names that the stubs generated in this module
+	// depend on.
+	Aconfig_declarations []string
 }
 
 func ApiLibraryFactory() android.Module {
@@ -1835,6 +2062,7 @@ func (al *ApiLibrary) extractApiSrcs(ctx android.ModuleContext, rule *android.Ru
 func (al *ApiLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	apiContributions := al.properties.Api_contributions
 	addValidations := !ctx.Config().IsEnvTrue("DISABLE_STUB_VALIDATION") &&
+		!ctx.Config().IsEnvTrue("WITHOUT_CHECK_API") &&
 		proptools.BoolDefault(al.properties.Enable_validation, true)
 	for _, apiContributionName := range apiContributions {
 		ctx.AddDependency(ctx.Module(), javaApiContributionTag, apiContributionName)
@@ -1865,6 +2093,9 @@ func (al *ApiLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if al.properties.System_modules != nil {
 		ctx.AddVariationDependencies(nil, systemModulesTag, String(al.properties.System_modules))
 	}
+	for _, aconfigDeclarationsName := range al.properties.Aconfig_declarations {
+		ctx.AddDependency(ctx.Module(), aconfigDeclarationTag, aconfigDeclarationsName)
+	}
 }
 
 // Map where key is the api scope name and value is the int value
@@ -1885,7 +2116,23 @@ func (al *ApiLibrary) sortApiFilesByApiScope(ctx android.ModuleContext, srcFiles
 	return srcFilesInfo
 }
 
+var validstubsType = []StubsType{Everything, Runtime, Exportable}
+
+func (al *ApiLibrary) validateProperties(ctx android.ModuleContext) {
+	if al.properties.Stubs_type == nil {
+		ctx.ModuleErrorf("java_api_library module type must specify stubs_type property.")
+	} else {
+		al.stubsType = StringToStubsType(proptools.String(al.properties.Stubs_type))
+	}
+
+	if !android.InList(al.stubsType, validstubsType) {
+		ctx.PropertyErrorf("stubs_type", "%s is not a valid stubs_type property value. "+
+			"Must be one of %s.", proptools.String(al.properties.Stubs_type), validstubsType)
+	}
+}
+
 func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	al.validateProperties(ctx)
 
 	rule := android.NewRuleBuilder(pctx, ctx)
 
@@ -1908,19 +2155,19 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		tag := ctx.OtherModuleDependencyTag(dep)
 		switch tag {
 		case javaApiContributionTag:
-			provider := ctx.OtherModuleProvider(dep, JavaApiImportProvider).(JavaApiImportInfo)
+			provider, _ := android.OtherModuleProvider(ctx, dep, JavaApiImportProvider)
 			if provider.ApiFile == nil && !ctx.Config().AllowMissingDependencies() {
 				ctx.ModuleErrorf("Error: %s has an empty api file.", dep.Name())
 			}
 			srcFilesInfo = append(srcFilesInfo, provider)
 		case libTag:
-			provider := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
+			provider, _ := android.OtherModuleProvider(ctx, dep, JavaInfoProvider)
 			classPaths = append(classPaths, provider.HeaderJars...)
 		case staticLibTag:
-			provider := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
+			provider, _ := android.OtherModuleProvider(ctx, dep, JavaInfoProvider)
 			staticLibs = append(staticLibs, provider.HeaderJars...)
 		case depApiSrcsTag:
-			provider := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
+			provider, _ := android.OtherModuleProvider(ctx, dep, JavaInfoProvider)
 			depApiSrcsStubsJar = provider.HeaderJars[0]
 		case systemModulesTag:
 			module := dep.(SystemModulesProvider)
@@ -1928,6 +2175,18 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		case metalavaCurrentApiTimestampTag:
 			if currentApiTimestampProvider, ok := dep.(currentApiTimestampProvider); ok {
 				al.validationPaths = append(al.validationPaths, currentApiTimestampProvider.CurrentApiTimestamp())
+			}
+		case aconfigDeclarationTag:
+			if provider, ok := android.OtherModuleProvider(ctx, dep, android.AconfigDeclarationsProviderKey); ok {
+				al.aconfigProtoFiles = append(al.aconfigProtoFiles, provider.IntermediateCacheOutputPath)
+			} else if provider, ok := android.OtherModuleProvider(ctx, dep, aconfig.CodegenInfoProvider); ok {
+				al.aconfigProtoFiles = append(al.aconfigProtoFiles, provider.IntermediateCacheOutputPaths...)
+			} else {
+				ctx.ModuleErrorf("Only aconfig_declarations and aconfig_declarations_group "+
+					"module type is allowed for flags_packages property, but %s is neither "+
+					"of these supported module types",
+					dep.Name(),
+				)
 			}
 		}
 	})
@@ -1953,6 +2212,8 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	al.addValidation(ctx, cmd, al.validationPaths)
+
+	generateRevertAnnotationArgs(ctx, cmd, al.stubsType, al.aconfigProtoFiles)
 
 	al.stubsSrcJar = android.PathForModuleOut(ctx, "metalava", ctx.ModuleName()+"-"+"stubs.srcjar")
 	al.stubsJarWithoutStaticLibs = android.PathForModuleOut(ctx, "metalava", "stubs.jar")
@@ -2008,16 +2269,17 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	ctx.Phony(ctx.ModuleName(), al.stubsJar)
 
-	ctx.SetProvider(JavaInfoProvider, JavaInfo{
+	android.SetProvider(ctx, JavaInfoProvider, JavaInfo{
 		HeaderJars:                     android.PathsIfNonNil(al.stubsJar),
 		ImplementationAndResourcesJars: android.PathsIfNonNil(al.stubsJar),
 		ImplementationJars:             android.PathsIfNonNil(al.stubsJar),
 		AidlIncludeDirs:                android.Paths{},
+		StubsLinkType:                  Stubs,
 		// No aconfig libraries on api libraries
 	})
 }
 
-func (al *ApiLibrary) DexJarBuildPath() OptionalDexJarPath {
+func (al *ApiLibrary) DexJarBuildPath(ctx android.ModuleErrorfContext) OptionalDexJarPath {
 	return al.dexJarFile
 }
 
@@ -2087,6 +2349,19 @@ type ImportProperties struct {
 		// that depend on this module, as well as to aidl for this module.
 		Export_include_dirs []string
 	}
+
+	// Name of the source soong module that gets shadowed by this prebuilt
+	// If unspecified, follows the naming convention that the source module of
+	// the prebuilt is Name() without "prebuilt_" prefix
+	Source_module_name *string
+
+	// Non-nil if this java_import module was dynamically created by a java_sdk_library_import
+	// The name is the undecorated name of the java_sdk_library as it appears in the blueprint file
+	// (without any prebuilt_ prefix)
+	Created_by_java_sdk_library_name *string `blueprint:"mutated"`
+
+	// Property signifying whether the module provides stubs jar or not.
+	Is_stubs_module *bool
 }
 
 type Import struct {
@@ -2106,6 +2381,7 @@ type Import struct {
 
 	// output file containing classes.dex and resources
 	dexJarFile        OptionalDexJarPath
+	dexJarFileErr     error
 	dexJarInstallFile android.Path
 
 	combinedClasspathFile android.Path
@@ -2116,6 +2392,8 @@ type Import struct {
 
 	sdkVersion    android.SdkSpec
 	minSdkVersion android.ApiLevel
+
+	stubsLinkType StubsLinkType
 }
 
 var _ PermittedPackagesForUpdatableBootJars = (*Import)(nil)
@@ -2159,12 +2437,20 @@ func (j *Import) PrebuiltSrcs() []string {
 	return j.properties.Jars
 }
 
+func (j *Import) BaseModuleName() string {
+	return proptools.StringDefault(j.properties.Source_module_name, j.ModuleBase.Name())
+}
+
 func (j *Import) Name() string {
 	return j.prebuilt.Name(j.ModuleBase.Name())
 }
 
 func (j *Import) Stem() string {
-	return proptools.StringDefault(j.properties.Stem, j.ModuleBase.Name())
+	return proptools.StringDefault(j.properties.Stem, j.BaseModuleName())
+}
+
+func (j *Import) CreatedByJavaSdkLibraryName() *string {
+	return j.properties.Created_by_java_sdk_library_name
 }
 
 func (a *Import) JacocoReportClassesFile() android.Path {
@@ -2194,12 +2480,19 @@ func (j *Import) commonBuildActions(ctx android.ModuleContext) {
 	j.sdkVersion = j.SdkVersion(ctx)
 	j.minSdkVersion = j.MinSdkVersion(ctx)
 
-	if !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform() {
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
+	if !apexInfo.IsForPlatform() {
 		j.hideApexVariantFromMake = true
 	}
 
 	if ctx.Windows() {
 		j.HideFromMake()
+	}
+
+	if proptools.Bool(j.properties.Is_stubs_module) {
+		j.stubsLinkType = Stubs
+	} else {
+		j.stubsLinkType = Implementation
 	}
 }
 
@@ -2225,8 +2518,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.collectTransitiveHeaderJars(ctx)
 	ctx.VisitDirectDeps(func(module android.Module) {
 		tag := ctx.OtherModuleDependencyTag(module)
-		if ctx.OtherModuleHasProvider(module, JavaInfoProvider) {
-			dep := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
+		if dep, ok := android.OtherModuleProvider(ctx, module, JavaInfoProvider); ok {
 			switch tag {
 			case libTag, sdkLibTag:
 				flags.classpath = append(flags.classpath, dep.HeaderJars...)
@@ -2253,29 +2545,31 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if ctx.Device() {
 		// If this is a variant created for a prebuilt_apex then use the dex implementation jar
 		// obtained from the associated deapexer module.
-		ai := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+		ai, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 		if ai.ForPrebuiltApex {
 			// Get the path of the dex implementation jar from the `deapexer` module.
-			di := android.FindDeapexerProviderForModule(ctx)
-			if di == nil {
-				return // An error has been reported by FindDeapexerProviderForModule.
+			di, err := android.FindDeapexerProviderForModule(ctx)
+			if err != nil {
+				// An error was found, possibly due to multiple apexes in the tree that export this library
+				// Defer the error till a client tries to call DexJarBuildPath
+				j.dexJarFileErr = err
+				j.initHiddenAPIError(err)
+				return
 			}
-			dexJarFileApexRootRelative := apexRootRelativePathToJavaLib(j.BaseModuleName())
+			dexJarFileApexRootRelative := ApexRootRelativePathToJavaLib(j.BaseModuleName())
 			if dexOutputPath := di.PrebuiltExportPath(dexJarFileApexRootRelative); dexOutputPath != nil {
 				dexJarFile := makeDexJarPathFromPath(dexOutputPath)
 				j.dexJarFile = dexJarFile
-				installPath := android.PathForModuleInPartitionInstall(ctx, "apex", ai.ApexVariationName, apexRootRelativePathToJavaLib(j.BaseModuleName()))
+				installPath := android.PathForModuleInPartitionInstall(ctx, "apex", ai.ApexVariationName, ApexRootRelativePathToJavaLib(j.BaseModuleName()))
 				j.dexJarInstallFile = installPath
 
-				j.dexpreopter.installPath = j.dexpreopter.getInstallPath(ctx, installPath)
+				j.dexpreopter.installPath = j.dexpreopter.getInstallPath(ctx, android.RemoveOptionalPrebuiltPrefix(ctx.ModuleName()), installPath)
 				setUncompressDex(ctx, &j.dexpreopter, &j.dexer)
 				j.dexpreopter.uncompressedDex = *j.dexProperties.Uncompress_dex
 
 				if profilePath := di.PrebuiltExportPath(dexJarFileApexRootRelative + ".prof"); profilePath != nil {
 					j.dexpreopter.inputProfilePathOnHost = profilePath
 				}
-
-				j.dexpreopt(ctx, dexOutputPath)
 
 				// Initialize the hiddenapi structure.
 				j.initHiddenAPI(ctx, dexJarFile, outputFile, j.dexProperties.Uncompress_dex)
@@ -2297,7 +2591,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			// Dex compilation
 
 			j.dexpreopter.installPath = j.dexpreopter.getInstallPath(
-				ctx, android.PathForModuleInstall(ctx, "framework", jarName))
+				ctx, android.RemoveOptionalPrebuiltPrefix(ctx.ModuleName()), android.PathForModuleInstall(ctx, "framework", jarName))
 			setUncompressDex(ctx, &j.dexpreopter, &j.dexer)
 			j.dexpreopter.uncompressedDex = *j.dexProperties.Uncompress_dex
 
@@ -2326,13 +2620,14 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 	}
 
-	ctx.SetProvider(JavaInfoProvider, JavaInfo{
+	android.SetProvider(ctx, JavaInfoProvider, JavaInfo{
 		HeaderJars:                     android.PathsIfNonNil(j.combinedClasspathFile),
 		TransitiveLibsHeaderJars:       j.transitiveLibsHeaderJars,
 		TransitiveStaticLibsHeaderJars: j.transitiveStaticLibsHeaderJars,
 		ImplementationAndResourcesJars: android.PathsIfNonNil(j.combinedClasspathFile),
 		ImplementationJars:             android.PathsIfNonNil(j.combinedClasspathFile),
 		AidlIncludeDirs:                j.exportAidlIncludeDirs,
+		StubsLinkType:                  j.stubsLinkType,
 		// TODO(b/289117800): LOCAL_ACONFIG_FILES for prebuilts
 	})
 }
@@ -2380,7 +2675,10 @@ func (j *Import) ImplementationAndResourcesJars() android.Paths {
 	return android.Paths{j.combinedClasspathFile}
 }
 
-func (j *Import) DexJarBuildPath() OptionalDexJarPath {
+func (j *Import) DexJarBuildPath(ctx android.ModuleErrorfContext) OptionalDexJarPath {
+	if j.dexJarFileErr != nil {
+		ctx.ModuleErrorf(j.dexJarFileErr.Error())
+	}
 	return j.dexJarFile
 }
 
@@ -2421,7 +2719,7 @@ func (j *Import) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 // java_sdk_library_import with the specified base module name requires to be exported from a
 // prebuilt_apex/apex_set.
 func requiredFilesFromPrebuiltApexForImport(name string, d *dexpreopter) []string {
-	dexJarFileApexRootRelative := apexRootRelativePathToJavaLib(name)
+	dexJarFileApexRootRelative := ApexRootRelativePathToJavaLib(name)
 	// Add the dex implementation jar to the set of exported files.
 	files := []string{
 		dexJarFileApexRootRelative,
@@ -2432,9 +2730,9 @@ func requiredFilesFromPrebuiltApexForImport(name string, d *dexpreopter) []strin
 	return files
 }
 
-// apexRootRelativePathToJavaLib returns the path, relative to the root of the apex's contents, for
+// ApexRootRelativePathToJavaLib returns the path, relative to the root of the apex's contents, for
 // the java library with the specified name.
-func apexRootRelativePathToJavaLib(name string) string {
+func ApexRootRelativePathToJavaLib(name string) string {
 	return filepath.Join("javalib", name+".jar")
 }
 
@@ -2443,6 +2741,10 @@ var _ android.RequiredFilesFromPrebuiltApex = (*Import)(nil)
 func (j *Import) RequiredFilesFromPrebuiltApex(_ android.BaseModuleContext) []string {
 	name := j.BaseModuleName()
 	return requiredFilesFromPrebuiltApexForImport(name, &j.dexpreopter)
+}
+
+func (j *Import) UseProfileGuidedDexpreopt() bool {
+	return proptools.Bool(j.importDexpreoptProperties.Dex_preopt.Profile_guided)
 }
 
 // Add compile time check for interface implementation
@@ -2576,14 +2878,14 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ctx.PropertyErrorf("jars", "exactly one jar must be provided")
 	}
 
-	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	if !apexInfo.IsForPlatform() {
 		j.hideApexVariantFromMake = true
 	}
 
 	j.dexpreopter.installPath = j.dexpreopter.getInstallPath(
-		ctx, android.PathForModuleInstall(ctx, "framework", j.Stem()+".jar"))
-	j.dexpreopter.uncompressedDex = shouldUncompressDex(ctx, &j.dexpreopter)
+		ctx, android.RemoveOptionalPrebuiltPrefix(ctx.ModuleName()), android.PathForModuleInstall(ctx, "framework", j.Stem()+".jar"))
+	j.dexpreopter.uncompressedDex = shouldUncompressDex(ctx, android.RemoveOptionalPrebuiltPrefix(ctx.ModuleName()), &j.dexpreopter)
 
 	inputJar := ctx.ExpandSource(j.properties.Jars[0], "jars")
 	dexOutputFile := android.PathForModuleOut(ctx, ctx.ModuleName()+".jar")
@@ -2622,7 +2924,7 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	j.dexJarFile = makeDexJarPathFromPath(dexOutputFile)
 
-	j.dexpreopt(ctx, dexOutputFile)
+	j.dexpreopt(ctx, android.RemoveOptionalPrebuiltPrefix(ctx.ModuleName()), dexOutputFile)
 
 	if apexInfo.IsForPlatform() {
 		ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
@@ -2630,7 +2932,7 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 }
 
-func (j *DexImport) DexJarBuildPath() OptionalDexJarPath {
+func (j *DexImport) DexJarBuildPath(ctx android.ModuleErrorfContext) OptionalDexJarPath {
 	return j.dexJarFile
 }
 
@@ -2723,6 +3025,8 @@ func DefaultsFactory() android.Module {
 		&LintProperties{},
 		&appTestHelperAppProperties{},
 		&JavaApiLibraryProperties{},
+		&bootclasspathFragmentProperties{},
+		&SourceOnlyBootclasspathProperties{},
 	)
 
 	android.InitDefaultsModule(module)
@@ -2798,7 +3102,7 @@ func addCLCFromDep(ctx android.ModuleContext, depModule android.Module,
 	// from its CLC should be added to the current CLC.
 	if sdkLib != nil {
 		clcMap.AddContext(ctx, dexpreopt.AnySdkVersion, *sdkLib, false,
-			dep.DexJarBuildPath().PathOrNil(), dep.DexJarInstallPath(), dep.ClassLoaderContexts())
+			dep.DexJarBuildPath(ctx).PathOrNil(), dep.DexJarInstallPath(), dep.ClassLoaderContexts())
 	} else {
 		clcMap.AddContextMap(dep.ClassLoaderContexts(), depName)
 	}
@@ -2807,7 +3111,20 @@ func addCLCFromDep(ctx android.ModuleContext, depModule android.Module,
 type JavaApiContributionImport struct {
 	JavaApiContribution
 
-	prebuilt android.Prebuilt
+	prebuilt           android.Prebuilt
+	prebuiltProperties javaApiContributionImportProperties
+}
+
+type javaApiContributionImportProperties struct {
+	// Name of the source soong module that gets shadowed by this prebuilt
+	// If unspecified, follows the naming convention that the source module of
+	// the prebuilt is Name() without "prebuilt_" prefix
+	Source_module_name *string
+
+	// Non-nil if this java_import module was dynamically created by a java_sdk_library_import
+	// The name is the undecorated name of the java_sdk_library as it appears in the blueprint file
+	// (without any prebuilt_ prefix)
+	Created_by_java_sdk_library_name *string `blueprint:"mutated"`
 }
 
 func ApiContributionImportFactory() android.Module {
@@ -2815,7 +3132,7 @@ func ApiContributionImportFactory() android.Module {
 	android.InitAndroidModule(module)
 	android.InitDefaultableModule(module)
 	android.InitPrebuiltModule(module, &[]string{""})
-	module.AddProperties(&module.properties)
+	module.AddProperties(&module.properties, &module.prebuiltProperties)
 	module.AddProperties(&module.sdkLibraryComponentProperties)
 	return module
 }
@@ -2826,6 +3143,14 @@ func (module *JavaApiContributionImport) Prebuilt() *android.Prebuilt {
 
 func (module *JavaApiContributionImport) Name() string {
 	return module.prebuilt.Name(module.ModuleBase.Name())
+}
+
+func (j *JavaApiContributionImport) BaseModuleName() string {
+	return proptools.StringDefault(j.prebuiltProperties.Source_module_name, j.ModuleBase.Name())
+}
+
+func (j *JavaApiContributionImport) CreatedByJavaSdkLibraryName() *string {
+	return j.prebuiltProperties.Created_by_java_sdk_library_name
 }
 
 func (ap *JavaApiContributionImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {

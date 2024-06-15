@@ -116,6 +116,10 @@ type BaseCompilerProperties struct {
 	// if set to false, use -std=c++* instead of -std=gnu++*
 	Gnu_extensions *bool
 
+	// cc Build rules targeting BPF must set this to true. The correct fix is to
+	// ban targeting bpf in cc rules instead use bpf_rules. (b/323415017)
+	Bpf_target *bool
+
 	Yacc *YaccProperties
 	Lex  *LexProperties
 
@@ -395,7 +399,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		flags.Local.YasmFlags = append(flags.Local.YasmFlags, "-I"+modulePath)
 	}
 
-	if !(ctx.useSdk() || ctx.useVndk()) || ctx.Host() {
+	if !(ctx.useSdk() || ctx.InVendorOrProduct()) || ctx.Host() {
 		flags.SystemIncludeFlags = append(flags.SystemIncludeFlags,
 			"${config.CommonGlobalIncludes}",
 			tc.IncludeFlags())
@@ -412,7 +416,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 			"-isystem "+getCurrentIncludePath(ctx).Join(ctx, config.NDKTriple(tc)).String())
 	}
 
-	if ctx.useVndk() {
+	if ctx.InVendorOrProduct() {
 		flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_VNDK__")
 		if ctx.inVendor() {
 			flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_VENDOR__")
@@ -493,6 +497,11 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		}
 	}
 
+	// bpf targets don't need the default target triple. b/308826679
+	if proptools.Bool(compiler.Properties.Bpf_target) {
+		target = "--target=bpf"
+	}
+
 	flags.Global.CFlags = append(flags.Global.CFlags, target)
 	flags.Global.AsFlags = append(flags.Global.AsFlags, target)
 	flags.Global.LdFlags = append(flags.Global.LdFlags, target)
@@ -508,8 +517,12 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 
 	flags.Global.AsFlags = append(flags.Global.AsFlags, tc.Asflags())
 	flags.Global.CppFlags = append([]string{"${config.CommonGlobalCppflags}"}, flags.Global.CppFlags...)
+
+	// bpf targets don't need the target specific toolchain cflags. b/308826679
+	if !proptools.Bool(compiler.Properties.Bpf_target) {
+		flags.Global.CommonFlags = append(flags.Global.CommonFlags, tc.Cflags())
+	}
 	flags.Global.CommonFlags = append(flags.Global.CommonFlags,
-		tc.Cflags(),
 		"${config.CommonGlobalCflags}",
 		fmt.Sprintf("${config.%sGlobalCflags}", hod))
 
@@ -531,7 +544,11 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 
 	flags.Global.YasmFlags = append(flags.Global.YasmFlags, tc.YasmFlags())
 
-	flags.Global.CommonFlags = append(flags.Global.CommonFlags, tc.ToolchainCflags())
+	// bpf targets don't need the target specific toolchain cflags. b/308826679
+	if !proptools.Bool(compiler.Properties.Bpf_target) {
+		flags.Global.CommonFlags = append(flags.Global.CommonFlags, tc.ToolchainCflags())
+	}
+
 
 	cStd := parseCStd(compiler.Properties.C_std)
 	cppStd := parseCppStd(compiler.Properties.Cpp_std)
@@ -730,7 +747,7 @@ func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathD
 
 	// Compile files listed in c.Properties.Srcs into objects
 	objs := compileObjs(ctx, buildFlags, "", srcs,
-		android.PathsForModuleSrc(ctx, compiler.Properties.Tidy_disabled_srcs),
+		append(android.PathsForModuleSrc(ctx, compiler.Properties.Tidy_disabled_srcs), compiler.generatedSources...),
 		android.PathsForModuleSrc(ctx, compiler.Properties.Tidy_timeout_srcs),
 		pathDeps, compiler.cFlagsDeps)
 

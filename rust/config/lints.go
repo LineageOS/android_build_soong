@@ -44,6 +44,7 @@ var (
 	// Default Rust lints that applies to Google-authored modules.
 	defaultRustcLints = []string{
 		"-A deprecated",
+		"-A unknown_lints",
 		"-D missing-docs",
 		"-D warnings",
 		"-D unsafe_op_in_unsafe_fn",
@@ -52,7 +53,10 @@ var (
 	// It should be assumed that any warning lint will be promoted to a
 	// deny.
 	defaultClippyLints = []string{
+		// Let people hack in peace. ;)
+		"-A clippy::disallowed_names",
 		"-A clippy::type-complexity",
+		"-A clippy::unnecessary_fallible_conversions",
 		"-A clippy::unnecessary-wraps",
 		"-A clippy::unusual-byte-groupings",
 		"-A clippy::upper-case-acronyms",

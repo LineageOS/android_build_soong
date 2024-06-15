@@ -17,7 +17,6 @@ package java
 import (
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
@@ -56,7 +55,8 @@ type LintProperties struct {
 		// Modules that provide extra lint checks
 		Extra_check_modules []string
 
-		// Name of the file that lint uses as the baseline. Defaults to "lint-baseline.xml".
+		// The lint baseline file to use. If specified, lint warnings listed in this file will be
+		// suppressed during lint checks.
 		Baseline_filename *string
 
 		// If true, baselining updatability lint checks (e.g. NewApi) is prohibited. Defaults to false.
@@ -84,9 +84,9 @@ type linter struct {
 	classes                 android.Path
 	extraLintCheckJars      android.Paths
 	library                 bool
-	minSdkVersion           int
-	targetSdkVersion        int
-	compileSdkVersion       int
+	minSdkVersion           android.ApiLevel
+	targetSdkVersion        android.ApiLevel
+	compileSdkVersion       android.ApiLevel
 	compileSdkKind          android.SdkKind
 	javaLanguageLevel       string
 	kotlinLanguageLevel     string
@@ -319,25 +319,19 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.Ru
 	cmd.FlagWithInput("@",
 		android.PathForSource(ctx, "build/soong/java/lint_defaults.txt"))
 
-	if l.compileSdkKind == android.SdkPublic {
-		cmd.FlagForEachArg("--error_check ", l.extraMainlineLintErrors)
-	} else {
-		// TODO(b/268261262): Remove this branch. We're demoting NewApi to a warning due to pre-existing issues that need to be fixed.
-		cmd.FlagForEachArg("--warning_check ", l.extraMainlineLintErrors)
-	}
+	cmd.FlagForEachArg("--error_check ", l.extraMainlineLintErrors)
 	cmd.FlagForEachArg("--disable_check ", l.properties.Lint.Disabled_checks)
 	cmd.FlagForEachArg("--warning_check ", l.properties.Lint.Warning_checks)
 	cmd.FlagForEachArg("--error_check ", l.properties.Lint.Error_checks)
 	cmd.FlagForEachArg("--fatal_check ", l.properties.Lint.Fatal_checks)
 
-	// TODO(b/193460475): Re-enable strict updatability linting
-	//if l.GetStrictUpdatabilityLinting() {
-	//	// Verify the module does not baseline issues that endanger safe updatability.
-	//	if baselinePath := l.getBaselineFilepath(ctx); baselinePath.Valid() {
-	//		cmd.FlagWithInput("--baseline ", baselinePath.Path())
-	//		cmd.FlagForEachArg("--disallowed_issues ", updatabilityChecks)
-	//	}
-	//}
+	if l.GetStrictUpdatabilityLinting() {
+		// Verify the module does not baseline issues that endanger safe updatability.
+		if l.properties.Lint.Baseline_filename != nil {
+			cmd.FlagWithInput("--baseline ", android.PathForModuleSrc(ctx, *l.properties.Lint.Baseline_filename))
+			cmd.FlagForEachArg("--disallowed_issues ", updatabilityChecks)
+		}
+	}
 
 	return lintPaths{
 		projectXML: projectXMLPath,
@@ -357,25 +351,12 @@ func (l *linter) generateManifest(ctx android.ModuleContext, rule *android.RuleB
 		Text(`echo "<?xml version='1.0' encoding='utf-8'?>" &&`).
 		Text(`echo "<manifest xmlns:android='http://schemas.android.com/apk/res/android'" &&`).
 		Text(`echo "    android:versionCode='1' android:versionName='1' >" &&`).
-		Textf(`echo "  <uses-sdk android:minSdkVersion='%d' android:targetSdkVersion='%d'/>" &&`,
-			l.minSdkVersion, l.targetSdkVersion).
+		Textf(`echo "  <uses-sdk android:minSdkVersion='%s' android:targetSdkVersion='%s'/>" &&`,
+			l.minSdkVersion.String(), l.targetSdkVersion.String()).
 		Text(`echo "</manifest>"`).
 		Text(") >").Output(manifestPath)
 
 	return manifestPath
-}
-
-func (l *linter) getBaselineFilepath(ctx android.ModuleContext) android.OptionalPath {
-	var lintBaseline android.OptionalPath
-	if lintFilename := proptools.StringDefault(l.properties.Lint.Baseline_filename, "lint-baseline.xml"); lintFilename != "" {
-		if String(l.properties.Lint.Baseline_filename) != "" {
-			// if manually specified, we require the file to exist
-			lintBaseline = android.OptionalPathForPath(android.PathForModuleSrc(ctx, lintFilename))
-		} else {
-			lintBaseline = android.ExistentPathForSource(ctx, ctx.ModuleDir(), lintFilename)
-		}
-	}
-	return lintBaseline
 }
 
 func (l *linter) lint(ctx android.ModuleContext) {
@@ -383,7 +364,13 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		return
 	}
 
-	if l.minSdkVersion != l.compileSdkVersion {
+	for _, flag := range l.properties.Lint.Flags {
+		if strings.Contains(flag, "--disable") || strings.Contains(flag, "--enable") || strings.Contains(flag, "--check") {
+			ctx.PropertyErrorf("lint.flags", "Don't use --disable, --enable, or --check in the flags field, instead use the dedicated disabled_checks, warning_checks, error_checks, or fatal_checks fields")
+		}
+	}
+
+	if l.minSdkVersion.CompareTo(l.compileSdkVersion) == -1 {
 		l.extraMainlineLintErrors = append(l.extraMainlineLintErrors, updatabilityChecks...)
 		// Skip lint warning checks for NewApi warnings for libcore where they come from source
 		// files that reference the API they are adding (b/208656169).
@@ -413,8 +400,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 
 	extraLintCheckModules := ctx.GetDirectDepsWithTag(extraLintCheckTag)
 	for _, extraLintCheckModule := range extraLintCheckModules {
-		if ctx.OtherModuleHasProvider(extraLintCheckModule, JavaInfoProvider) {
-			dep := ctx.OtherModuleProvider(extraLintCheckModule, JavaInfoProvider).(JavaInfo)
+		if dep, ok := android.OtherModuleProvider(ctx, extraLintCheckModule, JavaInfoProvider); ok {
 			l.extraLintCheckJars = append(l.extraLintCheckJars, dep.ImplementationAndResourcesJars...)
 		} else {
 			ctx.PropertyErrorf("lint.extra_check_modules",
@@ -498,7 +484,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		FlagWithOutput("--html ", html).
 		FlagWithOutput("--text ", text).
 		FlagWithOutput("--xml ", xml).
-		FlagWithArg("--compile-sdk-version ", strconv.Itoa(l.compileSdkVersion)).
+		FlagWithArg("--compile-sdk-version ", l.compileSdkVersion.String()).
 		FlagWithArg("--java-language-level ", l.javaLanguageLevel).
 		FlagWithArg("--kotlin-language-level ", l.kotlinLanguageLevel).
 		FlagWithArg("--url ", fmt.Sprintf(".=.,%s=out", android.PathForOutput(ctx).String())).
@@ -519,9 +505,8 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		cmd.FlagWithArg("--check ", checkOnly)
 	}
 
-	lintBaseline := l.getBaselineFilepath(ctx)
-	if lintBaseline.Valid() {
-		cmd.FlagWithInput("--baseline ", lintBaseline.Path())
+	if l.properties.Lint.Baseline_filename != nil {
+		cmd.FlagWithInput("--baseline ", android.PathForModuleSrc(ctx, *l.properties.Lint.Baseline_filename))
 	}
 
 	cmd.FlagWithOutput("--write-reference-baseline ", referenceBaseline)
@@ -557,6 +542,10 @@ func (l *linter) lint(ctx android.ModuleContext) {
 	if l.buildModuleReportZip {
 		l.reports = BuildModuleLintReportZips(ctx, l.LintDepSets())
 	}
+
+	// Create a per-module phony target to run the lint check.
+	phonyName := ctx.ModuleName() + "-lint"
+	ctx.Phony(phonyName, xml)
 }
 
 func BuildModuleLintReportZips(ctx android.ModuleContext, depSets LintDepSets) android.Paths {
@@ -661,7 +650,7 @@ func (l *lintSingleton) generateLintReportZips(ctx android.SingletonContext) {
 		}
 
 		if apex, ok := m.(android.ApexModule); ok && apex.NotAvailableForPlatform() {
-			apexInfo := ctx.ModuleProvider(m, android.ApexInfoProvider).(android.ApexInfo)
+			apexInfo, _ := android.SingletonModuleProvider(ctx, m, android.ApexInfoProvider)
 			if apexInfo.IsForPlatform() {
 				// There are stray platform variants of modules in apexes that are not available for
 				// the platform, and they sometimes can't be built.  Don't depend on them.

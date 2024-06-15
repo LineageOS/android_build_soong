@@ -89,7 +89,7 @@ type ApexInfo struct {
 	TestApexes []string
 }
 
-var ApexInfoProvider = blueprint.NewMutatorProvider(ApexInfo{}, "apex")
+var ApexInfoProvider = blueprint.NewMutatorProvider[ApexInfo]("apex")
 
 func (i ApexInfo) AddJSONData(d *map[string]interface{}) {
 	(*d)["Apex"] = map[string]interface{}{
@@ -145,7 +145,14 @@ type ApexTestForInfo struct {
 	ApexContents []*ApexContents
 }
 
-var ApexTestForInfoProvider = blueprint.NewMutatorProvider(ApexTestForInfo{}, "apex_test_for")
+var ApexTestForInfoProvider = blueprint.NewMutatorProvider[ApexTestForInfo]("apex_test_for")
+
+// ApexBundleInfo contains information about the dependencies of an apex
+type ApexBundleInfo struct {
+	Contents *ApexContents
+}
+
+var ApexBundleInfoProvider = blueprint.NewMutatorProvider[ApexBundleInfo]("apex_info")
 
 // DepIsInSameApex defines an interface that should be used to determine whether a given dependency
 // should be considered as part of the same APEX as the current module or not. Note: this was
@@ -953,4 +960,19 @@ func MinSdkVersionFromValue(ctx EarlyModuleContext, value string) ApiLevel {
 type ApexTestInterface interface {
 	// Return true if the apex bundle is an apex_test
 	IsTestApex() bool
+}
+
+var ApexExportsInfoProvider = blueprint.NewProvider[ApexExportsInfo]()
+
+// ApexExportsInfo contains information about the artifacts provided by apexes to dexpreopt and hiddenapi
+type ApexExportsInfo struct {
+	// Canonical name of this APEX. Used to determine the path to the activated APEX on
+	// device (/apex/<apex_name>)
+	ApexName string
+
+	// Path to the image profile file on host (or empty, if profile is not generated).
+	ProfilePathOnHost Path
+
+	// Map from the apex library name (without prebuilt_ prefix) to the dex file path on host
+	LibraryNameToDexJarPathOnHost map[string]Path
 }

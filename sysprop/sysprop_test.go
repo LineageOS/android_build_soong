@@ -22,6 +22,7 @@ import (
 	"android/soong/android"
 	"android/soong/cc"
 	"android/soong/java"
+	"android/soong/rust"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -46,18 +47,6 @@ func test(t *testing.T, bp string) *android.TestResult {
 			recovery_available: true,
 		}
 
-		cc_library {
-			name: "liblog",
-			no_libcrt: true,
-			nocrt: true,
-			system_shared_libs: [],
-			recovery_available: true,
-			host_supported: true,
-			llndk: {
-				symbol_file: "liblog.map.txt",
-			}
-		}
-
 		java_library {
 			name: "sysprop-library-stub-platform",
 			sdk_version: "core_current",
@@ -73,6 +62,15 @@ func test(t *testing.T, bp string) *android.TestResult {
 			name: "sysprop-library-stub-product",
 			product_specific: true,
 			sdk_version: "core_current",
+		}
+
+		rust_library {
+			name: "librustutils",
+			crate_name: "rustutils",
+			srcs: ["librustutils/lib.rs"],
+			product_available: true,
+			vendor_available: true,
+			min_sdk_version: "29",
 		}
 	`
 
@@ -115,16 +113,25 @@ func test(t *testing.T, bp string) *android.TestResult {
 		"android/sysprop/PlatformProperties.sysprop": nil,
 		"com/android/VendorProperties.sysprop":       nil,
 		"com/android2/OdmProperties.sysprop":         nil,
+
+		"librustutils/lib.rs": nil,
 	}
 
 	result := android.GroupFixturePreparers(
 		cc.PrepareForTestWithCcDefaultModules,
 		java.PrepareForTestWithJavaDefaultModules,
+		rust.PrepareForTestWithRustDefaultModules,
 		PrepareForTestWithSyspropBuildComponents,
 		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 			variables.DeviceSystemSdkVersions = []string{"28"}
 			variables.DeviceVndkVersion = proptools.StringPtr("current")
 			variables.Platform_vndk_version = proptools.StringPtr("29")
+			variables.DeviceCurrentApiLevelForVendorModules = proptools.StringPtr("28")
+		}),
+		java.FixtureWithPrebuiltApis(map[string][]string{
+			"28": {},
+			"29": {},
+			"30": {},
 		}),
 		mockFS.AddToFixture(),
 		android.FixtureWithRootAndroidBp(bp),
@@ -350,6 +357,10 @@ func TestApexAvailabilityIsForwarded(t *testing.T) {
 	javaModule := result.ModuleForTests("sysprop-platform", "android_common").Module().(*java.Library)
 	propFromJava := javaModule.ApexProperties.Apex_available
 	android.AssertDeepEquals(t, "apex_available forwarding to java module", expected, propFromJava)
+
+	rustModule := result.ModuleForTests("libsysprop_platform_rust", "android_arm64_armv8-a_rlib_rlib-std").Module().(*rust.Module)
+	propFromRust := rustModule.ApexProperties.Apex_available
+	android.AssertDeepEquals(t, "apex_available forwarding to rust module", expected, propFromRust)
 }
 
 func TestMinSdkVersionIsForwarded(t *testing.T) {
@@ -365,6 +376,9 @@ func TestMinSdkVersionIsForwarded(t *testing.T) {
 			java: {
 				min_sdk_version: "30",
 			},
+			rust: {
+				min_sdk_version: "29",
+			}
 		}
 	`)
 
@@ -375,4 +389,8 @@ func TestMinSdkVersionIsForwarded(t *testing.T) {
 	javaModule := result.ModuleForTests("sysprop-platform", "android_common").Module().(*java.Library)
 	propFromJava := javaModule.MinSdkVersionString()
 	android.AssertStringEquals(t, "min_sdk_version forwarding to java module", "30", propFromJava)
+
+	rustModule := result.ModuleForTests("libsysprop_platform_rust", "android_arm64_armv8-a_rlib_rlib-std").Module().(*rust.Module)
+	propFromRust := proptools.String(rustModule.Properties.Min_sdk_version)
+	android.AssertStringEquals(t, "min_sdk_version forwarding to rust module", "29", propFromRust)
 }

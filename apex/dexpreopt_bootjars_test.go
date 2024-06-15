@@ -164,6 +164,7 @@ func TestDexpreoptBootJarsWithSourceArtApex(t *testing.T) {
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/baz.jar",
 		"out/soong/.intermediates/art-bootclasspath-fragment/android_common_apex10000/art-bootclasspath-fragment/boot.prof",
 		"out/soong/.intermediates/default/java/dex_bootjars/android_common/boot/boot.prof",
+		"out/soong/dexpreopt/uffd_gc_flag.txt",
 	}
 
 	expectedOutputs := []string{
@@ -199,8 +200,9 @@ func TestDexpreoptBootJarsWithPrebuiltArtApex(t *testing.T) {
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/foo.jar",
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/bar.jar",
 		"out/soong/dexpreopt_arm64/dex_bootjars_input/baz.jar",
-		"out/soong/.intermediates/com.android.art.deapexer/android_common/deapexer/etc/boot-image.prof",
+		"out/soong/.intermediates/prebuilt_com.android.art.deapexer/android_common/deapexer/etc/boot-image.prof",
 		"out/soong/.intermediates/default/java/dex_bootjars/android_common/boot/boot.prof",
+		"out/soong/dexpreopt/uffd_gc_flag.txt",
 	}
 
 	expectedOutputs := []string{
@@ -251,4 +253,163 @@ func TestDexpreoptBootZip(t *testing.T) {
 	}
 
 	testDexpreoptBoot(t, ruleFile, expectedInputs, expectedOutputs, false)
+}
+
+// Multiple ART apexes might exist in the tree.
+// The profile should correspond to the apex selected using release build flags
+func TestDexpreoptProfileWithMultiplePrebuiltArtApexes(t *testing.T) {
+	ruleFile := "out/soong/dexpreopt_arm64/dex_bootjars/android/system/framework/arm64/boot.art"
+	bp := `
+		// Platform.
+
+		platform_bootclasspath {
+			name: "platform-bootclasspath",
+			fragments: [
+				{
+					apex: "com.android.art",
+					module: "art-bootclasspath-fragment",
+				},
+			],
+		}
+
+		// Source ART APEX.
+
+		java_library {
+			name: "core-oj",
+			srcs: ["core-oj.java"],
+			installable: true,
+			apex_available: [
+				"com.android.art",
+			],
+		}
+
+		bootclasspath_fragment {
+			name: "art-bootclasspath-fragment",
+			image_name: "art",
+			contents: ["core-oj"],
+			apex_available: [
+				"com.android.art",
+			],
+			hidden_api: {
+				split_packages: ["*"],
+			},
+		}
+
+		apex_key {
+			name: "com.android.art.key",
+			public_key: "com.android.art.avbpubkey",
+			private_key: "com.android.art.pem",
+		}
+
+		apex {
+			name: "com.android.art",
+			key: "com.android.art.key",
+			bootclasspath_fragments: ["art-bootclasspath-fragment"],
+			updatable: false,
+		}
+
+		// Prebuilt ART APEX.
+
+		java_import {
+			name: "core-oj",
+			jars: ["core-oj.jar"],
+			apex_available: [
+				"com.android.art",
+			],
+		}
+
+		prebuilt_bootclasspath_fragment {
+			name: "art-bootclasspath-fragment",
+			image_name: "art",
+			contents: ["core-oj"],
+			hidden_api: {
+				annotation_flags: "my-bootclasspath-fragment/annotation-flags.csv",
+				metadata: "my-bootclasspath-fragment/metadata.csv",
+				index: "my-bootclasspath-fragment/index.csv",
+				stub_flags: "my-bootclasspath-fragment/stub-flags.csv",
+				all_flags: "my-bootclasspath-fragment/all-flags.csv",
+			},
+			apex_available: [
+				"com.android.art",
+			],
+		}
+
+		prebuilt_apex {
+			name: "com.android.art",
+			apex_name: "com.android.art",
+			src: "com.android.art-arm.apex",
+			exported_bootclasspath_fragments: ["art-bootclasspath-fragment"],
+		}
+
+		// Another Prebuilt ART APEX
+		prebuilt_apex {
+			name: "com.android.art.v2",
+			apex_name: "com.android.art", // Used to determine the API domain
+			src: "com.android.art-arm.apex",
+			exported_bootclasspath_fragments: ["art-bootclasspath-fragment"],
+		}
+
+		// APEX contribution modules
+
+		apex_contributions {
+			name: "art.source.contributions",
+			api_domain: "com.android.art",
+			contents: ["com.android.art"],
+		}
+
+		apex_contributions {
+			name: "art.prebuilt.contributions",
+			api_domain: "com.android.art",
+			contents: ["prebuilt_com.android.art"],
+		}
+
+		apex_contributions {
+			name: "art.prebuilt.v2.contributions",
+			api_domain: "com.android.art",
+			contents: ["com.android.art.v2"], // prebuilt_ prefix is missing because of prebuilt_rename mutator
+		}
+
+	`
+
+	testCases := []struct {
+		desc                         string
+		selectedArtApexContributions string
+		expectedProfile              string
+	}{
+		{
+			desc:                         "Source apex com.android.art is selected, profile should come from source java library",
+			selectedArtApexContributions: "art.source.contributions",
+			expectedProfile:              "out/soong/.intermediates/art-bootclasspath-fragment/android_common_apex10000/art-bootclasspath-fragment/boot.prof",
+		},
+		{
+			desc:                         "Prebuilt apex prebuilt_com.android.art is selected, profile should come from .prof deapexed from the prebuilt",
+			selectedArtApexContributions: "art.prebuilt.contributions",
+			expectedProfile:              "out/soong/.intermediates/prebuilt_com.android.art.deapexer/android_common/deapexer/etc/boot-image.prof",
+		},
+		{
+			desc:                         "Prebuilt apex prebuilt_com.android.art.v2 is selected, profile should come from .prof deapexed from the prebuilt",
+			selectedArtApexContributions: "art.prebuilt.v2.contributions",
+			expectedProfile:              "out/soong/.intermediates/prebuilt_com.android.art.v2.deapexer/android_common/deapexer/etc/boot-image.prof",
+		},
+	}
+	for _, tc := range testCases {
+		result := android.GroupFixturePreparers(
+			java.PrepareForTestWithDexpreopt,
+			java.PrepareForTestWithJavaSdkLibraryFiles,
+			java.FixtureConfigureBootJars("com.android.art:core-oj"),
+			PrepareForTestWithApexBuildComponents,
+			prepareForTestWithArtApex,
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.BuildFlags = map[string]string{
+					"RELEASE_APEX_CONTRIBUTIONS_ART": tc.selectedArtApexContributions,
+				}
+			}),
+		).RunTestWithBp(t, bp)
+
+		dexBootJars := result.ModuleForTests("dex_bootjars", "android_common")
+		rule := dexBootJars.Output(ruleFile)
+
+		inputs := rule.Implicits.Strings()
+		android.AssertStringListContains(t, tc.desc, inputs, tc.expectedProfile)
+	}
 }

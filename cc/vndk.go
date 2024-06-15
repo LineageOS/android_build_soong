@@ -377,22 +377,17 @@ func IsForVndkApex(mctx android.BottomUpMutatorContext, m *Module) bool {
 			return false
 		}
 
-		// ignore prebuilt vndk modules that are newer than or equal to the platform vndk version
-		platformVndkApiLevel := android.ApiLevelOrPanic(mctx, mctx.DeviceConfig().PlatformVndkVersion())
-		if platformVndkApiLevel.LessThanOrEqualTo(android.ApiLevelOrPanic(mctx, p.Version())) {
-			return false
+		platformVndkVersion := mctx.DeviceConfig().PlatformVndkVersion()
+		if platformVndkVersion != "" {
+			// ignore prebuilt vndk modules that are newer than or equal to the platform vndk version
+			platformVndkApiLevel := android.ApiLevelOrPanic(mctx, platformVndkVersion)
+			if platformVndkApiLevel.LessThanOrEqualTo(android.ApiLevelOrPanic(mctx, p.Version())) {
+				return false
+			}
 		}
 	}
 
 	if lib, ok := m.linker.(libraryInterface); ok {
-		// VNDK APEX for VNDK-Lite devices will have VNDK-SP libraries from core variants
-		if mctx.DeviceConfig().VndkVersion() == "" {
-			// b/73296261: filter out libz.so because it is considered as LLNDK for VNDK-lite devices
-			if mctx.ModuleName() == "libz" {
-				return false
-			}
-			return m.ImageVariation().Variation == android.CoreVariation && lib.shared() && m.IsVndkSp() && !m.IsVndkExt()
-		}
 		// VNDK APEX doesn't need stub variants
 		if lib.buildStubs() {
 			return false
@@ -418,11 +413,11 @@ func VndkMutator(mctx android.BottomUpMutatorContext) {
 	lib, isLib := m.linker.(*libraryDecorator)
 	prebuiltLib, isPrebuiltLib := m.linker.(*prebuiltLibraryLinker)
 
-	if m.UseVndk() && isLib && lib.hasLLNDKStubs() {
+	if m.InVendorOrProduct() && isLib && lib.hasLLNDKStubs() {
 		m.VendorProperties.IsLLNDK = true
 		m.VendorProperties.IsVNDKPrivate = Bool(lib.Properties.Llndk.Private)
 	}
-	if m.UseVndk() && isPrebuiltLib && prebuiltLib.hasLLNDKStubs() {
+	if m.InVendorOrProduct() && isPrebuiltLib && prebuiltLib.hasLLNDKStubs() {
 		m.VendorProperties.IsLLNDK = true
 		m.VendorProperties.IsVNDKPrivate = Bool(prebuiltLib.Properties.Llndk.Private)
 	}
@@ -772,7 +767,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 		prop.MinSdkVersion = m.MinSdkVersion()
 
 		if ctx.Config().VndkSnapshotBuildArtifacts() {
-			exportedInfo := ctx.ModuleProvider(m, FlagExporterInfoProvider).(FlagExporterInfo)
+			exportedInfo, _ := android.SingletonModuleProvider(ctx, m, FlagExporterInfoProvider)
 			prop.ExportedFlags = exportedInfo.Flags
 			prop.ExportedDirs = exportedInfo.IncludeDirs.Strings()
 			prop.ExportedSystemDirs = exportedInfo.SystemIncludeDirs.Strings()
@@ -797,7 +792,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 			return
 		}
 
-		apexInfo := ctx.ModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
+		apexInfo, _ := android.SingletonModuleProvider(ctx, module, android.ApexInfoProvider)
 
 		vndkType, ok := isVndkSnapshotAware(ctx.DeviceConfig(), m, apexInfo)
 		if !ok {

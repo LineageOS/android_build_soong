@@ -64,7 +64,7 @@ type AidlLibraryInfo struct {
 }
 
 // AidlLibraryProvider provides the srcs and the transitive include dirs
-var AidlLibraryProvider = blueprint.NewProvider(AidlLibraryInfo{})
+var AidlLibraryProvider = blueprint.NewProvider[AidlLibraryInfo]()
 
 func (lib *AidlLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	includeDirsDepSetBuilder := android.NewDepSetBuilder[android.Path](android.PREORDER)
@@ -99,14 +99,13 @@ func (lib *AidlLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	includeDirsDepSetBuilder.Direct(includeDir)
 
 	for _, dep := range ctx.GetDirectDepsWithTag(aidlLibraryTag) {
-		if ctx.OtherModuleHasProvider(dep, AidlLibraryProvider) {
-			info := ctx.OtherModuleProvider(dep, AidlLibraryProvider).(AidlLibraryInfo)
+		if info, ok := android.OtherModuleProvider(ctx, dep, AidlLibraryProvider); ok {
 			includeDirsDepSetBuilder.Transitive(&info.IncludeDirs)
 			hdrsDepSetBuilder.Transitive(&info.Hdrs)
 		}
 	}
 
-	ctx.SetProvider(AidlLibraryProvider, AidlLibraryInfo{
+	android.SetProvider(ctx, AidlLibraryProvider, AidlLibraryInfo{
 		Srcs:        srcs,
 		IncludeDirs: *includeDirsDepSetBuilder.Build(),
 		Hdrs:        *hdrsDepSetBuilder.Build(),

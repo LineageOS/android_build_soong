@@ -18,13 +18,11 @@ package apex
 
 import (
 	"fmt"
-	"log"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 
-	"android/soong/aconfig"
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -236,6 +234,9 @@ type ApexNativeDependencies struct {
 	// List of filesystem images that are embedded inside this APEX bundle.
 	Filesystems []string
 
+	// List of prebuilt_etcs that are embedded inside this APEX bundle.
+	Prebuilts []string
+
 	// List of native libraries to exclude from this APEX.
 	Exclude_native_shared_libs []string
 
@@ -253,6 +254,9 @@ type ApexNativeDependencies struct {
 
 	// List of filesystem images to exclude from this APEX bundle.
 	Exclude_filesystems []string
+
+	// List of prebuilt_etcs to exclude from this APEX bundle.
+	Exclude_prebuilts []string
 }
 
 // Merge combines another ApexNativeDependencies into this one
@@ -263,6 +267,7 @@ func (a *ApexNativeDependencies) Merge(b ApexNativeDependencies) {
 	a.Binaries = append(a.Binaries, b.Binaries...)
 	a.Tests = append(a.Tests, b.Tests...)
 	a.Filesystems = append(a.Filesystems, b.Filesystems...)
+	a.Prebuilts = append(a.Prebuilts, b.Prebuilts...)
 
 	a.Exclude_native_shared_libs = append(a.Exclude_native_shared_libs, b.Exclude_native_shared_libs...)
 	a.Exclude_jni_libs = append(a.Exclude_jni_libs, b.Exclude_jni_libs...)
@@ -270,6 +275,7 @@ func (a *ApexNativeDependencies) Merge(b ApexNativeDependencies) {
 	a.Exclude_binaries = append(a.Exclude_binaries, b.Exclude_binaries...)
 	a.Exclude_tests = append(a.Exclude_tests, b.Exclude_tests...)
 	a.Exclude_filesystems = append(a.Exclude_filesystems, b.Exclude_filesystems...)
+	a.Exclude_prebuilts = append(a.Exclude_prebuilts, b.Exclude_prebuilts...)
 }
 
 type apexMultilibProperties struct {
@@ -481,6 +487,9 @@ type apexBundle struct {
 	javaApisUsedByModuleFile     android.ModuleOutPath
 
 	aconfigFiles []android.Path
+
+	// Single aconfig "cache file" merged from this module and all dependencies.
+	mergedAconfigFiles map[string]android.Paths
 }
 
 // apexFileClass represents a type of file that can be included in APEX.
@@ -712,6 +721,8 @@ func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext, nativeM
 		android.RemoveListFromList(nativeModules.Rust_dyn_libs, nativeModules.Exclude_rust_dyn_libs)...)
 	ctx.AddFarVariationDependencies(target.Variations(), fsTag,
 		android.RemoveListFromList(nativeModules.Filesystems, nativeModules.Exclude_filesystems)...)
+	ctx.AddFarVariationDependencies(target.Variations(), prebuiltTag,
+		android.RemoveListFromList(nativeModules.Prebuilts, nativeModules.Exclude_prebuilts)...)
 }
 
 func (a *apexBundle) combineProperties(ctx android.BottomUpMutatorContext) {
@@ -720,7 +731,7 @@ func (a *apexBundle) combineProperties(ctx android.BottomUpMutatorContext) {
 
 // getImageVariationPair returns a pair for the image variation name as its
 // prefix and suffix. The prefix indicates whether it's core/vendor/product and the
-// suffix indicates the vndk version when it's vendor or product.
+// suffix indicates the vndk version for vendor/product if vndk is enabled.
 // getImageVariation can simply join the result of this function to get the
 // image variation name.
 func (a *apexBundle) getImageVariationPair(deviceConfig android.DeviceConfig) (string, string) {
@@ -728,8 +739,8 @@ func (a *apexBundle) getImageVariationPair(deviceConfig android.DeviceConfig) (s
 		return cc.VendorVariationPrefix, a.vndkVersion(deviceConfig)
 	}
 
-	var prefix string
-	var vndkVersion string
+	prefix := android.CoreVariation
+	vndkVersion := ""
 	if deviceConfig.VndkVersion() != "" {
 		if a.SocSpecific() || a.DeviceSpecific() {
 			prefix = cc.VendorVariationPrefix
@@ -738,15 +749,18 @@ func (a *apexBundle) getImageVariationPair(deviceConfig android.DeviceConfig) (s
 			prefix = cc.ProductVariationPrefix
 			vndkVersion = deviceConfig.PlatformVndkVersion()
 		}
+	} else {
+		if a.SocSpecific() || a.DeviceSpecific() {
+			prefix = cc.VendorVariation
+		} else if a.ProductSpecific() {
+			prefix = cc.ProductVariation
+		}
 	}
 	if vndkVersion == "current" {
 		vndkVersion = deviceConfig.PlatformVndkVersion()
 	}
-	if vndkVersion != "" {
-		return prefix, vndkVersion
-	}
 
-	return android.CoreVariation, "" // The usual case
+	return prefix, vndkVersion
 }
 
 // getImageVariation returns the image variant name for this apexBundle. In most cases, it's simply
@@ -827,10 +841,12 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 
 		addDependenciesForNativeModules(ctx, deps, target, imageVariation)
-		ctx.AddFarVariationDependencies([]blueprint.Variation{
-			{Mutator: "os", Variation: target.OsVariation()},
-			{Mutator: "arch", Variation: target.ArchVariation()},
-		}, shBinaryTag, a.properties.Sh_binaries...)
+		if isPrimaryAbi {
+			ctx.AddFarVariationDependencies([]blueprint.Variation{
+				{Mutator: "os", Variation: target.OsVariation()},
+				{Mutator: "arch", Variation: target.ArchVariation()},
+			}, shBinaryTag, a.properties.Sh_binaries...)
+		}
 	}
 
 	// Common-arch dependencies come next
@@ -912,13 +928,7 @@ type DCLAInfo struct {
 	ProvidedLibs []string
 }
 
-var DCLAInfoProvider = blueprint.NewMutatorProvider(DCLAInfo{}, "apex_info")
-
-type ApexBundleInfo struct {
-	Contents *android.ApexContents
-}
-
-var ApexBundleInfoProvider = blueprint.NewMutatorProvider(ApexBundleInfo{}, "apex_info")
+var DCLAInfoProvider = blueprint.NewMutatorProvider[DCLAInfo]("apex_info")
 
 var _ ApexInfoMutator = (*apexBundle)(nil)
 
@@ -993,10 +1003,8 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 			}
 		}
 
-		//TODO: b/296491928 Vendor APEX should use libbinder.ndk instead of libbinder once VNDK is fully deprecated.
 		if useVndk && mctx.Config().IsVndkDeprecated() && child.Name() == "libbinder" {
-			log.Print("Libbinder is linked from Vendor APEX ", a.Name(), " with module ", parent.Name())
-			return false
+			mctx.ModuleErrorf("Module %s in the vendor APEX %s should not use libbinder. Use libbinder_ndk instead.", parent.Name(), a.Name())
 		}
 
 		// By default, all the transitive dependencies are collected, unless filtered out
@@ -1020,7 +1028,7 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 
 	// The membership information is saved for later access
 	apexContents := android.NewApexContents(contents)
-	mctx.SetProvider(ApexBundleInfoProvider, ApexBundleInfo{
+	android.SetProvider(mctx, android.ApexBundleInfoProvider, android.ApexBundleInfo{
 		Contents: apexContents,
 	})
 
@@ -1058,7 +1066,7 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 	})
 
 	if a.dynamic_common_lib_apex() {
-		mctx.SetProvider(DCLAInfoProvider, DCLAInfo{
+		android.SetProvider(mctx, DCLAInfoProvider, DCLAInfo{
 			ProvidedLibs: a.properties.Native_shared_libs,
 		})
 	}
@@ -1137,15 +1145,43 @@ func enforceAppUpdatability(mctx android.TopDownMutatorContext) {
 // Skip these mainline modules for now
 var (
 	skipStrictUpdatabilityLintAllowlist = []string{
+		// go/keep-sorted start
+		"PackageManagerTestApex",
+		"com.android.adservices",
+		"com.android.appsearch",
 		"com.android.art",
 		"com.android.art.debug",
+		"com.android.btservices",
+		"com.android.cellbroadcast",
+		"com.android.configinfrastructure",
 		"com.android.conscrypt",
+		"com.android.extservices",
+		"com.android.extservices_tplus",
+		"com.android.healthfitness",
+		"com.android.ipsec",
 		"com.android.media",
-		// test apexes
+		"com.android.mediaprovider",
+		"com.android.ondevicepersonalization",
+		"com.android.os.statsd",
+		"com.android.permission",
+		"com.android.profiling",
+		"com.android.rkpd",
+		"com.android.scheduling",
+		"com.android.tethering",
+		"com.android.uwb",
+		"com.android.wifi",
 		"test_com.android.art",
+		"test_com.android.cellbroadcast",
 		"test_com.android.conscrypt",
+		"test_com.android.extservices",
+		"test_com.android.ipsec",
 		"test_com.android.media",
+		"test_com.android.mediaprovider",
+		"test_com.android.os.statsd",
+		"test_com.android.permission",
+		"test_com.android.wifi",
 		"test_jitzygote_com.android.art",
+		// go/keep-sorted end
 	}
 
 	// TODO: b/215736885 Remove this list
@@ -1201,10 +1237,10 @@ func apexTestForMutator(mctx android.BottomUpMutatorContext) {
 	if _, ok := mctx.Module().(android.ApexModule); ok {
 		var contents []*android.ApexContents
 		for _, testFor := range mctx.GetDirectDepsWithTag(testForTag) {
-			abInfo := mctx.OtherModuleProvider(testFor, ApexBundleInfoProvider).(ApexBundleInfo)
+			abInfo, _ := android.OtherModuleProvider(mctx, testFor, android.ApexBundleInfoProvider)
 			contents = append(contents, abInfo.Contents)
 		}
-		mctx.SetProvider(android.ApexTestForInfoProvider, android.ApexTestForInfo{
+		android.SetProvider(mctx, android.ApexTestForInfoProvider, android.ApexTestForInfo{
 			ApexContents: contents,
 		})
 	}
@@ -1376,7 +1412,7 @@ func (a *apexBundle) TaggedOutputs() map[string]android.Paths {
 var _ cc.Coverage = (*apexBundle)(nil)
 
 // Implements cc.Coverage
-func (a *apexBundle) IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool {
+func (a *apexBundle) IsNativeCoverageNeeded(ctx android.IncomingTransitionContext) bool {
 	return ctx.DeviceConfig().NativeCoverageEnabled()
 }
 
@@ -1465,7 +1501,7 @@ func (a *apexBundle) libs_to_trim(ctx android.ModuleContext) []string {
 		panic(fmt.Errorf("expected exactly at most one dcla dependency, got %d", len(dclaModules)))
 	}
 	if len(dclaModules) > 0 {
-		DCLAInfo := ctx.OtherModuleProvider(dclaModules[0], DCLAInfoProvider).(DCLAInfo)
+		DCLAInfo, _ := android.OtherModuleProvider(ctx, dclaModules[0], DCLAInfoProvider)
 		return DCLAInfo.ProvidedLibs
 	}
 	return []string{}
@@ -1625,7 +1661,7 @@ func apexFileForCompatConfig(ctx android.BaseModuleContext, config java.Platform
 type javaModule interface {
 	android.Module
 	BaseModuleName() string
-	DexJarBuildPath() java.OptionalDexJarPath
+	DexJarBuildPath(ctx android.ModuleErrorfContext) java.OptionalDexJarPath
 	JacocoReportClassesFile() android.Path
 	LintDepSets() java.LintDepSets
 	Stem() string
@@ -1639,7 +1675,7 @@ var _ javaModule = (*java.SdkLibraryImport)(nil)
 
 // apexFileForJavaModule creates an apexFile for a java module's dex implementation jar.
 func apexFileForJavaModule(ctx android.BaseModuleContext, module javaModule) apexFile {
-	return apexFileForJavaModuleWithFile(ctx, module, module.DexJarBuildPath().PathOrNil())
+	return apexFileForJavaModuleWithFile(ctx, module, module.DexJarBuildPath(ctx).PathOrNil())
 }
 
 // apexFileForJavaModuleWithFile creates an apexFile for a java module with the supplied file.
@@ -1782,7 +1818,7 @@ func (a *apexBundle) WalkPayloadDeps(ctx android.ModuleContext, do android.Paylo
 			return false
 		}
 
-		ai := ctx.OtherModuleProvider(child, android.ApexInfoProvider).(android.ApexInfo)
+		ai, _ := android.OtherModuleProvider(ctx, child, android.ApexInfoProvider)
 		externalDep := !android.InList(ctx.ModuleName(), ai.InApexVariants)
 
 		// Visit actually
@@ -2035,8 +2071,10 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 				return true // track transitive dependencies
 			case *java.AndroidAppImport:
 				vctx.filesInfo = append(vctx.filesInfo, apexFilesForAndroidApp(ctx, ap)...)
+				addAconfigFiles(vctx, ctx, child)
 			case *java.AndroidTestHelperApp:
 				vctx.filesInfo = append(vctx.filesInfo, apexFilesForAndroidApp(ctx, ap)...)
+				addAconfigFiles(vctx, ctx, child)
 			case *java.AndroidAppSet:
 				appDir := "app"
 				if ap.Privileged() {
@@ -2050,6 +2088,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 				af := newApexFile(ctx, ap.OutputFile(), ap.BaseModuleName(), appDirName, appSet, ap)
 				af.certificate = java.PresignedCertificate
 				vctx.filesInfo = append(vctx.filesInfo, af)
+				addAconfigFiles(vctx, ctx, child)
 			default:
 				ctx.PropertyErrorf("apps", "%q is not an android_app module", depName)
 			}
@@ -2081,6 +2120,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 				for _, etcFile := range filesToCopy {
 					vctx.filesInfo = append(vctx.filesInfo, apexFileForPrebuiltEtc(ctx, prebuilt, etcFile))
 				}
+				addAconfigFiles(vctx, ctx, child)
 			} else {
 				ctx.PropertyErrorf("prebuilts", "%q is not a prebuilt_etc module", depName)
 			}
@@ -2104,6 +2144,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 					af := apexFileForExecutable(ctx, ccTest)
 					af.class = nativeTest
 					vctx.filesInfo = append(vctx.filesInfo, af)
+					addAconfigFiles(vctx, ctx, child)
 				}
 				return true // track transitive dependencies
 			} else {
@@ -2145,14 +2186,10 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 				return false
 			}
 
-			//TODO: b/296491928 Vendor APEX should use libbinder.ndk instead of libbinder once VNDK is fully deprecated.
-			if ch.UseVndk() && ctx.Config().IsVndkDeprecated() && child.Name() == "libbinder" {
-				return false
-			}
 			af := apexFileForNativeLibrary(ctx, ch, vctx.handleSpecialLibs)
 			af.transitiveDep = true
 
-			abInfo := ctx.Provider(ApexBundleInfoProvider).(ApexBundleInfo)
+			abInfo, _ := android.ModuleProvider(ctx, android.ApexBundleInfoProvider)
 			if !abInfo.Contents.DirectlyInApex(depName) && (ch.IsStubs() || ch.HasStubsVariants()) {
 				// If the dependency is a stubs lib, don't include it in this APEX,
 				// but make sure that the lib is installed on the device.
@@ -2193,11 +2230,13 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			}
 
 			vctx.filesInfo = append(vctx.filesInfo, af)
+			addAconfigFiles(vctx, ctx, child)
 			return true // track transitive dependencies
 		} else if rm, ok := child.(*rust.Module); ok {
 			af := apexFileForRustLibrary(ctx, rm)
 			af.transitiveDep = true
 			vctx.filesInfo = append(vctx.filesInfo, af)
+			addAconfigFiles(vctx, ctx, child)
 			return true // track transitive dependencies
 		}
 	} else if cc.IsTestPerSrcDepTag(depTag) {
@@ -2229,6 +2268,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			af := apexFileForRustLibrary(ctx, rustm)
 			af.transitiveDep = true
 			vctx.filesInfo = append(vctx.filesInfo, af)
+			addAconfigFiles(vctx, ctx, child)
 			return true // track transitive dependencies
 		}
 	} else if rust.IsRlibDepTag(depTag) {
@@ -2247,6 +2287,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 				return false
 			}
 			vctx.filesInfo = append(vctx.filesInfo, af)
+			addAconfigFiles(vctx, ctx, child)
 			return true // track transitive dependencies
 		default:
 			ctx.PropertyErrorf("bootclasspath_fragments",
@@ -2261,6 +2302,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			if profileAf := apexFileForJavaModuleProfile(ctx, child.(javaModule)); profileAf != nil {
 				vctx.filesInfo = append(vctx.filesInfo, *profileAf)
 			}
+			addAconfigFiles(vctx, ctx, child)
 			return true // track transitive dependencies
 		default:
 			ctx.PropertyErrorf("systemserverclasspath_fragments",
@@ -2277,7 +2319,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 }
 
 func addAconfigFiles(vctx *visitorContext, ctx android.ModuleContext, module blueprint.Module) {
-	dep := ctx.OtherModuleProvider(module, aconfig.TransitiveDeclarationsInfoProvider).(aconfig.TransitiveDeclarationsInfo)
+	dep, _ := android.OtherModuleProvider(ctx, module, android.AconfigTransitiveDeclarationsInfoProvider)
 	if len(dep.AconfigFiles) > 0 && dep.AconfigFiles[ctx.ModuleName()] != nil {
 		vctx.aconfigFiles = append(vctx.aconfigFiles, dep.AconfigFiles[ctx.ModuleName()]...)
 	}
@@ -2359,6 +2401,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			return
 		}
 	}
+	android.CollectDependencyAconfigFiles(ctx, &a.mergedAconfigFiles)
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// 3) some fields in apexBundle struct are configured
@@ -2376,12 +2419,31 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.buildApex(ctx)
 	a.buildApexDependencyInfo(ctx)
 	a.buildLintReports(ctx)
+
+	// Set a provider for dexpreopt of bootjars
+	a.provideApexExportsInfo(ctx)
+}
+
+// Set a provider containing information about the jars and .prof provided by the apex
+// Apexes built from source retrieve this information by visiting `bootclasspath_fragments`
+// Used by dex_bootjars to generate the boot image
+func (a *apexBundle) provideApexExportsInfo(ctx android.ModuleContext) {
+	ctx.VisitDirectDepsWithTag(bcpfTag, func(child android.Module) {
+		if info, ok := android.OtherModuleProvider(ctx, child, java.BootclasspathFragmentApexContentInfoProvider); ok {
+			exports := android.ApexExportsInfo{
+				ApexName:                      a.ApexVariationName(),
+				ProfilePathOnHost:             info.ProfilePathOnHost(),
+				LibraryNameToDexJarPathOnHost: info.DexBootJarPathMap(),
+			}
+			android.SetProvider(ctx, android.ApexExportsInfoProvider, exports)
+		}
+	})
 }
 
 // apexBootclasspathFragmentFiles returns the list of apexFile structures defining the files that
 // the bootclasspath_fragment contributes to the apex.
 func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module blueprint.Module) []apexFile {
-	bootclasspathFragmentInfo := ctx.OtherModuleProvider(module, java.BootclasspathFragmentApexContentInfoProvider).(java.BootclasspathFragmentApexContentInfo)
+	bootclasspathFragmentInfo, _ := android.OtherModuleProvider(ctx, module, java.BootclasspathFragmentApexContentInfoProvider)
 	var filesToAdd []apexFile
 
 	// Add classpaths.proto config.
@@ -2430,7 +2492,7 @@ func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module blueprint.
 // apexClasspathFragmentProtoFile returns *apexFile structure defining the classpath.proto config that
 // the module contributes to the apex; or nil if the proto config was not generated.
 func apexClasspathFragmentProtoFile(ctx android.ModuleContext, module blueprint.Module) *apexFile {
-	info := ctx.OtherModuleProvider(module, java.ClasspathFragmentProtoContentInfoProvider).(java.ClasspathFragmentProtoContentInfo)
+	info, _ := android.OtherModuleProvider(ctx, module, java.ClasspathFragmentProtoContentInfoProvider)
 	if !info.ClasspathFragmentProtoGenerated {
 		return nil
 	}
@@ -2442,7 +2504,7 @@ func apexClasspathFragmentProtoFile(ctx android.ModuleContext, module blueprint.
 // apexFileForBootclasspathFragmentContentModule creates an apexFile for a bootclasspath_fragment
 // content module, i.e. a library that is part of the bootclasspath.
 func apexFileForBootclasspathFragmentContentModule(ctx android.ModuleContext, fragmentModule blueprint.Module, javaModule javaModule) apexFile {
-	bootclasspathFragmentInfo := ctx.OtherModuleProvider(fragmentModule, java.BootclasspathFragmentApexContentInfoProvider).(java.BootclasspathFragmentApexContentInfo)
+	bootclasspathFragmentInfo, _ := android.OtherModuleProvider(ctx, fragmentModule, java.BootclasspathFragmentApexContentInfoProvider)
 
 	// Get the dexBootJar from the bootclasspath_fragment as that is responsible for performing the
 	// hidden API encpding.
@@ -2499,6 +2561,9 @@ func BundleFactory() android.Module {
 type Defaults struct {
 	android.ModuleBase
 	android.DefaultsModuleBase
+
+	// Single aconfig "cache file" merged from this module and all dependencies.
+	mergedAconfigFiles map[string]android.Paths
 }
 
 // apex_defaults provides defaultable properties to other apex modules.
@@ -2519,6 +2584,10 @@ func DefaultsFactory() android.Module {
 type OverrideApex struct {
 	android.ModuleBase
 	android.OverrideModuleBase
+}
+
+func (d *Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	android.CollectDependencyAconfigFiles(ctx, &d.mergedAconfigFiles)
 }
 
 func (o *OverrideApex) GenerateAndroidBuildActions(_ android.ModuleContext) {
@@ -2594,7 +2663,7 @@ func (a *apexBundle) checkStaticLinkingToStubLibraries(ctx android.ModuleContext
 		return
 	}
 
-	abInfo := ctx.Provider(ApexBundleInfoProvider).(ApexBundleInfo)
+	abInfo, _ := android.ModuleProvider(ctx, android.ApexBundleInfoProvider)
 
 	a.WalkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) bool {
 		if ccm, ok := to.(*cc.Module); ok {
@@ -2655,7 +2724,7 @@ func (a *apexBundle) checkUpdatable(ctx android.ModuleContext) {
 func (a *apexBundle) checkClasspathFragments(ctx android.ModuleContext) {
 	ctx.VisitDirectDeps(func(module android.Module) {
 		if tag := ctx.OtherModuleDependencyTag(module); tag == bcpfTag || tag == sscpfTag {
-			info := ctx.OtherModuleProvider(module, java.ClasspathFragmentProtoContentInfoProvider).(java.ClasspathFragmentProtoContentInfo)
+			info, _ := android.OtherModuleProvider(ctx, module, java.ClasspathFragmentProtoContentInfoProvider)
 			if !info.ClasspathFragmentProtoGenerated {
 				ctx.OtherModuleErrorf(module, "is included in updatable apex %v, it must not set generate_classpaths_proto to false", ctx.ModuleName())
 			}
@@ -2840,77 +2909,8 @@ func makeApexAvailableBaseline() map[string][]string {
 	//
 	// Module separator
 	//
-	m["com.android.mediaprovider"] = []string{
-		"MediaProvider",
-		"MediaProviderGoogle",
-		"fmtlib_ndk",
-		"libbase_ndk",
-		"libfuse",
-		"libfuse_jni",
-	}
-	//
-	// Module separator
-	//
 	m["com.android.runtime"] = []string{
-		"libdebuggerd",
-		"libdebuggerd_common_headers",
-		"libdebuggerd_handler_core",
-		"libdl_static",
-		"libjemalloc5",
-		"liblinker_main",
-		"liblinker_malloc",
-		"liblzma",
-		"libprocinfo",
-		"libpropertyinfoparser",
-		"libscudo",
-		"libsystemproperties",
-		"libtombstoned_client_static",
-		"libunwindstack",
 		"libz",
-		"libziparchive",
-	}
-	//
-	// Module separator
-	//
-	m["com.android.tethering"] = []string{
-		"android.hardware.tetheroffload.config-V1.0-java",
-		"android.hardware.tetheroffload.control-V1.0-java",
-		"net-utils-framework-common",
-	}
-	//
-	// Module separator
-	//
-	m["com.android.wifi"] = []string{
-		"PlatformProperties",
-		"android.hardware.wifi-V1.0-java",
-		"android.hardware.wifi-V1.0-java-constants",
-		"android.hardware.wifi-V1.1-java",
-		"android.hardware.wifi-V1.2-java",
-		"android.hardware.wifi-V1.3-java",
-		"android.hardware.wifi-V1.4-java",
-		"android.hardware.wifi.hostapd-V1.0-java",
-		"android.hardware.wifi.hostapd-V1.1-java",
-		"android.hardware.wifi.hostapd-V1.2-java",
-		"android.hardware.wifi.supplicant-V1.0-java",
-		"android.hardware.wifi.supplicant-V1.1-java",
-		"android.hardware.wifi.supplicant-V1.2-java",
-		"android.hardware.wifi.supplicant-V1.3-java",
-		"bouncycastle-unbundled",
-		"framework-wifi-util-lib",
-		"ksoap2",
-		"libnanohttpd",
-		"wifi-lite-protos",
-		"wifi-nano-protos",
-		"wifi-service-pre-jarjar",
-	}
-	//
-	// Module separator
-	//
-	m[android.AvailableToAnyApex] = []string{
-		"libprofile-clang-extras",
-		"libprofile-clang-extras_ndk",
-		"libprofile-extras",
-		"libprofile-extras_ndk",
 	}
 	return m
 }

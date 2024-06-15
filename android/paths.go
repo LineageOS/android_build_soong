@@ -111,6 +111,9 @@ type ModuleInstallPathContext interface {
 	InstallInDebugRamdisk() bool
 	InstallInRecovery() bool
 	InstallInRoot() bool
+	InstallInOdm() bool
+	InstallInProduct() bool
+	InstallInVendor() bool
 	InstallForceOS() (*OsType, *ArchType)
 }
 
@@ -152,6 +155,18 @@ func (ctx *baseModuleContextToModuleInstallPathContext) InstallInRoot() bool {
 	return ctx.Module().InstallInRoot()
 }
 
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallInOdm() bool {
+	return ctx.Module().InstallInOdm()
+}
+
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallInProduct() bool {
+	return ctx.Module().InstallInProduct()
+}
+
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallInVendor() bool {
+	return ctx.Module().InstallInVendor()
+}
+
 func (ctx *baseModuleContextToModuleInstallPathContext) InstallForceOS() (*OsType, *ArchType) {
 	return ctx.Module().InstallForceOS()
 }
@@ -166,13 +181,13 @@ type errorfContext interface {
 
 var _ errorfContext = blueprint.SingletonContext(nil)
 
-// moduleErrorf is the interface containing the ModuleErrorf method matching
+// ModuleErrorfContext is the interface containing the ModuleErrorf method matching
 // the ModuleErrorf method in blueprint.ModuleContext.
-type moduleErrorf interface {
+type ModuleErrorfContext interface {
 	ModuleErrorf(format string, args ...interface{})
 }
 
-var _ moduleErrorf = blueprint.ModuleContext(nil)
+var _ ModuleErrorfContext = blueprint.ModuleContext(nil)
 
 // reportPathError will register an error with the attached context. It
 // attempts ctx.ModuleErrorf for a better error message first, then falls
@@ -185,7 +200,7 @@ func reportPathError(ctx PathContext, err error) {
 // attempts ctx.ModuleErrorf for a better error message first, then falls
 // back to ctx.Errorf.
 func ReportPathErrorf(ctx PathContext, format string, args ...interface{}) {
-	if mctx, ok := ctx.(moduleErrorf); ok {
+	if mctx, ok := ctx.(ModuleErrorfContext); ok {
 		mctx.ModuleErrorf(format, args...)
 	} else if ectx, ok := ctx.(errorfContext); ok {
 		ectx.Errorf(format, args...)
@@ -1696,6 +1711,8 @@ type InstallPath struct {
 
 	// makePath indicates whether this path is for Soong (false) or Make (true).
 	makePath bool
+
+	fullPath string
 }
 
 // Will panic if called from outside a test environment.
@@ -1708,7 +1725,12 @@ func ensureTestOnly() {
 
 func (p InstallPath) RelativeToTop() Path {
 	ensureTestOnly()
-	p.soongOutDir = OutSoongDir
+	if p.makePath {
+		p.soongOutDir = OutDir
+	} else {
+		p.soongOutDir = OutSoongDir
+	}
+	p.fullPath = filepath.Join(p.soongOutDir, p.path)
 	return p
 }
 
@@ -1726,12 +1748,7 @@ var _ WritablePath = InstallPath{}
 func (p InstallPath) writablePath() {}
 
 func (p InstallPath) String() string {
-	if p.makePath {
-		// Make path starts with out/ instead of out/soong.
-		return filepath.Join(p.soongOutDir, "../", p.path)
-	} else {
-		return filepath.Join(p.soongOutDir, p.path)
-	}
+	return p.fullPath
 }
 
 // PartitionDir returns the path to the partition where the install path is rooted at. It is
@@ -1761,6 +1778,7 @@ func (p InstallPath) Join(ctx PathContext, paths ...string) InstallPath {
 
 func (p InstallPath) withRel(rel string) InstallPath {
 	p.basePath = p.basePath.withRel(rel)
+	p.fullPath = filepath.Join(p.fullPath, rel)
 	return p
 }
 
@@ -1804,6 +1822,25 @@ func osAndArch(ctx ModuleInstallPathContext) (OsType, ArchType) {
 	return os, arch
 }
 
+func pathForPartitionInstallDir(ctx PathContext, partition, partitionPath string, makePath bool) InstallPath {
+	fullPath := ctx.Config().SoongOutDir()
+	if makePath {
+		// Make path starts with out/ instead of out/soong.
+		fullPath = filepath.Join(fullPath, "../", partitionPath)
+	} else {
+		fullPath = filepath.Join(fullPath, partitionPath)
+	}
+
+	return InstallPath{
+		basePath:     basePath{partitionPath, ""},
+		soongOutDir:  ctx.Config().soongOutDir,
+		partitionDir: partitionPath,
+		partition:    partition,
+		makePath:     makePath,
+		fullPath:     fullPath,
+	}
+}
+
 func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 	pathComponents ...string) InstallPath {
 
@@ -1840,27 +1877,12 @@ func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 		reportPathError(ctx, err)
 	}
 
-	base := InstallPath{
-		basePath:     basePath{partitionPath, ""},
-		soongOutDir:  ctx.Config().soongOutDir,
-		partitionDir: partitionPath,
-		partition:    partition,
-	}
-
-	if ctx.Config().KatiEnabled() {
-		base.makePath = true
-	}
-
+	base := pathForPartitionInstallDir(ctx, partition, partitionPath, ctx.Config().KatiEnabled())
 	return base.Join(ctx, pathComponents...)
 }
 
 func pathForNdkOrSdkInstall(ctx PathContext, prefix string, paths []string) InstallPath {
-	base := InstallPath{
-		basePath:     basePath{prefix, ""},
-		soongOutDir:  ctx.Config().soongOutDir,
-		partitionDir: prefix,
-		makePath:     false,
-	}
+	base := pathForPartitionInstallDir(ctx, "", prefix, false)
 	return base.Join(ctx, paths...)
 }
 
@@ -1916,11 +1938,11 @@ func modulePartition(ctx ModuleInstallPathContext, device bool) string {
 				// the layout of recovery partion is the same as that of system partition
 				partition = "recovery/root/system"
 			}
-		} else if ctx.SocSpecific() {
+		} else if ctx.SocSpecific() || ctx.InstallInVendor() {
 			partition = ctx.DeviceConfig().VendorPath()
-		} else if ctx.DeviceSpecific() {
+		} else if ctx.DeviceSpecific() || ctx.InstallInOdm() {
 			partition = ctx.DeviceConfig().OdmPath()
-		} else if ctx.ProductSpecific() {
+		} else if ctx.ProductSpecific() || ctx.InstallInProduct() {
 			partition = ctx.DeviceConfig().ProductPath()
 		} else if ctx.SystemExtSpecific() {
 			partition = ctx.DeviceConfig().SystemExtPath()
@@ -2116,6 +2138,9 @@ type testModuleInstallPathContext struct {
 	inDebugRamdisk  bool
 	inRecovery      bool
 	inRoot          bool
+	inOdm           bool
+	inProduct       bool
+	inVendor        bool
 	forceOS         *OsType
 	forceArch       *ArchType
 }
@@ -2156,6 +2181,18 @@ func (m testModuleInstallPathContext) InstallInRecovery() bool {
 
 func (m testModuleInstallPathContext) InstallInRoot() bool {
 	return m.inRoot
+}
+
+func (m testModuleInstallPathContext) InstallInOdm() bool {
+	return m.inOdm
+}
+
+func (m testModuleInstallPathContext) InstallInProduct() bool {
+	return m.inProduct
+}
+
+func (m testModuleInstallPathContext) InstallInVendor() bool {
+	return m.inVendor
 }
 
 func (m testModuleInstallPathContext) InstallForceOS() (*OsType, *ArchType) {

@@ -117,20 +117,16 @@ func (mod *Module) IsSnapshotPrebuilt() bool {
 	return false
 }
 
-func (ctx *moduleContext) SocSpecific() bool {
+func (mod *Module) InstallInVendor() bool {
 	// Additionally check if this module is inVendor() that means it is a "vendor" variant of a
 	// module. As well as SoC specific modules, vendor variants must be installed to /vendor
 	// unless they have "odm_available: true".
-	return ctx.ModuleContext.SocSpecific() || (ctx.RustModule().InVendor() && !ctx.RustModule().VendorVariantToOdm())
+	return mod.InVendor() && !mod.VendorVariantToOdm()
 }
 
-func (ctx *moduleContext) DeviceSpecific() bool {
+func (mod *Module) InstallInOdm() bool {
 	// Some vendor variants want to be installed to /odm by setting "odm_available: true".
-	return ctx.ModuleContext.DeviceSpecific() || (ctx.RustModule().InVendor() && ctx.RustModule().VendorVariantToOdm())
-}
-
-func (ctx *moduleContext) SystemExtSpecific() bool {
-	return ctx.ModuleContext.SystemExtSpecific()
+	return mod.InVendor() && mod.VendorVariantToOdm()
 }
 
 // Returns true when this module creates a vendor variant and wants to install the vendor variant
@@ -188,12 +184,17 @@ func (mod *Module) HasNonSystemVariants() bool {
 }
 
 func (mod *Module) InProduct() bool {
-	return mod.Properties.ImageVariationPrefix == cc.ProductVariationPrefix
+	return mod.Properties.ImageVariation == cc.ProductVariation
 }
 
 // Returns true if the module is "vendor" variant. Usually these modules are installed in /vendor
 func (mod *Module) InVendor() bool {
-	return mod.Properties.ImageVariationPrefix == cc.VendorVariationPrefix
+	return mod.Properties.ImageVariation == cc.VendorVariation
+}
+
+// Returns true if the module is "vendor" or "product" variant.
+func (mod *Module) InVendorOrProduct() bool {
+	return mod.InVendor() || mod.InProduct()
 }
 
 func (mod *Module) SetImageVariation(ctx android.BaseModuleContext, variant string, module android.Module) {
@@ -202,9 +203,11 @@ func (mod *Module) SetImageVariation(ctx android.BaseModuleContext, variant stri
 		m.MakeAsPlatform()
 	} else if variant == android.RecoveryVariation {
 		m.MakeAsPlatform()
-	} else if strings.HasPrefix(variant, cc.VendorVariationPrefix) {
-		m.Properties.ImageVariationPrefix = cc.VendorVariationPrefix
-		m.Properties.VndkVersion = strings.TrimPrefix(variant, cc.VendorVariationPrefix)
+	} else if strings.HasPrefix(variant, cc.VendorVariation) {
+		m.Properties.ImageVariation = cc.VendorVariation
+		if strings.HasPrefix(variant, cc.VendorVariationPrefix) {
+			m.Properties.VndkVersion = strings.TrimPrefix(variant, cc.VendorVariationPrefix)
+		}
 
 		// Makefile shouldn't know vendor modules other than BOARD_VNDK_VERSION.
 		// Hide other vendor variants to avoid collision.
@@ -213,9 +216,11 @@ func (mod *Module) SetImageVariation(ctx android.BaseModuleContext, variant stri
 			m.Properties.HideFromMake = true
 			m.HideFromMake()
 		}
-	} else if strings.HasPrefix(variant, cc.ProductVariationPrefix) {
-		m.Properties.ImageVariationPrefix = cc.ProductVariationPrefix
-		m.Properties.VndkVersion = strings.TrimPrefix(variant, cc.ProductVariationPrefix)
+	} else if strings.HasPrefix(variant, cc.ProductVariation) {
+		m.Properties.ImageVariation = cc.ProductVariation
+		if strings.HasPrefix(variant, cc.ProductVariationPrefix) {
+			m.Properties.VndkVersion = strings.TrimPrefix(variant, cc.ProductVariationPrefix)
+		}
 	}
 }
 

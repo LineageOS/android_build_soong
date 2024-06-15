@@ -23,6 +23,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 
@@ -33,6 +34,7 @@ import (
 var (
 	DeviceSharedLibrary = "shared_library"
 	DeviceStaticLibrary = "static_library"
+	jarJarPrefixHandler func(ctx ModuleContext)
 )
 
 type Module interface {
@@ -77,6 +79,8 @@ type Module interface {
 	InstallInDebugRamdisk() bool
 	InstallInRecovery() bool
 	InstallInRoot() bool
+	InstallInOdm() bool
+	InstallInProduct() bool
 	InstallInVendor() bool
 	InstallForceOS() (*OsType, *ArchType)
 	PartitionTag(DeviceConfig) string
@@ -323,7 +327,7 @@ type commonProperties struct {
 	// defaults module, use the `defaults_visibility` property on the defaults module;
 	// not to be confused with the `default_visibility` property on the package module.
 	//
-	// See https://android.googlesource.com/platform/build/soong/+/master/README.md#visibility for
+	// See https://android.googlesource.com/platform/build/soong/+/main/README.md#visibility for
 	// more details.
 	Visibility []string
 
@@ -516,6 +520,9 @@ type commonProperties struct {
 	// trace, but influence modules among products.
 	SoongConfigTrace     soongConfigTrace `blueprint:"mutated"`
 	SoongConfigTraceHash string           `blueprint:"mutated"`
+
+	// The team (defined by the owner/vendor) who owns the property.
+	Team *string `android:"path"`
 }
 
 type distProperties struct {
@@ -527,6 +534,12 @@ type distProperties struct {
 	// distribution directory (default: $OUT/dist, configurable with $DIST_DIR)
 	Dists []Dist `android:"arch_variant"`
 }
+
+type TeamDepTagType struct {
+	blueprint.BaseDependencyTag
+}
+
+var teamDepTag = TeamDepTagType{}
 
 // CommonTestOptions represents the common `test_options` properties in
 // Android.bp.
@@ -837,8 +850,12 @@ type ModuleBase struct {
 	// katiInstalls tracks the install rules that were created by Soong but are being exported
 	// to Make to convert to ninja rules so that Make can add additional dependencies.
 	katiInstalls katiInstalls
-	katiSymlinks katiInstalls
-	testData     []DataPath
+	// katiInitRcInstalls and katiVintfInstalls track the install rules created by Soong that are
+	// allowed to have duplicates across modules and variants.
+	katiInitRcInstalls katiInstalls
+	katiVintfInstalls  katiInstalls
+	katiSymlinks       katiInstalls
+	testData           []DataPath
 
 	// The files to copy to the dist as explicitly specified in the .bp file.
 	distFiles TaggedDistFiles
@@ -861,12 +878,19 @@ type ModuleBase struct {
 	initRcPaths         Paths
 	vintfFragmentsPaths Paths
 
+	installedInitRcPaths         InstallPaths
+	installedVintfFragmentsPaths InstallPaths
+
 	// set of dependency module:location mappings used to populate the license metadata for
 	// apex containers.
 	licenseInstallMap []string
 
 	// The path to the generated license metadata file for the module.
 	licenseMetadataFile WritablePath
+
+	// moduleInfoJSON can be filled out by GenerateAndroidBuildActions to write a JSON file that will
+	// be included in the final module-info.json produced by Make.
+	moduleInfoJSON *ModuleInfoJSON
 }
 
 func (m *ModuleBase) AddJSONData(d *map[string]interface{}) {
@@ -977,6 +1001,12 @@ func sliceReflectionValue(value reflect.Value) []string {
 func (m *ModuleBase) ComponentDepsMutator(BottomUpMutatorContext) {}
 
 func (m *ModuleBase) DepsMutator(BottomUpMutatorContext) {}
+
+func (m *ModuleBase) baseDepsMutator(ctx BottomUpMutatorContext) {
+	if m.Team() != "" {
+		ctx.AddDependency(ctx.Module(), teamDepTag, m.Team())
+	}
+}
 
 // AddProperties "registers" the provided props
 // each value in props MUST be a pointer to a struct
@@ -1399,6 +1429,14 @@ func (m *ModuleBase) InstallInRecovery() bool {
 	return Bool(m.commonProperties.Recovery)
 }
 
+func (m *ModuleBase) InstallInOdm() bool {
+	return false
+}
+
+func (m *ModuleBase) InstallInProduct() bool {
+	return false
+}
+
 func (m *ModuleBase) InstallInVendor() bool {
 	return Bool(m.commonProperties.Vendor) || Bool(m.commonProperties.Soc_specific) || Bool(m.commonProperties.Proprietary)
 }
@@ -1413,6 +1451,10 @@ func (m *ModuleBase) InstallForceOS() (*OsType, *ArchType) {
 
 func (m *ModuleBase) Owner() string {
 	return String(m.commonProperties.Owner)
+}
+
+func (m *ModuleBase) Team() string {
+	return String(m.commonProperties.Team)
 }
 
 func (m *ModuleBase) setImageVariation(variant string) {
@@ -1600,12 +1642,29 @@ func (m *ModuleBase) earlyModuleContextFactory(ctx blueprint.EarlyModuleContext)
 func (m *ModuleBase) baseModuleContextFactory(ctx blueprint.BaseModuleContext) baseModuleContext {
 	return baseModuleContext{
 		bp:                 ctx,
+		archModuleContext:  m.archModuleContextFactory(ctx),
 		earlyModuleContext: m.earlyModuleContextFactory(ctx),
-		os:                 m.commonProperties.CompileOS,
-		target:             m.commonProperties.CompileTarget,
-		targetPrimary:      m.commonProperties.CompilePrimary,
-		multiTargets:       m.commonProperties.CompileMultiTargets,
 	}
+}
+
+func (m *ModuleBase) archModuleContextFactory(ctx blueprint.IncomingTransitionContext) archModuleContext {
+	config := ctx.Config().(Config)
+	target := m.Target()
+	primaryArch := false
+	if len(config.Targets[target.Os]) <= 1 {
+		primaryArch = true
+	} else {
+		primaryArch = target.Arch.ArchType == config.Targets[target.Os][0].Arch.ArchType
+	}
+
+	return archModuleContext{
+		os:            m.commonProperties.CompileOS,
+		target:        m.commonProperties.CompileTarget,
+		targetPrimary: m.commonProperties.CompilePrimary,
+		multiTargets:  m.commonProperties.CompileMultiTargets,
+		primaryArch:   primaryArch,
+	}
+
 }
 
 func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) {
@@ -1648,7 +1707,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	if !ctx.PrimaryArch() {
 		suffix = append(suffix, ctx.Arch().ArchType.String())
 	}
-	if apexInfo := ctx.Provider(ApexInfoProvider).(ApexInfo); !apexInfo.IsForPlatform() {
+	if apexInfo, _ := ModuleProvider(ctx, ApexInfoProvider); !apexInfo.IsForPlatform() {
 		suffix = append(suffix, apexInfo.ApexVariationName)
 	}
 
@@ -1670,13 +1729,55 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		// ensure all direct android.Module deps are enabled
 		ctx.VisitDirectDepsBlueprint(func(bm blueprint.Module) {
 			if m, ok := bm.(Module); ok {
-				ctx.validateAndroidModule(bm, ctx.OtherModuleDependencyTag(m), ctx.baseModuleContext.strictVisitDeps)
+				ctx.validateAndroidModule(bm, ctx.OtherModuleDependencyTag(m), ctx.baseModuleContext.strictVisitDeps, false)
 			}
 		})
+
+		if m.Device() {
+			// Handle any init.rc and vintf fragment files requested by the module.  All files installed by this
+			// module will automatically have a dependency on the installed init.rc or vintf fragment file.
+			// The same init.rc or vintf fragment file may be requested by multiple modules or variants,
+			// so instead of installing them now just compute the install path and store it for later.
+			// The full list of all init.rc and vintf fragment install rules will be deduplicated later
+			// so only a single rule is created for each init.rc or vintf fragment file.
+
+			if !m.InVendorRamdisk() {
+				m.initRcPaths = PathsForModuleSrc(ctx, m.commonProperties.Init_rc)
+				rcDir := PathForModuleInstall(ctx, "etc", "init")
+				for _, src := range m.initRcPaths {
+					installedInitRc := rcDir.Join(ctx, src.Base())
+					m.katiInitRcInstalls = append(m.katiInitRcInstalls, katiInstall{
+						from: src,
+						to:   installedInitRc,
+					})
+					ctx.PackageFile(rcDir, src.Base(), src)
+					m.installedInitRcPaths = append(m.installedInitRcPaths, installedInitRc)
+				}
+			}
+
+			m.vintfFragmentsPaths = PathsForModuleSrc(ctx, m.commonProperties.Vintf_fragments)
+			vintfDir := PathForModuleInstall(ctx, "etc", "vintf", "manifest")
+			for _, src := range m.vintfFragmentsPaths {
+				installedVintfFragment := vintfDir.Join(ctx, src.Base())
+				m.katiVintfInstalls = append(m.katiVintfInstalls, katiInstall{
+					from: src,
+					to:   installedVintfFragment,
+				})
+				ctx.PackageFile(vintfDir, src.Base(), src)
+				m.installedVintfFragmentsPaths = append(m.installedVintfFragmentsPaths, installedVintfFragment)
+			}
+		}
 
 		licensesPropertyFlattener(ctx)
 		if ctx.Failed() {
 			return
+		}
+
+		if jarJarPrefixHandler != nil {
+			jarJarPrefixHandler(ctx)
+			if ctx.Failed() {
+				return
+			}
 		}
 
 		m.module.GenerateAndroidBuildActions(ctx)
@@ -1684,16 +1785,9 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			return
 		}
 
-		m.initRcPaths = PathsForModuleSrc(ctx, m.commonProperties.Init_rc)
-		rcDir := PathForModuleInstall(ctx, "etc", "init")
-		for _, src := range m.initRcPaths {
-			ctx.PackageFile(rcDir, filepath.Base(src.String()), src)
-		}
-
-		m.vintfFragmentsPaths = PathsForModuleSrc(ctx, m.commonProperties.Vintf_fragments)
-		vintfDir := PathForModuleInstall(ctx, "etc", "vintf", "manifest")
-		for _, src := range m.vintfFragmentsPaths {
-			ctx.PackageFile(vintfDir, filepath.Base(src.String()), src)
+		aconfigUpdateAndroidBuildActions(ctx)
+		if ctx.Failed() {
+			return
 		}
 
 		// Create the set of tagged dist files after calling GenerateAndroidBuildActions
@@ -1731,9 +1825,95 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 
 	buildLicenseMetadata(ctx, m.licenseMetadataFile)
 
+	if m.moduleInfoJSON != nil {
+		var installed InstallPaths
+		installed = append(installed, m.katiInstalls.InstallPaths()...)
+		installed = append(installed, m.katiSymlinks.InstallPaths()...)
+		installed = append(installed, m.katiInitRcInstalls.InstallPaths()...)
+		installed = append(installed, m.katiVintfInstalls.InstallPaths()...)
+		installedStrings := installed.Strings()
+
+		var targetRequired, hostRequired []string
+		if ctx.Host() {
+			targetRequired = m.commonProperties.Target_required
+		} else {
+			hostRequired = m.commonProperties.Host_required
+		}
+
+		var data []string
+		for _, d := range m.testData {
+			data = append(data, d.ToRelativeInstallPath())
+		}
+
+		if m.moduleInfoJSON.Uninstallable {
+			installedStrings = nil
+			if len(m.moduleInfoJSON.CompatibilitySuites) == 1 && m.moduleInfoJSON.CompatibilitySuites[0] == "null-suite" {
+				m.moduleInfoJSON.CompatibilitySuites = nil
+				m.moduleInfoJSON.TestConfig = nil
+				m.moduleInfoJSON.AutoTestConfig = nil
+				data = nil
+			}
+		}
+
+		m.moduleInfoJSON.core = CoreModuleInfoJSON{
+			RegisterName:       m.moduleInfoRegisterName(ctx, m.moduleInfoJSON.SubName),
+			Path:               []string{ctx.ModuleDir()},
+			Installed:          installedStrings,
+			ModuleName:         m.BaseModuleName() + m.moduleInfoJSON.SubName,
+			SupportedVariants:  []string{m.moduleInfoVariant(ctx)},
+			TargetDependencies: targetRequired,
+			HostDependencies:   hostRequired,
+			Data:               data,
+		}
+		SetProvider(ctx, ModuleInfoJSONProvider, m.moduleInfoJSON)
+	}
+
 	m.buildParams = ctx.buildParams
 	m.ruleParams = ctx.ruleParams
 	m.variables = ctx.variables
+}
+
+func SetJarJarPrefixHandler(handler func(ModuleContext)) {
+	if jarJarPrefixHandler != nil {
+		panic("jarJarPrefixHandler already set")
+	}
+	jarJarPrefixHandler = handler
+}
+
+func (m *ModuleBase) moduleInfoRegisterName(ctx ModuleContext, subName string) string {
+	name := m.BaseModuleName()
+
+	prefix := ""
+	if ctx.Host() {
+		if ctx.Os() != ctx.Config().BuildOS {
+			prefix = "host_cross_"
+		}
+	}
+	suffix := ""
+	arches := slices.Clone(ctx.Config().Targets[ctx.Os()])
+	arches = slices.DeleteFunc(arches, func(target Target) bool {
+		return target.NativeBridge != ctx.Target().NativeBridge
+	})
+	if len(arches) > 0 && ctx.Arch().ArchType != arches[0].Arch.ArchType {
+		if ctx.Arch().ArchType.Multilib == "lib32" {
+			suffix = "_32"
+		} else {
+			suffix = "_64"
+		}
+	}
+	return prefix + name + subName + suffix
+}
+
+func (m *ModuleBase) moduleInfoVariant(ctx ModuleContext) string {
+	variant := "DEVICE"
+	if ctx.Host() {
+		if ctx.Os() != ctx.Config().BuildOS {
+			variant = "HOST_CROSS"
+		} else {
+			variant = "HOST"
+		}
+	}
+	return variant
 }
 
 // Check the supplied dist structure to make sure that it is valid.

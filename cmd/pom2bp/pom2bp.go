@@ -651,7 +651,7 @@ var bpDepsTemplate = template.Must(template.New("bp").Parse(`
         {{- end}}
     ],
     {{- end}}
-    java_version: "1.7",
+    java_version: "1.8",
 }
 `))
 

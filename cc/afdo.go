@@ -21,29 +21,17 @@ import (
 	"android/soong/android"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/proptools"
 )
 
 // This flag needs to be in both CFlags and LdFlags to ensure correct symbol ordering
 const afdoFlagsFormat = "-fprofile-sample-use=%s -fprofile-sample-accurate"
-
-func recordMissingAfdoProfileFile(ctx android.BaseModuleContext, missing string) {
-	getNamedMapForConfig(ctx.Config(), modulesMissingProfileFileKey).Store(missing, true)
-}
-
-type afdoRdep struct {
-	VariationName *string
-	ProfilePath   *string
-}
 
 type AfdoProperties struct {
 	// Afdo allows developers self-service enroll for
 	// automatic feedback-directed optimization using profile data.
 	Afdo bool
 
-	FdoProfilePath *string `blueprint:"mutated"`
-
-	AfdoRDeps []afdoRdep `blueprint:"mutated"`
+	AfdoDep bool `blueprint:"mutated"`
 }
 
 type afdo struct {
@@ -62,13 +50,32 @@ func (afdo *afdo) begin(ctx BaseModuleContext) {
 }
 
 // afdoEnabled returns true for binaries and shared libraries
-// that set afdo prop to True and there is a profile available
+// that set afdo prop to True.
 func (afdo *afdo) afdoEnabled() bool {
 	return afdo != nil && afdo.Properties.Afdo
 }
 
+func (afdo *afdo) isAfdoCompile(ctx ModuleContext) bool {
+	fdoProfilePath := getFdoProfilePathFromDep(ctx)
+	return !ctx.Host() && (afdo.Properties.Afdo || afdo.Properties.AfdoDep) && (fdoProfilePath != "")
+}
+
+func getFdoProfilePathFromDep(ctx ModuleContext) string {
+	fdoProfileDeps := ctx.GetDirectDepsWithTag(FdoProfileTag)
+	if len(fdoProfileDeps) > 0 && fdoProfileDeps[0] != nil {
+		if info, ok := android.OtherModuleProvider(ctx, fdoProfileDeps[0], FdoProfileProvider); ok {
+			return info.Path.String()
+		}
+	}
+	return ""
+}
+
 func (afdo *afdo) flags(ctx ModuleContext, flags Flags) Flags {
-	if afdo.Properties.Afdo {
+	if ctx.Host() {
+		return flags
+	}
+
+	if afdo.Properties.Afdo || afdo.Properties.AfdoDep {
 		// We use `-funique-internal-linkage-names` to associate profiles to the right internal
 		// functions. This option should be used before generating a profile. Because a profile
 		// generated for a binary without unique names doesn't work well building a binary with
@@ -86,15 +93,15 @@ func (afdo *afdo) flags(ctx ModuleContext, flags Flags) Flags {
 		// TODO(b/266595187): Remove the following feature once it is enabled in LLVM by default.
 		flags.Local.CFlags = append([]string{"-mllvm", "-improved-fs-discriminator=true"}, flags.Local.CFlags...)
 	}
-	if path := afdo.Properties.FdoProfilePath; path != nil {
+	if fdoProfilePath := getFdoProfilePathFromDep(ctx); fdoProfilePath != "" {
 		// The flags are prepended to allow overriding.
-		profileUseFlag := fmt.Sprintf(afdoFlagsFormat, *path)
+		profileUseFlag := fmt.Sprintf(afdoFlagsFormat, fdoProfilePath)
 		flags.Local.CFlags = append([]string{profileUseFlag}, flags.Local.CFlags...)
 		flags.Local.LdFlags = append([]string{profileUseFlag, "-Wl,-mllvm,-no-warn-sample-unused=true"}, flags.Local.LdFlags...)
 
 		// Update CFlagsDeps and LdFlagsDeps so the module is rebuilt
 		// if profileFile gets updated
-		pathForSrc := android.PathForSource(ctx, *path)
+		pathForSrc := android.PathForSource(ctx, fdoProfilePath)
 		flags.CFlagsDeps = append(flags.CFlagsDeps, pathForSrc)
 		flags.LdFlagsDeps = append(flags.LdFlagsDeps, pathForSrc)
 	}
@@ -102,123 +109,86 @@ func (afdo *afdo) flags(ctx ModuleContext, flags Flags) Flags {
 	return flags
 }
 
-func (afdo *afdo) addDep(ctx BaseModuleContext, actx android.BottomUpMutatorContext) {
+func (a *afdo) addDep(ctx android.BottomUpMutatorContext, fdoProfileTarget string) {
+	if fdoProfileName, err := ctx.DeviceConfig().AfdoProfile(fdoProfileTarget); fdoProfileName != "" && err == nil {
+		ctx.AddFarVariationDependencies(
+			[]blueprint.Variation{
+				{Mutator: "arch", Variation: ctx.Target().ArchVariation()},
+				{Mutator: "os", Variation: "android"},
+			},
+			FdoProfileTag,
+			fdoProfileName)
+	}
+}
+
+func afdoPropagateViaDepTag(tag blueprint.DependencyTag) bool {
+	libTag, isLibTag := tag.(libraryDependencyTag)
+	// Do not recurse down non-static dependencies
+	if isLibTag {
+		return libTag.static()
+	} else {
+		return tag == objDepTag || tag == reuseObjTag || tag == staticVariantTag
+	}
+}
+
+// afdoTransitionMutator creates afdo variants of cc modules.
+type afdoTransitionMutator struct{}
+
+func (a *afdoTransitionMutator) Split(ctx android.BaseModuleContext) []string {
+	return []string{""}
+}
+
+func (a *afdoTransitionMutator) OutgoingTransition(ctx android.OutgoingTransitionContext, sourceVariation string) string {
 	if ctx.Host() {
-		return
+		return ""
 	}
 
-	if ctx.static() && !ctx.staticBinary() {
-		return
-	}
-
-	if c, ok := ctx.Module().(*Module); ok && c.Enabled() {
-		if fdoProfileName, err := actx.DeviceConfig().AfdoProfile(actx.ModuleName()); fdoProfileName != nil && err == nil {
-			actx.AddFarVariationDependencies(
-				[]blueprint.Variation{
-					{Mutator: "arch", Variation: actx.Target().ArchVariation()},
-					{Mutator: "os", Variation: "android"},
-				},
-				FdoProfileTag,
-				[]string{*fdoProfileName}...,
-			)
+	if m, ok := ctx.Module().(*Module); ok && m.afdo != nil {
+		if !afdoPropagateViaDepTag(ctx.DepTag()) {
+			return ""
 		}
+
+		if sourceVariation != "" {
+			return sourceVariation
+		}
+
+		if !m.afdo.afdoEnabled() {
+			return ""
+		}
+
+		// TODO(b/324141705): this is designed to prevent propagating AFDO from static libraries that have afdo: true set, but
+		//  it should be m.static() && !m.staticBinary() so that static binaries use AFDO variants of dependencies.
+		if m.static() {
+			return ""
+		}
+
+		return encodeTarget(ctx.Module().Name())
 	}
+	return ""
 }
 
-// FdoProfileMutator reads the FdoProfileProvider from a direct dep with FdoProfileTag
-// assigns FdoProfileInfo.Path to the FdoProfilePath mutated property
-func (c *Module) fdoProfileMutator(ctx android.BottomUpMutatorContext) {
-	if !c.Enabled() {
-		return
+func (a *afdoTransitionMutator) IncomingTransition(ctx android.IncomingTransitionContext, incomingVariation string) string {
+	if m, ok := ctx.Module().(*Module); ok && m.afdo != nil {
+		return incomingVariation
 	}
-
-	if !c.afdo.afdoEnabled() {
-		return
-	}
-
-	ctx.VisitDirectDepsWithTag(FdoProfileTag, func(m android.Module) {
-		if ctx.OtherModuleHasProvider(m, FdoProfileProvider) {
-			info := ctx.OtherModuleProvider(m, FdoProfileProvider).(FdoProfileInfo)
-			c.afdo.Properties.FdoProfilePath = proptools.StringPtr(info.Path.String())
-		}
-	})
+	return ""
 }
 
-var _ FdoProfileMutatorInterface = (*Module)(nil)
-
-// Propagate afdo requirements down from binaries and shared libraries
-func afdoDepsMutator(mctx android.TopDownMutatorContext) {
-	if m, ok := mctx.Module().(*Module); ok && m.afdo.afdoEnabled() {
-		path := m.afdo.Properties.FdoProfilePath
-		mctx.WalkDeps(func(dep android.Module, parent android.Module) bool {
-			tag := mctx.OtherModuleDependencyTag(dep)
-			libTag, isLibTag := tag.(libraryDependencyTag)
-
-			// Do not recurse down non-static dependencies
-			if isLibTag {
-				if !libTag.static() {
-					return false
-				}
-			} else {
-				if tag != objDepTag && tag != reuseObjTag {
-					return false
-				}
+func (a *afdoTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, variation string) {
+	if m, ok := ctx.Module().(*Module); ok && m.afdo != nil {
+		if variation == "" {
+			// The empty variation is either a module that has enabled AFDO for itself, or the non-AFDO
+			// variant of a dependency.
+			if m.afdo.afdoEnabled() && !(m.static() && !m.staticBinary()) && !m.Host() {
+				m.afdo.addDep(ctx, ctx.ModuleName())
 			}
-
-			if dep, ok := dep.(*Module); ok {
-				dep.afdo.Properties.AfdoRDeps = append(
-					dep.afdo.Properties.AfdoRDeps,
-					afdoRdep{
-						VariationName: proptools.StringPtr(encodeTarget(m.Name())),
-						ProfilePath:   path,
-					},
-				)
-			}
-
-			return true
-		})
-	}
-}
-
-// Create afdo variants for modules that need them
-func afdoMutator(mctx android.BottomUpMutatorContext) {
-	if m, ok := mctx.Module().(*Module); ok && m.afdo != nil {
-		if !m.static() && m.afdo.Properties.Afdo {
-			mctx.SetDependencyVariation(encodeTarget(m.Name()))
-			return
-		}
-
-		variationNames := []string{""}
-
-		variantNameToProfilePath := make(map[string]*string)
-
-		for _, afdoRDep := range m.afdo.Properties.AfdoRDeps {
-			variantName := *afdoRDep.VariationName
-			// An rdep can be set twice in AfdoRDeps because there can be
-			// more than one path from an afdo-enabled module to
-			// a static dep such as
-			// afdo_enabled_foo -> static_bar ----> static_baz
-			//                   \                      ^
-			//                    ----------------------|
-			// We only need to create one variant per unique rdep
-			if _, exists := variantNameToProfilePath[variantName]; !exists {
-				variationNames = append(variationNames, variantName)
-				variantNameToProfilePath[variantName] = afdoRDep.ProfilePath
-			}
-		}
-
-		if len(variationNames) > 1 {
-			modules := mctx.CreateVariations(variationNames...)
-			for i, name := range variationNames {
-				if name == "" {
-					continue
-				}
-				variation := modules[i].(*Module)
-				variation.Properties.PreventInstall = true
-				variation.Properties.HideFromMake = true
-				variation.afdo.Properties.Afdo = true
-				variation.afdo.Properties.FdoProfilePath = variantNameToProfilePath[name]
-			}
+		} else {
+			// The non-empty variation is the AFDO variant of a dependency of a module that enabled AFDO
+			// for itself.
+			m.Properties.PreventInstall = true
+			m.Properties.HideFromMake = true
+			m.afdo.Properties.AfdoDep = true
+			m.afdo.addDep(ctx, decodeTarget(variation))
 		}
 	}
 }

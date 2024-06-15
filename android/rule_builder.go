@@ -336,41 +336,6 @@ func (r *RuleBuilder) Outputs() WritablePaths {
 	return outputList
 }
 
-func (r *RuleBuilder) symlinkOutputSet() map[string]WritablePath {
-	symlinkOutputs := make(map[string]WritablePath)
-	for _, c := range r.commands {
-		for _, symlinkOutput := range c.symlinkOutputs {
-			symlinkOutputs[symlinkOutput.String()] = symlinkOutput
-		}
-	}
-	return symlinkOutputs
-}
-
-// SymlinkOutputs returns the list of paths that the executor (Ninja) would
-// verify, after build edge completion, that:
-//
-// 1) Created output symlinks match the list of paths in this list exactly (no more, no fewer)
-// 2) Created output files are *not* declared in this list.
-//
-// These symlink outputs are expected to be a subset of outputs or implicit
-// outputs, or they would fail validation at build param construction time
-// later, to support other non-rule-builder approaches for constructing
-// statements.
-func (r *RuleBuilder) SymlinkOutputs() WritablePaths {
-	symlinkOutputs := r.symlinkOutputSet()
-
-	var symlinkOutputList WritablePaths
-	for _, symlinkOutput := range symlinkOutputs {
-		symlinkOutputList = append(symlinkOutputList, symlinkOutput)
-	}
-
-	sort.Slice(symlinkOutputList, func(i, j int) bool {
-		return symlinkOutputList[i].String() < symlinkOutputList[j].String()
-	})
-
-	return symlinkOutputList
-}
-
 func (r *RuleBuilder) depFileSet() map[string]WritablePath {
 	depFiles := make(map[string]WritablePath)
 	for _, c := range r.commands {
@@ -590,7 +555,7 @@ func (r *RuleBuilder) build(name string, desc string, ninjaEscapeCommandString b
 							To:   proto.String(sboxOutSubDir),
 						},
 						{
-							From: proto.String(PathForOutput(r.ctx).String()),
+							From: proto.String(r.ctx.Config().OutDir()),
 							To:   proto.String(sboxOutSubDir),
 						},
 					},
@@ -629,8 +594,9 @@ func (r *RuleBuilder) build(name string, desc string, ninjaEscapeCommandString b
 				name, r.sboxManifestPath.String(), r.outDir.String())
 		}
 
-		// Create a rule to write the manifest as textproto.
-		pbText, err := prototext.Marshal(&manifest)
+		// Create a rule to write the manifest as textproto. Pretty print it by indenting and
+		// splitting across multiple lines.
+		pbText, err := prototext.MarshalOptions{Indent: " "}.Marshal(&manifest)
 		if err != nil {
 			ReportPathErrorf(r.ctx, "sbox manifest failed to marshal: %q", err)
 		}
@@ -775,7 +741,6 @@ func (r *RuleBuilder) build(name string, desc string, ninjaEscapeCommandString b
 		Validations:     r.Validations(),
 		Output:          output,
 		ImplicitOutputs: implicitOutputs,
-		SymlinkOutputs:  r.SymlinkOutputs(),
 		Depfile:         depFile,
 		Deps:            depFormat,
 		Description:     desc,
@@ -789,17 +754,16 @@ func (r *RuleBuilder) build(name string, desc string, ninjaEscapeCommandString b
 type RuleBuilderCommand struct {
 	rule *RuleBuilder
 
-	buf            strings.Builder
-	inputs         Paths
-	implicits      Paths
-	orderOnlys     Paths
-	validations    Paths
-	outputs        WritablePaths
-	symlinkOutputs WritablePaths
-	depFiles       WritablePaths
-	tools          Paths
-	packagedTools  []PackagingSpec
-	rspFiles       []rspFileAndPaths
+	buf           strings.Builder
+	inputs        Paths
+	implicits     Paths
+	orderOnlys    Paths
+	validations   Paths
+	outputs       WritablePaths
+	depFiles      WritablePaths
+	tools         Paths
+	packagedTools []PackagingSpec
+	rspFiles      []rspFileAndPaths
 }
 
 type rspFileAndPaths struct {
@@ -891,7 +855,7 @@ func (r *RuleBuilder) _sboxPathForInputRel(path Path) (rel string, inSandbox boo
 		// When sandboxing inputs all inputs have to be copied into the sandbox.  Input files that
 		// are outputs of other rules could be an arbitrary absolute path if OUT_DIR is set, so they
 		// will be copied to relative paths under __SBOX_OUT_DIR__/out.
-		rel, isRelOut, _ := maybeRelErr(PathForOutput(r.ctx).String(), path.String())
+		rel, isRelOut, _ := maybeRelErr(r.ctx.Config().OutDir(), path.String())
 		if isRelOut {
 			return filepath.Join(sboxOutSubDir, rel), true
 		}
@@ -1193,11 +1157,15 @@ func (c *RuleBuilderCommand) Outputs(paths WritablePaths) *RuleBuilderCommand {
 
 // OutputDir adds the output directory to the command line. This is only available when used with RuleBuilder.Sbox,
 // and will be the temporary output directory managed by sbox, not the final one.
-func (c *RuleBuilderCommand) OutputDir() *RuleBuilderCommand {
+func (c *RuleBuilderCommand) OutputDir(subPathComponents ...string) *RuleBuilderCommand {
 	if !c.rule.sbox {
 		panic("OutputDir only valid with Sbox")
 	}
-	return c.Text(sboxOutDir)
+	path := sboxOutDir
+	if len(subPathComponents) > 0 {
+		path = filepath.Join(append([]string{sboxOutDir}, subPathComponents...)...)
+	}
+	return c.Text(path)
 }
 
 // DepFile adds the specified depfile path to the paths returned by RuleBuilder.DepFiles and adds it to the command
@@ -1220,42 +1188,6 @@ func (c *RuleBuilderCommand) ImplicitOutput(path WritablePath) *RuleBuilderComma
 // the command line.
 func (c *RuleBuilderCommand) ImplicitOutputs(paths WritablePaths) *RuleBuilderCommand {
 	c.outputs = append(c.outputs, paths...)
-	return c
-}
-
-// ImplicitSymlinkOutput declares the specified path as an implicit output that
-// will be a symlink instead of a regular file. Does not modify the command
-// line.
-func (c *RuleBuilderCommand) ImplicitSymlinkOutput(path WritablePath) *RuleBuilderCommand {
-	checkPathNotNil(path)
-	c.symlinkOutputs = append(c.symlinkOutputs, path)
-	return c.ImplicitOutput(path)
-}
-
-// ImplicitSymlinkOutputs declares the specified paths as implicit outputs that
-// will be a symlinks instead of regular files. Does not modify the command
-// line.
-func (c *RuleBuilderCommand) ImplicitSymlinkOutputs(paths WritablePaths) *RuleBuilderCommand {
-	for _, path := range paths {
-		c.ImplicitSymlinkOutput(path)
-	}
-	return c
-}
-
-// SymlinkOutput declares the specified path as an output that will be a symlink
-// instead of a regular file. Modifies the command line.
-func (c *RuleBuilderCommand) SymlinkOutput(path WritablePath) *RuleBuilderCommand {
-	checkPathNotNil(path)
-	c.symlinkOutputs = append(c.symlinkOutputs, path)
-	return c.Output(path)
-}
-
-// SymlinkOutputsl declares the specified paths as outputs that will be symlinks
-// instead of regular files. Modifies the command line.
-func (c *RuleBuilderCommand) SymlinkOutputs(paths WritablePaths) *RuleBuilderCommand {
-	for _, path := range paths {
-		c.SymlinkOutput(path)
-	}
 	return c
 }
 

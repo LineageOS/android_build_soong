@@ -91,6 +91,10 @@ type BaseLinkerProperties struct {
 	// compiling crt or libc.
 	Nocrt *bool `android:"arch_variant"`
 
+	// don't link in crt_pad_segment. This flag is currently only used internal to
+	// soong for testing and for vndk prebuilt shared libraries.
+	No_crt_pad_segment *bool `android:"arch_variant"`
+
 	// deprecated and ignored because lld makes it unnecessary. See b/189475744.
 	Group_static_libs *bool `android:"arch_variant"`
 
@@ -251,6 +255,10 @@ func (blp *BaseLinkerProperties) crt() bool {
 
 func (blp *BaseLinkerProperties) libCrt() bool {
 	return blp.No_libcrt == nil || !*blp.No_libcrt
+}
+
+func (blp *BaseLinkerProperties) crtPadSegment() bool {
+	return blp.No_crt_pad_segment == nil || !*blp.No_crt_pad_segment
 }
 
 func NewBaseLinker(sanitize *sanitize) *baseLinker {
@@ -646,6 +654,9 @@ func (linker *baseLinker) linkerSpecifiedDeps(specifiedDeps specifiedDeps) speci
 	}
 
 	return specifiedDeps
+}
+
+func (linker *baseLinker) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *android.ModuleInfoJSON) {
 }
 
 // Injecting version symbols

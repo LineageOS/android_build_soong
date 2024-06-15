@@ -34,7 +34,7 @@ func runJavaAndroidMkTest(t *testing.T, bp string) {
 		RunTestWithBp(t, bp+`
 			aconfig_declarations {
 				name: "my_aconfig_declarations_foo",
-				package: "com.example.package",
+				package: "com.example.package.foo",
 				srcs: ["foo.aconfig"],
 			}
 
@@ -45,7 +45,7 @@ func runJavaAndroidMkTest(t *testing.T, bp string) {
 
 			aconfig_declarations {
 				name: "my_aconfig_declarations_bar",
-				package: "com.example.package",
+				package: "com.example.package.bar",
 				srcs: ["bar.aconfig"],
 			}
 
@@ -60,7 +60,6 @@ func runJavaAndroidMkTest(t *testing.T, bp string) {
 	entry := android.AndroidMkEntriesForTest(t, result.TestContext, module)[0]
 
 	makeVar := entry.EntryMap["LOCAL_ACONFIG_FILES"]
-	android.AssertIntEquals(t, "len(LOCAL_ACONFIG_FILES)", 1, len(makeVar))
 	android.EnsureListContainsSuffix(t, makeVar, "android_common/aconfig_merged.pb")
 }
 
@@ -177,6 +176,7 @@ func testCodegenMode(t *testing.T, bpMode string, ruleMode string) {
 				name: "my_aconfig_declarations",
 				package: "com.example.package",
 				srcs: ["foo.aconfig"],
+				exportable: true,
 			}
 
 			java_aconfig_library {
@@ -225,6 +225,10 @@ func TestTestMode(t *testing.T) {
 
 func TestExportedMode(t *testing.T) {
 	testCodegenMode(t, "mode: `exported`,", "exported")
+}
+
+func TestForceReadOnlyMode(t *testing.T) {
+	testCodegenMode(t, "mode: `force-read-only`,", "force-read-only")
 }
 
 func TestUnsupportedMode(t *testing.T) {

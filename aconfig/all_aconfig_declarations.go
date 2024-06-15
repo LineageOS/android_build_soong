@@ -16,6 +16,7 @@ package aconfig
 
 import (
 	"android/soong/android"
+	"fmt"
 )
 
 // A singleton module that collects all of the aconfig flags declared in the
@@ -30,34 +31,66 @@ func AllAconfigDeclarationsFactory() android.Singleton {
 }
 
 type allAconfigDeclarationsSingleton struct {
-	intermediatePath android.OutputPath
+	intermediateBinaryProtoPath android.OutputPath
+	intermediateTextProtoPath   android.OutputPath
 }
 
 func (this *allAconfigDeclarationsSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	// Find all of the aconfig_declarations modules
+	var packages = make(map[string]int)
 	var cacheFiles android.Paths
 	ctx.VisitAllModules(func(module android.Module) {
-		if !ctx.ModuleHasProvider(module, DeclarationsProviderKey) {
+		decl, ok := android.SingletonModuleProvider(ctx, module, android.AconfigDeclarationsProviderKey)
+		if !ok {
 			return
 		}
-		decl := ctx.ModuleProvider(module, DeclarationsProviderKey).(DeclarationsProviderData)
 		cacheFiles = append(cacheFiles, decl.IntermediateCacheOutputPath)
+		packages[decl.Package]++
 	})
 
-	// Generate build action for aconfig
-	this.intermediatePath = android.PathForIntermediates(ctx, "all_aconfig_declarations.pb")
+	var numOffendingPkg = 0
+	for pkg, cnt := range packages {
+		if cnt > 1 {
+			fmt.Printf("%d aconfig_declarations found for package %s\n", cnt, pkg)
+			numOffendingPkg++
+		}
+	}
+
+	if numOffendingPkg > 0 {
+		panic(fmt.Errorf("Only one aconfig_declarations allowed for each package."))
+	}
+
+	// Generate build action for aconfig (binary proto output)
+	this.intermediateBinaryProtoPath = android.PathForIntermediates(ctx, "all_aconfig_declarations.pb")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        AllDeclarationsRule,
 		Inputs:      cacheFiles,
-		Output:      this.intermediatePath,
+		Output:      this.intermediateBinaryProtoPath,
 		Description: "all_aconfig_declarations",
 		Args: map[string]string{
 			"cache_files": android.JoinPathsWithPrefix(cacheFiles, "--cache "),
 		},
 	})
-	ctx.Phony("all_aconfig_declarations", this.intermediatePath)
+	ctx.Phony("all_aconfig_declarations", this.intermediateBinaryProtoPath)
+
+	// Generate build action for aconfig (text proto output)
+	this.intermediateTextProtoPath = android.PathForIntermediates(ctx, "all_aconfig_declarations.textproto")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        AllDeclarationsRuleTextProto,
+		Inputs:      cacheFiles,
+		Output:      this.intermediateTextProtoPath,
+		Description: "all_aconfig_declarations_textproto",
+		Args: map[string]string{
+			"cache_files": android.JoinPathsWithPrefix(cacheFiles, "--cache "),
+		},
+	})
+	ctx.Phony("all_aconfig_declarations_textproto", this.intermediateTextProtoPath)
 }
 
 func (this *allAconfigDeclarationsSingleton) MakeVars(ctx android.MakeVarsContext) {
-	ctx.DistForGoal("droid", this.intermediatePath)
+	ctx.DistForGoal("droid", this.intermediateBinaryProtoPath)
+	for _, goal := range []string{"droid", "sdk"} {
+		ctx.DistForGoalWithFilename(goal, this.intermediateBinaryProtoPath, "flags.pb")
+		ctx.DistForGoalWithFilename(goal, this.intermediateTextProtoPath, "flags.textproto")
+	}
 }

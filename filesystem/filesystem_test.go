@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"android/soong/android"
+	"android/soong/bpf"
 	"android/soong/cc"
 	"android/soong/etc"
 
@@ -31,6 +32,7 @@ func TestMain(m *testing.M) {
 
 var fixture = android.GroupFixturePreparers(
 	android.PrepareForIntegrationTestWithAndroid,
+	bpf.PrepareForTestWithBpf,
 	etc.PrepareForTestWithPrebuiltEtc,
 	cc.PrepareForIntegrationTestWithCc,
 	PrepareForTestWithFilesystemBuildComponents,
@@ -40,11 +42,55 @@ func TestFileSystemDeps(t *testing.T) {
 	result := fixture.RunTestWithBp(t, `
 		android_filesystem {
 			name: "myfilesystem",
+			multilib: {
+				common: {
+					deps: [
+						"bpf.o",
+					],
+				},
+				lib32: {
+					deps: [
+						"foo",
+						"libbar",
+					],
+				},
+				lib64: {
+					deps: [
+						"libbar",
+					],
+				},
+			},
+			compile_multilib: "both",
+		}
+
+		bpf {
+			name: "bpf.o",
+			srcs: ["bpf.c"],
+		}
+
+		cc_binary {
+			name: "foo",
+			compile_multilib: "prefer32",
+		}
+
+		cc_library {
+			name: "libbar",
 		}
 	`)
 
 	// produces "myfilesystem.img"
 	result.ModuleForTests("myfilesystem", "android_common").Output("myfilesystem.img")
+
+	fs := result.ModuleForTests("myfilesystem", "android_common").Module().(*filesystem)
+	expected := []string{
+		"bin/foo",
+		"lib/libbar.so",
+		"lib64/libbar.so",
+		"etc/bpf/bpf.o",
+	}
+	for _, e := range expected {
+		android.AssertStringListContains(t, "missing entry", fs.entries, e)
+	}
 }
 
 func TestFileSystemFillsLinkerConfigWithStubLibs(t *testing.T) {

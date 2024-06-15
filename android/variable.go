@@ -73,6 +73,7 @@ type variableProperties struct {
 			Cflags              []string `android:"arch_variant"`
 			Shared_libs         []string `android:"arch_variant"`
 			Whole_static_libs   []string `android:"arch_variant"`
+			Static_libs         []string `android:"arch_variant"`
 			Exclude_static_libs []string `android:"arch_variant"`
 			Srcs                []string `android:"arch_variant"`
 			Header_libs         []string `android:"arch_variant"`
@@ -188,8 +189,9 @@ type variableProperties struct {
 		// release_aidl_use_unfrozen is "true" when a device can
 		// use the unfrozen versions of AIDL interfaces.
 		Release_aidl_use_unfrozen struct {
-			Cflags []string
-			Cmd    *string
+			Cflags          []string
+			Cmd             *string
+			Vintf_fragments []string
 		}
 	} `android:"arch_variant"`
 }
@@ -393,7 +395,6 @@ type ProductVariables struct {
 
 	BoardSepolicyVers       *string `json:",omitempty"`
 	PlatformSepolicyVersion *string `json:",omitempty"`
-	TotSepolicyVersion      *string `json:",omitempty"`
 
 	SystemExtSepolicyPrebuiltApiDir *string `json:",omitempty"`
 	ProductSepolicyPrebuiltApiDir   *string `json:",omitempty"`
@@ -459,6 +460,7 @@ type ProductVariables struct {
 	BuildBrokenVendorPropertyNamespace  bool     `json:",omitempty"`
 	BuildBrokenIncorrectPartitionImages bool     `json:",omitempty"`
 	BuildBrokenInputDirModules          []string `json:",omitempty"`
+	BuildBrokenDontCheckSystemSdk       bool     `json:",omitempty"`
 
 	BuildWarningBadOptionalUsesLibsAllowlist []string `json:",omitempty"`
 
@@ -501,13 +503,15 @@ type ProductVariables struct {
 	// partition images. They should not be read from soong modules.
 	PartitionVarsForBazelMigrationOnlyDoNotUse PartitionVariables `json:",omitempty"`
 
-	NextReleaseHideFlaggedApi *bool `json:",omitempty"`
-
-	Release_expose_flagged_api *bool `json:",omitempty"`
-
 	BuildFlags map[string]string `json:",omitempty"`
 
 	BuildFromSourceStub *bool `json:",omitempty"`
+
+	BuildIgnoreApexContributionContents []string `json:",omitempty"`
+
+	HiddenapiExportableStubs *bool `json:",omitempty"`
+
+	ExportRuntimeApis *bool `json:",omitempty"`
 }
 
 type PartitionQualifiedVariablesType struct {

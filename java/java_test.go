@@ -24,6 +24,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/aconfig"
@@ -528,6 +529,15 @@ func TestHostBinaryNoJavaDebugInfoOverride(t *testing.T) {
 	}
 }
 
+// A minimal context object for use with DexJarBuildPath
+type moduleErrorfTestCtx struct {
+}
+
+func (ctx moduleErrorfTestCtx) ModuleErrorf(format string, args ...interface{}) {
+}
+
+var _ android.ModuleErrorfContext = (*moduleErrorfTestCtx)(nil)
+
 func TestPrebuilts(t *testing.T) {
 	ctx, _ := testJava(t, `
 		java_library {
@@ -595,7 +605,8 @@ func TestPrebuilts(t *testing.T) {
 		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], barJar.String())
 	}
 
-	barDexJar := barModule.Module().(*Import).DexJarBuildPath()
+	errCtx := moduleErrorfTestCtx{}
+	barDexJar := barModule.Module().(*Import).DexJarBuildPath(errCtx)
 	if barDexJar.IsSet() {
 		t.Errorf("bar dex jar build path expected to be set, got %s", barDexJar)
 	}
@@ -608,7 +619,7 @@ func TestPrebuilts(t *testing.T) {
 		t.Errorf("foo combineJar inputs %v does not contain %q", combineJar.Inputs, bazJar.String())
 	}
 
-	bazDexJar := bazModule.Module().(*Import).DexJarBuildPath().Path()
+	bazDexJar := bazModule.Module().(*Import).DexJarBuildPath(errCtx).Path()
 	expectedDexJar := "out/soong/.intermediates/baz/android_common/dex/baz.jar"
 	android.AssertPathRelativeToTopEquals(t, "baz dex jar build path", expectedDexJar, bazDexJar)
 
@@ -618,8 +629,6 @@ func TestPrebuilts(t *testing.T) {
 	android.AssertStringEquals(t, "unexpected LOCAL_SOONG_MODULE_TYPE", "java_library", entries.EntryMap["LOCAL_SOONG_MODULE_TYPE"][0])
 	entries = android.AndroidMkEntriesForTest(t, ctx, barModule.Module())[0]
 	android.AssertStringEquals(t, "unexpected LOCAL_SOONG_MODULE_TYPE", "java_import", entries.EntryMap["LOCAL_SOONG_MODULE_TYPE"][0])
-	entries = android.AndroidMkEntriesForTest(t, ctx, ctx.ModuleForTests("sdklib", "android_common").Module())[0]
-	android.AssertStringEquals(t, "unexpected LOCAL_SOONG_MODULE_TYPE", "java_sdk_library_import", entries.EntryMap["LOCAL_SOONG_MODULE_TYPE"][0])
 }
 
 func assertDeepEquals(t *testing.T, message string, expected interface{}, actual interface{}) {
@@ -1747,6 +1756,7 @@ func TestJavaApiContributionEmptyApiFile(t *testing.T) {
 			name: "bar",
 			api_surface: "public",
 			api_contributions: ["foo"],
+			stubs_type: "everything",
 		}
 	`)
 }
@@ -1783,12 +1793,14 @@ func TestJavaApiLibraryAndProviderLink(t *testing.T) {
 			name: "bar1",
 			api_surface: "public",
 			api_contributions: ["foo1"],
+			stubs_type: "everything",
 		}
 
 		java_api_library {
 			name: "bar2",
 			api_surface: "system",
 			api_contributions: ["foo1", "foo2"],
+			stubs_type: "everything",
 		}
 	`)
 
@@ -1876,12 +1888,14 @@ func TestJavaApiLibraryAndDefaultsLink(t *testing.T) {
 			name: "bar1",
 			api_surface: "public",
 			api_contributions: ["foo1"],
+			stubs_type: "everything",
 		}
 
 		java_api_library {
 			name: "bar2",
 			api_surface: "public",
 			defaults:["baz1"],
+			stubs_type: "everything",
 		}
 
 		java_api_library {
@@ -1889,6 +1903,7 @@ func TestJavaApiLibraryAndDefaultsLink(t *testing.T) {
 			api_surface: "system",
 			defaults:["baz1", "baz2"],
 			api_contributions: ["foo4"],
+			stubs_type: "everything",
 		}
 	`)
 
@@ -1953,12 +1968,14 @@ func TestJavaApiLibraryJarGeneration(t *testing.T) {
 			name: "bar1",
 			api_surface: "public",
 			api_contributions: ["foo1"],
+			stubs_type: "everything",
 		}
 
 		java_api_library {
 			name: "bar2",
 			api_surface: "system",
 			api_contributions: ["foo1", "foo2"],
+			stubs_type: "everything",
 		}
 	`)
 
@@ -2035,6 +2052,7 @@ func TestJavaApiLibraryLibsLink(t *testing.T) {
 			api_surface: "public",
 			api_contributions: ["foo1"],
 			libs: ["lib1"],
+			stubs_type: "everything",
 		}
 
 		java_api_library {
@@ -2042,6 +2060,7 @@ func TestJavaApiLibraryLibsLink(t *testing.T) {
 			api_surface: "system",
 			api_contributions: ["foo1", "foo2"],
 			libs: ["lib1", "lib2", "bar1"],
+			stubs_type: "everything",
 		}
 	`)
 
@@ -2121,6 +2140,7 @@ func TestJavaApiLibraryStaticLibsLink(t *testing.T) {
 			api_surface: "public",
 			api_contributions: ["foo1"],
 			static_libs: ["lib1"],
+			stubs_type: "everything",
 		}
 
 		java_api_library {
@@ -2128,6 +2148,7 @@ func TestJavaApiLibraryStaticLibsLink(t *testing.T) {
 			api_surface: "system",
 			api_contributions: ["foo1", "foo2"],
 			static_libs: ["lib1", "lib2", "bar1"],
+			stubs_type: "everything",
 		}
 	`)
 
@@ -2175,6 +2196,7 @@ func TestJavaApiLibraryFullApiSurfaceStub(t *testing.T) {
 		name: "lib1",
 		api_surface: "public",
 		api_contributions: ["foo1", "foo2"],
+		stubs_type: "everything",
 	}
 	`
 
@@ -2198,6 +2220,7 @@ func TestJavaApiLibraryFullApiSurfaceStub(t *testing.T) {
 			api_surface: "public",
 			api_contributions: ["foo1"],
 			full_api_surface_stub: "lib1",
+			stubs_type: "everything",
 		}
 	`)
 
@@ -2226,7 +2249,8 @@ func TestTransitiveSrcFiles(t *testing.T) {
 		}
 	`)
 	c := ctx.ModuleForTests("c", "android_common").Module()
-	transitiveSrcFiles := android.Paths(ctx.ModuleProvider(c, JavaInfoProvider).(JavaInfo).TransitiveSrcFiles.ToList())
+	javaInfo, _ := android.SingletonModuleProvider(ctx, c, JavaInfoProvider)
+	transitiveSrcFiles := android.Paths(javaInfo.TransitiveSrcFiles.ToList())
 	android.AssertArrayString(t, "unexpected jar deps", []string{"b.java", "c.java"}, transitiveSrcFiles.Strings())
 }
 
@@ -2358,6 +2382,7 @@ func TestJavaApiContributionImport(t *testing.T) {
 		java_api_library {
 			name: "foo",
 			api_contributions: ["bar"],
+			stubs_type: "everything",
 		}
 		java_api_contribution_import {
 			name: "bar",
@@ -2384,6 +2409,7 @@ func TestJavaApiLibraryApiFilesSorting(t *testing.T) {
 				"module-lib-api-stubs-docs-non-updatable.api.contribution",
 				"api-stubs-docs-non-updatable.api.contribution",
 			],
+			stubs_type: "everything",
 		}
 	`)
 	m := ctx.ModuleForTests("foo", "android_common")
@@ -2432,7 +2458,7 @@ func TestSdkLibraryProvidesSystemModulesToApiLibrary(t *testing.T) {
 	manifest := m.Output("metalava.sbox.textproto")
 	sboxProto := android.RuleBuilderSboxProtoForTests(t, result.TestContext, manifest)
 	manifestCommand := sboxProto.Commands[0].GetCommand()
-	classPathFlag := "--classpath __SBOX_SANDBOX_DIR__/out/.intermediates/bar/android_common/turbine-combined/bar.jar"
+	classPathFlag := "--classpath __SBOX_SANDBOX_DIR__/out/soong/.intermediates/bar/android_common/turbine-combined/bar.jar"
 	android.AssertStringDoesContain(t, "command expected to contain classpath flag", manifestCommand, classPathFlag)
 }
 
@@ -2456,6 +2482,7 @@ func TestApiLibraryDroidstubsDependency(t *testing.T) {
 				"api-stubs-docs-non-updatable.api.contribution",
 			],
 			enable_validation: true,
+			stubs_type: "everything",
 		}
 		java_api_library {
 			name: "bar",
@@ -2463,10 +2490,11 @@ func TestApiLibraryDroidstubsDependency(t *testing.T) {
 				"api-stubs-docs-non-updatable.api.contribution",
 			],
 			enable_validation: false,
+			stubs_type: "everything",
 		}
 	`)
 
-	currentApiTimestampPath := "api-stubs-docs-non-updatable/android_common/metalava/check_current_api.timestamp"
+	currentApiTimestampPath := "api-stubs-docs-non-updatable/android_common/everything/check_current_api.timestamp"
 	foo := result.ModuleForTests("foo", "android_common").Module().(*ApiLibrary)
 	fooValidationPathsString := strings.Join(foo.validationPaths.Strings(), " ")
 	bar := result.ModuleForTests("bar", "android_common").Module().(*ApiLibrary)
@@ -2511,4 +2539,157 @@ func TestDisableFromTextStubForCoverageBuild(t *testing.T) {
 		false, CheckModuleHasDependency(t, result.TestContext,
 			apiScopePublic.stubsLibraryModuleName("foo"), "android_common",
 			apiScopePublic.apiLibraryModuleName("foo")))
+}
+
+func TestMultiplePrebuilts(t *testing.T) {
+	bp := `
+		// an rdep
+		java_library {
+			name: "foo",
+			libs: ["bar"],
+		}
+
+		// multiple variations of dep
+		// source
+		java_library {
+			name: "bar",
+			srcs: ["bar.java"],
+		}
+		// prebuilt "v1"
+		java_import {
+			name: "bar",
+			jars: ["bar.jar"],
+		}
+		// prebuilt "v2"
+		java_import {
+			name: "bar.v2",
+			source_module_name: "bar",
+			jars: ["bar.v1.jar"],
+		}
+
+		// selectors
+		apex_contributions {
+			name: "myapex_contributions",
+			contents: ["%v"],
+		}
+	`
+	hasDep := func(ctx *android.TestResult, m android.Module, wantDep android.Module) bool {
+		t.Helper()
+		var found bool
+		ctx.VisitDirectDeps(m, func(dep blueprint.Module) {
+			if dep == wantDep {
+				found = true
+			}
+		})
+		return found
+	}
+
+	hasFileWithStem := func(m android.TestingModule, stem string) bool {
+		t.Helper()
+		for _, o := range m.AllOutputs() {
+			_, file := filepath.Split(o)
+			if file == stem+".jar" {
+				return true
+			}
+		}
+		return false
+	}
+
+	testCases := []struct {
+		desc                   string
+		selectedDependencyName string
+		expectedDependencyName string
+	}{
+		{
+			desc:                   "Source library is selected using apex_contributions",
+			selectedDependencyName: "bar",
+			expectedDependencyName: "bar",
+		},
+		{
+			desc:                   "Prebuilt library v1 is selected using apex_contributions",
+			selectedDependencyName: "prebuilt_bar",
+			expectedDependencyName: "prebuilt_bar",
+		},
+		{
+			desc:                   "Prebuilt library v2 is selected using apex_contributions",
+			selectedDependencyName: "prebuilt_bar.v2",
+			expectedDependencyName: "prebuilt_bar.v2",
+		},
+	}
+
+	for _, tc := range testCases {
+		ctx := android.GroupFixturePreparers(
+			prepareForJavaTest,
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.BuildFlags = map[string]string{
+					"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES": "myapex_contributions",
+				}
+			}),
+		).RunTestWithBp(t, fmt.Sprintf(bp, tc.selectedDependencyName))
+
+		// check that rdep gets the correct variation of dep
+		foo := ctx.ModuleForTests("foo", "android_common")
+		expectedDependency := ctx.ModuleForTests(tc.expectedDependencyName, "android_common")
+		android.AssertBoolEquals(t, fmt.Sprintf("expected dependency from %s to %s\n", foo.Module().Name(), tc.expectedDependencyName), true, hasDep(ctx, foo.Module(), expectedDependency.Module()))
+
+		// check that output file of dep is always bar.jar
+		// The filename should be agnostic to source/prebuilt/prebuilt_version
+		android.AssertBoolEquals(t, fmt.Sprintf("could not find bar.jar in outputs of %s. All Outputs %v\n", tc.expectedDependencyName, expectedDependency.AllOutputs()), true, hasFileWithStem(expectedDependency, "bar"))
+
+		// check LOCAL_MODULE of the selected module name
+		// the prebuilt should have the same LOCAL_MODULE when exported to make
+		entries := android.AndroidMkEntriesForTest(t, ctx.TestContext, expectedDependency.Module())[0]
+		android.AssertStringEquals(t, "unexpected LOCAL_MODULE", "bar", entries.EntryMap["LOCAL_MODULE"][0])
+	}
+}
+
+func TestApiLibraryAconfigDeclarations(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+		}),
+		android.FixtureMergeMockFs(map[string][]byte{
+			"a/A.java":      nil,
+			"a/current.txt": nil,
+			"a/removed.txt": nil,
+		}),
+	).RunTestWithBp(t, `
+	aconfig_declarations {
+		name: "bar",
+		package: "com.example.package",
+		srcs: [
+			"bar.aconfig",
+		],
+	}
+	java_api_contribution {
+		name: "baz",
+		api_file: "a/current.txt",
+		api_surface: "public",
+	}
+	java_api_library {
+		name: "foo",
+		api_surface: "public",
+		api_contributions: [
+			"baz",
+		],
+		aconfig_declarations: [
+			"bar",
+		],
+		stubs_type: "exportable",
+		enable_validation: false,
+	}
+	`)
+
+	// Check if java_api_library depends on aconfig_declarations
+	android.AssertBoolEquals(t, "foo expected to depend on bar",
+		CheckModuleHasDependency(t, result.TestContext, "foo", "android_common", "bar"), true)
+
+	m := result.ModuleForTests("foo", "android_common")
+	android.AssertStringDoesContain(t, "foo generates revert annotations file",
+		strings.Join(m.AllOutputs(), ""), "revert-annotations-exportable.txt")
+
+	// revert-annotations.txt passed to exportable stubs generation metalava command
+	manifest := m.Output("metalava.sbox.textproto")
+	cmdline := String(android.RuleBuilderSboxProtoForTests(t, result.TestContext, manifest).Commands[0].Command)
+	android.AssertStringDoesContain(t, "flagged api hide command not included", cmdline, "revert-annotations-exportable.txt")
 }

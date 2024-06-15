@@ -25,7 +25,6 @@ import (
 type formatter struct {
 	format string
 	quiet  bool
-	smart  bool
 	start  time.Time
 }
 
@@ -33,11 +32,10 @@ type formatter struct {
 // the terminal in a format similar to Ninja.
 // format takes nearly all the same options as NINJA_STATUS.
 // %c is currently unsupported.
-func newFormatter(format string, quiet bool, smart bool) formatter {
+func newFormatter(format string, quiet bool) formatter {
 	return formatter{
 		format: format,
 		quiet:  quiet,
-		smart:  smart,
 		start:  time.Now(),
 	}
 }
@@ -63,9 +61,8 @@ func remainingTimeString(t time.Time) string {
 func (s formatter) progress(counts status.Counts) string {
 	if s.format == "" {
 		output := fmt.Sprintf("[%3d%% %d/%d", 100*counts.FinishedActions/counts.TotalActions, counts.FinishedActions, counts.TotalActions)
-		// Not to break parsing logic in the build bot
-		// TODO(b/313981966): make buildbot more flexible for output format
-		if s.smart && !counts.EstimatedTime.IsZero() {
+
+		if !counts.EstimatedTime.IsZero() {
 			output += fmt.Sprintf(" %s remaining", remainingTimeString(counts.EstimatedTime))
 		}
 		output += "] "

@@ -245,7 +245,6 @@ func runMakeProductConfig(ctx Context, config Config) {
 		"BUILD_BROKEN_SRC_DIR_RW_ALLOWLIST",
 
 		// Not used, but useful to be in the soong.log
-		"BOARD_VNDK_VERSION",
 		"TARGET_BUILD_TYPE",
 		"HOST_ARCH",
 		"HOST_2ND_ARCH",

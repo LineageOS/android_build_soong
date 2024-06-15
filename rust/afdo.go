@@ -44,14 +44,14 @@ func (afdo *afdo) addDep(ctx BaseModuleContext, actx android.BottomUpMutatorCont
 		if err != nil {
 			ctx.ModuleErrorf("%s", err.Error())
 		}
-		if fdoProfileName != nil {
+		if fdoProfileName != "" {
 			actx.AddFarVariationDependencies(
 				[]blueprint.Variation{
 					{Mutator: "arch", Variation: actx.Target().ArchVariation()},
 					{Mutator: "os", Variation: "android"},
 				},
 				cc.FdoProfileTag,
-				[]string{*fdoProfileName}...,
+				[]string{fdoProfileName}...,
 			)
 		}
 	}
@@ -67,8 +67,7 @@ func (afdo *afdo) flags(ctx android.ModuleContext, flags Flags, deps PathDeps) (
 	}
 
 	ctx.VisitDirectDepsWithTag(cc.FdoProfileTag, func(m android.Module) {
-		if ctx.OtherModuleHasProvider(m, cc.FdoProfileProvider) {
-			info := ctx.OtherModuleProvider(m, cc.FdoProfileProvider).(cc.FdoProfileInfo)
+		if info, ok := android.OtherModuleProvider(ctx, m, cc.FdoProfileProvider); ok {
 			path := info.Path
 			profileUseFlag := fmt.Sprintf(afdoFlagFormat, path.String())
 			flags.RustFlags = append(flags.RustFlags, profileUseFlag)

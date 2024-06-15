@@ -934,8 +934,8 @@ func TestAndroidResourceProcessor(t *testing.T) {
 				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
 			},
 			appCombined: []string{
-				"out/soong/.intermediates/app/android_common/busybox/R.jar",
 				"out/soong/.intermediates/app/android_common/javac/app.jar",
+				"out/soong/.intermediates/app/android_common/busybox/R.jar",
 				"out/soong/.intermediates/direct/android_common/combined/direct.jar",
 				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
 			},
@@ -1040,8 +1040,8 @@ func TestAndroidResourceProcessor(t *testing.T) {
 				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
 			},
 			appCombined: []string{
-				"out/soong/.intermediates/app/android_common/busybox/R.jar",
 				"out/soong/.intermediates/app/android_common/javac/app.jar",
+				"out/soong/.intermediates/app/android_common/busybox/R.jar",
 				"out/soong/.intermediates/direct/android_common/combined/direct.jar",
 				"out/soong/.intermediates/direct_import/android_common/aar/classes-combined.jar",
 			},
@@ -2112,7 +2112,7 @@ func TestJNISDK(t *testing.T) {
 		Output("libjni.so").Output.String()
 	sdkJNI := ctx.ModuleForTests("libjni", "android_arm64_armv8-a_sdk_shared").
 		Output("libjni.so").Output.String()
-	vendorJNI := ctx.ModuleForTests("libvendorjni", "android_arm64_armv8-a_shared").
+	vendorJNI := ctx.ModuleForTests("libvendorjni", "android_vendor_arm64_armv8-a_shared").
 		Output("libvendorjni.so").Output.String()
 
 	for _, test := range testCases {
@@ -3360,7 +3360,7 @@ func TestUsesLibraries(t *testing.T) {
 	cmd := app.Rule("dexpreopt").RuleParams.Command
 	android.AssertStringDoesContain(t, "dexpreopt app cmd context", cmd, "--context-json=")
 	android.AssertStringDoesContain(t, "dexpreopt app cmd product_packages", cmd,
-		"--product-packages=out/soong/.intermediates/app/android_common/dexpreopt/product_packages.txt")
+		"--product-packages=out/soong/.intermediates/app/android_common/dexpreopt/app/product_packages.txt")
 }
 
 func TestDexpreoptBcp(t *testing.T) {
@@ -4350,14 +4350,14 @@ func TestAppFlagsPackages(t *testing.T) {
 		}
 		aconfig_declarations {
 			name: "bar",
-			package: "com.example.package",
+			package: "com.example.package.bar",
 			srcs: [
 				"bar.aconfig",
 			],
 		}
 		aconfig_declarations {
 			name: "baz",
-			package: "com.example.package",
+			package: "com.example.package.baz",
 			srcs: [
 				"baz.aconfig",
 			],
@@ -4380,4 +4380,27 @@ func TestAppFlagsPackages(t *testing.T) {
 		linkInFlags,
 		"--feature-flags @out/soong/.intermediates/bar/intermediate.txt --feature-flags @out/soong/.intermediates/baz/intermediate.txt",
 	)
+}
+
+// Test that dexpreopt is disabled if an optional_uses_libs exists, but does not provide an implementation.
+func TestNoDexpreoptOptionalUsesLibDoesNotHaveImpl(t *testing.T) {
+	bp := `
+		java_sdk_library_import {
+			name: "sdklib_noimpl",
+			public: {
+				jars: ["stub.jar"],
+			},
+		}
+		android_app {
+			name: "app",
+			srcs: ["a.java"],
+			sdk_version: "current",
+			optional_uses_libs: [
+				"sdklib_noimpl",
+			],
+		}
+	`
+	result := prepareForJavaTest.RunTestWithBp(t, bp)
+	dexpreopt := result.ModuleForTests("app", "android_common").MaybeRule("dexpreopt").Rule
+	android.AssertBoolEquals(t, "dexpreopt should be disabled if optional_uses_libs does not have an implementation", true, dexpreopt == nil)
 }

@@ -5,8 +5,8 @@ map.txt files. These files are [linker version scripts] with comments that are
 semantically meaningful to [gen_stub_libs.py]. For an example of a map file, see
 [libc.map.txt].
 
-[gen_stub_libs.py]: https://cs.android.com/android/platform/superproject/+/master:build/soong/cc/gen_stub_libs.py
-[libc.map.txt]: https://cs.android.com/android/platform/superproject/+/master:bionic/libc/libc.map.txt
+[gen_stub_libs.py]: https://cs.android.com/android/platform/superproject/+/main:build/soong/cc/gen_stub_libs.py
+[libc.map.txt]: https://cs.android.com/android/platform/superproject/+/main:bionic/libc/libc.map.txt
 [linker version scripts]: https://www.gnu.org/software/gnulib/manual/html_node/LD-Version-Scripts.html
 
 ## Basic format
@@ -133,6 +133,9 @@ than the NDK. May be used in combination with `apex` if the symbol is exposed to
 both APEX and the LL-NDK.
 
 Historically this annotation was spelled `vndk`, but it has always meant LL-NDK.
+
+When an llndk API is deprecated, the `llndk` tag is dropped and
+`llndk-deprecate=<V>` is added.
 
 ### platform-only
 

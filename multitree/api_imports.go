@@ -64,7 +64,7 @@ type ApiImportInfo struct {
 	SharedLibs, HeaderLibs, ApexSharedLibs map[string]string
 }
 
-var ApiImportsProvider = blueprint.NewMutatorProvider(ApiImportInfo{}, "deps")
+var ApiImportsProvider = blueprint.NewMutatorProvider[ApiImportInfo]("deps")
 
 // Store module lists into ApiImportInfo and share it over mutator provider.
 func (imports *ApiImports) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -81,7 +81,7 @@ func (imports *ApiImports) DepsMutator(ctx android.BottomUpMutatorContext) {
 	headerLibs := generateNameMapWithSuffix(imports.properties.Header_libs)
 	apexSharedLibs := generateNameMapWithSuffix(imports.properties.Apex_shared_libs)
 
-	ctx.SetProvider(ApiImportsProvider, ApiImportInfo{
+	android.SetProvider(ctx, ApiImportsProvider, ApiImportInfo{
 		SharedLibs:     sharedLibs,
 		HeaderLibs:     headerLibs,
 		ApexSharedLibs: apexSharedLibs,

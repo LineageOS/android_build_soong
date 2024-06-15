@@ -511,7 +511,7 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberConte
 		}
 	}
 
-	exportedInfo := ctx.SdkModuleContext().OtherModuleProvider(variant, FlagExporterInfoProvider).(FlagExporterInfo)
+	exportedInfo, _ := android.OtherModuleProvider(ctx.SdkModuleContext(), variant, FlagExporterInfoProvider)
 
 	// Separate out the generated include dirs (which are arch specific) from the
 	// include dirs (which may not be).

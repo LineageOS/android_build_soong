@@ -218,6 +218,7 @@ type LinkableInterface interface {
 	ProductSpecific() bool
 	InProduct() bool
 	SdkAndPlatformVariantVisibleToMake() bool
+	InVendorOrProduct() bool
 
 	// SubName returns the modules SubName, used for image and NDK/SDK variations.
 	SubName() string
@@ -368,7 +369,7 @@ type SharedLibraryInfo struct {
 	TransitiveStaticLibrariesForOrdering *android.DepSet[android.Path]
 }
 
-var SharedLibraryInfoProvider = blueprint.NewProvider(SharedLibraryInfo{})
+var SharedLibraryInfoProvider = blueprint.NewProvider[SharedLibraryInfo]()
 
 // SharedStubLibrary is a struct containing information about a stub shared library.
 // Stub libraries are used for cross-APEX dependencies; when a library is to depend on a shared
@@ -391,7 +392,7 @@ type SharedLibraryStubsInfo struct {
 	IsLLNDK bool
 }
 
-var SharedLibraryStubsProvider = blueprint.NewProvider(SharedLibraryStubsInfo{})
+var SharedLibraryStubsProvider = blueprint.NewProvider[SharedLibraryStubsInfo]()
 
 // StaticLibraryInfo is a provider to propagate information about a static C++ library.
 type StaticLibraryInfo struct {
@@ -410,14 +411,14 @@ type StaticLibraryInfo struct {
 	TransitiveStaticLibrariesForOrdering *android.DepSet[android.Path]
 }
 
-var StaticLibraryInfoProvider = blueprint.NewProvider(StaticLibraryInfo{})
+var StaticLibraryInfoProvider = blueprint.NewProvider[StaticLibraryInfo]()
 
 // HeaderLibraryInfo is a marker provider that identifies a module as a header library.
 type HeaderLibraryInfo struct {
 }
 
 // HeaderLibraryInfoProvider is a marker provider that identifies a module as a header library.
-var HeaderLibraryInfoProvider = blueprint.NewProvider(HeaderLibraryInfo{})
+var HeaderLibraryInfoProvider = blueprint.NewProvider[HeaderLibraryInfo]()
 
 // FlagExporterInfo is a provider to propagate transitive library information
 // pertaining to exported include paths and flags.
@@ -429,4 +430,4 @@ type FlagExporterInfo struct {
 	GeneratedHeaders  android.Paths
 }
 
-var FlagExporterInfoProvider = blueprint.NewProvider(FlagExporterInfo{})
+var FlagExporterInfoProvider = blueprint.NewProvider[FlagExporterInfo]()

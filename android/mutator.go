@@ -15,6 +15,8 @@
 package android
 
 import (
+	"sync"
+
 	"github.com/google/blueprint"
 )
 
@@ -325,8 +327,27 @@ type BottomUpMutatorContext interface {
 	// if the value is not of the appropriate type, or if the module is not a newly created
 	// variant of the current module.  The value should not be modified after being passed to
 	// SetVariationProvider.
-	SetVariationProvider(module blueprint.Module, provider blueprint.ProviderKey, value interface{})
+	SetVariationProvider(module blueprint.Module, provider blueprint.AnyProviderKey, value interface{})
 }
+
+// An outgoingTransitionContextImpl and incomingTransitionContextImpl is created for every dependency of every module
+// for each transition mutator.  bottomUpMutatorContext and topDownMutatorContext are created once for every module
+// for every BottomUp or TopDown mutator.  Use a global pool for each to avoid reallocating every time.
+var (
+	outgoingTransitionContextPool = sync.Pool{
+		New: func() any { return &outgoingTransitionContextImpl{} },
+	}
+	incomingTransitionContextPool = sync.Pool{
+		New: func() any { return &incomingTransitionContextImpl{} },
+	}
+	bottomUpMutatorContextPool = sync.Pool{
+		New: func() any { return &bottomUpMutatorContext{} },
+	}
+
+	topDownMutatorContextPool = sync.Pool{
+		New: func() any { return &topDownMutatorContext{} },
+	}
+)
 
 type bottomUpMutatorContext struct {
 	bp blueprint.BottomUpMutatorContext
@@ -334,23 +355,27 @@ type bottomUpMutatorContext struct {
 	finalPhase bool
 }
 
+// callers must immediately follow the call to this function with defer bottomUpMutatorContextPool.Put(mctx).
 func bottomUpMutatorContextFactory(ctx blueprint.BottomUpMutatorContext, a Module,
 	finalPhase bool) BottomUpMutatorContext {
 
 	moduleContext := a.base().baseModuleContextFactory(ctx)
-
-	return &bottomUpMutatorContext{
+	mctx := bottomUpMutatorContextPool.Get().(*bottomUpMutatorContext)
+	*mctx = bottomUpMutatorContext{
 		bp:                ctx,
 		baseModuleContext: moduleContext,
 		finalPhase:        finalPhase,
 	}
+	return mctx
 }
 
 func (x *registerMutatorsContext) BottomUp(name string, m BottomUpMutator) MutatorHandle {
 	finalPhase := x.finalPhase
 	f := func(ctx blueprint.BottomUpMutatorContext) {
 		if a, ok := ctx.Module().(Module); ok {
-			m(bottomUpMutatorContextFactory(ctx, a, finalPhase))
+			mctx := bottomUpMutatorContextFactory(ctx, a, finalPhase)
+			defer bottomUpMutatorContextPool.Put(mctx)
+			m(mctx)
 		}
 	}
 	mutator := &mutator{name: x.mutatorName(name), bottomUpMutator: f}
@@ -365,15 +390,21 @@ func (x *registerMutatorsContext) BottomUpBlueprint(name string, m blueprint.Bot
 }
 
 type IncomingTransitionContext interface {
+	ArchModuleContext
+
 	// Module returns the target of the dependency edge for which the transition
 	// is being computed
 	Module() Module
 
 	// Config returns the configuration for the build.
 	Config() Config
+
+	DeviceConfig() DeviceConfig
 }
 
 type OutgoingTransitionContext interface {
+	ArchModuleContext
+
 	// Module returns the target of the dependency edge for which the transition
 	// is being computed
 	Module() Module
@@ -381,9 +412,14 @@ type OutgoingTransitionContext interface {
 	// DepTag() Returns the dependency tag through which this dependency is
 	// reached
 	DepTag() blueprint.DependencyTag
+
+	// Config returns the configuration for the build.
+	Config() Config
+
+	DeviceConfig() DeviceConfig
 }
 
-// Transition mutators implement a top-down mechanism where a module tells its
+// TransitionMutator implements a top-down mechanism where a module tells its
 // direct dependencies what variation they should be built in but the dependency
 // has the final say.
 //
@@ -448,18 +484,18 @@ type TransitionMutator interface {
 	// called on.
 	Split(ctx BaseModuleContext) []string
 
-	// Called on a module to determine which variation it wants from its direct
-	// dependencies. The dependency itself can override this decision. This method
-	// should not mutate the module itself.
+	// OutgoingTransition is called on a module to determine which variation it wants
+	// from its direct dependencies. The dependency itself can override this decision.
+	// This method should not mutate the module itself.
 	OutgoingTransition(ctx OutgoingTransitionContext, sourceVariation string) string
 
-	// Called on a module to determine which variation it should be in based on
-	// the variation modules that depend on it want. This gives the module a final
-	// say about its own variations. This method should not mutate the module
+	// IncomingTransition is called on a module to determine which variation it should
+	// be in based on the variation modules that depend on it want. This gives the module
+	// a final say about its own variations. This method should not mutate the module
 	// itself.
 	IncomingTransition(ctx IncomingTransitionContext, incomingVariation string) string
 
-	// Called after a module was split into multiple variations on each variation.
+	// Mutate is called after a module was split into multiple variations on each variation.
 	// It should not split the module any further but adding new dependencies is
 	// fine. Unlike all the other methods on TransitionMutator, this method is
 	// allowed to mutate the module.
@@ -481,6 +517,7 @@ func (a *androidTransitionMutator) Split(ctx blueprint.BaseModuleContext) []stri
 }
 
 type outgoingTransitionContextImpl struct {
+	archModuleContext
 	bp blueprint.OutgoingTransitionContext
 }
 
@@ -492,15 +529,30 @@ func (c *outgoingTransitionContextImpl) DepTag() blueprint.DependencyTag {
 	return c.bp.DepTag()
 }
 
-func (a *androidTransitionMutator) OutgoingTransition(ctx blueprint.OutgoingTransitionContext, sourceVariation string) string {
-	if _, ok := ctx.Module().(Module); ok {
-		return a.mutator.OutgoingTransition(&outgoingTransitionContextImpl{bp: ctx}, sourceVariation)
+func (c *outgoingTransitionContextImpl) Config() Config {
+	return c.bp.Config().(Config)
+}
+
+func (c *outgoingTransitionContextImpl) DeviceConfig() DeviceConfig {
+	return DeviceConfig{c.bp.Config().(Config).deviceConfig}
+}
+
+func (a *androidTransitionMutator) OutgoingTransition(bpctx blueprint.OutgoingTransitionContext, sourceVariation string) string {
+	if m, ok := bpctx.Module().(Module); ok {
+		ctx := outgoingTransitionContextPool.Get().(*outgoingTransitionContextImpl)
+		defer outgoingTransitionContextPool.Put(ctx)
+		*ctx = outgoingTransitionContextImpl{
+			archModuleContext: m.base().archModuleContextFactory(bpctx),
+			bp:                bpctx,
+		}
+		return a.mutator.OutgoingTransition(ctx, sourceVariation)
 	} else {
 		return ""
 	}
 }
 
 type incomingTransitionContextImpl struct {
+	archModuleContext
 	bp blueprint.IncomingTransitionContext
 }
 
@@ -512,9 +564,19 @@ func (c *incomingTransitionContextImpl) Config() Config {
 	return c.bp.Config().(Config)
 }
 
-func (a *androidTransitionMutator) IncomingTransition(ctx blueprint.IncomingTransitionContext, incomingVariation string) string {
-	if _, ok := ctx.Module().(Module); ok {
-		return a.mutator.IncomingTransition(&incomingTransitionContextImpl{bp: ctx}, incomingVariation)
+func (c *incomingTransitionContextImpl) DeviceConfig() DeviceConfig {
+	return DeviceConfig{c.bp.Config().(Config).deviceConfig}
+}
+
+func (a *androidTransitionMutator) IncomingTransition(bpctx blueprint.IncomingTransitionContext, incomingVariation string) string {
+	if m, ok := bpctx.Module().(Module); ok {
+		ctx := incomingTransitionContextPool.Get().(*incomingTransitionContextImpl)
+		defer incomingTransitionContextPool.Put(ctx)
+		*ctx = incomingTransitionContextImpl{
+			archModuleContext: m.base().archModuleContextFactory(bpctx),
+			bp:                bpctx,
+		}
+		return a.mutator.IncomingTransition(ctx, incomingVariation)
 	} else {
 		return ""
 	}
@@ -522,7 +584,9 @@ func (a *androidTransitionMutator) IncomingTransition(ctx blueprint.IncomingTran
 
 func (a *androidTransitionMutator) Mutate(ctx blueprint.BottomUpMutatorContext, variation string) {
 	if am, ok := ctx.Module().(Module); ok {
-		a.mutator.Mutate(bottomUpMutatorContextFactory(ctx, am, a.finalPhase), variation)
+		mctx := bottomUpMutatorContextFactory(ctx, am, a.finalPhase)
+		defer bottomUpMutatorContextPool.Put(mctx)
+		a.mutator.Mutate(mctx, variation)
 	}
 }
 
@@ -545,7 +609,9 @@ func (x *registerMutatorsContext) TopDown(name string, m TopDownMutator) Mutator
 	f := func(ctx blueprint.TopDownMutatorContext) {
 		if a, ok := ctx.Module().(Module); ok {
 			moduleContext := a.base().baseModuleContextFactory(ctx)
-			actx := &topDownMutatorContext{
+			actx := topDownMutatorContextPool.Get().(*topDownMutatorContext)
+			defer topDownMutatorContextPool.Put(actx)
+			*actx = topDownMutatorContext{
 				bp:                ctx,
 				baseModuleContext: moduleContext,
 			}
@@ -600,6 +666,7 @@ func componentDepsMutator(ctx BottomUpMutatorContext) {
 
 func depsMutator(ctx BottomUpMutatorContext) {
 	if m := ctx.Module(); m.Enabled() {
+		m.base().baseDepsMutator(ctx)
 		m.DepsMutator(ctx)
 	}
 }
@@ -746,6 +813,6 @@ func (b *bottomUpMutatorContext) CreateAliasVariation(fromVariationName, toVaria
 	b.bp.CreateAliasVariation(fromVariationName, toVariationName)
 }
 
-func (b *bottomUpMutatorContext) SetVariationProvider(module blueprint.Module, provider blueprint.ProviderKey, value interface{}) {
+func (b *bottomUpMutatorContext) SetVariationProvider(module blueprint.Module, provider blueprint.AnyProviderKey, value interface{}) {
 	b.bp.SetVariationProvider(module, provider, value)
 }

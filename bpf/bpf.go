@@ -203,7 +203,16 @@ func (bpf *bpf) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 
 	}
-	ctx.SetProvider(blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: srcs.Strings()})
+
+	installDir := android.PathForModuleInstall(ctx, "etc", "bpf")
+	if len(bpf.properties.Sub_dir) > 0 {
+		installDir = installDir.Join(ctx, bpf.properties.Sub_dir)
+	}
+	for _, obj := range bpf.objs {
+		ctx.PackageFile(installDir, obj.Base(), obj)
+	}
+
+	android.SetProvider(ctx, blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: srcs.Strings()})
 }
 
 func (bpf *bpf) AndroidMk() android.AndroidMkData {
@@ -231,6 +240,10 @@ func (bpf *bpf) AndroidMk() android.AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", obj.Base())
 				fmt.Fprintln(w, "LOCAL_MODULE_CLASS := ETC")
 				fmt.Fprintln(w, localModulePath)
+				// AconfigUpdateAndroidMkData may have added elements to Extra.  Process them here.
+				for _, extra := range data.Extra {
+					extra(w, nil)
+				}
 				fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 				fmt.Fprintln(w)
 			}

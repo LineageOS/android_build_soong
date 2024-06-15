@@ -20,6 +20,20 @@ import (
 	"github.com/google/blueprint"
 )
 
+type CodegenInfo struct {
+	// AconfigDeclarations is the name of the aconfig_declarations modules that
+	// the codegen module is associated with
+	AconfigDeclarations []string
+
+	// Paths to the cache files of the associated aconfig_declaration modules
+	IntermediateCacheOutputPaths android.Paths
+
+	// Paths to the srcjar files generated from the java_aconfig_library modules
+	Srcjars android.Paths
+}
+
+var CodegenInfoProvider = blueprint.NewProvider[CodegenInfo]()
+
 var (
 	pctx = android.NewPackageContext("android/soong/aconfig")
 
@@ -43,7 +57,7 @@ var (
 	// For create-device-config-sysprops: Generate aconfig flag value map text file
 	aconfigTextRule = pctx.AndroidStaticRule("aconfig_text",
 		blueprint.RuleParams{
-			Command: `${aconfig} dump --format bool` +
+			Command: `${aconfig} dump-cache --dedup --format='{fully_qualified_name}={state:bool}'` +
 				` --cache ${in}` +
 				` --out ${out}.tmp` +
 				` && ( if cmp -s ${out}.tmp ${out} ; then rm ${out}.tmp ; else mv ${out}.tmp ${out} ; fi )`,
@@ -56,24 +70,42 @@ var (
 	// For all_aconfig_declarations: Combine all parsed_flags proto files
 	AllDeclarationsRule = pctx.AndroidStaticRule("All_aconfig_declarations_dump",
 		blueprint.RuleParams{
-			Command: `${aconfig} dump --format protobuf --out ${out} ${cache_files}`,
+			Command: `${aconfig} dump-cache --dedup --format protobuf --out ${out} ${cache_files}`,
+			CommandDeps: []string{
+				"${aconfig}",
+			},
+		}, "cache_files")
+	AllDeclarationsRuleTextProto = pctx.AndroidStaticRule("All_aconfig_declarations_dump_textproto",
+		blueprint.RuleParams{
+			Command: `${aconfig} dump-cache --dedup --format textproto --out ${out} ${cache_files}`,
 			CommandDeps: []string{
 				"${aconfig}",
 			},
 		}, "cache_files")
 
-	mergeAconfigFilesRule = pctx.AndroidStaticRule("mergeAconfigFilesRule",
+	CreateStorageRule = pctx.AndroidStaticRule("aconfig_create_storage",
 		blueprint.RuleParams{
-			Command:     `${aconfig} dump --dedup --format protobuf --out $out $flags`,
-			CommandDeps: []string{"${aconfig}"},
-		}, "flags")
+			Command: `${aconfig} create-storage --container ${container} --file ${file_type} --out ${out} ${cache_files}`,
+			CommandDeps: []string{
+				"${aconfig}",
+			},
+		}, "container", "file_type", "cache_files")
+
 	// For exported_java_aconfig_library: Generate a JAR from all
 	// java_aconfig_libraries to be consumed by apps built outside the
 	// platform
 	exportedJavaRule = pctx.AndroidStaticRule("exported_java_aconfig_library",
+		// For each aconfig cache file, if the cache contains any
+		// exported flags, generate Java flag lookup code for the
+		// exported flags (only). Finally collect all generated code
+		// into the ${out} JAR file.
 		blueprint.RuleParams{
 			Command: `rm -rf ${out}.tmp` +
-				`&& for cache in ${cache_files}; do ${aconfig} create-java-lib --cache $$cache --out ${out}.tmp; done` +
+				`&& for cache in ${cache_files}; do ` +
+				`  if [ -n "$$(${aconfig} dump-cache --dedup --cache $$cache --filter=is_exported:true --format='{fully_qualified_name}')" ]; then ` +
+				`    ${aconfig} create-java-lib --cache $$cache --mode=exported --out ${out}.tmp; ` +
+				`  fi ` +
+				`done` +
 				`&& $soong_zip -write_if_changed -jar -o ${out} -C ${out}.tmp -D ${out}.tmp` +
 				`&& rm -rf ${out}.tmp`,
 			CommandDeps: []string{

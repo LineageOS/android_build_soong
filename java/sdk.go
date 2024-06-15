@@ -33,13 +33,26 @@ var sdkFrameworkAidlPathKey = android.NewOnceKey("sdkFrameworkAidlPathKey")
 var nonUpdatableFrameworkAidlPathKey = android.NewOnceKey("nonUpdatableFrameworkAidlPathKey")
 var apiFingerprintPathKey = android.NewOnceKey("apiFingerprintPathKey")
 
-func UseApiFingerprint(ctx android.BaseModuleContext) bool {
-	if ctx.Config().UnbundledBuild() &&
-		!ctx.Config().AlwaysUsePrebuiltSdks() &&
-		ctx.Config().IsEnvTrue("UNBUNDLED_BUILD_TARGET_SDK_WITH_API_FINGERPRINT") {
-		return true
+func UseApiFingerprint(ctx android.BaseModuleContext) (useApiFingerprint bool, fingerprintSdkVersion string, fingerprintDeps android.OutputPath) {
+	if ctx.Config().UnbundledBuild() && !ctx.Config().AlwaysUsePrebuiltSdks() {
+		apiFingerprintTrue := ctx.Config().IsEnvTrue("UNBUNDLED_BUILD_TARGET_SDK_WITH_API_FINGERPRINT")
+		dessertShaIsSet := ctx.Config().Getenv("UNBUNDLED_BUILD_TARGET_SDK_WITH_DESSERT_SHA") != ""
+
+		// Error when both UNBUNDLED_BUILD_TARGET_SDK_WITH_API_FINGERPRINT and UNBUNDLED_BUILD_TARGET_SDK_WITH_DESSERT_SHA are set
+		if apiFingerprintTrue && dessertShaIsSet {
+			ctx.ModuleErrorf("UNBUNDLED_BUILD_TARGET_SDK_WITH_API_FINGERPRINT=true cannot be set alongside with UNBUNDLED_BUILD_TARGET_SDK_WITH_DESSERT_SHA")
+		}
+
+		useApiFingerprint = apiFingerprintTrue || dessertShaIsSet
+		if apiFingerprintTrue {
+			fingerprintSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", ApiFingerprintPath(ctx).String())
+			fingerprintDeps = ApiFingerprintPath(ctx)
+		}
+		if dessertShaIsSet {
+			fingerprintSdkVersion = ctx.Config().Getenv("UNBUNDLED_BUILD_TARGET_SDK_WITH_DESSERT_SHA")
+		}
 	}
-	return false
+	return useApiFingerprint, fingerprintSdkVersion, fingerprintDeps
 }
 
 func defaultJavaLanguageVersion(ctx android.EarlyModuleContext, s android.SdkSpec) javaVersion {
@@ -47,9 +60,7 @@ func defaultJavaLanguageVersion(ctx android.EarlyModuleContext, s android.SdkSpe
 	if err != nil {
 		ctx.PropertyErrorf("sdk_version", "%s", err)
 	}
-	if sdk.FinalOrFutureInt() <= 23 {
-		return JAVA_VERSION_7
-	} else if sdk.FinalOrFutureInt() <= 29 {
+	if sdk.FinalOrFutureInt() <= 29 {
 		return JAVA_VERSION_8
 	} else if sdk.FinalOrFutureInt() <= 31 {
 		return JAVA_VERSION_9
@@ -264,8 +275,7 @@ func createFrameworkAidl(stubsModules []string, path android.WritablePath, ctx a
 
 	ctx.VisitAllModules(func(module android.Module) {
 		// Collect dex jar paths for the modules listed above.
-		if ctx.ModuleHasProvider(module, JavaInfoProvider) {
-			j := ctx.ModuleProvider(module, JavaInfoProvider).(JavaInfo)
+		if j, ok := android.SingletonModuleProvider(ctx, module, JavaInfoProvider); ok {
 			name := ctx.ModuleName(module)
 			if i := android.IndexList(name, stubsModules); i != -1 {
 				stubsJars[i] = j.HeaderJars

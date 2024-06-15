@@ -144,23 +144,33 @@ func (fuzzBin *fuzzBinary) linkerDeps(ctx DepsContext, deps Deps) Deps {
 }
 
 func (fuzz *fuzzBinary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
+	subdir := "lib"
+	if ctx.inVendor() {
+		subdir = "lib/vendor"
+	}
+
 	flags = fuzz.binaryDecorator.linkerFlags(ctx, flags)
 	// RunPaths on devices isn't instantiated by the base linker. `../lib` for
 	// installed fuzz targets (both host and device), and `./lib` for fuzz
 	// target packages.
-	flags.Local.LdFlags = append(flags.Local.LdFlags, `-Wl,-rpath,\$$ORIGIN/lib`)
+	flags.Local.LdFlags = append(flags.Local.LdFlags, `-Wl,-rpath,\$$ORIGIN/`+subdir)
 
 	// When running on device, fuzz targets with vendor: true set will be in
 	// fuzzer_name/vendor/fuzzer_name (note the extra 'vendor' and thus need to
 	// link with libraries in ../../lib/. Non-vendor binaries only need to look
 	// one level up, in ../lib/.
 	if ctx.inVendor() {
-		flags.Local.LdFlags = append(flags.Local.LdFlags, `-Wl,-rpath,\$$ORIGIN/../../lib`)
+		flags.Local.LdFlags = append(flags.Local.LdFlags, `-Wl,-rpath,\$$ORIGIN/../../`+subdir)
 	} else {
-		flags.Local.LdFlags = append(flags.Local.LdFlags, `-Wl,-rpath,\$$ORIGIN/../lib`)
+		flags.Local.LdFlags = append(flags.Local.LdFlags, `-Wl,-rpath,\$$ORIGIN/../`+subdir)
 	}
 
 	return flags
+}
+
+func (fuzz *fuzzBinary) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *android.ModuleInfoJSON) {
+	fuzz.binaryDecorator.moduleInfoJSON(ctx, moduleInfoJSON)
+	moduleInfoJSON.Class = []string{"EXECUTABLES"}
 }
 
 // IsValidSharedDependency takes a module and determines if it is a unique shared library
@@ -216,19 +226,27 @@ func IsValidSharedDependency(dependency android.Module) bool {
 }
 
 func SharedLibraryInstallLocation(
-	libraryBase string, isHost bool, fuzzDir string, archString string) string {
+	libraryBase string, isHost bool, isVendor bool, fuzzDir string, archString string) string {
 	installLocation := "$(PRODUCT_OUT)/data"
 	if isHost {
 		installLocation = "$(HOST_OUT)"
 	}
+	subdir := "lib"
+	if isVendor {
+		subdir = "lib/vendor"
+	}
 	installLocation = filepath.Join(
-		installLocation, fuzzDir, archString, "lib", libraryBase)
+		installLocation, fuzzDir, archString, subdir, libraryBase)
 	return installLocation
 }
 
 // Get the device-only shared library symbols install directory.
-func SharedLibrarySymbolsInstallLocation(libraryBase string, fuzzDir string, archString string) string {
-	return filepath.Join("$(PRODUCT_OUT)/symbols/data/", fuzzDir, archString, "/lib/", libraryBase)
+func SharedLibrarySymbolsInstallLocation(libraryBase string, isVendor bool, fuzzDir string, archString string) string {
+	subdir := "lib"
+	if isVendor {
+		subdir = "lib/vendor"
+	}
+	return filepath.Join("$(PRODUCT_OUT)/symbols/data/", fuzzDir, archString, subdir, libraryBase)
 }
 
 func (fuzzBin *fuzzBinary) install(ctx ModuleContext, file android.Path) {
@@ -239,16 +257,29 @@ func (fuzzBin *fuzzBinary) install(ctx ModuleContext, file android.Path) {
 	// Grab the list of required shared libraries.
 	fuzzBin.sharedLibraries, _ = CollectAllSharedDependencies(ctx)
 
+	// TODO: does not mirror Android linkernamespaces
+	// the logic here has special cases for vendor, but it would need more work to
+	// work in arbitrary partitions, so just surface errors early for a few cases
+	//
+	// Even without these, there are certain situations across linkernamespaces
+	// that this won't support. For instance, you might have:
+	//
+	//     my_fuzzer (vendor) -> libbinder_ndk (core) -> libbinder (vendor)
+	//
+	// This dependency chain wouldn't be possible to express in the current
+	// logic because all the deps currently match the variant of the source
+	// module.
+
 	for _, ruleBuilderInstall := range fuzzBin.sharedLibraries {
 		install := ruleBuilderInstall.To
 		fuzzBin.installedSharedDeps = append(fuzzBin.installedSharedDeps,
 			SharedLibraryInstallLocation(
-				install, ctx.Host(), installBase, ctx.Arch().ArchType.String()))
+				install, ctx.Host(), ctx.inVendor(), installBase, ctx.Arch().ArchType.String()))
 
 		// Also add the dependency on the shared library symbols dir.
 		if !ctx.Host() {
 			fuzzBin.installedSharedDeps = append(fuzzBin.installedSharedDeps,
-				SharedLibrarySymbolsInstallLocation(install, installBase, ctx.Arch().ArchType.String()))
+				SharedLibrarySymbolsInstallLocation(install, ctx.inVendor(), installBase, ctx.Arch().ArchType.String()))
 		}
 	}
 
@@ -407,6 +438,10 @@ func (s *ccRustFuzzPackager) GenerateBuildActions(ctx android.SingletonContext) 
 		}
 
 		sharedLibsInstallDirPrefix := "lib"
+		if ccModule.InVendor() {
+			sharedLibsInstallDirPrefix = "lib/vendor"
+		}
+
 		if !ccModule.IsFuzzModule() {
 			return
 		}
@@ -499,7 +534,7 @@ func GetSharedLibsToZip(sharedLibraries android.RuleBuilderInstalls, module Link
 		// install it to the output directory. Setup the install destination here,
 		// which will be used by $(copy-many-files) in the Make backend.
 		installDestination := SharedLibraryInstallLocation(
-			install, module.Host(), fuzzDir, archString)
+			install, module.Host(), module.InVendor(), fuzzDir, archString)
 		if (*sharedLibraryInstalled)[installDestination] {
 			continue
 		}
@@ -517,7 +552,7 @@ func GetSharedLibsToZip(sharedLibraries android.RuleBuilderInstalls, module Link
 		// we want symbolization tools (like `stack`) to be able to find the symbols
 		// in $ANDROID_PRODUCT_OUT/symbols automagically.
 		if !module.Host() {
-			symbolsInstallDestination := SharedLibrarySymbolsInstallLocation(install, fuzzDir, archString)
+			symbolsInstallDestination := SharedLibrarySymbolsInstallLocation(install, module.InVendor(), fuzzDir, archString)
 			symbolsInstallDestination = strings.ReplaceAll(symbolsInstallDestination, "$", "$$")
 			s.SharedLibInstallStrings = append(s.SharedLibInstallStrings,
 				library.String()+":"+symbolsInstallDestination)
@@ -544,7 +579,8 @@ func CollectAllSharedDependencies(ctx android.ModuleContext) (android.RuleBuilde
 		if !IsValidSharedDependency(dep) {
 			return
 		}
-		if !ctx.OtherModuleHasProvider(dep, SharedLibraryInfoProvider) {
+		sharedLibraryInfo, hasSharedLibraryInfo := android.OtherModuleProvider(ctx, dep, SharedLibraryInfoProvider)
+		if !hasSharedLibraryInfo {
 			return
 		}
 		if seen[ctx.OtherModuleName(dep)] {
@@ -553,7 +589,6 @@ func CollectAllSharedDependencies(ctx android.ModuleContext) (android.RuleBuilde
 		seen[ctx.OtherModuleName(dep)] = true
 		deps = append(deps, dep)
 
-		sharedLibraryInfo := ctx.OtherModuleProvider(dep, SharedLibraryInfoProvider).(SharedLibraryInfo)
 		installDestination := sharedLibraryInfo.SharedLibrary.Base()
 		ruleBuilderInstall := android.RuleBuilderInstall{android.OutputFileForModule(ctx, dep, "unstripped"), installDestination}
 		sharedLibraries = append(sharedLibraries, ruleBuilderInstall)
@@ -574,14 +609,14 @@ func CollectAllSharedDependencies(ctx android.ModuleContext) (android.RuleBuilde
 		if !IsValidSharedDependency(child) {
 			return false
 		}
-		if !ctx.OtherModuleHasProvider(child, SharedLibraryInfoProvider) {
+		sharedLibraryInfo, hasSharedLibraryInfo := android.OtherModuleProvider(ctx, child, SharedLibraryInfoProvider)
+		if !hasSharedLibraryInfo {
 			return false
 		}
 		if !seen[ctx.OtherModuleName(child)] {
 			seen[ctx.OtherModuleName(child)] = true
 			deps = append(deps, child)
 
-			sharedLibraryInfo := ctx.OtherModuleProvider(child, SharedLibraryInfoProvider).(SharedLibraryInfo)
 			installDestination := sharedLibraryInfo.SharedLibrary.Base()
 			ruleBuilderInstall := android.RuleBuilderInstall{android.OutputFileForModule(ctx, child, "unstripped"), installDestination}
 			sharedLibraries = append(sharedLibraries, ruleBuilderInstall)

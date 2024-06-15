@@ -22,16 +22,14 @@ type RecoverySnapshotModuleInterface interface {
 	ExcludeFromRecoverySnapshot() bool
 }
 
-var recoverySnapshotSingleton = SnapshotSingleton{
-	"recovery",                     // name
-	"SOONG_RECOVERY_SNAPSHOT_ZIP",  // makeVar
-	android.OptionalPath{},         // snapshotZipFile
-	RecoverySnapshotImageSingleton, // Image
-	false,                          // Fake
-}
-
 func RecoverySnapshotSingleton() android.Singleton {
-	return &recoverySnapshotSingleton
+	return &SnapshotSingleton{
+		"recovery",                     // name
+		"SOONG_RECOVERY_SNAPSHOT_ZIP",  // makeVar
+		android.OptionalPath{},         // snapshotZipFile
+		RecoverySnapshotImageSingleton, // Image
+		false,                          // Fake
+	}
 }
 
 // Determine if a dir under source tree is an SoC-owned proprietary directory based

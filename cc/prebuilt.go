@@ -17,6 +17,8 @@ package cc
 import (
 	"path/filepath"
 
+	"github.com/google/blueprint/proptools"
+
 	"android/soong/android"
 )
 
@@ -36,9 +38,15 @@ func RegisterPrebuiltBuildComponents(ctx android.RegistrationContext) {
 type prebuiltLinkerInterface interface {
 	Name(string) string
 	prebuilt() *android.Prebuilt
+	sourceModuleName() string
 }
 
 type prebuiltLinkerProperties struct {
+	// Name of the source soong module that gets shadowed by this prebuilt
+	// If unspecified, follows the naming convention that the source module of
+	// the prebuilt is Name() without "prebuilt_" prefix
+	Source_module_name *string
+
 	// a prebuilt library or binary. Can reference a genrule module that generates an executable file.
 	Srcs []string `android:"path,arch_variant"`
 
@@ -132,7 +140,7 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 
 		if p.static() {
 			depSet := android.NewDepSetBuilder[android.Path](android.TOPOLOGICAL).Direct(in).Build()
-			ctx.SetProvider(StaticLibraryInfoProvider, StaticLibraryInfo{
+			android.SetProvider(ctx, StaticLibraryInfoProvider, StaticLibraryInfo{
 				StaticLibrary: in,
 
 				TransitiveStaticLibrariesForOrdering: depSet,
@@ -190,7 +198,7 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 				},
 			})
 
-			ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
+			android.SetProvider(ctx, SharedLibraryInfoProvider, SharedLibraryInfo{
 				SharedLibrary: outputFile,
 				Target:        ctx.Target(),
 
@@ -213,7 +221,7 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 	}
 
 	if p.header() {
-		ctx.SetProvider(HeaderLibraryInfoProvider, HeaderLibraryInfo{})
+		android.SetProvider(ctx, HeaderLibraryInfoProvider, HeaderLibraryInfo{})
 
 		// Need to return an output path so that the AndroidMk logic doesn't skip
 		// the prebuilt header. For compatibility, in case Android.mk files use a
@@ -252,6 +260,9 @@ func (p *prebuiltLibraryLinker) nativeCoverage() bool {
 
 func (p *prebuiltLibraryLinker) disablePrebuilt() {
 	p.properties.Srcs = nil
+	p.properties.Sanitized.None.Srcs = nil
+	p.properties.Sanitized.Address.Srcs = nil
+	p.properties.Sanitized.Hwaddress.Srcs = nil
 }
 
 // Implements versionedInterface
@@ -337,7 +348,11 @@ func NewPrebuiltStaticLibrary(hod android.HostOrDeviceSupported) (*Module, *libr
 }
 
 type prebuiltObjectProperties struct {
-	Srcs []string `android:"path,arch_variant"`
+	// Name of the source soong module that gets shadowed by this prebuilt
+	// If unspecified, follows the naming convention that the source module of
+	// the prebuilt is Name() without "prebuilt_" prefix
+	Source_module_name *string
+	Srcs               []string `android:"path,arch_variant"`
 }
 
 type prebuiltObjectLinker struct {
@@ -349,6 +364,10 @@ type prebuiltObjectLinker struct {
 
 func (p *prebuiltObjectLinker) prebuilt() *android.Prebuilt {
 	return &p.Prebuilt
+}
+
+func (p *prebuiltObjectLinker) sourceModuleName() string {
+	return proptools.String(p.properties.Source_module_name)
 }
 
 var _ prebuiltLinkerInterface = (*prebuiltObjectLinker)(nil)
@@ -519,4 +538,8 @@ func srcsForSanitizer(sanitize *sanitize, sanitized Sanitized) []string {
 		return sanitized.Hwaddress.Srcs
 	}
 	return sanitized.None.Srcs
+}
+
+func (p *prebuiltLinker) sourceModuleName() string {
+	return proptools.String(p.properties.Source_module_name)
 }

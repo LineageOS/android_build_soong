@@ -75,7 +75,6 @@ type configImpl struct {
 	queryview                bool
 	reportMkMetrics          bool // Collect and report mk2bp migration progress metrics.
 	soongDocs                bool
-	multitreeBuild           bool // This is a multitree build.
 	skipConfig               bool
 	skipKati                 bool
 	skipKatiNinja            bool
@@ -115,6 +114,11 @@ type configImpl struct {
 
 	// Data source to write ninja weight list
 	ninjaWeightListSource NinjaWeightListSource
+
+	// This file is a detailed dump of all soong-defined modules for debugging purposes.
+	// There's quite a bit of overlap with module-info.json and soong module graph. We
+	// could consider merging them.
+	moduleDebugFile string
 }
 
 type NinjaWeightListSource uint
@@ -273,6 +277,10 @@ func NewConfig(ctx Context, args ...string) Config {
 		ret.sandboxConfig.SetSrcDirIsRO(srcDirIsWritable == "false")
 	}
 
+	if os.Getenv("GENERATE_SOONG_DEBUG") == "true" {
+		ret.moduleDebugFile, _ = filepath.Abs(shared.JoinPath(ret.SoongOutDir(), "soong-debug-info.json"))
+	}
+
 	ret.environ.Unset(
 		// We're already using it
 		"USE_SOONG_UI",
@@ -325,6 +333,9 @@ func NewConfig(ctx Context, args ...string) Config {
 		"ANDROID_DEV_SCRIPTS",
 		"ANDROID_EMULATOR_PREBUILTS",
 		"ANDROID_PRE_BUILD_PATHS",
+
+		// We read it here already, don't let others share in the fun
+		"GENERATE_SOONG_DEBUG",
 	)
 
 	if ret.UseGoma() || ret.ForceUseGoma() {
@@ -411,10 +422,6 @@ func NewConfig(ctx Context, args ...string) Config {
 	// to unzip to enable zipbomb detection that incorrectly handle zip64 and data descriptors and fail on large
 	// zip files produced by soong_zip.  Disable zipbomb detection.
 	ret.environ.Set("UNZIP_DISABLE_ZIPBOMB_DETECTION", "TRUE")
-
-	if ret.MultitreeBuild() {
-		ret.environ.Set("MULTITREE_BUILD", "true")
-	}
 
 	outDir := ret.OutDir()
 	buildDateTimeFile := filepath.Join(outDir, "build_date.txt")
@@ -777,8 +784,6 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			c.skipMetricsUpload = true
 		} else if arg == "--mk-metrics" {
 			c.reportMkMetrics = true
-		} else if arg == "--multitree-build" {
-			c.multitreeBuild = true
 		} else if arg == "--search-api-dir" {
 			c.searchApiDir = true
 		} else if strings.HasPrefix(arg, "--ninja_weight_source=") {
@@ -1081,10 +1086,6 @@ func (c *configImpl) SoongDocs() bool {
 
 func (c *configImpl) IsVerbose() bool {
 	return c.verbose
-}
-
-func (c *configImpl) MultitreeBuild() bool {
-	return c.multitreeBuild
 }
 
 func (c *configImpl) NinjaWeightListSource() NinjaWeightListSource {

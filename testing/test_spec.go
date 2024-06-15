@@ -20,8 +20,9 @@ import (
 
 	"android/soong/android"
 	"android/soong/testing/test_spec_proto"
-	"github.com/google/blueprint"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/google/blueprint"
 )
 
 // ErrTestModuleDataNotFound is the error message for missing test module provider data.
@@ -81,16 +82,16 @@ type TestSpecProviderData struct {
 	IntermediatePath android.WritablePath
 }
 
-var TestSpecProviderKey = blueprint.NewProvider(TestSpecProviderData{})
+var TestSpecProviderKey = blueprint.NewProvider[TestSpecProviderData]()
 
 type TestModuleProviderData struct {
 }
 
-var TestModuleProviderKey = blueprint.NewProvider(TestModuleProviderData{})
+var TestModuleProviderKey = blueprint.NewProvider[TestModuleProviderData]()
 
 func (module *TestSpecModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	for _, m := range ctx.GetDirectDepsWithTag(testsDepTag) {
-		if !ctx.OtherModuleHasProvider(m, TestModuleProviderKey) {
+		if _, ok := android.OtherModuleProvider(ctx, m, TestModuleProviderKey); !ok {
 			ctx.ModuleErrorf(ErrTestModuleDataNotFound, m.Name())
 		}
 	}
@@ -116,9 +117,9 @@ func (module *TestSpecModule) GenerateAndroidBuildActions(ctx android.ModuleCont
 	if err != nil {
 		ctx.ModuleErrorf("Error: %s", err.Error())
 	}
-	android.WriteFileRule(ctx, intermediatePath, string(protoData))
+	android.WriteFileRuleVerbatim(ctx, intermediatePath, string(protoData))
 
-	ctx.SetProvider(
+	android.SetProvider(ctx,
 		TestSpecProviderKey, TestSpecProviderData{
 			IntermediatePath: intermediatePath,
 		},

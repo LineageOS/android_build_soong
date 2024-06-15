@@ -212,6 +212,14 @@ var (
 			CommandDeps: []string{"${config.MergeZipsCmd}"},
 		},
 		"jarArgs")
+	combineJarRsp = pctx.AndroidStaticRule("combineJarRsp",
+		blueprint.RuleParams{
+			Command:        `${config.MergeZipsCmd} --ignore-duplicates -j $jarArgs $out @$out.rsp`,
+			CommandDeps:    []string{"${config.MergeZipsCmd}"},
+			Rspfile:        "$out.rsp",
+			RspfileContent: "$in",
+		},
+		"jarArgs")
 
 	jarjar = pctx.AndroidStaticRule("jarjar",
 		blueprint.RuleParams{
@@ -274,11 +282,30 @@ var (
 				` cat $$f; ` +
 				`done > $out`,
 		})
+
+	gatherReleasedFlaggedApisRule = pctx.AndroidStaticRule("gatherReleasedFlaggedApisRule",
+		blueprint.RuleParams{
+			Command: `${aconfig} dump-cache --dedup --format='{fully_qualified_name}={state:bool}' ` +
+				`--out ${out} ` +
+				`${flags_path} ` +
+				`${filter_args} `,
+			CommandDeps: []string{"${aconfig}"},
+			Description: "aconfig_bool",
+		}, "flags_path", "filter_args")
+
+	generateMetalavaRevertAnnotationsRule = pctx.AndroidStaticRule("generateMetalavaRevertAnnotationsRule",
+		blueprint.RuleParams{
+			Command:     `${keep-flagged-apis} ${in} > ${out}`,
+			CommandDeps: []string{"${keep-flagged-apis}"},
+		})
 )
 
 func init() {
 	pctx.Import("android/soong/android")
 	pctx.Import("android/soong/java/config")
+
+	pctx.HostBinToolVariable("aconfig", "aconfig")
+	pctx.HostBinToolVariable("keep-flagged-apis", "keep-flagged-apis")
 }
 
 type javaBuilderFlags struct {
@@ -399,7 +426,7 @@ func emitXrefRule(ctx android.ModuleContext, xrefFile android.WritablePath, idx 
 		})
 }
 
-func turbineFlags(ctx android.ModuleContext, flags javaBuilderFlags) (string, android.Paths) {
+func turbineFlags(ctx android.ModuleContext, flags javaBuilderFlags, dir string) (string, android.Paths) {
 	var deps android.Paths
 
 	classpath := flags.classpath
@@ -424,13 +451,21 @@ func turbineFlags(ctx android.ModuleContext, flags javaBuilderFlags) (string, an
 	deps = append(deps, classpath...)
 	turbineFlags := bootClasspath + " " + classpath.FormTurbineClassPath("--classpath ")
 
+	const flagsLimit = 32 * 1024
+	if len(turbineFlags) > flagsLimit {
+		flagsRspFile := android.PathForModuleOut(ctx, dir, "turbine-flags.rsp")
+		android.WriteFileRule(ctx, flagsRspFile, turbineFlags)
+		turbineFlags = "@" + flagsRspFile.String()
+		deps = append(deps, flagsRspFile)
+	}
+
 	return turbineFlags, deps
 }
 
 func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.WritablePath,
 	srcFiles, srcJars android.Paths, flags javaBuilderFlags) {
 
-	turbineFlags, deps := turbineFlags(ctx, flags)
+	turbineFlags, deps := turbineFlags(ctx, flags, "turbine")
 
 	deps = append(deps, srcJars...)
 
@@ -462,7 +497,7 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 func TurbineApt(ctx android.ModuleContext, outputSrcJar, outputResJar android.WritablePath,
 	srcFiles, srcJars android.Paths, flags javaBuilderFlags) {
 
-	turbineFlags, deps := turbineFlags(ctx, flags)
+	turbineFlags, deps := turbineFlags(ctx, flags, "kapt")
 
 	deps = append(deps, srcJars...)
 
@@ -515,14 +550,14 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 
 	deps = append(deps, srcJars...)
 
-	classpath := flags.classpath
+	javacClasspath := flags.classpath
 
 	var bootClasspath string
 	if flags.javaVersion.usesJavaModules() {
 		var systemModuleDeps android.Paths
 		bootClasspath, systemModuleDeps = flags.systemModules.FormJavaSystemModulesPath(ctx.Device())
 		deps = append(deps, systemModuleDeps...)
-		classpath = append(flags.java9Classpath, classpath...)
+		javacClasspath = append(flags.java9Classpath, javacClasspath...)
 	} else {
 		deps = append(deps, flags.bootClasspath...)
 		if len(flags.bootClasspath) == 0 && ctx.Device() {
@@ -534,7 +569,19 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 		}
 	}
 
-	deps = append(deps, classpath...)
+	classpathArg := javacClasspath.FormJavaClassPath("-classpath")
+
+	// Keep the command line under the MAX_ARG_STRLEN limit by putting the classpath argument into an rsp file
+	// if it is too long.
+	const classpathLimit = 64 * 1024
+	if len(classpathArg) > classpathLimit {
+		classpathRspFile := outputFile.ReplaceExtension(ctx, "classpath")
+		android.WriteFileRule(ctx, classpathRspFile, classpathArg)
+		deps = append(deps, classpathRspFile)
+		classpathArg = "@" + classpathRspFile.String()
+	}
+
+	deps = append(deps, javacClasspath...)
 	deps = append(deps, flags.processorPath...)
 
 	processor := "-proc:none"
@@ -565,7 +612,7 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 		Args: map[string]string{
 			"javacFlags":    flags.javacFlags,
 			"bootClasspath": bootClasspath,
-			"classpath":     classpath.FormJavaClassPath("-classpath"),
+			"classpath":     classpathArg,
 			"processorpath": flags.processorPath.FormJavaClassPath("-processorpath"),
 			"processor":     processor,
 			"srcJars":       strings.Join(srcJars.Strings(), " "),
@@ -624,8 +671,23 @@ func TransformJarsToJar(ctx android.ModuleContext, outputFile android.WritablePa
 		jarArgs = append(jarArgs, "-D")
 	}
 
+	rule := combineJar
+	// Keep the command line under the MAX_ARG_STRLEN limit by putting the list of jars into an rsp file
+	// if it is too long.
+	const jarsLengthLimit = 64 * 1024
+	jarsLength := 0
+	for i, jar := range jars {
+		if i != 0 {
+			jarsLength += 1
+		}
+		jarsLength += len(jar.String())
+	}
+	if jarsLength > jarsLengthLimit {
+		rule = combineJarRsp
+	}
+
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        combineJar,
+		Rule:        rule,
 		Description: desc,
 		Output:      outputFile,
 		Inputs:      jars,

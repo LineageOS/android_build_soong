@@ -54,11 +54,6 @@ type ProtobufProperties struct {
 	// List of libraries which export include paths required for this module
 	Header_libs []string `android:"arch_variant,variant_prepend"`
 
-	// Use protobuf version 3.x. This will be deleted once we migrate all current users
-	// of protobuf off of 2.x.
-	// ludovicb@: DEPRECATED, to be removed
-	Use_protobuf3 *bool
-
 	// List of exported include paths containing proto files for dependent rust_protobuf modules.
 	Exported_include_dirs []string
 }
@@ -178,7 +173,7 @@ func (proto *protobufDecorator) GenerateSource(ctx ModuleContext, deps PathDeps)
 	// stemFile must be first here as the first path in BaseSourceProvider.OutputFiles is the library entry-point.
 	proto.BaseSourceProvider.OutputFiles = append(android.Paths{stemFile}, outputs.Paths()...)
 
-	ctx.SetProvider(cc.FlagExporterInfoProvider, cc.FlagExporterInfo{
+	android.SetProvider(ctx, cc.FlagExporterInfoProvider, cc.FlagExporterInfo{
 		IncludeDirs: android.PathsForModuleSrc(ctx, proto.Properties.Exported_include_dirs),
 	})
 

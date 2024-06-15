@@ -27,6 +27,7 @@ func TestAconfigDeclarations(t *testing.T) {
 			name: "module_name",
 			package: "com.example.package",
 			container: "com.android.foo",
+			exportable: true,
 			srcs: [
 				"foo.aconfig",
 				"bar.aconfig",
@@ -38,13 +39,33 @@ func TestAconfigDeclarations(t *testing.T) {
 	module := result.ModuleForTests("module_name", "").Module().(*DeclarationsModule)
 
 	// Check that the provider has the right contents
-	depData := result.ModuleProvider(module, DeclarationsProviderKey).(DeclarationsProviderData)
+	depData, _ := android.SingletonModuleProvider(result, module, android.AconfigDeclarationsProviderKey)
 	android.AssertStringEquals(t, "package", depData.Package, "com.example.package")
 	android.AssertStringEquals(t, "container", depData.Container, "com.android.foo")
+	android.AssertBoolEquals(t, "exportable", depData.Exportable, true)
 	if !strings.HasSuffix(depData.IntermediateCacheOutputPath.String(), "/intermediate.pb") {
 		t.Errorf("Missing intermediates proto path in provider: %s", depData.IntermediateCacheOutputPath.String())
 	}
 	if !strings.HasSuffix(depData.IntermediateDumpOutputPath.String(), "/intermediate.txt") {
 		t.Errorf("Missing intermediates text path in provider: %s", depData.IntermediateDumpOutputPath.String())
 	}
+}
+
+func TestAconfigDeclarationsWithExportableUnset(t *testing.T) {
+	bp := `
+		aconfig_declarations {
+			name: "module_name",
+			package: "com.example.package",
+			container: "com.android.foo",
+			srcs: [
+				"foo.aconfig",
+				"bar.aconfig",
+			],
+		}
+	`
+	result := runTest(t, android.FixtureExpectsNoErrors, bp)
+
+	module := result.ModuleForTests("module_name", "").Module().(*DeclarationsModule)
+	depData, _ := android.SingletonModuleProvider(result, module, android.AconfigDeclarationsProviderKey)
+	android.AssertBoolEquals(t, "exportable", depData.Exportable, false)
 }

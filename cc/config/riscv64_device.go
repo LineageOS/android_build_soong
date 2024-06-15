@@ -26,9 +26,11 @@ var (
 		// Help catch common 32/64-bit errors.
 		"-Werror=implicit-function-declaration",
 		"-march=rv64gcv_zba_zbb_zbs",
-		// Equivalent to "-munaligned-access", but our clang doesn't have that yet.
-		"-Xclang -target-feature -Xclang +unaligned-scalar-mem",
-		"-Xclang -target-feature -Xclang +unaligned-vector-mem",
+		"-munaligned-access",
+		// Until https://gitlab.com/qemu-project/qemu/-/issues/1976 is fixed...
+		"-mno-implicit-float",
+		// (https://github.com/google/android-riscv64/issues/124)
+		"-mllvm -jump-is-expensive=false",
 	}
 
 	riscv64ArchVariantCflags = map[string][]string{}
@@ -36,12 +38,10 @@ var (
 	riscv64Ldflags = []string{
 		"-Wl,--hash-style=gnu",
 		"-march=rv64gcv_zba_zbb_zbs",
-		// Equivalent to "-munaligned-access", but our clang doesn't have that yet.
-		"-Xclang -target-feature -Xclang +unaligned-scalar-mem",
-		"-Xclang -target-feature -Xclang +unaligned-vector-mem",
+		"-munaligned-access",
 		// We should change the default for this in clang, but for now...
 		// (https://github.com/google/android-riscv64/issues/124)
-		"-mllvm -jump-is-expensive=false",
+		"-Wl,-mllvm -Wl,-jump-is-expensive=false",
 	}
 
 	riscv64Lldflags = append(riscv64Ldflags,

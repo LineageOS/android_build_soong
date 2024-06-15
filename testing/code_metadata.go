@@ -20,6 +20,7 @@ import (
 	"android/soong/android"
 	"android/soong/testing/code_metadata_internal_proto"
 	"github.com/google/blueprint"
+
 	"google.golang.org/protobuf/proto"
 )
 
@@ -83,7 +84,7 @@ type CodeMetadataProviderData struct {
 	IntermediatePath android.WritablePath
 }
 
-var CodeMetadataProviderKey = blueprint.NewProvider(CodeMetadataProviderData{})
+var CodeMetadataProviderKey = blueprint.NewProvider[CodeMetadataProviderData]()
 
 func (module *CodeMetadataModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	metadataList := make(
@@ -95,10 +96,8 @@ func (module *CodeMetadataModule) GenerateAndroidBuildActions(ctx android.Module
 	for _, m := range ctx.GetDirectDepsWithTag(codeDepTag) {
 		targetName := m.Name()
 		var moduleSrcs []string
-		if ctx.OtherModuleHasProvider(m, blueprint.SrcsFileProviderKey) {
-			moduleSrcs = ctx.OtherModuleProvider(
-				m, blueprint.SrcsFileProviderKey,
-			).(blueprint.SrcsFileProviderData).SrcPaths
+		if srcsFileInfo, ok := android.OtherModuleProvider(ctx, m, blueprint.SrcsFileProviderKey); ok {
+			moduleSrcs = srcsFileInfo.SrcPaths
 		}
 		if module.properties.MultiOwnership {
 			metadata := &code_metadata_internal_proto.CodeMetadataInternal_TargetOwnership{
@@ -129,9 +128,9 @@ func (module *CodeMetadataModule) GenerateAndroidBuildActions(ctx android.Module
 	intermediatePath := android.PathForModuleOut(
 		ctx, "intermediateCodeMetadata.pb",
 	)
-	android.WriteFileRule(ctx, intermediatePath, string(protoData))
+	android.WriteFileRuleVerbatim(ctx, intermediatePath, string(protoData))
 
-	ctx.SetProvider(
+	android.SetProvider(ctx,
 		CodeMetadataProviderKey,
 		CodeMetadataProviderData{IntermediatePath: intermediatePath},
 	)

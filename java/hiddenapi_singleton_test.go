@@ -177,10 +177,10 @@ func TestHiddenAPISingletonSdks(t *testing.T) {
 		{
 			name:             "testBundled",
 			unbundledBuild:   false,
-			publicStub:       "android_stubs_current",
-			systemStub:       "android_system_stubs_current",
-			testStub:         "android_test_stubs_current",
-			corePlatformStub: "legacy.core.platform.api.stubs",
+			publicStub:       "android_stubs_current_exportable",
+			systemStub:       "android_system_stubs_current_exportable",
+			testStub:         "android_test_stubs_current_exportable",
+			corePlatformStub: "legacy.core.platform.api.stubs.exportable",
 			preparer:         android.GroupFixturePreparers(),
 		}, {
 			name:             "testUnbundled",
@@ -188,7 +188,7 @@ func TestHiddenAPISingletonSdks(t *testing.T) {
 			publicStub:       "sdk_public_current_android",
 			systemStub:       "sdk_system_current_android",
 			testStub:         "sdk_test_current_android",
-			corePlatformStub: "legacy.core.platform.api.stubs",
+			corePlatformStub: "legacy.core.platform.api.stubs.exportable",
 			preparer:         PrepareForTestWithPrebuiltsOfCurrentApi,
 		},
 	}
@@ -200,6 +200,9 @@ func TestHiddenAPISingletonSdks(t *testing.T) {
 				prepareForTestWithDefaultPlatformBootclasspath,
 				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 					variables.Always_use_prebuilt_sdks = proptools.BoolPtr(tc.unbundledBuild)
+					variables.BuildFlags = map[string]string{
+						"RELEASE_HIDDEN_API_EXPORTABLE_STUBS": "true",
+					}
 				}),
 			).RunTest(t)
 
@@ -309,7 +312,8 @@ func TestHiddenAPIEncoding_JavaSdkLibrary(t *testing.T) {
 		android.AssertStringEquals(t, "encode embedded java_library", unencodedDexJar, actualUnencodedDexJar.String())
 
 		// Make sure that the encoded dex jar is the exported one.
-		exportedDexJar := moduleForTests.Module().(UsesLibraryDependency).DexJarBuildPath().Path()
+		errCtx := moduleErrorfTestCtx{}
+		exportedDexJar := moduleForTests.Module().(UsesLibraryDependency).DexJarBuildPath(errCtx).Path()
 		android.AssertPathRelativeToTopEquals(t, "encode embedded java_library", encodedDexJar, exportedDexJar)
 	}
 

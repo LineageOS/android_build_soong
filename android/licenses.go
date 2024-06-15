@@ -230,7 +230,7 @@ func licensesPropertyFlattener(ctx ModuleContext) {
 	licenseInfo := LicenseInfo{
 		Licenses: licenses,
 	}
-	ctx.SetProvider(LicenseInfoProvider, licenseInfo)
+	SetProvider(ctx, LicenseInfoProvider, licenseInfo)
 }
 
 // Update a property string array with a distinct union of its values and a list of new values.
@@ -322,7 +322,7 @@ type LicenseInfo struct {
 	Licenses []string
 }
 
-var LicenseInfoProvider = blueprint.NewProvider(LicenseInfo{})
+var LicenseInfoProvider = blueprint.NewProvider[LicenseInfo]()
 
 func init() {
 	RegisterMakeVarsProvider(pctx, licensesMakeVarsProvider)

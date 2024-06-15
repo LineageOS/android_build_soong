@@ -41,6 +41,7 @@ func RegisterSoongConfigModuleBuildComponents(ctx RegistrationContext) {
 	ctx.RegisterModuleType("soong_config_module_type", SoongConfigModuleTypeFactory)
 	ctx.RegisterModuleType("soong_config_string_variable", SoongConfigStringVariableDummyFactory)
 	ctx.RegisterModuleType("soong_config_bool_variable", SoongConfigBoolVariableDummyFactory)
+	ctx.RegisterModuleType("soong_config_value_variable", SoongConfigValueVariableDummyFactory)
 }
 
 var PrepareForTestWithSoongConfigModuleBuildComponents = FixtureRegisterWithContext(RegisterSoongConfigModuleBuildComponents)
@@ -303,6 +304,11 @@ type soongConfigBoolVariableDummyModule struct {
 	properties soongconfig.VariableProperties
 }
 
+type soongConfigValueVariableDummyModule struct {
+	ModuleBase
+	properties soongconfig.VariableProperties
+}
+
 // soong_config_string_variable defines a variable and a set of possible string values for use
 // in a soong_config_module_type definition.
 func SoongConfigStringVariableDummyFactory() Module {
@@ -321,6 +327,15 @@ func SoongConfigBoolVariableDummyFactory() Module {
 	return module
 }
 
+// soong_config_value_variable defines a variable whose value can be expanded into
+// the value of a string property.
+func SoongConfigValueVariableDummyFactory() Module {
+	module := &soongConfigValueVariableDummyModule{}
+	module.AddProperties(&module.properties)
+	initAndroidModuleBase(module)
+	return module
+}
+
 func (m *soongConfigStringVariableDummyModule) Name() string {
 	return m.properties.Name + fmt.Sprintf("%p", m)
 }
@@ -332,6 +347,12 @@ func (m *soongConfigBoolVariableDummyModule) Name() string {
 }
 func (*soongConfigBoolVariableDummyModule) Namespaceless()                                {}
 func (*soongConfigBoolVariableDummyModule) GenerateAndroidBuildActions(ctx ModuleContext) {}
+
+func (m *soongConfigValueVariableDummyModule) Name() string {
+	return m.properties.Name + fmt.Sprintf("%p", m)
+}
+func (*soongConfigValueVariableDummyModule) Namespaceless()                                {}
+func (*soongConfigValueVariableDummyModule) GenerateAndroidBuildActions(ctx ModuleContext) {}
 
 // importModuleTypes registers the module factories for a list of module types defined
 // in an Android.bp file. These module factories are scoped for the current Android.bp

@@ -160,6 +160,9 @@ type PrebuiltEtc struct {
 	additionalDependencies *android.Paths
 
 	makeClass string
+
+	// Aconfig files for all transitive deps.  Also exposed via TransitiveDeclarationsInfo
+	mergedAconfigFiles map[string]android.Paths
 }
 
 type Defaults struct {
@@ -428,6 +431,7 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	for _, ip := range installs {
 		ip.addInstallRules(ctx)
 	}
+	android.CollectDependencyAconfigFiles(ctx, &p.mergedAconfigFiles)
 }
 
 type installProperties struct {
@@ -492,9 +496,14 @@ func (p *PrebuiltEtc) AndroidMkEntries() []android.AndroidMkEntries {
 				if p.additionalDependencies != nil {
 					entries.AddStrings("LOCAL_ADDITIONAL_DEPENDENCIES", p.additionalDependencies.Strings()...)
 				}
+				android.SetAconfigFileMkEntries(p.AndroidModuleBase(), entries, p.mergedAconfigFiles)
 			},
 		},
 	}}
+}
+
+func (p *PrebuiltEtc) AndroidModuleBase() *android.ModuleBase {
+	return &p.ModuleBase
 }
 
 func InitPrebuiltEtcModule(p *PrebuiltEtc, dirBase string) {

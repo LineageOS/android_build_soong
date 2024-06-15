@@ -222,6 +222,18 @@ func (s *sdk) AndroidMkEntries() []android.AndroidMkEntries {
 	}}
 }
 
+func (s *sdk) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "":
+		if s.snapshotFile.Valid() {
+			return []android.Path{s.snapshotFile.Path()}, nil
+		}
+		return nil, fmt.Errorf("snapshot file not defined. This is most likely because this isn't the common_os variant of this module")
+	default:
+		return nil, fmt.Errorf("unknown tag %q", tag)
+	}
+}
+
 // gatherTraits gathers the traits from the dynamically generated trait specific properties.
 //
 // Returns a map from member name to the set of required traits.

@@ -26,6 +26,8 @@ import (
 
 	"android/soong/aidl_library"
 	"android/soong/android"
+
+	"github.com/google/blueprint"
 )
 
 func init() {
@@ -41,7 +43,16 @@ var prepareForCcTest = android.GroupFixturePreparers(
 	android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 		variables.VendorApiLevel = StringPtr("202404")
 		variables.DeviceVndkVersion = StringPtr("current")
+		variables.KeepVndk = BoolPtr(true)
 		variables.Platform_vndk_version = StringPtr("29")
+	}),
+)
+
+// TODO(b/316829758) Update prepareForCcTest with this configuration and remove prepareForCcTestWithoutVndk
+var prepareForCcTestWithoutVndk = android.GroupFixturePreparers(
+	PrepareForIntegrationTestWithCc,
+	android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+		variables.VendorApiLevel = StringPtr("202404")
 	}),
 )
 
@@ -194,13 +205,13 @@ func checkInstallPartition(t *testing.T, ctx *android.TestContext, name, variant
 		}
 	}
 	socSpecific := func(m *Module) bool {
-		return m.SocSpecific() || m.socSpecificModuleContext()
+		return m.SocSpecific() || m.InstallInVendor()
 	}
 	deviceSpecific := func(m *Module) bool {
-		return m.DeviceSpecific() || m.deviceSpecificModuleContext()
+		return m.DeviceSpecific() || m.InstallInOdm()
 	}
 	productSpecific := func(m *Module) bool {
-		return m.ProductSpecific() || m.productSpecificModuleContext()
+		return m.ProductSpecific() || m.InstallInProduct()
 	}
 	systemExtSpecific := func(m *Module) bool {
 		return m.SystemExtSpecific()
@@ -2544,8 +2555,8 @@ func TestStaticLibDepReordering(t *testing.T) {
 
 	variant := "android_arm64_armv8-a_static"
 	moduleA := ctx.ModuleForTests("a", variant).Module().(*Module)
-	actual := android.Paths(ctx.ModuleProvider(moduleA, StaticLibraryInfoProvider).(StaticLibraryInfo).
-		TransitiveStaticLibrariesForOrdering.ToList()).RelativeToTop()
+	staticLibInfo, _ := android.SingletonModuleProvider(ctx, moduleA, StaticLibraryInfoProvider)
+	actual := android.Paths(staticLibInfo.TransitiveStaticLibrariesForOrdering.ToList()).RelativeToTop()
 	expected := GetOutputPaths(ctx, variant, []string{"a", "c", "b", "d"})
 
 	if !reflect.DeepEqual(actual, expected) {
@@ -2580,8 +2591,8 @@ func TestStaticLibDepReorderingWithShared(t *testing.T) {
 
 	variant := "android_arm64_armv8-a_static"
 	moduleA := ctx.ModuleForTests("a", variant).Module().(*Module)
-	actual := android.Paths(ctx.ModuleProvider(moduleA, StaticLibraryInfoProvider).(StaticLibraryInfo).
-		TransitiveStaticLibrariesForOrdering.ToList()).RelativeToTop()
+	staticLibInfo, _ := android.SingletonModuleProvider(ctx, moduleA, StaticLibraryInfoProvider)
+	actual := android.Paths(staticLibInfo.TransitiveStaticLibrariesForOrdering.ToList()).RelativeToTop()
 	expected := GetOutputPaths(ctx, variant, []string{"a", "c", "b"})
 
 	if !reflect.DeepEqual(actual, expected) {
@@ -2640,6 +2651,7 @@ func TestLlndkLibrary(t *testing.T) {
 		name: "libexternal_headers",
 		export_include_dirs: ["include"],
 		vendor_available: true,
+		product_available: true,
 	}
 	cc_library_headers {
 		name: "libexternal_llndk_headers",
@@ -2681,7 +2693,7 @@ func TestLlndkLibrary(t *testing.T) {
 	checkExportedIncludeDirs := func(module, variant string, expectedDirs ...string) {
 		t.Helper()
 		m := result.ModuleForTests(module, variant).Module()
-		f := result.ModuleProvider(m, FlagExporterInfoProvider).(FlagExporterInfo)
+		f, _ := android.SingletonModuleProvider(result, m, FlagExporterInfoProvider)
 		android.AssertPathsRelativeToTopEquals(t, "exported include dirs for "+module+"["+variant+"]",
 			expectedDirs, f.IncludeDirs)
 	}
@@ -4113,7 +4125,7 @@ func TestIncludeDirsExporting(t *testing.T) {
 
 	checkIncludeDirs := func(t *testing.T, ctx *android.TestContext, module android.Module, checkers ...exportedChecker) {
 		t.Helper()
-		exported := ctx.ModuleProvider(module, FlagExporterInfoProvider).(FlagExporterInfo)
+		exported, _ := android.SingletonModuleProvider(ctx, module, FlagExporterInfoProvider)
 		name := module.Name()
 
 		for _, checker := range checkers {
@@ -4783,4 +4795,92 @@ func TestStrippedAllOutputFile(t *testing.T) {
 		t.Errorf("Unexpected output file: %s", outputFile.Strings()[0])
 		return
 	}
+}
+
+// TODO(b/316829758) Remove this test and do not set VNDK version from other tests
+func TestImageVariantsWithoutVndk(t *testing.T) {
+	t.Parallel()
+
+	bp := `
+	cc_binary {
+		name: "binfoo",
+		srcs: ["binfoo.cc"],
+		vendor_available: true,
+		product_available: true,
+		shared_libs: ["libbar"]
+	}
+	cc_library {
+		name: "libbar",
+		srcs: ["libbar.cc"],
+		vendor_available: true,
+		product_available: true,
+	}
+	`
+
+	ctx := prepareForCcTestWithoutVndk.RunTestWithBp(t, bp)
+
+	hasDep := func(m android.Module, wantDep android.Module) bool {
+		t.Helper()
+		var found bool
+		ctx.VisitDirectDeps(m, func(dep blueprint.Module) {
+			if dep == wantDep {
+				found = true
+			}
+		})
+		return found
+	}
+
+	testDepWithVariant := func(imageVariant string) {
+		imageVariantStr := ""
+		if imageVariant != "core" {
+			imageVariantStr = "_" + imageVariant
+		}
+		binFooModule := ctx.ModuleForTests("binfoo", "android"+imageVariantStr+"_arm64_armv8-a").Module()
+		libBarModule := ctx.ModuleForTests("libbar", "android"+imageVariantStr+"_arm64_armv8-a_shared").Module()
+		android.AssertBoolEquals(t, "binfoo should have dependency on libbar with image variant "+imageVariant, true, hasDep(binFooModule, libBarModule))
+	}
+
+	testDepWithVariant("core")
+	testDepWithVariant("vendor")
+	testDepWithVariant("product")
+}
+
+func TestVendorSdkVersionWithoutVndk(t *testing.T) {
+	t.Parallel()
+
+	bp := `
+		cc_library {
+			name: "libfoo",
+			srcs: ["libfoo.cc"],
+			vendor_available: true,
+		}
+
+		cc_library {
+			name: "libbar",
+			srcs: ["libbar.cc"],
+			vendor_available: true,
+			min_sdk_version: "29",
+		}
+	`
+
+	ctx := prepareForCcTestWithoutVndk.RunTestWithBp(t, bp)
+	testSdkVersionFlag := func(module, version string) {
+		flags := ctx.ModuleForTests(module, "android_vendor_arm64_armv8-a_static").Rule("cc").Args["cFlags"]
+		android.AssertStringDoesContain(t, "min sdk version", flags, "-target aarch64-linux-android"+version)
+	}
+
+	testSdkVersionFlag("libfoo", "10000")
+	testSdkVersionFlag("libbar", "29")
+
+	ctx = android.GroupFixturePreparers(
+		prepareForCcTestWithoutVndk,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			if variables.BuildFlags == nil {
+				variables.BuildFlags = make(map[string]string)
+			}
+			variables.BuildFlags["RELEASE_BOARD_API_LEVEL_FROZEN"] = "true"
+		}),
+	).RunTestWithBp(t, bp)
+	testSdkVersionFlag("libfoo", "30")
+	testSdkVersionFlag("libbar", "29")
 }

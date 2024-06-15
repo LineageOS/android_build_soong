@@ -50,8 +50,8 @@ type filesystem struct {
 	// Function that builds extra files under the root directory and returns the files
 	buildExtraFiles func(ctx android.ModuleContext, root android.OutputPath) android.OutputPaths
 
-	// Function that filters PackagingSpecs returned by PackagingBase.GatherPackagingSpecs()
-	filterPackagingSpecs func(specs map[string]android.PackagingSpec)
+	// Function that filters PackagingSpec in PackagingBase.GatherPackagingSpecs()
+	filterPackagingSpec func(spec android.PackagingSpec) bool
 
 	output     android.OutputPath
 	installDir android.InstallPath
@@ -493,10 +493,7 @@ func (f *filesystem) SignedOutputPath() android.Path {
 // Note that "apex" module installs its contents to "apex"(fake partition) as well
 // for symbol lookup by imitating "activated" paths.
 func (f *filesystem) gatherFilteredPackagingSpecs(ctx android.ModuleContext) map[string]android.PackagingSpec {
-	specs := f.PackagingBase.GatherPackagingSpecs(ctx)
-	if f.filterPackagingSpecs != nil {
-		f.filterPackagingSpecs(specs)
-	}
+	specs := f.PackagingBase.GatherPackagingSpecsWithFilter(ctx, f.filterPackagingSpec)
 	return specs
 }
 
@@ -512,6 +509,6 @@ func sha1sum(values []string) string {
 
 var _ cc.UseCoverage = (*filesystem)(nil)
 
-func (*filesystem) IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool {
+func (*filesystem) IsNativeCoverageNeeded(ctx android.IncomingTransitionContext) bool {
 	return ctx.Device() && ctx.DeviceConfig().NativeCoverageEnabled()
 }

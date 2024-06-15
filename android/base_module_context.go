@@ -26,6 +26,7 @@ import (
 // instead of a blueprint.Module, plus some extra methods that return Android-specific information
 // about the current module.
 type BaseModuleContext interface {
+	ArchModuleContext
 	EarlyModuleContext
 
 	blueprintBaseModuleContext() blueprint.BaseModuleContext
@@ -75,30 +76,28 @@ type BaseModuleContext interface {
 	// It is intended for use inside the visit functions of Visit* and WalkDeps.
 	OtherModuleType(m blueprint.Module) string
 
-	// OtherModuleProvider returns the value for a provider for the given module.  If the value is
-	// not set it returns the zero value of the type of the provider, so the return value can always
-	// be type asserted to the type of the provider.  The value returned may be a deep copy of the
-	// value originally passed to SetProvider.
-	OtherModuleProvider(m blueprint.Module, provider blueprint.ProviderKey) interface{}
-
-	// OtherModuleHasProvider returns true if the provider for the given module has been set.
-	OtherModuleHasProvider(m blueprint.Module, provider blueprint.ProviderKey) bool
+	// otherModuleProvider returns the value for a provider for the given module.  If the value is
+	// not set it returns nil and false.  The value returned may be a deep copy of the value originally
+	// passed to SetProvider.
+	//
+	// This method shouldn't be used directly, prefer the type-safe android.OtherModuleProvider instead.
+	otherModuleProvider(m blueprint.Module, provider blueprint.AnyProviderKey) (any, bool)
 
 	// Provider returns the value for a provider for the current module.  If the value is
-	// not set it returns the zero value of the type of the provider, so the return value can always
-	// be type asserted to the type of the provider.  It panics if called before the appropriate
+	// not set it returns nil and false.  It panics if called before the appropriate
 	// mutator or GenerateBuildActions pass for the provider.  The value returned may be a deep
 	// copy of the value originally passed to SetProvider.
-	Provider(provider blueprint.ProviderKey) interface{}
+	//
+	// This method shouldn't be used directly, prefer the type-safe android.ModuleProvider instead.
+	provider(provider blueprint.AnyProviderKey) (any, bool)
 
-	// HasProvider returns true if the provider for the current module has been set.
-	HasProvider(provider blueprint.ProviderKey) bool
-
-	// SetProvider sets the value for a provider for the current module.  It panics if not called
+	// setProvider sets the value for a provider for the current module.  It panics if not called
 	// during the appropriate mutator or GenerateBuildActions pass for the provider, if the value
 	// is not of the appropriate type, or if the value has already been set.  The value should not
 	// be modified after being passed to SetProvider.
-	SetProvider(provider blueprint.ProviderKey, value interface{})
+	//
+	// This method shouldn't be used directly, prefer the type-safe android.SetProvider instead.
+	setProvider(provider blueprint.AnyProviderKey, value any)
 
 	GetDirectDepsWithTag(tag blueprint.DependencyTag) []Module
 
@@ -107,7 +106,7 @@ type BaseModuleContext interface {
 	// dependencies that are not an android.Module.
 	GetDirectDepWithTag(name string, tag blueprint.DependencyTag) blueprint.Module
 
-	// GetDirectDep returns the Module and DependencyTag for the  direct dependency with the specified
+	// GetDirectDep returns the Module and DependencyTag for the direct dependency with the specified
 	// name, or nil if none exists.  If there are multiple dependencies on the same module it returns
 	// the first DependencyTag.
 	GetDirectDep(name string) (blueprint.Module, blueprint.DependencyTag)
@@ -119,6 +118,15 @@ type BaseModuleContext interface {
 	// The Module passed to the visit function should not be retained outside of the visit
 	// function, it may be invalidated by future mutators.
 	VisitDirectDepsBlueprint(visit func(blueprint.Module))
+
+	// VisitDirectDepsIgnoreBlueprint calls visit for each direct dependency.  If there are multiple
+	// direct dependencies on the same module visit will be called multiple times on that module
+	// and OtherModuleDependencyTag will return a different tag for each.  It silently ignores any
+	// dependencies that are not an android.Module.
+	//
+	// The Module passed to the visit function should not be retained outside of the visit
+	// function, it may be invalidated by future mutators.
+	VisitDirectDepsIgnoreBlueprint(visit func(Module))
 
 	// VisitDirectDeps calls visit for each direct dependency.  If there are multiple
 	// direct dependencies on the same module visit will be called multiple times on that module
@@ -206,29 +214,12 @@ type BaseModuleContext interface {
 	// getMissingDependencies returns the list of missing dependencies.
 	// Calling this function prevents adding new dependencies.
 	getMissingDependencies() []string
-
-	Target() Target
-	TargetPrimary() bool
-
-	// The additional arch specific targets (e.g. 32/64 bit) that this module variant is
-	// responsible for creating.
-	MultiTargets() []Target
-	Arch() Arch
-	Os() OsType
-	Host() bool
-	Device() bool
-	Darwin() bool
-	Windows() bool
-	PrimaryArch() bool
 }
 
 type baseModuleContext struct {
 	bp blueprint.BaseModuleContext
 	earlyModuleContext
-	os            OsType
-	target        Target
-	multiTargets  []Target
-	targetPrimary bool
+	archModuleContext
 
 	walkPath []Module
 	tagPath  []blueprint.DependencyTag
@@ -260,19 +251,16 @@ func (b *baseModuleContext) OtherModuleReverseDependencyVariantExists(name strin
 func (b *baseModuleContext) OtherModuleType(m blueprint.Module) string {
 	return b.bp.OtherModuleType(m)
 }
-func (b *baseModuleContext) OtherModuleProvider(m blueprint.Module, provider blueprint.ProviderKey) interface{} {
+
+func (b *baseModuleContext) otherModuleProvider(m blueprint.Module, provider blueprint.AnyProviderKey) (any, bool) {
 	return b.bp.OtherModuleProvider(m, provider)
 }
-func (b *baseModuleContext) OtherModuleHasProvider(m blueprint.Module, provider blueprint.ProviderKey) bool {
-	return b.bp.OtherModuleHasProvider(m, provider)
-}
-func (b *baseModuleContext) Provider(provider blueprint.ProviderKey) interface{} {
+
+func (b *baseModuleContext) provider(provider blueprint.AnyProviderKey) (any, bool) {
 	return b.bp.Provider(provider)
 }
-func (b *baseModuleContext) HasProvider(provider blueprint.ProviderKey) bool {
-	return b.bp.HasProvider(provider)
-}
-func (b *baseModuleContext) SetProvider(provider blueprint.ProviderKey, value interface{}) {
+
+func (b *baseModuleContext) setProvider(provider blueprint.AnyProviderKey, value any) {
 	b.bp.SetProvider(provider, value)
 }
 
@@ -311,7 +299,7 @@ type AllowDisabledModuleDependency interface {
 	AllowDisabledModuleDependency(target Module) bool
 }
 
-func (b *baseModuleContext) validateAndroidModule(module blueprint.Module, tag blueprint.DependencyTag, strict bool) Module {
+func (b *baseModuleContext) validateAndroidModule(module blueprint.Module, tag blueprint.DependencyTag, strict bool, ignoreBlueprint bool) Module {
 	aModule, _ := module.(Module)
 
 	if !strict {
@@ -319,7 +307,9 @@ func (b *baseModuleContext) validateAndroidModule(module blueprint.Module, tag b
 	}
 
 	if aModule == nil {
-		b.ModuleErrorf("module %q (%#v) not an android module", b.OtherModuleName(module), tag)
+		if !ignoreBlueprint {
+			b.ModuleErrorf("module %q (%#v) not an android module", b.OtherModuleName(module), tag)
+		}
 		return nil
 	}
 
@@ -416,8 +406,16 @@ func (b *baseModuleContext) VisitDirectDepsBlueprint(visit func(blueprint.Module
 }
 
 func (b *baseModuleContext) VisitDirectDeps(visit func(Module)) {
+	b.visitDirectDeps(visit, false)
+}
+
+func (b *baseModuleContext) VisitDirectDepsIgnoreBlueprint(visit func(Module)) {
+	b.visitDirectDeps(visit, true)
+}
+
+func (b *baseModuleContext) visitDirectDeps(visit func(Module), ignoreBlueprint bool) {
 	b.bp.VisitDirectDeps(func(module blueprint.Module) {
-		if aModule := b.validateAndroidModule(module, b.bp.OtherModuleDependencyTag(module), b.strictVisitDeps); aModule != nil {
+		if aModule := b.validateAndroidModule(module, b.bp.OtherModuleDependencyTag(module), b.strictVisitDeps, ignoreBlueprint); aModule != nil {
 			visit(aModule)
 		}
 	})
@@ -426,7 +424,7 @@ func (b *baseModuleContext) VisitDirectDeps(visit func(Module)) {
 func (b *baseModuleContext) VisitDirectDepsWithTag(tag blueprint.DependencyTag, visit func(Module)) {
 	b.bp.VisitDirectDeps(func(module blueprint.Module) {
 		if b.bp.OtherModuleDependencyTag(module) == tag {
-			if aModule := b.validateAndroidModule(module, b.bp.OtherModuleDependencyTag(module), b.strictVisitDeps); aModule != nil {
+			if aModule := b.validateAndroidModule(module, b.bp.OtherModuleDependencyTag(module), b.strictVisitDeps, false); aModule != nil {
 				visit(aModule)
 			}
 		}
@@ -437,7 +435,7 @@ func (b *baseModuleContext) VisitDirectDepsIf(pred func(Module) bool, visit func
 	b.bp.VisitDirectDepsIf(
 		// pred
 		func(module blueprint.Module) bool {
-			if aModule := b.validateAndroidModule(module, b.bp.OtherModuleDependencyTag(module), b.strictVisitDeps); aModule != nil {
+			if aModule := b.validateAndroidModule(module, b.bp.OtherModuleDependencyTag(module), b.strictVisitDeps, false); aModule != nil {
 				return pred(aModule)
 			} else {
 				return false
@@ -451,7 +449,7 @@ func (b *baseModuleContext) VisitDirectDepsIf(pred func(Module) bool, visit func
 
 func (b *baseModuleContext) VisitDepsDepthFirst(visit func(Module)) {
 	b.bp.VisitDepsDepthFirst(func(module blueprint.Module) {
-		if aModule := b.validateAndroidModule(module, b.bp.OtherModuleDependencyTag(module), b.strictVisitDeps); aModule != nil {
+		if aModule := b.validateAndroidModule(module, b.bp.OtherModuleDependencyTag(module), b.strictVisitDeps, false); aModule != nil {
 			visit(aModule)
 		}
 	})
@@ -461,7 +459,7 @@ func (b *baseModuleContext) VisitDepsDepthFirstIf(pred func(Module) bool, visit 
 	b.bp.VisitDepsDepthFirstIf(
 		// pred
 		func(module blueprint.Module) bool {
-			if aModule := b.validateAndroidModule(module, b.bp.OtherModuleDependencyTag(module), b.strictVisitDeps); aModule != nil {
+			if aModule := b.validateAndroidModule(module, b.bp.OtherModuleDependencyTag(module), b.strictVisitDeps, false); aModule != nil {
 				return pred(aModule)
 			} else {
 				return false
@@ -565,47 +563,4 @@ func (b *baseModuleContext) GetPathString(skipFirst bool) string {
 		sb.WriteString(fmt.Sprintf("    -> %s", m.String()))
 	}
 	return sb.String()
-}
-
-func (b *baseModuleContext) Target() Target {
-	return b.target
-}
-
-func (b *baseModuleContext) TargetPrimary() bool {
-	return b.targetPrimary
-}
-
-func (b *baseModuleContext) MultiTargets() []Target {
-	return b.multiTargets
-}
-
-func (b *baseModuleContext) Arch() Arch {
-	return b.target.Arch
-}
-
-func (b *baseModuleContext) Os() OsType {
-	return b.os
-}
-
-func (b *baseModuleContext) Host() bool {
-	return b.os.Class == Host
-}
-
-func (b *baseModuleContext) Device() bool {
-	return b.os.Class == Device
-}
-
-func (b *baseModuleContext) Darwin() bool {
-	return b.os == Darwin
-}
-
-func (b *baseModuleContext) Windows() bool {
-	return b.os == Windows
-}
-
-func (b *baseModuleContext) PrimaryArch() bool {
-	if len(b.config.Targets[b.target.Os]) <= 1 {
-		return true
-	}
-	return b.target.Arch.ArchType == b.config.Targets[b.target.Os][0].Arch.ArchType
 }

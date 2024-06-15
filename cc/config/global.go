@@ -16,6 +16,7 @@ package config
 
 import (
 	"runtime"
+	"slices"
 	"strings"
 
 	"android/soong/android"
@@ -252,6 +253,14 @@ var (
 		// http://b/161386391 for -Wno-pointer-to-int-cast
 		"-Wno-pointer-to-int-cast",
 		"-Werror=fortify-source",
+		// http://b/315246135 temporarily disabled
+		"-Wno-unused-variable",
+		// http://b/315250603 temporarily disabled
+		"-Wno-error=format",
+		// Disabled because it produces many false positives. http://b/323050926
+		"-Wno-missing-field-initializers",
+		// http://b/323050889
+		"-Wno-packed-non-pod",
 
 		"-Werror=address-of-temporary",
 		"-Werror=incompatible-function-pointer-types",
@@ -271,7 +280,8 @@ var (
 		"-Wno-range-loop-construct",                 // http://b/153747076
 		"-Wno-zero-as-null-pointer-constant",        // http://b/68236239
 		"-Wno-deprecated-anon-enum-enum-conversion", // http://b/153746485
-		"-Wno-pessimizing-move",                     // http://b/154270751
+		"-Wno-deprecated-enum-enum-conversion",
+		"-Wno-pessimizing-move", // http://b/154270751
 		// New warnings to be fixed after clang-r399163
 		"-Wno-non-c-typedef-for-linkage", // http://b/161304145
 		// New warnings to be fixed after clang-r428724
@@ -285,6 +295,13 @@ var (
 		// New warnings to be fixed after clang-r475365
 		"-Wno-error=single-bit-bitfield-constant-conversion", // http://b/243965903
 		"-Wno-error=enum-constexpr-conversion",               // http://b/243964282
+
+		// Irrelevant on Android because _we_ don't use exceptions, but causes
+		// lots of build noise because libcxx/libcxxabi do. This can probably
+		// go away when we're on a new enough libc++, but has to be global
+		// until then because it causes warnings in the _callers_, not the
+		// project itself.
+		"-Wno-deprecated-dynamic-exception-spec",
 	}
 
 	noOverride64GlobalCflags = []string{}
@@ -319,6 +336,9 @@ var (
 
 		// http://b/239661264
 		"-Wno-deprecated-non-prototype",
+
+		"-Wno-unused",
+		"-Wno-deprecated",
 	}
 
 	// Similar to noOverrideGlobalCflags, but applies only to third-party code
@@ -339,11 +359,14 @@ var (
 		// enabling since it's a cosmetic issue.
 		"-Wno-bitwise-instead-of-logical",
 
-		"-Wno-unused-but-set-variable",
+		"-Wno-unused",
+		"-Wno-unused-parameter",
 		"-Wno-unused-but-set-parameter",
 		"-Wno-unqualified-std-cast-call",
 		"-Wno-array-parameter",
 		"-Wno-gnu-offsetof-extensions",
+		// TODO: Enable this warning http://b/315245071
+		"-Wno-fortify-source",
 	}
 
 	llvmNextExtraCommonGlobalCflags = []string{
@@ -363,8 +386,8 @@ var (
 
 	// prebuilts/clang default settings.
 	ClangDefaultBase         = "prebuilts/clang/host"
-	ClangDefaultVersion      = "clang-r498229b"
-	ClangDefaultShortVersion = "17"
+	ClangDefaultVersion      = "clang-r510928"
+	ClangDefaultShortVersion = "18"
 
 	// Directories with warnings from Android.bp files.
 	WarningAllowedProjects = []string{
@@ -400,7 +423,7 @@ func init() {
 	exportedVars.ExportStringList("CommonGlobalCflags", commonGlobalCflags)
 
 	pctx.VariableFunc("CommonGlobalCflags", func(ctx android.PackageVarContext) string {
-		flags := commonGlobalCflags
+		flags := slices.Clone(commonGlobalCflags)
 
 		// http://b/131390872
 		// Automatically initialize any uninitialized stack variables.

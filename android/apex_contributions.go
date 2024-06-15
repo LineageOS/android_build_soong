@@ -15,6 +15,8 @@
 package android
 
 import (
+	"strings"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
@@ -98,11 +100,23 @@ func (a *allApexContributions) DepsMutator(ctx BottomUpMutatorContext) {
 func (a *allApexContributions) SetPrebuiltSelectionInfoProvider(ctx BaseModuleContext) {
 	addContentsToProvider := func(p *PrebuiltSelectionInfoMap, m *apexContributions) {
 		for _, content := range m.Contents() {
+			// Skip any apexes that have been added to the product specific ignore list
+			if InList(content, ctx.Config().BuildIgnoreApexContributionContents()) {
+				continue
+			}
+			// Coverage builds for TARGET_RELEASE=foo should always build from source,
+			// even if TARGET_RELEASE=foo uses prebuilt mainline modules.
+			// This is necessary because the checked-in prebuilts were generated with
+			// instrumentation turned off.
+			//
+			// Skip any prebuilt contents in coverage builds
+			if strings.HasPrefix(content, "prebuilt_") && (ctx.Config().JavaCoverageEnabled() || ctx.DeviceConfig().NativeCoverageEnabled()) {
+				continue
+			}
 			if !ctx.OtherModuleExists(content) && !ctx.Config().AllowMissingDependencies() {
 				ctx.ModuleErrorf("%s listed in apex_contributions %s does not exist\n", content, m.Name())
 			}
 			pi := &PrebuiltSelectionInfo{
-				baseModuleName:     RemoveOptionalPrebuiltPrefix(content),
 				selectedModuleName: content,
 				metadataModuleName: m.Name(),
 				apiDomain:          m.ApiDomain(),
@@ -119,14 +133,15 @@ func (a *allApexContributions) SetPrebuiltSelectionInfoProvider(ctx BaseModuleCo
 			ctx.ModuleErrorf("%s is not an apex_contributions module\n", child.Name())
 		}
 	})
-	ctx.SetProvider(PrebuiltSelectionInfoProvider, p)
+	SetProvider(ctx, PrebuiltSelectionInfoProvider, p)
 }
 
 // A provider containing metadata about whether source or prebuilt should be used
 // This provider will be used in prebuilt_select mutator to redirect deps
-var PrebuiltSelectionInfoProvider = blueprint.NewMutatorProvider(PrebuiltSelectionInfoMap{}, "prebuilt_select")
+var PrebuiltSelectionInfoProvider = blueprint.NewMutatorProvider[PrebuiltSelectionInfoMap]("prebuilt_select")
 
-// Map of baseModuleName to the selected source or prebuilt
+// Map of selected module names to a metadata object
+// The metadata contains information about the api_domain of the selected module
 type PrebuiltSelectionInfoMap map[string]PrebuiltSelectionInfo
 
 // Add a new entry to the map with some validations
@@ -134,18 +149,10 @@ func (pm *PrebuiltSelectionInfoMap) Add(ctx BaseModuleContext, p *PrebuiltSelect
 	if p == nil {
 		return
 	}
-	// Do not allow dups. If the base module (without the prebuilt_) has been added before, raise an exception.
-	if old, exists := (*pm)[p.baseModuleName]; exists {
-		ctx.ModuleErrorf("Cannot use Soong module: %s from apex_contributions: %s because it has been added previously as: %s from apex_contributions: %s\n",
-			p.selectedModuleName, p.metadataModuleName, old.selectedModuleName, old.metadataModuleName,
-		)
-	}
-	(*pm)[p.baseModuleName] = *p
+	(*pm)[p.selectedModuleName] = *p
 }
 
 type PrebuiltSelectionInfo struct {
-	// e.g. libc
-	baseModuleName string
 	// e.g. (libc|prebuilt_libc)
 	selectedModuleName string
 	// Name of the apex_contributions module
@@ -156,12 +163,21 @@ type PrebuiltSelectionInfo struct {
 
 // Returns true if `name` is explicitly requested using one of the selected
 // apex_contributions metadata modules.
-func (p *PrebuiltSelectionInfoMap) IsSelected(baseModuleName, name string) bool {
-	if i, exists := (*p)[baseModuleName]; exists {
-		return i.selectedModuleName == name
-	} else {
-		return false
+func (p *PrebuiltSelectionInfoMap) IsSelected(name string) bool {
+	_, exists := (*p)[name]
+	return exists
+}
+
+// Return the list of soong modules selected for this api domain
+// In the case of apexes, it is the canonical name of the apex on device (/apex/<apex_name>)
+func (p *PrebuiltSelectionInfoMap) GetSelectedModulesForApiDomain(apiDomain string) []string {
+	selected := []string{}
+	for _, entry := range *p {
+		if entry.apiDomain == apiDomain {
+			selected = append(selected, entry.selectedModuleName)
+		}
 	}
+	return selected
 }
 
 // This module type does not have any build actions.

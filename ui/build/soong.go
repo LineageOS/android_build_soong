@@ -36,6 +36,7 @@ import (
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/microfactory"
+	"github.com/google/blueprint/pathtools"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -181,18 +182,28 @@ func getGlobPathName(config Config) string {
 	return globPathName
 }
 
-func (pb PrimaryBuilderFactory) primaryBuilderInvocation() bootstrap.PrimaryBuilderInvocation {
+func getGlobPathNameFromPrimaryBuilderFactory(config Config, pb PrimaryBuilderFactory) string {
+	if pb.name == soongBuildTag {
+		// Glob path for soong build would be separated per product target
+		return getGlobPathName(config)
+	}
+	return pb.name
+}
+
+func (pb PrimaryBuilderFactory) primaryBuilderInvocation(config Config) bootstrap.PrimaryBuilderInvocation {
 	commonArgs := make([]string, 0, 0)
 
 	if !pb.config.skipSoongTests {
 		commonArgs = append(commonArgs, "-t")
 	}
 
-	if pb.config.multitreeBuild {
-		commonArgs = append(commonArgs, "--multitree-build")
-	}
 	if pb.config.buildFromSourceStub {
 		commonArgs = append(commonArgs, "--build-from-source-stub")
+	}
+
+	if pb.config.moduleDebugFile != "" {
+		commonArgs = append(commonArgs, "--soong_module_debug")
+		commonArgs = append(commonArgs, pb.config.moduleDebugFile)
 	}
 
 	commonArgs = append(commonArgs, "-l", filepath.Join(pb.config.FileListDir(), "Android.bp.list"))
@@ -215,11 +226,7 @@ func (pb PrimaryBuilderFactory) primaryBuilderInvocation() bootstrap.PrimaryBuil
 
 	var allArgs []string
 	allArgs = append(allArgs, pb.specificArgs...)
-	globPathName := pb.name
-	// Glob path for soong build would be separated per product target
-	if pb.name == soongBuildTag {
-		globPathName = getGlobPathName(pb.config)
-	}
+	globPathName := getGlobPathNameFromPrimaryBuilderFactory(config, pb)
 	allArgs = append(allArgs,
 		"--globListDir", globPathName,
 		"--globFile", pb.config.NamedGlobFile(globPathName))
@@ -234,8 +241,11 @@ func (pb PrimaryBuilderFactory) primaryBuilderInvocation() bootstrap.PrimaryBuil
 	}
 	allArgs = append(allArgs, "Android.bp")
 
+	globfiles := bootstrap.GlobFileListFiles(bootstrap.GlobDirectory(config.SoongOutDir(), globPathName))
+
 	return bootstrap.PrimaryBuilderInvocation{
 		Inputs:      []string{"Android.bp"},
+		Implicits:   globfiles,
 		Outputs:     []string{pb.output},
 		Args:        allArgs,
 		Description: pb.description,
@@ -291,9 +301,6 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	mainSoongBuildExtraArgs := append(baseArgs, "-o", config.SoongNinjaFile())
 	if config.EmptyNinjaFile() {
 		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--empty-ninja-file")
-	}
-	if config.MultitreeBuild() {
-		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--multitree-build")
 	}
 	if config.buildFromSourceStub {
 		mainSoongBuildExtraArgs = append(mainSoongBuildExtraArgs, "--build-from-source-stub")
@@ -376,15 +383,8 @@ func bootstrapBlueprint(ctx Context, config Config) {
 		if debuggedInvocations[pbf.name] {
 			pbf.debugPort = delvePort
 		}
-		pbi := pbf.primaryBuilderInvocation()
+		pbi := pbf.primaryBuilderInvocation(config)
 		invocations = append(invocations, pbi)
-	}
-
-	// The glob .ninja files are subninja'd. However, they are generated during
-	// the build itself so we write an empty file if the file does not exist yet
-	// so that the subninja doesn't fail on clean builds
-	for _, globFile := range bootstrapGlobFileList(config) {
-		writeEmptyFile(ctx, globFile)
 	}
 
 	blueprintArgs := bootstrap.Args{
@@ -406,6 +406,28 @@ func bootstrapBlueprint(ctx Context, config Config) {
 		debugCompilation:          delvePort != "",
 		subninjas:                 bootstrapGlobFileList(config),
 		primaryBuilderInvocations: invocations,
+	}
+
+	// The glob ninja files are generated during the main build phase. However, the
+	// primary buildifer invocation depends on all of its glob files, even before
+	// it's been run. Generate a "empty" glob ninja file on the first run,
+	// so that the files can be there to satisfy the dependency.
+	for _, pb := range pbfs {
+		globPathName := getGlobPathNameFromPrimaryBuilderFactory(config, pb)
+		globNinjaFile := config.NamedGlobFile(globPathName)
+		if _, err := os.Stat(globNinjaFile); os.IsNotExist(err) {
+			err := bootstrap.WriteBuildGlobsNinjaFile(&bootstrap.GlobSingleton{
+				GlobLister: func() pathtools.MultipleGlobResults { return nil },
+				GlobFile:   globNinjaFile,
+				GlobDir:    bootstrap.GlobDirectory(config.SoongOutDir(), globPathName),
+				SrcDir:     ".",
+			}, blueprintConfig)
+			if err != nil {
+				ctx.Fatal(err)
+			}
+		} else if err != nil {
+			ctx.Fatal(err)
+		}
 	}
 
 	// since `bootstrap.ninja` is regenerated unconditionally, we ignore the deps, i.e. little

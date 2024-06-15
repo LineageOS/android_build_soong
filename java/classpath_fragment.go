@@ -103,8 +103,8 @@ type classpathJar struct {
 func gatherPossibleApexModuleNamesAndStems(ctx android.ModuleContext, contents []string, tag blueprint.DependencyTag) []string {
 	set := map[string]struct{}{}
 	for _, name := range contents {
-		dep := ctx.GetDirectDepWithTag(name, tag)
-		set[name] = struct{}{}
+		dep, _ := ctx.GetDirectDepWithTag(name, tag).(android.Module)
+		set[ModuleStemForDeapexing(dep)] = struct{}{}
 		if m, ok := dep.(ModuleWithStem); ok {
 			set[m.Stem()] = struct{}{}
 		} else {
@@ -178,7 +178,7 @@ func (c *ClasspathFragmentBase) generateClasspathProtoBuildActions(ctx android.M
 		ClasspathFragmentProtoInstallDir: c.installDirPath,
 		ClasspathFragmentProtoOutput:     c.outputFilepath,
 	}
-	ctx.SetProvider(ClasspathFragmentProtoContentInfoProvider, classpathProtoInfo)
+	android.SetProvider(ctx, ClasspathFragmentProtoContentInfoProvider, classpathProtoInfo)
 }
 
 func writeClasspathsTextproto(ctx android.ModuleContext, output android.WritablePath, jars []classpathJar) {
@@ -211,7 +211,7 @@ func (c *ClasspathFragmentBase) androidMkEntries() []android.AndroidMkEntries {
 	}}
 }
 
-var ClasspathFragmentProtoContentInfoProvider = blueprint.NewProvider(ClasspathFragmentProtoContentInfo{})
+var ClasspathFragmentProtoContentInfoProvider = blueprint.NewProvider[ClasspathFragmentProtoContentInfo]()
 
 type ClasspathFragmentProtoContentInfo struct {
 	// Whether the classpaths.proto config is generated for the fragment.

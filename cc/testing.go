@@ -77,6 +77,7 @@ func commonDefaultModules() string {
 			no_libcrt: true,
 			sdk_version: "minimum",
 			nocrt: true,
+			no_crt_pad_segment: true,
 			system_shared_libs: [],
 			stl: "none",
 			check_elf_files: false,
@@ -385,6 +386,11 @@ func commonDefaultModules() string {
 		}
 
 		cc_object {
+			name: "crt_pad_segment",
+			defaults: ["crt_defaults"],
+		}
+
+		cc_object {
 			name: "crtbrand",
 			defaults: ["crt_defaults"],
 			srcs: ["crtbrand.c"],
@@ -571,6 +577,7 @@ var PrepareForTestWithCcDefaultModules = android.GroupFixturePreparers(
 	android.MockFS{
 		"defaults/cc/common/libc.map.txt":      nil,
 		"defaults/cc/common/libdl.map.txt":     nil,
+		"defaults/cc/common/libft2.map.txt":    nil,
 		"defaults/cc/common/libm.map.txt":      nil,
 		"defaults/cc/common/ndk_libc++_shared": nil,
 		"defaults/cc/common/crtbegin_so.c":     nil,

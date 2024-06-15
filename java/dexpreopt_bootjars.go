@@ -21,6 +21,7 @@ import (
 	"android/soong/android"
 	"android/soong/dexpreopt"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -224,8 +225,9 @@ var artApexNames = []string{
 }
 
 var (
-	dexpreoptBootJarDepTag  = bootclasspathDependencyTag{name: "dexpreopt-boot-jar"}
-	dexBootJarsFragmentsKey = android.NewOnceKey("dexBootJarsFragments")
+	dexpreoptBootJarDepTag          = bootclasspathDependencyTag{name: "dexpreopt-boot-jar"}
+	dexBootJarsFragmentsKey         = android.NewOnceKey("dexBootJarsFragments")
+	apexContributionsMetadataDepTag = dependencyTag{name: "all_apex_contributions"}
 )
 
 func init() {
@@ -236,8 +238,7 @@ func init() {
 //
 // WARNING: All fields in this struct should be initialized in the genBootImageConfigs function.
 // Failure to do so can lead to data races if there is no synchronization enforced ordering between
-// the writer and the reader. Fields which break this rule are marked as deprecated and should be
-// removed and replaced with something else, e.g. providers.
+// the writer and the reader.
 type bootImageConfig struct {
 	// If this image is an extension, the image that it extends.
 	extends *bootImageConfig
@@ -276,16 +277,6 @@ type bootImageConfig struct {
 
 	// File path to a zip archive with all image files (or nil, if not needed).
 	zip android.WritablePath
-
-	// Rules which should be used in make to install the outputs.
-	//
-	// Deprecated: Not initialized correctly, see struct comment.
-	profileInstalls android.RuleBuilderInstalls
-
-	// Path to the license metadata file for the module that built the profile.
-	//
-	// Deprecated: Not initialized correctly, see struct comment.
-	profileLicenseMetadataFile android.OptionalPath
 
 	// Target-dependent fields.
 	variants []*bootImageVariant
@@ -502,6 +493,11 @@ type dexpreoptBootJars struct {
 	dexpreoptConfigForMake android.WritablePath
 }
 
+func (dbj *dexpreoptBootJars) DepsMutator(ctx android.BottomUpMutatorContext) {
+	// Create a dependency on all_apex_contributions to determine the selected mainline module
+	ctx.AddDependency(ctx.Module(), apexContributionsMetadataDepTag, "all_apex_contributions")
+}
+
 func DexpreoptBootJarsMutator(ctx android.BottomUpMutatorContext) {
 	if _, ok := ctx.Module().(*dexpreoptBootJars); !ok {
 		return
@@ -520,6 +516,14 @@ func DexpreoptBootJarsMutator(ctx android.BottomUpMutatorContext) {
 		}
 		// For accessing the boot jars.
 		addDependenciesOntoBootImageModules(ctx, config.modules, dexpreoptBootJarDepTag)
+		// Create a dependency on the apex selected using RELEASE_APEX_CONTRIBUTIONS_*
+		// TODO: b/308174306 - Remove the direct depedendency edge to the java_library (source/prebuilt) once all mainline modules
+		// have been flagged using RELEASE_APEX_CONTRIBUTIONS_*
+		apexes := []string{}
+		for i := 0; i < config.modules.Len(); i++ {
+			apexes = append(apexes, config.modules.Apex(i))
+		}
+		addDependenciesOntoSelectedBootImageApexes(ctx, android.FirstUniqueStrings(apexes)...)
 	}
 
 	if ctx.OtherModuleExists("platform-bootclasspath") {
@@ -529,6 +533,28 @@ func DexpreoptBootJarsMutator(ctx android.BottomUpMutatorContext) {
 		// For accessing the ART bootclasspath fragment on a thin manifest (e.g., master-art) where
 		// platform-bootclasspath doesn't exist.
 		addDependencyOntoApexModulePair(ctx, "com.android.art", "art-bootclasspath-fragment", bootclasspathFragmentDepTag)
+	}
+}
+
+// Create a dependency from dex_bootjars to the specific apexes selected using all_apex_contributions
+// This dependency will be used to get the path to the deapexed dex boot jars and profile (via a provider)
+func addDependenciesOntoSelectedBootImageApexes(ctx android.BottomUpMutatorContext, apexes ...string) {
+	psi := android.PrebuiltSelectionInfoMap{}
+	ctx.VisitDirectDepsWithTag(apexContributionsMetadataDepTag, func(am android.Module) {
+		if info, exists := android.OtherModuleProvider(ctx, am, android.PrebuiltSelectionInfoProvider); exists {
+			psi = info
+		}
+	})
+	for _, apex := range apexes {
+		for _, selected := range psi.GetSelectedModulesForApiDomain(apex) {
+			// We need to add a dep on only the apex listed in `contents` of the selected apex_contributions module
+			// This is not available in a structured format in `apex_contributions`, so this hack adds a dep on all `contents`
+			// (some modules like art.module.public.api do not have an apex variation since it is a pure stub module that does not get installed)
+			apexVariationOfSelected := append(ctx.Target().Variations(), blueprint.Variation{Mutator: "apex", Variation: apex})
+			if ctx.OtherModuleDependencyVariantExists(apexVariationOfSelected, selected) {
+				ctx.AddFarVariationDependencies(apexVariationOfSelected, dexpreoptBootJarDepTag, selected)
+			}
+		}
 	}
 }
 
@@ -544,7 +570,7 @@ func gatherBootclasspathFragments(ctx android.ModuleContext) map[string]android.
 				return true
 			}
 			if tag == bootclasspathFragmentDepTag {
-				apexInfo := ctx.OtherModuleProvider(child, android.ApexInfoProvider).(android.ApexInfo)
+				apexInfo, _ := android.OtherModuleProvider(ctx, child, android.ApexInfoProvider)
 				for _, apex := range apexInfo.InApexVariants {
 					fragments[apex] = child
 				}
@@ -565,6 +591,7 @@ func (d *dexpreoptBootJars) GenerateAndroidBuildActions(ctx android.ModuleContex
 	imageConfigs := genBootImageConfigs(ctx)
 	d.defaultBootImage = defaultBootImageConfig(ctx)
 	d.otherImages = make([]*bootImageConfig, 0, len(imageConfigs)-1)
+	var profileInstalls android.RuleBuilderInstalls
 	for _, name := range getImageNames() {
 		config := imageConfigs[name]
 		if config != d.defaultBootImage {
@@ -573,16 +600,25 @@ func (d *dexpreoptBootJars) GenerateAndroidBuildActions(ctx android.ModuleContex
 		if !config.isEnabled(ctx) {
 			continue
 		}
-		generateBootImage(ctx, config)
+		installs := generateBootImage(ctx, config)
+		profileInstalls = append(profileInstalls, installs...)
 		if config == d.defaultBootImage {
-			bootFrameworkProfileRule(ctx, config)
+			_, installs := bootFrameworkProfileRule(ctx, config)
+			profileInstalls = append(profileInstalls, installs...)
 		}
+	}
+	if len(profileInstalls) > 0 {
+		android.SetProvider(ctx, profileInstallInfoProvider, profileInstallInfo{
+			profileInstalls:            profileInstalls,
+			profileLicenseMetadataFile: android.OptionalPathForPath(ctx.LicenseMetadataFile()),
+		})
 	}
 }
 
 // GenerateSingletonBuildActions generates build rules for the dexpreopt config for Make.
 func (d *dexpreoptBootJars) GenerateSingletonBuildActions(ctx android.SingletonContext) {
-	d.dexpreoptConfigForMake = android.PathForOutput(ctx, getDexpreoptDirName(ctx), "dexpreopt.config")
+	d.dexpreoptConfigForMake =
+		android.PathForOutput(ctx, dexpreopt.GetDexpreoptDirName(ctx), "dexpreopt.config")
 	writeGlobalConfigForMake(ctx, d.dexpreoptConfigForMake)
 }
 
@@ -598,7 +634,7 @@ func shouldBuildBootImages(config android.Config, global *dexpreopt.GlobalConfig
 	return true
 }
 
-func generateBootImage(ctx android.ModuleContext, imageConfig *bootImageConfig) {
+func generateBootImage(ctx android.ModuleContext, imageConfig *bootImageConfig) android.RuleBuilderInstalls {
 	apexJarModulePairs := getModulesForImage(ctx, imageConfig)
 
 	// Copy module dex jars to their predefined locations.
@@ -607,12 +643,12 @@ func generateBootImage(ctx android.ModuleContext, imageConfig *bootImageConfig) 
 
 	// Build a profile for the image config from the profile at the default path. The profile will
 	// then be used along with profiles imported from APEXes to build the boot image.
-	profile := bootImageProfileRule(ctx, imageConfig)
+	profile, profileInstalls := bootImageProfileRule(ctx, imageConfig)
 
 	// If dexpreopt of boot image jars should be skipped, stop after generating a profile.
 	global := dexpreopt.GetGlobalConfig(ctx)
 	if SkipDexpreoptBootJars(ctx) || (global.OnlyPreoptArtBootImage && imageConfig.name != "art") {
-		return
+		return profileInstalls
 	}
 
 	// Build boot image files for the android variants.
@@ -626,6 +662,8 @@ func generateBootImage(ctx android.ModuleContext, imageConfig *bootImageConfig) 
 
 	// Create a `dump-oat-<image-name>` rule that runs `oatdump` for debugging purposes.
 	dumpOatRules(ctx, imageConfig)
+
+	return profileInstalls
 }
 
 type apexJarModulePair struct {
@@ -662,36 +700,73 @@ func getModulesForImage(ctx android.ModuleContext, imageConfig *bootImageConfig)
 // extractEncodedDexJarsFromModulesOrBootclasspathFragments gets the hidden API encoded dex jars for
 // the given modules.
 func extractEncodedDexJarsFromModulesOrBootclasspathFragments(ctx android.ModuleContext, apexJarModulePairs []apexJarModulePair) bootDexJarByModule {
+	apexNameToApexExportInfoMap := getApexNameToApexExportsInfoMap(ctx)
 	encodedDexJarsByModuleName := bootDexJarByModule{}
 	for _, pair := range apexJarModulePairs {
-		var path android.Path
-		if android.IsConfiguredJarForPlatform(pair.apex) || android.IsModulePrebuilt(pair.jarModule) {
-			// This gives us the dex jar with the hidden API flags encoded from the monolithic hidden API
-			// files or the dex jar extracted from a prebuilt APEX. We can't use this for a boot jar for
-			// a source APEX because there is no guarantee that it is the same as the jar packed into the
-			// APEX. In practice, they are the same when we are building from a full source tree, but they
-			// are different when we are building from a thin manifest (e.g., master-art), where there is
-			// no monolithic hidden API files at all.
-			path = retrieveEncodedBootDexJarFromModule(ctx, pair.jarModule)
-		} else {
-			// Use exactly the same jar that is packed into the APEX.
-			fragment := getBootclasspathFragmentByApex(ctx, pair.apex)
-			if fragment == nil {
-				ctx.ModuleErrorf("Boot jar '%[1]s' is from APEX '%[2]s', but a bootclasspath_fragment for "+
-					"APEX '%[2]s' doesn't exist or is not added as a dependency of dex_bootjars",
-					pair.jarModule.Name(),
-					pair.apex)
-			}
-			bootclasspathFragmentInfo := ctx.OtherModuleProvider(fragment, BootclasspathFragmentApexContentInfoProvider).(BootclasspathFragmentApexContentInfo)
-			jar, err := bootclasspathFragmentInfo.DexBootJarPathForContentModule(pair.jarModule)
-			if err != nil {
-				ctx.ModuleErrorf("%s", err)
-			}
-			path = jar
-		}
-		encodedDexJarsByModuleName.addPath(pair.jarModule, path)
+		dexJarPath := getDexJarForApex(ctx, pair, apexNameToApexExportInfoMap)
+		encodedDexJarsByModuleName.addPath(pair.jarModule, dexJarPath)
 	}
 	return encodedDexJarsByModuleName
+}
+
+type apexNameToApexExportsInfoMap map[string]android.ApexExportsInfo
+
+// javaLibraryPathOnHost returns the path to the java library which is exported by the apex for hiddenapi and dexpreopt and a boolean indicating whether the java library exists
+// For prebuilt apexes, this is created by deapexing the prebuilt apex
+func (m *apexNameToApexExportsInfoMap) javaLibraryDexPathOnHost(ctx android.ModuleContext, apex string, javalib string) (android.Path, bool) {
+	if info, exists := (*m)[apex]; exists {
+		if dex, exists := info.LibraryNameToDexJarPathOnHost[javalib]; exists {
+			return dex, true
+		} else {
+			ctx.ModuleErrorf("Apex %s does not provide a dex boot jar for library %s\n", apex, javalib)
+		}
+	}
+	// An apex entry could not be found. Return false.
+	// TODO: b/308174306 - When all the mainline modules have been flagged, make this a hard error
+	return nil, false
+}
+
+// Returns the stem of an artifact inside a prebuilt apex
+func ModuleStemForDeapexing(m android.Module) string {
+	bmn, _ := m.(interface{ BaseModuleName() string })
+	return bmn.BaseModuleName()
+}
+
+// Returns the java libraries exported by the apex for hiddenapi and dexpreopt
+// This information can come from two mechanisms
+// 1. New: Direct deps to _selected_ apexes. The apexes return a ApexExportsInfo
+// 2. Legacy: An edge to java_library or java_import (java_sdk_library) module. For prebuilt apexes, this serves as a hook and is populated by deapexers of prebuilt apxes
+// TODO: b/308174306 - Once all mainline modules have been flagged, drop (2)
+func getDexJarForApex(ctx android.ModuleContext, pair apexJarModulePair, apexNameToApexExportsInfoMap apexNameToApexExportsInfoMap) android.Path {
+	if dex, found := apexNameToApexExportsInfoMap.javaLibraryDexPathOnHost(ctx, pair.apex, ModuleStemForDeapexing(pair.jarModule)); found {
+		return dex
+	}
+	// TODO: b/308174306 - Remove the legacy mechanism
+	if android.IsConfiguredJarForPlatform(pair.apex) || android.IsModulePrebuilt(pair.jarModule) {
+		// This gives us the dex jar with the hidden API flags encoded from the monolithic hidden API
+		// files or the dex jar extracted from a prebuilt APEX. We can't use this for a boot jar for
+		// a source APEX because there is no guarantee that it is the same as the jar packed into the
+		// APEX. In practice, they are the same when we are building from a full source tree, but they
+		// are different when we are building from a thin manifest (e.g., master-art), where there is
+		// no monolithic hidden API files at all.
+		return retrieveEncodedBootDexJarFromModule(ctx, pair.jarModule)
+	} else {
+		// Use exactly the same jar that is packed into the APEX.
+		fragment := getBootclasspathFragmentByApex(ctx, pair.apex)
+		if fragment == nil {
+			ctx.ModuleErrorf("Boot jar '%[1]s' is from APEX '%[2]s', but a bootclasspath_fragment for "+
+				"APEX '%[2]s' doesn't exist or is not added as a dependency of dex_bootjars",
+				pair.jarModule.Name(),
+				pair.apex)
+		}
+		bootclasspathFragmentInfo, _ := android.OtherModuleProvider(ctx, fragment, BootclasspathFragmentApexContentInfoProvider)
+		jar, err := bootclasspathFragmentInfo.DexBootJarPathForContentModule(pair.jarModule)
+		if err != nil {
+			ctx.ModuleErrorf("%s", err)
+		}
+		return jar
+	}
+	return nil
 }
 
 // copyBootJarsToPredefinedLocations generates commands that will copy boot jars to predefined
@@ -823,6 +898,37 @@ type bootImageVariantOutputs struct {
 	config *bootImageVariant
 }
 
+// Returns the profile file for an apex
+// This information can come from two mechanisms
+// 1. New: Direct deps to _selected_ apexes. The apexes return a BootclasspathFragmentApexContentInfo
+// 2. Legacy: An edge to bootclasspath_fragment module. For prebuilt apexes, this serves as a hook and is populated by deapexers of prebuilt apxes
+// TODO: b/308174306 - Once all mainline modules have been flagged, drop (2)
+func getProfilePathForApex(ctx android.ModuleContext, apexName string, apexNameToBcpInfoMap map[string]android.ApexExportsInfo) android.Path {
+	if info, exists := apexNameToBcpInfoMap[apexName]; exists {
+		return info.ProfilePathOnHost
+	}
+	// TODO: b/308174306 - Remove the legacy mechanism
+	fragment := getBootclasspathFragmentByApex(ctx, apexName)
+	if fragment == nil {
+		ctx.ModuleErrorf("Boot image config imports profile from '%[2]s', but a "+
+			"bootclasspath_fragment for APEX '%[2]s' doesn't exist or is not added as a "+
+			"dependency of dex_bootjars",
+			apexName)
+		return nil
+	}
+	return fragment.(commonBootclasspathFragment).getProfilePath()
+}
+
+func getApexNameToApexExportsInfoMap(ctx android.ModuleContext) apexNameToApexExportsInfoMap {
+	apexNameToApexExportsInfoMap := apexNameToApexExportsInfoMap{}
+	ctx.VisitDirectDepsWithTag(dexpreoptBootJarDepTag, func(am android.Module) {
+		if info, exists := android.OtherModuleProvider(ctx, am, android.ApexExportsInfoProvider); exists {
+			apexNameToApexExportsInfoMap[info.ApexName] = info
+		}
+	})
+	return apexNameToApexExportsInfoMap
+}
+
 // Generate boot image build rules for a specific target.
 func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, profile android.Path) bootImageVariantOutputs {
 
@@ -865,6 +971,8 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 
 	invocationPath := outputPath.ReplaceExtension(ctx, "invocation")
 
+	apexNameToApexExportsInfoMap := getApexNameToApexExportsInfoMap(ctx)
+
 	cmd.Tool(globalSoong.Dex2oat).
 		Flag("--avoid-storing-invocation").
 		FlagWithOutput("--write-invocation-to=", invocationPath).ImplicitOutput(invocationPath).
@@ -877,16 +985,7 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 		}
 
 		for _, apex := range image.profileImports {
-			fragment := getBootclasspathFragmentByApex(ctx, apex)
-			if fragment == nil {
-				ctx.ModuleErrorf("Boot image config '%[1]s' imports profile from '%[2]s', but a "+
-					"bootclasspath_fragment for APEX '%[2]s' doesn't exist or is not added as a "+
-					"dependency of dex_bootjars",
-					image.name,
-					apex)
-				return bootImageVariantOutputs{}
-			}
-			importedProfile := fragment.(commonBootclasspathFragment).getProfilePath()
+			importedProfile := getProfilePathForApex(ctx, apex, apexNameToApexExportsInfoMap)
 			if importedProfile == nil {
 				ctx.ModuleErrorf("Boot image config '%[1]s' imports profile from '%[2]s', but '%[2]s' "+
 					"doesn't provide a profile",
@@ -974,8 +1073,8 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 		cmd.FlagWithArg("--instruction-set-features=", global.InstructionSetFeatures[arch])
 	}
 
-	if global.EnableUffdGc && image.target.Os == android.Android {
-		cmd.Flag("--runtime-arg").Flag("-Xgc:CMC")
+	if image.target.Os == android.Android {
+		cmd.Text("$(cat").Input(globalSoong.UffdGcFlag).Text(")")
 	}
 
 	if global.BootFlags != "" {
@@ -1085,9 +1184,19 @@ func bootImageProfileRuleCommon(ctx android.ModuleContext, name string, dexFiles
 	return profile
 }
 
-func bootImageProfileRule(ctx android.ModuleContext, image *bootImageConfig) android.WritablePath {
+type profileInstallInfo struct {
+	// Rules which should be used in make to install the outputs.
+	profileInstalls android.RuleBuilderInstalls
+
+	// Path to the license metadata file for the module that built the profile.
+	profileLicenseMetadataFile android.OptionalPath
+}
+
+var profileInstallInfoProvider = blueprint.NewProvider[profileInstallInfo]()
+
+func bootImageProfileRule(ctx android.ModuleContext, image *bootImageConfig) (android.WritablePath, android.RuleBuilderInstalls) {
 	if !image.isProfileGuided() {
-		return nil
+		return nil, nil
 	}
 
 	profile := bootImageProfileRuleCommon(ctx, image.name, image.dexPathsDeps.Paths(), image.getAnyAndroidVariant().dexLocationsDeps)
@@ -1095,21 +1204,19 @@ func bootImageProfileRule(ctx android.ModuleContext, image *bootImageConfig) and
 	if image == defaultBootImageConfig(ctx) {
 		rule := android.NewRuleBuilder(pctx, ctx)
 		rule.Install(profile, "/system/etc/boot-image.prof")
-		image.profileInstalls = append(image.profileInstalls, rule.Installs()...)
-		image.profileLicenseMetadataFile = android.OptionalPathForPath(ctx.LicenseMetadataFile())
+		return profile, rule.Installs()
 	}
-
-	return profile
+	return profile, nil
 }
 
 // bootFrameworkProfileRule generates the rule to create the boot framework profile and
 // returns a path to the generated file.
-func bootFrameworkProfileRule(ctx android.ModuleContext, image *bootImageConfig) android.WritablePath {
+func bootFrameworkProfileRule(ctx android.ModuleContext, image *bootImageConfig) (android.WritablePath, android.RuleBuilderInstalls) {
 	globalSoong := dexpreopt.GetGlobalSoongConfig(ctx)
 	global := dexpreopt.GetGlobalConfig(ctx)
 
 	if global.DisableGenerateProfile || ctx.Config().UnbundledBuild() {
-		return nil
+		return nil, nil
 	}
 
 	defaultProfile := "frameworks/base/config/boot-profile.txt"
@@ -1129,16 +1236,13 @@ func bootFrameworkProfileRule(ctx android.ModuleContext, image *bootImageConfig)
 
 	rule.Install(profile, "/system/etc/boot-image.bprof")
 	rule.Build("bootFrameworkProfile", "profile boot framework jars")
-	image.profileInstalls = append(image.profileInstalls, rule.Installs()...)
-	image.profileLicenseMetadataFile = android.OptionalPathForPath(ctx.LicenseMetadataFile())
-
-	return profile
+	return profile, rule.Installs()
 }
 
 func dumpOatRules(ctx android.ModuleContext, image *bootImageConfig) {
 	var allPhonies android.Paths
 	name := image.name
-	global := dexpreopt.GetGlobalConfig(ctx)
+	globalSoong := dexpreopt.GetGlobalSoongConfig(ctx)
 	for _, image := range image.variants {
 		arch := image.target.Arch.ArchType
 		suffix := arch.String()
@@ -1150,6 +1254,7 @@ func dumpOatRules(ctx android.ModuleContext, image *bootImageConfig) {
 		output := android.PathForOutput(ctx, name+"."+suffix+".oatdump.txt")
 		rule := android.NewRuleBuilder(pctx, ctx)
 		imageLocationsOnHost, _ := image.imageLocations()
+
 		cmd := rule.Command().
 			BuiltTool("oatdump").
 			FlagWithInputList("--runtime-arg -Xbootclasspath:", image.dexPathsDeps.Paths(), ":").
@@ -1157,8 +1262,8 @@ func dumpOatRules(ctx android.ModuleContext, image *bootImageConfig) {
 			FlagWithArg("--image=", strings.Join(imageLocationsOnHost, ":")).Implicits(image.imagesDeps.Paths()).
 			FlagWithOutput("--output=", output).
 			FlagWithArg("--instruction-set=", arch.String())
-		if global.EnableUffdGc && image.target.Os == android.Android {
-			cmd.Flag("--runtime-arg").Flag("-Xgc:CMC")
+		if image.target.Os == android.Android {
+			cmd.Text("$(cat").Input(globalSoong.UffdGcFlag).Text(")")
 		}
 		rule.Build("dump-oat-"+name+"-"+suffix, "dump oat "+name+" "+arch.String())
 
@@ -1200,9 +1305,11 @@ func (d *dexpreoptBootJars) MakeVars(ctx android.MakeVarsContext) {
 
 	image := d.defaultBootImage
 	if image != nil {
-		ctx.Strict("DEXPREOPT_IMAGE_PROFILE_BUILT_INSTALLED", image.profileInstalls.String())
-		if image.profileLicenseMetadataFile.Valid() {
-			ctx.Strict("DEXPREOPT_IMAGE_PROFILE_LICENSE_METADATA", image.profileLicenseMetadataFile.String())
+		if profileInstallInfo, ok := android.SingletonModuleProvider(ctx, d, profileInstallInfoProvider); ok {
+			ctx.Strict("DEXPREOPT_IMAGE_PROFILE_BUILT_INSTALLED", profileInstallInfo.profileInstalls.String())
+			if profileInstallInfo.profileLicenseMetadataFile.Valid() {
+				ctx.Strict("DEXPREOPT_IMAGE_PROFILE_LICENSE_METADATA", profileInstallInfo.profileLicenseMetadataFile.String())
+			}
 		}
 
 		if SkipDexpreoptBootJars(ctx) {

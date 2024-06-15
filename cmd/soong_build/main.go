@@ -28,6 +28,7 @@ import (
 	"android/soong/android/allowlists"
 	"android/soong/bp2build"
 	"android/soong/shared"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/deptools"
@@ -75,9 +76,9 @@ func init() {
 	flag.StringVar(&cmdlineArgs.OutFile, "o", "build.ninja", "the Ninja file to output")
 	flag.StringVar(&cmdlineArgs.SoongVariables, "soong_variables", "soong.variables", "the file contains all build variables")
 	flag.BoolVar(&cmdlineArgs.EmptyNinjaFile, "empty-ninja-file", false, "write out a 0-byte ninja file")
-	flag.BoolVar(&cmdlineArgs.MultitreeBuild, "multitree-build", false, "this is a multitree build")
 	flag.BoolVar(&cmdlineArgs.BuildFromSourceStub, "build-from-source-stub", false, "build Java stubs from source files instead of API text files")
 	flag.BoolVar(&cmdlineArgs.EnsureAllowlistIntegrity, "ensure-allowlist-integrity", false, "verify that allowlisted modules are mixed-built")
+	flag.StringVar(&cmdlineArgs.ModuleDebugFile, "soong_module_debug", "", "soong module debug info file to write")
 	// Flags that probably shouldn't be flags of soong_build, but we haven't found
 	// the time to remove them yet
 	flag.BoolVar(&cmdlineArgs.RunGoTests, "t", false, "build and run go tests during bootstrap")
@@ -196,7 +197,7 @@ func writeJsonModuleGraphAndActions(ctx *android.Context, cmdArgs android.CmdArg
 	ctx.Context.PrintJSONGraphAndActions(graphFile, actionsFile)
 }
 
-func writeBuildGlobsNinjaFile(ctx *android.Context) []string {
+func writeBuildGlobsNinjaFile(ctx *android.Context) {
 	ctx.EventHandler.Begin("globs_ninja_file")
 	defer ctx.EventHandler.End("globs_ninja_file")
 
@@ -208,7 +209,6 @@ func writeBuildGlobsNinjaFile(ctx *android.Context) []string {
 		SrcDir:     ctx.SrcDir(),
 	}, ctx.Config())
 	maybeQuit(err, "")
-	return bootstrap.GlobFileListFiles(globDir)
 }
 
 func writeDepFile(outputFile string, eventHandler *metrics.EventHandler, ninjaDeps []string) {
@@ -238,8 +238,7 @@ func runSoongOnlyBuild(ctx *android.Context, extraNinjaDeps []string) string {
 	maybeQuit(err, "")
 	ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 
-	globListFiles := writeBuildGlobsNinjaFile(ctx)
-	ninjaDeps = append(ninjaDeps, globListFiles...)
+	writeBuildGlobsNinjaFile(ctx)
 
 	// Convert the Soong module graph into Bazel BUILD files.
 	switch ctx.Config().BuildMode {

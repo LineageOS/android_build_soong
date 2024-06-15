@@ -15,9 +15,12 @@
 package cc
 
 import (
-	"android/soong/android"
+	"fmt"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
+
+	"android/soong/android"
 )
 
 // LTO (link-time optimization) allows the compiler to optimize and generate
@@ -48,11 +51,6 @@ type LTOProperties struct {
 
 	LtoEnabled bool `blueprint:"mutated"`
 	LtoDefault bool `blueprint:"mutated"`
-
-	// Dep properties indicate that this module needs to be built with LTO
-	// since it is an object dependency of an LTO module.
-	LtoDep   bool `blueprint:"mutated"`
-	NoLtoDep bool `blueprint:"mutated"`
 
 	// Use -fwhole-program-vtables cflag.
 	Whole_program_vtables *bool
@@ -102,7 +100,7 @@ func (lto *lto) begin(ctx BaseModuleContext) {
 	lto.Properties.LtoEnabled = ltoEnabled
 }
 
-func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
+func (lto *lto) flags(ctx ModuleContext, flags Flags) Flags {
 	// TODO(b/131771163): CFI and Fuzzer controls LTO flags by themselves.
 	// This has be checked late because these properties can be mutated.
 	if ctx.isCfi() || ctx.isFuzzer() {
@@ -141,7 +139,7 @@ func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
 		// Reduce the inlining threshold for a better balance of binary size and
 		// performance.
 		if !ctx.Darwin() {
-			if ctx.isAfdoCompile() {
+			if ctx.isAfdoCompile(ctx) {
 				ltoLdFlags = append(ltoLdFlags, "-Wl,-plugin-opt,-import-instr-limit=40")
 			} else {
 				ltoLdFlags = append(ltoLdFlags, "-Wl,-plugin-opt,-import-instr-limit=5")
@@ -176,86 +174,83 @@ func (lto *lto) Never() bool {
 	return lto != nil && proptools.Bool(lto.Properties.Lto.Never)
 }
 
-// Propagate lto requirements down from binaries
-func ltoDepsMutator(mctx android.TopDownMutatorContext) {
-	if m, ok := mctx.Module().(*Module); ok {
-		if m.lto == nil || m.lto.Properties.LtoEnabled == m.lto.Properties.LtoDefault {
-			return
-		}
-
-		mctx.WalkDeps(func(dep android.Module, parent android.Module) bool {
-			tag := mctx.OtherModuleDependencyTag(dep)
-			libTag, isLibTag := tag.(libraryDependencyTag)
-
-			// Do not recurse down non-static dependencies
-			if isLibTag {
-				if !libTag.static() {
-					return false
-				}
-			} else {
-				if tag != objDepTag && tag != reuseObjTag {
-					return false
-				}
-			}
-
-			if dep, ok := dep.(*Module); ok {
-				if m.lto.Properties.LtoEnabled {
-					dep.lto.Properties.LtoDep = true
-				} else {
-					dep.lto.Properties.NoLtoDep = true
-				}
-			}
-
-			// Recursively walk static dependencies
-			return true
-		})
+func ltoPropagateViaDepTag(tag blueprint.DependencyTag) bool {
+	libTag, isLibTag := tag.(libraryDependencyTag)
+	// Do not recurse down non-static dependencies
+	if isLibTag {
+		return libTag.static()
+	} else {
+		return tag == objDepTag || tag == reuseObjTag || tag == staticVariantTag
 	}
 }
 
-// Create lto variants for modules that need them
-func ltoMutator(mctx android.BottomUpMutatorContext) {
-	if m, ok := mctx.Module().(*Module); ok && m.lto != nil {
-		// Create variations for LTO types required as static
-		// dependencies
-		variationNames := []string{""}
-		if m.lto.Properties.LtoDep {
-			variationNames = append(variationNames, "lto-thin")
-		}
-		if m.lto.Properties.NoLtoDep {
-			variationNames = append(variationNames, "lto-none")
+// ltoTransitionMutator creates LTO variants of cc modules.  Variant "" is the default variant, which may
+// or may not have LTO enabled depending on the config and the module's type and properties.  "lto-thin" or
+// "lto-none" variants are created when a module needs to compile in the non-default state for that module.
+type ltoTransitionMutator struct{}
+
+const LTO_NONE_VARIATION = "lto-none"
+const LTO_THIN_VARIATION = "lto-thin"
+
+func (l *ltoTransitionMutator) Split(ctx android.BaseModuleContext) []string {
+	return []string{""}
+}
+
+func (l *ltoTransitionMutator) OutgoingTransition(ctx android.OutgoingTransitionContext, sourceVariation string) string {
+	if m, ok := ctx.Module().(*Module); ok && m.lto != nil {
+		if !ltoPropagateViaDepTag(ctx.DepTag()) {
+			return ""
 		}
 
-		if !m.lto.Properties.LtoEnabled {
-			mctx.SetDependencyVariation("lto-none")
+		if sourceVariation != "" {
+			return sourceVariation
 		}
+
+		// Always request an explicit variation, IncomingTransition will rewrite it back to the default variation
+		// if necessary.
 		if m.lto.Properties.LtoEnabled {
-			mctx.SetDependencyVariation("lto-thin")
+			return LTO_THIN_VARIATION
+		} else {
+			return LTO_NONE_VARIATION
 		}
+	}
+	return ""
+}
 
-		if len(variationNames) > 1 {
-			modules := mctx.CreateVariations(variationNames...)
-			for i, name := range variationNames {
-				variation := modules[i].(*Module)
-				// Default module which will be
-				// installed. Variation set above according to
-				// explicit LTO properties
-				if name == "" {
-					continue
-				}
-
-				// LTO properties for dependencies
-				if name == "lto-thin" {
-					variation.lto.Properties.LtoEnabled = true
-				}
-				if name == "lto-none" {
-					variation.lto.Properties.LtoEnabled = false
-				}
-				variation.Properties.PreventInstall = true
-				variation.Properties.HideFromMake = true
-				variation.lto.Properties.LtoDefault = m.lto.Properties.LtoDefault
-				variation.lto.Properties.LtoDep = false
-				variation.lto.Properties.NoLtoDep = false
-			}
+func (l *ltoTransitionMutator) IncomingTransition(ctx android.IncomingTransitionContext, incomingVariation string) string {
+	if m, ok := ctx.Module().(*Module); ok && m.lto != nil {
+		if m.lto.Never() {
+			return ""
 		}
+		// Rewrite explicit variations back to the default variation if the default variation matches.
+		if incomingVariation == LTO_THIN_VARIATION && m.lto.Properties.LtoDefault {
+			return ""
+		} else if incomingVariation == LTO_NONE_VARIATION && !m.lto.Properties.LtoDefault {
+			return ""
+		}
+		return incomingVariation
+	}
+	return ""
+}
+
+func (l *ltoTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, variation string) {
+	// Default module which will be installed. Variation set above according to explicit LTO properties.
+	if variation == "" {
+		return
+	}
+
+	if m, ok := ctx.Module().(*Module); ok && m.lto != nil {
+		// Non-default variation, set the LTO properties to match the variation.
+		switch variation {
+		case LTO_THIN_VARIATION:
+			m.lto.Properties.LtoEnabled = true
+		case LTO_NONE_VARIATION:
+			m.lto.Properties.LtoEnabled = false
+		default:
+			panic(fmt.Errorf("unknown variation %s", variation))
+		}
+		// Non-default variations are never installed.
+		m.Properties.PreventInstall = true
+		m.Properties.HideFromMake = true
 	}
 }

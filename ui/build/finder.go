@@ -128,6 +128,7 @@ func FindSources(ctx Context, config Config, f *finder.Finder) {
 
 	// Stop searching a subdirectory recursively after finding an Android.mk.
 	androidMks := f.FindFirstNamedAt(".", "Android.mk")
+	blockAndroidMks(ctx, androidMks)
 	err := dumpListToFile(ctx, config, androidMks, filepath.Join(dumpDir, "Android.mk.list"))
 	if err != nil {
 		ctx.Fatalf("Could not export module list: %v", err)

@@ -29,7 +29,7 @@ var (
 	defaultBindgenFlags = []string{""}
 
 	// bindgen should specify its own Clang revision so updating Clang isn't potentially blocked on bindgen failures.
-	bindgenClangVersion = "clang-r498229b"
+	bindgenClangVersion = "clang-r510928"
 
 	_ = pctx.VariableFunc("bindgenClangVersion", func(ctx android.PackageVarContext) string {
 		if override := ctx.Config().Getenv("LLVM_BINDGEN_PREBUILTS_VERSION"); override != "" {
@@ -170,7 +170,7 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	cflags = append(cflags, strings.ReplaceAll(ccToolchain.Cflags(), "${config.", "${cc_config."))
 	cflags = append(cflags, strings.ReplaceAll(ccToolchain.ToolchainCflags(), "${config.", "${cc_config."))
 
-	if ctx.RustModule().UseVndk() {
+	if ctx.RustModule().InVendorOrProduct() {
 		cflags = append(cflags, "-D__ANDROID_VNDK__")
 		if ctx.RustModule().InVendor() {
 			cflags = append(cflags, "-D__ANDROID_VENDOR__")
@@ -263,10 +263,9 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	// clang: error: '-x c' after last input file has no effect [-Werror,-Wunused-command-line-argument]
 	cflags = append(cflags, "-Wno-unused-command-line-argument")
 
-	// LLVM_NEXT may contain flags that bindgen doesn't recognise. Turn off unknown flags warning.
-	if ctx.Config().IsEnvTrue("LLVM_NEXT") {
-		cflags = append(cflags, "-Wno-unknown-warning-option")
-	}
+	// The Clang version used by CXX can be newer than the one used by Bindgen, and uses warning related flags that
+	// it cannot recognize. Turn off unknown warning flags warning.
+	cflags = append(cflags, "-Wno-unknown-warning-option")
 
 	outputFile := android.PathForModuleOut(ctx, b.BaseSourceProvider.getStem(ctx)+".rs")
 

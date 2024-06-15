@@ -20,6 +20,8 @@ package cc
 import (
 	"fmt"
 
+	"github.com/google/blueprint"
+
 	"android/soong/android"
 )
 
@@ -190,66 +192,61 @@ func (orderfile *orderfile) flags(ctx ModuleContext, flags Flags) Flags {
 	return flags
 }
 
-// Propagate profile orderfile flags down from binaries and shared libraries
-// We do not allow propagation for load flags because the orderfile is specific
-// to the module (binary / shared library)
-func orderfileDepsMutator(mctx android.TopDownMutatorContext) {
-	if m, ok := mctx.Module().(*Module); ok {
-		if !m.orderfile.orderfileLinkEnabled() {
-			return
-		}
-		mctx.WalkDeps(func(dep android.
-			Module, parent android.Module) bool {
-			tag := mctx.OtherModuleDependencyTag(dep)
-			libTag, isLibTag := tag.(libraryDependencyTag)
-
-			// Do not recurse down non-static dependencies
-			if isLibTag {
-				if !libTag.static() {
-					return false
-				}
-			} else {
-				if tag != objDepTag && tag != reuseObjTag {
-					return false
-				}
-			}
-
-			if dep, ok := dep.(*Module); ok {
-				if m.orderfile.Properties.OrderfileInstrLink {
-					dep.orderfile.Properties.OrderfileInstrLink = true
-				}
-			}
-
-			return true
-		})
+func orderfilePropagateViaDepTag(tag blueprint.DependencyTag) bool {
+	libTag, isLibTag := tag.(libraryDependencyTag)
+	// Do not recurse down non-static dependencies
+	if isLibTag {
+		return libTag.static()
+	} else {
+		return tag == objDepTag || tag == reuseObjTag || tag == staticVariantTag
 	}
 }
 
-// Create orderfile variants for modules that need them
-func orderfileMutator(mctx android.BottomUpMutatorContext) {
-	if m, ok := mctx.Module().(*Module); ok && m.orderfile != nil {
-		if !m.static() && m.orderfile.orderfileEnabled() {
-			mctx.SetDependencyVariation("orderfile")
-			return
+// orderfileTransitionMutator creates orderfile variants of cc modules.
+type orderfileTransitionMutator struct{}
+
+const ORDERFILE_VARIATION = "orderfile"
+
+func (o *orderfileTransitionMutator) Split(ctx android.BaseModuleContext) []string {
+	return []string{""}
+}
+
+func (o *orderfileTransitionMutator) OutgoingTransition(ctx android.OutgoingTransitionContext, sourceVariation string) string {
+	if m, ok := ctx.Module().(*Module); ok && m.orderfile != nil {
+		if !orderfilePropagateViaDepTag(ctx.DepTag()) {
+			return ""
 		}
 
-		variationNames := []string{""}
-		if m.orderfile.Properties.OrderfileInstrLink {
-			variationNames = append(variationNames, "orderfile")
+		if sourceVariation != "" {
+			return sourceVariation
 		}
 
-		if len(variationNames) > 1 {
-			modules := mctx.CreateVariations(variationNames...)
-			for i, name := range variationNames {
-				if name == "" {
-					continue
-				}
-				variation := modules[i].(*Module)
-				variation.Properties.PreventInstall = true
-				variation.Properties.HideFromMake = true
-				variation.orderfile.Properties.ShouldProfileModule = true
-				variation.orderfile.Properties.OrderfileLoad = false
-			}
+		// Propagate profile orderfile flags down from binaries and shared libraries
+		if m.orderfile.orderfileLinkEnabled() {
+			return ORDERFILE_VARIATION
 		}
+	}
+	return ""
+}
+
+func (o *orderfileTransitionMutator) IncomingTransition(ctx android.IncomingTransitionContext, incomingVariation string) string {
+	if m, ok := ctx.Module().(*Module); ok && m.orderfile != nil {
+		return incomingVariation
+	}
+	return ""
+}
+
+func (o *orderfileTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, variation string) {
+	if variation == "" {
+		return
+	}
+
+	if m, ok := ctx.Module().(*Module); ok && m.orderfile != nil {
+		m.Properties.PreventInstall = true
+		m.Properties.HideFromMake = true
+		m.orderfile.Properties.ShouldProfileModule = true
+		// We do not allow propagation for load flags because the orderfile is specific
+		// to the module (binary / shared library)
+		m.orderfile.Properties.OrderfileLoad = false
 	}
 }

@@ -321,6 +321,13 @@ func (test *testDecorator) installerProps() []interface{} {
 	return []interface{}{&test.InstallerProperties}
 }
 
+func (test *testDecorator) moduleInfoJSON(ctx android.ModuleContext, moduleInfoJSON *android.ModuleInfoJSON) {
+	if android.PrefixInList(moduleInfoJSON.CompatibilitySuites, "mts-") &&
+		!android.InList("mts", moduleInfoJSON.CompatibilitySuites) {
+		moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, "mts")
+	}
+}
+
 func NewTestInstaller() *baseInstaller {
 	return NewBaseInstaller("nativetest", "nativetest64", InstallInData)
 }
@@ -353,6 +360,38 @@ func (test *testBinary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = test.binaryDecorator.linkerFlags(ctx, flags)
 	flags = test.testDecorator.linkerFlags(ctx, flags)
 	return flags
+}
+
+func (test *testBinary) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *android.ModuleInfoJSON) {
+	if ctx.Host() && Bool(test.Properties.Test_options.Unit_test) {
+		moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, "host-unit-tests")
+	}
+	moduleInfoJSON.TestOptionsTags = append(moduleInfoJSON.TestOptionsTags, test.Properties.Test_options.Tags...)
+	moduleInfoJSON.TestMainlineModules = append(moduleInfoJSON.TestMainlineModules, test.Properties.Test_mainline_modules...)
+	if test.testConfig != nil {
+		if _, ok := test.testConfig.(android.WritablePath); ok {
+			moduleInfoJSON.AutoTestConfig = []string{"true"}
+		}
+		moduleInfoJSON.TestConfig = append(moduleInfoJSON.TestConfig, test.testConfig.String())
+	}
+	moduleInfoJSON.TestConfig = append(moduleInfoJSON.TestConfig, test.extraTestConfigs.Strings()...)
+
+	if Bool(test.Properties.Test_per_src) {
+		moduleInfoJSON.SubName = "_" + String(test.binaryDecorator.Properties.Stem)
+	}
+
+	moduleInfoJSON.DataDependencies = append(moduleInfoJSON.DataDependencies, test.Properties.Data_bins...)
+
+	if len(test.InstallerProperties.Test_suites) > 0 {
+		moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, test.InstallerProperties.Test_suites...)
+	} else {
+		moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, "null-suite")
+	}
+
+	test.binaryDecorator.moduleInfoJSON(ctx, moduleInfoJSON)
+	test.testDecorator.moduleInfoJSON(ctx, moduleInfoJSON)
+	moduleInfoJSON.Class = []string{"NATIVE_TESTS"}
+
 }
 
 func (test *testBinary) installerProps() []interface{} {
@@ -391,8 +430,7 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 		}
 	})
 
-	useVendor := ctx.inVendor() || ctx.useVndk()
-	testInstallBase := getTestInstallBase(useVendor)
+	testInstallBase := getTestInstallBase(ctx.InVendorOrProduct())
 	configs := getTradefedConfigOptions(ctx, &test.Properties, test.isolated(ctx), ctx.Device())
 
 	test.testConfig = tradefed.AutoGenTestConfig(ctx, tradefed.AutoGenTestConfigOptions{
@@ -532,6 +570,15 @@ func (test *testLibrary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	return flags
 }
 
+func (test *testLibrary) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *android.ModuleInfoJSON) {
+	if len(test.InstallerProperties.Test_suites) > 0 {
+		moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, test.InstallerProperties.Test_suites...)
+	}
+
+	test.libraryDecorator.moduleInfoJSON(ctx, moduleInfoJSON)
+	test.testDecorator.moduleInfoJSON(ctx, moduleInfoJSON)
+}
+
 func (test *testLibrary) installerProps() []interface{} {
 	return append(test.baseInstaller.installerProps(), test.testDecorator.installerProps()...)
 }
@@ -624,6 +671,29 @@ func (benchmark *benchmarkDecorator) install(ctx ModuleContext, file android.Pat
 	benchmark.binaryDecorator.baseInstaller.dir64 = filepath.Join("benchmarktest64", ctx.ModuleName())
 	benchmark.binaryDecorator.baseInstaller.installTestData(ctx, benchmark.data)
 	benchmark.binaryDecorator.baseInstaller.install(ctx, file)
+}
+
+func (benchmark *benchmarkDecorator) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *android.ModuleInfoJSON) {
+	benchmark.binaryDecorator.moduleInfoJSON(ctx, moduleInfoJSON)
+
+	moduleInfoJSON.Class = []string{"NATIVE_TESTS"}
+	if len(benchmark.Properties.Test_suites) > 0 {
+		moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, benchmark.Properties.Test_suites...)
+	} else {
+		moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, "null-suite")
+	}
+
+	if android.PrefixInList(moduleInfoJSON.CompatibilitySuites, "mts-") &&
+		!android.InList("mts", moduleInfoJSON.CompatibilitySuites) {
+		moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, "mts")
+	}
+
+	if benchmark.testConfig != nil {
+		if _, ok := benchmark.testConfig.(android.WritablePath); ok {
+			moduleInfoJSON.AutoTestConfig = []string{"true"}
+		}
+		moduleInfoJSON.TestConfig = []string{benchmark.testConfig.String()}
+	}
 }
 
 func NewBenchmark(hod android.HostOrDeviceSupported) *Module {

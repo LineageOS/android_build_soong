@@ -48,7 +48,7 @@ func updateImportedLibraryDependency(ctx android.BottomUpMutatorContext) {
 		return
 	}
 
-	if m.UseVndk() && apiLibrary.hasLLNDKStubs() {
+	if m.InVendorOrProduct() && apiLibrary.hasLLNDKStubs() {
 		// Add LLNDK variant dependency
 		if inList("llndk", apiLibrary.properties.Variants) {
 			variantName := BuildApiVariantName(m.BaseModuleName(), "llndk", "")
@@ -193,7 +193,7 @@ func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps
 		}
 	}
 
-	if m.UseVndk() && d.hasLLNDKStubs() {
+	if m.InVendorOrProduct() && d.hasLLNDKStubs() {
 		// LLNDK variant
 		load_cc_variant(BuildApiVariantName(m.BaseModuleName(), "llndk", ""))
 	} else if m.IsSdkVariant() {
@@ -244,7 +244,7 @@ func (d *apiLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps
 		},
 	})
 
-	ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
+	android.SetProvider(ctx, SharedLibraryInfoProvider, SharedLibraryInfo{
 		SharedLibrary: outputFile,
 		Target:        ctx.Target(),
 
@@ -262,15 +262,15 @@ func (d *apiLibraryDecorator) shareStubs(ctx ModuleContext) {
 	if len(stubs) > 0 {
 		var stubsInfo []SharedStubLibrary
 		for _, stub := range stubs {
-			stubInfo := ctx.OtherModuleProvider(stub, SharedLibraryInfoProvider).(SharedLibraryInfo)
-			flagInfo := ctx.OtherModuleProvider(stub, FlagExporterInfoProvider).(FlagExporterInfo)
+			stubInfo, _ := android.OtherModuleProvider(ctx, stub, SharedLibraryInfoProvider)
+			flagInfo, _ := android.OtherModuleProvider(ctx, stub, FlagExporterInfoProvider)
 			stubsInfo = append(stubsInfo, SharedStubLibrary{
 				Version:           moduleLibraryInterface(stub).stubsVersion(),
 				SharedLibraryInfo: stubInfo,
 				FlagExporterInfo:  flagInfo,
 			})
 		}
-		ctx.SetProvider(SharedLibraryStubsProvider, SharedLibraryStubsInfo{
+		android.SetProvider(ctx, SharedLibraryStubsProvider, SharedLibraryStubsInfo{
 			SharedStubLibraries: stubsInfo,
 
 			IsLLNDK: ctx.IsLlndk(),
@@ -312,7 +312,7 @@ func (d *apiLibraryDecorator) stubsVersions(ctx android.BaseMutatorContext) []st
 		}
 	}
 
-	if d.hasLLNDKStubs() && m.UseVndk() {
+	if d.hasLLNDKStubs() && m.InVendorOrProduct() {
 		// LLNDK libraries only need a single stubs variant.
 		return []string{android.FutureApiLevel.String()}
 	}

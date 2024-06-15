@@ -143,6 +143,39 @@ python_test_host {
 }
 
 python_library_host {
+    name: "uffd_gc_utils",
+    srcs: [
+        "uffd_gc_utils.py",
+    ],
+    visibility: [
+        "//build/make/tools:__subpackages__",
+    ],
+}
+
+python_test_host {
+    name: "uffd_gc_utils_test",
+    main: "uffd_gc_utils_test.py",
+    srcs: [
+        "uffd_gc_utils_test.py",
+    ],
+    libs: [
+        "uffd_gc_utils",
+    ],
+    test_suites: ["general-tests"],
+}
+
+python_binary_host {
+    name: "construct_uffd_gc_flag",
+    main: "construct_uffd_gc_flag.py",
+    srcs: [
+        "construct_uffd_gc_flag.py",
+    ],
+    libs: [
+        "uffd_gc_utils",
+    ],
+}
+
+python_library_host {
     name: "ninja_rsp",
     srcs: ["ninja_rsp.py"],
 }
@@ -253,4 +286,9 @@ python_test_host {
         "modify_permissions_allowlist_test.py",
         "modify_permissions_allowlist.py",
     ],
+}
+
+sh_binary_host {
+    name: "keep-flagged-apis",
+    src: "keep-flagged-apis.sh",
 }

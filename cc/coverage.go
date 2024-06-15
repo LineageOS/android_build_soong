@@ -22,6 +22,29 @@ import (
 	"android/soong/android"
 )
 
+var (
+ 	clangCoverageHostLdFlags = []string{
+ 		"-Wl,--no-as-needed",
+ 		"-Wl,--wrap,open",
+ 	}
+ 	clangContinuousCoverageFlags = []string{
+ 		"-mllvm",
+ 		"-runtime-counter-relocation",
+ 	}
+ 	clangCoverageCFlags = []string{
+ 		"-Wno-frame-larger-than=",
+ 	}
+ 	clangCoverageCommonFlags = []string{
+ 		"-fcoverage-mapping",
+ 		"-Wno-pass-failed",
+ 		"-D__ANDROID_CLANG_COVERAGE__",
+ 	}
+ 	clangCoverageHWASanFlags = []string{
+ 		"-mllvm",
+ 		"-hwasan-globals=0",
+ 	}
+)
+
 const profileInstrFlag = "-fprofile-instr-generate=/data/misc/trace/clang-%p-%m.profraw"
 
 type CoverageProperties struct {
@@ -68,7 +91,7 @@ func getClangProfileLibraryName(ctx ModuleContextIntf) string {
 }
 
 func (cov *coverage) deps(ctx DepsContext, deps Deps) Deps {
-	if cov.Properties.NeedCoverageVariant {
+	if cov.Properties.NeedCoverageVariant && ctx.Device() {
 		ctx.AddVariationDependencies([]blueprint.Variation{
 			{Mutator: "link", Variation: "static"},
 		}, CoverageDepTag, getGcovProfileLibraryName(ctx))
@@ -102,19 +125,19 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 			// flags that the module may use.
 			flags.Local.CFlags = append(flags.Local.CFlags, "-Wno-frame-larger-than=", "-O0")
 		} else if clangCoverage {
-			flags.Local.CommonFlags = append(flags.Local.CommonFlags, profileInstrFlag,
-				"-fcoverage-mapping", "-Wno-pass-failed", "-D__ANDROID_CLANG_COVERAGE__")
+			flags.Local.CommonFlags = append(flags.Local.CommonFlags, profileInstrFlag)
+			flags.Local.CommonFlags = append(flags.Local.CommonFlags, clangCoverageCommonFlags...)
 			// Override -Wframe-larger-than.  We can expect frame size increase after
 			// coverage instrumentation.
-			flags.Local.CFlags = append(flags.Local.CFlags, "-Wno-frame-larger-than=")
+			flags.Local.CFlags = append(flags.Local.CFlags, clangCoverageCFlags...)
 			if EnableContinuousCoverage(ctx) {
-				flags.Local.CommonFlags = append(flags.Local.CommonFlags, "-mllvm", "-runtime-counter-relocation")
+				flags.Local.CommonFlags = append(flags.Local.CommonFlags, clangContinuousCoverageFlags...)
 			}
 
 			// http://b/248022906, http://b/247941801  enabling coverage and hwasan-globals
 			// instrumentation together causes duplicate-symbol errors for __llvm_profile_filename.
 			if c, ok := ctx.Module().(*Module); ok && c.sanitize.isSanitizerEnabled(Hwasan) {
-				flags.Local.CommonFlags = append(flags.Local.CommonFlags, "-mllvm", "-hwasan-globals=0")
+				flags.Local.CommonFlags = append(flags.Local.CommonFlags, clangCoverageHWASanFlags...)
 			}
 		}
 	}
@@ -161,19 +184,22 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 		if gcovCoverage {
 			flags.Local.LdFlags = append(flags.Local.LdFlags, "--coverage")
 
-			coverage := ctx.GetDirectDepWithTag(getGcovProfileLibraryName(ctx), CoverageDepTag).(*Module)
-			deps.WholeStaticLibs = append(deps.WholeStaticLibs, coverage.OutputFile().Path())
-
-			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--wrap,getenv")
+			if ctx.Device() {
+				coverage := ctx.GetDirectDepWithTag(getGcovProfileLibraryName(ctx), CoverageDepTag).(*Module)
+				deps.WholeStaticLibs = append(deps.WholeStaticLibs, coverage.OutputFile().Path())
+				flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--wrap,getenv")
+			}
 		} else if clangCoverage {
 			flags.Local.LdFlags = append(flags.Local.LdFlags, profileInstrFlag)
 			if EnableContinuousCoverage(ctx) {
 				flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-mllvm=-runtime-counter-relocation")
 			}
 
-			coverage := ctx.GetDirectDepWithTag(getClangProfileLibraryName(ctx), CoverageDepTag).(*Module)
-			deps.WholeStaticLibs = append(deps.WholeStaticLibs, coverage.OutputFile().Path())
-			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--wrap,open")
+			if ctx.Device() {
+				coverage := ctx.GetDirectDepWithTag(getClangProfileLibraryName(ctx), CoverageDepTag).(*Module)
+				deps.WholeStaticLibs = append(deps.WholeStaticLibs, coverage.OutputFile().Path())
+				flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--wrap,open")
+			}
 		}
 	}
 
@@ -181,7 +207,7 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 }
 
 func (cov *coverage) begin(ctx BaseModuleContext) {
-	if ctx.Host() {
+	if ctx.Host() && !ctx.Os().Linux() {
 		// TODO(dwillemsen): because of -nodefaultlibs, we must depend on libclang_rt.profile-*.a
 		// Just turn off for now.
 	} else {
@@ -223,7 +249,7 @@ func SetCoverageProperties(ctx android.BaseModuleContext, properties CoveragePro
 
 type UseCoverage interface {
 	android.Module
-	IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool
+	IsNativeCoverageNeeded(ctx android.IncomingTransitionContext) bool
 }
 
 // Coverage is an interface for non-CC modules to implement to be mutated for coverage
@@ -235,43 +261,86 @@ type Coverage interface {
 	EnableCoverageIfNeeded()
 }
 
-func coverageMutator(mctx android.BottomUpMutatorContext) {
-	if c, ok := mctx.Module().(*Module); ok && c.coverage != nil {
-		needCoverageVariant := c.coverage.Properties.NeedCoverageVariant
-		needCoverageBuild := c.coverage.Properties.NeedCoverageBuild
-		if needCoverageVariant {
-			m := mctx.CreateVariations("", "cov")
+type coverageTransitionMutator struct{}
 
-			// Setup the non-coverage version and set HideFromMake and
-			// PreventInstall to true.
-			m[0].(*Module).coverage.Properties.CoverageEnabled = false
-			m[0].(*Module).coverage.Properties.IsCoverageVariant = false
-			m[0].(*Module).Properties.HideFromMake = true
-			m[0].(*Module).Properties.PreventInstall = true
+var _ android.TransitionMutator = (*coverageTransitionMutator)(nil)
 
-			// The coverage-enabled version inherits HideFromMake,
-			// PreventInstall from the original module.
-			m[1].(*Module).coverage.Properties.CoverageEnabled = needCoverageBuild
-			m[1].(*Module).coverage.Properties.IsCoverageVariant = true
+func (c coverageTransitionMutator) Split(ctx android.BaseModuleContext) []string {
+	if c, ok := ctx.Module().(*Module); ok && c.coverage != nil {
+		if c.coverage.Properties.NeedCoverageVariant {
+			return []string{"", "cov"}
 		}
-	} else if cov, ok := mctx.Module().(Coverage); ok && cov.IsNativeCoverageNeeded(mctx) {
+	} else if cov, ok := ctx.Module().(Coverage); ok && cov.IsNativeCoverageNeeded(ctx) {
 		// APEX and Rust modules fall here
 
 		// Note: variant "" is also created because an APEX can be depended on by another
 		// module which are split into "" and "cov" variants. e.g. when cc_test refers
 		// to an APEX via 'data' property.
-		m := mctx.CreateVariations("", "cov")
-		m[0].(Coverage).MarkAsCoverageVariant(false)
-		m[0].(Coverage).SetPreventInstall()
-		m[0].(Coverage).HideFromMake()
-
-		m[1].(Coverage).MarkAsCoverageVariant(true)
-		m[1].(Coverage).EnableCoverageIfNeeded()
-	} else if cov, ok := mctx.Module().(UseCoverage); ok && cov.IsNativeCoverageNeeded(mctx) {
+		return []string{"", "cov"}
+	} else if cov, ok := ctx.Module().(UseCoverage); ok && cov.IsNativeCoverageNeeded(ctx) {
 		// Module itself doesn't have to have "cov" variant, but it should use "cov" variants of
 		// deps.
-		mctx.CreateVariations("cov")
-		mctx.AliasVariation("cov")
+		return []string{"cov"}
+	}
+
+	return []string{""}
+}
+
+func (c coverageTransitionMutator) OutgoingTransition(ctx android.OutgoingTransitionContext, sourceVariation string) string {
+	return sourceVariation
+}
+
+func (c coverageTransitionMutator) IncomingTransition(ctx android.IncomingTransitionContext, incomingVariation string) string {
+	if c, ok := ctx.Module().(*Module); ok && c.coverage != nil {
+		if !c.coverage.Properties.NeedCoverageVariant {
+			return ""
+		}
+	} else if cov, ok := ctx.Module().(Coverage); ok {
+		if !cov.IsNativeCoverageNeeded(ctx) {
+			return ""
+		}
+	} else if cov, ok := ctx.Module().(UseCoverage); ok && cov.IsNativeCoverageNeeded(ctx) {
+		// Module only has a "cov" variation, so all incoming variations should use "cov".
+		return "cov"
+	} else {
+		return ""
+	}
+
+	return incomingVariation
+}
+
+func (c coverageTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, variation string) {
+	if c, ok := ctx.Module().(*Module); ok && c.coverage != nil {
+		if variation == "" && c.coverage.Properties.NeedCoverageVariant {
+			// Setup the non-coverage version and set HideFromMake and
+			// PreventInstall to true.
+			c.coverage.Properties.CoverageEnabled = false
+			c.coverage.Properties.IsCoverageVariant = false
+			c.Properties.HideFromMake = true
+			c.Properties.PreventInstall = true
+		} else if variation == "cov" {
+			// The coverage-enabled version inherits HideFromMake,
+			// PreventInstall from the original module.
+			c.coverage.Properties.CoverageEnabled = c.coverage.Properties.NeedCoverageBuild
+			c.coverage.Properties.IsCoverageVariant = true
+		}
+	} else if cov, ok := ctx.Module().(Coverage); ok && cov.IsNativeCoverageNeeded(ctx) {
+		// APEX and Rust modules fall here
+
+		// Note: variant "" is also created because an APEX can be depended on by another
+		// module which are split into "" and "cov" variants. e.g. when cc_test refers
+		// to an APEX via 'data' property.
+		if variation == "" {
+			cov.MarkAsCoverageVariant(false)
+			cov.SetPreventInstall()
+			cov.HideFromMake()
+		} else if variation == "cov" {
+			cov.MarkAsCoverageVariant(true)
+			cov.EnableCoverageIfNeeded()
+		}
+	} else if cov, ok := ctx.Module().(UseCoverage); ok && cov.IsNativeCoverageNeeded(ctx) {
+		// Module itself doesn't have to have "cov" variant, but it should use "cov" variants of
+		// deps.
 	}
 }
 

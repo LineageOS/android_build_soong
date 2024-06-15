@@ -183,7 +183,6 @@ func NewTestArchContext(config Config) *TestContext {
 type TestContext struct {
 	*Context
 	preArch, preDeps, postDeps, finalDeps []RegisterMutatorFunc
-	bp2buildPreArch, bp2buildMutators     []RegisterMutatorFunc
 	NameResolver                          *NameResolver
 
 	// The list of singletons registered for the test.
@@ -203,7 +202,7 @@ func (ctx *TestContext) HardCodedPreArchMutators(f RegisterMutatorFunc) {
 	ctx.PreArchMutators(f)
 }
 
-func (ctx *TestContext) ModuleProvider(m blueprint.Module, p blueprint.ProviderKey) interface{} {
+func (ctx *TestContext) moduleProvider(m blueprint.Module, p blueprint.AnyProviderKey) (any, bool) {
 	return ctx.Context.ModuleProvider(m, p)
 }
 
@@ -219,10 +218,10 @@ func (ctx *TestContext) FinalDepsMutators(f RegisterMutatorFunc) {
 	ctx.finalDeps = append(ctx.finalDeps, f)
 }
 
-// PreArchBp2BuildMutators adds mutators to be register for converting Android Blueprint modules
-// into Bazel BUILD targets that should run prior to deps and conversion.
-func (ctx *TestContext) PreArchBp2BuildMutators(f RegisterMutatorFunc) {
-	ctx.bp2buildPreArch = append(ctx.bp2buildPreArch, f)
+func (ctx *TestContext) OtherModuleProviderAdaptor() OtherModuleProviderContext {
+	return NewOtherModuleProviderAdaptor(func(module blueprint.Module, provider blueprint.AnyProviderKey) (any, bool) {
+		return ctx.moduleProvider(module, provider)
+	})
 }
 
 // registeredComponentOrder defines the order in which a sortableComponent type is registered at
@@ -726,7 +725,6 @@ type TestingBuildParams struct {
 //   - Depfile
 //   - Rspfile
 //   - RspfileContent
-//   - SymlinkOutputs
 //   - CommandDeps
 //   - CommandOrderOnly
 //
@@ -748,8 +746,6 @@ func (p TestingBuildParams) RelativeToTop() TestingBuildParams {
 	bparams.Depfile = normalizeWritablePathRelativeToTop(bparams.Depfile)
 	bparams.Output = normalizeWritablePathRelativeToTop(bparams.Output)
 	bparams.Outputs = bparams.Outputs.RelativeToTop()
-	bparams.SymlinkOutput = normalizeWritablePathRelativeToTop(bparams.SymlinkOutput)
-	bparams.SymlinkOutputs = bparams.SymlinkOutputs.RelativeToTop()
 	bparams.ImplicitOutput = normalizeWritablePathRelativeToTop(bparams.ImplicitOutput)
 	bparams.ImplicitOutputs = bparams.ImplicitOutputs.RelativeToTop()
 	bparams.Input = normalizePathRelativeToTop(bparams.Input)
@@ -767,7 +763,6 @@ func (p TestingBuildParams) RelativeToTop() TestingBuildParams {
 	rparams.Depfile = normalizeStringRelativeToTop(p.config, rparams.Depfile)
 	rparams.Rspfile = normalizeStringRelativeToTop(p.config, rparams.Rspfile)
 	rparams.RspfileContent = normalizeStringRelativeToTop(p.config, rparams.RspfileContent)
-	rparams.SymlinkOutputs = normalizeStringArrayRelativeToTop(p.config, rparams.SymlinkOutputs)
 	rparams.CommandDeps = normalizeStringArrayRelativeToTop(p.config, rparams.CommandDeps)
 	rparams.CommandOrderOnly = normalizeStringArrayRelativeToTop(p.config, rparams.CommandOrderOnly)
 
@@ -1126,6 +1121,7 @@ func AndroidMkEntriesForTest(t *testing.T, ctx *TestContext, mod blueprint.Modul
 	}
 
 	entriesList := p.AndroidMkEntries()
+	aconfigUpdateAndroidMkEntries(ctx, mod.(Module), &entriesList)
 	for i, _ := range entriesList {
 		entriesList[i].fillInEntries(ctx, mod)
 	}
@@ -1141,6 +1137,7 @@ func AndroidMkDataForTest(t *testing.T, ctx *TestContext, mod blueprint.Module) 
 	}
 	data := p.AndroidMk()
 	data.fillInData(ctx, mod)
+	aconfigUpdateAndroidMkData(ctx, mod.(Module), &data)
 	return data
 }
 

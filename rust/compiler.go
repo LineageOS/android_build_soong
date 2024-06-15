@@ -332,7 +332,7 @@ func (compiler *baseCompiler) featureFlags(ctx ModuleContext, flags Flags) Flags
 }
 
 func (compiler *baseCompiler) cfgFlags(ctx ModuleContext, flags Flags) Flags {
-	if ctx.RustModule().UseVndk() {
+	if ctx.RustModule().InVendorOrProduct() {
 		compiler.Properties.Cfgs = append(compiler.Properties.Cfgs, "android_vndk")
 		if ctx.RustModule().InVendor() {
 			compiler.Properties.Cfgs = append(compiler.Properties.Cfgs, "android_vendor")
@@ -520,7 +520,7 @@ func (compiler *baseCompiler) installDir(ctx ModuleContext) android.InstallPath 
 		dir = filepath.Join(dir, ctx.Arch().ArchType.String())
 	}
 
-	if compiler.location == InstallInData && ctx.RustModule().UseVndk() {
+	if compiler.location == InstallInData && ctx.RustModule().InVendorOrProduct() {
 		if ctx.RustModule().InProduct() {
 			dir = filepath.Join(dir, "product")
 		} else if ctx.RustModule().InVendor() {

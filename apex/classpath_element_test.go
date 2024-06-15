@@ -20,7 +20,6 @@ import (
 
 	"android/soong/android"
 	"android/soong/java"
-	"github.com/google/blueprint"
 )
 
 // Contains tests for java.CreateClasspathElements logic from java/classpath_element.go that
@@ -28,17 +27,10 @@ import (
 
 // testClasspathElementContext is a ClasspathElementContext suitable for use in tests.
 type testClasspathElementContext struct {
+	android.OtherModuleProviderContext
 	testContext *android.TestContext
 	module      android.Module
 	errs        []error
-}
-
-func (t *testClasspathElementContext) OtherModuleHasProvider(module blueprint.Module, provider blueprint.ProviderKey) bool {
-	return t.testContext.ModuleHasProvider(module, provider)
-}
-
-func (t *testClasspathElementContext) OtherModuleProvider(module blueprint.Module, provider blueprint.ProviderKey) interface{} {
-	return t.testContext.ModuleProvider(module, provider)
 }
 
 func (t *testClasspathElementContext) ModuleErrorf(fmt string, args ...interface{}) {
@@ -238,7 +230,11 @@ func TestCreateClasspathElements(t *testing.T) {
 	}
 
 	newCtx := func() *testClasspathElementContext {
-		return &testClasspathElementContext{testContext: result.TestContext, module: bootclasspath}
+		return &testClasspathElementContext{
+			OtherModuleProviderContext: result.TestContext.OtherModuleProviderAdaptor(),
+			testContext:                result.TestContext,
+			module:                     bootclasspath,
+		}
 	}
 
 	// Verify that CreateClasspathElements works when given valid input.

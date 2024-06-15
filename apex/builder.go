@@ -85,6 +85,18 @@ func init() {
 	pctx.HostBinToolVariable("aconfig", "aconfig")
 }
 
+type createStorageStruct struct {
+	Output_file string
+	Desc        string
+	File_type   string
+}
+
+var createStorageInfo = []createStorageStruct{
+	{"package.map", "create_aconfig_package_map_file", "package_map"},
+	{"flag.map", "create_aconfig_flag_map_file", "flag_map"},
+	{"flag.val", "create_aconfig_flag_val_file", "flag_val"},
+}
+
 var (
 	apexManifestRule = pctx.StaticRule("apexManifestRule", blueprint.RuleParams{
 		Command: `rm -f $out && ${jsonmodify} $in ` +
@@ -633,6 +645,7 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 	prebuiltSdkToolsBinDir := filepath.Join("prebuilts", "sdk", "tools", runtime.GOOS, "bin")
 
 	defaultReadOnlyFiles := []string{"apex_manifest.json", "apex_manifest.pb"}
+	aconfigDest := imageDir.Join(ctx, "etc").String()
 	if len(a.aconfigFiles) > 0 {
 		apexAconfigFile := android.PathForModuleOut(ctx, "aconfig_flags.pb")
 		ctx.Build(pctx, android.BuildParams{
@@ -645,9 +658,28 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 			},
 		})
 
-		copyCommands = append(copyCommands, "cp -f "+apexAconfigFile.String()+" "+imageDir.String())
+		copyCommands = append(copyCommands, "cp -f "+apexAconfigFile.String()+" "+aconfigDest)
 		implicitInputs = append(implicitInputs, apexAconfigFile)
-		defaultReadOnlyFiles = append(defaultReadOnlyFiles, apexAconfigFile.Base())
+		defaultReadOnlyFiles = append(defaultReadOnlyFiles, "etc/"+apexAconfigFile.Base())
+
+		for _, info := range createStorageInfo {
+			outputFile := android.PathForModuleOut(ctx, info.Output_file)
+			ctx.Build(pctx, android.BuildParams{
+				Rule:        aconfig.CreateStorageRule,
+				Inputs:      a.aconfigFiles,
+				Output:      outputFile,
+				Description: info.Desc,
+				Args: map[string]string{
+					"container":   ctx.ModuleName(),
+					"file_type":   info.File_type,
+					"cache_files": android.JoinPathsWithPrefix(a.aconfigFiles, "--cache "),
+				},
+			})
+
+			copyCommands = append(copyCommands, "cp -f "+outputFile.String()+" "+aconfigDest)
+			implicitInputs = append(implicitInputs, outputFile)
+			defaultReadOnlyFiles = append(defaultReadOnlyFiles, "etc/"+outputFile.Base())
+		}
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////
@@ -695,18 +727,20 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 	if moduleMinSdkVersion.IsCurrent() || moduleMinSdkVersion.IsNone() {
 		minSdkVersion = ctx.Config().DefaultAppTargetSdk(ctx).String()
 
-		if java.UseApiFingerprint(ctx) {
-			minSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", java.ApiFingerprintPath(ctx).String())
-			implicitInputs = append(implicitInputs, java.ApiFingerprintPath(ctx))
+		if useApiFingerprint, fingerprintMinSdkVersion, fingerprintDeps :=
+			java.UseApiFingerprint(ctx); useApiFingerprint {
+			minSdkVersion = fingerprintMinSdkVersion
+			implicitInputs = append(implicitInputs, fingerprintDeps)
 		}
 	}
 	// apex module doesn't have a concept of target_sdk_version, hence for the time
 	// being targetSdkVersion == default targetSdkVersion of the branch.
 	targetSdkVersion := strconv.Itoa(ctx.Config().DefaultAppTargetSdk(ctx).FinalOrFutureInt())
 
-	if java.UseApiFingerprint(ctx) {
-		targetSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", java.ApiFingerprintPath(ctx).String())
-		implicitInputs = append(implicitInputs, java.ApiFingerprintPath(ctx))
+	if useApiFingerprint, fingerprintTargetSdkVersion, fingerprintDeps :=
+		java.UseApiFingerprint(ctx); useApiFingerprint {
+		targetSdkVersion = fingerprintTargetSdkVersion
+		implicitInputs = append(implicitInputs, fingerprintDeps)
 	}
 	optFlags = append(optFlags, "--target_sdk_version "+targetSdkVersion)
 	optFlags = append(optFlags, "--min_sdk_version "+minSdkVersion)
@@ -910,7 +944,7 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 	var validations android.Paths
 	validations = append(validations, runApexLinkerconfigValidation(ctx, unsignedOutputFile.OutputPath, imageDir.OutputPath))
 	// TODO(b/279688635) deapexer supports [ext4]
-	if suffix == imageApexSuffix && ext4 == a.payloadFsType {
+	if !a.testApex && suffix == imageApexSuffix && ext4 == a.payloadFsType {
 		validations = append(validations, runApexSepolicyTests(ctx, unsignedOutputFile.OutputPath))
 	}
 	if !a.testApex && len(a.properties.Unwanted_transitive_deps) > 0 {

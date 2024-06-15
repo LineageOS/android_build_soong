@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/dexpreopt"
 
 	"github.com/google/blueprint"
 )
@@ -244,12 +245,22 @@ func hiddenAPIComputeMonolithicStubLibModules(config android.Config) map[*Hidden
 		testStubModules = append(testStubModules, "sdk_test_current_android")
 	} else {
 		// Use stub modules built from source
-		publicStubModules = append(publicStubModules, android.SdkPublic.DefaultJavaLibraryName())
-		systemStubModules = append(systemStubModules, android.SdkSystem.DefaultJavaLibraryName())
-		testStubModules = append(testStubModules, android.SdkTest.DefaultJavaLibraryName())
+		if config.ReleaseHiddenApiExportableStubs() {
+			publicStubModules = append(publicStubModules, android.SdkPublic.DefaultExportableJavaLibraryName())
+			systemStubModules = append(systemStubModules, android.SdkSystem.DefaultExportableJavaLibraryName())
+			testStubModules = append(testStubModules, android.SdkTest.DefaultExportableJavaLibraryName())
+		} else {
+			publicStubModules = append(publicStubModules, android.SdkPublic.DefaultJavaLibraryName())
+			systemStubModules = append(systemStubModules, android.SdkSystem.DefaultJavaLibraryName())
+			testStubModules = append(testStubModules, android.SdkTest.DefaultJavaLibraryName())
+		}
 	}
 	// We do not have prebuilts of the core platform api yet
-	corePlatformStubModules = append(corePlatformStubModules, "legacy.core.platform.api.stubs")
+	if config.ReleaseHiddenApiExportableStubs() {
+		corePlatformStubModules = append(corePlatformStubModules, "legacy.core.platform.api.stubs.exportable")
+	} else {
+		corePlatformStubModules = append(corePlatformStubModules, "legacy.core.platform.api.stubs")
+	}
 
 	// Allow products to define their own stubs for custom product jars that apps can use.
 	publicStubModules = append(publicStubModules, config.ProductHiddenAPIStubs()...)
@@ -288,9 +299,14 @@ func hiddenAPIAddStubLibDependencies(ctx android.BottomUpMutatorContext, apiScop
 func hiddenAPIRetrieveDexJarBuildPath(ctx android.ModuleContext, module android.Module, kind android.SdkKind) android.Path {
 	var dexJar OptionalDexJarPath
 	if sdkLibrary, ok := module.(SdkLibraryDependency); ok {
-		dexJar = sdkLibrary.SdkApiStubDexJar(ctx, kind)
+		if ctx.Config().ReleaseHiddenApiExportableStubs() {
+			dexJar = sdkLibrary.SdkApiExportableStubDexJar(ctx, kind)
+		} else {
+			dexJar = sdkLibrary.SdkApiStubDexJar(ctx, kind)
+		}
+
 	} else if j, ok := module.(UsesLibraryDependency); ok {
-		dexJar = j.DexJarBuildPath()
+		dexJar = j.DexJarBuildPath(ctx)
 	} else {
 		ctx.ModuleErrorf("dependency %s of module type %s does not support providing a dex jar", module, ctx.OtherModuleType(module))
 		return nil
@@ -419,122 +435,118 @@ type HiddenAPIFlagFileProperties struct {
 	}
 }
 
-type hiddenAPIFlagFileCategory struct {
-	// PropertyName is the name of the property for this category.
-	PropertyName string
+type hiddenAPIFlagFileCategory int
 
-	// propertyValueReader retrieves the value of the property for this category from the set of
-	// properties.
-	propertyValueReader func(properties *HiddenAPIFlagFileProperties) []string
+const (
+	// The flag file category for removed members of the API.
+	//
+	// This is extracted from HiddenAPIFlagFileCategories as it is needed to add the dex signatures
+	// list of removed API members that are generated automatically from the removed.txt files provided
+	// by API stubs.
+	hiddenAPIFlagFileCategoryRemoved hiddenAPIFlagFileCategory = iota
+	hiddenAPIFlagFileCategoryUnsupported
+	hiddenAPIFlagFileCategoryMaxTargetRLowPriority
+	hiddenAPIFlagFileCategoryMaxTargetQ
+	hiddenAPIFlagFileCategoryMaxTargetP
+	hiddenAPIFlagFileCategoryMaxTargetOLowPriority
+	hiddenAPIFlagFileCategoryBlocked
+	hiddenAPIFlagFileCategoryUnsupportedPackages
+)
 
-	// commandMutator adds the appropriate command line options for this category to the supplied
-	// command
-	commandMutator func(command *android.RuleBuilderCommand, path android.Path)
-}
-
-// The flag file category for removed members of the API.
-//
-// This is extracted from HiddenAPIFlagFileCategories as it is needed to add the dex signatures
-// list of removed API members that are generated automatically from the removed.txt files provided
-// by API stubs.
-var hiddenAPIRemovedFlagFileCategory = &hiddenAPIFlagFileCategory{
-	// See HiddenAPIFlagFileProperties.Removed
-	PropertyName: "removed",
-	propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-		return properties.Hidden_api.Removed
-	},
-	commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
-		command.FlagWithInput("--unsupported ", path).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "removed")
-	},
-}
-
-type hiddenAPIFlagFileCategories []*hiddenAPIFlagFileCategory
-
-func (c hiddenAPIFlagFileCategories) byProperty(name string) *hiddenAPIFlagFileCategory {
-	for _, category := range c {
-		if category.PropertyName == name {
-			return category
-		}
+func (c hiddenAPIFlagFileCategory) PropertyName() string {
+	switch c {
+	case hiddenAPIFlagFileCategoryRemoved:
+		return "removed"
+	case hiddenAPIFlagFileCategoryUnsupported:
+		return "unsupported"
+	case hiddenAPIFlagFileCategoryMaxTargetRLowPriority:
+		return "max_target_r_low_priority"
+	case hiddenAPIFlagFileCategoryMaxTargetQ:
+		return "max_target_q"
+	case hiddenAPIFlagFileCategoryMaxTargetP:
+		return "max_target_p"
+	case hiddenAPIFlagFileCategoryMaxTargetOLowPriority:
+		return "max_target_o_low_priority"
+	case hiddenAPIFlagFileCategoryBlocked:
+		return "blocked"
+	case hiddenAPIFlagFileCategoryUnsupportedPackages:
+		return "unsupported_packages"
+	default:
+		panic(fmt.Sprintf("Unknown hidden api flag file category type: %d", c))
 	}
-	panic(fmt.Errorf("no category exists with property name %q in %v", name, c))
 }
+
+// propertyValueReader retrieves the value of the property for this category from the set of properties.
+func (c hiddenAPIFlagFileCategory) propertyValueReader(properties *HiddenAPIFlagFileProperties) []string {
+	switch c {
+	case hiddenAPIFlagFileCategoryRemoved:
+		return properties.Hidden_api.Removed
+	case hiddenAPIFlagFileCategoryUnsupported:
+		return properties.Hidden_api.Unsupported
+	case hiddenAPIFlagFileCategoryMaxTargetRLowPriority:
+		return properties.Hidden_api.Max_target_r_low_priority
+	case hiddenAPIFlagFileCategoryMaxTargetQ:
+		return properties.Hidden_api.Max_target_q
+	case hiddenAPIFlagFileCategoryMaxTargetP:
+		return properties.Hidden_api.Max_target_p
+	case hiddenAPIFlagFileCategoryMaxTargetOLowPriority:
+		return properties.Hidden_api.Max_target_o_low_priority
+	case hiddenAPIFlagFileCategoryBlocked:
+		return properties.Hidden_api.Blocked
+	case hiddenAPIFlagFileCategoryUnsupportedPackages:
+		return properties.Hidden_api.Unsupported_packages
+	default:
+		panic(fmt.Sprintf("Unknown hidden api flag file category type: %d", c))
+	}
+}
+
+// commandMutator adds the appropriate command line options for this category to the supplied command
+func (c hiddenAPIFlagFileCategory) commandMutator(command *android.RuleBuilderCommand, path android.Path) {
+	switch c {
+	case hiddenAPIFlagFileCategoryRemoved:
+		command.FlagWithInput("--unsupported ", path).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "removed")
+	case hiddenAPIFlagFileCategoryUnsupported:
+		command.FlagWithInput("--unsupported ", path)
+	case hiddenAPIFlagFileCategoryMaxTargetRLowPriority:
+		command.FlagWithInput("--max-target-r ", path).FlagWithArg("--tag ", "lo-prio")
+	case hiddenAPIFlagFileCategoryMaxTargetQ:
+		command.FlagWithInput("--max-target-q ", path)
+	case hiddenAPIFlagFileCategoryMaxTargetP:
+		command.FlagWithInput("--max-target-p ", path)
+	case hiddenAPIFlagFileCategoryMaxTargetOLowPriority:
+		command.FlagWithInput("--max-target-o ", path).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "lo-prio")
+	case hiddenAPIFlagFileCategoryBlocked:
+		command.FlagWithInput("--blocked ", path)
+	case hiddenAPIFlagFileCategoryUnsupportedPackages:
+		command.FlagWithInput("--unsupported ", path).Flag("--packages ")
+	default:
+		panic(fmt.Sprintf("Unknown hidden api flag file category type: %d", c))
+	}
+}
+
+type hiddenAPIFlagFileCategories []hiddenAPIFlagFileCategory
 
 var HiddenAPIFlagFileCategories = hiddenAPIFlagFileCategories{
 	// See HiddenAPIFlagFileProperties.Unsupported
-	{
-		PropertyName: "unsupported",
-		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Hidden_api.Unsupported
-		},
-		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
-			command.FlagWithInput("--unsupported ", path)
-		},
-	},
-	hiddenAPIRemovedFlagFileCategory,
+	hiddenAPIFlagFileCategoryUnsupported,
+	// See HiddenAPIFlagFileProperties.Removed
+	hiddenAPIFlagFileCategoryRemoved,
 	// See HiddenAPIFlagFileProperties.Max_target_r_low_priority
-	{
-		PropertyName: "max_target_r_low_priority",
-		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Hidden_api.Max_target_r_low_priority
-		},
-		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
-			command.FlagWithInput("--max-target-r ", path).FlagWithArg("--tag ", "lo-prio")
-		},
-	},
+	hiddenAPIFlagFileCategoryMaxTargetRLowPriority,
 	// See HiddenAPIFlagFileProperties.Max_target_q
-	{
-		PropertyName: "max_target_q",
-		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Hidden_api.Max_target_q
-		},
-		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
-			command.FlagWithInput("--max-target-q ", path)
-		},
-	},
+	hiddenAPIFlagFileCategoryMaxTargetQ,
 	// See HiddenAPIFlagFileProperties.Max_target_p
-	{
-		PropertyName: "max_target_p",
-		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Hidden_api.Max_target_p
-		},
-		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
-			command.FlagWithInput("--max-target-p ", path)
-		},
-	},
+	hiddenAPIFlagFileCategoryMaxTargetP,
 	// See HiddenAPIFlagFileProperties.Max_target_o_low_priority
-	{
-		PropertyName: "max_target_o_low_priority",
-		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Hidden_api.Max_target_o_low_priority
-		},
-		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
-			command.FlagWithInput("--max-target-o ", path).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "lo-prio")
-		},
-	},
+	hiddenAPIFlagFileCategoryMaxTargetOLowPriority,
 	// See HiddenAPIFlagFileProperties.Blocked
-	{
-		PropertyName: "blocked",
-		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Hidden_api.Blocked
-		},
-		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
-			command.FlagWithInput("--blocked ", path)
-		},
-	},
+	hiddenAPIFlagFileCategoryBlocked,
 	// See HiddenAPIFlagFileProperties.Unsupported_packages
-	{
-		PropertyName: "unsupported_packages",
-		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
-			return properties.Hidden_api.Unsupported_packages
-		},
-		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
-			command.FlagWithInput("--unsupported ", path).Flag("--packages ")
-		},
-	},
+	hiddenAPIFlagFileCategoryUnsupportedPackages,
 }
 
 // FlagFilesByCategory maps a hiddenAPIFlagFileCategory to the paths to the files in that category.
-type FlagFilesByCategory map[*hiddenAPIFlagFileCategory]android.Paths
+type FlagFilesByCategory map[hiddenAPIFlagFileCategory]android.Paths
 
 // append the supplied flags files to the corresponding category in this map.
 func (s FlagFilesByCategory) append(other FlagFilesByCategory) {
@@ -579,8 +591,7 @@ func (i *HiddenAPIInfo) mergeFromFragmentDeps(ctx android.ModuleContext, fragmen
 	// Merge all the information from the fragments. The fragments form a DAG so it is possible that
 	// this will introduce duplicates so they will be resolved after processing all the fragments.
 	for _, fragment := range fragments {
-		if ctx.OtherModuleHasProvider(fragment, HiddenAPIInfoProvider) {
-			info := ctx.OtherModuleProvider(fragment, HiddenAPIInfoProvider).(HiddenAPIInfo)
+		if info, ok := android.OtherModuleProvider(ctx, fragment, HiddenAPIInfoProvider); ok {
 			i.TransitiveStubDexJarsByScope.addStubDexJarsByModule(info.TransitiveStubDexJarsByScope)
 		}
 	}
@@ -600,7 +611,7 @@ func (i *HiddenAPIInfo) FlagSubset() SignatureCsvSubset {
 	return SignatureCsvSubset{i.FilteredFlagsPath, i.SignaturePatternsPath}
 }
 
-var HiddenAPIInfoProvider = blueprint.NewProvider(HiddenAPIInfo{})
+var HiddenAPIInfoProvider = blueprint.NewProvider[HiddenAPIInfo]()
 
 // HiddenAPIInfoForSdk contains information provided by the hidden API processing for use
 // by the sdk snapshot.
@@ -617,7 +628,7 @@ type HiddenAPIInfoForSdk struct {
 }
 
 // Provides hidden API info for the sdk snapshot.
-var HiddenAPIInfoForSdkProvider = blueprint.NewProvider(HiddenAPIInfoForSdk{})
+var HiddenAPIInfoForSdkProvider = blueprint.NewProvider[HiddenAPIInfoForSdk]()
 
 // ModuleStubDexJars contains the stub dex jars provided by a single module.
 //
@@ -749,7 +760,7 @@ type HiddenAPIPropertyInfo struct {
 	SplitPackages []string
 }
 
-var hiddenAPIPropertyInfoProvider = blueprint.NewProvider(HiddenAPIPropertyInfo{})
+var hiddenAPIPropertyInfoProvider = blueprint.NewProvider[HiddenAPIPropertyInfo]()
 
 // newHiddenAPIPropertyInfo creates a new initialized HiddenAPIPropertyInfo struct.
 func newHiddenAPIPropertyInfo() HiddenAPIPropertyInfo {
@@ -777,8 +788,7 @@ func (i *HiddenAPIPropertyInfo) extractPackageRulesFromProperties(p *HiddenAPIPa
 
 func (i *HiddenAPIPropertyInfo) gatherPropertyInfo(ctx android.ModuleContext, contents []android.Module) {
 	for _, module := range contents {
-		if ctx.OtherModuleHasProvider(module, hiddenAPIPropertyInfoProvider) {
-			info := ctx.OtherModuleProvider(module, hiddenAPIPropertyInfoProvider).(HiddenAPIPropertyInfo)
+		if info, ok := android.OtherModuleProvider(ctx, module, hiddenAPIPropertyInfoProvider); ok {
 			i.FlagFilesByCategory.append(info.FlagFilesByCategory)
 			i.PackagePrefixes = append(i.PackagePrefixes, info.PackagePrefixes...)
 			i.SinglePackages = append(i.SinglePackages, info.SinglePackages...)
@@ -949,6 +959,7 @@ type HiddenAPIOutput struct {
 	HiddenAPIFlagOutput
 
 	// The map from base module name to the path to the encoded boot dex file.
+	// This field is not available in prebuilt apexes
 	EncodedBootDexFilesByModule bootDexJarByModule
 }
 
@@ -999,7 +1010,7 @@ func buildRuleToGenerateHiddenApiFlags(ctx android.BuilderContext, name, desc st
 	// If available then pass the automatically generated file containing dex signatures of removed
 	// API members to the rule so they can be marked as removed.
 	if generatedRemovedDexSignatures.Valid() {
-		hiddenAPIRemovedFlagFileCategory.commandMutator(command, generatedRemovedDexSignatures.Path())
+		hiddenAPIFlagFileCategoryRemoved.commandMutator(command, generatedRemovedDexSignatures.Path())
 	}
 
 	commitChangeForRestat(rule, tempPath, outputPath)
@@ -1251,9 +1262,27 @@ func buildRuleToGenerateRemovedDexSignatures(ctx android.ModuleContext, suffix s
 }
 
 // extractBootDexJarsFromModules extracts the boot dex jars from the supplied modules.
+// This information can come from two mechanisms
+// 1. New: Direct deps to _selected_ apexes. The apexes contain a ApexExportsInfo
+// 2. Legacy: An edge to java_sdk_library(_import) module. For prebuilt apexes, this serves as a hook and is populated by deapexers of prebuilt apxes
+// TODO: b/308174306 - Once all mainline modules have been flagged, drop (2)
 func extractBootDexJarsFromModules(ctx android.ModuleContext, contents []android.Module) bootDexJarByModule {
 	bootDexJars := bootDexJarByModule{}
+
+	apexNameToApexExportsInfoMap := getApexNameToApexExportsInfoMap(ctx)
+	// For ART and mainline module jars, query apexNameToApexExportsInfoMap to get the dex file
+	apexJars := dexpreopt.GetGlobalConfig(ctx).ArtApexJars.AppendList(&dexpreopt.GetGlobalConfig(ctx).ApexBootJars)
+	for i := 0; i < apexJars.Len(); i++ {
+		if dex, found := apexNameToApexExportsInfoMap.javaLibraryDexPathOnHost(ctx, apexJars.Apex(i), apexJars.Jar(i)); found {
+			bootDexJars[apexJars.Jar(i)] = dex
+		}
+	}
+
+	// TODO - b/308174306: Drop the legacy mechanism
 	for _, module := range contents {
+		if _, exists := bootDexJars[android.RemoveOptionalPrebuiltPrefix(module.Name())]; exists {
+			continue
+		}
 		hiddenAPIModule := hiddenAPIModuleFromModule(ctx, module)
 		if hiddenAPIModule == nil {
 			continue
@@ -1324,7 +1353,7 @@ func extractBootDexInfoFromModules(ctx android.ModuleContext, contents []android
 // invalid, then create a fake path and either report an error immediately or defer reporting of the
 // error until the path is actually used.
 func retrieveBootDexJarFromHiddenAPIModule(ctx android.ModuleContext, module hiddenAPIModule) android.Path {
-	bootDexJar := module.bootDexJar()
+	bootDexJar := module.bootDexJar(ctx)
 	if !bootDexJar.Valid() {
 		fake := android.PathForModuleOut(ctx, fmt.Sprintf("fake/boot-dex/%s.jar", module.Name()))
 		handleMissingDexBootFile(ctx, module, fake, bootDexJar.InvalidReason())
@@ -1404,7 +1433,7 @@ func deferReportingMissingBootDexJar(ctx android.ModuleContext, module android.M
 		}
 
 		if am, ok := module.(android.ApexModule); ok && am.InAnyApex() {
-			apexInfo := ctx.OtherModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
+			apexInfo, _ := android.OtherModuleProvider(ctx, module, android.ApexInfoProvider)
 			if apexInfo.IsForPlatform() {
 				return true
 			}
@@ -1439,7 +1468,9 @@ func handleMissingDexBootFile(ctx android.ModuleContext, module android.Module, 
 // However, under certain conditions, e.g. errors, or special build configurations it will return
 // a path to a fake file.
 func retrieveEncodedBootDexJarFromModule(ctx android.ModuleContext, module android.Module) android.Path {
-	bootDexJar := module.(interface{ DexJarBuildPath() OptionalDexJarPath }).DexJarBuildPath()
+	bootDexJar := module.(interface {
+		DexJarBuildPath(ctx android.ModuleErrorfContext) OptionalDexJarPath
+	}).DexJarBuildPath(ctx)
 	if !bootDexJar.Valid() {
 		fake := android.PathForModuleOut(ctx, fmt.Sprintf("fake/encoded-dex/%s.jar", module.Name()))
 		handleMissingDexBootFile(ctx, module, fake, bootDexJar.InvalidReason())

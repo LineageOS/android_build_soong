@@ -117,7 +117,7 @@ func (test *testDecorator) compilerProps() []interface{} {
 
 func (test *testDecorator) install(ctx ModuleContext) {
 	testInstallBase := "/data/local/tests/unrestricted"
-	if ctx.RustModule().InVendor() || ctx.RustModule().UseVndk() {
+	if ctx.RustModule().InVendorOrProduct() {
 		testInstallBase = "/data/local/tests/vendor"
 	}
 

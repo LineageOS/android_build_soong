@@ -107,3 +107,8 @@ func (module *GeneratedJavaLibraryModule) GenerateAndroidBuildActions(ctx androi
 	module.Library.properties.Generated_srcjars = append(module.Library.properties.Generated_srcjars, srcJarPath)
 	module.Library.GenerateAndroidBuildActions(ctx)
 }
+
+// Add a rule to the jarjar renaming rules.  See RepackageProviderData.
+func (module *GeneratedJavaLibraryModule) AddJarJarRenameRule(original string, renamed string) {
+	module.addJarJarRenameRule(original, renamed)
+}

@@ -38,9 +38,6 @@ java_defaults {
     visibility: ["//visibility:public"],
     sdk_version: "none",
     system_modules: "none",
-    dist: {
-        targets: dist_targets,
-    },
 }
 
 java_library {
@@ -67,6 +64,7 @@ java_api_library {
         "stub-annotations",
     ],
     enable_validation: false,
+    stubs_type: "everything",
 }
 
 java_library {
@@ -87,6 +85,32 @@ java_library {
             ],
         },
     },
+}
+
+java_library {
+    name: "core.current.stubs.exportable.from-source",
+    defaults: [
+        "core.current.stubs.defaults",
+    ],
+    static_libs: [
+        "art.module.public.api.stubs.exportable",
+        "conscrypt.module.public.api.stubs.exportable",
+        "i18n.module.public.api.stubs.exportable",
+    ],
+    dist: {
+        targets: dist_targets,
+        dest: "core.current.stubs.jar",
+    },
+}
+
+java_library {
+    name: "core.current.stubs.exportable",
+    defaults: [
+        "core.current.stubs.defaults",
+    ],
+    static_libs: [
+        "core.current.stubs.exportable.from-source",
+    ],
 }
 
 // Distributed with the SDK for turning into system modules to compile apps
@@ -225,6 +249,7 @@ java_api_library {
         "stub-annotations",
     ],
     visibility: ["//visibility:private"],
+    stubs_type: "everything",
 }
 
 // Produces a dist file that is used by the
@@ -298,6 +323,19 @@ java_library {
     ],
 }
 
+java_library {
+    name: "legacy.core.platform.api.stubs.exportable.from-source",
+    visibility: core_platform_visibility,
+    defaults: [
+        "core.platform.api.stubs.defaults",
+    ],
+    static_libs: [
+        "art.module.public.api.stubs.exportable.module_lib",
+        "conscrypt.module.platform.api.stubs.exportable",
+        "legacy.i18n.module.platform.api.stubs.exportable",
+    ],
+}
+
 java_defaults {
     name: "android_core_platform_stubs_current_contributions",
     api_surface: "core_platform",
@@ -322,6 +360,7 @@ java_api_library {
     libs: [
         "stub-annotations",
     ],
+    stubs_type: "everything",
 }
 
 java_library {
@@ -343,6 +382,17 @@ java_library {
             ],
         },
     },
+}
+
+java_library {
+    name: "legacy.core.platform.api.stubs.exportable",
+    visibility: core_platform_visibility,
+    defaults: [
+        "core.platform.api.stubs.defaults",
+    ],
+    static_libs: [
+        "legacy.core.platform.api.stubs.exportable.from-source",
+    ],
 }
 
 java_defaults {
@@ -399,6 +449,7 @@ java_api_library {
     libs: [
         "stub-annotations",
     ],
+    stubs_type: "everything",
 }
 
 java_library {

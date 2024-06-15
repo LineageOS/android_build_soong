@@ -106,6 +106,9 @@ func (b *platformBootclasspathModule) OutputFiles(tag string) (android.Paths, er
 }
 
 func (b *platformBootclasspathModule) DepsMutator(ctx android.BottomUpMutatorContext) {
+	// Create a dependency on all_apex_contributions to determine the selected mainline module
+	ctx.AddDependency(ctx.Module(), apexContributionsMetadataDepTag, "all_apex_contributions")
+
 	b.hiddenAPIDepsMutator(ctx)
 
 	if !dexpreopt.IsDex2oatNeeded(ctx) {
@@ -130,6 +133,8 @@ func (b *platformBootclasspathModule) hiddenAPIDepsMutator(ctx android.BottomUpM
 func (b *platformBootclasspathModule) BootclasspathDepsMutator(ctx android.BottomUpMutatorContext) {
 	// Add dependencies on all the ART jars.
 	global := dexpreopt.GetGlobalConfig(ctx)
+	addDependenciesOntoSelectedBootImageApexes(ctx, "com.android.art")
+	// TODO: b/308174306 - Remove the mechanism of depending on the java_sdk_library(_import) directly
 	addDependenciesOntoBootImageModules(ctx, global.ArtApexJars, platformBootclasspathArtBootJarDepTag)
 
 	// Add dependencies on all the non-updatable jars, which are on the platform or in non-updatable
@@ -138,6 +143,12 @@ func (b *platformBootclasspathModule) BootclasspathDepsMutator(ctx android.Botto
 
 	// Add dependencies on all the updatable jars, except the ART jars.
 	apexJars := dexpreopt.GetGlobalConfig(ctx).ApexBootJars
+	apexes := []string{}
+	for i := 0; i < apexJars.Len(); i++ {
+		apexes = append(apexes, apexJars.Apex(i))
+	}
+	addDependenciesOntoSelectedBootImageApexes(ctx, android.FirstUniqueStrings(apexes)...)
+	// TODO: b/308174306 - Remove the mechanism of depending on the java_sdk_library(_import) directly
 	addDependenciesOntoBootImageModules(ctx, apexJars, platformBootclasspathApexBootJarDepTag)
 
 	// Add dependencies on all the fragments.
@@ -180,7 +191,7 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 
 	var transitiveSrcFiles android.Paths
 	for _, module := range allModules {
-		depInfo := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
+		depInfo, _ := android.OtherModuleProvider(ctx, module, JavaInfoProvider)
 		if depInfo.TransitiveSrcFiles != nil {
 			transitiveSrcFiles = append(transitiveSrcFiles, depInfo.TransitiveSrcFiles.ToList()...)
 		}
@@ -219,7 +230,7 @@ func (b *platformBootclasspathModule) configuredJars(ctx android.ModuleContext) 
 	// Include jars from APEXes that don't populate their classpath proto config.
 	remainingJars := dexpreopt.GetGlobalConfig(ctx).ApexBootJars
 	for _, fragment := range b.fragments {
-		info := ctx.OtherModuleProvider(fragment, ClasspathFragmentProtoContentInfoProvider).(ClasspathFragmentProtoContentInfo)
+		info, _ := android.OtherModuleProvider(ctx, fragment, ClasspathFragmentProtoContentInfoProvider)
 		if info.ClasspathFragmentProtoGenerated {
 			remainingJars = remainingJars.RemoveList(info.ClasspathFragmentProtoContents)
 		}
@@ -241,7 +252,7 @@ func (b *platformBootclasspathModule) platformJars(ctx android.PathContext) andr
 func (b *platformBootclasspathModule) checkPlatformModules(ctx android.ModuleContext, modules []android.Module) {
 	// TODO(satayev): change this check to only allow core-icu4j, all apex jars should not be here.
 	for _, m := range modules {
-		apexInfo := ctx.OtherModuleProvider(m, android.ApexInfoProvider).(android.ApexInfo)
+		apexInfo, _ := android.OtherModuleProvider(ctx, m, android.ApexInfoProvider)
 		fromUpdatableApex := apexInfo.Updatable
 		if fromUpdatableApex {
 			// error: this jar is part of an updatable apex
@@ -255,7 +266,7 @@ func (b *platformBootclasspathModule) checkPlatformModules(ctx android.ModuleCon
 // checkApexModules ensures that the apex modules supplied are not from the platform.
 func (b *platformBootclasspathModule) checkApexModules(ctx android.ModuleContext, modules []android.Module) {
 	for _, m := range modules {
-		apexInfo := ctx.OtherModuleProvider(m, android.ApexInfoProvider).(android.ApexInfo)
+		apexInfo, _ := android.OtherModuleProvider(ctx, m, android.ApexInfoProvider)
 		fromUpdatableApex := apexInfo.Updatable
 		if fromUpdatableApex {
 			// ok: this jar is part of an updatable apex
@@ -389,7 +400,7 @@ func (b *platformBootclasspathModule) createAndProvideMonolithicHiddenAPIInfo(ct
 	monolithicInfo := newMonolithicHiddenAPIInfo(ctx, temporaryInput.FlagFilesByCategory, classpathElements)
 
 	// Store the information for testing.
-	ctx.SetProvider(MonolithicHiddenAPIInfoProvider, monolithicInfo)
+	android.SetProvider(ctx, MonolithicHiddenAPIInfoProvider, monolithicInfo)
 	return monolithicInfo
 }
 

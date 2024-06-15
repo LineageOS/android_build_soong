@@ -15,18 +15,10 @@
 package genrule
 
 var (
-	DepfileAllowList = []string{
-		// go/keep-sorted start
-		"depfile_allowed_for_test",
-		// go/keep-sorted end
-	}
-
 	SandboxingDenyModuleList = []string{
 		// go/keep-sorted start
-		"CtsApkVerityTestDebugFiles",
 		"aidl_camera_build_version",
-		"camera-its",
-		"chre_atoms_log.h",
+		"com.google.pixel.camera.hal.manifest",
 		// go/keep-sorted end
 	}
 

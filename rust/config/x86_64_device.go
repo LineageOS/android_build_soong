@@ -28,15 +28,16 @@ var (
 	x86_64LinkFlags            = []string{}
 
 	x86_64ArchVariantRustFlags = map[string][]string{
-		"":              []string{},
-		"broadwell":     []string{"-C target-cpu=broadwell"},
-		"goldmont":      []string{"-C target-cpu=goldmont"},
-		"goldmont-plus": []string{"-C target-cpu=goldmont-plus"},
-		"haswell":       []string{"-C target-cpu=haswell"},
-		"ivybridge":     []string{"-C target-cpu=ivybridge"},
-		"sandybridge":   []string{"-C target-cpu=sandybridge"},
-		"silvermont":    []string{"-C target-cpu=silvermont"},
-		"skylake":       []string{"-C target-cpu=skylake"},
+		"":                            []string{},
+		"broadwell":                   []string{"-C target-cpu=broadwell"},
+		"goldmont":                    []string{"-C target-cpu=goldmont"},
+		"goldmont-plus":               []string{"-C target-cpu=goldmont-plus"},
+		"goldmont-without-sha-xsaves": []string{"-C target-cpu=goldmont", "-C target-feature=-sha,-xsaves"},
+		"haswell":                     []string{"-C target-cpu=haswell"},
+		"ivybridge":                   []string{"-C target-cpu=ivybridge"},
+		"sandybridge":                 []string{"-C target-cpu=sandybridge"},
+		"silvermont":                  []string{"-C target-cpu=silvermont"},
+		"skylake":                     []string{"-C target-cpu=skylake"},
 		//TODO: Add target-cpu=stoneyridge when rustc supports it.
 		"stoneyridge": []string{""},
 		"tremont":     []string{"-C target-cpu=tremont"},

@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"android/soong/android"
-	"github.com/google/blueprint"
 )
 
 // Supports constructing a list of ClasspathElement from a set of fragments and modules.
@@ -72,8 +71,7 @@ var _ ClasspathElement = (*ClasspathLibraryElement)(nil)
 
 // ClasspathElementContext defines the context methods needed by CreateClasspathElements
 type ClasspathElementContext interface {
-	OtherModuleHasProvider(m blueprint.Module, provider blueprint.ProviderKey) bool
-	OtherModuleProvider(m blueprint.Module, provider blueprint.ProviderKey) interface{}
+	android.OtherModuleProviderContext
 	ModuleErrorf(fmt string, args ...interface{})
 }
 
@@ -123,12 +121,12 @@ func CreateClasspathElements(ctx ClasspathElementContext, libraries []android.Mo
 	// associated with a particular apex.
 	apexToFragment := map[string]android.Module{}
 	for _, fragment := range fragments {
-		if !ctx.OtherModuleHasProvider(fragment, android.ApexInfoProvider) {
+		apexInfo, ok := android.OtherModuleProvider(ctx, fragment, android.ApexInfoProvider)
+		if !ok {
 			ctx.ModuleErrorf("fragment %s is not part of an apex", fragment)
 			continue
 		}
 
-		apexInfo := ctx.OtherModuleProvider(fragment, android.ApexInfoProvider).(android.ApexInfo)
 		for _, apex := range apexInfo.InApexVariants {
 			if existing, ok := apexToFragment[apex]; ok {
 				ctx.ModuleErrorf("apex %s has multiple fragments, %s and %s", apex, fragment, existing)
@@ -146,8 +144,7 @@ skipLibrary:
 	// Iterate over the libraries to construct the ClasspathElements list.
 	for _, library := range libraries {
 		var element ClasspathElement
-		if ctx.OtherModuleHasProvider(library, android.ApexInfoProvider) {
-			apexInfo := ctx.OtherModuleProvider(library, android.ApexInfoProvider).(android.ApexInfo)
+		if apexInfo, ok := android.OtherModuleProvider(ctx, library, android.ApexInfoProvider); ok {
 
 			var fragment android.Module
 

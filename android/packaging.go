@@ -17,6 +17,7 @@ package android
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/blueprint"
 )
@@ -84,6 +85,7 @@ type PackageModule interface {
 
 	// GatherPackagingSpecs gathers PackagingSpecs of transitive dependencies.
 	GatherPackagingSpecs(ctx ModuleContext) map[string]PackagingSpec
+	GatherPackagingSpecsWithFilter(ctx ModuleContext, filter func(PackagingSpec) bool) map[string]PackagingSpec
 
 	// CopyDepsToZip zips the built artifacts of the dependencies into the given zip file and
 	// returns zip entries in it. This is expected to be called in GenerateAndroidBuildActions,
@@ -220,14 +222,18 @@ func (p *PackagingBase) AddDeps(ctx BottomUpMutatorContext, depTag blueprint.Dep
 	}
 }
 
-// See PackageModule.GatherPackagingSpecs
-func (p *PackagingBase) GatherPackagingSpecs(ctx ModuleContext) map[string]PackagingSpec {
+func (p *PackagingBase) GatherPackagingSpecsWithFilter(ctx ModuleContext, filter func(PackagingSpec) bool) map[string]PackagingSpec {
 	m := make(map[string]PackagingSpec)
 	ctx.VisitDirectDeps(func(child Module) {
 		if pi, ok := ctx.OtherModuleDependencyTag(child).(PackagingItem); !ok || !pi.IsPackagingItem() {
 			return
 		}
 		for _, ps := range child.TransitivePackagingSpecs() {
+			if filter != nil {
+				if !filter(ps) {
+					continue
+				}
+			}
 			if _, ok := m[ps.relPathInPackage]; !ok {
 				m[ps.relPathInPackage] = ps
 			}
@@ -236,10 +242,22 @@ func (p *PackagingBase) GatherPackagingSpecs(ctx ModuleContext) map[string]Packa
 	return m
 }
 
+// See PackageModule.GatherPackagingSpecs
+func (p *PackagingBase) GatherPackagingSpecs(ctx ModuleContext) map[string]PackagingSpec {
+	return p.GatherPackagingSpecsWithFilter(ctx, nil)
+}
+
 // CopySpecsToDir is a helper that will add commands to the rule builder to copy the PackagingSpec
 // entries into the specified directory.
 func (p *PackagingBase) CopySpecsToDir(ctx ModuleContext, builder *RuleBuilder, specs map[string]PackagingSpec, dir WritablePath) (entries []string) {
+	if len(specs) == 0 {
+		return entries
+	}
 	seenDir := make(map[string]bool)
+	preparerPath := PathForModuleOut(ctx, "preparer.sh")
+	cmd := builder.Command().Tool(preparerPath)
+	var sb strings.Builder
+	sb.WriteString("set -e\n")
 	for _, k := range SortedKeys(specs) {
 		ps := specs[k]
 		destPath := filepath.Join(dir.String(), ps.relPathInPackage)
@@ -247,17 +265,20 @@ func (p *PackagingBase) CopySpecsToDir(ctx ModuleContext, builder *RuleBuilder, 
 		entries = append(entries, ps.relPathInPackage)
 		if _, ok := seenDir[destDir]; !ok {
 			seenDir[destDir] = true
-			builder.Command().Text("mkdir").Flag("-p").Text(destDir)
+			sb.WriteString(fmt.Sprintf("mkdir -p %s\n", destDir))
 		}
 		if ps.symlinkTarget == "" {
-			builder.Command().Text("cp").Input(ps.srcPath).Text(destPath)
+			cmd.Implicit(ps.srcPath)
+			sb.WriteString(fmt.Sprintf("cp %s %s\n", ps.srcPath, destPath))
 		} else {
-			builder.Command().Text("ln").Flag("-sf").Text(ps.symlinkTarget).Text(destPath)
+			sb.WriteString(fmt.Sprintf("ln -sf %s %s\n", ps.symlinkTarget, destPath))
 		}
 		if ps.executable {
-			builder.Command().Text("chmod").Flag("a+x").Text(destPath)
+			sb.WriteString(fmt.Sprintf("chmod a+x %s\n", destPath))
 		}
 	}
+
+	WriteExecutableFileRuleVerbatim(ctx, preparerPath, sb.String())
 
 	return entries
 }

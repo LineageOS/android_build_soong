@@ -15,7 +15,6 @@
 package codegen
 
 import (
-	"android/soong/aconfig"
 	"android/soong/android"
 	"android/soong/cc"
 
@@ -41,6 +40,7 @@ type CcAconfigLibraryProperties struct {
 	// default mode is "production", the other accepted modes are:
 	// "test": to generate test mode version of the library
 	// "exported": to generate exported mode version of the library
+	// "force-read-only": to generate force-read-only mode version of the library
 	// an error will be thrown if the mode is not supported
 	Mode *string
 }
@@ -77,8 +77,12 @@ func (this *CcAconfigLibraryCallbacks) GeneratorDeps(ctx cc.DepsContext, deps cc
 		ctx.AddDependency(ctx.Module(), ccDeclarationsTag, declarations)
 	}
 
-	// Add a dependency for the aconfig flags base library
-	deps.SharedLibs = append(deps.SharedLibs, baseLibDep)
+	mode := proptools.StringDefault(this.properties.Mode, "production")
+
+	// Add a dependency for the aconfig flags base library if it is not forced read only
+	if mode != "force-read-only" {
+		deps.SharedLibs = append(deps.SharedLibs, baseLibDep)
+	}
 	// TODO: It'd be really nice if we could reexport this library and not make everyone do it.
 
 	return deps
@@ -92,7 +96,7 @@ func (this *CcAconfigLibraryCallbacks) GeneratorSources(ctx cc.ModuleContext) cc
 	if len(declarationsModules) != 1 {
 		panic(fmt.Errorf("Exactly one aconfig_declarations property required"))
 	}
-	declarations := ctx.OtherModuleProvider(declarationsModules[0], aconfig.DeclarationsProviderKey).(aconfig.DeclarationsProviderData)
+	declarations, _ := android.OtherModuleProvider(ctx, declarationsModules[0], android.AconfigDeclarationsProviderKey)
 
 	// Figure out the generated file paths.  This has to match aconfig's codegen_cpp.rs.
 	this.generatedDir = android.PathForModuleGen(ctx)
@@ -122,7 +126,7 @@ func (this *CcAconfigLibraryCallbacks) GeneratorBuildActions(ctx cc.ModuleContex
 	if len(declarationsModules) != 1 {
 		panic(fmt.Errorf("Exactly one aconfig_declarations property required"))
 	}
-	declarations := ctx.OtherModuleProvider(declarationsModules[0], aconfig.DeclarationsProviderKey).(aconfig.DeclarationsProviderData)
+	declarations, _ := android.OtherModuleProvider(ctx, declarationsModules[0], android.AconfigDeclarationsProviderKey)
 
 	mode := proptools.StringDefault(this.properties.Mode, "production")
 	if !isModeSupported(mode) {

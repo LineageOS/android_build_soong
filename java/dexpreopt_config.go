@@ -45,7 +45,7 @@ var (
 	frameworkBootImageName   = "boot"
 	mainlineBootImageName    = "mainline"
 	bootImageStem            = "boot"
-	profileInstallPathInApex = "etc/boot-image.prof"
+	ProfileInstallPathInApex = "etc/boot-image.prof"
 )
 
 // getImageNames returns an ordered list of image names. The order doesn't matter but needs to be
@@ -115,7 +115,7 @@ func genBootImageConfigRaw(ctx android.PathContext) map[string]*bootImageConfig 
 func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 	return ctx.Config().Once(bootImageConfigKey, func() interface{} {
 		targets := dexpreoptTargets(ctx)
-		deviceDir := android.PathForOutput(ctx, getDexpreoptDirName(ctx))
+		deviceDir := android.PathForOutput(ctx, dexpreopt.GetDexpreoptDirName(ctx))
 
 		configs := genBootImageConfigRaw(ctx)
 
@@ -233,13 +233,4 @@ func init() {
 
 func dexpreoptConfigMakevars(ctx android.MakeVarsContext) {
 	ctx.Strict("DEXPREOPT_BOOT_JARS_MODULES", strings.Join(defaultBootImageConfig(ctx).modules.CopyOfApexJarPairs(), ":"))
-}
-
-func getDexpreoptDirName(ctx android.PathContext) string {
-	prefix := "dexpreopt_"
-	targets := ctx.Config().Targets[android.Android]
-	if len(targets) > 0 {
-		return prefix + targets[0].Arch.ArchType.String()
-	}
-	return prefix + "unknown_target"
 }

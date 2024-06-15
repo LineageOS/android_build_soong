@@ -28,7 +28,6 @@ func TestRustProtobuf3(t *testing.T) {
 			protos: ["buf.proto", "proto.proto"],
 			crate_name: "rust_proto",
 			source_stem: "buf",
-            use_protobuf3: true,
 			shared_libs: ["libfoo_shared"],
 			static_libs: ["libfoo_static"],
 		}
@@ -77,7 +76,6 @@ func TestRustProtobufInclude(t *testing.T) {
 			protos: ["proto.proto"],
 			crate_name: "rust_proto",
 			source_stem: "proto",
-			use_protobuf3: true,
 			rustlibs: ["librust_exported_proto", "libfoo"],
 		}
 		rust_protobuf {
@@ -85,7 +83,6 @@ func TestRustProtobufInclude(t *testing.T) {
 			protos: ["proto.proto"],
 			crate_name: "rust_exported_proto",
 			source_stem: "exported_proto",
-			use_protobuf3: true,
 			exported_include_dirs: ["proto"]
 		}
 		rust_library {

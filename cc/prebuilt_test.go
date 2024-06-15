@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"fmt"
 	"runtime"
 	"testing"
 
@@ -508,4 +509,254 @@ cc_prebuilt_binary {
 	srcs: ["foo", "bar"],
 }`
 	testCcError(t, `Android.bp:4:6: module "bintest" variant "android_arm64_armv8-a": srcs: multiple prebuilt source files`, bp)
+}
+
+func TestMultiplePrebuilts(t *testing.T) {
+	bp := `
+		// an rdep
+		cc_library {
+			name: "libfoo",
+			shared_libs: ["libbar"],
+		}
+
+		// multiple variations of dep
+		// source
+		cc_library {
+			name: "libbar",
+		}
+		// prebuilt "v1"
+		cc_prebuilt_library_shared {
+			name: "libbar",
+			srcs: ["libbar.so"],
+		}
+		// prebuilt "v2"
+		cc_prebuilt_library_shared {
+			name: "libbar.v2",
+			stem: "libbar",
+			source_module_name: "libbar",
+			srcs: ["libbar.so"],
+		}
+
+		// selectors
+		apex_contributions {
+			name: "myapex_contributions",
+			contents: ["%v"],
+		}
+		all_apex_contributions {name: "all_apex_contributions"}
+	`
+	hasDep := func(ctx *android.TestContext, m android.Module, wantDep android.Module) bool {
+		t.Helper()
+		var found bool
+		ctx.VisitDirectDeps(m, func(dep blueprint.Module) {
+			if dep == wantDep {
+				found = true
+			}
+		})
+		return found
+	}
+
+	testCases := []struct {
+		desc                   string
+		selectedDependencyName string
+		expectedDependencyName string
+	}{
+		{
+			desc:                   "Source library is selected using apex_contributions",
+			selectedDependencyName: "libbar",
+			expectedDependencyName: "libbar",
+		},
+		{
+			desc:                   "Prebuilt library v1 is selected using apex_contributions",
+			selectedDependencyName: "prebuilt_libbar",
+			expectedDependencyName: "prebuilt_libbar",
+		},
+		{
+			desc:                   "Prebuilt library v2 is selected using apex_contributions",
+			selectedDependencyName: "prebuilt_libbar.v2",
+			expectedDependencyName: "prebuilt_libbar.v2",
+		},
+	}
+
+	for _, tc := range testCases {
+		preparer := android.GroupFixturePreparers(
+			android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
+				android.RegisterApexContributionsBuildComponents(ctx)
+			}),
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.BuildFlags = map[string]string{
+					"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES": "myapex_contributions",
+				}
+			}),
+		)
+		ctx := testPrebuilt(t, fmt.Sprintf(bp, tc.selectedDependencyName), map[string][]byte{
+			"libbar.so": nil,
+			"crtx.o":    nil,
+		}, preparer)
+		libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
+		expectedDependency := ctx.ModuleForTests(tc.expectedDependencyName, "android_arm64_armv8-a_shared").Module()
+		android.AssertBoolEquals(t, fmt.Sprintf("expected dependency from %s to %s\n", libfoo.Name(), tc.expectedDependencyName), true, hasDep(ctx, libfoo, expectedDependency))
+		// check that LOCAL_SHARED_LIBRARIES contains libbar and not libbar.v<N>
+		entries := android.AndroidMkEntriesForTest(t, ctx, libfoo)[0]
+		android.AssertStringListContains(t, "Version should not be present in LOCAL_SHARED_LIBRARIES", entries.EntryMap["LOCAL_SHARED_LIBRARIES"], "libbar")
+
+		// check installation rules
+		// the selected soong module should be exported to make
+		libbar := ctx.ModuleForTests(tc.expectedDependencyName, "android_arm64_armv8-a_shared").Module()
+		android.AssertBoolEquals(t, fmt.Sprintf("dependency %s should be exported to make\n", expectedDependency), true, !libbar.IsHideFromMake())
+
+		// check LOCAL_MODULE of the selected module name
+		// the prebuilt should have the same LOCAL_MODULE when exported to make
+		entries = android.AndroidMkEntriesForTest(t, ctx, libbar)[0]
+		android.AssertStringEquals(t, "unexpected LOCAL_MODULE", "libbar", entries.EntryMap["LOCAL_MODULE"][0])
+	}
+}
+
+// Setting prefer on multiple prebuilts is an error, unless one of them is also listed in apex_contributions
+func TestMultiplePrebuiltsPreferredUsingLegacyFlags(t *testing.T) {
+	bp := `
+		// an rdep
+		cc_library {
+			name: "libfoo",
+			shared_libs: ["libbar"],
+		}
+
+		// multiple variations of dep
+		// source
+		cc_library {
+			name: "libbar",
+		}
+		// prebuilt "v1"
+		cc_prebuilt_library_shared {
+			name: "libbar",
+			srcs: ["libbar.so"],
+			prefer: true,
+		}
+		// prebuilt "v2"
+		cc_prebuilt_library_shared {
+			name: "libbar.v2",
+			stem: "libbar",
+			source_module_name: "libbar",
+			srcs: ["libbar.so"],
+			prefer: true,
+		}
+
+		// selectors
+		apex_contributions {
+			name: "myapex_contributions",
+			contents: [%v],
+		}
+		all_apex_contributions {name: "all_apex_contributions"}
+	`
+	hasDep := func(ctx *android.TestContext, m android.Module, wantDep android.Module) bool {
+		t.Helper()
+		var found bool
+		ctx.VisitDirectDeps(m, func(dep blueprint.Module) {
+			if dep == wantDep {
+				found = true
+			}
+		})
+		return found
+	}
+
+	testCases := []struct {
+		desc                   string
+		selectedDependencyName string
+		expectedDependencyName string
+		expectedErr            string
+	}{
+		{
+			desc:        "Multiple prebuilts have prefer: true",
+			expectedErr: "Multiple prebuilt modules prebuilt_libbar and prebuilt_libbar.v2 have been marked as preferred for this source module",
+		},
+		{
+			desc:                   "Multiple prebuilts have prefer: true. The prebuilt listed in apex_contributions wins.",
+			selectedDependencyName: `"prebuilt_libbar"`,
+			expectedDependencyName: "prebuilt_libbar",
+		},
+	}
+
+	for _, tc := range testCases {
+		preparer := android.GroupFixturePreparers(
+			android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
+				android.RegisterApexContributionsBuildComponents(ctx)
+			}),
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.BuildFlags = map[string]string{
+					"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES": "myapex_contributions",
+				}
+			}),
+		)
+		if tc.expectedErr != "" {
+			preparer = preparer.ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(tc.expectedErr))
+		}
+
+		ctx := testPrebuilt(t, fmt.Sprintf(bp, tc.selectedDependencyName), map[string][]byte{
+			"libbar.so": nil,
+			"crtx.o":    nil,
+		}, preparer)
+		if tc.expectedErr != "" {
+			return // the fixture will assert that the excepted err has been raised
+		}
+		libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
+		expectedDependency := ctx.ModuleForTests(tc.expectedDependencyName, "android_arm64_armv8-a_shared").Module()
+		android.AssertBoolEquals(t, fmt.Sprintf("expected dependency from %s to %s\n", libfoo.Name(), tc.expectedDependencyName), true, hasDep(ctx, libfoo, expectedDependency))
+	}
+}
+
+// If module sdk cannot provide a cc module variant (e.g. static), then the module variant from source should be used
+func TestMissingVariantInModuleSdk(t *testing.T) {
+	bp := `
+		// an rdep
+		cc_library {
+			name: "libfoo",
+			static_libs: ["libbar"],
+		}
+
+		// source
+		cc_library {
+			name: "libbar",
+		}
+		// prebuilt
+		// libbar only exists as a shared library
+		cc_prebuilt_library_shared {
+			name: "libbar",
+			srcs: ["libbar.so"],
+		}
+		// selectors
+		apex_contributions {
+			name: "myapex_contributions",
+			contents: ["prebuilt_libbar"],
+		}
+		all_apex_contributions {name: "all_apex_contributions"}
+	`
+	hasDep := func(ctx *android.TestContext, m android.Module, wantDep android.Module) bool {
+		t.Helper()
+		var found bool
+		ctx.VisitDirectDeps(m, func(dep blueprint.Module) {
+			if dep == wantDep {
+				found = true
+			}
+		})
+		return found
+	}
+
+	preparer := android.GroupFixturePreparers(
+		android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
+			android.RegisterApexContributionsBuildComponents(ctx)
+		}),
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.BuildFlags = map[string]string{
+				"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES": "myapex_contributions",
+			}
+		}),
+	)
+	ctx := testPrebuilt(t, bp, map[string][]byte{
+		"libbar.so": nil,
+		"crtx.o":    nil,
+	}, preparer)
+	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
+	sourceLibBar := ctx.ModuleForTests("libbar", "android_arm64_armv8-a_static").Module()
+	// Even though the prebuilt is listed in apex_contributions, the prebuilt does not have a static variant.
+	// Therefore source of libbar should be used.
+	android.AssertBoolEquals(t, fmt.Sprintf("expected dependency from libfoo to source libbar"), true, hasDep(ctx, libfoo, sourceLibBar))
 }
