@@ -50,7 +50,7 @@ type BaseCompilerProperties struct {
 	Exclude_srcs []string `android:"path,arch_variant"`
 
 	// list of module-specific flags that will be used for C and C++ compiles.
-	Cflags []string `android:"arch_variant"`
+	Cflags proptools.Configurable[[]string] `android:"arch_variant"`
 
 	// list of module-specific flags that will be used for C++ compiles
 	Cppflags []string `android:"arch_variant"`
@@ -98,7 +98,7 @@ type BaseCompilerProperties struct {
 
 	// list of generated headers to add to the include path. These are the names
 	// of genrule modules.
-	Generated_headers []string `android:"arch_variant,variant_prepend"`
+	Generated_headers proptools.Configurable[[]string] `android:"arch_variant,variant_prepend"`
 
 	// pass -frtti instead of -fno-rtti
 	Rtti *bool `android:"arch_variant"`
@@ -274,7 +274,7 @@ func (compiler *baseCompiler) Srcs() android.Paths {
 }
 
 func (compiler *baseCompiler) appendCflags(flags []string) {
-	compiler.Properties.Cflags = append(compiler.Properties.Cflags, flags...)
+	compiler.Properties.Cflags.AppendSimpleValue(flags)
 }
 
 func (compiler *baseCompiler) appendAsflags(flags []string) {
@@ -302,7 +302,7 @@ func (compiler *baseCompiler) compilerInit(ctx BaseModuleContext) {}
 func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.GeneratedSources = append(deps.GeneratedSources, compiler.Properties.Generated_sources...)
 	deps.GeneratedSources = removeListFromList(deps.GeneratedSources, compiler.Properties.Exclude_generated_sources)
-	deps.GeneratedHeaders = append(deps.GeneratedHeaders, compiler.Properties.Generated_headers...)
+	deps.GeneratedHeaders = append(deps.GeneratedHeaders, compiler.Properties.Generated_headers.GetOrDefault(ctx, nil)...)
 	deps.AidlLibs = append(deps.AidlLibs, compiler.Properties.Aidl.Libs...)
 
 	android.ProtoDeps(ctx, &compiler.Proto)
@@ -372,7 +372,8 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	compiler.srcsBeforeGen = android.PathsForModuleSrcExcludes(ctx, compiler.Properties.Srcs, compiler.Properties.Exclude_srcs)
 	compiler.srcsBeforeGen = append(compiler.srcsBeforeGen, deps.GeneratedSources...)
 
-	CheckBadCompilerFlags(ctx, "cflags", compiler.Properties.Cflags)
+	cflags := compiler.Properties.Cflags.GetOrDefault(ctx, nil)
+	CheckBadCompilerFlags(ctx, "cflags", cflags)
 	CheckBadCompilerFlags(ctx, "cppflags", compiler.Properties.Cppflags)
 	CheckBadCompilerFlags(ctx, "conlyflags", compiler.Properties.Conlyflags)
 	CheckBadCompilerFlags(ctx, "asflags", compiler.Properties.Asflags)
@@ -385,7 +386,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 
 	esc := proptools.NinjaAndShellEscapeList
 
-	flags.Local.CFlags = append(flags.Local.CFlags, esc(compiler.Properties.Cflags)...)
+	flags.Local.CFlags = append(flags.Local.CFlags, esc(cflags)...)
 	flags.Local.CppFlags = append(flags.Local.CppFlags, esc(compiler.Properties.Cppflags)...)
 	flags.Local.ConlyFlags = append(flags.Local.ConlyFlags, esc(compiler.Properties.Conlyflags)...)
 	flags.Local.AsFlags = append(flags.Local.AsFlags, esc(compiler.Properties.Asflags)...)
@@ -819,7 +820,7 @@ type RustBindgenClangProperties struct {
 	Header_libs []string `android:"arch_variant,variant_prepend"`
 
 	// list of clang flags required to correctly interpret the headers.
-	Cflags []string `android:"arch_variant"`
+	Cflags proptools.Configurable[[]string] `android:"arch_variant"`
 
 	// list of c++ specific clang flags required to correctly interpret the headers.
 	// This is provided primarily to make sure cppflags defined in cc_defaults are pulled in.

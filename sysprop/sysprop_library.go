@@ -49,8 +49,6 @@ type syspropJavaGenRule struct {
 	android.ModuleBase
 
 	properties syspropGenProperties
-
-	genSrcjars android.Paths
 }
 
 type syspropRustGenRule struct {
@@ -59,7 +57,6 @@ type syspropRustGenRule struct {
 	properties rustLibraryProperties
 }
 
-var _ android.OutputFileProducer = (*syspropJavaGenRule)(nil)
 var _ rust.SourceProvider = (*syspropRustGenRule)(nil)
 
 var (
@@ -100,6 +97,7 @@ func (g *syspropJavaGenRule) GenerateAndroidBuildActions(ctx android.ModuleConte
 		}
 	})
 
+	var genSrcjars android.Paths
 	for _, syspropFile := range android.PathsForModuleSrc(ctx, g.properties.Srcs) {
 		srcJarFile := android.GenPathWithExt(ctx, "sysprop", syspropFile, "srcjar")
 
@@ -114,23 +112,16 @@ func (g *syspropJavaGenRule) GenerateAndroidBuildActions(ctx android.ModuleConte
 			},
 		})
 
-		g.genSrcjars = append(g.genSrcjars, srcJarFile)
+		genSrcjars = append(genSrcjars, srcJarFile)
 	}
+
+	ctx.SetOutputFiles(genSrcjars, "")
 }
 
 func (g *syspropJavaGenRule) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// Add a dependency from the stubs to sysprop library so that the generator rule can depend on
 	// the check API rule of the sysprop library.
 	ctx.AddFarVariationDependencies(nil, nil, proptools.String(g.properties.Check_api))
-}
-
-func (g *syspropJavaGenRule) OutputFiles(tag string) (android.Paths, error) {
-	switch tag {
-	case "":
-		return g.genSrcjars, nil
-	default:
-		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
-	}
 }
 
 func syspropJavaGenFactory() android.Module {

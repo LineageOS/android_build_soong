@@ -241,7 +241,7 @@ func (p *PrebuiltEtc) ExtraImageVariations(ctx android.BaseModuleContext) []stri
 	return nil
 }
 
-func (p *PrebuiltEtc) SetImageVariation(ctx android.BaseModuleContext, variation string, module android.Module) {
+func (p *PrebuiltEtc) SetImageVariation(ctx android.BaseModuleContext, variation string) {
 }
 
 func (p *PrebuiltEtc) SourceFilePath(ctx android.ModuleContext) android.Path {
@@ -266,17 +266,6 @@ func (p *PrebuiltEtc) OutputFile() android.OutputPath {
 		panic(fmt.Errorf("OutputFile not available on multi-source prebuilt %q", p.Name()))
 	}
 	return p.outputFilePaths[0]
-}
-
-var _ android.OutputFileProducer = (*PrebuiltEtc)(nil)
-
-func (p *PrebuiltEtc) OutputFiles(tag string) (android.Paths, error) {
-	switch tag {
-	case "":
-		return p.outputFilePaths.Paths(), nil
-	default:
-		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
-	}
 }
 
 func (p *PrebuiltEtc) SubDir() string {
@@ -420,6 +409,8 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	for _, ip := range installs {
 		ip.addInstallRules(ctx)
 	}
+
+	ctx.SetOutputFiles(p.outputFilePaths.Paths(), "")
 }
 
 type installProperties struct {
