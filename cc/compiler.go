@@ -172,12 +172,6 @@ type BaseCompilerProperties struct {
 		Target_api *string
 	}
 
-	Debug, Release struct {
-		// list of module-specific flags that will be used for C and C++ compiles in debug or
-		// release builds
-		Cflags []string `android:"arch_variant"`
-	} `android:"arch_variant"`
-
 	Target struct {
 		Vendor, Product struct {
 			// list of source files that should only be used in vendor or
@@ -478,11 +472,6 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	if err != nil {
 		ctx.ModuleErrorf("%s", err)
 	}
-
-	CheckBadCompilerFlags(ctx, "release.cflags", compiler.Properties.Release.Cflags)
-
-	// TODO: debug
-	flags.Local.CFlags = append(flags.Local.CFlags, esc(compiler.Properties.Release.Cflags)...)
 
 	if !ctx.DeviceConfig().BuildBrokenClangCFlags() && len(compiler.Properties.Clang_cflags) != 0 {
 		ctx.PropertyErrorf("clang_cflags", "property is deprecated, see Changes.md file")
