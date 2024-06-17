@@ -218,7 +218,7 @@ func (a *apexBundle) writeRequiredModules(w io.Writer, moduleNames []string) {
 	var required []string
 	var targetRequired []string
 	var hostRequired []string
-	required = append(required, a.RequiredModuleNames()...)
+	required = append(required, a.required...)
 	targetRequired = append(targetRequired, a.TargetRequiredModuleNames()...)
 	hostRequired = append(hostRequired, a.HostRequiredModuleNames()...)
 	for _, fi := range a.filesInfo {

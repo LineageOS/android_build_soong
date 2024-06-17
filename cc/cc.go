@@ -981,8 +981,8 @@ func (c *Module) HiddenFromMake() bool {
 	return c.Properties.HideFromMake
 }
 
-func (c *Module) RequiredModuleNames() []string {
-	required := android.CopyOf(c.ModuleBase.RequiredModuleNames())
+func (c *Module) RequiredModuleNames(ctx android.ConfigAndErrorContext) []string {
+	required := android.CopyOf(c.ModuleBase.RequiredModuleNames(ctx))
 	if c.ImageVariation().Variation == android.CoreVariation {
 		required = append(required, c.Properties.Target.Platform.Required...)
 		required = removeListFromList(required, c.Properties.Target.Platform.Exclude_required)

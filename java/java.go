@@ -1501,7 +1501,7 @@ func (j *TestHost) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		InstalledFiles:      j.data,
 		OutputFile:          j.outputFile,
 		TestConfig:          j.testConfig,
-		RequiredModuleNames: j.RequiredModuleNames(),
+		RequiredModuleNames: j.RequiredModuleNames(ctx),
 		TestSuites:          j.testProperties.Test_suites,
 		IsHost:              true,
 		LocalSdkVersion:     j.sdkVersion.String(),

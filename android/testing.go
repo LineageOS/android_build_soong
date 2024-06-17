@@ -224,6 +224,10 @@ func (ctx *TestContext) OtherModuleProviderAdaptor() OtherModuleProviderContext 
 	})
 }
 
+func (ctx *TestContext) OtherModulePropertyErrorf(module Module, property string, fmt_ string, args ...interface{}) {
+	panic(fmt.Sprintf(fmt_, args...))
+}
+
 // registeredComponentOrder defines the order in which a sortableComponent type is registered at
 // runtime and provides support for reordering the components registered for a test in the same
 // way.

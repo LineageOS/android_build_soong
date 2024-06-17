@@ -824,11 +824,16 @@ func (s *listVariable) printfIntoPropertyRecursive(fieldName []string, propStruc
 			}
 			field.Set(newField)
 		case reflect.Struct:
-			fieldName = append(fieldName, propStruct.Type().Field(i).Name)
-			if err := s.printfIntoPropertyRecursive(fieldName, field, configValues); err != nil {
-				return err
+			if proptools.IsConfigurable(field.Type()) {
+				fieldName = append(fieldName, propStruct.Type().Field(i).Name)
+				return fmt.Errorf("soong_config_variables.%s.%s: list variables are not supported on configurable properties", s.variable, strings.Join(fieldName, "."))
+			} else {
+				fieldName = append(fieldName, propStruct.Type().Field(i).Name)
+				if err := s.printfIntoPropertyRecursive(fieldName, field, configValues); err != nil {
+					return err
+				}
+				fieldName = fieldName[:len(fieldName)-1]
 			}
-			fieldName = fieldName[:len(fieldName)-1]
 		default:
 			fieldName = append(fieldName, propStruct.Type().Field(i).Name)
 			return fmt.Errorf("soong_config_variables.%s.%s: unsupported property type %q", s.variable, strings.Join(fieldName, "."), kind)

@@ -489,6 +489,9 @@ type apexBundle struct {
 	javaApisUsedByModuleFile     android.ModuleOutPath
 
 	aconfigFiles []android.Path
+
+	// Required modules, filled out during GenerateAndroidBuildActions and used in AndroidMk
+	required []string
 }
 
 // apexFileClass represents a type of file that can be included in APEX.
@@ -567,7 +570,7 @@ func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, androidM
 	if module != nil {
 		ret.moduleDir = ctx.OtherModuleDir(module)
 		ret.partition = module.PartitionTag(ctx.DeviceConfig())
-		ret.requiredModuleNames = module.RequiredModuleNames()
+		ret.requiredModuleNames = module.RequiredModuleNames(ctx)
 		ret.targetRequiredModuleNames = module.TargetRequiredModuleNames()
 		ret.hostRequiredModuleNames = module.HostRequiredModuleNames()
 		ret.multilib = module.Target().Arch.ArchType.Multilib
@@ -2426,6 +2429,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.provideApexExportsInfo(ctx)
 
 	a.providePrebuiltInfo(ctx)
+
+	a.required = a.RequiredModuleNames(ctx)
 }
 
 // Set prebuiltInfoProvider. This will be used by `apex_prebuiltinfo_singleton` to print out a metadata file
