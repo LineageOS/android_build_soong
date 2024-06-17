@@ -493,7 +493,6 @@ func setVariable(file *bpFile, plusequals bool, prefix, name string, value bppar
 				Name:      name,
 				NamePos:   pos,
 				Value:     value,
-				OrigValue: value,
 				EqualsPos: pos,
 				Assigner:  "+=",
 			}
@@ -506,7 +505,6 @@ func setVariable(file *bpFile, plusequals bool, prefix, name string, value bppar
 				Name:      name,
 				NamePos:   pos,
 				Value:     value,
-				OrigValue: value,
 				EqualsPos: pos,
 				Assigner:  "=",
 			}

@@ -110,6 +110,7 @@ bootstrap_go_package {
         "androidmk_test.go",
         "apex_test.go",
         "arch_test.go",
+        "blueprint_e2e_test.go",
         "config_test.go",
         "configured_jars_test.go",
         "csuite_config_test.go",
