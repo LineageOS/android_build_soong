@@ -81,7 +81,7 @@ func makeToStringExpression(ms *mkparser.MakeString, file *bpFile) (bpparser.Exp
 			}
 			tmp := &bpparser.Variable{
 				Name:  name,
-				Value: &bpparser.String{},
+				Type_: bpparser.StringType,
 			}
 
 			if tmp.Name == "TOP" {
@@ -150,7 +150,7 @@ func makeToListExpression(ms *mkparser.MakeString, file *bpFile) (bpparser.Expre
 					}
 					listOfListValues = append(listOfListValues, &bpparser.Variable{
 						Name:  name,
-						Value: &bpparser.List{},
+						Type_: bpparser.ListType,
 					})
 					listValue = &bpparser.List{}
 				}
@@ -215,7 +215,7 @@ func makeToBoolExpression(ms *mkparser.MakeString, file *bpFile) (bpparser.Expre
 			}
 			return &bpparser.Variable{
 				Name:  name,
-				Value: &bpparser.Bool{},
+				Type_: bpparser.BoolType,
 			}, nil
 		} else {
 			return nil, fmt.Errorf("non-const bool expression %s", ms.Dump())

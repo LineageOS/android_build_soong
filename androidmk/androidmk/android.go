@@ -341,9 +341,6 @@ func classifyLocalOrGlobalPath(value bpparser.Expression) (string, bpparser.Expr
 
 		firstOperand := v.Args[0]
 		secondOperand := v.Args[1]
-		if firstOperand.Type() != bpparser.StringType {
-			return "global", value, nil
-		}
 
 		if _, ok := firstOperand.(*bpparser.Operator); ok {
 			return "global", value, nil

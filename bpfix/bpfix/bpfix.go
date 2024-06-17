@@ -286,7 +286,7 @@ func (f *Fixer) reparse() ([]byte, error) {
 }
 
 func parse(name string, r io.Reader) (*parser.File, error) {
-	tree, errs := parser.Parse(name, r, parser.NewScope(nil))
+	tree, errs := parser.Parse(name, r)
 	if errs != nil {
 		s := "parse error: "
 		for _, err := range errs {
