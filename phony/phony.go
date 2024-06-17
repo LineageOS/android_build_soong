@@ -49,7 +49,7 @@ func PhonyFactory() android.Module {
 }
 
 func (p *phony) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	p.requiredModuleNames = ctx.RequiredModuleNames()
+	p.requiredModuleNames = ctx.RequiredModuleNames(ctx)
 	p.hostRequiredModuleNames = ctx.HostRequiredModuleNames()
 	p.targetRequiredModuleNames = ctx.TargetRequiredModuleNames()
 }

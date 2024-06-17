@@ -101,7 +101,7 @@ func (f *hostSnapshot) CreateMetaData(ctx android.ModuleContext, fileName string
 
 	// Create JSON file based on the direct dependencies
 	ctx.VisitDirectDeps(func(dep android.Module) {
-		desc := hostJsonDesc(dep)
+		desc := hostJsonDesc(ctx, dep)
 		if desc != nil {
 			jsonData = append(jsonData, *desc)
 		}
@@ -209,7 +209,7 @@ func hostRelativePathString(m android.Module) string {
 
 // Create JSON description for given module, only create descriptions for binary modules
 // and rust_proc_macro modules which provide a valid HostToolPath
-func hostJsonDesc(m android.Module) *SnapshotJsonFlags {
+func hostJsonDesc(ctx android.ConfigAndErrorContext, m android.Module) *SnapshotJsonFlags {
 	path := hostToolPath(m)
 	relPath := hostRelativePathString(m)
 	procMacro := false
@@ -226,7 +226,7 @@ func hostJsonDesc(m android.Module) *SnapshotJsonFlags {
 		props := &SnapshotJsonFlags{
 			ModuleStemName:      moduleStem,
 			Filename:            path.String(),
-			Required:            append(m.HostRequiredModuleNames(), m.RequiredModuleNames()...),
+			Required:            append(m.HostRequiredModuleNames(), m.RequiredModuleNames(ctx)...),
 			RelativeInstallPath: relPath,
 			RustProcMacro:       procMacro,
 			CrateName:           crateName,
