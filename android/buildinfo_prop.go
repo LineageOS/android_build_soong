@@ -91,6 +91,8 @@ func (p *buildinfoPropModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	// Note: depending on BuildNumberFile will cause the build.prop file to be rebuilt
 	// every build, but that's intentional.
 	cmd.FlagWithInput("--build-number-file=", config.BuildNumberFile(ctx))
+	// Export build thumbprint only if the product has specified at least one oem fingerprint property
+	// b/17888863
 	if shouldAddBuildThumbprint(config) {
 		// In the previous make implementation, a dependency was not added on the thumbprint file
 		cmd.FlagWithArg("--build-thumbprint-file=", config.BuildThumbprintFile(ctx).String())
