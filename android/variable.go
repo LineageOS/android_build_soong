@@ -412,7 +412,8 @@ type ProductVariables struct {
 
 	PlatformSepolicyCompatVersions []string `json:",omitempty"`
 
-	VendorVars map[string]map[string]string `json:",omitempty"`
+	VendorVars     map[string]map[string]string `json:",omitempty"`
+	VendorVarTypes map[string]map[string]string `json:",omitempty"`
 
 	Ndk_abis *bool `json:",omitempty"`
 
