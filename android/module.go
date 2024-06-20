@@ -2208,7 +2208,20 @@ func (e configurationEvalutor) EvaluateConfiguration(condition proptools.Configu
 		variable := condition.Arg(1)
 		if n, ok := ctx.Config().productVariables.VendorVars[namespace]; ok {
 			if v, ok := n[variable]; ok {
-				return proptools.ConfigurableValueString(v)
+				ty := ""
+				if namespaces, ok := ctx.Config().productVariables.VendorVarTypes[namespace]; ok {
+					ty = namespaces[variable]
+				}
+				switch ty {
+				case "":
+					// strings are the default, we don't bother writing them to the soong variables json file
+					return proptools.ConfigurableValueString(v)
+				case "bool":
+					return proptools.ConfigurableValueBool(v == "true")
+				default:
+					panic("unhandled soong config variable type: " + ty)
+				}
+
 			}
 		}
 		return proptools.ConfigurableValueUndefined()
