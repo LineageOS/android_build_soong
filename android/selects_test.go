@@ -27,6 +27,7 @@ func TestSelects(t *testing.T) {
 	testCases := []struct {
 		name           string
 		bp             string
+		fs             MockFS
 		provider       selectsTestProvider
 		providers      map[string]selectsTestProvider
 		vendorVars     map[string]map[string]string
@@ -849,10 +850,176 @@ func TestSelects(t *testing.T) {
 				arch_variant_configurable_bool: proptools.BoolPtr(false),
 			},
 		},
+		{
+			name: "Simple string binding",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
+					any @ my_binding: "hello " + my_binding,
+					default: "goodbye",
+				})
+			}
+			`,
+			vendorVars: map[string]map[string]string{
+				"my_namespace": {
+					"my_variable": "world!",
+				},
+			},
+			provider: selectsTestProvider{
+				my_string: proptools.StringPtr("hello world!"),
+			},
+		},
+		{
+			name: "Any branch with binding not taken",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
+					any @ my_binding: "hello " + my_binding,
+					default: "goodbye",
+				})
+			}
+			`,
+			provider: selectsTestProvider{
+				my_string: proptools.StringPtr("goodbye"),
+			},
+		},
+		{
+			name: "Any branch without binding",
+			bp: `
+			my_module_type {
+				name: "foo",
+				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
+					any: "hello",
+					default: "goodbye",
+				})
+			}
+			`,
+			vendorVars: map[string]map[string]string{
+				"my_namespace": {
+					"my_variable": "world!",
+				},
+			},
+			provider: selectsTestProvider{
+				my_string: proptools.StringPtr("hello"),
+			},
+		},
+		{
+			name: "Binding conflicts with file-level variable",
+			bp: `
+			my_binding = "asdf"
+			my_module_type {
+				name: "foo",
+				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
+					any @ my_binding: "hello",
+					default: "goodbye",
+				})
+			}
+			`,
+			vendorVars: map[string]map[string]string{
+				"my_namespace": {
+					"my_variable": "world!",
+				},
+			},
+			expectedError: "variable already set in inherited scope, previous assignment",
+		},
+		{
+			name: "Binding in combination with file-level variable",
+			bp: `
+			my_var = " there "
+			my_module_type {
+				name: "foo",
+				my_string: select(soong_config_variable("my_namespace", "my_variable"), {
+					any @ my_binding: "hello" + my_var + my_binding,
+					default: "goodbye",
+				})
+			}
+			`,
+			vendorVars: map[string]map[string]string{
+				"my_namespace": {
+					"my_variable": "world!",
+				},
+			},
+			provider: selectsTestProvider{
+				my_string: proptools.StringPtr("hello there world!"),
+			},
+		},
+		{
+			name: "Bindings in subdirectory inherits variable",
+			fs: map[string][]byte{
+				"Android.bp": []byte(`
+my_var = "abcd"
+`),
+				"directoryB/Android.bp": []byte(`
+my_module_type {
+	name: "foo",
+	my_string: select(soong_config_variable("my_namespace", "variable_a"), {
+		any @ my_binding: my_var + my_binding,
+		default: "",
+	}),
+}
+`),
+			},
+			vendorVars: map[string]map[string]string{
+				"my_namespace": {
+					"variable_a": "e",
+				},
+			},
+			provider: selectsTestProvider{
+				my_string: proptools.StringPtr("abcde"),
+			},
+		},
+		{
+			name: "Cannot modify variable after referenced by select",
+			bp: `
+my_var = "foo"
+my_module_type {
+	name: "foo",
+	my_string: select(soong_config_variable("my_namespace", "variable_a"), {
+		"a": my_var,
+		default: "",
+	}),
+}
+my_var += "bar"
+`,
+			vendorVars: map[string]map[string]string{
+				"my_namespace": {
+					"variable_a": "b", // notably not the value that causes my_var to be referenced
+				},
+			},
+			expectedError: `modified variable "my_var" with \+= after referencing`,
+		},
+		{
+			name: "Cannot shadow variable with binding",
+			bp: `
+my_var = "foo"
+my_module_type {
+	name: "foo",
+	my_string: select(soong_config_variable("my_namespace", "variable_a"), {
+		any @ my_var: my_var,
+		default: "",
+	}),
+}
+`,
+			vendorVars: map[string]map[string]string{
+				"my_namespace": {
+					"variable_a": "a",
+				},
+			},
+			expectedError: `variable already set in inherited scope, previous assignment:`,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			fs := tc.fs
+			if fs == nil {
+				fs = make(MockFS)
+			}
+			if tc.bp != "" {
+				fs["Android.bp"] = []byte(tc.bp)
+			}
 			fixtures := GroupFixturePreparers(
 				PrepareForTestWithDefaults,
 				PrepareForTestWithArchMutator,
@@ -865,11 +1032,12 @@ func TestSelects(t *testing.T) {
 					variables.VendorVars = tc.vendorVars
 					variables.VendorVarTypes = tc.vendorVarTypes
 				}),
+				FixtureMergeMockFs(fs),
 			)
 			if tc.expectedError != "" {
 				fixtures = fixtures.ExtendWithErrorHandler(FixtureExpectsOneErrorPattern(tc.expectedError))
 			}
-			result := fixtures.RunTestWithBp(t, tc.bp)
+			result := fixtures.RunTest(t)
 
 			if tc.expectedError == "" {
 				if len(tc.providers) == 0 {
