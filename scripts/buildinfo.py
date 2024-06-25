@@ -68,6 +68,7 @@ def parse_args():
   option.build_id = product_config["BuildId"]
   option.build_type = product_config["BuildType"]
   option.build_variant = get_build_variant(product_config)
+  option.build_version_tags = product_config["BuildVersionTags"]
   option.cpu_abis = product_config["DeviceAbi"]
   option.default_locale = None
   if len(product_config.get("ProductLocales", [])) > 0:
@@ -96,9 +97,11 @@ def main():
 
   build_hostname = option.build_hostname_file.read().strip()
   build_number = option.build_number_file.read().strip()
-  build_version_tags = option.build_keys
+  build_version_tags_list = option.build_version_tags
   if option.build_type == "debug":
-    build_version_tags = "debug," + build_version_tags
+    build_version_tags_list.append("debug")
+  build_version_tags_list.append(option.build_keys)
+  build_version_tags = ",".join(sorted(set(build_version_tags_list)))
 
   raw_date = option.date_file.read().strip()
   date = subprocess.check_output(["date", "-d", f"@{raw_date}"], text=True).strip()

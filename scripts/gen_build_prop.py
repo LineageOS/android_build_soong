@@ -73,9 +73,13 @@ def parse_args():
   config["BuildHostname"] = args.build_hostname_file.read().strip()
   config["BuildNumber"] = args.build_number_file.read().strip()
   config["BuildUsername"] = args.build_username
-  config["BuildVersionTags"] = config["BuildKeys"]
+
+  build_version_tags_list = config["BuildVersionTags"]
   if config["BuildType"] == "debug":
-    config["BuildVersionTags"] = "debug," + config["BuildVersionTags"]
+    build_version_tags_list.append("debug")
+  build_version_tags_list.append(config["BuildKeys"])
+  build_version_tags = ",".join(sorted(set(build_version_tags_list)))
+  config["BuildVersionTags"] = build_version_tags
 
   raw_date = args.date_file.read().strip()
   config["Date"] = subprocess.check_output(["date", "-d", f"@{raw_date}"], text=True).strip()
