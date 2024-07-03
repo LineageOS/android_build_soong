@@ -19,8 +19,11 @@
 import argparse
 import contextlib
 import json
+import os
 import subprocess
 import sys
+
+TEST_KEY_DIR = "build/make/target/product/security"
 
 def get_build_variant(product_config):
   if product_config["Eng"]:
