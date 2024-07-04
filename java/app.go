@@ -539,7 +539,11 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 	a.aapt.splitNames = a.appProperties.Package_splits
 	a.aapt.LoggingParent = String(a.overridableAppProperties.Logging_parent)
 	if a.Updatable() {
-		a.aapt.defaultManifestVersion = android.DefaultUpdatableModuleVersion
+		if override := ctx.Config().Getenv("OVERRIDE_APEX_MANIFEST_DEFAULT_VERSION"); override != "" {
+			a.aapt.defaultManifestVersion = override
+		} else {
+			a.aapt.defaultManifestVersion = android.DefaultUpdatableModuleVersion
+		}
 	}
 
 	// Use non final ids if we are doing optimized shrinking and are using R8.
