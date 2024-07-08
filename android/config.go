@@ -2097,3 +2097,11 @@ func (c *config) BoardUseVbmetaDigestInFingerprint() bool {
 func (c *config) OemProperties() []string {
 	return c.productVariables.OemProperties
 }
+
+func (c *config) UseDebugArt() bool {
+	if c.productVariables.ArtTargetIncludeDebugBuild != nil {
+		return Bool(c.productVariables.ArtTargetIncludeDebugBuild)
+	}
+
+	return Bool(c.productVariables.Eng)
+}

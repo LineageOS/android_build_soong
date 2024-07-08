@@ -2194,6 +2194,9 @@ func (e configurationEvalutor) EvaluateConfiguration(condition proptools.Configu
 		switch variable {
 		case "debuggable":
 			return proptools.ConfigurableValueBool(ctx.Config().Debuggable())
+		case "use_debug_art":
+			// TODO(b/234351700): Remove once ART does not have separated debug APEX
+			return proptools.ConfigurableValueBool(ctx.Config().UseDebugArt())
 		default:
 			// TODO(b/323382414): Might add these on a case-by-case basis
 			ctx.OtherModulePropertyErrorf(m, property, fmt.Sprintf("TODO(b/323382414): Product variable %q is not yet supported in selects", variable))
