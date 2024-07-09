@@ -258,6 +258,31 @@ func TestPrebuiltRootInstallDirPathValidate(t *testing.T) {
 	`)
 }
 
+func TestPrebuiltAvbInstallDirPath(t *testing.T) {
+	result := prepareForPrebuiltEtcTest.RunTestWithBp(t, `
+		prebuilt_avb {
+			name: "foo.conf",
+			src: "foo.conf",
+			filename: "foo.conf",
+			//recovery: true,
+		}
+	`)
+
+	p := result.Module("foo.conf", "android_arm64_armv8-a").(*PrebuiltEtc)
+	expected := "out/soong/target/product/test_device/root/avb"
+	android.AssertPathRelativeToTopEquals(t, "install dir", expected, p.installDirPath)
+}
+
+func TestPrebuiltAvdInstallDirPathValidate(t *testing.T) {
+	prepareForPrebuiltEtcTest.ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern("filename cannot contain separator")).RunTestWithBp(t, `
+		prebuilt_avb {
+			name: "foo.conf",
+			src: "foo.conf",
+			filename: "foo/bar.conf",
+		}
+	`)
+}
+
 func TestPrebuiltUserShareInstallDirPath(t *testing.T) {
 	result := prepareForPrebuiltEtcTest.RunTestWithBp(t, `
 		prebuilt_usr_share {

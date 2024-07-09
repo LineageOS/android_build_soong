@@ -53,6 +53,7 @@ func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_etc", PrebuiltEtcFactory)
 	ctx.RegisterModuleType("prebuilt_etc_host", PrebuiltEtcHostFactory)
 	ctx.RegisterModuleType("prebuilt_etc_cacerts", PrebuiltEtcCaCertsFactory)
+	ctx.RegisterModuleType("prebuilt_avb", PrebuiltAvbFactory)
 	ctx.RegisterModuleType("prebuilt_root", PrebuiltRootFactory)
 	ctx.RegisterModuleType("prebuilt_root_host", PrebuiltRootHostFactory)
 	ctx.RegisterModuleType("prebuilt_usr_share", PrebuiltUserShareFactory)
@@ -163,6 +164,10 @@ type PrebuiltEtc struct {
 	installDirPath         android.InstallPath
 	additionalDependencies *android.Paths
 
+	// installInRoot is used to return the value of the InstallInRoot() method. The default value is false.
+	// Currently, only prebuilt_avb can be set to true.
+	installInRoot bool
+
 	makeClass string
 
 	// Aconfig files for all transitive deps.  Also exposed via TransitiveDeclarationsInfo
@@ -241,6 +246,10 @@ func (p *PrebuiltEtc) VendorRamdiskVariantNeeded(ctx android.BaseModuleContext) 
 
 func (p *PrebuiltEtc) DebugRamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
 	return proptools.Bool(p.properties.Debug_ramdisk_available) || p.ModuleBase.InstallInDebugRamdisk()
+}
+
+func (p *PrebuiltEtc) InstallInRoot() bool {
+	return p.installInRoot
 }
 
 func (p *PrebuiltEtc) RecoveryVariantNeeded(ctx android.BaseModuleContext) bool {
@@ -512,12 +521,20 @@ func (p *PrebuiltEtc) AndroidModuleBase() *android.ModuleBase {
 
 func InitPrebuiltEtcModule(p *PrebuiltEtc, dirBase string) {
 	p.installDirBase = dirBase
+	p.installInRoot = false
 	p.AddProperties(&p.properties)
 	p.AddProperties(&p.subdirProperties)
 }
 
 func InitPrebuiltRootModule(p *PrebuiltEtc) {
 	p.installDirBase = "."
+	p.installInRoot = false
+	p.AddProperties(&p.properties)
+}
+
+func InitPrebuiltAvbModule(p *PrebuiltEtc) {
+	p.installDirBase = "avb"
+	p.installInRoot = true
 	p.AddProperties(&p.properties)
 }
 
@@ -568,6 +585,20 @@ func PrebuiltEtcCaCertsFactory() android.Module {
 	InitPrebuiltEtcModule(module, "cacerts")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	return module
+}
+
+// Generally, a <partition> directory will contain a `system` subdirectory, but the <partition> of
+// `prebuilt_avb` will not have a `system` subdirectory.
+// Ultimately, prebuilt_avb will install the prebuilt artifact to the `avb` subdirectory under the
+// root directory of the partition: <partition_root>/avb.
+// prebuilt_avb does not allow adding any other subdirectories.
+func PrebuiltAvbFactory() android.Module {
+	module := &PrebuiltEtc{}
+	InitPrebuiltAvbModule(module)
+	// This module is device-only
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
 	return module
 }
 
