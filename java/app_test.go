@@ -519,6 +519,49 @@ func TestUpdatableApps_ErrorIfDepMinSdkVersionIsHigher(t *testing.T) {
 	testJavaError(t, `"libjni" .*: links "libbar" built against newer API version "current"`, bp)
 }
 
+func TestUpdatableApps_ApplyDefaultUpdatableModuleVersion(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		PrepareForTestWithJavaDefaultModules,
+	).RunTestWithBp(t, `
+		android_app {
+			name: "com.android.foo",
+			srcs: ["a.java"],
+			sdk_version: "current",
+			min_sdk_version: "31",
+			updatable: true,
+		}
+	`)
+	foo := result.ModuleForTests("com.android.foo", "android_common").Rule("manifestFixer")
+	android.AssertStringDoesContain(t,
+		"com.android.foo: expected manifest fixer to set override-placeholder-version to android.DefaultUpdatableModuleVersion",
+		foo.BuildParams.Args["args"],
+		fmt.Sprintf("--override-placeholder-version %s", android.DefaultUpdatableModuleVersion),
+	)
+}
+
+func TestUpdatableApps_ApplyOverrideApexManifestDefaultVersion(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		PrepareForTestWithJavaDefaultModules,
+		android.FixtureMergeEnv(map[string]string{
+			"OVERRIDE_APEX_MANIFEST_DEFAULT_VERSION": "1234",
+		}),
+	).RunTestWithBp(t, `
+		android_app {
+			name: "com.android.foo",
+			srcs: ["a.java"],
+			sdk_version: "current",
+			min_sdk_version: "31",
+			updatable: true,
+		}
+	`)
+	foo := result.ModuleForTests("com.android.foo", "android_common").Rule("manifestFixer")
+	android.AssertStringDoesContain(t,
+		"com.android.foo: expected manifest fixer to set override-placeholder-version to 1234",
+		foo.BuildParams.Args["args"],
+		"--override-placeholder-version 1234",
+	)
+}
+
 func TestResourceDirs(t *testing.T) {
 	testCases := []struct {
 		name      string
@@ -4478,4 +4521,45 @@ func TestAppMinSdkVersionOverride(t *testing.T) {
 		"--minSdkVersion  33",
 	)
 
+}
+
+func TestNotApplyDefaultUpdatableModuleVersion(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		PrepareForTestWithJavaDefaultModules,
+	).RunTestWithBp(t, `
+		android_app {
+			name: "com.android.foo",
+			srcs: ["a.java"],
+			sdk_version: "current",
+			min_sdk_version: "31",
+		}
+	`)
+	foo := result.ModuleForTests("com.android.foo", "android_common").Rule("manifestFixer")
+	android.AssertStringDoesNotContain(t,
+		"com.android.foo: expected manifest fixer to not set override-placeholder-version",
+		foo.BuildParams.Args["args"],
+		"--override-placeholder-version",
+	)
+}
+
+func TestNotApplyOverrideApexManifestDefaultVersion(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		PrepareForTestWithJavaDefaultModules,
+		android.FixtureMergeEnv(map[string]string{
+			"OVERRIDE_APEX_MANIFEST_DEFAULT_VERSION": "1234",
+		}),
+	).RunTestWithBp(t, `
+		android_app {
+			name: "com.android.foo",
+			srcs: ["a.java"],
+			sdk_version: "current",
+			min_sdk_version: "31",
+		}
+	`)
+	foo := result.ModuleForTests("com.android.foo", "android_common").Rule("manifestFixer")
+	android.AssertStringDoesNotContain(t,
+		"com.android.foo: expected manifest fixer to not set override-placeholder-version",
+		foo.BuildParams.Args["args"],
+		"--override-placeholder-version",
+	)
 }
