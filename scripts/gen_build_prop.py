@@ -188,7 +188,7 @@ def generate_build_info(args):
 
     # Dev. branches should have DISPLAY_BUILD_NUMBER set
     if config["DisplayBuildNumber"]:
-      print(f"ro.build.display.id?={config['BuildId']} {config['BuildNumber']} {config['BuildKeys']}")
+      print(f"ro.build.display.id?={config['BuildId']}.{config['BuildNumber']} {config['BuildKeys']}")
     else:
       print(f"ro.build.display.id?={config['BuildId']} {config['BuildKeys']}")
   else:
