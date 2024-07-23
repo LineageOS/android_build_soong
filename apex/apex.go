@@ -86,7 +86,7 @@ type apexBundleProperties struct {
 
 	// AndroidManifest.xml file used for the zip container of this APEX bundle. If unspecified,
 	// a default one is automatically generated.
-	AndroidManifest *string `android:"path"`
+	AndroidManifest proptools.Configurable[string] `android:"path,replace_instead_of_append"`
 
 	// Determines the file contexts file for setting the security contexts to files in this APEX
 	// bundle. For platform APEXes, this should points to a file under /system/sepolicy Default:
@@ -104,7 +104,7 @@ type apexBundleProperties struct {
 	// path_or_glob is a path or glob pattern for a file or set of files,
 	// uid/gid are numerial values of user ID and group ID, mode is octal value
 	// for the file mode, and cap is hexadecimal value for the capability.
-	Canned_fs_config *string `android:"path"`
+	Canned_fs_config proptools.Configurable[string] `android:"path,replace_instead_of_append"`
 
 	ApexNativeDependencies
 
@@ -117,7 +117,8 @@ type apexBundleProperties struct {
 	Bootclasspath_fragments []string
 
 	// List of systemserverclasspath fragments that are embedded inside this APEX bundle.
-	Systemserverclasspath_fragments []string
+	Systemserverclasspath_fragments        proptools.Configurable[[]string]
+	ResolvedSystemserverclasspathFragments []string `blueprint:"mutated"`
 
 	// List of java libraries that are embedded inside this APEX bundle.
 	Java_libs []string
@@ -842,11 +843,13 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 	}
 
+	a.properties.ResolvedSystemserverclasspathFragments = a.properties.Systemserverclasspath_fragments.GetOrDefault(a.ConfigurableEvaluator(ctx), nil)
+
 	// Common-arch dependencies come next
 	commonVariation := ctx.Config().AndroidCommonTarget.Variations()
 	ctx.AddFarVariationDependencies(commonVariation, rroTag, a.properties.Rros...)
 	ctx.AddFarVariationDependencies(commonVariation, bcpfTag, a.properties.Bootclasspath_fragments...)
-	ctx.AddFarVariationDependencies(commonVariation, sscpfTag, a.properties.Systemserverclasspath_fragments...)
+	ctx.AddFarVariationDependencies(commonVariation, sscpfTag, a.properties.ResolvedSystemserverclasspathFragments...)
 	ctx.AddFarVariationDependencies(commonVariation, javaLibTag, a.properties.Java_libs...)
 	ctx.AddFarVariationDependencies(commonVariation, fsTag, a.properties.Filesystems...)
 	ctx.AddFarVariationDependencies(commonVariation, compatConfigTag, a.properties.Compat_configs...)
@@ -2856,7 +2859,7 @@ func isStaticExecutableAllowed(apex string, exec string) bool {
 func (a *apexBundle) IDEInfo(dpInfo *android.IdeInfo) {
 	dpInfo.Deps = append(dpInfo.Deps, a.properties.Java_libs...)
 	dpInfo.Deps = append(dpInfo.Deps, a.properties.Bootclasspath_fragments...)
-	dpInfo.Deps = append(dpInfo.Deps, a.properties.Systemserverclasspath_fragments...)
+	dpInfo.Deps = append(dpInfo.Deps, a.properties.ResolvedSystemserverclasspathFragments...)
 }
 
 var (
