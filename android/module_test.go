@@ -722,7 +722,6 @@ test {
 				propInfo{Name: "Arch.X86_64.A", Type: "string", Value: "x86_64 a"},
 				propInfo{Name: "B", Type: "bool", Value: "true"},
 				propInfo{Name: "C", Type: "string slice", Values: []string{"default_c", "c"}},
-				propInfo{Name: "Defaults", Type: "string slice", Values: []string{"foo_defaults"}},
 				propInfo{Name: "Embedded_prop", Type: "string", Value: "a"},
 				propInfo{Name: "Name", Type: "string", Value: "foo"},
 				propInfo{Name: "Nested.E", Type: "string", Value: "nested e"},
@@ -746,7 +745,6 @@ test {
 			foo := result.ModuleForTests("foo", "").Module().base()
 
 			AssertDeepEquals(t, "foo ", tc.expectedProps, foo.propertiesWithValues())
-
 		})
 	}
 }
