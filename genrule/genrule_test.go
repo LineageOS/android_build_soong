@@ -694,7 +694,7 @@ func TestGenruleDefaults(t *testing.T) {
 	android.AssertStringEquals(t, "cmd", expectedCmd, gen.rawCommands[0])
 
 	expectedSrcs := []string{"in1"}
-	android.AssertDeepEquals(t, "srcs", expectedSrcs, gen.properties.Srcs)
+	android.AssertDeepEquals(t, "srcs", expectedSrcs, gen.properties.ResolvedSrcs)
 }
 
 func TestGenruleAllowMissingDependencies(t *testing.T) {
