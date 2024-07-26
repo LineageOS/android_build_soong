@@ -285,7 +285,7 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	if isCpp {
 		cflags = append(cflags, "-x c++")
 		// Add any C++ only flags.
-		cflags = append(cflags, esc(b.ClangProperties.Cppflags)...)
+		cflags = append(cflags, esc(b.ClangProperties.Cppflags.GetOrDefault(ctx, nil))...)
 	} else {
 		cflags = append(cflags, "-x c")
 	}
