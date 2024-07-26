@@ -53,7 +53,7 @@ type BaseCompilerProperties struct {
 	Cflags proptools.Configurable[[]string] `android:"arch_variant"`
 
 	// list of module-specific flags that will be used for C++ compiles
-	Cppflags []string `android:"arch_variant"`
+	Cppflags proptools.Configurable[[]string] `android:"arch_variant"`
 
 	// list of module-specific flags that will be used for C compiles
 	Conlyflags []string `android:"arch_variant"`
@@ -377,8 +377,9 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	compiler.srcsBeforeGen = append(compiler.srcsBeforeGen, deps.GeneratedSources...)
 
 	cflags := compiler.Properties.Cflags.GetOrDefault(ctx, nil)
+	cppflags := compiler.Properties.Cppflags.GetOrDefault(ctx, nil)
 	CheckBadCompilerFlags(ctx, "cflags", cflags)
-	CheckBadCompilerFlags(ctx, "cppflags", compiler.Properties.Cppflags)
+	CheckBadCompilerFlags(ctx, "cppflags", cppflags)
 	CheckBadCompilerFlags(ctx, "conlyflags", compiler.Properties.Conlyflags)
 	CheckBadCompilerFlags(ctx, "asflags", compiler.Properties.Asflags)
 	CheckBadCompilerFlags(ctx, "vendor.cflags", compiler.Properties.Target.Vendor.Cflags)
@@ -391,7 +392,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	esc := proptools.NinjaAndShellEscapeList
 
 	flags.Local.CFlags = append(flags.Local.CFlags, esc(cflags)...)
-	flags.Local.CppFlags = append(flags.Local.CppFlags, esc(compiler.Properties.Cppflags)...)
+	flags.Local.CppFlags = append(flags.Local.CppFlags, esc(cppflags)...)
 	flags.Local.ConlyFlags = append(flags.Local.ConlyFlags, esc(compiler.Properties.Conlyflags)...)
 	flags.Local.AsFlags = append(flags.Local.AsFlags, esc(compiler.Properties.Asflags)...)
 	flags.Local.YasmFlags = append(flags.Local.YasmFlags, esc(compiler.Properties.Asflags)...)
@@ -823,7 +824,7 @@ type RustBindgenClangProperties struct {
 
 	// list of c++ specific clang flags required to correctly interpret the headers.
 	// This is provided primarily to make sure cppflags defined in cc_defaults are pulled in.
-	Cppflags []string `android:"arch_variant"`
+	Cppflags proptools.Configurable[[]string] `android:"arch_variant"`
 
 	// C standard version to use. Can be a specific version (such as "gnu11"),
 	// "experimental" (which will use draft versions like C1x when available),
