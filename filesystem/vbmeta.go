@@ -59,7 +59,7 @@ type vbmetaProperties struct {
 
 	// List of filesystem modules that this vbmeta has descriptors for. The filesystem modules
 	// have to be signed (use_avb: true).
-	Partitions []string
+	Partitions proptools.Configurable[[]string]
 
 	// List of chained partitions that this vbmeta deletages the verification.
 	Chained_partitions []chainedPartitionProperties
@@ -110,7 +110,7 @@ type vbmetaDep struct {
 var vbmetaPartitionDep = vbmetaDep{kind: "partition"}
 
 func (v *vbmeta) DepsMutator(ctx android.BottomUpMutatorContext) {
-	ctx.AddDependency(ctx.Module(), vbmetaPartitionDep, v.properties.Partitions...)
+	ctx.AddDependency(ctx.Module(), vbmetaPartitionDep, v.properties.Partitions.GetOrDefault(v.ConfigurableEvaluator(ctx), nil)...)
 }
 
 func (v *vbmeta) installFileName() string {
