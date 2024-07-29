@@ -278,13 +278,13 @@ func RegisterDefaultsPreArchMutators(ctx RegisterMutatorsContext) {
 
 func defaultsDepsMutator(ctx BottomUpMutatorContext) {
 	if defaultable, ok := ctx.Module().(Defaultable); ok {
-		ctx.AddDependency(ctx.Module(), DefaultsDepTag, defaultable.defaults().Defaults.GetOrDefault(ctx.Module().ConfigurableEvaluator(ctx), nil)...)
+		ctx.AddDependency(ctx.Module(), DefaultsDepTag, defaultable.defaults().Defaults.GetOrDefault(ctx, nil)...)
 	}
 }
 
 func defaultsMutator(ctx TopDownMutatorContext) {
 	if defaultable, ok := ctx.Module().(Defaultable); ok {
-		defaults := defaultable.defaults().Defaults.GetOrDefault(ctx.Module().ConfigurableEvaluator(ctx), nil)
+		defaults := defaultable.defaults().Defaults.GetOrDefault(ctx, nil)
 		if len(defaults) > 0 {
 			var defaultsList []Defaults
 			seen := make(map[Defaults]bool)
@@ -295,7 +295,7 @@ func defaultsMutator(ctx TopDownMutatorContext) {
 						if !seen[defaults] {
 							seen[defaults] = true
 							defaultsList = append(defaultsList, defaults)
-							return len(defaults.defaults().Defaults.GetOrDefault(ctx.Module().ConfigurableEvaluator(ctx), nil)) > 0
+							return len(defaults.defaults().Defaults.GetOrDefault(ctx, nil)) > 0
 						}
 					} else {
 						ctx.PropertyErrorf("defaults", "module %s is not an defaults module",
