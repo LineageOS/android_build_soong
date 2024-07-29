@@ -112,7 +112,7 @@ func PhonyRuleFactory() android.Module {
 }
 
 func (p *PhonyRule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	p.phonyDepsModuleNames = p.properties.Phony_deps.GetOrDefault(p.ConfigurableEvaluator(ctx), nil)
+	p.phonyDepsModuleNames = p.properties.Phony_deps.GetOrDefault(ctx, nil)
 }
 
 func (p *PhonyRule) AndroidMk() android.AndroidMkData {

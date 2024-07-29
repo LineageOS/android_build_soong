@@ -263,10 +263,10 @@ func (a *ApexNativeDependencies) Merge(ctx android.BaseMutatorContext, b ApexNat
 	a.Native_shared_libs = append(a.Native_shared_libs, b.Native_shared_libs...)
 	a.Jni_libs = append(a.Jni_libs, b.Jni_libs...)
 	a.Rust_dyn_libs = append(a.Rust_dyn_libs, b.Rust_dyn_libs...)
-	a.ResolvedBinaries = append(a.ResolvedBinaries, b.Binaries.GetOrDefault(ctx.Module().ConfigurableEvaluator(ctx), nil)...)
+	a.ResolvedBinaries = append(a.ResolvedBinaries, b.Binaries.GetOrDefault(ctx, nil)...)
 	a.Tests = append(a.Tests, b.Tests...)
 	a.Filesystems = append(a.Filesystems, b.Filesystems...)
-	a.ResolvedPrebuilts = append(a.ResolvedPrebuilts, b.Prebuilts.GetOrDefault(ctx.Module().ConfigurableEvaluator(ctx), nil)...)
+	a.ResolvedPrebuilts = append(a.ResolvedPrebuilts, b.Prebuilts.GetOrDefault(ctx, nil)...)
 
 	a.Exclude_native_shared_libs = append(a.Exclude_native_shared_libs, b.Exclude_native_shared_libs...)
 	a.Exclude_jni_libs = append(a.Exclude_jni_libs, b.Exclude_jni_libs...)
@@ -844,7 +844,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 	}
 
-	a.properties.ResolvedSystemserverclasspathFragments = a.properties.Systemserverclasspath_fragments.GetOrDefault(a.ConfigurableEvaluator(ctx), nil)
+	a.properties.ResolvedSystemserverclasspathFragments = a.properties.Systemserverclasspath_fragments.GetOrDefault(ctx, nil)
 
 	// Common-arch dependencies come next
 	commonVariation := ctx.Config().AndroidCommonTarget.Variations()
@@ -863,9 +863,9 @@ func (a *apexBundle) OverridablePropertiesDepsMutator(ctx android.BottomUpMutato
 	}
 
 	commonVariation := ctx.Config().AndroidCommonTarget.Variations()
-	ctx.AddFarVariationDependencies(commonVariation, androidAppTag, a.overridableProperties.Apps.GetOrDefault(a.ConfigurableEvaluator(ctx), nil)...)
+	ctx.AddFarVariationDependencies(commonVariation, androidAppTag, a.overridableProperties.Apps.GetOrDefault(ctx, nil)...)
 	ctx.AddFarVariationDependencies(commonVariation, bpfTag, a.overridableProperties.Bpfs...)
-	if prebuilts := a.overridableProperties.Prebuilts.GetOrDefault(a.ConfigurableEvaluator(ctx), nil); len(prebuilts) > 0 {
+	if prebuilts := a.overridableProperties.Prebuilts.GetOrDefault(ctx, nil); len(prebuilts) > 0 {
 		// For prebuilt_etc, use the first variant (64 on 64/32bit device, 32 on 32bit device)
 		// regardless of the TARGET_PREFER_* setting. See b/144532908
 		arches := ctx.DeviceConfig().Arches()

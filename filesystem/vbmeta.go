@@ -110,7 +110,7 @@ type vbmetaDep struct {
 var vbmetaPartitionDep = vbmetaDep{kind: "partition"}
 
 func (v *vbmeta) DepsMutator(ctx android.BottomUpMutatorContext) {
-	ctx.AddDependency(ctx.Module(), vbmetaPartitionDep, v.properties.Partitions.GetOrDefault(v.ConfigurableEvaluator(ctx), nil)...)
+	ctx.AddDependency(ctx.Module(), vbmetaPartitionDep, v.properties.Partitions.GetOrDefault(ctx, nil)...)
 }
 
 func (v *vbmeta) installFileName() string {

@@ -1881,7 +1881,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 				}
 			}
 
-			m.vintfFragmentsPaths = PathsForModuleSrc(ctx, m.commonProperties.Vintf_fragments.GetOrDefault(m.ConfigurableEvaluator(ctx), nil))
+			m.vintfFragmentsPaths = PathsForModuleSrc(ctx, m.commonProperties.Vintf_fragments.GetOrDefault(ctx, nil))
 			vintfDir := PathForModuleInstall(ctx, "etc", "vintf", "manifest")
 			for _, src := range m.vintfFragmentsPaths {
 				installedVintfFragment := vintfDir.Join(ctx, src.Base())

@@ -397,7 +397,7 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 		}
 		return srcFiles
 	}
-	g.properties.ResolvedSrcs = g.properties.Srcs.GetOrDefault(g.ConfigurableEvaluator(ctx), nil)
+	g.properties.ResolvedSrcs = g.properties.Srcs.GetOrDefault(ctx, nil)
 	srcFiles := addLabelsForInputs("srcs", g.properties.ResolvedSrcs, g.properties.Exclude_srcs)
 	android.SetProvider(ctx, blueprint.SrcsFileProviderKey, blueprint.SrcsFileProviderData{SrcPaths: srcFiles.Strings()})
 
