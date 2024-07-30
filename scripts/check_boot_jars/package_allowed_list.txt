@@ -267,6 +267,9 @@ org\.lineageos\.platform\.internal
 com\.nvidia
 com\.nvidia\..*
 
+# NT-fwk
+com\.nothing\.*
+
 # OPLUS adds
 com\.oplus\..*
 
