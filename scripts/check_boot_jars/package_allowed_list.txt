@@ -279,6 +279,9 @@ org.codeaurora.ims
 org.codeaurora.internal
 qcom.fmradio
 
+# Nothing-fwk
+com.nothing.*
+
 ###################################################
 # IFAA Manager used for Alipay and/or WeChat payment
 org\.ifaa\.android\.manager.*
