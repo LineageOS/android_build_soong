@@ -97,7 +97,7 @@ def main():
 
       # Dev. branches should have DISPLAY_BUILD_NUMBER set
       if option.display_build_number:
-        print(f"ro.build.display.id?={option.build_id} {build_number} {option.build_keys}")
+        print(f"ro.build.display.id?={option.build_id}.{build_number} {option.build_keys}")
       else:
         print(f"ro.build.display.id?={option.build_id} {option.build_keys}")
     else:
