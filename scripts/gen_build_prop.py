@@ -237,7 +237,7 @@ def generate_build_info(args):
 
   print(f"# Do not try to parse description or thumbprint")
   print(f"ro.build.description?={config['BuildDesc']}")
-  if "build_thumbprint" in config:
+  if "BuildThumbprint" in config:
     print(f"ro.build.thumbprint={config['BuildThumbprint']}")
 
   print(f"# end build properties")
