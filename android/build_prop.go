@@ -60,6 +60,21 @@ func (p *buildPropModule) propFiles(ctx ModuleContext) Paths {
 	return nil
 }
 
+func shouldAddBuildThumbprint(config Config) bool {
+	knownOemProperties := []string{
+		"ro.product.brand",
+		"ro.product.name",
+		"ro.product.device",
+	}
+
+	for _, knownProp := range knownOemProperties {
+		if InList(knownProp, config.OemProperties()) {
+			return true
+		}
+	}
+	return false
+}
+
 func (p *buildPropModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	p.outputFilePath = PathForModuleOut(ctx, "build.prop").OutputPath
 	if !ctx.Config().KatiEnabled() {
@@ -123,6 +138,19 @@ func (p *buildPropModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	ctx.InstallFile(p.installPath, p.stem(), p.outputFilePath)
 
 	ctx.SetOutputFiles(Paths{p.outputFilePath}, "")
+}
+
+func (p *buildPropModule) AndroidMkEntries() []AndroidMkEntries {
+	return []AndroidMkEntries{{
+		Class:      "ETC",
+		OutputFile: OptionalPathForPath(p.outputFilePath),
+		ExtraEntries: []AndroidMkExtraEntriesFunc{
+			func(ctx AndroidMkExtraEntriesContext, entries *AndroidMkEntries) {
+				entries.SetString("LOCAL_MODULE_PATH", p.installPath.String())
+				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", p.outputFilePath.Base())
+			},
+		},
+	}}
 }
 
 // build_prop module generates {partition}/build.prop file. At first common build properties are
