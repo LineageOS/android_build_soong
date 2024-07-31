@@ -31,10 +31,6 @@ type buildPropProperties struct {
 	// properties in prop_files.
 	Block_list []string
 
-	// Path to the input prop files. The contents of the files are directly
-	// emitted to the output
-	Prop_files []string `android:"path"`
-
 	// Files to be appended at the end of build.prop. These files are appended after
 	// post_process_props without any further checking.
 	Footer_files []string `android:"path"`
@@ -54,6 +50,14 @@ type buildPropModule struct {
 
 func (p *buildPropModule) stem() string {
 	return proptools.StringDefault(p.properties.Stem, "build.prop")
+}
+
+func (p *buildPropModule) propFiles(ctx ModuleContext) Paths {
+	partition := p.PartitionTag(ctx.DeviceConfig())
+	if partition == "system" {
+		return ctx.Config().SystemPropFiles(ctx)
+	}
+	return nil
 }
 
 func (p *buildPropModule) GenerateAndroidBuildActions(ctx ModuleContext) {
@@ -94,6 +98,7 @@ func (p *buildPropModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	cmd.FlagWithInput("--platform-preview-sdk-fingerprint-file=", ApiFingerprintPath(ctx))
 	cmd.FlagWithInput("--product-config=", PathForModuleSrc(ctx, proptools.String(p.properties.Product_config)))
 	cmd.FlagWithArg("--partition=", partition)
+	cmd.FlagForEachInput("--prop-files=", ctx.Config().SystemPropFiles(ctx))
 	cmd.FlagWithOutput("--out=", p.outputFilePath)
 
 	postProcessCmd := rule.Command().BuiltTool("post_process_props")
