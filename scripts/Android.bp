@@ -306,12 +306,6 @@ python_binary_host {
 }
 
 python_binary_host {
-    name: "buildinfo",
-    main: "buildinfo.py",
-    srcs: ["buildinfo.py"],
-}
-
-python_binary_host {
     name: "extra_install_zips_file_list",
     main: "extra_install_zips_file_list.py",
     srcs: ["extra_install_zips_file_list.py"],

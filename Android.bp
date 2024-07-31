@@ -121,20 +121,6 @@ dexpreopt_systemserver_check {
     name: "dexpreopt_systemserver_check",
 }
 
-// buildinfo.prop contains common properties for system/build.prop, like ro.build.version.*
-// TODO(b/322090587): merge this to gen_build_prop.py script.
-buildinfo_prop {
-    name: "buildinfo.prop",
-
-    // not installable because this will be included to system/build.prop
-    installable: false,
-
-    product_config: ":product_config",
-
-    // Currently, only microdroid can refer to buildinfo.prop
-    visibility: ["//packages/modules/Virtualization/microdroid"],
-}
-
 // container for apex_contributions selected using build flags
 all_apex_contributions {
     name: "all_apex_contributions",
@@ -143,4 +129,15 @@ all_apex_contributions {
 product_config {
     name: "product_config",
     visibility: ["//device/google/cuttlefish/system_image"],
+}
+
+build_prop {
+    name: "system-build.prop",
+    stem: "build.prop",
+    product_config: ":product_config",
+    // Currently, only microdroid and cf system image can refer to system-build.prop
+    visibility: [
+        "//device/google/cuttlefish/system_image",
+        "//packages/modules/Virtualization/microdroid",
+    ],
 }
