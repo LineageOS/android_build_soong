@@ -279,7 +279,7 @@ def append_additional_system_props(args):
   config = args.config
 
   # Add the product-defined properties to the build properties.
-  if config["PropertySplitEnabled"] or config["VendorImageFileSystemType"]:
+  if not config["PropertySplitEnabled"] or not config["VendorImageFileSystemType"]:
     if "PRODUCT_PROPERTY_OVERRIDES" in config:
       props += config["PRODUCT_PROPERTY_OVERRIDES"]
 
@@ -311,6 +311,7 @@ def append_additional_system_props(args):
   props.append("ro.postinstall.fstab.prefix=/system")
 
   enable_target_debugging = True
+  enable_dalvik_lock_contention_logging = True
   if config["BuildVariant"] == "user" or config["BuildVariant"] == "userdebug":
     # Target is secure in user builds.
     props.append("ro.secure=1")
@@ -320,6 +321,12 @@ def append_additional_system_props(args):
       # Disable debugging in plain user builds.
       props.append("ro.adb.secure=1")
       enable_target_debugging = False
+      enable_dalvik_lock_contention_logging = False
+    else:
+      # Disable debugging in userdebug builds if PRODUCT_NOT_DEBUGGABLE_IN_USERDEBUG
+      # is set.
+      if config["ProductNotDebuggableInUserdebug"]:
+        enable_target_debugging = False
 
     # Disallow mock locations by default for user builds
     props.append("ro.allow.mock.location=0")
@@ -331,10 +338,11 @@ def append_additional_system_props(args):
     # Allow mock locations by default for non user builds
     props.append("ro.allow.mock.location=1")
 
-  if enable_target_debugging:
+  if enable_dalvik_lock_contention_logging:
     # Enable Dalvik lock contention logging.
     props.append("dalvik.vm.lockprof.threshold=500")
 
+  if enable_target_debugging:
     # Target is more debuggable and adbd is on by default
     props.append("ro.debuggable=1")
   else:
@@ -416,7 +424,7 @@ def append_additional_vendor_props(args):
   # This must not be defined for the non-GRF devices.
   # The values of the GRF properties will be verified by post_process_props.py
   if config["BoardShippingApiLevel"]:
-    props.append(f"ro.board.first_api_level={config['ProductShippingApiLevel']}")
+    props.append(f"ro.board.first_api_level={config['BoardShippingApiLevel']}")
 
   # Build system set BOARD_API_LEVEL to show the api level of the vendor API surface.
   # This must not be altered outside of build system.
@@ -475,6 +483,9 @@ def append_additional_product_props(args):
   if config["NoBionicPageSizeMacro"]:
     props.append(f"ro.product.build.no_bionic_page_size_macro=true")
 
+  # This is a temporary system property that controls the ART module. The plan is
+  # to remove it by Aug 2025, at which time Mainline updates of the ART module
+  # will ignore it as well.
   # If the value is "default", it will be mangled by post_process_props.py.
   props.append(f"ro.dalvik.vm.enable_uffd_gc={config['EnableUffdGc']}")
 
