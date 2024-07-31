@@ -106,7 +106,12 @@ func (p *buildPropModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 		postProcessCmd.Flag("--allow-dup")
 	}
 	postProcessCmd.FlagWithArg("--sdk-version ", config.PlatformSdkVersion().String())
-	postProcessCmd.FlagWithInput("--kernel-version-file-for-uffd-gc ", PathForOutput(ctx, "dexpreopt/kernel_version_for_uffd_gc.txt"))
+	if ctx.Config().EnableUffdGc() == "default" {
+		postProcessCmd.FlagWithInput("--kernel-version-file-for-uffd-gc ", PathForOutput(ctx, "dexpreopt/kernel_version_for_uffd_gc.txt"))
+	} else {
+		// still need to pass an empty string to kernel-version-file-for-uffd-gc
+		postProcessCmd.FlagWithArg("--kernel-version-file-for-uffd-gc ", `""`)
+	}
 	postProcessCmd.Text(p.outputFilePath.String())
 	postProcessCmd.Flags(p.properties.Block_list)
 
