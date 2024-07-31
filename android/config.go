@@ -2101,3 +2101,7 @@ func (c *config) UseDebugArt() bool {
 
 	return Bool(c.productVariables.Eng)
 }
+
+func (c *config) SystemPropFiles(ctx PathContext) Paths {
+	return PathsForSource(ctx, c.productVariables.SystemPropFiles)
+}
