@@ -39,7 +39,6 @@ bootstrap_go_package {
         "arch_module_context.go",
         "base_module_context.go",
         "build_prop.go",
-        "buildinfo_prop.go",
         "config.go",
         "test_config.go",
         "configurable_properties.go",
