@@ -423,15 +423,7 @@ func PrebuiltRenameMutator(ctx BottomUpMutatorContext) {
 // The metadata will be used for source vs prebuilts selection
 func PrebuiltSourceDepsMutator(ctx BottomUpMutatorContext) {
 	m := ctx.Module()
-	// If this module is a prebuilt, is enabled and has not been renamed to source then add a
-	// dependency onto the source if it is present.
-	if p := GetEmbeddedPrebuilt(m); p != nil && m.Enabled(ctx) && !p.properties.PrebuiltRenamedToSource {
-		bmn, _ := m.(baseModuleName)
-		name := bmn.BaseModuleName()
-		if ctx.OtherModuleReverseDependencyVariantExists(name) {
-			ctx.AddReverseDependency(ctx.Module(), PrebuiltDepTag, name)
-			p.properties.SourceExists = true
-		}
+	if p := GetEmbeddedPrebuilt(m); p != nil {
 		// Add a dependency from the prebuilt to the `all_apex_contributions`
 		// metadata module
 		// TODO: When all branches contain this singleton module, make this strict
@@ -439,7 +431,16 @@ func PrebuiltSourceDepsMutator(ctx BottomUpMutatorContext) {
 		if ctx.OtherModuleExists("all_apex_contributions") {
 			ctx.AddDependency(m, AcDepTag, "all_apex_contributions")
 		}
-
+		if m.Enabled(ctx) && !p.properties.PrebuiltRenamedToSource {
+			// If this module is a prebuilt, is enabled and has not been renamed to source then add a
+			// dependency onto the source if it is present.
+			bmn, _ := m.(baseModuleName)
+			name := bmn.BaseModuleName()
+			if ctx.OtherModuleReverseDependencyVariantExists(name) {
+				ctx.AddReverseDependency(ctx.Module(), PrebuiltDepTag, name)
+				p.properties.SourceExists = true
+			}
+		}
 	}
 }
 
@@ -668,12 +669,37 @@ func (p *Prebuilt) variantIsDisabled(ctx BaseMutatorContext, prebuilt Module) bo
 	return p.srcsSupplier != nil && len(p.srcsSupplier(ctx, prebuilt)) == 0
 }
 
+type apexVariationName interface {
+	ApexVariationName() string
+}
+
 // usePrebuilt returns true if a prebuilt should be used instead of the source module.  The prebuilt
 // will be used if it is marked "prefer" or if the source module is disabled.
 func (p *Prebuilt) usePrebuilt(ctx BaseMutatorContext, source Module, prebuilt Module) bool {
+	isMainlinePrebuilt := func(prebuilt Module) bool {
+		apex, ok := prebuilt.(apexVariationName)
+		if !ok {
+			return false
+		}
+		// Prebuilts of aosp apexes in prebuilts/runtime
+		// Used in minimal art branches
+		if prebuilt.base().BaseModuleName() == apex.ApexVariationName() {
+			return false
+		}
+		return InList(apex.ApexVariationName(), ctx.Config().AllMainlineApexNames())
+	}
+
 	// Use `all_apex_contributions` for source vs prebuilt selection.
 	psi := PrebuiltSelectionInfoMap{}
-	ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(am Module) {
+	var psiDepTag blueprint.DependencyTag
+	if p := GetEmbeddedPrebuilt(ctx.Module()); p != nil {
+		// This is a prebuilt module, visit all_apex_contributions to get the info
+		psiDepTag = AcDepTag
+	} else {
+		// This is a source module, visit any of its prebuilts to get the info
+		psiDepTag = PrebuiltDepTag
+	}
+	ctx.VisitDirectDepsWithTag(psiDepTag, func(am Module) {
 		psi, _ = OtherModuleProvider(ctx, am, PrebuiltSelectionInfoProvider)
 	})
 
@@ -684,6 +710,11 @@ func (p *Prebuilt) usePrebuilt(ctx BaseMutatorContext, source Module, prebuilt M
 	// If the prebuilt module is explicitly listed in the metadata module, use that
 	if isSelected(psi, prebuilt) && !p.variantIsDisabled(ctx, prebuilt) {
 		return true
+	}
+
+	// If this is a mainline prebuilt, but has not been flagged, hide it.
+	if isMainlinePrebuilt(prebuilt) {
+		return false
 	}
 
 	// If the baseModuleName could not be found in the metadata module,
