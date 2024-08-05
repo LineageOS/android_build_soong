@@ -2110,6 +2110,10 @@ func (c *config) SystemPropFiles(ctx PathContext) Paths {
 	return PathsForSource(ctx, c.productVariables.SystemPropFiles)
 }
 
+func (c *config) SystemExtPropFiles(ctx PathContext) Paths {
+	return PathsForSource(ctx, c.productVariables.SystemExtPropFiles)
+}
+
 func (c *config) EnableUffdGc() string {
 	return String(c.productVariables.EnableUffdGc)
 }

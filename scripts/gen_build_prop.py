@@ -129,16 +129,16 @@ def generate_common_build_props(args):
     print(f"ro.product.{partition}.name={config['DeviceProduct']}")
 
   if partition != "system":
-    if config["ModelForAttestation"]:
-        print(f"ro.product.model_for_attestation={config['ModelForAttestation']}")
-    if config["BrandForAttestation"]:
-        print(f"ro.product.brand_for_attestation={config['BrandForAttestation']}")
-    if config["NameForAttestation"]:
-        print(f"ro.product.name_for_attestation={config['NameForAttestation']}")
-    if config["DeviceForAttestation"]:
-        print(f"ro.product.device_for_attestation={config['DeviceForAttestation']}")
-    if config["ManufacturerForAttestation"]:
-        print(f"ro.product.manufacturer_for_attestation={config['ManufacturerForAttestation']}")
+    if config["ProductModelForAttestation"]:
+        print(f"ro.product.model_for_attestation={config['ProductModelForAttestation']}")
+    if config["ProductBrandForAttestation"]:
+        print(f"ro.product.brand_for_attestation={config['ProductBrandForAttestation']}")
+    if config["ProductNameForAttestation"]:
+        print(f"ro.product.name_for_attestation={config['ProductNameForAttestation']}")
+    if config["ProductDeviceForAttestation"]:
+        print(f"ro.product.device_for_attestation={config['ProductDeviceForAttestation']}")
+    if config["ProductManufacturerForAttestation"]:
+        print(f"ro.product.manufacturer_for_attestation={config['ProductManufacturerForAttestation']}")
 
   if config["ZygoteForce64"]:
     if partition == "vendor":
@@ -511,6 +511,15 @@ def build_system_prop(args):
 
   build_prop(args, gen_build_info=True, gen_common_build_props=True, variables=variables)
 
+def build_system_ext_prop(args):
+  config = args.config
+
+  # Order matters here. When there are duplicates, the last one wins.
+  # TODO(b/117892318): don't allow duplicates so that the ordering doesn't matter
+  variables = ["PRODUCT_SYSTEM_EXT_PROPERTIES"]
+
+  build_prop(args, gen_build_info=False, gen_common_build_props=True, variables=variables)
+
 '''
 def build_vendor_prop(args):
   config = args.config
@@ -563,6 +572,8 @@ def main():
   with contextlib.redirect_stdout(args.out):
     if args.partition == "system":
       build_system_prop(args)
+    elif args.partition == "system_ext":
+      build_system_ext_prop(args)
       '''
     elif args.partition == "vendor":
       build_vendor_prop(args)
