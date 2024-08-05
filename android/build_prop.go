@@ -37,6 +37,9 @@ type buildPropProperties struct {
 
 	// Path to a JSON file containing product configs.
 	Product_config *string `android:"path"`
+
+	// Optional subdirectory under which this file is installed into
+	Relative_install_path *string
 }
 
 type buildPropModule struct {
@@ -56,6 +59,8 @@ func (p *buildPropModule) propFiles(ctx ModuleContext) Paths {
 	partition := p.PartitionTag(ctx.DeviceConfig())
 	if partition == "system" {
 		return ctx.Config().SystemPropFiles(ctx)
+	} else if partition == "system_ext" {
+		return ctx.Config().SystemExtPropFiles(ctx)
 	}
 	return nil
 }
@@ -84,8 +89,8 @@ func (p *buildPropModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	}
 
 	partition := p.PartitionTag(ctx.DeviceConfig())
-	if partition != "system" {
-		ctx.PropertyErrorf("partition", "unsupported partition %q: only \"system\" is supported", partition)
+	if partition != "system" && partition != "system_ext" {
+		ctx.PropertyErrorf("partition", "unsupported partition %q: only \"system\" and \"system_ext\" are supported", partition)
 		return
 	}
 
@@ -134,7 +139,7 @@ func (p *buildPropModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 
 	rule.Build(ctx.ModuleName(), "generating build.prop")
 
-	p.installPath = PathForModuleInstall(ctx)
+	p.installPath = PathForModuleInstall(ctx, proptools.String(p.properties.Relative_install_path))
 	ctx.InstallFile(p.installPath, p.stem(), p.outputFilePath)
 
 	ctx.SetOutputFiles(Paths{p.outputFilePath}, "")
