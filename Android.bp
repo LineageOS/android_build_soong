@@ -141,3 +141,12 @@ build_prop {
         "//packages/modules/Virtualization/microdroid",
     ],
 }
+
+build_prop {
+    name: "system_ext-build.prop",
+    stem: "build.prop",
+    system_ext_specific: true,
+    product_config: ":product_config",
+    relative_install_path: "etc", // system_ext/etc/build.prop
+    visibility: ["//visibility:private"],
+}
