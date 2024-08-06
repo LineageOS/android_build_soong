@@ -2005,41 +2005,41 @@ func (c *config) UseResourceProcessorByDefault() bool {
 }
 
 var (
-	mainlineApexContributionBuildFlags = []string{
-		"RELEASE_APEX_CONTRIBUTIONS_ADBD",
-		"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES",
-		"RELEASE_APEX_CONTRIBUTIONS_APPSEARCH",
-		"RELEASE_APEX_CONTRIBUTIONS_ART",
-		"RELEASE_APEX_CONTRIBUTIONS_BLUETOOTH",
-		"RELEASE_APEX_CONTRIBUTIONS_CAPTIVEPORTALLOGIN",
-		"RELEASE_APEX_CONTRIBUTIONS_CELLBROADCAST",
-		"RELEASE_APEX_CONTRIBUTIONS_CONFIGINFRASTRUCTURE",
-		"RELEASE_APEX_CONTRIBUTIONS_CONNECTIVITY",
-		"RELEASE_APEX_CONTRIBUTIONS_CONSCRYPT",
-		"RELEASE_APEX_CONTRIBUTIONS_CRASHRECOVERY",
-		"RELEASE_APEX_CONTRIBUTIONS_DEVICELOCK",
-		"RELEASE_APEX_CONTRIBUTIONS_DOCUMENTSUIGOOGLE",
-		"RELEASE_APEX_CONTRIBUTIONS_EXTSERVICES",
-		"RELEASE_APEX_CONTRIBUTIONS_HEALTHFITNESS",
-		"RELEASE_APEX_CONTRIBUTIONS_IPSEC",
-		"RELEASE_APEX_CONTRIBUTIONS_MEDIA",
-		"RELEASE_APEX_CONTRIBUTIONS_MEDIAPROVIDER",
-		"RELEASE_APEX_CONTRIBUTIONS_MODULE_METADATA",
-		"RELEASE_APEX_CONTRIBUTIONS_NETWORKSTACKGOOGLE",
-		"RELEASE_APEX_CONTRIBUTIONS_NEURALNETWORKS",
-		"RELEASE_APEX_CONTRIBUTIONS_ONDEVICEPERSONALIZATION",
-		"RELEASE_APEX_CONTRIBUTIONS_PERMISSION",
-		"RELEASE_APEX_CONTRIBUTIONS_PRIMARY_LIBS",
-		"RELEASE_APEX_CONTRIBUTIONS_REMOTEKEYPROVISIONING",
-		"RELEASE_APEX_CONTRIBUTIONS_RESOLV",
-		"RELEASE_APEX_CONTRIBUTIONS_SCHEDULING",
-		"RELEASE_APEX_CONTRIBUTIONS_SDKEXTENSIONS",
-		"RELEASE_APEX_CONTRIBUTIONS_SWCODEC",
-		"RELEASE_APEX_CONTRIBUTIONS_STATSD",
-		"RELEASE_APEX_CONTRIBUTIONS_TELEMETRY_TVP",
-		"RELEASE_APEX_CONTRIBUTIONS_TZDATA",
-		"RELEASE_APEX_CONTRIBUTIONS_UWB",
-		"RELEASE_APEX_CONTRIBUTIONS_WIFI",
+	mainlineApexContributionBuildFlagsToApexNames = map[string]string{
+		"RELEASE_APEX_CONTRIBUTIONS_ADBD":                    "com.android.adbd",
+		"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES":              "com.android.adservices",
+		"RELEASE_APEX_CONTRIBUTIONS_APPSEARCH":               "com.android.appsearch",
+		"RELEASE_APEX_CONTRIBUTIONS_ART":                     "com.android.art",
+		"RELEASE_APEX_CONTRIBUTIONS_BLUETOOTH":               "com.android.btservices",
+		"RELEASE_APEX_CONTRIBUTIONS_CAPTIVEPORTALLOGIN":      "",
+		"RELEASE_APEX_CONTRIBUTIONS_CELLBROADCAST":           "com.android.cellbroadcast",
+		"RELEASE_APEX_CONTRIBUTIONS_CONFIGINFRASTRUCTURE":    "com.android.configinfrastructure",
+		"RELEASE_APEX_CONTRIBUTIONS_CONNECTIVITY":            "com.android.tethering",
+		"RELEASE_APEX_CONTRIBUTIONS_CONSCRYPT":               "com.android.conscrypt",
+		"RELEASE_APEX_CONTRIBUTIONS_CRASHRECOVERY":           "",
+		"RELEASE_APEX_CONTRIBUTIONS_DEVICELOCK":              "com.android.devicelock",
+		"RELEASE_APEX_CONTRIBUTIONS_DOCUMENTSUIGOOGLE":       "",
+		"RELEASE_APEX_CONTRIBUTIONS_EXTSERVICES":             "com.android.extservices",
+		"RELEASE_APEX_CONTRIBUTIONS_HEALTHFITNESS":           "com.android.healthfitness",
+		"RELEASE_APEX_CONTRIBUTIONS_IPSEC":                   "com.android.ipsec",
+		"RELEASE_APEX_CONTRIBUTIONS_MEDIA":                   "com.android.media",
+		"RELEASE_APEX_CONTRIBUTIONS_MEDIAPROVIDER":           "com.android.mediaprovider",
+		"RELEASE_APEX_CONTRIBUTIONS_MODULE_METADATA":         "",
+		"RELEASE_APEX_CONTRIBUTIONS_NETWORKSTACKGOOGLE":      "",
+		"RELEASE_APEX_CONTRIBUTIONS_NEURALNETWORKS":          "com.android.neuralnetworks",
+		"RELEASE_APEX_CONTRIBUTIONS_ONDEVICEPERSONALIZATION": "com.android.ondevicepersonalization",
+		"RELEASE_APEX_CONTRIBUTIONS_PERMISSION":              "com.android.permission",
+		"RELEASE_APEX_CONTRIBUTIONS_PRIMARY_LIBS":            "",
+		"RELEASE_APEX_CONTRIBUTIONS_REMOTEKEYPROVISIONING":   "com.android.rkpd",
+		"RELEASE_APEX_CONTRIBUTIONS_RESOLV":                  "com.android.resolv",
+		"RELEASE_APEX_CONTRIBUTIONS_SCHEDULING":              "com.android.scheduling",
+		"RELEASE_APEX_CONTRIBUTIONS_SDKEXTENSIONS":           "com.android.sdkext",
+		"RELEASE_APEX_CONTRIBUTIONS_SWCODEC":                 "com.android.media.swcodec",
+		"RELEASE_APEX_CONTRIBUTIONS_STATSD":                  "com.android.os.statsd",
+		"RELEASE_APEX_CONTRIBUTIONS_TELEMETRY_TVP":           "",
+		"RELEASE_APEX_CONTRIBUTIONS_TZDATA":                  "com.android.tzdata",
+		"RELEASE_APEX_CONTRIBUTIONS_UWB":                     "com.android.uwb",
+		"RELEASE_APEX_CONTRIBUTIONS_WIFI":                    "com.android.wifi",
 	}
 )
 
@@ -2047,12 +2047,16 @@ var (
 // Each mainline module will have one entry in the list
 func (c *config) AllApexContributions() []string {
 	ret := []string{}
-	for _, f := range mainlineApexContributionBuildFlags {
+	for _, f := range SortedKeys(mainlineApexContributionBuildFlagsToApexNames) {
 		if val, exists := c.GetBuildFlag(f); exists && val != "" {
 			ret = append(ret, val)
 		}
 	}
 	return ret
+}
+
+func (c *config) AllMainlineApexNames() []string {
+	return SortedStringValues(mainlineApexContributionBuildFlagsToApexNames)
 }
 
 func (c *config) BuildIgnoreApexContributionContents() *bool {

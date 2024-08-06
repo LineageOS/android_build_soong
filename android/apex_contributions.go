@@ -119,7 +119,10 @@ func (a *allApexContributions) DepsMutator(ctx BottomUpMutatorContext) {
 func (a *allApexContributions) SetPrebuiltSelectionInfoProvider(ctx BaseModuleContext) {
 	addContentsToProvider := func(p *PrebuiltSelectionInfoMap, m *apexContributions) {
 		for _, content := range m.Contents() {
-			if !ctx.OtherModuleExists(content) && !ctx.Config().AllowMissingDependencies() {
+			// Verify that the module listed in contents exists in the tree
+			// Remove the prebuilt_ prefix to account for partner worksapces where the source module does not
+			// exist, and PrebuiltRenameMutator renames `prebuilt_foo` to `foo`
+			if !ctx.OtherModuleExists(content) && !ctx.OtherModuleExists(RemoveOptionalPrebuiltPrefix(content)) && !ctx.Config().AllowMissingDependencies() {
 				ctx.ModuleErrorf("%s listed in apex_contributions %s does not exist\n", content, m.Name())
 			}
 			pi := &PrebuiltSelectionInfo{

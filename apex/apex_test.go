@@ -5244,7 +5244,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		myApex := ctx.ModuleForTests("myapex", "android_common_myapex").Module()
 
 		overrideNames := []string{
-			"myapex",
+			"",
 			"myjavalib.myapex",
 			"libfoo.myapex",
 			"libbar.myapex",
@@ -11286,13 +11286,6 @@ func TestBootDexJarsMultipleApexPrebuilts(t *testing.T) {
 // Test that product packaging installs the selected mainline module (either source or a specific prebuilt)
 // RELEASE_APEX_CONTIRBUTIONS_* build flags will be used to select the correct prebuilt for a specific release config
 func TestInstallationRulesForMultipleApexPrebuilts(t *testing.T) {
-	// check that the LOCAL_MODULE in the generated mk file matches the name used in PRODUCT_PACKAGES
-	// Since the name used in PRODUCT_PACKAGES does not contain prebuilt_ prefix, LOCAL_MODULE should not contain any prefix either
-	checkLocalModuleName := func(t *testing.T, ctx *android.TestContext, soongApexModuleName string, expectedLocalModuleName string) {
-		// Variations are created based on apex_name
-		entries := android.AndroidMkEntriesForTest(t, ctx, ctx.ModuleForTests(soongApexModuleName, "android_common_com.android.foo").Module())
-		android.AssertStringEquals(t, "LOCAL_MODULE of the prebuilt apex must match the name listed in PRODUCT_PACKAGES", expectedLocalModuleName, entries[0].EntryMap["LOCAL_MODULE"][0])
-	}
 	// for a mainline module family, check that only the flagged soong module is visible to make
 	checkHideFromMake := func(t *testing.T, ctx *android.TestContext, visibleModuleName string, hiddenModuleNames []string) {
 		variation := func(moduleName string) string {
@@ -11347,7 +11340,7 @@ func TestInstallationRulesForMultipleApexPrebuilts(t *testing.T) {
 		prebuilt_apex {
 			name: "com.google.android.foo.v2",
 			apex_name: "com.android.foo",
-			source_apex_name: "com.google.android.foo", // source_apex_name becomes LOCAL_MODULE in the generated mk file
+			source_apex_name: "com.google.android.foo",
 			src: "com.android.foo-arm.apex",
 			prefer: true, // prefer is set to true on both the prebuilts to induce an error if flagging is not present
 		}
@@ -11433,15 +11426,122 @@ func TestInstallationRulesForMultipleApexPrebuilts(t *testing.T) {
 		}
 		ctx := testApex(t, bp, preparer)
 
-		// Check that the LOCAL_MODULE of the two prebuilts is com.android.foo
-		// This ensures that product packaging can pick them for installation if it has been flagged by apex_contributions
-		checkLocalModuleName(t, ctx, "prebuilt_com.google.android.foo", "com.google.android.foo")
-		checkLocalModuleName(t, ctx, "prebuilt_com.google.android.foo.v2", "com.google.android.foo")
-
 		// Check that
 		// 1. The contents of the selected apex_contributions are visible to make
 		// 2. The rest of the apexes in the mainline module family (source or other prebuilt) is hidden from make
 		checkHideFromMake(t, ctx, tc.expectedVisibleModuleName, tc.expectedHiddenModuleNames)
+	}
+}
+
+// Test that product packaging installs the selected mainline module in workspaces withtout source mainline module
+func TestInstallationRulesForMultipleApexPrebuiltsWithoutSource(t *testing.T) {
+	// for a mainline module family, check that only the flagged soong module is visible to make
+	checkHideFromMake := func(t *testing.T, ctx *android.TestContext, visibleModuleNames []string, hiddenModuleNames []string) {
+		variation := func(moduleName string) string {
+			ret := "android_common_com.android.adservices"
+			if moduleName == "com.google.android.foo" {
+				ret = "android_common_com.google.android.foo_com.google.android.foo"
+			}
+			return ret
+		}
+
+		for _, visibleModuleName := range visibleModuleNames {
+			visibleModule := ctx.ModuleForTests(visibleModuleName, variation(visibleModuleName)).Module()
+			android.AssertBoolEquals(t, "Apex "+visibleModuleName+" selected using apex_contributions should be visible to make", false, visibleModule.IsHideFromMake())
+		}
+
+		for _, hiddenModuleName := range hiddenModuleNames {
+			hiddenModule := ctx.ModuleForTests(hiddenModuleName, variation(hiddenModuleName)).Module()
+			android.AssertBoolEquals(t, "Apex "+hiddenModuleName+" not selected using apex_contributions should be hidden from make", true, hiddenModule.IsHideFromMake())
+
+		}
+	}
+
+	bp := `
+		apex_key {
+			name: "com.android.adservices.key",
+			public_key: "com.android.adservices.avbpubkey",
+			private_key: "com.android.adservices.pem",
+		}
+
+		// AOSP source apex
+		apex {
+			name: "com.android.adservices",
+			key: "com.android.adservices.key",
+			updatable: false,
+		}
+
+		// Prebuilt Google APEX.
+
+		prebuilt_apex {
+			name: "com.google.android.adservices",
+			apex_name: "com.android.adservices",
+			src: "com.android.foo-arm.apex",
+		}
+
+		// Another Prebuilt Google APEX
+		prebuilt_apex {
+			name: "com.google.android.adservices.v2",
+			apex_name: "com.android.adservices",
+			src: "com.android.foo-arm.apex",
+		}
+
+		// APEX contribution modules
+
+
+		apex_contributions {
+			name: "adservices.prebuilt.contributions",
+			api_domain: "com.android.adservices",
+			contents: ["prebuilt_com.google.android.adservices"],
+		}
+
+		apex_contributions {
+			name: "adservices.prebuilt.v2.contributions",
+			api_domain: "com.android.adservices",
+			contents: ["prebuilt_com.google.android.adservices.v2"],
+		}
+	`
+
+	testCases := []struct {
+		desc                       string
+		selectedApexContributions  string
+		expectedVisibleModuleNames []string
+		expectedHiddenModuleNames  []string
+	}{
+		{
+			desc:                       "No apex contributions selected, source aosp apex should be visible, and mainline prebuilts should be hidden",
+			selectedApexContributions:  "",
+			expectedVisibleModuleNames: []string{"com.android.adservices"},
+			expectedHiddenModuleNames:  []string{"com.google.android.adservices", "com.google.android.adservices.v2"},
+		},
+		{
+			desc:                       "Prebuilt apex prebuilt_com.android.foo is selected",
+			selectedApexContributions:  "adservices.prebuilt.contributions",
+			expectedVisibleModuleNames: []string{"com.android.adservices", "com.google.android.adservices"},
+			expectedHiddenModuleNames:  []string{"com.google.android.adservices.v2"},
+		},
+		{
+			desc:                       "Prebuilt apex prebuilt_com.android.foo.v2 is selected",
+			selectedApexContributions:  "adservices.prebuilt.v2.contributions",
+			expectedVisibleModuleNames: []string{"com.android.adservices", "com.google.android.adservices.v2"},
+			expectedHiddenModuleNames:  []string{"com.google.android.adservices"},
+		},
+	}
+
+	for _, tc := range testCases {
+		preparer := android.GroupFixturePreparers(
+			android.FixtureMergeMockFs(map[string][]byte{
+				"system/sepolicy/apex/com.android.adservices-file_contexts": nil,
+			}),
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.BuildFlags = map[string]string{
+					"RELEASE_APEX_CONTRIBUTIONS_ADSERVICES": tc.selectedApexContributions,
+				}
+			}),
+		)
+		ctx := testApex(t, bp, preparer)
+
+		checkHideFromMake(t, ctx, tc.expectedVisibleModuleNames, tc.expectedHiddenModuleNames)
 	}
 }
 

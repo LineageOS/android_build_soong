@@ -561,6 +561,7 @@ func TestBootclasspathFragmentInPrebuiltArtApex(t *testing.T) {
 		result := preparers.RunTestWithBp(t, fmt.Sprintf(bp, "enabled: false,"))
 
 		java.CheckModuleDependencies(t, result.TestContext, "com.android.art", "android_common_com.android.art", []string{
+			`all_apex_contributions`,
 			`dex2oatd`,
 			`prebuilt_art-bootclasspath-fragment`,
 			`prebuilt_com.android.art.apex.selector`,
@@ -568,6 +569,7 @@ func TestBootclasspathFragmentInPrebuiltArtApex(t *testing.T) {
 		})
 
 		java.CheckModuleDependencies(t, result.TestContext, "art-bootclasspath-fragment", "android_common_com.android.art", []string{
+			`all_apex_contributions`,
 			`dex2oatd`,
 			`prebuilt_bar`,
 			`prebuilt_com.android.art.deapexer`,

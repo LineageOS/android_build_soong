@@ -923,6 +923,7 @@ func TestJavaSdkLibraryImport(t *testing.T) {
 	}
 
 	CheckModuleDependencies(t, result.TestContext, "sdklib", "android_common", []string{
+		`all_apex_contributions`,
 		`dex2oatd`,
 		`prebuilt_sdklib.stubs`,
 		`prebuilt_sdklib.stubs.source.test`,
