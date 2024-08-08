@@ -150,3 +150,21 @@ build_prop {
     relative_install_path: "etc", // system_ext/etc/build.prop
     visibility: ["//visibility:private"],
 }
+
+build_prop {
+    name: "product-build.prop",
+    stem: "build.prop",
+    product_specific: true,
+    product_config: ":product_config",
+    relative_install_path: "etc", // product/etc/build.prop
+    visibility: ["//visibility:private"],
+}
+
+build_prop {
+    name: "odm-build.prop",
+    stem: "build.prop",
+    device_specific: true,
+    product_config: ":product_config",
+    relative_install_path: "etc", // odm/etc/build.prop
+    visibility: ["//visibility:private"],
+}
