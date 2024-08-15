@@ -56,7 +56,7 @@ func (p *buildPropModule) stem() string {
 }
 
 func (p *buildPropModule) propFiles(ctx ModuleContext) Paths {
-	partition := p.PartitionTag(ctx.DeviceConfig())
+	partition := p.partition(ctx.DeviceConfig())
 	if partition == "system" {
 		return ctx.Config().SystemPropFiles(ctx)
 	} else if partition == "system_ext" {
