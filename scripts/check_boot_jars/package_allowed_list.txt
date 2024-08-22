@@ -276,6 +276,10 @@ org.codeaurora.ims
 org.codeaurora.internal
 qcom.fmradio
 
+# oplus adds
+com\.oplus
+com\.oplus\..*
+
 ###################################################
 # IFAA Manager used for Alipay and/or WeChat payment
 org\.ifaa\.android\.manager.*
