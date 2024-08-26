@@ -63,6 +63,8 @@ func (p *buildPropModule) propFiles(ctx ModuleContext) Paths {
 		return ctx.Config().SystemExtPropFiles(ctx)
 	} else if partition == "product" {
 		return ctx.Config().ProductPropFiles(ctx)
+	} else if partition == "odm" {
+		return ctx.Config().OdmPropFiles(ctx)
 	}
 	return nil
 }
