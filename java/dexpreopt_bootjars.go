@@ -553,6 +553,10 @@ func addDependenciesOntoSelectedBootImageApexes(ctx android.BottomUpMutatorConte
 			apexVariationOfSelected := append(ctx.Target().Variations(), blueprint.Variation{Mutator: "apex", Variation: apex})
 			if ctx.OtherModuleDependencyVariantExists(apexVariationOfSelected, selected) {
 				ctx.AddFarVariationDependencies(apexVariationOfSelected, dexpreoptBootJarDepTag, selected)
+			} else if ctx.OtherModuleDependencyVariantExists(apexVariationOfSelected, android.RemoveOptionalPrebuiltPrefix(selected)) {
+				// The prebuilt might have been renamed by prebuilt_rename mutator if the source module does not exist.
+				// Remove the prebuilt_ prefix.
+				ctx.AddFarVariationDependencies(apexVariationOfSelected, dexpreoptBootJarDepTag, android.RemoveOptionalPrebuiltPrefix(selected))
 			}
 		}
 	}
