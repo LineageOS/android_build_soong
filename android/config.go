@@ -2118,6 +2118,10 @@ func (c *config) ProductPropFiles(ctx PathContext) Paths {
 	return PathsForSource(ctx, c.productVariables.ProductPropFiles)
 }
 
+func (c *config) OdmPropFiles(ctx PathContext) Paths {
+	return PathsForSource(ctx, c.productVariables.OdmPropFiles)
+}
+
 func (c *config) EnableUffdGc() string {
 	return String(c.productVariables.EnableUffdGc)
 }
