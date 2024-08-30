@@ -311,7 +311,12 @@ func (r *NameResolver) FindNamespaceImports(namespace *Namespace) (err error) {
 	for _, name := range namespace.importedNamespaceNames {
 		imp, ok := r.namespaceAt(name)
 		if !ok {
-			return fmt.Errorf("namespace %v does not exist; Some necessary modules may have been skipped by Soong. Check if PRODUCT_SOURCE_ROOT_DIRS is pruning necessary Android.bp files.", name)
+			text := fmt.Sprintf("namespace %v does not exist; Some necessary modules may have been skipped by Soong. Check if PRODUCT_SOURCE_ROOT_DIRS is pruning necessary Android.bp files.", name)
+			if !r.namespaceExportFilter(namespace) {
+				fmt.Printf("\033[33mWARNING:\033[0m %s\n", text)
+				continue
+			}
+			return fmt.Errorf(text)
 		}
 		namespace.visibleNamespaces = append(namespace.visibleNamespaces, imp)
 	}
