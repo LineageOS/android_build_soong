@@ -103,6 +103,10 @@ func CheckBadLinkerFlags(ctx BaseModuleContext, prop string, flags []string) {
 				if len(args) > 2 {
 					ctx.PropertyErrorf(prop, "`-z` only takes one argument: `%s`", flag)
 				}
+			} else if args[0] == "-u" {
+				if len(args) > 2 {
+					ctx.PropertyErrorf(prop, "`-u` only takes one argument: `%s`", flag)
+				}
 			} else {
 				ctx.PropertyErrorf(prop, "Bad flag: `%s` is not an allowed multi-word flag. Should it be split into multiple flags?", flag)
 			}
