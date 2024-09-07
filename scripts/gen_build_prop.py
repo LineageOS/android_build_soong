@@ -42,6 +42,17 @@ def get_build_keys(product_config):
     return "test-keys"
   return "dev-keys"
 
+def override_config(config):
+  if "PRODUCT_BUILD_PROP_OVERRIDES" in config:
+    props_overrides = config[ "PRODUCT_BUILD_PROP_OVERRIDES"]
+    for override in props_overrides:
+      # The format is config['KEY']=VALUE
+      (key, value) = override.split('=')
+      if not key in config:
+        print(f"Key isn't a valid prop override", file=sys.stderr)
+        continue
+      config[key] = value
+
 def parse_args():
   """Parse commandline arguments."""
   parser = argparse.ArgumentParser()
@@ -64,6 +75,7 @@ def parse_args():
   # post process parse_args requiring manual handling
   args.config = json.load(args.product_config)
   config = args.config
+  override_config(config)
 
   config["BuildFlavor"] = get_build_flavor(config)
   config["BuildKeys"] = get_build_keys(config)
