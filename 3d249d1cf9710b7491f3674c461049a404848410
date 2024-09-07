@@ -1,0 +1,44 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "9906a43d_c03c09b0",
+        "filename": "scripts/gen_build_prop.py",
+        "patchSetId": 4
+      },
+      "lineNbr": 51,
+      "author": {
+        "id": 10067
+      },
+      "writtenOn": "2024-09-07T11:31:20Z",
+      "side": 1,
+      "message": "can drop () afaict",
+      "range": {
+        "startLine": 51,
+        "startChar": 27,
+        "endLine": 51,
+        "endChar": 28
+      },
+      "revId": "3d249d1cf9710b7491f3674c461049a404848410",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "6096655b_5f519ce1",
+        "filename": "scripts/gen_build_prop.py",
+        "patchSetId": 4
+      },
+      "lineNbr": 52,
+      "author": {
+        "id": 10067
+      },
+      "writtenOn": "2024-09-07T11:31:20Z",
+      "side": 1,
+      "message": "if key not in",
+      "revId": "3d249d1cf9710b7491f3674c461049a404848410",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
