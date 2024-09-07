@@ -42,6 +42,18 @@ def get_build_keys(product_config):
     return "test-keys"
   return "dev-keys"
 
+def override_config(config):
+  if "PRODUCT_BUILD_PROP_OVERRIDES" in config:
+    props_overrides = config["PRODUCT_BUILD_PROP_OVERRIDES"]
+    for override in props_overrides:
+      # The format is config['KEY']=VALUE
+      # Since VALUE can't contain spaces, those are replaced by :
+      key, value = override.split('=')
+      if key not in config:
+        print(f"Key \"{key}\" isn't a valid prop override", file=sys.stderr)
+        exit(1)
+      config[key] = value.replace(':', ' ')
+
 def parse_args():
   """Parse commandline arguments."""
   parser = argparse.ArgumentParser()
@@ -92,6 +104,8 @@ def parse_args():
 
   if args.build_thumbprint_file:
     config["BuildThumbprint"] = args.build_thumbprint_file.read().strip()
+
+  override_config(config)
 
   append_additional_system_props(args)
   append_additional_vendor_props(args)
