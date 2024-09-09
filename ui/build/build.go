@@ -79,7 +79,7 @@ func SetupOutDir(ctx Context, config Config) {
 		if username, ok = config.environ.Get("BUILD_USERNAME"); !ok {
 			ctx.Fatalln("Missing BUILD_USERNAME")
 		}
-		buildNumber = fmt.Sprintf("eng.%.6s.00000000.000000", username)
+		buildNumber = fmt.Sprintf("eng.%.6s", username)
 		writeValueIfChanged(ctx, config, config.OutDir(), "file_name_tag.txt", username)
 	}
 	// Write the build number to a file so it can be read back in
