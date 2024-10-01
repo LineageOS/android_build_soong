@@ -83,7 +83,7 @@ type appProperties struct {
 	Package_splits []string
 
 	// list of native libraries that will be provided in or alongside the resulting jar
-	Jni_libs []string `android:"arch_variant"`
+	Jni_libs proptools.Configurable[[]string] `android:"arch_variant"`
 
 	// if true, use JNI libraries that link against platform APIs even if this module sets
 	// sdk_version.
@@ -311,7 +311,7 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 		} else {
 			tag = jniInstallTag
 		}
-		ctx.AddFarVariationDependencies(variation, tag, a.appProperties.Jni_libs...)
+		ctx.AddFarVariationDependencies(variation, tag, a.appProperties.Jni_libs.GetOrDefault(ctx, nil)...)
 	}
 	for _, aconfig_declaration := range a.aaptProperties.Flags_packages {
 		ctx.AddDependency(ctx.Module(), aconfigDeclarationTag, aconfig_declaration)
@@ -428,7 +428,7 @@ func (a *AndroidApp) checkAppSdkVersions(ctx android.ModuleContext) {
 func (a *AndroidApp) checkEmbedJnis(ctx android.BaseModuleContext) {
 	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	apkInApex := !apexInfo.IsForPlatform()
-	hasJnis := len(a.appProperties.Jni_libs) > 0
+	hasJnis := len(a.appProperties.Jni_libs.GetOrDefault(ctx, nil)) > 0
 
 	if apkInApex && hasJnis && !Bool(a.appProperties.Use_embedded_native_libs) {
 		ctx.ModuleErrorf("APK in APEX should have use_embedded_native_libs: true")

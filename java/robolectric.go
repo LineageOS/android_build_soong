@@ -76,7 +76,7 @@ type robolectricProperties struct {
 	// Use strict mode to limit access of Robolectric API directly. See go/roboStrictMode
 	Strict_mode *bool
 
-	Jni_libs []string
+	Jni_libs proptools.Configurable[[]string]
 }
 
 type robolectricTest struct {
@@ -131,7 +131,7 @@ func (r *robolectricTest) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(),
 		roboRuntimesTag, "robolectric-android-all-prebuilts")
 
-	for _, lib := range r.robolectricProperties.Jni_libs {
+	for _, lib := range r.robolectricProperties.Jni_libs.GetOrDefault(ctx, nil) {
 		ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), jniLibTag, lib)
 	}
 }

@@ -54,7 +54,7 @@ func getLibPath(archType android.ArchType) string {
 }
 
 type ravenwoodTestProperties struct {
-	Jni_libs []string
+	Jni_libs proptools.Configurable[[]string]
 
 	// Specify another android_app module here to copy it to the test directory, so that
 	// the ravenwood test can access it. This APK will be loaded as resources of the test
@@ -126,7 +126,7 @@ func (r *ravenwoodTest) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 
 	// Add jni libs
-	for _, lib := range r.ravenwoodTestProperties.Jni_libs {
+	for _, lib := range r.ravenwoodTestProperties.Jni_libs.GetOrDefault(ctx, nil) {
 		ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), jniLibTag, lib)
 	}
 
@@ -238,7 +238,7 @@ func (r *ravenwoodTest) AndroidMkEntries() []android.AndroidMkEntries {
 type ravenwoodLibgroupProperties struct {
 	Libs []string
 
-	Jni_libs []string
+	Jni_libs proptools.Configurable[[]string]
 
 	// We use this to copy framework-res.apk to the ravenwood runtime directory.
 	Data []string `android:"path,arch_variant"`
@@ -280,7 +280,7 @@ func (r *ravenwoodLibgroup) DepsMutator(ctx android.BottomUpMutatorContext) {
 	for _, lib := range r.ravenwoodLibgroupProperties.Libs {
 		ctx.AddVariationDependencies(nil, ravenwoodLibContentTag, lib)
 	}
-	for _, lib := range r.ravenwoodLibgroupProperties.Jni_libs {
+	for _, lib := range r.ravenwoodLibgroupProperties.Jni_libs.GetOrDefault(ctx, nil) {
 		ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), jniLibTag, lib)
 	}
 }

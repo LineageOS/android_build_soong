@@ -202,7 +202,7 @@ type ApexNativeDependencies struct {
 	Native_shared_libs proptools.Configurable[[]string]
 
 	// List of JNI libraries that are embedded inside this APEX.
-	Jni_libs []string
+	Jni_libs proptools.Configurable[[]string]
 
 	// List of rust dyn libraries that are embedded inside this APEX.
 	Rust_dyn_libs []string
@@ -288,7 +288,7 @@ type ResolvedApexNativeDependencies struct {
 // Merge combines another ApexNativeDependencies into this one
 func (a *ResolvedApexNativeDependencies) Merge(ctx android.BaseMutatorContext, b ApexNativeDependencies) {
 	a.Native_shared_libs = append(a.Native_shared_libs, b.Native_shared_libs.GetOrDefault(ctx, nil)...)
-	a.Jni_libs = append(a.Jni_libs, b.Jni_libs...)
+	a.Jni_libs = append(a.Jni_libs, b.Jni_libs.GetOrDefault(ctx, nil)...)
 	a.Rust_dyn_libs = append(a.Rust_dyn_libs, b.Rust_dyn_libs...)
 	a.Binaries = append(a.Binaries, b.Binaries.GetOrDefault(ctx, nil)...)
 	a.Tests = append(a.Tests, b.Tests...)
@@ -839,7 +839,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 			deps.Merge(ctx, ApexNativeDependencies{
 				Native_shared_libs: proptools.NewConfigurable[[]string](nil, nil),
 				Tests:              nil,
-				Jni_libs:           nil,
+				Jni_libs:           proptools.NewConfigurable[[]string](nil, nil),
 				Binaries:           a.properties.Binaries,
 			})
 		}
