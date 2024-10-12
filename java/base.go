@@ -111,6 +111,9 @@ type CommonProperties struct {
 	// List of modules to use as annotation processors
 	Plugins []string
 
+	// List of modules to use as kotlin plugin
+	Kotlin_plugins []string
+
 	// List of modules to export to libraries that directly depend on this library as annotation
 	// processors.  Note that if the plugins set generates_api: true this will disable the turbine
 	// optimization on modules that depend on this module, which will reduce parallelism and cause
@@ -855,6 +858,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	}
 
 	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), pluginTag, j.properties.Plugins...)
+	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), kotlinPluginTag, j.properties.Kotlin_plugins...)
 	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), errorpronePluginTag, j.properties.Errorprone.Extra_check_modules...)
 	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), exportedPluginTag, j.properties.Exported_plugins...)
 
@@ -884,7 +888,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 
 	if j.useCompose() {
 		ctx.AddVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), kotlinPluginTag,
-			"androidx.compose.compiler_compiler-hosted")
+			"androidx.compose.compiler_compiler-hosted-plugin")
 	}
 }
 
@@ -2359,7 +2363,11 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			case kotlinAnnotationsTag:
 				deps.kotlinAnnotations = dep.HeaderJars
 			case kotlinPluginTag:
-				deps.kotlinPlugins = append(deps.kotlinPlugins, dep.ImplementationAndResourcesJars...)
+				if _, ok := module.(*KotlinPlugin); ok {
+					deps.kotlinPlugins = append(deps.kotlinPlugins, dep.ImplementationAndResourcesJars...)
+				} else {
+					ctx.PropertyErrorf("kotlin_plugins", "%q is not a kotlin_plugin module", otherName)
+				}
 			case syspropPublicStubDepTag:
 				// This is a sysprop implementation library, forward the JavaInfoProvider from
 				// the corresponding sysprop public stub library as SyspropPublicStubInfoProvider.
