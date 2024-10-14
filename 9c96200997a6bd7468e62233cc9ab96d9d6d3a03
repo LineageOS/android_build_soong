@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "4922a24c_7a3b888f",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2024-10-14T12:56:22Z",
+      "side": 1,
+      "message": "breaks tests, not needed unless you want to build with partner modules",
+      "revId": "9c96200997a6bd7468e62233cc9ab96d9d6d3a03",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
