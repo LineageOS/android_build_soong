@@ -421,6 +421,9 @@ def append_additional_vendor_props(args):
   if config["RecoveryDefaultRotation"]:
     props.append(f"ro.minui.default_rotation={config['RecoveryDefaultRotation']}")
 
+  if config["RecoveryDefaultTouchRotation"]:
+    props.append(f"ro.minui.default_touch_rotation={config['RecoveryDefaultTouchRotation']}")
+
   if config["RecoveryOverscanPercent"]:
     props.append(f"ro.minui.overscan_percent={config['RecoveryOverscanPercent']}")
 
