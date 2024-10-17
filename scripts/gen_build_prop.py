@@ -205,6 +205,8 @@ def generate_build_info(args):
   config = args.config
   build_flags = config["BuildFlags"]
 
+  print(f"ro.build.fingerprint?={config['BuildFingerprint']}")
+
   print(f"ro.build.id?={config['BuildId']}")
   print(f"ro.build.uuid?={config['BuildUUID']}")
 
