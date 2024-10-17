@@ -195,6 +195,8 @@ def generate_build_info(args):
   config = args.config
   build_flags = config["BuildFlags"]
 
+  print(f"ro.build.fingerprint?={config['BuildFingerprint']}")
+
   # The ro.build.id will be set dynamically by init, by appending the unique vbmeta digest.
   if config["BoardUseVbmetaDigestInFingerprint"]:
     print(f"ro.build.legacy.id={config['BuildId']}")
