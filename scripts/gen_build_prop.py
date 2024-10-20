@@ -118,6 +118,8 @@ def parse_args():
   if args.build_thumbprint_file:
     config["BuildThumbprint"] = args.build_thumbprint_file.read().strip()
 
+  config["LineageDevice"] = config["DeviceName"]
+
   override_config(config)
 
   append_additional_system_props(args)
@@ -244,6 +246,8 @@ def generate_build_info(args):
   # Only add _asan for a sanitized build if it isn't already a part of the
   # flavor (via a dedicated lunch config for example).
   print(f"ro.build.flavor={config['BuildFlavor']}")
+
+  print(f"ro.lineage.device={config['LineageDevice']}")
 
   # These values are deprecated, use "ro.product.cpu.abilist"
   # instead (see below).
