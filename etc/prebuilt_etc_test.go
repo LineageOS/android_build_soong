@@ -481,3 +481,18 @@ func TestPrebuiltRFSADirPath(t *testing.T) {
 		})
 	}
 }
+
+func TestPrebuiltMediaAutoDirPath(t *testing.T) {
+	result := prepareForPrebuiltEtcTest.RunTestWithBp(t, `
+		prebuilt_media_audio {
+			name: "foo",
+			src: "Alarm_Beep_01.ogg",
+			product_specific: true,
+			relative_install_path: "alarms"
+		}
+	`)
+
+	p := result.Module("foo", "android_common").(*PrebuiltEtc)
+	expected := "out/soong/target/product/test_device/product/media/audio/alarms"
+	android.AssertPathRelativeToTopEquals(t, "install dir", expected, p.installDirPaths[0])
+}
