@@ -66,6 +66,9 @@ func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_rfsa", PrebuiltRFSAFactory)
 	ctx.RegisterModuleType("prebuilt_renderscript_bitcode", PrebuiltRenderScriptBitcodeFactory)
 	ctx.RegisterModuleType("prebuilt_media_audio", PrebuiltMediaAudioFactory)
+	ctx.RegisterModuleType("prebuilt_voicepack", PrebuiltVoicepackFactory)
+	ctx.RegisterModuleType("prebuilt_bin", PrebuiltBinaryFactory)
+	ctx.RegisterModuleType("prebuilt_wallpaper", PrebuiltWallpaperFactory)
 
 	ctx.RegisterModuleType("prebuilt_defaults", defaultsFactory)
 
@@ -759,6 +762,36 @@ func PrebuiltRFSAFactory() android.Module {
 func PrebuiltMediaAudioFactory() android.Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module, "media/audio")
+	// This module is device-only
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+// prebuilt_voicepack installs voice pack files in <partition>/tts directory.
+func PrebuiltVoicepackFactory() android.Module {
+	module := &PrebuiltEtc{}
+	InitPrebuiltEtcModule(module, "tts")
+	// This module is device-only
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+// prebuilt_bin installs files in <partition>/bin directory.
+func PrebuiltBinaryFactory() android.Module {
+	module := &PrebuiltEtc{}
+	InitPrebuiltEtcModule(module, "bin")
+	// This module is device-only
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+// prebuilt_wallpaper installs image files in <partition>/wallpaper directory.
+func PrebuiltWallpaperFactory() android.Module {
+	module := &PrebuiltEtc{}
+	InitPrebuiltEtcModule(module, "wallpaper")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
