@@ -272,6 +272,7 @@ func createKotlinPluginRule() []Rule {
 		// Actual path prebuilts/sdk/current/androidx/m2repository/androidx/compose/compiler/compiler-hosted
 		"prebuilts/sdk/current/androidx",
 		"external/kotlinc",
+		"vendor/lineage/kotlin",
 	}
 
 	return []Rule{
