@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "4e4c977c_99e7e319",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 10067
+      },
+      "writtenOn": "2024-11-22T20:39:50Z",
+      "side": 1,
+      "message": "tested with hw/oplus changes that i\u0027ll upload soon",
+      "revId": "c9e05624051be82ca02a9cfa47395cf0dceab563",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
