@@ -17,4 +17,6 @@ bootstrap_go_package {
     deps: [
         "golang-protobuf-proto",
     ],
+    // Used by plugins
+    visibility: ["//visibility:public"],
 }
