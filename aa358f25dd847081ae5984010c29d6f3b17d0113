@@ -16,6 +16,23 @@
       "message": "disables optimizations",
       "revId": "aa358f25dd847081ae5984010c29d6f3b17d0113",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "36829288_7bad2a5d",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 4
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2025-01-02T11:42:53Z",
+      "side": 1,
+      "message": "```bash\nm retrace\nm $app\n./out/host/linux-x86/bin/retrace --map-search-path out/soong/.intermediates \u003c $app_stacktrace\n```\n\nAs long as $app code matches the stacktrace it\u0027ll be fine (sha matched)",
+      "revId": "aa358f25dd847081ae5984010c29d6f3b17d0113",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
