@@ -360,12 +360,14 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, dexParams *compileDexParams) 
 		r8Flags = append(r8Flags, "--force-proguard-compatibility")
 	}
 
-	if Bool(opt.Optimize) || Bool(opt.Obfuscate) {
-		// TODO(b/213833843): Allow configuration of the prefix via a build variable.
-		var sourceFilePrefix = "go/retraceme "
-		var sourceFileTemplate = "\"" + sourceFilePrefix + "%MAP_ID\""
-		r8Flags = append(r8Flags, "--map-id-template", "%MAP_HASH")
-		r8Flags = append(r8Flags, "--source-file-template", sourceFileTemplate)
+	if ctx.Config().Debuggable() {
+		if Bool(opt.Optimize) || Bool(opt.Obfuscate) {
+			// TODO(b/213833843): Allow configuration of the prefix via a build variable.
+			var sourceFilePrefix = "go/retraceme "
+			var sourceFileTemplate = "\"" + sourceFilePrefix + "%MAP_ID\""
+			r8Flags = append(r8Flags, "--map-id-template", "%MAP_HASH")
+			r8Flags = append(r8Flags, "--source-file-template", sourceFileTemplate)
+		}
 	}
 
 	// TODO(ccross): Don't shrink app instrumentation tests by default.
