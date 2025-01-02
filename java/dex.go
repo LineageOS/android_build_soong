@@ -360,7 +360,7 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, dexParams *compileDexParams) 
 		r8Flags = append(r8Flags, "--force-proguard-compatibility")
 	}
 
-	if Bool(opt.Optimize) || Bool(opt.Obfuscate) {
+	if !ctx.Config().Debuggable() && (Bool(opt.Optimize) || Bool(opt.Obfuscate)) {
 		// TODO(b/213833843): Allow configuration of the prefix via a build variable.
 		var sourceFilePrefix = "go/retraceme "
 		var sourceFileTemplate = "\"" + sourceFilePrefix + "%MAP_ID\""
