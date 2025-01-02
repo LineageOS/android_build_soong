@@ -384,8 +384,8 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, dexParams *compileDexParams) 
 	// TODO(ccross): if this is an instrumentation test of an obfuscated app, use the
 	// dictionary of the app and move the app from libraryjars to injars.
 
-	// Don't strip out debug information for eng builds.
-	if ctx.Config().Eng() {
+	// Don't strip out debug information for debuggable builds.
+	if ctx.Config().Debuggable() {
 		r8Flags = append(r8Flags, "--debug")
 	}
 
