@@ -240,7 +240,7 @@ func (d *dexer) dexCommonFlags(ctx android.ModuleContext,
 	// test targets to remain optimized as part of eng test_suites builds.
 	if requestReleaseMode {
 		flags = append(flags, "--release")
-	} else if ctx.Config().Eng() {
+	} else if ctx.Config().Debuggable() {
 		flags = append(flags, "--debug")
 	}
 
