@@ -34,6 +34,24 @@
       "parentUuid": "b6e9891d_3a16c63b",
       "revId": "9ff94ad1dc2be4b2ecb917fc36747e585c1b3ac7",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "17fc4bf3_748b1b4b",
+        "filename": "scripts/check_boot_jars/package_allowed_list.txt",
+        "patchSetId": 3
+      },
+      "lineNbr": 269,
+      "author": {
+        "id": 10067
+      },
+      "writtenOn": "2025-01-20T14:16:49Z",
+      "side": 1,
+      "message": "odd? is your package literally \"com.nothing\" rather than \"com.nothing.whatever?\"",
+      "parentUuid": "9e57fcb8_2192e78a",
+      "revId": "9ff94ad1dc2be4b2ecb917fc36747e585c1b3ac7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
