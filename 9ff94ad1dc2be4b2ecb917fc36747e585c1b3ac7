@@ -16,6 +16,24 @@
       "message": "```suggestion\ncom\\.nothing\\..*\n```",
       "revId": "9ff94ad1dc2be4b2ecb917fc36747e585c1b3ac7",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "9e57fcb8_2192e78a",
+        "filename": "scripts/check_boot_jars/package_allowed_list.txt",
+        "patchSetId": 3
+      },
+      "lineNbr": 269,
+      "author": {
+        "id": 31890
+      },
+      "writtenOn": "2025-01-20T14:16:02Z",
+      "side": 1,
+      "message": "This doesn\u0027t work for our usecase for some reason. I can do it like nvidia does it below, if that changes anything.",
+      "parentUuid": "b6e9891d_3a16c63b",
+      "revId": "9ff94ad1dc2be4b2ecb917fc36747e585c1b3ac7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
