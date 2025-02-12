@@ -221,13 +221,13 @@ func ListSetDifference[T comparable](l1, l2 []T) (bool, []T, []T) {
 	diff2 := []T{}
 	m1 := setFromList(l1)
 	m2 := setFromList(l2)
-	for t := range m1 {
+	for _, t := range l1 {
 		if _, ok := m2[t]; !ok {
 			diff1 = append(diff1, t)
 			listsDiffer = true
 		}
 	}
-	for t := range m2 {
+	for _, t := range l2 {
 		if _, ok := m1[t]; !ok {
 			diff2 = append(diff2, t)
 			listsDiffer = true
