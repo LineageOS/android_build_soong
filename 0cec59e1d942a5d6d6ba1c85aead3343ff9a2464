@@ -16,6 +16,23 @@
       "message": "Not yet merged in AOSP, but it\u0027s equivalent",
       "revId": "0cec59e1d942a5d6d6ba1c85aead3343ff9a2464",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "fc95d15d_0d9ca4f4",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2025-02-12T19:38:08Z",
+      "side": 1,
+      "message": "now merged in AOSP",
+      "revId": "0cec59e1d942a5d6d6ba1c85aead3343ff9a2464",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ],
   "submitRequirementResults": []
