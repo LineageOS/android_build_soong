@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "48d0c448_44f0cfe8",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2025-02-12T11:15:56Z",
+      "side": 1,
+      "message": "Not yet merged in AOSP, but it\u0027s equivalent",
+      "revId": "0cec59e1d942a5d6d6ba1c85aead3343ff9a2464",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
