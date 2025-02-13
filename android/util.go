@@ -217,6 +217,8 @@ func PrettyConcat(list []string, quote bool, lastSep string) string {
 // that are in l1 but not l2, and l2 but not l1.
 func ListSetDifference[T comparable](l1, l2 []T) (bool, []T, []T) {
 	listsDiffer := false
+	l1 = firstUnique(l1)
+	l2 = firstUnique(l2)
 	diff1 := []T{}
 	diff2 := []T{}
 	m1 := setFromList(l1)
