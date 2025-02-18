@@ -1986,6 +1986,10 @@ func (c *config) UseTransitiveJarsInClasspath() bool {
 	return c.productVariables.GetBuildFlagBool("RELEASE_USE_TRANSITIVE_JARS_IN_CLASSPATH")
 }
 
+func (c *config) UseR8GlobalCheckNotNullFlags() bool {
+	return c.productVariables.GetBuildFlagBool("RELEASE_R8_GLOBAL_CHECK_NOT_NULL_FLAGS")
+}
+
 var (
 	mainlineApexContributionBuildFlagsToApexNames = map[string]string{
 		"RELEASE_APEX_CONTRIBUTIONS_ADBD":                    "com.android.adbd",
