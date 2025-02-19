@@ -1987,7 +1987,7 @@ func (c *config) UseTransitiveJarsInClasspath() bool {
 }
 
 func (c *config) UseR8GlobalCheckNotNullFlags() bool {
-	return c.productVariables.GetBuildFlagBool("RELEASE_R8_GLOBAL_CHECK_NOT_NULL_FLAGS")
+	return true
 }
 
 var (
