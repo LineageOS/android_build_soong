@@ -16,6 +16,24 @@
       "message": "do you know if we can add extra textprotos in vendor/?\n\nhttps://android-review.googlesource.com/c/platform/build/release/+/3498108",
       "revId": "e6ed96ac9b64e61a99de9c03818e25b9340e598c",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "b78d2ab4_63bf76eb",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2025-02-19T23:54:09Z",
+      "side": 1,
+      "message": "For reference, you can define this in vendor, we do it for unreleased pixel flags",
+      "parentUuid": "b6530db4_b51c6a40",
+      "revId": "e6ed96ac9b64e61a99de9c03818e25b9340e598c",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ],
   "submitRequirementResults": []
