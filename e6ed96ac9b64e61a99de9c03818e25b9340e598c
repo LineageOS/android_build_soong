@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "b6530db4_b51c6a40",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2025-02-19T22:00:22Z",
+      "side": 1,
+      "message": "do you know if we can add extra textprotos in vendor/?\n\nhttps://android-review.googlesource.com/c/platform/build/release/+/3498108",
+      "revId": "e6ed96ac9b64e61a99de9c03818e25b9340e598c",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
