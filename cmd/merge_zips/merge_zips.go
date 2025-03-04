@@ -212,6 +212,8 @@ func (oz *OutputZip) addZipEntryFromFile(name string, path string) error {
 			Name:               name,
 			Method:             zip.Store,
 			UncompressedSize64: uint64(len(buf)),
+			CompressedSize64:   uint64(len(buf)),
+			CRC32:              crc32.ChecksumIEEE(buf),
 		}
 		fh.SetMode(0700)
 		fh.SetModTime(jar.DefaultTime)
@@ -225,7 +227,9 @@ func (oz *OutputZip) addEmptyEntry(entry string) error {
 	fh := &zip.FileHeader{
 		Name:               entry,
 		Method:             zip.Store,
-		UncompressedSize64: uint64(len(emptyBuf)),
+		UncompressedSize64: 0,
+		CompressedSize64:   0,
+		CRC32:              crc32.ChecksumIEEE(emptyBuf),
 	}
 	fh.SetMode(0700)
 	fh.SetModTime(jar.DefaultTime)
