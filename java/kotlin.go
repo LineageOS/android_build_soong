@@ -40,8 +40,8 @@ var kotlinc = pctx.AndroidRemoteStaticRule("kotlinc", android.RemoteRuleSupports
 			` -kotlin-home $emptyDir ` +
 			` -Xplugin=${config.KotlinAbiGenPluginJar} ` +
 			` -P plugin:org.jetbrains.kotlin.jvm.abi:outputDir=$headerClassesDir && ` +
-			`${config.SoongZipCmd} -jar -o $out -C $classesDir -D $classesDir -write_if_changed && ` +
-			`${config.SoongZipCmd} -jar -o $headerJar -C $headerClassesDir -D $headerClassesDir -write_if_changed && ` +
+			`${config.SoongZipCmd} -jar $jarArgs -o $out -C $classesDir -D $classesDir -write_if_changed && ` +
+			`${config.SoongZipCmd} -jar $jarArgs -o $headerJar -C $headerClassesDir -D $headerClassesDir -write_if_changed && ` +
 			`rm -rf "$srcJarDir" "$classesDir" "$headerClassesDir"`,
 		CommandDeps: []string{
 			"${config.KotlincCmd}",
@@ -62,7 +62,7 @@ var kotlinc = pctx.AndroidRemoteStaticRule("kotlinc", android.RemoteRuleSupports
 		Restat:         true,
 	},
 	"kotlincFlags", "classpath", "srcJars", "commonSrcFilesArg", "srcJarDir", "classesDir",
-	"headerClassesDir", "headerJar", "kotlinJvmTarget", "kotlinBuildFile", "emptyDir", "name")
+	"headerClassesDir", "headerJar", "kotlinJvmTarget", "kotlinBuildFile", "emptyDir", "name", "jarArgs")
 
 var kotlinKytheExtract = pctx.AndroidStaticRule("kotlinKythe",
 	blueprint.RuleParams{
@@ -104,8 +104,7 @@ func kotlinCommonSrcsList(ctx android.ModuleContext, commonSrcFiles android.Path
 
 // kotlinCompile takes .java and .kt sources and srcJars, and compiles the .kt sources into a classes jar in outputFile.
 func (j *Module) kotlinCompile(ctx android.ModuleContext, outputFile, headerOutputFile android.WritablePath,
-	srcFiles, commonSrcFiles, srcJars android.Paths,
-	flags javaBuilderFlags) {
+	srcFiles, commonSrcFiles, srcJars android.Paths, flags javaBuilderFlags, manifest android.OptionalPath) {
 
 	var deps android.Paths
 	deps = append(deps, flags.kotlincClasspath...)
@@ -127,6 +126,12 @@ func (j *Module) kotlinCompile(ctx android.ModuleContext, outputFile, headerOutp
 	android.WriteFileRule(ctx, classpathRspFile, strings.Join(flags.kotlincClasspath.Strings(), " "))
 	deps = append(deps, classpathRspFile)
 
+	var jarArgs string
+	if manifest.Valid() {
+		jarArgs = "-m " + manifest.Path().String()
+		deps = append(deps, manifest.Path())
+	}
+
 	ctx.Build(pctx, android.BuildParams{
 		Rule:           kotlinc,
 		Description:    "kotlinc",
@@ -147,6 +152,7 @@ func (j *Module) kotlinCompile(ctx android.ModuleContext, outputFile, headerOutp
 			"emptyDir":          android.PathForModuleOut(ctx, "kotlinc", "empty").String(),
 			"kotlinJvmTarget":   flags.javaVersion.StringForKotlinc(),
 			"name":              kotlinName,
+			"jarArgs":           jarArgs,
 		},
 	})
 
