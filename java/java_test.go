@@ -3128,3 +3128,72 @@ cc_library_shared {
 	deps := findDepsOfModule(res, res.ModuleForTests("myjavabin", "android_common").Module(), "mynativelib")
 	android.AssertIntEquals(t, "Create a dep on the first variant", 1, len(deps))
 }
+
+func TestBootJarNotInUsesLibs(t *testing.T) {
+	t.Parallel()
+	result := android.GroupFixturePreparers(
+		PrepareForTestWithJavaDefaultModules,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("mysdklibrary", "myothersdklibrary"),
+		FixtureConfigureApexBootJars("myapex:mysdklibrary"),
+	).RunTestWithBp(t, `
+		bootclasspath_fragment {
+			name: "myfragment",
+			contents: ["mysdklibrary"],
+			hidden_api: {
+				split_packages: ["*"],
+			},
+		}
+
+		java_sdk_library {
+			name: "mysdklibrary",
+			srcs: ["Test.java"],
+			compile_dex: true,
+			public: {enabled: true},
+			min_sdk_version: "2",
+			permitted_packages: ["mysdklibrary"],
+			sdk_version: "current",
+		}
+
+		java_sdk_library {
+			name: "myothersdklibrary",
+			srcs: ["Test.java"],
+			compile_dex: true,
+			public: {enabled: true},
+			min_sdk_version: "2",
+			permitted_packages: ["myothersdklibrary"],
+			sdk_version: "current",
+		}
+
+		java_library {
+			name: "foo",
+			libs: [
+				"bar",
+				"mysdklibrary.stubs",
+			],
+			srcs: ["A.java"],
+		}
+
+		java_library {
+			name: "bar",
+			libs: [
+				"myothersdklibrary.stubs"
+			],
+		}
+	`)
+	ctx := result.TestContext
+	fooModule := ctx.ModuleForTests(t, "foo", "android_common")
+
+	androidMkEntries := android.AndroidMkEntriesForTest(t, ctx, fooModule.Module())[0]
+	localExportSdkLibraries := androidMkEntries.EntryMap["LOCAL_EXPORT_SDK_LIBRARIES"]
+	android.AssertStringListDoesNotContain(t,
+		"boot jar should not be included in uses libs entries",
+		localExportSdkLibraries,
+		"mysdklibrary",
+	)
+	android.AssertStringListContains(t,
+		"non boot jar is included in uses libs entries",
+		localExportSdkLibraries,
+		"myothersdklibrary",
+	)
+}

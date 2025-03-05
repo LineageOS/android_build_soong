@@ -291,6 +291,11 @@ func (clcMap ClassLoaderContextMap) addContext(ctx android.ModuleInstallPathCont
 	// For prebuilts, library should have the same name as the source module.
 	lib = android.RemoveOptionalPrebuiltPrefix(lib)
 
+	// Bootclasspath libraries should not be added to CLC.
+	if android.InList(lib, ctx.Config().BootJars()) {
+		return nil
+	}
+
 	devicePath := UnknownInstallLibraryPath
 	if installPath == nil {
 		if android.InList(lib, CompatUsesLibs) || android.InList(lib, OptionalCompatUsesLibs) {
