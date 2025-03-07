@@ -100,7 +100,12 @@ func (m *dexpreoptSystemserverCheck) GenerateAndroidBuildActions(ctx android.Mod
 		if systemServerJar.InstallInSystemExt() && ctx.Config().InstallApexSystemServerDexpreoptSamePartition() {
 			partition = ctx.DeviceConfig().SystemExtPath() // system_ext
 		}
-		dexLocation := dexpreopt.GetSystemServerDexLocation(ctx, global, systemServerJar.Name())
+		var dexLocation string
+		if m, ok := systemServerJar.(ModuleWithStem); ok {
+			dexLocation = dexpreopt.GetSystemServerDexLocation(ctx, global, m.Stem())
+		} else {
+			ctx.PropertyErrorf("dexpreopt_systemserver_check", "%v is not a ModuleWithStem", systemServerJar.Name())
+		}
 		odexLocation := dexpreopt.ToOdexPath(dexLocation, targets[0].Arch.ArchType, partition)
 		odexPath := getInstallPath(ctx, odexLocation)
 		vdexPath := getInstallPath(ctx, pathtools.ReplaceExtension(odexLocation, "vdex"))
