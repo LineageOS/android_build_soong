@@ -52,6 +52,7 @@ bootstrap_go_package {
         "android/expand.go",
         "android/filegroup.go",
         "android/hooks.go",
+        "android/license.go",
         "android/makevars.go",
         "android/module.go",
         "android/mutator.go",
