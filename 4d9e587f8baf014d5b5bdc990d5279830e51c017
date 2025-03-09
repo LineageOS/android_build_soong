@@ -111,6 +111,29 @@
       },
       "revId": "4d9e587f8baf014d5b5bdc990d5279830e51c017",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "48c58297_0d3e7498",
+        "filename": "etc/prebuilt_etc_test.go",
+        "patchSetId": 1
+      },
+      "lineNbr": 590,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2025-03-09T11:25:32Z",
+      "side": 1,
+      "message": "zap, doesn\u0027t pass and won\u0027t be needed for the upstream version",
+      "range": {
+        "startLine": 558,
+        "startChar": 0,
+        "endLine": 590,
+        "endChar": 1
+      },
+      "revId": "4d9e587f8baf014d5b5bdc990d5279830e51c017",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
