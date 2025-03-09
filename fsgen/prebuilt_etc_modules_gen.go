@@ -199,6 +199,7 @@ var (
 		"etc/dsp":             etc.PrebuiltDSPFactory,
 		"etc/firmware":        etc.PrebuiltFirmwareFactory,
 		"firmware":            etc.PrebuiltFirmwareFactory,
+		"gpu":                 etc.PrebuiltGPUFactory,
 		"first_stage_ramdisk": etc.PrebuiltFirstStageRamdiskFactory,
 		"fonts":               etc.PrebuiltFontFactory,
 		"framework":           etc.PrebuiltFrameworkFactory,
