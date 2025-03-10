@@ -134,6 +134,30 @@
       },
       "revId": "4d9e587f8baf014d5b5bdc990d5279830e51c017",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "474eee9d_acbf80ca",
+        "filename": "etc/prebuilt_etc_test.go",
+        "patchSetId": 1
+      },
+      "lineNbr": 590,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2025-03-10T16:26:55Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "48c58297_0d3e7498",
+      "range": {
+        "startLine": 558,
+        "startChar": 0,
+        "endLine": 590,
+        "endChar": 1
+      },
+      "revId": "4d9e587f8baf014d5b5bdc990d5279830e51c017",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
