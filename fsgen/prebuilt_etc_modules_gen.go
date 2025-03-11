@@ -226,6 +226,7 @@ var (
 		"usr/idc":             etc.PrebuiltUserIdcFactory,
 		"vendor":              etc.PrebuiltVendorFactory,
 		"vendor_dlkm":         etc.PrebuiltVendorDlkmFactory,
+		"vendor_overlay":      etc.PrebuiltVendorOverlayFactory,
 		"wallpaper":           etc.PrebuiltWallpaperFactory,
 		"wlc_upt":             etc.PrebuiltWlcUptFactory,
 	}
