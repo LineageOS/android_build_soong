@@ -212,6 +212,7 @@ var (
 		"overlay":             etc.PrebuiltOverlayFactory,
 		"priv-app":            etc.PrebuiltPrivAppFactory,
 		"radio":               etc.PrebuiltRadioFactory,
+		"tee":                 etc.PrebuiltTeeFactory,
 		"sbin":                etc.PrebuiltSbinFactory,
 		"system":              etc.PrebuiltSystemFactory,
 		"res":                 etc.PrebuiltResFactory,
