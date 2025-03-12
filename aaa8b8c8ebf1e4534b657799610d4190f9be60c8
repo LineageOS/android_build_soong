@@ -16,6 +16,23 @@
       "message": "works exynos 850",
       "revId": "aaa8b8c8ebf1e4534b657799610d4190f9be60c8",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "24bb512d_d0731c00",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 16185
+      },
+      "writtenOn": "2025-03-12T21:38:10Z",
+      "side": 1,
+      "message": "will be merged with rest of asb",
+      "revId": "aaa8b8c8ebf1e4534b657799610d4190f9be60c8",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
