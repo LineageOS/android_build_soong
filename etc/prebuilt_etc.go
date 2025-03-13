@@ -64,6 +64,7 @@ func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_overlay", PrebuiltOverlayFactory)
 	ctx.RegisterModuleType("prebuilt_firmware", PrebuiltFirmwareFactory)
 	ctx.RegisterModuleType("prebuilt_gpu", PrebuiltGPUFactory)
+	ctx.RegisterModuleType("prebuilt_install", PrebuiltInstallFactory)
 	ctx.RegisterModuleType("prebuilt_dsp", PrebuiltDSPFactory)
 	ctx.RegisterModuleType("prebuilt_rfsa", PrebuiltRFSAFactory)
 	ctx.RegisterModuleType("prebuilt_renderscript_bitcode", PrebuiltRenderScriptBitcodeFactory)
@@ -823,6 +824,16 @@ func PrebuiltGPUFactory() android.Module {
 	InitPrebuiltEtcModule(module, "gpu")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	return module
+}
+
+// prebuilt_install is for a prebuilt artifact in <partition>/install directory.
+func PrebuiltInstallFactory() android.Module {
+	module := &PrebuiltEtc{}
+	InitPrebuiltEtcModule(module, "install")
+	// This module is device-only
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
 	return module
 }
 
