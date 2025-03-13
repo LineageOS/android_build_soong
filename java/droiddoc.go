@@ -640,7 +640,7 @@ func (d *Droiddoc) doclavaDocsFlags(ctx android.ModuleContext, cmd *android.Rule
 		Flag("-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED").
 		Flag("-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED").
 		FlagWithArg("-hdf page.build ", ctx.Config().BuildId()+"-$(cat "+buildNumberFile.String()+")").OrderOnly(buildNumberFile).
-		FlagWithArg("-hdf page.now ", `"$(date -d @$(cat `+ctx.Config().Getenv("BUILD_DATETIME_FILE")+`) "+%d %b %Y %k:%M")" `)
+		FlagWithArg("-hdf page.now ", `"$(TZ=UTC date -d @$(cat `+ctx.Config().Getenv("BUILD_DATETIME_FILE")+`) "+%d %b %Y %k:%M")" `)
 
 	if String(d.properties.Custom_template) == "" {
 		// TODO: This is almost always droiddoc-templates-sdk

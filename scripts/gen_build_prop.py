@@ -105,7 +105,9 @@ def parse_args():
   config["BuildVersionTags"] = build_version_tags
 
   raw_date = args.date_file.read().strip()
-  config["Date"] = subprocess.check_output(["date", "-d", f"@{raw_date}"], text=True).strip()
+  my_env = os.environ.copy()  # Create a copy of the current environment
+  my_env["TZ"] = "UTC" # Set the TZ env var to UTC
+  config["Date"] = subprocess.check_output(["date", "-d", f"@{raw_date}"], text=True, env=my_env).strip()
   config["DateUtc"] = subprocess.check_output(["date", "-d", f"@{raw_date}", "+%s"], text=True).strip()
 
   # build_desc is human readable strings that describe this build. This has the same info as the
