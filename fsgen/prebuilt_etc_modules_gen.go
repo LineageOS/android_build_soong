@@ -214,6 +214,7 @@ var (
 		"radio":               etc.PrebuiltRadioFactory,
 		"tee":                 etc.PrebuiltTeeFactory,
 		"install":             etc.PrebuiltInstallFactory,
+		"addon.d":             etc.PrebuiltAddonDFactory,
 		"sbin":                etc.PrebuiltSbinFactory,
 		"system":              etc.PrebuiltSystemFactory,
 		"res":                 etc.PrebuiltResFactory,
