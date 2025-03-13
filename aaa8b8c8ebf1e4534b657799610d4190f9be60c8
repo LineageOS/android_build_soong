@@ -33,6 +33,23 @@
       "message": "will be merged with rest of asb",
       "revId": "aaa8b8c8ebf1e4534b657799610d4190f9be60c8",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "0b836e6c_403f9e8a",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2025-03-13T05:03:52Z",
+      "side": 1,
+      "message": "Hold for AOSP change",
+      "revId": "aaa8b8c8ebf1e4534b657799610d4190f9be60c8",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
