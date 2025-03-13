@@ -101,6 +101,24 @@
       "message": "Additionally this change wasn\u0027t even properly cherry-picked at all.\nWrong author etc...",
       "revId": "aaa8b8c8ebf1e4534b657799610d4190f9be60c8",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "861dd33e_a27aa983",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 34512
+      },
+      "writtenOn": "2025-03-13T07:51:24Z",
+      "side": 1,
+      "message": "Dude stop getting mad, I made the code myself on the same day that u staged on google gerrit, it’s not like I copied your code, without crediting you.",
+      "parentUuid": "fe3f02f0_b38f53c2",
+      "revId": "aaa8b8c8ebf1e4534b657799610d4190f9be60c8",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
