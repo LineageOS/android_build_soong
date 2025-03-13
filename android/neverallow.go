@@ -360,6 +360,7 @@ func createPrebuiltEtcBpDefineRule() Rule {
 			"prebuilt_gpu",
 			"prebuilt_tee",
 			"prebuilt_install",
+			"prebuilt_addon.d",
 		).
 		DefinedInBpFile().
 		Because("module type not allowed to be defined in bp file")
