@@ -16,6 +16,24 @@
       "message": "Let\u0027s hold those changes for a bit\nhttps://android-review.googlesource.com/c/platform/build/soong/+/3540102\nWe might use this instead of polluting the repo with more commits",
       "revId": "10fba8033a7c014c281ef2208a3fa7b93b9e887c",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "d9597aac_82c2075d",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 34512
+      },
+      "writtenOn": "2025-03-13T18:54:21Z",
+      "side": 1,
+      "message": "Ok but please can we abandon the hack for now, as this fixes it and allows a only devices to succeed.",
+      "parentUuid": "56c5ac74_597a857f",
+      "revId": "10fba8033a7c014c281ef2208a3fa7b93b9e887c",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
