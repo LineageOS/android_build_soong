@@ -22,7 +22,6 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -489,12 +488,7 @@ func NewConfig(ctx Context, args ...string) Config {
 	ret.environ.Set("BUILD_DATETIME_FILE", ret.sandboxPath(wd, buildDateTimeFile))
 
 	if _, ok := ret.environ.Get("BUILD_USERNAME"); !ok {
-		username := "unknown"
-		if u, err := user.Current(); err == nil {
-			username = u.Username
-		} else {
-			ctx.Println("Failed to get current user:", err)
-		}
+		username := "root"
 		ret.environ.Set("BUILD_USERNAME", username)
 	}
 	ret.environ.Set("PWD", ret.sandboxPath(wd, wd))
