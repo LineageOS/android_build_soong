@@ -119,6 +119,41 @@
       "parentUuid": "fe3f02f0_b38f53c2",
       "revId": "aaa8b8c8ebf1e4534b657799610d4190f9be60c8",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "947e9d53_449387c9",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2025-03-13T07:59:32Z",
+      "side": 1,
+      "message": "Please be civil",
+      "revId": "aaa8b8c8ebf1e4534b657799610d4190f9be60c8",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "8a8f2f52_b7435586",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2025-03-13T07:59:32Z",
+      "side": 1,
+      "message": "It\u0027s pretty clear this kind of changes aren\u0027t worth fighting for, it\u0027s just the same code copy pasted.\n\nAnd it\u0027s also clear they could\u0027ve made it on their own, it\u0027s just a few hours of difference (via commit msg, didn\u0027t check TZ), and you clearly didn\u0027t upload it here (afaik) and it could\u0027ve easily been missed in AOSP, since why would check it?\n\nSince the AOSP variant is likely going in we\u0027ll switch over to that, but that\u0027s just for the ease of bookkeeping, no more or less.",
+      "parentUuid": "78ee7df3_0539c381",
+      "revId": "aaa8b8c8ebf1e4534b657799610d4190f9be60c8",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
