@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "36a59ce4_e15fa7a0",
+        "filename": "fsgen/prebuilt_etc_modules_gen.go",
+        "patchSetId": 1
+      },
+      "lineNbr": 343,
+      "author": {
+        "id": 25925
+      },
+      "writtenOn": "2025-03-14T12:29:58Z",
+      "side": 1,
+      "message": "This change doesn\u0027t apply if the copied file\u0027s basename is not changed, would it be worth sending a fix to AOSP?",
+      "revId": "cc1c4aaf9a11e4eb01ad385c46723423a2665ebc",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
