@@ -16,6 +16,24 @@
       "message": "This change doesn\u0027t apply if the copied file\u0027s basename is not changed, would it be worth sending a fix to AOSP?",
       "revId": "cc1c4aaf9a11e4eb01ad385c46723423a2665ebc",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "9bf1d606_200d2031",
+        "filename": "fsgen/prebuilt_etc_modules_gen.go",
+        "patchSetId": 1
+      },
+      "lineNbr": 343,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2025-03-14T12:32:05Z",
+      "side": 1,
+      "message": "Very likely, they\u0027re on it. Add Luca as well.",
+      "parentUuid": "36a59ce4_e15fa7a0",
+      "revId": "cc1c4aaf9a11e4eb01ad385c46723423a2665ebc",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
