@@ -186,51 +186,6 @@ type prebuiltInstallInRootProperties struct {
 	Install_in_root *bool
 }
 
-var (
-	etcInstallPathToFactoryList = map[string]android.ModuleFactory{
-		"":                    etc.PrebuiltRootFactory,
-		"avb":                 etc.PrebuiltAvbFactory,
-		"bin":                 etc.PrebuiltBinaryFactory,
-		"bt_firmware":         etc.PrebuiltBtFirmwareFactory,
-		"cacerts":             etc.PrebuiltEtcCaCertsFactory,
-		"dsp":                 etc.PrebuiltDSPFactory,
-		"etc":                 etc.PrebuiltEtcFactory,
-		"etc/dsp":             etc.PrebuiltDSPFactory,
-		"etc/firmware":        etc.PrebuiltFirmwareFactory,
-		"firmware":            etc.PrebuiltFirmwareFactory,
-		"gpu":                 etc.PrebuiltGPUFactory,
-		"first_stage_ramdisk": etc.PrebuiltFirstStageRamdiskFactory,
-		"fonts":               etc.PrebuiltFontFactory,
-		"framework":           etc.PrebuiltFrameworkFactory,
-		"lib":                 etc.PrebuiltRenderScriptBitcodeFactory,
-		"lib64":               etc.PrebuiltRenderScriptBitcodeFactory,
-		"lib/rfsa":            etc.PrebuiltRFSAFactory,
-		"media":               etc.PrebuiltMediaFactory,
-		"odm":                 etc.PrebuiltOdmFactory,
-		"optee":               etc.PrebuiltOpteeFactory,
-		"overlay":             etc.PrebuiltOverlayFactory,
-		"priv-app":            etc.PrebuiltPrivAppFactory,
-		"radio":               etc.PrebuiltRadioFactory,
-		"sbin":                etc.PrebuiltSbinFactory,
-		"system":              etc.PrebuiltSystemFactory,
-		"res":                 etc.PrebuiltResFactory,
-		"rfs":                 etc.PrebuiltRfsFactory,
-		"tts":                 etc.PrebuiltVoicepackFactory,
-		"tvconfig":            etc.PrebuiltTvConfigFactory,
-		"tvservice":           etc.PrebuiltTvServiceFactory,
-		"usr/share":           etc.PrebuiltUserShareFactory,
-		"usr/hyphen-data":     etc.PrebuiltUserHyphenDataFactory,
-		"usr/keylayout":       etc.PrebuiltUserKeyLayoutFactory,
-		"usr/keychars":        etc.PrebuiltUserKeyCharsFactory,
-		"usr/srec":            etc.PrebuiltUserSrecFactory,
-		"usr/idc":             etc.PrebuiltUserIdcFactory,
-		"vendor":              etc.PrebuiltVendorFactory,
-		"vendor_dlkm":         etc.PrebuiltVendorDlkmFactory,
-		"wallpaper":           etc.PrebuiltWallpaperFactory,
-		"wlc_upt":             etc.PrebuiltWlcUptFactory,
-	}
-)
-
 func generatedPrebuiltEtcModuleName(partition, srcDir, destDir string, count int) string {
 	// generated module name follows the pattern:
 	// <install partition>-<src file path>-<relative install path from partition root>-<number>
@@ -291,18 +246,6 @@ func prebuiltEtcModuleProps(ctx android.LoadHookContext, moduleName, partition, 
 func createPrebuiltEtcModulesInDirectory(ctx android.LoadHookContext, partition, srcDir, destDir string, destFiles []srcBaseFileInstallBaseFileTuple) (moduleNames []string) {
 	groupedDestFiles, maxLen := groupDestFilesBySrc(destFiles)
 
-	// Find out the most appropriate module type to generate
-	var etcInstallPathKey string
-	for _, etcInstallPath := range android.SortedKeys(etcInstallPathToFactoryList) {
-		// Do not break when found but iterate until the end to find a module with more
-		// specific install path
-		if strings.HasPrefix(destDir, etcInstallPath) {
-			etcInstallPathKey = etcInstallPath
-		}
-	}
-	moduleFactory := etcInstallPathToFactoryList[etcInstallPathKey]
-	relDestDirFromInstallDirBase, _ := filepath.Rel(etcInstallPathKey, destDir)
-
 	for fileIndex := range maxLen {
 		srcTuple := []srcBaseFileInstallBaseFileTuple{}
 		for _, srcFile := range android.SortedKeys(groupedDestFiles) {
@@ -317,12 +260,8 @@ func createPrebuiltEtcModulesInDirectory(ctx android.LoadHookContext, partition,
 		modulePropsPtr := &moduleProps
 		propsList := []interface{}{modulePropsPtr}
 
-		allCopyFileNamesUnchanged := true
 		var srcBaseFiles, installBaseFiles []string
 		for _, tuple := range srcTuple {
-			if tuple.srcBaseFile != tuple.installBaseFile {
-				allCopyFileNamesUnchanged = false
-			}
 			srcBaseFiles = append(srcBaseFiles, tuple.srcBaseFile)
 			installBaseFiles = append(installBaseFiles, tuple.installBaseFile)
 		}
@@ -337,36 +276,17 @@ func createPrebuiltEtcModulesInDirectory(ctx android.LoadHookContext, partition,
 			})
 		}
 
-		// Set appropriate srcs, dsts, and releative_install_path based on
-		// the source and install file names
-		if allCopyFileNamesUnchanged {
-			modulePropsPtr.Srcs = srcBaseFiles
-
-			// Specify relative_install_path if it is not installed in the root directory of the
-			// partition
-			if !android.InList(relDestDirFromInstallDirBase, []string{"", "."}) {
-				propsList = append(propsList, &prebuiltSubdirProperties{
-					Relative_install_path: proptools.StringPtr(relDestDirFromInstallDirBase),
-				})
-			}
-		} else {
-			// If dsts property has to be set and the selected module type is prebuilt_root,
-			// use prebuilt_any instead.
-			if etcInstallPathKey == "" {
-				moduleFactory = etc.PrebuiltAnyFactory
-			}
-			modulePropsPtr.Srcs = srcBaseFiles
-			dsts := proptools.NewConfigurable[[]string](nil, nil)
-			for _, installBaseFile := range installBaseFiles {
-				dsts.AppendSimpleValue([]string{filepath.Join(relDestDirFromInstallDirBase, installBaseFile)})
-			}
-
-			propsList = append(propsList, &etc.PrebuiltDstsProperties{
-				Dsts: dsts,
-			})
+		modulePropsPtr.Srcs = srcBaseFiles
+		dsts := proptools.NewConfigurable[[]string](nil, nil)
+		for _, installBaseFile := range installBaseFiles {
+			dsts.AppendSimpleValue([]string{filepath.Join(destDir, installBaseFile)})
 		}
 
-		ctx.CreateModuleInDirectory(moduleFactory, srcDir, propsList...)
+		propsList = append(propsList, &etc.PrebuiltDstsProperties{
+			Dsts: dsts,
+		})
+
+		ctx.CreateModuleInDirectory(etc.PrebuiltAnyFactory, srcDir, propsList...)
 		moduleNames = append(moduleNames, moduleName)
 	}
 
