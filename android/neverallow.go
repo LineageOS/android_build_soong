@@ -359,6 +359,7 @@ func createPrebuiltEtcBpDefineRule() Rule {
 			"prebuilt_radio",
 			"prebuilt_gpu",
 			"prebuilt_tee",
+			"prebuilt_thh",
 			"prebuilt_install",
 			"prebuilt_addon.d",
 		).

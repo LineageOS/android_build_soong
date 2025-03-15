@@ -213,6 +213,7 @@ var (
 		"priv-app":            etc.PrebuiltPrivAppFactory,
 		"radio":               etc.PrebuiltRadioFactory,
 		"tee":                 etc.PrebuiltTeeFactory,
+		"thh":                 etc.PrebuiltThhFactory,
 		"install":             etc.PrebuiltInstallFactory,
 		"addon.d":             etc.PrebuiltAddonDFactory,
 		"sbin":                etc.PrebuiltSbinFactory,

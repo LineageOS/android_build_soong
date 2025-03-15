@@ -65,6 +65,7 @@ func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_firmware", PrebuiltFirmwareFactory)
 	ctx.RegisterModuleType("prebuilt_gpu", PrebuiltGPUFactory)
 	ctx.RegisterModuleType("prebuilt_tee", PrebuiltTeeFactory)
+	ctx.RegisterModuleType("prebuilt_thh", PrebuiltThhFactory)
 	ctx.RegisterModuleType("prebuilt_install", PrebuiltInstallFactory)
 	ctx.RegisterModuleType("prebuilt_addon.d", PrebuiltAddonDFactory)
 	ctx.RegisterModuleType("prebuilt_dsp", PrebuiltDSPFactory)
@@ -805,6 +806,15 @@ func PrebuiltGPUFactory() android.Module {
 func PrebuiltTeeFactory() android.Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module, "tee")
+	// This module is device-only
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+func PrebuiltThhFactory() android.Module {
+	module := &PrebuiltEtc{}
+	InitPrebuiltEtcModule(module, "thh")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
 	android.InitDefaultableModule(module)
