@@ -211,6 +211,7 @@ var (
 		"overlay":             etc.PrebuiltOverlayFactory,
 		"priv-app":            etc.PrebuiltPrivAppFactory,
 		"radio":               etc.PrebuiltRadioFactory,
+		"thh":                 etc.PrebuiltThhFactory,
 		"install":             etc.PrebuiltInstallFactory,
 		"addon.d":             etc.PrebuiltAddonDFactory,
 		"sbin":                etc.PrebuiltSbinFactory,
