@@ -363,6 +363,7 @@ func createPrebuiltEtcBpDefineRule() Rule {
 			"prebuilt_thh",
 			"prebuilt_install",
 			"prebuilt_addon.d",
+			"prebuilt_camera",
 		).
 		DefinedInBpFile().
 		Because("module type not allowed to be defined in bp file")

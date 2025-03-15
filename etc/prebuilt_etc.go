@@ -67,6 +67,7 @@ func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_thh", PrebuiltThhFactory)
 	ctx.RegisterModuleType("prebuilt_install", PrebuiltInstallFactory)
 	ctx.RegisterModuleType("prebuilt_addon.d", PrebuiltAddonDFactory)
+	ctx.RegisterModuleType("prebuilt_camera", PrebuiltCameraFactory)
 	ctx.RegisterModuleType("prebuilt_dsp", PrebuiltDSPFactory)
 	ctx.RegisterModuleType("prebuilt_rfsa", PrebuiltRFSAFactory)
 	ctx.RegisterModuleType("prebuilt_renderscript_bitcode", PrebuiltRenderScriptBitcodeFactory)
@@ -853,6 +854,16 @@ func PrebuiltInstallFactory() android.Module {
 func PrebuiltAddonDFactory() android.Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module, "addon.d")
+	// This module is device-only
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+// prebuilt_install is for a prebuilt artifact in <partition>/camera directory.
+func PrebuiltCameraFactory() android.Module {
+	module := &PrebuiltEtc{}
+	InitPrebuiltEtcModule(module, "camera")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
 	android.InitDefaultableModule(module)
