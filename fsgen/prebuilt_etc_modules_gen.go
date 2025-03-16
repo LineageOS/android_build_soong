@@ -215,6 +215,7 @@ var (
 		"install":             etc.PrebuiltInstallFactory,
 		"addon.d":             etc.PrebuiltAddonDFactory,
 		"camera":              etc.PrebuiltCameraFactory,
+		"app":                 etc.PrebuiltAppFactory,
 		"sbin":                etc.PrebuiltSbinFactory,
 		"system":              etc.PrebuiltSystemFactory,
 		"res":                 etc.PrebuiltResFactory,
