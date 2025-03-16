@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "fefb092e_2cfb295d",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 28270
+      },
+      "writtenOn": "2025-03-16T03:19:59Z",
+      "side": 1,
+      "message": "Fixed building on MTK devices with Trustonic TEE.",
+      "revId": "348eb6027b5d2680713e8130c65d41076e3c84d3",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
