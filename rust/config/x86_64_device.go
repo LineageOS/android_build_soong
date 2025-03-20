@@ -36,7 +36,7 @@ var (
 		"goldmont-without-sha-xsaves": []string{"-C target-cpu=goldmont", "-C target-feature=-sha,-xsaves"},
 		"haswell":                     []string{"-C target-cpu=haswell"},
 		"ivybridge":                   []string{"-C target-cpu=ivybridge"},
-		"sandybridge":                 []string{"-C target-cpu=sandybridge"},
+		"sandybridge":                 []string{"-C target-cpu=nehalem"},
 		"silvermont":                  []string{"-C target-cpu=silvermont"},
 		"skylake":                     []string{"-C target-cpu=skylake"},
 		//TODO: Add target-cpu=stoneyridge when rustc supports it.
