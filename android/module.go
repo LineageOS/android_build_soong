@@ -45,6 +45,14 @@ type Module interface {
 	// For more information, see Module.GenerateBuildActions within Blueprint's module_ctx.go
 	GenerateAndroidBuildActions(ModuleContext)
 
+	// CleanupAfterBuildActions is called after ModuleBase.GenerateBuildActions is finished.
+	// If all interactions with this module are handled via providers instead of direct access
+	// to the module then it can free memory attached to the module.
+	// This is a temporary measure to reduce memory usage, eventually blueprint's reference
+	// to the Module should be dropped after GenerateAndroidBuildActions once all accesses
+	// can be done through providers.
+	CleanupAfterBuildActions()
+
 	// Add dependencies to the components of a module, i.e. modules that are created
 	// by the module and which are considered to be part of the creating module.
 	//
@@ -2393,6 +2401,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			})
 		}
 	}
+	m.module.CleanupAfterBuildActions()
 }
 
 func SetJarJarPrefixHandler(handler func(ModuleContext)) {

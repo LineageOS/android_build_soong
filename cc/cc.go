@@ -2438,6 +2438,29 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 }
 
+func (c *Module) CleanupAfterBuildActions() {
+	// Clear as much of Module as possible to reduce memory usage.
+	c.generators = nil
+	c.installer = nil
+	c.features = nil
+	c.coverage = nil
+	c.fuzzer = nil
+	c.sabi = nil
+	c.lto = nil
+	c.afdo = nil
+	c.orderfile = nil
+
+	// TODO: these can be cleared after nativeBinaryInfoProperties and nativeLibInfoProperties are switched to
+	//  using providers.
+	// c.linker = nil
+	// c.stl = nil
+	// c.sanitize = nil
+	// c.library = nil
+
+	// TODO: this can be cleared after ccdeps.go is switched to using providers.
+	// c.compiler = nil
+}
+
 func CreateCommonLinkableInfo(ctx android.ModuleContext, mod VersionedLinkableInterface) *LinkableInfo {
 	info := &LinkableInfo{
 		StaticExecutable:     mod.StaticExecutable(),
