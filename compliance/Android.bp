@@ -36,5 +36,6 @@ notice_xml {
     visibility: [
         "//build/make/target/product/generic",
         "//build/make/target/product/gsi",
+        "//vendor:__subpackages__",
     ],
 }

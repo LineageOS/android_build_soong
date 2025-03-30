@@ -181,6 +181,7 @@ build_prop {
         "//build/make/target/product/gsi",
         "//packages/modules/Virtualization/build/microdroid",
         "//frameworks/base/ravenwood",
+        "//vendor:__subpackages__",
     ],
 }
 
@@ -190,7 +191,10 @@ build_prop {
     system_ext_specific: true,
     product_config: ":product_config",
     relative_install_path: "etc", // system_ext/etc/build.prop
-    visibility: ["//build/make/target/product/gsi"],
+    visibility: [
+        "//build/make/target/product/gsi",
+        "//vendor:__subpackages__",
+    ],
 }
 
 build_prop {
@@ -199,7 +203,10 @@ build_prop {
     product_specific: true,
     product_config: ":product_config",
     relative_install_path: "etc", // product/etc/build.prop
-    visibility: ["//build/make/target/product/gsi"],
+    visibility: [
+        "//build/make/target/product/gsi",
+        "//vendor:__subpackages__",
+    ],
 }
 
 build_prop {
