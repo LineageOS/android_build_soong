@@ -199,7 +199,7 @@ type FlagExporterProperties struct {
 	Export_system_include_dirs []string `android:"arch_variant,variant_prepend"`
 
 	// list of plain cc flags to be used for any module that links against this module.
-	Export_cflags []string  `android:"arch_variant"`
+	Export_cflags proptools.Configurable[[]string] `android:"arch_variant"`
 
 	Target struct {
 		Vendor, Product struct {
@@ -312,7 +312,7 @@ func (f *flagExporter) exportIncludes(ctx ModuleContext) {
 }
 
 func (f *flagExporter) exportExtraFlags(ctx ModuleContext) {
-	f.flags = append(f.flags, f.Properties.Export_cflags...)
+	f.flags = append(f.flags, f.Properties.Export_cflags.GetOrDefault(ctx, nil)...)
 }
 
 // exportIncludesAsSystem registers the include directories and system include directories to be
