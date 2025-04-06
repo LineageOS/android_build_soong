@@ -16,6 +16,23 @@
       "message": "Can bring down to older version, down to 19.1.",
       "revId": "d5c9d6498b964761cfa4d834e6a58871e930365b",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "7da72ee0_f9106134",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2025-04-06T19:08:52Z",
+      "side": 1,
+      "message": "weird naming on google side\nhttps://cs.android.com/android/platform/superproject/main/+/main:build/soong/android/arch_list.go;l\u003d443?q\u003dsandybridge%20filepath:build%2Fsoon\u0026ss\u003dandroid%2Fplatform%2Fsuperproject%2Fmain\nfor reference, no avx",
+      "revId": "d5c9d6498b964761cfa4d834e6a58871e930365b",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
