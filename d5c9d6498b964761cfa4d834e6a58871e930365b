@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "69db4883_da9706d1",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 33662
+      },
+      "writtenOn": "2025-04-06T13:13:50Z",
+      "side": 1,
+      "message": "Can bring down to older version, down to 19.1.",
+      "revId": "d5c9d6498b964761cfa4d834e6a58871e930365b",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
