@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "a32a216f_3095f596",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 29080
+      },
+      "writtenOn": "2025-05-09T07:11:14Z",
+      "side": 1,
+      "message": "Fixes dexpreopt for apps that depend on android.net.ipsec.ike\n\n05-07 16:31:54.704  3076  3077 W artd    : ClassLoaderContext shared library size mismatch. Expected\u003d1, found\u003d0 (PCL[]{PCL[/system/framework/android.net.ipsec.ike.jar*875733777]} | PCL[])\n05-07 16:31:54.704  3076  3077 I artd    : ClassLoaderContext check failed. Context was PCL[]{PCL[/system/framework/android.net.ipsec.ike.jar*875733777]}. The expected context is PCL[]",
+      "revId": "6ee6c76b67576cd740ca2dbfc504d3ed278a420b",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
