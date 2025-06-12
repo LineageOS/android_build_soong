@@ -62,6 +62,7 @@ var androidmk_denylist []string = []string{
 var androidmk_allowlist []string = []string{
 	"art/Android.mk",
 	"bootable/deprecated-ota/updater/Android.mk",
+	"external/mesa/android/Android.mk",
 	"tools/vendor/google_prebuilts/arc/Android.mk",
 }
 
