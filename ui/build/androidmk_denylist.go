@@ -61,6 +61,7 @@ var androidmk_denylist []string = []string{
 
 var androidmk_allowlist []string = []string{
 	"bootable/deprecated-ota/updater/Android.mk",
+	"external/mesa/android/Android.mk",
 }
 
 func getAllLines(ctx Context, filename string) []string {
