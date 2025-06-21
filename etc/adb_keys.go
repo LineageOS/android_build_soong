@@ -22,14 +22,20 @@ func init() {
 	android.RegisterModuleType("adb_keys", AdbKeysModuleFactory)
 }
 
+type AdbKeysProperties struct {
+	Recovery_available *bool
+}
+
 type AdbKeysModule struct {
 	android.ModuleBase
+	properties  AdbKeysProperties
 	outputPath  android.Path
 	installPath android.InstallPath
 }
 
 func AdbKeysModuleFactory() android.Module {
 	module := &AdbKeysModule{}
+	module.AddProperties(&module.properties)
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
 	return module
 }
@@ -56,6 +62,12 @@ func (m *AdbKeysModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	m.installPath = android.PathForModuleInstall(ctx, "etc/security")
 	ctx.InstallFile(m.installPath, "adb_keys", outputPath)
 	m.outputPath = outputPath
+
+	// Conditionally install to recovery
+	if (android.Bool(m.properties.Recovery_available)) {
+		recoveryInstallPath := android.PathForModuleInstall(ctx, "recovery", "etc", "adb")
+		ctx.InstallFile(recoveryInstallPath, "adb_keys", m.outputPath)
+	}
 }
 
 func (m *AdbKeysModule) AndroidMkEntries() []android.AndroidMkEntries {
