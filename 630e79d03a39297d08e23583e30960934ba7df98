@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "da982531_3b6e40ca",
+        "filename": "etc/adb_keys.go",
+        "patchSetId": 2
+      },
+      "lineNbr": 66,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2025-06-21T16:10:30Z",
+      "side": 1,
+      "message": "The conditional install should be real, if recovery do X else do Y.\n\nTo support that you\u0027ll have to define an adb_keys module for normal installation and one for recovery.",
+      "revId": "630e79d03a39297d08e23583e30960934ba7df98",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
