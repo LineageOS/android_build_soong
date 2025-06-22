@@ -16,6 +16,24 @@
       "message": "The conditional install should be real, if recovery do X else do Y.\n\nTo support that you\u0027ll have to define an adb_keys module for normal installation and one for recovery.",
       "revId": "630e79d03a39297d08e23583e30960934ba7df98",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "c9669b2a_fd984c6e",
+        "filename": "etc/adb_keys.go",
+        "patchSetId": 2
+      },
+      "lineNbr": 66,
+      "author": {
+        "id": 34512
+      },
+      "writtenOn": "2025-06-22T15:06:36Z",
+      "side": 1,
+      "message": "Is this patch still needed after this:\nhttps://review.lineageos.org/c/LineageOS/android_build/+/433158/3..4",
+      "parentUuid": "da982531_3b6e40ca",
+      "revId": "630e79d03a39297d08e23583e30960934ba7df98",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
