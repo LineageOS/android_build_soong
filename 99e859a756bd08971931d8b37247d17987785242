@@ -34,6 +34,24 @@
       "parentUuid": "508403eb_b634a40e",
       "revId": "99e859a756bd08971931d8b37247d17987785242",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "29f3da25_4bb130b4",
+        "filename": "ui/build/androidmk_denylist.go",
+        "patchSetId": 1
+      },
+      "lineNbr": 67,
+      "author": {
+        "id": 28223
+      },
+      "writtenOn": "2025-06-24T23:05:13Z",
+      "side": 1,
+      "message": "We can just abandon this then since the intention is to kill the two ant repos?",
+      "parentUuid": "38f78772_e30de846",
+      "revId": "99e859a756bd08971931d8b37247d17987785242",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
