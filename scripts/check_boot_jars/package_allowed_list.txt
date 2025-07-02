@@ -285,6 +285,9 @@ org.codeaurora.ims
 org.codeaurora.internal
 qcom.fmradio
 
+# MTK adds
+com\.mediatek\..*
+
 ###################################################
 # IFAA Manager used for Alipay and/or WeChat payment
 org\.ifaa\.android\.manager.*
