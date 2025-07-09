@@ -16,6 +16,23 @@
       "message": "Do we still use this? Most of stuff should\u0027ve converted to select by now",
       "revId": "5c4418627b35a54c2e1e5594acbc328e812ca34b",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "557f0b8a_c4b5ff52",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2025-07-09T15:47:33Z",
+      "side": 1,
+      "message": "The only hit in 22.2 shipped devices:\n\ndevice/oneplus/msm8998-common/BoardConfigCommon.mk\n9:TARGET_SPECIFIC_HEADER_PATH :\u003d $(PLATFORM_PATH)/include",
+      "revId": "5c4418627b35a54c2e1e5594acbc328e812ca34b",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
