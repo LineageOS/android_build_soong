@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "4890d353_cc0738d3",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 32245
+      },
+      "writtenOn": "2025-08-11T17:40:50Z",
+      "side": 1,
+      "message": "AOSP\u0027s mesa is useless for most of us\n\nIt\u0027s unlikely possible to convert upstream mesa\u0027s Android.mk to bp",
+      "revId": "ae3ed2692f6b37f20e8c7e15a48fdf0c20d18cb2",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
