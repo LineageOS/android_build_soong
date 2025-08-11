@@ -80,6 +80,7 @@ func blockAndroidMks(ctx Context, androidMks []string) {
 	allowlist_files := []string{
 		"vendor/google/build/androidmk/allowlist.txt",
 		"device/google/harriet/androidmk/allowlist.txt",
+		"vendor/extra/build/androidmk/allowlist.txt",
 	}
 	for _, allowlist_file := range allowlist_files {
 		allowlist := getAllLines(ctx, allowlist_file)
