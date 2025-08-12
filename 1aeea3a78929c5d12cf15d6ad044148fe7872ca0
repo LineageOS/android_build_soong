@@ -34,6 +34,24 @@
       "parentUuid": "cadad1b5_6adec7ed",
       "revId": "1aeea3a78929c5d12cf15d6ad044148fe7872ca0",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "eb163429_61b3a1c6",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 32245
+      },
+      "writtenOn": "2025-08-12T17:10:59Z",
+      "side": 1,
+      "message": "vendor/extra doesn\u0027t ship...",
+      "parentUuid": "cadad1b5_6adec7ed",
+      "revId": "1aeea3a78929c5d12cf15d6ad044148fe7872ca0",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
