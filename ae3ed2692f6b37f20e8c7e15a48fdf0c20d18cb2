@@ -33,6 +33,23 @@
       "message": "objections?",
       "revId": "ae3ed2692f6b37f20e8c7e15a48fdf0c20d18cb2",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "5b09af54_b864143d",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 16185
+      },
+      "writtenOn": "2025-08-12T01:00:23Z",
+      "side": 1,
+      "message": "we should open an issue upstream with mesa about this if they already support Android.mk as well, and aim for next cycle.",
+      "revId": "ae3ed2692f6b37f20e8c7e15a48fdf0c20d18cb2",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
