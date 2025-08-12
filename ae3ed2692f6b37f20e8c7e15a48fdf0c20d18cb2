@@ -67,6 +67,24 @@
       "message": "Same as the next commit, I don\u0027t really want to allow any more Android.mk than what we have",
       "revId": "ae3ed2692f6b37f20e8c7e15a48fdf0c20d18cb2",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "6e3af30c_f9528fc9",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 32245
+      },
+      "writtenOn": "2025-08-12T17:10:43Z",
+      "side": 1,
+      "message": "all mesa users would either die forever or having to create vendor repo just for this cause",
+      "parentUuid": "953b6de3_9eb0982f",
+      "revId": "ae3ed2692f6b37f20e8c7e15a48fdf0c20d18cb2",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
