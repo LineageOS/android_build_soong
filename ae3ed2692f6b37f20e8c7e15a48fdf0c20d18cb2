@@ -139,6 +139,24 @@
       "parentUuid": "ffac6e6c_d769e52b",
       "revId": "ae3ed2692f6b37f20e8c7e15a48fdf0c20d18cb2",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "23cc166e_4d2f457c",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1391
+      },
+      "writtenOn": "2025-08-14T13:40:12Z",
+      "side": 1,
+      "message": "Yes, as mentioned in the previous message, AOSP Mesa fork only has the Android.bp that\u0027s relevant to the targets supported in AOSP. If you wanted to support hardware X (that\u0027s not supported in AOSP otherwise) you have another fork of Mesa (like you already have here). Or if you wanted to support hardware Y, you would have a fork to support it (like I already have elsewhere).\n\nJust wanted to point out that the upstream Mesa solution (integrating external meson build system into Android.mk) has its shortcomings and there\u0027s options available to generate the appropriate Android.bp instead. So, you definitely can and ninja-to-soong works very well for this purpose.",
+      "parentUuid": "20e1a9ed_94a73d74",
+      "revId": "ae3ed2692f6b37f20e8c7e15a48fdf0c20d18cb2",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
