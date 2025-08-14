@@ -121,6 +121,24 @@
       "parentUuid": "c21f6531_06e3a4f0",
       "revId": "ae3ed2692f6b37f20e8c7e15a48fdf0c20d18cb2",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "20e1a9ed_94a73d74",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 32245
+      },
+      "writtenOn": "2025-08-14T11:57:02Z",
+      "side": 1,
+      "message": "there\u0027s not just virt, mainline targets wants it too (beside the mainline targets I did, tegra have the intention of using it too)\n\nby \"vendor repo\" I mean a repository containing prebuilt binaries, kinda like what the most of shipping targets have.\n\nAOSP fork of Mesa doesn\u0027t come with directly usable Android.bp, users have to generate them before building. it\u0027s also very questionable whether if it can handle the options that every of its users needs.\n\nyeah, those targets doesn\u0027t ship, but still, that\u0027s just one line change which gives barely any maintain cost, gives no side effect to the other targets, and still have its own value even though it doesn\u0027t make sense to most of people...\n\nbut if Android.mk deprecation is going really hard which doesn\u0027t accept exceptions, sure, I\u0027d abandon this rather than keeping bothering",
+      "parentUuid": "ffac6e6c_d769e52b",
+      "revId": "ae3ed2692f6b37f20e8c7e15a48fdf0c20d18cb2",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
