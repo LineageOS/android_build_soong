@@ -18,6 +18,8 @@ import (
 	"strings"
 
 	"android/soong/android"
+
+	cc_config "android/soong/cc/config"
 )
 
 var (
@@ -50,6 +52,7 @@ func init() {
 type toolchainArm struct {
 	toolchain32Bit
 	toolchainRustFlags string
+	lldflags string
 }
 
 func (t *toolchainArm) RustTriple() string {
@@ -58,7 +61,7 @@ func (t *toolchainArm) RustTriple() string {
 
 func (t *toolchainArm) ToolchainLinkFlags() string {
 	// Prepend the lld flags from cc_config so we stay in sync with cc
-	return "${config.DeviceGlobalLinkFlags} ${cc_config.ArmLldflags} ${config.ArmToolchainLinkFlags}"
+	return "${config.DeviceGlobalLinkFlags} " + t.lldflags + " ${config.ArmToolchainLinkFlags}"
 }
 
 func (t *toolchainArm) ToolchainRustFlags() string {
@@ -89,7 +92,10 @@ func ArmToolchainFactory(arch android.Arch) Toolchain {
 		toolchainRustFlags = append(toolchainRustFlags, ArmArchFeatureRustFlags[feature]...)
 	}
 
+	cc_toolchain := cc_config.FindToolchain(android.Android, arch)
+
 	return &toolchainArm{
 		toolchainRustFlags: strings.Join(toolchainRustFlags, " "),
+		lldflags: strings.ReplaceAll(cc_toolchain.Lldflags(), "${config.", "${cc_config."),
 	}
 }
