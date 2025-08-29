@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "2051d70f_456b2804",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 3
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 16185
+      },
+      "writtenOn": "2025-08-29T19:35:55Z",
+      "side": 1,
+      "message": "AOSP gerrit is no longer accepting contributions directly through their Gerrit, but please submit to android-latest or whatever their branch is, this should be reviewed and pulled into internal branches by them.",
+      "revId": "5fe8ab24484baabab25a85cf14c42d9ca4b6d167",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
