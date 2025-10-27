@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "bb2a655c_dd9475c1",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 10258
+      },
+      "writtenOn": "2025-10-27T22:59:36Z",
+      "side": 1,
+      "message": "this fixes compdb generation",
+      "revId": "cff28f536f9684e4b3ae1f4c54443ccca73006c9",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
