@@ -367,7 +367,7 @@ func (v *vbmeta) rollbackIndexCommand(ctx android.ModuleContext) string {
 		return fmt.Sprintf("%d", *v.properties.Rollback_index)
 	} else {
 		// Take the first line and remove the newline char
-		return "$(date -d 'TZ=\"GMT\" " + ctx.Config().PlatformSecurityPatch() + "' +%s | head -1 | tr -d '\n'" + ")"
+		return "$(date -u -d  " + ctx.Config().PlatformSecurityPatch() + " +%s | head -1 | tr -d '\n'" + ")"
 	}
 }
 
