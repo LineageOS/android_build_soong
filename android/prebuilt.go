@@ -403,7 +403,7 @@ func GetEmbeddedPrebuilt(module Module) *Prebuilt {
 // run - any dependency that is registered before that will already reference
 // the right module. This function is only safe to call after all TransitionMutators
 // have run, e.g. in GenerateAndroidBuildActions.
-func PrebuiltGetPreferred(ctx BaseModuleContext, module ModuleProxy) ModuleProxy {
+func PrebuiltGetPreferred(ctx BaseModuleContext, module ModuleOrProxy) ModuleOrProxy {
 	if info, ok := OtherModuleProvider(ctx, module, PrebuiltInfoProvider); ok {
 		if !info.ReplacedByPrebuilt {
 			return module
