@@ -33,6 +33,24 @@
       "message": "Only for builds that are unofficial, based on what I\u0027ve experienced",
       "revId": "de913c9cee280b1ca0b49e0281d43e9a8bfc6566",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "44ee6e88_90b6eb1d",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 10067
+      },
+      "writtenOn": "2025-11-18T14:36:17Z",
+      "side": 1,
+      "message": "doesn\u0027t seem so?\n\n[ro.build.display.id]: [lineage_pdx225-userdebug 16 BP2A.250805.005 eng.luk release-keys]\n\nvs\n\n[ro.build.display.id]: [BP2A.250805.005 release-keys]\n\nwith this patch applies",
+      "parentUuid": "63335f7b_33feafac",
+      "revId": "de913c9cee280b1ca0b49e0281d43e9a8bfc6566",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
