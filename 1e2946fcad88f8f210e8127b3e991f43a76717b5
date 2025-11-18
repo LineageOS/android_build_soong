@@ -16,6 +16,23 @@
       "message": "thoughts? I don\u0027t find long build number useful at all and supposedly some apps blacklist users based on it.",
       "revId": "1e2946fcad88f8f210e8127b3e991f43a76717b5",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "e0bb6a64_f60b9fa1",
+        "filename": "scripts/gen_build_prop.py",
+        "patchSetId": 1
+      },
+      "lineNbr": 217,
+      "author": {
+        "id": 19979
+      },
+      "writtenOn": "2025-11-18T11:35:10Z",
+      "side": 1,
+      "message": "```suggestion\n  if config[\"BuildVariant\"] !\u003d \"eng\":\n```",
+      "revId": "1e2946fcad88f8f210e8127b3e991f43a76717b5",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
