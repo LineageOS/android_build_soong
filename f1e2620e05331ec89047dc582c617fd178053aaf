@@ -33,6 +33,23 @@
       "message": "(it seems fine here, but I\u0027ve never used it)",
       "revId": "f1e2620e05331ec89047dc582c617fd178053aaf",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "9427d148_c63c9b8f",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 10258
+      },
+      "writtenOn": "2025-11-18T23:25:02Z",
+      "side": 1,
+      "message": "got lots of errors when building with this patch, good from your side?",
+      "revId": "f1e2620e05331ec89047dc582c617fd178053aaf",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
