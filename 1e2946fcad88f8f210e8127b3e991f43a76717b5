@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "ee432999_a712f5ef",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 10067
+      },
+      "writtenOn": "2025-11-18T11:22:24Z",
+      "side": 1,
+      "message": "thoughts? I don\u0027t find long build number useful at all and supposedly some apps blacklist users based on it.",
+      "revId": "1e2946fcad88f8f210e8127b3e991f43a76717b5",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
