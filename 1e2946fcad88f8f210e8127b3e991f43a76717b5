@@ -33,6 +33,24 @@
       "message": "```suggestion\n  if config[\"BuildVariant\"] !\u003d \"eng\":\n```",
       "revId": "1e2946fcad88f8f210e8127b3e991f43a76717b5",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "f25cfbb3_fb89a801",
+        "filename": "scripts/gen_build_prop.py",
+        "patchSetId": 1
+      },
+      "lineNbr": 217,
+      "author": {
+        "id": 10067
+      },
+      "writtenOn": "2025-11-18T11:36:02Z",
+      "side": 1,
+      "message": "Fix applied.",
+      "parentUuid": "e0bb6a64_f60b9fa1",
+      "revId": "1e2946fcad88f8f210e8127b3e991f43a76717b5",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
