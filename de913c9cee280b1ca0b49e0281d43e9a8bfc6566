@@ -16,6 +16,23 @@
       "message": "Isn\u0027t this already handled by https://review.lineageos.org/c/LineageOS/android_build_soong/+/433193 ?",
       "revId": "de913c9cee280b1ca0b49e0281d43e9a8bfc6566",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "f55890e6_b69241fc",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 19979
+      },
+      "writtenOn": "2025-11-18T14:30:49Z",
+      "side": 1,
+      "message": "Only for builds that are unofficial, based on what I\u0027ve experienced",
+      "revId": "de913c9cee280b1ca0b49e0281d43e9a8bfc6566",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
