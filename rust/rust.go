@@ -299,6 +299,9 @@ func (mod *Module) IsPrebuilt() bool {
 	if _, ok := mod.compiler.(*prebuiltLibraryDecorator); ok {
 		return true
 	}
+	if _, ok := mod.compiler.(*prebuiltBinaryDecorator); ok {
+		return true
+	}
 	return false
 }
 
@@ -1360,6 +1363,8 @@ func (mod *Module) getSymbolInfo(ctx android.ModuleContext, t any, info *cc.Symb
 	case *fuzzDecorator:
 		mod.getSymbolInfo(ctx, tt.binaryDecorator, info)
 	case *prebuiltLibraryDecorator:
+		mod.getSymbolInfo(ctx, tt.baseCompiler, info)
+	case *prebuiltBinaryDecorator:
 		mod.getSymbolInfo(ctx, tt.baseCompiler, info)
 	case *toolchainLibraryDecorator:
 		mod.getSymbolInfo(ctx, tt.baseCompiler, info)
