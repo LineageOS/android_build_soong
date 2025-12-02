@@ -25,6 +25,7 @@ func init() {
 	android.RegisterModuleType("rust_prebuilt_dylib", PrebuiltDylibFactory)
 	android.RegisterModuleType("rust_prebuilt_rlib", PrebuiltRlibFactory)
 	android.RegisterModuleType("rust_prebuilt_proc_macro", PrebuiltProcMacroFactory)
+	android.RegisterModuleType("rust_prebuilt_binary", PrebuiltBinaryFactory)
 }
 
 type PrebuiltProperties struct {
@@ -47,6 +48,13 @@ type prebuiltProcMacroDecorator struct {
 	android.Prebuilt
 
 	*procMacroDecorator
+	Properties PrebuiltProperties
+}
+
+type prebuiltBinaryDecorator struct {
+	android.Prebuilt
+
+	*binaryDecorator
 	Properties PrebuiltProperties
 }
 
@@ -80,6 +88,9 @@ var _ compiler = (*prebuiltProcMacroDecorator)(nil)
 var _ exportedFlagsProducer = (*prebuiltProcMacroDecorator)(nil)
 var _ rustPrebuilt = (*prebuiltProcMacroDecorator)(nil)
 
+var _ compiler = (*prebuiltBinaryDecorator)(nil)
+var _ rustPrebuilt = (*prebuiltBinaryDecorator)(nil)
+
 func prebuiltPath(ctx ModuleContext, prebuilt rustPrebuilt) android.Path {
 	srcs := android.PathsForModuleSrc(ctx, prebuilt.prebuiltSrcs(ctx))
 	if len(srcs) == 0 {
@@ -103,6 +114,11 @@ func PrebuiltDylibFactory() android.Module {
 
 func PrebuiltRlibFactory() android.Module {
 	module, _ := NewPrebuiltRlib(android.HostAndDeviceSupported)
+	return module.Init()
+}
+
+func PrebuiltBinaryFactory() android.Module {
+	module, _ := NewPrebuiltBinary(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
@@ -251,6 +267,93 @@ func (prebuilt *prebuiltProcMacroDecorator) nativeCoverage() bool {
 }
 
 func (prebuilt *prebuiltProcMacroDecorator) crateRootPath(ctx ModuleContext) android.Path {
+	if prebuilt.baseCompiler.Properties.Crate_root == nil {
+		return srcPathFromModuleSrcs(ctx, prebuilt.prebuiltSrcs(ctx))
+	} else {
+		return android.PathForModuleSrc(ctx, *prebuilt.baseCompiler.Properties.Crate_root)
+	}
+}
+
+func NewPrebuiltBinary(hod android.HostOrDeviceSupported) (*Module, *prebuiltBinaryDecorator) {
+	module, binary := NewRustBinary(hod)
+	binary.setNoStdlibs()
+
+	prebuilt := &prebuiltBinaryDecorator{
+		binaryDecorator: binary,
+	}
+
+	module.compiler = prebuilt
+
+	addSrcSupplier(module, prebuilt)
+
+	return module, prebuilt
+}
+
+func (prebuilt *prebuiltBinaryDecorator) prebuiltSrcs(ctx android.BaseModuleContext) []string {
+	return prebuilt.Properties.Srcs.GetOrDefault(ctx, nil)
+}
+
+func (prebuilt *prebuiltBinaryDecorator) prebuilt() *android.Prebuilt {
+	return &prebuilt.Prebuilt
+}
+
+func (prebuilt *prebuiltBinaryDecorator) compilerProps() []interface{} {
+	return append(prebuilt.binaryDecorator.compilerProps(), &prebuilt.Properties)
+}
+
+func (prebuilt *prebuiltBinaryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput {
+	srcPath := prebuiltPath(ctx, prebuilt)
+	fileName := prebuilt.getStem(ctx) + ctx.toolchain().ExecutableSuffix()
+	outputFile := android.PathForModuleOut(ctx, fileName)
+
+	unstrippedOutputFile := outputFile
+
+	if prebuilt.stripper.NeedsStrip(ctx) {
+		unstrippedOutputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
+
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.CpExecutable,
+			Input:  srcPath,
+			Output: unstrippedOutputFile,
+			Args: map[string]string{
+				"cpFlags": "-L",
+			},
+		})
+
+		prebuilt.stripper.StripExecutableOrSharedLib(ctx, unstrippedOutputFile, outputFile)
+		prebuilt.baseCompiler.strippedOutputFile = android.OptionalPathForPath(outputFile)
+	} else {
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.CpExecutable,
+			Input:  srcPath,
+			Output: unstrippedOutputFile,
+			Args: map[string]string{
+				"cpFlags": "-L",
+			},
+		})
+	}
+
+	prebuilt.baseCompiler.unstrippedOutputFile = unstrippedOutputFile
+
+	return buildOutput{outputFile: outputFile}
+}
+
+func (prebuilt *prebuiltBinaryDecorator) rustdoc(ctx ModuleContext, flags Flags,
+	deps PathDeps) android.OptionalPath {
+
+	return android.OptionalPath{}
+}
+
+func (prebuilt *prebuiltBinaryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
+	deps = prebuilt.baseCompiler.compilerDeps(ctx, deps)
+	return deps
+}
+
+func (prebuilt *prebuiltBinaryDecorator) nativeCoverage() bool {
+	return false
+}
+
+func (prebuilt *prebuiltBinaryDecorator) crateRootPath(ctx ModuleContext) android.Path {
 	if prebuilt.baseCompiler.Properties.Crate_root == nil {
 		return srcPathFromModuleSrcs(ctx, prebuilt.prebuiltSrcs(ctx))
 	} else {
