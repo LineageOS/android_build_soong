@@ -634,3 +634,49 @@ func TestPrebuiltMediaAutoDirPath(t *testing.T) {
 	expected := "out/target/product/test_device/product/media/alarms"
 	android.AssertPathRelativeToTopEquals(t, "install dir", expected, p.installDirPaths[0])
 }
+
+func TestPrebuiltAddonDDirPath(t *testing.T) {
+	targetPath := "out/target/product/test_device"
+	tests := []struct {
+		description  string
+		config       string
+		variant      string
+		expectedPath string
+	}{{
+		description: "prebuilt: system addon.d",
+		config: `
+			prebuilt_addon_d {
+				name: "foo",
+				src: "foo.conf",
+			}`,
+		variant:      "android_common",
+		expectedPath: filepath.Join(targetPath, "system/addon.d"),
+	}, {
+		description: "prebuilt: system_ext addon.d",
+		config: `
+			prebuilt_addon_d {
+				name: "foo",
+				src: "foo.conf",
+				system_ext_specific: true,
+			}`,
+		variant:      "android_common",
+		expectedPath: filepath.Join(targetPath, "system_ext/addon.d"),
+	}, {
+		description: "prebuilt: vendor addon.d",
+		config: `
+			prebuilt_addon_d {
+				name: "foo",
+				src: "foo.conf",
+				soc_specific: true,
+			}`,
+		variant:      "android_vendor_common",
+		expectedPath: filepath.Join(targetPath, "vendor/addon.d"),
+	}}
+	for _, tt := range tests {
+		t.Run(tt.description, func(t *testing.T) {
+			result := prepareForPrebuiltEtcTest.RunTestWithBp(t, tt.config)
+			p := result.Module("foo", tt.variant).(*PrebuiltEtc)
+			android.AssertPathRelativeToTopEquals(t, "install dir", tt.expectedPath, p.installDirPaths[0])
+		})
+	}
+}
