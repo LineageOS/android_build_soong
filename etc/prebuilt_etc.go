@@ -95,6 +95,7 @@ func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_first_stage_ramdisk", PrebuiltFirstStageRamdiskFactory)
 	ctx.RegisterModuleType("prebuilt_any", PrebuiltAnyFactory)
 	ctx.RegisterModuleType("prebuilt_lib", PrebuiltLibFactory)
+	ctx.RegisterModuleType("prebuilt_addon_d", PrebuiltAddonDFactory)
 
 	ctx.RegisterModuleType("prebuilt_defaults", defaultsFactory)
 
@@ -1192,6 +1193,17 @@ func PrebuiltSystemFactory() android.Module {
 func PrebuiltFirstStageRamdiskFactory() android.Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module, "first_stage_ramdisk")
+	// This module is device-only
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+// prebuilt_addon_d installs files in <partition>/addon.d directory.
+// This is primarily used by backuptool.
+func PrebuiltAddonDFactory() android.Module {
+	module := &PrebuiltEtc{}
+	InitPrebuiltEtcModule(module, "addon.d")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
