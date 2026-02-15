@@ -633,3 +633,15 @@ func TestPrebuiltMediaAutoDirPath(t *testing.T) {
 	expected := "out/target/product/test_device/product/media/alarms"
 	android.AssertPathRelativeToTopEquals(t, "install dir", expected, p.installDirPaths[0])
 }
+
+func TestPrebuiltAddonDDirPath(t *testing.T) {
+        result := prepareForPrebuiltEtcTest.RunTestWithBp(t, `
+	        prebuilt_addon_d {
+		        name: "foo",
+			src: "foo.conf",
+		}
+	`)
+	p := result.Module("foo", "android_arm64_armv8-a").(*PrebuiltEtc)
+	expected := "out/target/product/test_device/system/addon.d"
+	android.AssertPathRelativeToTopEquals(t, "install dir", expected, p.installDirPaths[0])
+}
