@@ -217,6 +217,14 @@ vendor\.google_clockwork\.displayoffload3\..*
 lineageos\.platform
 org\.lineageos\.platform\.internal
 
+# MTK adds
+com\.mediatek
+com\.mediatek\..*
+mediatek
+mediatek\..*
+vendor\.mediatek
+vendor\.mediatek\..*
+
 # NT adds
 com\.nothing
 com\.nothing\..*
