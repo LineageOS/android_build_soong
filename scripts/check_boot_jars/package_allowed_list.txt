@@ -273,6 +273,10 @@ com\.google\.wear\..*
 lineageos\.platform
 org\.lineageos\.platform\.internal
 
+# MTK adds
+com\.mediatek
+com\.mediatek\..*
+
 # NT adds
 com\.nothing
 com\.nothing\..*
