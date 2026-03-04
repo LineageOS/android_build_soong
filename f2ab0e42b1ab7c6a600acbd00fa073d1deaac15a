@@ -56,6 +56,29 @@
       },
       "revId": "f2ab0e42b1ab7c6a600acbd00fa073d1deaac15a",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "23fe4137_d16f1912",
+        "filename": "etc/prebuilt_etc_test.go",
+        "patchSetId": 4
+      },
+      "lineNbr": 638,
+      "author": {
+        "id": 16185
+      },
+      "writtenOn": "2026-03-04T22:05:22Z",
+      "side": 1,
+      "message": "tab?",
+      "range": {
+        "startLine": 638,
+        "startChar": 0,
+        "endLine": 638,
+        "endChar": 7
+      },
+      "revId": "f2ab0e42b1ab7c6a600acbd00fa073d1deaac15a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
