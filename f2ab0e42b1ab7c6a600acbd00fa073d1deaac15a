@@ -81,6 +81,30 @@
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     },
     {
+      "unresolved": false,
+      "key": {
+        "uuid": "caaa50b7_1cc24aff",
+        "filename": "etc/prebuilt_etc_test.go",
+        "patchSetId": 4
+      },
+      "lineNbr": 638,
+      "author": {
+        "id": 16185
+      },
+      "writtenOn": "2026-03-06T21:49:40Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "23fe4137_d16f1912",
+      "range": {
+        "startLine": 638,
+        "startChar": 0,
+        "endLine": 638,
+        "endChar": 7
+      },
+      "revId": "f2ab0e42b1ab7c6a600acbd00fa073d1deaac15a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
       "unresolved": true,
       "key": {
         "uuid": "376db715_e81ff6fc",
@@ -94,6 +118,30 @@
       "writtenOn": "2026-03-04T22:05:47Z",
       "side": 1,
       "message": "tab?",
+      "range": {
+        "startLine": 675,
+        "startChar": 1,
+        "endLine": 675,
+        "endChar": 8
+      },
+      "revId": "f2ab0e42b1ab7c6a600acbd00fa073d1deaac15a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "640fdd91_b4f3c793",
+        "filename": "etc/prebuilt_etc_test.go",
+        "patchSetId": 4
+      },
+      "lineNbr": 675,
+      "author": {
+        "id": 16185
+      },
+      "writtenOn": "2026-03-06T21:49:40Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "376db715_e81ff6fc",
       "range": {
         "startLine": 675,
         "startChar": 1,
