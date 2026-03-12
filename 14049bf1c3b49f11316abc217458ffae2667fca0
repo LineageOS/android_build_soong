@@ -34,6 +34,29 @@
       "parentUuid": "157441cf_aa862fbe",
       "revId": "14049bf1c3b49f11316abc217458ffae2667fca0",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "1037f1d8_6fa5753f",
+        "filename": "etc/prebuilt_etc.go",
+        "patchSetId": 12
+      },
+      "lineNbr": 1185,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2026-03-12T10:24:15Z",
+      "side": 1,
+      "message": "Probably better as MultilibCommon, the sh isn\u0027t arch specific?",
+      "range": {
+        "startLine": 1185,
+        "startChar": 72,
+        "endLine": 1185,
+        "endChar": 85
+      },
+      "revId": "14049bf1c3b49f11316abc217458ffae2667fca0",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
