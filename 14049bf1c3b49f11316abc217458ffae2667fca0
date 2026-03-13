@@ -98,6 +98,30 @@
       },
       "revId": "14049bf1c3b49f11316abc217458ffae2667fca0",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "12137aa1_7793c5c7",
+        "filename": "etc/prebuilt_etc.go",
+        "patchSetId": 12
+      },
+      "lineNbr": 1185,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2026-03-13T16:51:31Z",
+      "side": 1,
+      "message": "Please do, it\u0027s just a bit nicer, the gist above works already",
+      "parentUuid": "0390657d_e1e66588",
+      "range": {
+        "startLine": 1185,
+        "startChar": 72,
+        "endLine": 1185,
+        "endChar": 85
+      },
+      "revId": "14049bf1c3b49f11316abc217458ffae2667fca0",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
