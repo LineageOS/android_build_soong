@@ -74,6 +74,30 @@
       },
       "revId": "14049bf1c3b49f11316abc217458ffae2667fca0",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "0390657d_e1e66588",
+        "filename": "etc/prebuilt_etc.go",
+        "patchSetId": 12
+      },
+      "lineNbr": 1185,
+      "author": {
+        "id": 36600
+      },
+      "writtenOn": "2026-03-13T13:58:47Z",
+      "side": 1,
+      "message": "The script definitely isn\u0027t arch specific. In all honesty, I wasn\u0027t fully aware of the scope of addon.d when I made these changes. I went with MultilibFirst only to account for installation of other binaries.\n\nIf there really is no necessity for other binaries, then I can make the switch to MultilibCommon.",
+      "parentUuid": "1037f1d8_6fa5753f",
+      "range": {
+        "startLine": 1185,
+        "startChar": 72,
+        "endLine": 1185,
+        "endChar": 85
+      },
+      "revId": "14049bf1c3b49f11316abc217458ffae2667fca0",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
