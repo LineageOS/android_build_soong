@@ -220,8 +220,8 @@ org\.lineageos\.platform\.internal
 # MTK adds
 com\.mediatek
 com\.mediatek\..*
-mediatek\.app
-mediatek\.app\..*
+mediatek
+mediatek\..*
 vendor\.mediatek
 vendor\.mediatek\..*
 
