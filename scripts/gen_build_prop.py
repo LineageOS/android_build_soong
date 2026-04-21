@@ -90,13 +90,6 @@ def parse_args():
   args.config = json.load(args.product_config)
   config = args.config
 
-  if args.partition == "system":
-    config['ProductBrand'] = config['SystemBrand']
-    config['DeviceName'] = config['SystemDevice']
-    config['ProductManufacturer'] = config['SystemManufacturer']
-    config['ProductModel'] = config['SystemModel']
-    config['DeviceProduct'] = config['SystemName']
-
   config["BuildFlavor"] = get_build_flavor(config)
   config["BuildKeys"] = get_build_keys(config)
   config["BuildVariant"] = get_build_variant(config)
@@ -138,6 +131,12 @@ def parse_args():
     config["BuildNumber"] = config["DateUtc"]
 
   override_config(config)
+  if args.partition == "system":
+    config['ProductBrand'] = config['SystemBrand']
+    config['DeviceName'] = config['SystemDevice']
+    config['ProductManufacturer'] = config['SystemManufacturer']
+    config['ProductModel'] = config['SystemModel']
+    config['DeviceProduct'] = config['SystemName']
 
   append_additional_system_props(args)
   append_additional_vendor_props(args)
