@@ -16,6 +16,24 @@
       "message": "What does this achieve? Commit title is unclear to me",
       "revId": "c76602443af1e41d71594f5e4ad25ae868dc7ea4",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "2638ca0e_69501fa7",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 29080
+      },
+      "writtenOn": "2026-04-28T10:57:15Z",
+      "side": 1,
+      "message": "When `ProductBrand`/`DeviceName`/`ProductManufacturer`/`ProductModel`/`DeviceProduct` are overriden, these values are assigned to the corresponding props in the system partition while the original logic was that the system partition has its own config prefixed with `System`",
+      "parentUuid": "c42bee4a_2ce7ff7c",
+      "revId": "c76602443af1e41d71594f5e4ad25ae868dc7ea4",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
