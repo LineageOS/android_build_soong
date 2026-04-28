@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "c42bee4a_2ce7ff7c",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2026-04-28T10:35:14Z",
+      "side": 1,
+      "message": "What does this achieve? Commit title is unclear to me",
+      "revId": "c76602443af1e41d71594f5e4ad25ae868dc7ea4",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
