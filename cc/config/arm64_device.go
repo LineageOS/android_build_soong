@@ -28,9 +28,10 @@ var (
 	}
 
 	arm64ArchVariantCflags = map[string][]string{
-		"armv8-a": []string{
-			"-march=armv8-a",
-		},
+	"armv8-a": []string{
+		"-march=armv8-a",
+		"-mbranch-protection=standard",
+	},
 		"armv8-a-branchprot": []string{
 			"-march=armv8-a",
 			"-mbranch-protection=standard",
