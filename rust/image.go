@@ -238,14 +238,6 @@ func (mod *Module) ImageMutatorBegin(mctx android.ImageInterfaceContext) {
 	}
 
 	cc.MutateImage(mctx, mod)
-
-	if !mod.Properties.CoreVariantNeeded || mod.HasNonSystemVariants() {
-
-		if _, ok := mod.compiler.(*prebuiltLibraryDecorator); ok {
-			// Rust does not support prebuilt libraries on non-System images.
-			mctx.ModuleErrorf("Rust prebuilt modules not supported for non-system images.")
-		}
-	}
 }
 
 func (mod *Module) ImageMutatorSupported() bool { return true }
