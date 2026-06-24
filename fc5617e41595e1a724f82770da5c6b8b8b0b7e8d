@@ -16,6 +16,24 @@
       "message": "kill",
       "revId": "fc5617e41595e1a724f82770da5c6b8b8b0b7e8d",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "aa4fb2f0_a119de5f",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 16185
+      },
+      "writtenOn": "2026-06-24T04:04:20Z",
+      "side": 1,
+      "message": "opening, nv 4.9 is dead, mainline only",
+      "parentUuid": "0a31a8e0_c89b09cd",
+      "revId": "fc5617e41595e1a724f82770da5c6b8b8b0b7e8d",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
