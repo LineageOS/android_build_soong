@@ -23,6 +23,8 @@ import (
 
 var (
 	x86_64Cflags = []string{
+		"-msse3",
+
 		// Help catch common 32/64-bit errors.
 		// Common to all LP64 architectures.
 		"-Werror=implicit-function-declaration",

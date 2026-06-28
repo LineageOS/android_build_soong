@@ -86,6 +86,7 @@ var (
 	}
 
 	linuxX8664Cflags = []string{
+		"-msse3",
 		"-m64",
 	}
 
