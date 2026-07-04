@@ -3247,6 +3247,12 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			for _, entry := range list {
 				// Replace device_kernel_headers with generated_kernel_headers
 				// for inline kernel building
+				if ctx.Config().Getenv("LINEAGE_BUILD") == "fairlady" {
+					if entry == "audio_kernel_headers" || entry == "qti_audio_kernel_uapi" || entry == "qti_display_kernel_headers" || entry == "qti_ipa_kernel_headers" || entry == "qti_kernel_headers" || entry == "smmu_proxy_uapi_header" {
+						newHeaderLibs = append(newHeaderLibs, "device_kernel_headers")
+						continue
+					}
+				}
 				if entry == "device_kernel_headers" || entry == "generated_kernel_headers" {
 					if (len(ctx.Config().Getenv("TARGET_PREBUILT_KERNEL_HEADERS")) > 0) {
 						newHeaderLibs = append(newHeaderLibs, "prebuilt_kernel_headers")
