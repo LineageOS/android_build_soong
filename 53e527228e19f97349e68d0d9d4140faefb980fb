@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "a3987ebe_7acb5ad9",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 4
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2026-07-13T00:31:56Z",
+      "side": 1,
+      "message": "This works on Pixel for now which is the only user of rust stuff. We\u0027ll find out later if this becomes a problem.",
+      "revId": "53e527228e19f97349e68d0d9d4140faefb980fb",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
