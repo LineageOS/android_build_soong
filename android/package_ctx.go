@@ -286,9 +286,11 @@ func (p PackageContext) RemoteStaticRules(name string, ruleParams blueprint.Rule
 // rule is a locally executable rule and the second rule is a remotely executable rule. This
 // function supports multiple remote execution wrappers placed in the template when commands are
 // chained together with &&. commonArgs are args used for both the local and remotely executable
-// rules. reArgs are args used only for remote execution.
+// rules. reArgs are args used only for remote execution. A Pool set in ruleParams only applies to
+// the locally executable rule.
 func (p PackageContext) MultiCommandRemoteStaticRules(name string, ruleParams blueprint.RuleParams, reParams map[string]*remoteexec.REParams, commonArgs []string, reArgs []string) (blueprint.Rule, blueprint.Rule) {
 	ruleParamsRE := ruleParams
+	ruleParamsRE.Pool = nil
 	for k, v := range reParams {
 		ruleParams.Command = strings.ReplaceAll(ruleParams.Command, k, "")
 		ruleParamsRE.Command = strings.ReplaceAll(ruleParamsRE.Command, k, v.Template())

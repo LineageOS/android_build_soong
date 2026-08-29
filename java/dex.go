@@ -403,6 +403,7 @@ var d8IncR8, d8IncR8RE = pctx.MultiCommandRemoteStaticRules("d8Incr8",
 			`if [ -f "$out.deps.pc_state.new" ]; then mv "$out.deps.pc_state.new" "$out.deps.pc_state" && ` +
 			`rm -rf $out.deps.pc_state.new; fi && ` +
 			`rm -f "$outDir"/classes*.dex "$outDir/classes.dex.jar" `,
+		Pool: android.HighmemPool(),
 		CommandDeps: []string{
 			"${config.IncrementalDexInputCmd}",
 			"${config.D8Cmd}",
@@ -509,6 +510,7 @@ var d8r8, d8r8RE = pctx.MultiCommandRemoteStaticRules("d8r8",
 			`$zipTemplate${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $mergeZipsFlags $out $outDir/classes.dex.jar $in && ` +
 			`rm -f "$outDir"/classes*.dex "$outDir/classes.dex.jar" `,
+		Pool: android.HighmemPool(),
 		CommandDeps: []string{
 			"${config.D8Cmd}",
 			"${config.D8Jar}",
@@ -568,6 +570,7 @@ var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 			`rm -f "$outDir"/classes*.dex "$outDir/classes.dex.jar"`,
 		Depfile: "${out}.d",
 		Deps:    blueprint.DepsGCC,
+		Pool:    android.HighmemPool(),
 		CommandDeps: []string{
 			"${config.R8Cmd}",
 			"${config.R8Jar}",
