@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "a5d79f02_2f34dfb5",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2026-08-30T16:20:09Z",
+      "side": 1,
+      "message": "There should be no harm doing this. Usecase: https://review.lineageos.org/c/LineageOS/android_device_amlogic_g12-common/+/500263",
+      "revId": "123c50928cd30236c70eef38492a628e05d98e64",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
