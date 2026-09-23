@@ -308,6 +308,9 @@ func (c *Cmd) wrapSandbox() {
 		//Mount out dir as read-write
 		"-B", c.outDirArg(),
 
+		// Make .repo/manifests.git/.repo_config.json writable
+		"-B", filepath.Join(c.srcDirArg(), ".repo/manifests.git/.repo_config.json"),
+
 		// Disable newcgroup for now, since it may require newer kernels
 		// TODO: try out cgroups
 		"--disable_clone_newcgroup",
