@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "7319078f_b44c39f1",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 32811
+      },
+      "writtenOn": "2026-10-07T06:49:33Z",
+      "side": 1,
+      "message": "tests: m bacon on a machine with 32gb ram and parallel R8 instances are limited to 2, which matches https://cs.android.com/android/platform/superproject/+/android17-release:build/soong/ui/build/config.go;drc\u003ddd64b11f008d6b77d90624451f1de0dabd3045ec;l\u003d1608",
+      "revId": "bd2b8a239714bc13079903569d43e952a5c37b26",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
