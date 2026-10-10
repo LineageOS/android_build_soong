@@ -16,6 +16,24 @@
       "message": "tests: m bacon on a machine with 32gb ram and parallel R8 instances are limited to 2, which matches https://cs.android.com/android/platform/superproject/+/android17-release:build/soong/ui/build/config.go;drc\u003ddd64b11f008d6b77d90624451f1de0dabd3045ec;l\u003d1608",
       "revId": "bd2b8a239714bc13079903569d43e952a5c37b26",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "cb279c4f_cacceb8e",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2026-10-10T14:02:44Z",
+      "side": 1,
+      "message": "I think this should be in the commit message and then try to send this change to AOSP.",
+      "parentUuid": "7319078f_b44c39f1",
+      "revId": "bd2b8a239714bc13079903569d43e952a5c37b26",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
