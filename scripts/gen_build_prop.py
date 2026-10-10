@@ -118,6 +118,7 @@ def parse_args():
   config["BuildDesc"] = f"{config['DeviceProduct']}-{config['BuildVariant']} " \
                         f"{config['Platform_version_name']} {config['BuildId']} " \
                         f"{config['BuildNumber']} {config['BuildVersionTags']}"
+  config["BuildSystemDesc"] = config["BuildDesc"]
 
   config["PlatformPreviewSdkFingerprint"] = args.platform_preview_sdk_fingerprint_file.read().strip()
 
@@ -211,6 +212,7 @@ def generate_build_info(args):
 
   config = args.config
   build_flags = config["BuildFlags"]
+  partition = args.partition
 
   print(f"ro.build.fingerprint?={config['BuildFingerprint']}")
 
@@ -272,7 +274,10 @@ def generate_build_info(args):
   print(f"ro.wifi.channels={' '.join(config['ProductDefaultWifiChannels'])}")
 
   print(f"# Do not try to parse description or thumbprint")
-  print(f"ro.build.description?={config['BuildDesc']}")
+  if partition == "system":
+    print(f"ro.build.description?={config['BuildSystemDesc']}")
+  else:
+    print(f"ro.build.description?={config['BuildDesc']}")
   if "BuildThumbprint" in config:
     print(f"ro.build.thumbprint={config['BuildThumbprint']}")
 
