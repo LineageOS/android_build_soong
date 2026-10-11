@@ -1,0 +1,50 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "f4ceb92d_91ee4e41",
+        "filename": "systemfeatures/system_features.go",
+        "patchSetId": 1
+      },
+      "lineNbr": 73,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2026-10-11T18:41:59Z",
+      "side": 1,
+      "message": "stagingSrcFile :\u003d outputSrcFile.ReplaceExtension(ctx, \"java.tmp\")\nstagingProguardFlagsFile :\u003d outputProguardFlagsFile.ReplaceExtension(ctx, \"options.tmp\")",
+      "range": {
+        "startLine": 71,
+        "startChar": 0,
+        "endLine": 73,
+        "endChar": 69
+      },
+      "revId": "1f7d51bbdd9dac03450e79c7459bd39eea7a49e1",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "e60e0197_c9ee9f3f",
+        "filename": "systemfeatures/system_features.go",
+        "patchSetId": 1
+      },
+      "lineNbr": 87,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2026-10-11T18:41:59Z",
+      "side": 1,
+      "message": "the above works if this isn\u0027t really needed.\ncan probably get away with rm -f stagingSrcFile \u0026\u0026 rm -f stagingProguardFlagsFile",
+      "range": {
+        "startLine": 87,
+        "startChar": 0,
+        "endLine": 87,
+        "endChar": 56
+      },
+      "revId": "1f7d51bbdd9dac03450e79c7459bd39eea7a49e1",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
