@@ -29,6 +29,7 @@ java_system_features_srcs {
 
 	res := android.GroupFixturePreparers(
 		android.FixtureRegisterWithContext(registerSystemFeaturesComponents),
+		android.PrepareForTestWithHostTools("cp_if_changed"),
 		android.PrepareForTestWithBuildFlag("RELEASE_USE_SYSTEM_FEATURE_BUILD_FLAGS", "true"),
 		android.PrepareForTestWithBuildFlag("RELEASE_SYSTEM_FEATURE_AUTOMOTIVE", "0"),
 		android.PrepareForTestWithBuildFlag("RELEASE_SYSTEM_FEATURE_TELEVISION", "UNAVAILABLE"),
@@ -64,6 +65,7 @@ java_system_features_srcs {
 
 	res := android.GroupFixturePreparers(
 		android.FixtureRegisterWithContext(registerSystemFeaturesComponents),
+		android.PrepareForTestWithHostTools("cp_if_changed"),
 		android.PrepareForTestWithBuildFlag("RELEASE_USE_SYSTEM_FEATURE_BUILD_FLAGS", "true"),
 		android.PrepareForTestWithBuildFlag("RELEASE_USE_SYSTEM_FEATURE_XML_FOR_UNAVAILABLE_FEATURES", "true"),
 		android.PrepareForTestWithBuildFlag("RELEASE_SYSTEM_FEATURE_AUTOMOTIVE", "0"),
@@ -119,6 +121,7 @@ java_system_features_srcs {
 
 	android.GroupFixturePreparers(
 		android.FixtureRegisterWithContext(registerSystemFeaturesComponents),
+		android.PrepareForTestWithHostTools("cp_if_changed"),
 		android.PrepareForTestWithBuildFlag("RELEASE_USE_SYSTEM_FEATURE_XML_FOR_UNAVAILABLE_FEATURES", "true"),
 		android.FixtureModifyConfig(func(config android.Config) {
 			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductCopyFiles = []string{
