@@ -57,13 +57,18 @@ type javaSystemFeaturesSrcs struct {
 var _ android.SourceFileGenerator = (*javaSystemFeaturesSrcs)(nil)
 var _ android.SourceFileProducer = (*javaSystemFeaturesSrcs)(nil)
 
+func (m *javaSystemFeaturesSrcs) DepsMutator(ctx android.BottomUpMutatorContext) {
+	ctx.AddHostToolDependencies("cp_if_changed")
+}
+
 func (m *javaSystemFeaturesSrcs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Create a file name appropriate for the given fully qualified (w/ package) class name.
 	classNameParts := strings.Split(m.properties.Full_class_name, ".")
-	outputDir := android.PathForModuleGen(ctx)
 	outputSrcFileName := classNameParts[len(classNameParts)-1] + ".java"
 	outputSrcFile := android.PathForModuleGen(ctx, outputSrcFileName)
 	outputProguardFlagsFile := android.PathForModuleGen(ctx, "proguard.options")
+	stagingSrcFile := outputSrcFile.ReplaceExtension(ctx, "java.tmp")
+	stagingProguardFlagsFile := outputProguardFlagsFile.ReplaceExtension(ctx, "options.tmp")
 
 	// Collect all RELEASE_SYSTEM_FEATURE_$K:$V build flags into a list of "$K:$V" pairs.
 	var features []string
@@ -77,8 +82,8 @@ func (m *javaSystemFeaturesSrcs) GenerateAndroidBuildActions(ctx android.ModuleC
 	sort.Strings(features)
 
 	rule := android.NewRuleBuilder(pctx, ctx).SandboxDisabled()
-	rule.Command().Text("rm -rf").Text(outputDir.String())
-	rule.Command().Text("mkdir -p").Text(outputDir.String())
+	rule.Command().Text("rm -f").Text(stagingSrcFile.String())
+	rule.Command().Text("rm -f").Text(stagingProguardFlagsFile.String())
 	ruleCmd := rule.Command().
 		BuiltTool("systemfeatures-gen-tool").
 		Flag(m.properties.Full_class_name).
@@ -92,9 +97,11 @@ func (m *javaSystemFeaturesSrcs) GenerateAndroidBuildActions(ctx android.ModuleC
 		}
 	}
 
-	ruleCmd.FlagWithOutput("--output=", outputSrcFile)
-	ruleCmd.FlagWithOutput("--output-proguard-rules=", outputProguardFlagsFile)
-	rule.Build(ctx.ModuleName(), "Generating systemfeatures srcs filegroup")
+	ruleCmd.FlagWithOutput("--output=", stagingSrcFile)
+	ruleCmd.FlagWithOutput("--output-proguard-rules=", stagingProguardFlagsFile)
+	rule.Command().BuiltTool("cp_if_changed").Input(stagingSrcFile).Output(outputSrcFile)
+	rule.Command().BuiltTool("cp_if_changed").Input(stagingProguardFlagsFile).Output(outputProguardFlagsFile)
+	rule.Restat().Build(ctx.ModuleName(), "Generating systemfeatures srcs filegroup")
 
 	m.outputSrcs = android.Paths{outputSrcFile}
 	m.outputProguardFlags = android.Paths{outputProguardFlagsFile}
