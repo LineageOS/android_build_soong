@@ -227,6 +227,7 @@ func registerRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("rust_prebuilt_library", PrebuiltLibraryFactory)
 	ctx.RegisterModuleType("rust_prebuilt_dylib", PrebuiltDylibFactory)
 	ctx.RegisterModuleType("rust_prebuilt_rlib", PrebuiltRlibFactory)
+	ctx.RegisterModuleType("rust_prebuilt_binary", PrebuiltBinaryFactory)
 	ctx.RegisterModuleType("rust_defaults", defaultsFactory)
 	ctx.PreDepsMutators(registerPreDepsMutators)
 	ctx.RegisterParallelSingletonType("rust_project_generator", rustProjectGeneratorSingleton)
