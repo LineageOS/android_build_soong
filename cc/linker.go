@@ -792,6 +792,36 @@ func (linker *baseLinker) checkElfFile(ctx ModuleContext, sharedLibStem string, 
 	return outputFile
 }
 
+// CheckPrebuiltElfFile runs check_elf_file on a prebuilt ELF file from another module type, resolving
+// its DT_NEEDED entries and undefined symbols against sharedLibs.
+func CheckPrebuiltElfFile(ctx android.ModuleContext, elfFile android.Path, soname string, sharedLibs android.Paths) android.Path {
+	var args []string
+	if ctx.Config().DeviceCheckPrebuiltMaxPageSize() {
+		args = append(args, "--max-page-size "+ctx.Config().MaxPageSizeSupported())
+	}
+	if soname != "" {
+		args = append(args, "--soname "+soname)
+	}
+	for _, sharedLib := range sharedLibs {
+		args = append(args, "--shared-lib "+sharedLib.String())
+	}
+
+	outputFile := android.PathForModuleOut(ctx, elfFile.Base()+".check_elf_file")
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        checkElfFileRule,
+		Description: "check elf file",
+		Output:      outputFile,
+		Input:       elfFile,
+		Implicits:   sharedLibs,
+		Args: map[string]string{
+			"args": strings.Join(args, " "),
+		},
+	})
+
+	return outputFile
+}
+
 func XomFlags(ctx android.ModuleContext) []string {
 	flags := []string{}
 

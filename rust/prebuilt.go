@@ -16,6 +16,7 @@ package rust
 
 import (
 	"android/soong/android"
+	"android/soong/cc"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -90,6 +91,18 @@ var _ rustPrebuilt = (*prebuiltProcMacroDecorator)(nil)
 
 var _ compiler = (*prebuiltBinaryDecorator)(nil)
 var _ rustPrebuilt = (*prebuiltBinaryDecorator)(nil)
+
+func shouldCheckPrebuiltElfFile(ctx ModuleContext) bool {
+	return ctx.Device() && !ctx.DeviceConfig().BuildBrokenPrebuiltELFFiles()
+}
+
+func checkPrebuiltElfFile(ctx ModuleContext, deps PathDeps, elfFile android.Path, soname string) android.Path {
+	sharedLibs := append(android.Paths{}, deps.SharedLibs...)
+	for _, dylib := range deps.DyLibs {
+		sharedLibs = append(sharedLibs, dylib.Path)
+	}
+	return cc.CheckPrebuiltElfFile(ctx, elfFile, soname, sharedLibs)
+}
 
 func prebuiltPath(ctx ModuleContext, prebuilt rustPrebuilt) android.Path {
 	srcs := android.PathsForModuleSrc(ctx, prebuilt.prebuiltSrcs(ctx))
@@ -189,6 +202,16 @@ func (prebuilt *prebuiltLibraryDecorator) compile(ctx ModuleContext, flags Flags
 	prebuilt.flagExporter.exportLinkDirs(linkDirs, linkDirsDeps)
 	prebuilt.flagExporter.setRustProvider(ctx)
 	srcPath := prebuiltPath(ctx, prebuilt)
+	if prebuilt.dylib() && shouldCheckPrebuiltElfFile(ctx) {
+		outputFile := android.PathForModuleOut(ctx, srcPath.Base())
+		ctx.Build(pctx, android.BuildParams{
+			Rule:       android.CpNoPreserveSymlink,
+			Input:      srcPath,
+			Output:     outputFile,
+			Validation: checkPrebuiltElfFile(ctx, deps, srcPath, srcPath.Base()),
+		})
+		srcPath = outputFile
+	}
 	prebuilt.baseCompiler.unstrippedOutputFile = srcPath
 	return buildOutput{outputFile: srcPath}
 }
@@ -308,13 +331,19 @@ func (prebuilt *prebuiltBinaryDecorator) compile(ctx ModuleContext, flags Flags,
 
 	unstrippedOutputFile := outputFile
 
+	var validations android.Paths
+	if shouldCheckPrebuiltElfFile(ctx) {
+		validations = append(validations, checkPrebuiltElfFile(ctx, deps, srcPath, ""))
+	}
+
 	if prebuilt.stripper.NeedsStrip(ctx) {
 		unstrippedOutputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
 
 		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.CpExecutable,
-			Input:  srcPath,
-			Output: unstrippedOutputFile,
+			Rule:        android.CpExecutable,
+			Input:       srcPath,
+			Output:      unstrippedOutputFile,
+			Validations: validations,
 			Args: map[string]string{
 				"cpFlags": "-L",
 			},
@@ -324,9 +353,10 @@ func (prebuilt *prebuiltBinaryDecorator) compile(ctx ModuleContext, flags Flags,
 		prebuilt.baseCompiler.strippedOutputFile = android.OptionalPathForPath(outputFile)
 	} else {
 		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.CpExecutable,
-			Input:  srcPath,
-			Output: unstrippedOutputFile,
+			Rule:        android.CpExecutable,
+			Input:       srcPath,
+			Output:      unstrippedOutputFile,
+			Validations: validations,
 			Args: map[string]string{
 				"cpFlags": "-L",
 			},
