@@ -51,11 +51,18 @@ type prebuiltProcMacroDecorator struct {
 	Properties PrebuiltProperties
 }
 
+type PrebuiltBinaryProperties struct {
+	// Check the prebuilt ELF file (e.g. DT_NEEDED, resolution of undefined symbols, etc),
+	// default true.
+	Check_elf_files *bool `android:"arch_variant"`
+}
+
 type prebuiltBinaryDecorator struct {
 	android.Prebuilt
 
 	*binaryDecorator
-	Properties PrebuiltProperties
+	Properties       PrebuiltProperties
+	BinaryProperties PrebuiltBinaryProperties
 }
 
 func PrebuiltProcMacroFactory() android.Module {
@@ -298,7 +305,15 @@ func (prebuilt *prebuiltBinaryDecorator) prebuilt() *android.Prebuilt {
 }
 
 func (prebuilt *prebuiltBinaryDecorator) compilerProps() []interface{} {
-	return append(prebuilt.binaryDecorator.compilerProps(), &prebuilt.Properties)
+	return append(prebuilt.binaryDecorator.compilerProps(), &prebuilt.Properties, &prebuilt.BinaryProperties)
+}
+
+// shouldCheckElfFile returns true if the source ELF file for the current prebuilt module should be checked using
+// checkPrebuiltElfFile.
+func (prebuilt *prebuiltBinaryDecorator) shouldCheckElfFile(ctx ModuleContext) bool {
+	return BoolDefault(prebuilt.BinaryProperties.Check_elf_files, true) &&
+		!ctx.Host() && !ctx.DeviceConfig().BuildBrokenPrebuiltELFFiles() &&
+		ctx.Config().GetBuildFlagBool("RELEASE_SOONG_CHECK_ELF_FILES")
 }
 
 func (prebuilt *prebuiltBinaryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput {
@@ -308,13 +323,23 @@ func (prebuilt *prebuiltBinaryDecorator) compile(ctx ModuleContext, flags Flags,
 
 	unstrippedOutputFile := outputFile
 
+	var validations android.Paths
+	if prebuilt.shouldCheckElfFile(ctx) {
+		sharedLibs := append(android.Paths{}, deps.SharedLibs...)
+		for _, dylib := range deps.DyLibs {
+			sharedLibs = append(sharedLibs, dylib.Path)
+		}
+		validations = append(validations, checkPrebuiltElfFile(ctx, srcPath, sharedLibs))
+	}
+
 	if prebuilt.stripper.NeedsStrip(ctx) {
 		unstrippedOutputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
 
 		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.CpExecutable,
-			Input:  srcPath,
-			Output: unstrippedOutputFile,
+			Rule:        android.CpExecutable,
+			Input:       srcPath,
+			Output:      unstrippedOutputFile,
+			Validations: validations,
 			Args: map[string]string{
 				"cpFlags": "-L",
 			},
@@ -324,9 +349,10 @@ func (prebuilt *prebuiltBinaryDecorator) compile(ctx ModuleContext, flags Flags,
 		prebuilt.baseCompiler.strippedOutputFile = android.OptionalPathForPath(outputFile)
 	} else {
 		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.CpExecutable,
-			Input:  srcPath,
-			Output: unstrippedOutputFile,
+			Rule:        android.CpExecutable,
+			Input:       srcPath,
+			Output:      unstrippedOutputFile,
+			Validations: validations,
 			Args: map[string]string{
 				"cpFlags": "-L",
 			},
