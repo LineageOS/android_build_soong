@@ -16,6 +16,7 @@ package rust
 
 import (
 	"android/soong/android"
+	"android/soong/cc"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -308,13 +309,23 @@ func (prebuilt *prebuiltBinaryDecorator) compile(ctx ModuleContext, flags Flags,
 
 	unstrippedOutputFile := outputFile
 
+	var validations android.Paths
+	if ctx.Device() && !ctx.DeviceConfig().BuildBrokenPrebuiltELFFiles() {
+		sharedLibs := append(android.Paths{}, deps.SharedLibs...)
+		for _, dylib := range deps.DyLibs {
+			sharedLibs = append(sharedLibs, dylib.Path)
+		}
+		validations = append(validations, cc.CheckPrebuiltElfFile(ctx, srcPath, sharedLibs))
+	}
+
 	if prebuilt.stripper.NeedsStrip(ctx) {
 		unstrippedOutputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
 
 		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.CpExecutable,
-			Input:  srcPath,
-			Output: unstrippedOutputFile,
+			Rule:        android.CpExecutable,
+			Input:       srcPath,
+			Output:      unstrippedOutputFile,
+			Validations: validations,
 			Args: map[string]string{
 				"cpFlags": "-L",
 			},
@@ -324,9 +335,10 @@ func (prebuilt *prebuiltBinaryDecorator) compile(ctx ModuleContext, flags Flags,
 		prebuilt.baseCompiler.strippedOutputFile = android.OptionalPathForPath(outputFile)
 	} else {
 		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.CpExecutable,
-			Input:  srcPath,
-			Output: unstrippedOutputFile,
+			Rule:        android.CpExecutable,
+			Input:       srcPath,
+			Output:      unstrippedOutputFile,
+			Validations: validations,
 			Args: map[string]string{
 				"cpFlags": "-L",
 			},
