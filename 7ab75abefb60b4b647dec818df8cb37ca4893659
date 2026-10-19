@@ -16,6 +16,23 @@
       "message": "Does the trick.",
       "revId": "7ab75abefb60b4b647dec818df8cb37ca4893659",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "b3c12ef6_a3df78a1",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 3
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2026-10-19T19:57:44Z",
+      "side": 1,
+      "message": "Send to AOSP?",
+      "revId": "7ab75abefb60b4b647dec818df8cb37ca4893659",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
