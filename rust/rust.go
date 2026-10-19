@@ -93,6 +93,7 @@ func init() {
 	android.PreDepsMutators(registerPreDepsMutators)
 	android.PostDepsMutators(registerPostDepsMutators)
 	pctx.Import("android/soong/android")
+	pctx.Import("android/soong/cc")
 	pctx.Import("android/soong/rust/config")
 	pctx.ImportAs("cc_config", "android/soong/cc/config")
 }
@@ -2553,6 +2554,31 @@ func (depTag dependencyTag) libraryVariation() blueprint.Variation {
 }
 
 var RustImplementationDepInfoProvider = blueprint.NewProvider[*RustImplementationDepInfo]()
+
+func checkPrebuiltElfFile(ctx ModuleContext, elfFile android.Path, sharedLibs android.Paths) android.Path {
+	var args []string
+	if ctx.Config().DeviceCheckPrebuiltMaxPageSize() {
+		args = append(args, "--max-page-size "+ctx.Config().MaxPageSizeSupported())
+	}
+	for _, sharedLib := range sharedLibs {
+		args = append(args, "--shared-lib "+sharedLib.String())
+	}
+
+	outputFile := android.PathForModuleOut(ctx, elfFile.Base()+".check_elf_file")
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        cc.CheckElfFileRule,
+		Description: "check elf file",
+		Output:      outputFile,
+		Input:       elfFile,
+		Implicits:   sharedLibs,
+		Args: map[string]string{
+			"args": strings.Join(args, " "),
+		},
+	})
+
+	return outputFile
+}
 
 var Bool = proptools.Bool
 var BoolDefault = proptools.BoolDefault
