@@ -1,0 +1,50 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "fb9606f5_42b2d608",
+        "filename": "cc/linker.go",
+        "patchSetId": 3
+      },
+      "lineNbr": 797,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2026-10-20T16:17:28Z",
+      "side": 1,
+      "message": "can\u0027t you define this inside rust.go and import the rule?",
+      "range": {
+        "startLine": 797,
+        "startChar": 0,
+        "endLine": 797,
+        "endChar": 115
+      },
+      "revId": "3afd5cb231681516c8e1a106ab953292568cf119",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "66181b88_79abcedf",
+        "filename": "rust/prebuilt.go",
+        "patchSetId": 3
+      },
+      "lineNbr": 313,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2026-10-20T16:17:28Z",
+      "side": 1,
+      "message": "// shouldCheckElfFile returns true if the source ELF file for the current prebuilt module should be checked using\n// checkElfFile.\nfunc (p *prebuiltLinker) shouldCheckElfFile(ctx ModuleContext) bool {\n\treturn BoolDefault(p.properties.Check_elf_files, true) \u0026\u0026\n\t\t!ctx.Host() \u0026\u0026 !ctx.DeviceConfig().BuildBrokenPrebuiltELFFiles() \u0026\u0026\n\t\tctx.Config().GetBuildFlagBool(\"RELEASE_SOONG_CHECK_ELF_FILES\")\n}\n\ndo something like this and add Check_elf_files so that we can opt-out",
+      "range": {
+        "startLine": 313,
+        "startChar": 0,
+        "endLine": 313,
+        "endChar": 71
+      },
+      "revId": "3afd5cb231681516c8e1a106ab953292568cf119",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
