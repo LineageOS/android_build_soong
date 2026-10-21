@@ -1502,6 +1502,14 @@ func (d dependencyTag) IsNativeCoverageNeededDepTag(ctx cc.IsNativeCoverageNeede
 
 var _ cc.UseCoverageDeptag = dependencyTag{}
 
+// The source variant of a source provider is part of the module itself, a prebuilt replacing the
+// module does not provide it.
+func (d dependencyTag) ReplaceSourceWithPrebuilt() bool {
+	return d != sourceDepTag
+}
+
+var _ android.ReplaceSourceWithPrebuilt = dependencyTag{}
+
 var _ android.PropagateAconfigValidationDependencyTag = dependencyTag{}
 
 var _ android.LicenseAnnotationsDependencyTag = dependencyTag{}
