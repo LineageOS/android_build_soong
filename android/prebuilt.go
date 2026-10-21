@@ -478,6 +478,35 @@ func PrebuiltSourceDepsMutator(ctx BottomUpMutatorContext) {
 	}
 }
 
+// variantPartitionTag returns the partition the current variant of m installs to. PartitionTag only
+// reads the partition properties, so it reports "system" for the vendor or product variant of a
+// vendor_available or product_available module.
+func variantPartitionTag(m Module, config DeviceConfig) string {
+	partition := m.PartitionTag(config)
+	if partition != "system" {
+		return partition
+	}
+
+	switch {
+	case m.InstallInOdm():
+		if config.OdmPath() == "odm" {
+			return "odm"
+		} else if strings.HasPrefix(config.OdmPath(), "vendor/") {
+			return "vendor"
+		}
+	case m.InstallInVendor():
+		if config.VendorPath() == "vendor" {
+			return "vendor"
+		}
+	case m.InstallInProduct():
+		if config.ProductPath() == "product" {
+			return "product"
+		}
+	}
+
+	return partition
+}
+
 // checkInvariantsForSourceAndPrebuilt checks if invariants are kept when replacing
 // source with prebuilt. Note that the current module for the context is the source module.
 func checkInvariantsForSourceAndPrebuilt(ctx BaseModuleContext, sourcePartition string,
@@ -526,8 +555,8 @@ func PrebuiltSelectModuleMutator(ctx BottomUpMutatorContext) {
 				// skip the check when the source module is `override_X` because it's only a placeholder
 				// for the actual source module. The check will be invoked for the actual module.
 				if _, isOverride := s.(OverrideModule); !isOverride {
-					sourcePartition := s.PartitionTag(ctx.DeviceConfig())
-					prebuiltPartition := prebuiltModule.PartitionTag(ctx.DeviceConfig())
+					sourcePartition := variantPartitionTag(s, ctx.DeviceConfig())
+					prebuiltPartition := variantPartitionTag(prebuiltModule, ctx.DeviceConfig())
 					checkInvariantsForSourceAndPrebuilt(ctx, sourcePartition, []string{prebuiltPartition},
 						[]string{ctx.OtherModuleName(prebuiltModule)})
 
