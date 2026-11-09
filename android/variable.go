@@ -1036,6 +1036,11 @@ func VariableMutator(mctx BottomUpMutatorContext) {
 	for i := 0; i < variableValues.NumField(); i++ {
 		variableValue := variableValues.Field(i)
 		name := variableValues.Type().Field(i).Name
+		// Binder32bit selects the device kernel ABI. Native host tools must
+		// retain their own pointer width even for a 32-bit Binder product.
+		if name == "Binder32bit" && mctx.Os() != Android {
+			continue
+		}
 		property := "product_variables." + proptools.PropertyNameForField(name)
 
 		// Check that the variable was set for the product
