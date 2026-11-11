@@ -17,6 +17,7 @@ package android
 import (
 	"crypto/sha256"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -650,7 +651,9 @@ func (r *RuleBuilder) Build(name string, desc string) {
 		// These directories are necessary to run native host tools like /bin/bash and py3-cmd.
 		nsjailCmd.WriteString(" -R /bin")
 		nsjailCmd.WriteString(" -R /lib")
-		nsjailCmd.WriteString(" -R /lib64")
+		if _, err := os.Stat("/lib64"); err == nil {
+			nsjailCmd.WriteString(" -R /lib64")
+		}
 		nsjailCmd.WriteString(" -R /dev")
 		nsjailCmd.WriteString(" -R /usr")
 		nsjailCmd.WriteString(" -R /etc")

@@ -48,7 +48,6 @@ var (
 )
 
 const (
-	nsjailPath = "prebuilts/build-tools/linux-x86/bin/nsjail"
 	abfsSrcDir = "/src"
 )
 
@@ -60,6 +59,10 @@ var sandboxConfig struct {
 	srcDir  string
 	outDir  string
 	distDir string
+}
+
+func (c *Cmd) nsjailPath() string {
+	return filepath.Join("prebuilts/build-tools", c.config.PrebuiltOS(), "bin/nsjail")
 }
 
 func (c *Cmd) envForSandbox(env *Environment) []string {
@@ -131,7 +134,7 @@ func (c *Cmd) sandboxSupported() bool {
 			"--",
 			"/bin/bash", "-c", `if [ $(hostname) == "android-build" ]; then echo "Android" "Success"; else echo Failure; fi`)
 
-		cmd := exec.CommandContext(c.ctx.Context, nsjailPath, sandboxArgs...)
+		cmd := exec.CommandContext(c.ctx.Context, c.nsjailPath(), sandboxArgs...)
 
 		cmd.Env = c.envForSandbox(c.config.Environment())
 
@@ -363,7 +366,7 @@ func (c *Cmd) wrapSandbox() {
 	sandboxArgs = append(sandboxArgs, "--")
 
 	c.Args = append(sandboxArgs, c.Args[1:]...)
-	c.Path = nsjailPath
+	c.Path = c.nsjailPath()
 
 	env := Environment(c.Env)
 	if _, hasUser := env.Get("USER"); hasUser {
