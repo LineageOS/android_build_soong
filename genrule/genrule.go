@@ -666,6 +666,11 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 
 		g.rawCommands = append(g.rawCommands, rawCommand)
 
+		if ctx.Config().BuildArch == android.Arm64 && android.InList("bison", g.properties.Tools) {
+			cmd.Text("BISON_PKGDATADIR=prebuilts/build-tools/common/bison")
+			cmd.Implicits(ctx.GlobFilesOutsideModuleDir("prebuilts/build-tools/common/bison/**/*", nil))
+		}
+
 		cmd.Text(rawCommand)
 		cmd.Implicits(srcFiles) // need to be able to reference other srcs
 		cmd.Implicits(extraInputs)

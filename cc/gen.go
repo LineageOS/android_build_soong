@@ -107,6 +107,15 @@ func genYacc(ctx android.ModuleContext, rule *android.RuleBuilder, yaccFile andr
 		Flag("-o").Output(outFile).Input(yaccFile).
 		Implicits(ctx.GlobFilesOutsideModuleDir("prebuilts/build-tools/common/bison/**/*", nil))
 
+	if ctx.Config().BuildArch == android.Arm64 {
+		musl := android.PathForSource(ctx, "prebuilts/build-tools/linux-arm64/lib64/libc_musl.so")
+		libcxx := android.PathForSource(ctx, "prebuilts/build-tools/linux-arm64/lib64/libc++.so")
+		cmd.ImplicitTool(musl)
+		cmd.ImplicitTool(libcxx)
+		cmd.Implicit(musl)
+		cmd.Implicit(libcxx)
+	}
+
 	return ret
 }
 
