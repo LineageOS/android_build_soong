@@ -33,7 +33,11 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("LEGACY_CORE_PLATFORM_SYSTEM_MODULES", LegacyCorePlatformSystemModules)
 
 	ctx.Strict("ANDROID_JAVA_HOME", "${JavaHome}")
-	ctx.Strict("ANDROID_JAVA8_HOME", "prebuilts/jdk/jdk8/${hostPrebuiltTag}")
+	java8Tag := "${hostPrebuiltTag}"
+	if ctx.Config().BuildArch == android.Arm64 {
+		java8Tag = "linux-x86"
+	}
+	ctx.Strict("ANDROID_JAVA8_HOME", "prebuilts/jdk/jdk8/"+java8Tag)
 	ctx.Strict("ANDROID_JAVA_TOOLCHAIN", "${JavaToolchain}")
 	ctx.Strict("JAVA", "${JavaCmd} ${JavaVmFlags}")
 	ctx.Strict("JAVAC", "${JavacCmd} ${JavacVmFlags}")

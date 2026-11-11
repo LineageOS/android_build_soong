@@ -694,7 +694,7 @@ func (config *configImpl) updateSisoConfigVars(makeVars map[string]string) {
 
 func ConfigJavaEnvironment(ctx Context, config *configImpl) {
 	// Configure Java-related variables, including adding it to $PATH
-	java8Home := filepath.Join("prebuilts/jdk/jdk8", config.HostPrebuiltTag())
+	java8Home := filepath.Join("prebuilts/jdk/jdk8", strings.Replace(config.HostPrebuiltTag(), "linux-arm64", "linux-x86", 1))
 	java21Home := filepath.Join("prebuilts/jdk/jdk21", config.HostPrebuiltTag())
 	java25Home := filepath.Join("prebuilts/jdk/jdk25", config.HostPrebuiltTag())
 	javaHome := func() string {
