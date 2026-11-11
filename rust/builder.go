@@ -196,6 +196,9 @@ func TransformRlibstoStaticlib(ctx android.ModuleContext, mainSrc android.Path, 
 	var rustFlags Flags
 	IsHwasan := false
 	for _, rlibDep := range deps {
+		if ctx.Os() == android.LinuxMusl && ctx.Config().BuildArch == android.Arm64 && rlibDep.CrateName == "std" {
+			continue
+		}
 		rustPathDeps.RLibs = append(rustPathDeps.RLibs, RustLibrary{Path: rlibDep.LibPath, CrateName: rlibDep.CrateName})
 		rustPathDeps.linkDirs = append(rustPathDeps.linkDirs, rlibDep.LinkDirs...)
 		IsHwasan = IsHwasan || rlibDep.IsHwasan
