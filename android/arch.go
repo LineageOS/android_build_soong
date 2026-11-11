@@ -1599,6 +1599,14 @@ func getArchProperties(ctx BaseModuleContext, archProperties interface{}, arch A
 			}
 		}
 
+		if os.Linux() && os.Class == Host {
+			field := "Host_linux_" + arch.ArchType.Name
+			userFriendlyField := "target.host_linux_" + arch.ArchType.Name
+			if hostLinuxProperties, ok := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField); ok {
+				result = append(result, hostLinuxProperties)
+			}
+		}
+
 		if os.Bionic() {
 			field := "Bionic_" + archType.Name
 			userFriendlyField := "target.bionic_" + archType.Name
