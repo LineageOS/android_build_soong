@@ -31,6 +31,7 @@ import (
 
 var (
 	allowedManualInterfacePaths = []string{"vendor/", "hardware/"}
+	x86OnlyCflags               = []string{"-msse3"}
 )
 
 // This file contains the basic C/C++/assembly to .o compliation steps
@@ -571,6 +572,12 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	flags.Local.CppFlags = config.ClangFilterUnknownCflags(flags.Local.CppFlags)
 	flags.Local.ConlyFlags = config.ClangFilterUnknownCflags(flags.Local.ConlyFlags)
 	flags.Local.LdFlags = config.ClangFilterUnknownCflags(flags.Local.LdFlags)
+
+	if arch := ctx.Arch().ArchType; arch != android.X86 && arch != android.X86_64 {
+		flags.Local.CFlags = android.RemoveListFromList(flags.Local.CFlags, x86OnlyCflags)
+		flags.Local.CppFlags = android.RemoveListFromList(flags.Local.CppFlags, x86OnlyCflags)
+		flags.Local.ConlyFlags = android.RemoveListFromList(flags.Local.ConlyFlags, x86OnlyCflags)
+	}
 
 	flags = AddTargetFlags(ctx, flags, tc, ctx.minSdkVersion(), Bool(compiler.Properties.Bpf_target), ctx.isLFIVariation())
 
