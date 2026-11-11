@@ -108,7 +108,7 @@ func (p *ramdisk16kImg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	llvmStrip := config.ClangPath(ctx, "bin/llvm-strip")
 	// llvm-strip is a symlink to llvm-objcopy
 	llvmObjcopy := config.ClangPath(ctx, "bin/llvm-objcopy")
-	llvmLib := config.ClangPath(ctx, "lib/x86_64-unknown-linux-gnu/libc++.so")
+	llvmLib := config.ClangToolsRuntimeLib(ctx)
 
 	builder := android.NewRuleBuilder(pctx, ctx).SandboxDisabled().Sbox(
 		outputDir,

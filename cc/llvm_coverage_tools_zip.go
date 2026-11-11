@@ -38,7 +38,7 @@ func (l *llvmCoverageToolsZipSingleton) GenerateBuildActions(ctx android.Singlet
 	clangBase := config.ClangPath(ctx, "")
 	llvmProfdata := config.ClangPath(ctx, "bin/llvm-profdata")
 	llvmCov := config.ClangPath(ctx, "bin/llvm-cov")
-	libCxx := config.ClangPath(ctx, "lib/x86_64-unknown-linux-gnu/libc++.so")
+	llvmLib := config.ClangToolsRuntimeLib(ctx)
 	llvmCoverageToolsZip := android.PathForOutput(ctx, "llvm-profdata.zip")
 
 	builder := android.NewRuleBuilder(pctx, ctx).SandboxDisabled()
@@ -47,7 +47,7 @@ func (l *llvmCoverageToolsZipSingleton) GenerateBuildActions(ctx android.Singlet
 		FlagWithOutput("-o ", llvmCoverageToolsZip).
 		FlagWithArg("-C ", clangBase.String()).
 		FlagWithInput("-f ", llvmProfdata).
-		FlagWithInput("-f ", libCxx).
+		FlagWithInput("-f ", llvmLib).
 		FlagWithInput("-f ", llvmCov)
 	builder.Build("llvm_coverage_tools_zip", "llvm coverage tools zip")
 

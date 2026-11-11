@@ -606,6 +606,14 @@ func ClangPath(ctx android.PathContext, file string) android.SourcePath {
 	return clangPath(ctx).Join(ctx, file)
 }
 
+// ClangToolsRuntimeLib returns the shared library the prebuilt LLVM host tools load at runtime.
+func ClangToolsRuntimeLib(ctx android.PathContext) android.SourcePath {
+	if ctx.Config().BuildArch == android.Arm64 {
+		return ClangPath(ctx, "lib/libc_musl.so")
+	}
+	return ClangPath(ctx, "lib/x86_64-unknown-linux-gnu/libc++.so")
+}
+
 var clangPathKey = android.NewOnceKey("clangPath")
 
 type clangPathResult struct {
