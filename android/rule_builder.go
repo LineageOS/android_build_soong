@@ -1412,7 +1412,7 @@ func (c *RuleBuilderCommand) getHostToolRuntimeDeps(tool string) Paths {
 //
 //	cmd.Tool(ctx.Config().HostToolPath(ctx, tool))
 func (c *RuleBuilderCommand) BuiltTool(tool string) *RuleBuilderCommand {
-	if c.rule.ctx.Config().UseHostMusl() {
+	if c.rule.ctx.Config().BuildOS == LinuxMusl {
 		// If the host is using musl, assume that the tool was built against musl libc and include
 		// libc_musl.so in the sandbox.
 		// TODO(ccross): if we supported adding new dependencies during GenerateAndroidBuildActions

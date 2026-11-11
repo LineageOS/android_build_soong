@@ -2080,7 +2080,7 @@ func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 			// instead of linux_glibc
 			osName = "linux"
 		}
-		if os == LinuxMusl && ctx.Config().UseHostMusl() {
+		if os == LinuxMusl && ctx.Config().BuildOS == LinuxMusl {
 			// When using musl instead of glibc, use "linux" instead of "linux_musl".  When cross
 			// compiling we will still use "linux_musl".
 			osName = "linux"
@@ -2094,6 +2094,9 @@ func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 		archName := arch.String()
 		if os.Class == Host && (arch == X86_64 || arch == Common) {
 			archName = "x86"
+			if ctx.Config().BuildArch == Arm64 {
+				archName = "arm64"
+			}
 		}
 		partitionPaths = []string{"host", osName + "-" + archName, partition}
 	}
